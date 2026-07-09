@@ -12,7 +12,62 @@
 `kenriths_transformation.rs`, `eaten_by_piranhas.rs`, `vraska_betrayals_sting.rs`
 **Tests reviewed**: `crates/engine/tests/pb_ac7_type_change_ability_removal.rs` (14)
 
-## Verdict: needs-fix
+## Fix pass (2026-07-09, primitive-impl-runner)
+
+**H1, M1, M2 all RESOLVED.** `cargo test --all` = 3034 passed / 0 failed (3032 baseline +
+2 new tests: `test_set_card_types_drops_correlated_subtype_when_card_type_removed`,
+`test_set_creature_types_layer4_dependency_nondisjoint_creature_subtype`). `cargo build
+--workspace`, `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check` all clean.
+
+- **H1 fix** (`crates/engine/src/rules/layers.rs` `SetCardTypes` arm, `crates/engine/src/state/types.rs`):
+  Added six `LazyLock<im::OrdSet<SubType>>` statics for the CR 205.3 correlated-subtype
+  categories not yet covered by the existing `ALL_CREATURE_TYPES` — `ALL_ARTIFACT_TYPES`
+  (205.3g), `ALL_ENCHANTMENT_TYPES` (205.3h), `ALL_LAND_TYPES` (205.3i),
+  `ALL_PLANESWALKER_TYPES` (205.3j), `ALL_SPELL_TYPES` (205.3k, correlates to BOTH
+  Instant+Sorcery per the CR's "shared" wording), `ALL_BATTLE_TYPES` (205.3q). All six lists
+  verified via the mtg-rules MCP (`get_rule`), not from memory. Added
+  `correlated_card_types(subtype: &SubType) -> Vec<CardType>` classification helper
+  (returns empty for an unrecognized subtype — conservative "always survives" default).
+  The `SetCardTypes` arm now filters `chars.subtypes` after assigning `chars.card_types`:
+  a subtype survives iff it's uncorrelated (empty) OR at least one of its correlated card
+  types is still present. Verified non-vacuous: reverted the arm to the pre-fix bare
+  overwrite, reran the two H1-targeted tests, both FAILED (`Equipment` and `Shrine` both
+  survived incorrectly), then restored the fix and reran green.
+- **M1 fix** (`crates/engine/src/rules/layers.rs` `depends_on`): added three new payload-aware
+  dependency arms (none unconditional except where mirroring the existing `SetTypeLine`
+  precedent exactly), each justified against the literal CR 613.8a test ("applying B changes
+  what A does"):
+  1. `(SetCreatureTypes, AddSubtypes)` — depends iff the added subtypes include a creature
+     type (payload-aware; a land/artifact/enchantment-only `AddSubtypes` never touches the
+     creature-type subset `SetCreatureTypes` replaces, so no dependency is created for that
+     case — avoids the "spurious dependency" the review warned against).
+  2. `(SetCardTypes, AddCardTypes)` — unconditional, mirrors the `SetTypeLine`/`AddCardTypes`
+     precedent exactly (`SetCardTypes` always overwrites `card_types` wholesale, so any
+     co-resident `AddCardTypes` is always order-sensitive).
+  3. `(SetCardTypes, AddSubtypes)` and `(SetCardTypes, SetCreatureTypes)` — the "additional
+     coupling to H1" the review flagged: since H1's fix makes `SetCardTypes` read the current
+     `subtypes` at its own application time, an `AddSubtypes`/`SetCreatureTypes` that runs
+     AFTER it would bypass the correlation filter. Both arms are payload-aware (dependency
+     only exists when the correlation math could actually differ), not blanket — confirmed
+     this doesn't force any reordering on the current roster (all three roster Auras keep
+     `Creature` in their `SetCardTypes` payload, so arm 3 evaluates false for them; their
+     natural push order already produced the correct result either way, verified by hand).
+  Verified non-vacuous: temporarily reverted arm 1 to `false`, reran the new non-disjoint
+  test, it FAILED (`{Elk, Zombie}` instead of `{Elk}`), then restored and reran green.
+- **M2 fix** (`crates/engine/tests/pb_ac7_type_change_ability_removal.rs`): added
+  `test_set_card_types_drops_correlated_subtype_when_card_type_removed` (Artifact+Creature+
+  Equipment+Golem → `SetCardTypes({Creature})` → Equipment dropped, Golem survives — the
+  exact Kenrith's Transformation / Eaten by Piranhas bug shape); modified
+  `test_darksteel_mutation_keeps_indestructible`'s target to carry the Enchantment card type
+  + `Shrine`/`God` subtypes (the exact Darksteel Mutation Gatherer-ruling example) so the
+  existing integration test now also proves H1; added
+  `test_set_creature_types_layer4_dependency_nondisjoint_creature_subtype` (the reviewer's
+  exact Zombie counterexample, both orders now converge on `{Elk}`).
+- **Hash**: no `HASH_SCHEMA_VERSION` bump. Only `LazyLock` statics + a pure helper function
+  were added (no new struct field, no new enum variant) — matches the task brief's explicit
+  "adding only LazyLock statics + a helper fn requires no bump" case.
+
+## Verdict: needs-fix (original review below, now resolved — see fix pass above)
 
 The hash work, timestamp-ordering, `spell_subtype_filter`, face-down composition, and
 duration-expiry are all correct and well-tested; the "already-expressible" scope decision
@@ -50,9 +105,9 @@ but the operative replace-semantics rule is 205.1a. LOW, cosmetic.)
 
 | # | Severity | File:Line | Description |
 |---|----------|-----------|-------------|
-| H1 | **HIGH** | `rules/layers.rs:1090` | **`SetCardTypes` never removes subtypes correlated with removed card types (CR 205.1a).** Live cards (Darksteel Mutation, Kenrith, Eaten by Piranhas) produce wrong game state on enchantment-creature / equipment-creature targets. **Fix:** after setting `chars.card_types`, drop any subtype whose correlated card type is no longer present. |
-| M1 | MEDIUM | `rules/layers.rs:1375` | **No CR 613.8 `depends_on` arm for `SetCreatureTypes`/`SetCardTypes`, justified only for disjoint subtype sets.** A co-resident `AddSubtypes` that adds a *creature* type (Xenograft / Arcane Adaptation / Conspiracy) is non-disjoint and order-dependent — inconsistent with the `SetTypeLine` precedent. **Fix:** add the dependency arm (or document the timestamp choice with a correct CR rationale, not the "disjoint" claim). |
-| M2 | MEDIUM | test file | **Test gap masks H1 and over-generalizes M1.** No test exercises `SetCardTypes` dropping a correlated subtype; the dependency test only covers the disjoint (land-subtype) case. **Fix:** add a correlated-subtype-removal test and a non-disjoint (`AddSubtypes` of a creature type) ordering test. |
+| H1 | **HIGH** — **RESOLVED** | `rules/layers.rs:1090` | **`SetCardTypes` never removes subtypes correlated with removed card types (CR 205.1a).** Live cards (Darksteel Mutation, Kenrith, Eaten by Piranhas) produce wrong game state on enchantment-creature / equipment-creature targets. **Fix:** after setting `chars.card_types`, drop any subtype whose correlated card type is no longer present. **Resolved**: added `correlated_card_types()` + 6 CR-205.3 `LazyLock` subtype-set statics in `state/types.rs`, filter added to the `SetCardTypes` arm. See "Fix pass" above. |
+| M1 | MEDIUM — **RESOLVED** | `rules/layers.rs:1375` | **No CR 613.8 `depends_on` arm for `SetCreatureTypes`/`SetCardTypes`, justified only for disjoint subtype sets.** A co-resident `AddSubtypes` that adds a *creature* type (Xenograft / Arcane Adaptation / Conspiracy) is non-disjoint and order-dependent — inconsistent with the `SetTypeLine` precedent. **Fix:** add the dependency arm (or document the timestamp choice with a correct CR rationale, not the "disjoint" claim). **Resolved**: 3 payload-aware dependency arms added (`SetCreatureTypes`↔`AddSubtypes`, `SetCardTypes`↔`AddCardTypes`, `SetCardTypes`↔`AddSubtypes`/`SetCreatureTypes`). See "Fix pass" above. |
+| M2 | MEDIUM — **RESOLVED** | test file | **Test gap masks H1 and over-generalizes M1.** No test exercises `SetCardTypes` dropping a correlated subtype; the dependency test only covers the disjoint (land-subtype) case. **Fix:** add a correlated-subtype-removal test and a non-disjoint (`AddSubtypes` of a creature type) ordering test. **Resolved**: 2 new tests added, 1 existing test (Darksteel integration) strengthened to carry a droppable subtype. Both H1 and M1 fixes proven non-vacuous by revert-and-rerun. See "Fix pass" above. |
 | L1 | LOW | `rules/layers.rs:1090` | `SetCardTypes` ignores CR 205.1a instant/sorcery retention. Not reachable on battlefield permanents (same latent gap in `SetTypeLine`). |
 | L2 | LOW | `rules/abilities.rs:3368` | `spell_subtype_filter` reads the stack object's raw `characteristics.subtypes` rather than `calculate_characteristics`. Consistent with the sibling `spell_type_filter` (line 3366) which already reads raw `card_types`; not a W3-LC regression. Noted only. |
 

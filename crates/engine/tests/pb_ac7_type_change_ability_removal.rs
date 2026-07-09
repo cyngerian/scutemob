@@ -315,6 +315,55 @@ fn test_set_card_types_replaces_card_types_preserves_supertypes() {
     );
 }
 
+/// CR 205.1a correlated-subtype-removal clause (review PB-AC7 H1 fix) —
+/// `SetCardTypes` removing the Artifact card type must ALSO drop the Equipment
+/// subtype (correlated only with Artifact), while an unrelated creature-type
+/// subtype (Golem, correlated with Creature, which survives) is untouched.
+/// This is the exact Kenrith's Transformation / Eaten by Piranhas scenario: an
+/// artifact-creature Equipment target losing its Artifact card type.
+#[test]
+fn test_set_card_types_drops_correlated_subtype_when_card_type_removed() {
+    let state = GameStateBuilder::new()
+        .add_player(p(1))
+        .object(
+            ObjectSpec::creature(p(1), "Equipment Creature", 3, 3)
+                .with_types(vec![CardType::Artifact, CardType::Creature])
+                .with_subtypes(vec![
+                    SubType("Equipment".to_string()),
+                    SubType("Golem".to_string()),
+                ]),
+        )
+        .add_continuous_effect(effect_at(
+            1,
+            None,
+            10,
+            EffectLayer::TypeChange,
+            EffectDuration::WhileSourceOnBattlefield,
+            EffectFilter::AllCreatures,
+            LayerModification::SetCardTypes(OrdSet::unit(CardType::Creature)),
+        ))
+        .build()
+        .unwrap();
+
+    let id = find_object(&state, "Equipment Creature");
+    let chars = calculate_characteristics(&state, id).unwrap();
+
+    assert_eq!(
+        chars.card_types,
+        OrdSet::unit(CardType::Creature),
+        "CR 205.1a: card types replaced to exactly {{Creature}}"
+    );
+    assert!(
+        !chars.subtypes.contains(&SubType("Equipment".to_string())),
+        "CR 205.1a: Equipment (correlated with the now-removed Artifact card type) \
+         must be dropped -- this is the Kenrith's Transformation / Eaten by Piranhas bug"
+    );
+    assert!(
+        chars.subtypes.contains(&SubType("Golem".to_string())),
+        "CR 205.1a: Golem (correlated with Creature, which survives) must remain"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // Darksteel-Mutation-style integration: SetCardTypes + SetCreatureTypes + timestamp
 // ---------------------------------------------------------------------------
@@ -327,11 +376,27 @@ fn test_set_card_types_replaces_card_types_preserves_supertypes() {
 /// and `SetPowerToughness{0,1}`. Verifies indestructible survives the "loses all
 /// OTHER abilities" removal (granted-then-removed ordering, CR 613.7) and flying
 /// (the creature's original ability) does not.
+///
+/// The target is an enchantment-creature with the "Shrine" subtype (the exact
+/// ruled example from Darksteel Mutation's own Gatherer ruling: "If it had any
+/// subtypes other than artifact types and creature types (such as Shrine), it
+/// won't retain those.") — this exercises the CR 205.1a correlated-subtype-
+/// removal clause (PB-AC7 review H1): Enchantment is removed by `SetCardTypes`,
+/// so Shrine must be dropped, while Artifact survives so it would keep an
+/// Equipment-style artifact subtype if it had one (not applicable here).
 #[test]
 fn test_darksteel_mutation_keeps_indestructible() {
     let mut state = GameStateBuilder::new()
         .add_player(p(1))
-        .object(ObjectSpec::creature(p(1), "Big Flyer", 5, 5).with_keyword(KeywordAbility::Flying))
+        .object(
+            ObjectSpec::creature(p(1), "Big Flyer", 5, 5)
+                .with_keyword(KeywordAbility::Flying)
+                .with_types(vec![CardType::Enchantment, CardType::Creature])
+                .with_subtypes(vec![
+                    SubType("Shrine".to_string()),
+                    SubType("God".to_string()),
+                ]),
+        )
         // The Aura itself, on the battlefield, as the effects' source (so
         // `EffectDuration::WhileSourceOnBattlefield` is active — CR 613.6).
         .object(ObjectSpec::enchantment(p(1), "Mock Darksteel Mutation"))
@@ -409,7 +474,9 @@ fn test_darksteel_mutation_keeps_indestructible() {
     assert_eq!(
         chars.subtypes,
         OrdSet::unit(SubType("Insect".to_string())),
-        "CR 205.1b: creature-type subtypes become exactly Insect"
+        "CR 205.1a: creature-type subtypes become exactly Insect; Shrine (correlated \
+         with the now-removed Enchantment card type) must be dropped -- the Darksteel \
+         Mutation Gatherer ruling's exact 'Shrine won't retain' example"
     );
     assert!(
         chars.keywords.contains(&KeywordAbility::Indestructible),
@@ -674,6 +741,93 @@ fn test_set_creature_types_layer4_dependency_with_add_subtypes() {
     assert_eq!(
         chars_2.subtypes, expected,
         "disjoint subtype sets: order-independent result (Elk older)"
+    );
+}
+
+/// CR 613.8 (PB-AC7 review M1 fix) — `SetCreatureTypes({Elk})` and a co-resident
+/// `AddSubtypes({Zombie})` are NON-disjoint (Zombie is itself a creature type):
+/// applying `AddSubtypes` first lets `SetCreatureTypes` filter Zombie out ({Elk}
+/// only); applying `AddSubtypes` second, WITHOUT a dependency, would union it in
+/// ({Elk, Zombie}) — order-dependent, which is exactly the CR 613.8a trigger for
+/// a dependency arm. With the `(SetCreatureTypes, AddSubtypes)` dependency arm
+/// added in `rules/layers.rs::depends_on`, `AddSubtypes` is always forced to
+/// apply before `SetCreatureTypes` regardless of timestamp, so BOTH orders below
+/// now converge on {Elk} — the reviewer's exact counterexample, resolved.
+#[test]
+fn test_set_creature_types_layer4_dependency_nondisjoint_creature_subtype() {
+    // Order 1: AddSubtypes(Zombie) OLDER, SetCreatureTypes(Elk) NEWER.
+    let state_1 = GameStateBuilder::new()
+        .add_player(p(1))
+        .object(
+            ObjectSpec::creature(p(1), "NDOrder1", 2, 2)
+                .with_types(vec![CardType::Creature])
+                .with_subtypes(vec![SubType("Golem".to_string())]),
+        )
+        .add_continuous_effect(effect_at(
+            1,
+            None,
+            10,
+            EffectLayer::TypeChange,
+            EffectDuration::WhileSourceOnBattlefield,
+            EffectFilter::AllCreatures,
+            LayerModification::AddSubtypes(OrdSet::unit(SubType("Zombie".to_string()))),
+        ))
+        .add_continuous_effect(effect_at(
+            2,
+            None,
+            20,
+            EffectLayer::TypeChange,
+            EffectDuration::WhileSourceOnBattlefield,
+            EffectFilter::AllCreatures,
+            LayerModification::SetCreatureTypes(OrdSet::unit(SubType("Elk".to_string()))),
+        ))
+        .build()
+        .unwrap();
+    let id_1 = find_object(&state_1, "NDOrder1");
+    let chars_1 = calculate_characteristics(&state_1, id_1).unwrap();
+
+    // Order 2: SetCreatureTypes(Elk) OLDER, AddSubtypes(Zombie) NEWER -- without
+    // the dependency arm, natural timestamp order would apply AddSubtypes LAST
+    // and produce {Elk, Zombie} instead.
+    let state_2 = GameStateBuilder::new()
+        .add_player(p(1))
+        .object(
+            ObjectSpec::creature(p(1), "NDOrder2", 2, 2)
+                .with_types(vec![CardType::Creature])
+                .with_subtypes(vec![SubType("Golem".to_string())]),
+        )
+        .add_continuous_effect(effect_at(
+            1,
+            None,
+            10,
+            EffectLayer::TypeChange,
+            EffectDuration::WhileSourceOnBattlefield,
+            EffectFilter::AllCreatures,
+            LayerModification::SetCreatureTypes(OrdSet::unit(SubType("Elk".to_string()))),
+        ))
+        .add_continuous_effect(effect_at(
+            2,
+            None,
+            20,
+            EffectLayer::TypeChange,
+            EffectDuration::WhileSourceOnBattlefield,
+            EffectFilter::AllCreatures,
+            LayerModification::AddSubtypes(OrdSet::unit(SubType("Zombie".to_string()))),
+        ))
+        .build()
+        .unwrap();
+    let id_2 = find_object(&state_2, "NDOrder2");
+    let chars_2 = calculate_characteristics(&state_2, id_2).unwrap();
+
+    let expected = OrdSet::unit(SubType("Elk".to_string()));
+    assert_eq!(
+        chars_1.subtypes, expected,
+        "CR 613.8: non-disjoint (Zombie is a creature type) -- AddSubtypes-older order"
+    );
+    assert_eq!(
+        chars_2.subtypes, expected,
+        "CR 613.8: non-disjoint (Zombie is a creature type) -- SetCreatureTypes-older \
+         order must now agree via the dependency arm (would be {{Elk, Zombie}} without it)"
     );
 }
 

@@ -1084,11 +1084,31 @@ fn apply_layer_modification(
             }
             chars.subtypes = kept;
         }
-        // CR 205.1a: SETS the card types, leaving supertypes and subtypes untouched.
-        // Companion to `SetCreatureTypes` — used together so "becomes a [type] creature"
-        // effects preserve supertypes (e.g. Legendary) that `SetTypeLine` would wipe.
+        // CR 205.1a: SETS the card types, leaving supertypes untouched. Companion to
+        // `SetCreatureTypes` — used together so "becomes a [type] creature" effects
+        // preserve supertypes (e.g. Legendary) that `SetTypeLine` would wipe.
+        //
+        // CR 205.1a correlated-subtype-removal clause: "If an object's card type is
+        // removed, the subtypes correlated with that card type will remain if they
+        // are also the subtypes of a card type the object currently has; otherwise,
+        // they are also removed for the entire time the object's card type is
+        // removed." E.g. Darksteel Mutation on a Shrine (enchantment-creature):
+        // Enchantment is removed, so the Shrine subtype must drop too. But an
+        // Equipment subtype survives if Artifact is retained (Darksteel Mutation
+        // keeps Artifact). A subtype not in any recognized CR 205.3 correlated-set
+        // (`correlated_card_types` returns empty) is left untouched.
         LayerModification::SetCardTypes(new_types) => {
             chars.card_types = new_types.clone();
+            chars.subtypes = chars
+                .subtypes
+                .iter()
+                .filter(|st| {
+                    let correlated = crate::state::types::correlated_card_types(st);
+                    correlated.is_empty()
+                        || correlated.iter().any(|ct| chars.card_types.contains(ct))
+                })
+                .cloned()
+                .collect();
         }
         // Layer 5: Color-changing
         LayerModification::SetColors(colors) => {
@@ -1372,18 +1392,75 @@ fn depends_on(a: &ContinuousEffect, b: &ContinuousEffect) -> bool {
             // b must be applied before a.
             true
         }
-        // PB-AC7 decision (CR 613.8a): NO dependency arm added for `SetCreatureTypes`
-        // or `SetCardTypes` vs `AddSubtypes`/`AddCardTypes`. Unlike `SetTypeLine`,
-        // these two variants only overwrite ONE subset of the type line each
-        // (creature-type subtypes only / card types only), so a co-resident
-        // `AddSubtypes` targeting a *disjoint* subtype set (e.g. a land subtype from
-        // Urborg) is unaffected by application order either way — the outcome is
-        // identical regardless of which runs first. Pure timestamp order (CR 613.7)
-        // is therefore correct for the roster this batch. If a future card needs
-        // `AddSubtypes` targeting a CREATURE-type subtype co-resident with
-        // `SetCreatureTypes` (where order *would* matter), add an explicit arm here
-        // then — `test_set_creature_types_layer4_dependency_with_add_subtypes` locks
-        // in the disjoint-set case.
+        // PB-AC7 review fix (M1, CR 613.8a): `SetCreatureTypes` depends on a
+        // co-resident `AddSubtypes` IFF the added subtypes include at least one
+        // CREATURE type. `SetCreatureTypes` unconditionally replaces the ENTIRE
+        // creature-type subset of `subtypes` with its own payload, discarding any
+        // prior creature-type subtype regardless of identity. So:
+        // - `AddSubtypes` applied BEFORE `SetCreatureTypes`: the added creature type
+        //   gets wiped along with everything else in the creature-type subset —
+        //   `SetCreatureTypes`'s own payload is the final result.
+        // - `AddSubtypes` applied AFTER (no dependency, natural timestamp order):
+        //   the added creature type survives unconditionally, giving a UNION of
+        //   `SetCreatureTypes`'s payload and the added type — order-dependent,
+        //   hence a genuine CR 613.8a dependency (applying B changes what A does).
+        // A land/artifact/enchantment-only `AddSubtypes` never touches the
+        // creature-type subset either way — no dependency needed for that case (the
+        // outcome is identical regardless of order), so the check is payload-aware
+        // rather than a blanket dependency (avoids a spurious/no-op dependency arm).
+        // Locked in by `test_set_creature_types_layer4_dependency_with_add_subtypes`
+        // (disjoint land-subtype case, no dependency needed, order-independent) and
+        // `test_set_creature_types_layer4_dependency_nondisjoint_creature_subtype`
+        // (Zombie counterexample, both orders now converge because of this arm).
+        (LayerModification::SetCreatureTypes(_), LayerModification::AddSubtypes(added)) => added
+            .iter()
+            .any(|st| crate::state::types::ALL_CREATURE_TYPES.contains(st)),
+        // PB-AC7 review fix (M1, "additional coupling to H1"): once `SetCardTypes`
+        // reads `chars.card_types` to decide which subtypes survive the CR 205.1a
+        // correlated-subtype-removal clause, its OWN action (the subtype-filter it
+        // performs) becomes order-sensitive against effects that change either
+        // `card_types` or `subtypes` on the same object. Three dependency arms,
+        // each independently justified against the CR 613.8a test ("applying B
+        // changes what A does"):
+        //
+        // 1. `SetCardTypes` unconditionally OVERWRITES `card_types` (same rationale
+        //    as the `SetTypeLine`/`AddCardTypes` precedent above — the "set" must
+        //    win over a co-resident "add" regardless of which named types are
+        //    involved, so this one mirrors that precedent unconditionally).
+        (LayerModification::SetCardTypes(_), LayerModification::AddCardTypes(_)) => true,
+        // 2. `SetCardTypes`'s subtype-filter reads whatever `subtypes` currently
+        //    holds at its own application time. If `AddSubtypes` applies AFTER
+        //    `SetCardTypes`, the added subtype bypasses the correlation filter
+        //    entirely and survives even if its correlated card type was just
+        //    removed — wrong per CR 205.1a. Dependency exists only when the added
+        //    subtype's correlated card type(s) are NOT in `SetCardTypes`'s new card
+        //    types (only then would the filter actually drop it) — payload-aware to
+        //    avoid a spurious dependency for an added subtype that would survive the
+        //    filter regardless (e.g. adding an Elf subtype alongside a SetCardTypes
+        //    that keeps Creature).
+        (
+            LayerModification::SetCardTypes(new_card_types),
+            LayerModification::AddSubtypes(added),
+        ) => added.iter().any(|st| {
+            let correlated = crate::state::types::correlated_card_types(st);
+            !correlated.is_empty() && !correlated.iter().any(|ct| new_card_types.contains(ct))
+        }),
+        // 3. `SetCreatureTypes` always draws its payload from the creature-type set
+        //    (correlated card type: `Creature`). If `SetCardTypes` removes Creature
+        //    from the type line, a `SetCreatureTypes` applied AFTER it would
+        //    unconditionally re-add a creature-type subtype the object should no
+        //    longer have — order matters only in that specific case. When
+        //    `SetCardTypes`'s new types still include Creature (true for every
+        //    roster card this batch — the "becomes an X creature" effects always
+        //    retain Creature), there is no dependency: `SetCreatureTypes`'s output
+        //    always survives the correlation filter regardless of order, so no
+        //    reordering is forced on the current roster's timestamp-natural order
+        //    (`SetCardTypes` listed before `SetCreatureTypes` in each card's ability
+        //    vec — verified consistent either way, see pb-review-AC7.md fix notes).
+        (
+            LayerModification::SetCardTypes(new_card_types),
+            LayerModification::SetCreatureTypes(_),
+        ) => !new_card_types.contains(&CardType::Creature),
         // All other combinations are independent (apply in timestamp order).
         _ => false,
     }

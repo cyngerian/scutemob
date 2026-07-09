@@ -77,10 +77,25 @@ are deleted, and reviewed by card-batch-reviewer.
   (Kenrith's Transformation, Eaten by Piranhas, Darksteel Mutation, Sram, Leaf-Crowned
   Visionary, Final Showdown mode 0, Vraska −2) deliberately NOT done — out of scope
   per coordinator brief; deferred to the `backfill` phase.
-- [ ] review (primitive-impl-reviewer → pb-review-AC7.md)
-- [ ] fix (primitive-impl-runner)
+- [x] review (primitive-impl-reviewer → pb-review-AC7.md) — 1 HIGH, 2 MEDIUM, 2 LOW found
+- [x] fix (primitive-impl-runner) — H1, M1, M2 resolved; see "Fix progress" below and
+  `memory/primitives/pb-review-AC7.md` "Fix pass" section
 - [ ] backfill (bulk-card-author + card-batch-reviewer)
 - [ ] close
+
+## Fix progress (2026-07-09, primitive-impl-runner)
+
+H1/M1/M2 all resolved. `cargo test --all` = 3034 passed / 0 failed (3032 baseline + 2 new
+tests). `cargo build --workspace` / `cargo clippy --all-targets -- -D warnings` / `cargo fmt
+--check` all clean. No `HASH_SCHEMA_VERSION` bump (only `LazyLock` statics + a pure helper
+fn added, no new field/variant). Full details in `memory/primitives/pb-review-AC7.md` "Fix
+pass" section — summary:
+- H1: `SetCardTypes` now applies CR 205.1a correlated-subtype removal via 6 new CR-205.3
+  subtype-set statics (`state/types.rs`) + `correlated_card_types()` helper.
+- M1: 3 payload-aware `depends_on` arms added in `rules/layers.rs` (not blanket — each
+  justified against the CR 613.8a test individually).
+- M2: 2 new tests + 1 strengthened integration test; both H1 and M1 fixes proven non-vacuous
+  by temporarily reverting each and confirming the targeted tests fail, then restoring.
 
 ## Implementation progress (engine phase, this session)
 
