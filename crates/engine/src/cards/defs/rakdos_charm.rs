@@ -36,10 +36,11 @@ pub fn card() -> CardDefinition {
                         cant_be_regenerated: false,
                     },
                     // Mode 2: Each creature deals 1 damage to its controller.
-                    // ENGINE-BLOCKED: no ForEach + per-iteration self-referencing target
-                    // exists (EffectTarget/PlayerTarget has no "controller of the current
-                    // ForEach iteration object" variant). Unrelated to AC4's
-                    // per-mode-targeting scope.
+                    // ENGINE-BLOCKED: `Effect::DealDamage` takes an `EffectTarget`, which
+                    // has no `ControllerOf` variant, so damage cannot be routed to the
+                    // controller of the current ForEach iteration object. (`PlayerTarget`
+                    // does have `ControllerOf`, but DealDamage does not accept a
+                    // `PlayerTarget`.) Unrelated to AC4's per-mode-targeting scope.
                     Effect::Nothing,
                 ],
                 mode_targets: Some(vec![
