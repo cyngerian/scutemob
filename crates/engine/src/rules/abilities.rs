@@ -6178,9 +6178,10 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
 /// - `by_opponent`: `true` restricts to targeting sources controlled by an opponent
 ///   of the trigger source's controller (CR 702.21a-style gate).
 /// - `scope`: `None` = the trigger source itself must be the target ("Whenever this
-///   creature becomes the target..."); `Some(filter)` = the target must be a
-///   DIFFERENT permanent controlled by the trigger source's controller matching
-///   `filter` ("a creature/Dragon you control").
+///   creature becomes the target..."); `Some(filter)` = the target must be a permanent
+///   controlled by the trigger source's controller matching `filter` ("a creature/Dragon
+///   you control"). The source itself is NOT excluded: a Dragon that targets itself
+///   satisfies "a Dragon you control".
 ///
 /// `targeting_stack_id` is recorded on the pushed `PendingTrigger` so
 /// `flush_pending_triggers` can resolve `EffectTarget::DeclaredTarget { index: 0 }`

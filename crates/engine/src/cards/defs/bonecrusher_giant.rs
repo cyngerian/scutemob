@@ -30,26 +30,16 @@ pub fn card() -> CardDefinition {
         power: Some(4),
         toughness: Some(3),
         abilities: vec![
-            // CR 603.2 / 601.2c: Triggered ability — "Whenever Bonecrusher Giant becomes the
-            // target of a spell, Bonecrusher Giant deals 2 damage to that spell's controller."
-            // The trigger condition is exact (PB-AC6). The effect stays unauthored: see
-            // ENGINE-BLOCKED(1) in the file header — "that spell's controller" is not an
-            // expressible EffectTarget, and the old EachOpponent approximation produced wrong
-            // game state in multiplayer.
-            AbilityDefinition::Triggered {
-                once_per_turn: false,
-                trigger_condition: TriggerCondition::WhenBecomesTarget {
-                    scope: None,
-                    by_opponent: false,
-                    include_abilities: false,
-                },
-                effect: Effect::Nothing,
-                intervening_if: None,
-                targets: vec![],
-
-                modes: None,
-                trigger_zone: None,
-            },
+            // CR 603.2 / 601.2c: "Whenever Bonecrusher Giant becomes the target of a spell,
+            // Bonecrusher Giant deals 2 damage to that spell's controller."
+            //
+            // PB-AC6 makes the trigger condition exactly expressible as
+            // TriggerCondition::WhenBecomesTarget { scope: None, by_opponent: false,
+            // include_abilities: false }. The ABILITY is still left unauthored because its
+            // effect is not — see ENGINE-BLOCKED(1) in the file header. Declaring the trigger
+            // with `effect: Effect::Nothing` would put a do-nothing trigger on the stack for
+            // opponents to see and respond to, which is itself observable divergence.
+            // Omitted entirely, matching scalelord_reckoner and tectonic_giant.
         ],
         // CR 715.2: Adventure face — Stomp.
         adventure_face: Some(CardFace {
