@@ -13,9 +13,9 @@ pub fn card() -> CardDefinition {
         oracle_text: "Target creature you control gets +2/+2 until end of turn. It fights up to one target creature you don't control. (Each deals damage equal to its power to the other.)".to_string(),
         abilities: vec![
             // CR 601.2c: Spell targets — creature you control (index 0) must be chosen;
-            // creature you don't control (index 1) is "up to one" (optional target).
-            // TODO: "up to one" optional targeting is not yet supported in the DSL —
-            // using mandatory second target as approximation (requires both targets to cast).
+            // creature you don't control (index 1) is "up to one" (optional target, PB-T
+            // `TargetRequirement::UpToN`). If not declared, index 1 resolves to no target
+            // and the fight half is a no-op (CR 701.14b — Fight already handles this).
             AbilityDefinition::Spell {
                 effect: Effect::Sequence(vec![
                     // +2/+2 until end of turn to the creature you control.
@@ -41,10 +41,13 @@ pub fn card() -> CardDefinition {
                         controller: TargetController::You,
                         ..Default::default()
                     }),
-                    TargetRequirement::TargetCreatureWithFilter(TargetFilter {
-                        controller: TargetController::Opponent,
-                        ..Default::default()
-                    }),
+                    TargetRequirement::UpToN {
+                        count: 1,
+                        inner: Box::new(TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                            controller: TargetController::Opponent,
+                            ..Default::default()
+                        })),
+                    },
                 ],
                 modes: None,
                 cant_be_countered: false,

@@ -4,11 +4,19 @@
 // Whenever this creature deals combat damage to a player, exile up to two target cards
 //   from that player's graveyard.
 //
-// Note: "up to two" targeting requires two separate TargetCardInGraveyard entries or a
-// "up to N" target variant, neither of which exists precisely. Two separate targets are used
-// as an approximation (player may choose fewer targets). The "that player's graveyard"
-// constraint uses TargetController::Opponent as an approximation — precise DamagedPlayer
-// targeting is a known DSL gap.
+// PB-T `TargetRequirement::UpToN { count: 2, .. }` used for "up to two target cards" (was
+// approximated as two mandatory targets — a wrong-game-state bug requiring exactly two
+// legal graveyard cards to exist before the trigger could even resolve). The "that player's
+// graveyard" constraint still uses TargetController::Opponent as an approximation — precise
+// DamagedPlayer targeting on a TargetRequirement filter is a separate, unrelated DSL gap.
+//
+// ENGINE-BLOCKED (residual, documented — NOT fixed by this migration): this is a
+// *triggered* ability. `abilities.rs`'s trigger auto-target selection routes any
+// non-player-inner `UpToN` (including `TargetCardInGraveyard`) to `None` ("skip optional
+// slots") rather than prompting the player. The trigger will fire correctly but always
+// auto-select 0 targets (exiling nothing) until player-declared triggered-ability
+// targeting is implemented (a broader feature, out of PB-AC4 scope — see pb-plan-AC4.md
+// §A "Residual gap").
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -26,10 +34,8 @@ pub fn card() -> CardDefinition {
                 cost: ManaCost { black: 1, ..Default::default() },
             },
             // CR 510.3a: "Whenever this deals combat damage, exile up to two cards from
-            // that player's graveyard."
-            // Approximation: two ExileObject effects on two targets from opponent's graveyard.
-            // TODO: "that player's graveyard" → TargetController::DamagedPlayer not in DSL.
-            // TODO: "up to two" → no UpToN target variant; using two required targets.
+            // that player's graveyard." See file-level comment for the residual auto-target
+            // gap on triggered abilities.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
@@ -42,16 +48,13 @@ pub fn card() -> CardDefinition {
                     },
                 ]),
                 intervening_if: None,
-                targets: vec![
-                    TargetRequirement::TargetCardInGraveyard(TargetFilter {
+                targets: vec![TargetRequirement::UpToN {
+                    count: 2,
+                    inner: Box::new(TargetRequirement::TargetCardInGraveyard(TargetFilter {
                         controller: TargetController::Opponent,
                         ..Default::default()
-                    }),
-                    TargetRequirement::TargetCardInGraveyard(TargetFilter {
-                        controller: TargetController::Opponent,
-                        ..Default::default()
-                    }),
-                ],
+                    })),
+                }],
                 modes: None,
                 trigger_zone: None,
             },

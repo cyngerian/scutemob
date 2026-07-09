@@ -22,17 +22,13 @@ pub fn card() -> CardDefinition {
             .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![]),
-            // Each mode has one declared target. Indices map to chosen modes.
-            // All five targets are declared up front; the DSL does not support per-mode
-            // target lists. When mode-scoped targeting is added, each mode should declare
-            // only its own single target.
-            targets: vec![
-                TargetRequirement::TargetArtifact,       // mode 0
-                TargetRequirement::TargetCreature,        // mode 1
-                TargetRequirement::TargetEnchantment,     // mode 2
-                TargetRequirement::TargetLand,            // mode 3
-                TargetRequirement::TargetPlaneswalker,    // mode 4
-            ],
+            // PB-AC4 (CR 700.2c/700.2f): per-mode targets — one target per chosen mode,
+            // declared only for the modes actually chosen. `Spell.targets` is empty; each
+            // mode's single target lives in `mode_targets` at LOCAL index 0. Before AC4
+            // this card's flat target list demanded all five targets be declared
+            // regardless of which mode(s) were chosen, making it effectively uncastable
+            // in most board states (wrong game state).
+            targets: vec![],
             modes: Some(ModeSelection {
                 min_modes: 1,
                 max_modes: 5,
@@ -42,30 +38,36 @@ pub fn card() -> CardDefinition {
                     // Mode 0: Destroy target artifact.
                     Effect::DestroyPermanent {
                         target: EffectTarget::DeclaredTarget { index: 0 },
-                    cant_be_regenerated: false,
+                        cant_be_regenerated: false,
                     },
                     // Mode 1: Destroy target creature.
                     Effect::DestroyPermanent {
-                        target: EffectTarget::DeclaredTarget { index: 1 },
-                    cant_be_regenerated: false,
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                        cant_be_regenerated: false,
                     },
                     // Mode 2: Destroy target enchantment.
                     Effect::DestroyPermanent {
-                        target: EffectTarget::DeclaredTarget { index: 2 },
-                    cant_be_regenerated: false,
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                        cant_be_regenerated: false,
                     },
                     // Mode 3: Destroy target land.
                     Effect::DestroyPermanent {
-                        target: EffectTarget::DeclaredTarget { index: 3 },
-                    cant_be_regenerated: false,
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                        cant_be_regenerated: false,
                     },
                     // Mode 4: Destroy target planeswalker.
                     Effect::DestroyPermanent {
-                        target: EffectTarget::DeclaredTarget { index: 4 },
-                    cant_be_regenerated: false,
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                        cant_be_regenerated: false,
                     },
                 ],
-                mode_targets: None,
+                mode_targets: Some(vec![
+                    vec![TargetRequirement::TargetArtifact],
+                    vec![TargetRequirement::TargetCreature],
+                    vec![TargetRequirement::TargetEnchantment],
+                    vec![TargetRequirement::TargetLand],
+                    vec![TargetRequirement::TargetPlaneswalker],
+                ]),
             }),
             cant_be_countered: false,
         }],

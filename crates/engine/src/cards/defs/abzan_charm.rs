@@ -2,8 +2,11 @@
 // 0: Exile target creature with power 3 or greater.
 // 1: Draw 2 cards and lose 2 life.
 // 2: Distribute two +1/+1 counters among one or two target creatures you control.
-//    (Approximated: add 2 counters to a single target creature you control — the DSL does
-//    not support distributing counters across two independently-declared targets per mode.)
+//    (ENGINE-BLOCKED: approximated — add 2 counters to a single target creature you
+//    control. See inline comment on mode 2 below for the missing primitive.)
+//
+// PB-AC4 (CR 700.2c/700.2f): per-mode targets migrated — modes 0 and 2 each declare their
+// own single target via `mode_targets`, LOCAL to that mode (`Spell.targets` is empty).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -19,22 +22,10 @@ pub fn card() -> CardDefinition {
             .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![]),
-            // Targets:
-            //   index 0: mode 0 — creature with power >= 3
-            //   index 1: mode 2 — target creature you control (receives up to 2 counters)
-            // Mode 1 has no targets (self-referential draw/lose life).
-            // TODO: per-mode target lists are not supported; all targets are declared up front.
-            // When mode-scoped targeting is added, mode 0 and mode 2 targets should be separate.
-            targets: vec![
-                TargetRequirement::TargetCreatureWithFilter(TargetFilter {
-                    min_power: Some(3),
-                    ..Default::default()
-                }),
-                TargetRequirement::TargetCreatureWithFilter(TargetFilter {
-                    controller: TargetController::You,
-                    ..Default::default()
-                }),
-            ],
+            // PB-AC4 (CR 700.2c/700.2f): per-mode targets — mode 0 and mode 2 each declare
+            // their own single target, LOCAL to that mode. `Spell.targets` is empty. Mode 1
+            // has no targets (self-referential draw/lose life).
+            targets: vec![],
             modes: Some(ModeSelection {
                 min_modes: 1,
                 max_modes: 1,
@@ -57,17 +48,28 @@ pub fn card() -> CardDefinition {
                         },
                     ]),
                     // Mode 2: Distribute two +1/+1 counters among one or two target creatures.
-                    // TODO: distributing counters across two separately-declared targets is not
-                    // expressible in the current DSL. This places both counters on a single target
-                    // creature you control. When split-counter distribution is added, refactor to
-                    // declare two optional creature targets and split AddCounter across them.
+                    // ENGINE-BLOCKED: distributing a fixed counter pool across 1-2
+                    // independently-declared targets needs a distribute-N-among-M-targets
+                    // primitive that does not exist in the DSL (unrelated to AC4's
+                    // per-mode-targeting scope). Approximated: both counters go on a single
+                    // declared target creature you control.
                     Effect::AddCounter {
-                        target: EffectTarget::DeclaredTarget { index: 1 },
+                        target: EffectTarget::DeclaredTarget { index: 0 },
                         counter: CounterType::PlusOnePlusOne,
                         count: 2,
                     },
                 ],
-                mode_targets: None,
+                mode_targets: Some(vec![
+                    vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                        min_power: Some(3),
+                        ..Default::default()
+                    })],
+                    vec![],
+                    vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                        controller: TargetController::You,
+                        ..Default::default()
+                    })],
+                ]),
             }),
             cant_be_countered: false,
         }],
