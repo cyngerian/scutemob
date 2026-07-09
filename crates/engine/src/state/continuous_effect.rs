@@ -294,6 +294,20 @@ pub enum LayerModification {
     /// ("creatures you control are every creature type").
     /// No payload needed — the engine's `ALL_CREATURE_TYPES` constant supplies the list.
     AddAllCreatureTypes,
+    /// Layer 4 (CR 205.1a): SETS the object's creature subtypes to exactly this set,
+    /// removing all prior creature types but PRESERVING card types, supertypes, and
+    /// non-creature subtypes (land/artifact/enchantment/planeswalker/spell types).
+    /// Distinct from `AddAllCreatureTypes`/`AddSubtypes` (additive) and `SetTypeLine`
+    /// (replaces card types & supertypes too). Used by "becomes a [creature type]"
+    /// effects that keep the object's other types (PB-AC7: Frodo-style partial resets,
+    /// CR-faithful Kenrith's Transformation / Eaten by Piranhas / Darksteel Mutation).
+    SetCreatureTypes(OrdSet<SubType>),
+    /// Layer 4 (CR 205.1a): SETS the object's card types to exactly this set, leaving
+    /// supertypes and subtypes untouched. Companion to `SetCreatureTypes` — together
+    /// they let "becomes a [creature type] creature" effects preserve supertypes
+    /// (e.g. Legendary) that `SetTypeLine` would otherwise wipe (CR 205.1a: "loses all
+    /// OTHER card types" does not mention supertypes).
+    SetCardTypes(OrdSet<CardType>),
     // --- Layer 5: Color-changing ---
     /// Replaces all colors with the given set.
     SetColors(OrdSet<Color>),

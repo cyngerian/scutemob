@@ -1069,6 +1069,27 @@ fn apply_layer_modification(
                 chars.subtypes.insert(s.clone());
             }
         }
+        // CR 205.1a: SETS the creature-type subtypes, replacing only the creature-type
+        // subset of `subtypes` while preserving land/artifact/enchantment/planeswalker/
+        // spell subtypes (mirrors the Reconfigure idiom above at ~line 308).
+        LayerModification::SetCreatureTypes(new_types) => {
+            let mut kept: OrdSet<SubType> = chars
+                .subtypes
+                .iter()
+                .filter(|st| !crate::state::types::ALL_CREATURE_TYPES.contains(*st))
+                .cloned()
+                .collect();
+            for s in new_types {
+                kept.insert(s.clone());
+            }
+            chars.subtypes = kept;
+        }
+        // CR 205.1a: SETS the card types, leaving supertypes and subtypes untouched.
+        // Companion to `SetCreatureTypes` — used together so "becomes a [type] creature"
+        // effects preserve supertypes (e.g. Legendary) that `SetTypeLine` would wipe.
+        LayerModification::SetCardTypes(new_types) => {
+            chars.card_types = new_types.clone();
+        }
         // Layer 5: Color-changing
         LayerModification::SetColors(colors) => {
             chars.colors = colors.clone();
@@ -1351,6 +1372,18 @@ fn depends_on(a: &ContinuousEffect, b: &ContinuousEffect) -> bool {
             // b must be applied before a.
             true
         }
+        // PB-AC7 decision (CR 613.8a): NO dependency arm added for `SetCreatureTypes`
+        // or `SetCardTypes` vs `AddSubtypes`/`AddCardTypes`. Unlike `SetTypeLine`,
+        // these two variants only overwrite ONE subset of the type line each
+        // (creature-type subtypes only / card types only), so a co-resident
+        // `AddSubtypes` targeting a *disjoint* subtype set (e.g. a land subtype from
+        // Urborg) is unaffected by application order either way — the outcome is
+        // identical regardless of which runs first. Pure timestamp order (CR 613.7)
+        // is therefore correct for the roster this batch. If a future card needs
+        // `AddSubtypes` targeting a CREATURE-type subtype co-resident with
+        // `SetCreatureTypes` (where order *would* matter), add an explicit arm here
+        // then — `test_set_creature_types_layer4_dependency_with_add_subtypes` locks
+        // in the disjoint-set case.
         // All other combinations are independent (apply in timestamp order).
         _ => false,
     }

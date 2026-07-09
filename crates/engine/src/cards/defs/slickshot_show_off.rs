@@ -29,6 +29,7 @@ pub fn card() -> CardDefinition {
                     spell_type_filter: None,
                     noncreature_only: true,
                     chosen_subtype_filter: false,
+                spell_subtype_filter: None,
                 },
                 effect: Effect::ApplyContinuousEffect {
                     effect_def: Box::new(ContinuousEffectDef {

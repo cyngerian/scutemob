@@ -32,6 +32,7 @@ pub fn card() -> CardDefinition {
                     noncreature_only: false,
                     chosen_subtype_filter: false,
                     during_opponent_turn: false,
+                    spell_subtype_filter: None,
                 },
                 effect: Effect::Nothing,
                 intervening_if: None,

@@ -3396,6 +3396,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         spell_type_filter,
                                         noncreature_only,
                                         chosen_subtype_filter,
+                                        spell_subtype_filter,
                                         ..
                                     },
                                 ..
@@ -3421,6 +3422,14 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         .map(|ct| spell_subtypes.contains(ct))
                                         .unwrap_or(false);
                                     if !spell_has_chosen {
+                                        return false;
+                                    }
+                                }
+                                // CR 205.1a: spell_subtype_filter — OR-semantics fixed-subtype
+                                // filter (Aura/Equipment/Vehicle for Sram, Elf for
+                                // Leaf-Crowned Visionary). `None` = no restriction.
+                                if let Some(sub_filter) = spell_subtype_filter {
+                                    if !sub_filter.iter().any(|st| spell_subtypes.contains(st)) {
                                         return false;
                                     }
                                 }

@@ -35,6 +35,7 @@ pub fn card() -> CardDefinition {
                     spell_type_filter: Some(vec![CardType::Creature]),
                     noncreature_only: false,
                     chosen_subtype_filter: false,
+                spell_subtype_filter: None,
                 },
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,

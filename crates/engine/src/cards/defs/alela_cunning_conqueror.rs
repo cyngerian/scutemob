@@ -31,6 +31,7 @@ pub fn card() -> CardDefinition {
                     spell_type_filter: None,
                     noncreature_only: false,
                     chosen_subtype_filter: false,
+                spell_subtype_filter: None,
                 },
                 effect: Effect::CreateToken {
                     spec: TokenSpec {

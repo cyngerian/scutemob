@@ -271,7 +271,20 @@
 ///   HashInto for PlayerState` and reset in the all-players loop of
 ///   `reset_turn_state`. `#[serde(default)]` on all new fields ensures pre-bump
 ///   serialized states/defs deserialize cleanly.
-pub const HASH_SCHEMA_VERSION: u8 = 33;
+/// - 34: PB-AC7 (2026-07-09) — Type-changing & ability-removal. New
+///   `LayerModification::SetCreatureTypes(OrdSet<SubType>)` (disc 30, CR
+///   205.1a Layer-4 set-creature-subtypes-only, preserving card types/supertypes/
+///   non-creature subtypes) + `LayerModification::SetCardTypes(OrdSet<CardType>)`
+///   (disc 31, CR 205.1a Layer-4 set-card-types-only, companion to SetCreatureTypes
+///   so "becomes a [type] creature" effects can preserve Legendary/other supertypes
+///   that `SetTypeLine` would wipe). + `TriggerCondition::WheneverYouCastSpell.
+///   spell_subtype_filter: Option<Vec<SubType>>` (OR-semantics spell-subtype filter,
+///   CR 205.1a, enables "whenever you cast an Aura/Equipment/Vehicle spell" / "an Elf
+///   spell" triggers that `spell_type_filter: Option<Vec<CardType>>` cannot express).
+///   No new mutable/runtime GameState/PlayerState/GameObject fields this batch — both
+///   additions are enum-variant/trigger-field payloads covered by hash-distinguishes
+///   tests, not mutation-verified runtime-field tests (see pb-plan-AC7.md Risks).
+pub const HASH_SCHEMA_VERSION: u8 = 34;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -1755,6 +1768,18 @@ impl HashInto for LayerModification {
             LayerModification::SetBothDynamic { amount } => {
                 28u8.hash_into(hasher);
                 amount.hash_into(hasher);
+            }
+            // SetCreatureTypes (discriminant 30) -- PB-AC7: Layer 4 CR 205.1a set-creature-
+            // subtypes-only, preserving card types/supertypes/non-creature subtypes.
+            LayerModification::SetCreatureTypes(subtypes) => {
+                30u8.hash_into(hasher);
+                subtypes.hash_into(hasher);
+            }
+            // SetCardTypes (discriminant 31) -- PB-AC7: Layer 4 CR 205.1a set-card-types-
+            // only, leaving supertypes/subtypes untouched. Companion to SetCreatureTypes.
+            LayerModification::SetCardTypes(types) => {
+                31u8.hash_into(hasher);
+                types.hash_into(hasher);
             }
         }
     }
@@ -4997,12 +5022,14 @@ impl HashInto for TriggerCondition {
                 spell_type_filter,
                 noncreature_only,
                 chosen_subtype_filter,
+                spell_subtype_filter,
             } => {
                 14u8.hash_into(hasher);
                 during_opponent_turn.hash_into(hasher);
                 spell_type_filter.hash_into(hasher);
                 noncreature_only.hash_into(hasher);
                 chosen_subtype_filter.hash_into(hasher);
+                spell_subtype_filter.hash_into(hasher);
             }
             TriggerCondition::WheneverYouGainLife => 15u8.hash_into(hasher),
             TriggerCondition::WheneverYouDrawACard => 16u8.hash_into(hasher),
