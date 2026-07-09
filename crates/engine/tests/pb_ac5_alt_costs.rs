@@ -402,6 +402,141 @@ fn test_hash_schema_version_is_32() {
     assert_eq!(HASH_SCHEMA_VERSION, 32u8);
 }
 
+#[test]
+/// PB-AC5 H2 regression: `ActivationCost.exert: true` and `exert: false` must produce
+/// different hashes. Guards against the exact "PB-S H1 failure mode" the review flagged —
+/// `exert` was omitted from `impl HashInto for ActivationCost` and had to be added back.
+fn test_exert_field_participates_in_hash() {
+    use mtg_engine::state::game_object::{ActivatedAbility, ActivationCost};
+
+    let p1 = p(1);
+
+    let cost_no_exert = ActivationCost {
+        exert: false,
+        ..Default::default()
+    };
+    let cost_with_exert = ActivationCost {
+        exert: true,
+        ..Default::default()
+    };
+
+    let make_state = |cost: ActivationCost| {
+        let source = ObjectSpec::artifact(p1, "Exert Hash Stone")
+            .in_zone(ZoneId::Battlefield)
+            .with_activated_ability(ActivatedAbility {
+                targets: vec![],
+                cost,
+                description: "Test ability".to_string(),
+                effect: None,
+                sorcery_speed: false,
+                activation_condition: None,
+                activation_zone: None,
+                once_per_turn: false,
+            });
+        GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p(2))
+            .with_registry(CardRegistry::new(vec![]))
+            .object(source)
+            .at_step(Step::PreCombatMain)
+            .active_player(p1)
+            .build()
+            .unwrap()
+    };
+
+    let hash_no_exert = make_state(cost_no_exert).public_state_hash();
+    let hash_with_exert = make_state(cost_with_exert).public_state_hash();
+
+    assert_ne!(
+        hash_no_exert, hash_with_exert,
+        "PB-AC5 H2 defense: exert field must participate in ActivationCost hash (two costs \
+         differing only in exert must produce distinct public hashes)"
+    );
+}
+
+#[test]
+/// PB-AC5 H1 regression: `StackObject.was_warped: true` and `was_warped: false` must
+/// produce different hashes. Guards against a stack state where a warp-cast spell (whose
+/// resulting permanent gets exiled at the next end step) hashes identically to a normally-
+/// cast spell (whose permanent stays) — the exact replay/rewind corruption class the
+/// `HashInto for StackObject` impl exists to prevent.
+fn test_was_warped_field_participates_in_hash() {
+    use mtg_engine::state::stack::{StackObject, StackObjectKind};
+
+    let p1 = p(1);
+
+    let make_stack_spell = |was_warped: bool| StackObject {
+        id: ObjectId(9001),
+        controller: p1,
+        kind: StackObjectKind::Spell {
+            source_object: ObjectId(9001),
+        },
+        targets: vec![],
+        cant_be_countered: false,
+        is_copy: false,
+        cast_with_flashback: false,
+        kicker_times_paid: 0,
+        was_evoked: false,
+        was_bestowed: false,
+        cast_with_madness: false,
+        cast_with_miracle: false,
+        was_escaped: false,
+        cast_with_foretell: false,
+        was_buyback_paid: false,
+        was_suspended: false,
+        was_overloaded: false,
+        cast_with_jump_start: false,
+        cast_with_aftermath: false,
+        was_dashed: false,
+        was_warped,
+        was_blitzed: false,
+        was_plotted: false,
+        was_prototyped: false,
+        was_impended: false,
+        was_bargained: false,
+        was_surged: false,
+        was_casualty_paid: false,
+        was_cleaved: false,
+        was_cast_as_adventure: false,
+        spliced_effects: vec![],
+        spliced_card_ids: vec![],
+        modes_chosen: vec![],
+        x_value: 0,
+        evidence_collected: false,
+        is_cast_transformed: false,
+        additional_costs: vec![],
+        damaged_player: None,
+        combat_damage_amount: 0,
+        triggering_creature_id: None,
+        cast_from_top_with_bonus: false,
+        sacrificed_creature_powers: vec![],
+        lki_counters: im::OrdMap::new(),
+        lki_power: None,
+    };
+
+    let make_state = |was_warped: bool| {
+        let mut state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p(2))
+            .with_registry(CardRegistry::new(vec![]))
+            .at_step(Step::PreCombatMain)
+            .active_player(p1)
+            .build()
+            .unwrap();
+        state.stack_objects.push_back(make_stack_spell(was_warped));
+        state
+    };
+
+    let hash_not_warped = make_state(false).public_state_hash();
+    let hash_warped = make_state(true).public_state_hash();
+
+    assert_ne!(
+        hash_not_warped, hash_warped,
+        "PB-AC5 H1 defense: was_warped field must participate in StackObject hash (two stack \
+         objects differing only in was_warped must produce distinct public hashes)"
+    );
+}
+
 // ── B: Warp (CR 702.185) ────────────────────────────────────────────────────────
 
 #[test]
@@ -1271,12 +1406,18 @@ fn test_exert_combat_celebrant_untaps_and_extra_combat() {
         !state.objects[&ally_id].status.tapped,
         "CR 701.43d: the linked trigger should untap the ally (another creature you control)"
     );
-    assert!(
-        state
-            .turn
-            .additional_phases
-            .contains(&mtg_engine::state::turn::Phase::Combat),
-        "the linked trigger should schedule an additional combat phase"
+    // Assert an exact count (not just `.contains`) so a double-fire of the linked trigger
+    // (e.g. if a runtime `TriggerEvent` mapping were later added alongside the existing
+    // card-registry-scan firing path) would be caught rather than silently passing.
+    let combat_phase_count = state
+        .turn
+        .additional_phases
+        .iter()
+        .filter(|p| **p == mtg_engine::state::turn::Phase::Combat)
+        .count();
+    assert_eq!(
+        combat_phase_count, 1,
+        "the linked trigger should schedule exactly one additional combat phase, not double-fire"
     );
 }
 
@@ -2249,9 +2390,16 @@ fn test_pitch_cannot_pitch_self() {
             phyrexian_life_payments: vec![],
         },
     );
+    // Isolate the `pitch_card_id == card` guard (casting.rs:4178) specifically: by the time
+    // the pitch cost is paid the spell is already on the stack (not in hand), so a weaker test
+    // asserting only `is_err()` would also pass if this guard were deleted and the code fell
+    // through to the later "chosen card is not in your hand" zone check instead. Assert the
+    // guard's own message to make sure it — not some other rejection — is what fires.
+    let err = result.expect_err("a spell cannot be pitched to pay for its own casting");
+    let msg = format!("{err:?}");
     assert!(
-        result.is_err(),
-        "a spell cannot be pitched to pay for its own casting"
+        msg.contains("cannot be its own pitch cost"),
+        "expected the self-pitch guard's specific error message, got: {msg}"
     );
 }
 

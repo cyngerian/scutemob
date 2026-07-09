@@ -22,6 +22,17 @@ pub fn card() -> CardDefinition {
         toughness: Some(2),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
+            AbilityDefinition::Keyword(KeywordAbility::Warp),
+            // CR 702.185a: Warp {1}{W}. No non-mana cost components; hand-only (no
+            // graveyard-cast permission is granted in the oracle text).
+            AbilityDefinition::AltCastAbility {
+                kind: AltCostKind::Warp,
+                cost: ManaCost { generic: 1, white: 1, ..Default::default() },
+                details: Some(AltCastDetails::Warp {
+                    costs: vec![],
+                    from_graveyard: false,
+                }),
+            },
             // ENGINE-BLOCKED: ETB — search for "basic Plains OR creature with MV ≤ 1".
             // TargetFilter cannot express: (1) basic Plains subtype filter, OR (2) creature
             // with max_mana_value ≤ 1. Two-filter OR semantics and mana value ceiling both

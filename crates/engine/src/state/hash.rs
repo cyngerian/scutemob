@@ -243,7 +243,9 @@
 ///   PermanentExerted { object_id }` (disc 127). New fields: `GameObject.warped_turn: u32`
 ///   (mirrors `foretold_turn`), `Designations::EXERTED` (1<<10) / `Designations::WARPED`
 ///   (1<<11) bits (already covered by the existing bitfield hash), `StackObject.
-///   was_warped: bool`, `ActivationCost.exert: bool`, `CombatState.exerted_attackers:
+///   was_warped: bool` (hashed in `impl HashInto for StackObject`, alongside
+///   `was_blitzed`), `ActivationCost.exert: bool` (hashed in `impl HashInto for
+///   ActivationCost`, alongside `exile_self`), `CombatState.exerted_attackers:
 ///   OrdSet<ObjectId>`. Warp's exile-then-recast machinery reuses the existing
 ///   `PendingTriggerKind::KeywordTrigger` / `StackObjectKind::KeywordTrigger` /
 ///   `TriggerData::DelayedZoneChange` consolidation (RC-2) — no new SOK/PendingTriggerKind
@@ -2403,6 +2405,10 @@ impl HashInto for ActivationCost {
         // Must be present or two ActivationCosts differing only in exile_self
         // would produce identical hashes (PB-S H1 failure mode).
         self.exile_self.hash_into(hasher);
+        // CR 701.43a/c: exert field — PB-AC5 H2 fix (was omitted). Must be present or
+        // two ActivationCosts differing only in exert would produce identical hashes
+        // (the exact PB-S H1 failure mode the comment above warns about).
+        self.exert.hash_into(hasher);
     }
 }
 impl HashInto for ActivatedAbility {
@@ -3201,6 +3207,9 @@ impl HashInto for StackObject {
         self.was_dashed.hash_into(hasher);
         // Blitz (CR 702.152a) — alternative cost paid; haste + draw-on-death + sacrifice trigger
         self.was_blitzed.hash_into(hasher);
+        // Warp (CR 702.185a) — alternative cost paid; end-step delayed trigger exiles the
+        // permanent, recastable from exile on a later turn (PB-AC5 H1 fix — was omitted).
+        self.was_warped.hash_into(hasher);
         // Plot (CR 702.170d) — spell was cast from exile as a plotted card
         self.was_plotted.hash_into(hasher);
         // Prototype (CR 718.3b) — spell was cast as a prototyped spell
