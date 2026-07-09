@@ -635,6 +635,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         Some(AltCostKind::Dash)
                     } else if stack_obj.was_blitzed {
                         Some(AltCostKind::Blitz)
+                    } else if stack_obj.was_warped {
+                        Some(AltCostKind::Warp)
                     } else if stack_obj.was_impended {
                         Some(AltCostKind::Impending)
                     } else if stack_obj.was_surged {
@@ -3419,6 +3421,54 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 stack_object_id: stack_obj.id,
             });
         }
+        // CR 702.185a: Warp delayed triggered ability resolves.
+        //
+        // "Exile the permanent this spell becomes at the beginning of the next end step."
+        // If the source has left the battlefield by resolution time (CR 400.7 -- the spell
+        // never became a permanent, or the permanent already left), the trigger does
+        // nothing (the delayed trigger targets "the permanent this spell becomes", so a
+        // countered/fizzled warp spell is never exiled -- CR 400.7).
+        StackObjectKind::KeywordTrigger {
+            source_object,
+            keyword: KeywordAbility::Warp,
+            data: crate::state::stack::TriggerData::DelayedZoneChange,
+        } => {
+            let controller = stack_obj.controller;
+            let owner_and_counters = state
+                .objects
+                .get(&source_object)
+                .filter(|obj| obj.zone == ZoneId::Battlefield)
+                .map(|obj| {
+                    let lki_power =
+                        crate::rules::layers::calculate_characteristics(state, source_object)
+                            .and_then(|c| c.power)
+                            .or(obj.characteristics.power);
+                    (obj.owner, obj.counters.clone(), lki_power)
+                });
+            if let Some((owner, warp_pre_lba, warp_lki_power)) = owner_and_counters {
+                let (new_exile_id, _old) =
+                    state.move_object_to_zone(source_object, ZoneId::Exile)?;
+                // CR 702.185b: mark the new exile object as "warped in exile" and record
+                // the turn it was exiled, gating the recast to a strictly later turn
+                // (CR 702.185a: "after the current turn has ended").
+                if let Some(exiled_obj) = state.objects.get_mut(&new_exile_id) {
+                    exiled_obj.designations.insert(Designations::WARPED);
+                    exiled_obj.warped_turn = state.turn.turn_number;
+                }
+                events.push(GameEvent::ObjectExiled {
+                    player: owner,
+                    object_id: source_object,
+                    new_exile_id,
+                    pre_lba_counters: warp_pre_lba,
+                    pre_lba_power: warp_lki_power,
+                });
+            }
+            // If not on battlefield, do nothing (CR 400.7 / CR 702.185a).
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
         // CR 702.176a: Impending counter-removal trigger resolves.
         //
         // "At the beginning of your end step, if this permanent's impending cost
@@ -4596,6 +4646,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         kicker_times_paid: 0,
                         cast_alt_cost: None,
                         foretold_turn: 0,
+                        warped_turn: 0,
                         was_unearthed: false,
                         myriad_exile_at_eoc: false,
                         decayed_sacrifice_at_eoc: false,
@@ -4799,6 +4850,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 kicker_times_paid: 0,
                 cast_alt_cost: None,
                 foretold_turn: 0,
+                warped_turn: 0,
                 was_unearthed: false,
                 myriad_exile_at_eoc: false,
                 decayed_sacrifice_at_eoc: false,
@@ -5513,6 +5565,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     kicker_times_paid: 0,
                     cast_alt_cost: None,
                     foretold_turn: 0,
+                    warped_turn: 0,
                     was_unearthed: false,
                     // CR 702.116a: "exile the tokens at end of combat"
                     // Tagged here so end_combat() in turn_actions.rs can find them.
@@ -6178,6 +6231,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     kicker_times_paid: 0,
                     cast_alt_cost: None,
                     foretold_turn: 0,
+                    warped_turn: 0,
                     was_unearthed: false,
                     myriad_exile_at_eoc: false,
                     decayed_sacrifice_at_eoc: false,
@@ -6392,6 +6446,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     kicker_times_paid: 0,
                     cast_alt_cost: None,
                     foretold_turn: 0,
+                    warped_turn: 0,
                     was_unearthed: false,
                     myriad_exile_at_eoc: false,
                     decayed_sacrifice_at_eoc: false,
@@ -6621,6 +6676,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         kicker_times_paid: 0,
                         cast_alt_cost: None,
                         foretold_turn: 0,
+                        warped_turn: 0,
                         was_unearthed: false,
                         myriad_exile_at_eoc: false,
                         decayed_sacrifice_at_eoc: false,

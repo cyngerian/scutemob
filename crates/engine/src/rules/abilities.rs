@@ -708,6 +708,23 @@ pub fn handle_activate_ability(
             pre_lba_power: exile_self_lki_power,
         });
     }
+    // CR 701.43a/c: Pay exert cost (`Cost::Exert`). The source must be on the battlefield
+    // (701.43c); set `Designations::EXERTED` so the untap loop (turn_actions.rs) skips
+    // this permanent's next untap step and clears the designation at that point
+    // (701.43a/b: expires during that untap step, even if exerted more than once first).
+    if ability_cost.exert {
+        let src_obj = state.object(source)?;
+        if src_obj.zone != ZoneId::Battlefield {
+            return Err(GameStateError::InvalidCommand(
+                "exert cost: source must be on the battlefield (CR 701.43c)".into(),
+            ));
+        }
+        if let Some(obj) = state.objects.get_mut(&source) {
+            obj.designations
+                .insert(crate::state::game_object::Designations::EXERTED);
+        }
+        events.push(GameEvent::PermanentExerted { object_id: source });
+    }
     // PB-P: CR 608.2b — LKI powers of creatures sacrificed as activated-ability cost.
     // Populated inside the sacrifice block (BEFORE move_object_to_zone); read at
     // StackObject construction and propagated to EffectContext at resolution.
@@ -3719,6 +3736,62 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         // preserve indices).
                         for &idx in indices_to_remove.iter().rev() {
                             triggers.remove(idx);
+                        }
+                    }
+                    // CR 701.43d / CR 607.2h: "When you do" linked exert trigger. Fires ONLY
+                    // for attackers the player chose to exert this combat (stored in
+                    // `combat.exerted_attackers` by `handle_declare_attackers`) -- NOT on
+                    // every attack (contrast with a plain WhenAttacks trigger). CardDef-level
+                    // `AbilityDefinition::Triggered` abilities are not converted to runtime
+                    // `TriggeredAbilityDef` (that only happens in `enrich_spec_from_def` for
+                    // tests), so -- mirroring the WhenDealsCombatDamageToPlayer CardDef scan
+                    // above -- we collect them here directly from the card registry.
+                    {
+                        let was_exerted = state
+                            .combat
+                            .as_ref()
+                            .map(|c| c.exerted_attackers.contains(attacker_id))
+                            .unwrap_or(false);
+                        if was_exerted {
+                            if let Some(src_obj) = state.objects.get(attacker_id) {
+                                if src_obj.zone == ZoneId::Battlefield && src_obj.is_phased_in() {
+                                    let controller = src_obj.controller;
+                                    let source_id = src_obj.id;
+                                    if let Some(def) = src_obj
+                                        .card_id
+                                        .as_ref()
+                                        .and_then(|cid| state.card_registry.get(cid.clone()))
+                                    {
+                                        let carddef_indices: Vec<usize> = def
+                                            .abilities
+                                            .iter()
+                                            .enumerate()
+                                            .filter_map(|(idx, a)| match a {
+                                                AbilityDefinition::Triggered {
+                                                    trigger_condition:
+                                                        TriggerCondition::WhenExertedAsAttacks,
+                                                    ..
+                                                } => Some(idx),
+                                                _ => None,
+                                            })
+                                            .collect();
+                                        for ability_idx in carddef_indices {
+                                            triggers.push(PendingTrigger {
+                                                ability_index: ability_idx,
+                                                controller,
+                                                kind: PendingTriggerKind::Normal,
+                                                triggering_event: Some(TriggerEvent::SelfAttacks),
+                                                entering_object_id: Some(source_id),
+                                                ..PendingTrigger::blank(
+                                                    source_id,
+                                                    controller,
+                                                    PendingTriggerKind::Normal,
+                                                )
+                                            });
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                     // CR 702.105a: Dethrone -- "Whenever this creature attacks the player

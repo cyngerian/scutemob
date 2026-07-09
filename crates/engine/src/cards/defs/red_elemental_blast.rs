@@ -32,6 +32,7 @@ pub fn card() -> CardDefinition {
                     // Mode 0: Counter target blue spell.
                     Effect::CounterSpell {
                         target: EffectTarget::DeclaredTarget { index: 0 },
+                        exile_instead: false,
                     },
                     // Mode 1: Destroy target blue permanent.
                     Effect::DestroyPermanent {

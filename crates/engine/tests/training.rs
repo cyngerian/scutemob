@@ -84,6 +84,7 @@ fn test_702_149a_training_basic_attacks_with_greater_power() {
                 (ba_id, AttackTarget::Player(p2)),
             ],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -170,6 +171,7 @@ fn test_702_149a_training_does_not_trigger_alone() {
             player: p1,
             attackers: vec![(tr_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -244,6 +246,7 @@ fn test_702_149a_training_does_not_trigger_equal_power() {
                 (ea_id, AttackTarget::Player(p2)),
             ],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -317,6 +320,7 @@ fn test_702_149a_training_does_not_trigger_lower_power() {
                 (wa_id, AttackTarget::Player(p2)),
             ],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -391,6 +395,7 @@ fn test_702_149b_training_multiple_instances() {
                 (ba_id, AttackTarget::Player(p2)),
             ],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -494,6 +499,7 @@ fn test_702_149a_training_two_training_creatures_both_trigger() {
                 (p_id, AttackTarget::Player(p2)),
             ],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -625,6 +631,7 @@ fn test_702_149a_training_multiplayer_four_player() {
                 (ba_id, AttackTarget::Player(p3)),
             ],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");

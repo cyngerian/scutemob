@@ -636,6 +636,7 @@ fn declare_cmd(player: PlayerId, attackers: Vec<(ObjectId, AttackTarget)>) -> Co
         player,
         attackers,
         enlist_choices: vec![],
+        exert_choices: vec![],
     }
 }
 

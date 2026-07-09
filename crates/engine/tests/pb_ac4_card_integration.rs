@@ -171,6 +171,7 @@ fn push_spell_stack_object(
         cast_with_jump_start: false,
         cast_with_aftermath: false,
         was_dashed: false,
+        was_warped: false,
         was_blitzed: false,
         was_plotted: false,
         was_prototyped: false,

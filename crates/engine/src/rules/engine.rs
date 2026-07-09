@@ -171,12 +171,18 @@ pub fn process_command(
             player,
             attackers,
             enlist_choices,
+            exert_choices,
         } => {
             validate_player_active(&state, player)?;
             // CR 104.4b: declaring attackers is a meaningful player choice; reset loop detection.
             loop_detection::reset_loop_detection(&mut state);
-            let events =
-                combat::handle_declare_attackers(&mut state, player, attackers, enlist_choices)?;
+            let events = combat::handle_declare_attackers(
+                &mut state,
+                player,
+                attackers,
+                enlist_choices,
+                exert_choices,
+            )?;
             all_events.extend(events);
         }
         Command::DeclareBlockers { player, blockers } => {
@@ -1949,6 +1955,7 @@ pub fn ring_ability_stack_object(
         cast_with_jump_start: false,
         cast_with_aftermath: false,
         was_dashed: false,
+        was_warped: false,
         was_blitzed: false,
         was_plotted: false,
         was_prototyped: false,
@@ -2011,6 +2018,7 @@ fn room_ability_stack_object(
         cast_with_jump_start: false,
         cast_with_aftermath: false,
         was_dashed: false,
+        was_warped: false,
         was_blitzed: false,
         was_plotted: false,
         was_prototyped: false,
@@ -2416,6 +2424,7 @@ fn handle_activate_loyalty_ability(
         cast_with_jump_start: false,
         cast_with_aftermath: false,
         was_dashed: false,
+        was_warped: false,
         was_blitzed: false,
         was_plotted: false,
         was_prototyped: false,
@@ -2569,6 +2578,7 @@ fn handle_level_up_class(
         cast_with_jump_start: false,
         cast_with_aftermath: false,
         was_dashed: false,
+        was_warped: false,
         was_blitzed: false,
         was_plotted: false,
         was_prototyped: false,

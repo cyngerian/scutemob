@@ -463,6 +463,7 @@ fn test_attacking_creatures_you_control_grants_keyword() {
         forced_blocks: im::OrdMap::new(),
         enlist_pairings: Vec::new(),
         blocked_attackers: im::OrdSet::new(),
+        exerted_attackers: im::OrdSet::new(),
     });
 
     state.continuous_effects.push_back(ContinuousEffect {
@@ -908,6 +909,7 @@ fn test_attacking_creatures_with_subtype() {
         forced_blocks: im::OrdMap::new(),
         enlist_pairings: Vec::new(),
         blocked_attackers: im::OrdSet::new(),
+        exerted_attackers: im::OrdSet::new(),
     });
 
     state.continuous_effects.push_back(ContinuousEffect {

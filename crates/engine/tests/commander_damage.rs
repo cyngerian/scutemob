@@ -52,6 +52,7 @@ fn run_one_unblocked_combat(
             player: attacker_player,
             attackers: vec![(attacker_id, AttackTarget::Player(defending_player))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .unwrap();
@@ -254,6 +255,7 @@ fn test_commander_damage_from_copy_does_not_count() {
             player: p1,
             attackers: vec![(copy_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .unwrap();
@@ -420,6 +422,7 @@ fn test_commander_damage_survives_zone_change() {
                 kicker_times_paid: 0,
                 cast_alt_cost: None,
                 foretold_turn: 0,
+                warped_turn: 0,
                 was_unearthed: false,
                 myriad_exile_at_eoc: false,
                 decayed_sacrifice_at_eoc: false,
@@ -535,6 +538,7 @@ fn test_combat_damage_no_declare_blockers_command() {
             player: p1,
             attackers: vec![(elf_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .unwrap();

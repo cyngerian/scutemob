@@ -119,6 +119,7 @@ fn test_702_112a_renown_basic_counters_and_renowned() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -226,6 +227,7 @@ fn test_702_112a_renown_n2_places_two_counters() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -315,6 +317,7 @@ fn test_702_112a_renown_no_trigger_when_already_renowned() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -528,6 +531,7 @@ fn test_702_112c_renown_multiple_instances_first_resolves() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -624,6 +628,7 @@ fn test_702_112_renown_creature_leaves_before_resolution() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -744,6 +749,7 @@ fn test_702_112a_renown_multiplayer_specific_player() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p3))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("declare attackers failed");

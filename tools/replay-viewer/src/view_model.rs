@@ -887,5 +887,9 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::CantBeBlockedExceptBy(_) => "Evasion (filtered)".to_string(),
         // PB-AC1: DoesNotUntap (discriminant 162) -- CR 502.3
         KeywordAbility::DoesNotUntap => "Doesn't Untap".to_string(),
+        // PB-AC5: Warp (163), Transmute (164), Exert (165) -- CR 702.185 / 702.53 / 701.43
+        KeywordAbility::Warp => "Warp".to_string(),
+        KeywordAbility::Transmute => "Transmute".to_string(),
+        KeywordAbility::Exert => "Exert".to_string(),
     }
 }

@@ -93,6 +93,7 @@ fn test_annihilator_basic_sacrifice_on_attack() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -180,6 +181,7 @@ fn test_annihilator_defending_player_sacrifices_not_attacker_controller() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -237,6 +239,7 @@ fn test_annihilator_fewer_permanents_than_n() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -304,6 +307,7 @@ fn test_annihilator_multiple_instances_trigger_separately() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -397,6 +401,7 @@ fn test_annihilator_multiplayer_correct_defending_player() {
                 (plain_id, AttackTarget::Player(p3)),
             ],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -466,6 +471,7 @@ fn test_annihilator_sacrifice_ignores_indestructible() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -535,6 +541,7 @@ fn test_annihilator_attacking_planeswalker_defending_player() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Planeswalker(pw_id))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -600,6 +607,7 @@ fn test_annihilator_zero_permanents_no_error() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");

@@ -73,6 +73,7 @@ fn test_702_45a_bushido_blocker_gets_bonus() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -161,6 +162,7 @@ fn test_702_45a_bushido_attacker_becomes_blocked() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -252,6 +254,7 @@ fn test_702_45a_bushido_does_not_double_trigger() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -376,6 +379,7 @@ fn test_702_45b_bushido_multiple_instances() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -472,6 +476,7 @@ fn test_702_45a_bushido_bonus_expires_eot() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -558,6 +563,7 @@ fn test_702_45a_bushido_attacker_blocked_by_multiple() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -645,6 +651,7 @@ fn test_702_45a_bushido_multiplayer() {
                 (plain_attacker_b, AttackTarget::Player(p3)),
             ],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("declare attackers failed");

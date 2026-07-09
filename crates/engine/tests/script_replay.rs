@@ -166,6 +166,8 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                     mutate_on_top,
                     gift_opponent,
                     sacrifice_card,
+                    exert,
+                    pitch_exile_card,
                     ..
                 } => {
                     if let Some(&pid) = players.get(player.as_str()) {
@@ -203,6 +205,8 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                             *mutate_on_top,
                             gift_opponent.as_deref(),
                             sacrifice_card.as_deref(),
+                            exert,
+                            pitch_exile_card.as_deref(),
                             &state,
                             &players,
                         );

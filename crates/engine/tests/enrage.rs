@@ -193,6 +193,7 @@ fn test_enrage_combat_damage_triggers() {
             player: p2,
             attackers: vec![(attacker_id, AttackTarget::Player(p1))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers failed");
@@ -456,6 +457,7 @@ fn test_enrage_zero_damage_no_trigger() {
             player: p2,
             attackers: vec![(attacker_id, AttackTarget::Player(p1))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers failed");
@@ -560,6 +562,7 @@ fn test_enrage_multiple_blockers_triggers_once() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers failed");
@@ -683,6 +686,7 @@ fn test_enrage_lethal_damage_still_triggers() {
             player: p2,
             attackers: vec![(attacker_id, AttackTarget::Player(p1))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers failed");
@@ -838,6 +842,7 @@ fn test_enrage_prevention_reduces_to_zero_no_trigger() {
             player: p2,
             attackers: vec![(attacker_id, AttackTarget::Player(p1))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers failed");

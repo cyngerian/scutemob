@@ -598,6 +598,7 @@ fn test_phasing_excluded_from_combat_attack() {
             player: p1,
             attackers: vec![(obj_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     );
 

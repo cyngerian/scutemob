@@ -34,6 +34,7 @@ pub fn handle_declare_attackers(
     player: PlayerId,
     attackers: Vec<(ObjectId, AttackTarget)>,
     enlist_choices: Vec<(ObjectId, ObjectId)>,
+    exert_choices: Vec<ObjectId>,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     // Must be in the DeclareAttackers step.
     if state.turn.step != Step::DeclareAttackers {
@@ -473,6 +474,54 @@ pub fn handle_declare_attackers(
             enlisted_ids_used.push(*enlisted_id);
         }
     }
+    // ---- CR 701.43d / CR 508.1g: Validate exert choices ----
+    //
+    // Each exerted ObjectId must satisfy:
+    //  1. It is a declared attacker.
+    //  2. It has `KeywordAbility::Exert` (layer-aware check) -- the "you may exert [this
+    //     creature] as it attacks" static ability (508.1g).
+    //  3. It is NOT already `Designations::EXERTED` -- enforces "if this creature hasn't
+    //     been exerted this turn" (card text; also structurally satisfies 701.43b's
+    //     one-shot-per-untap-step model since a re-exert this turn would be a no-op).
+    //  4. It is on the battlefield (701.43c) -- guaranteed here since it must already be
+    //     a declared attacker.
+    {
+        let mut exert_ids_used: Vec<ObjectId> = Vec::new();
+        for exerted_id in &exert_choices {
+            if !declared_attacker_ids.contains(exerted_id) {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "Exert: creature {:?} is not a declared attacker (CR 508.1g)",
+                    exerted_id
+                )));
+            }
+            let exert_chars = calculate_characteristics(state, *exerted_id)
+                .ok_or(GameStateError::ObjectNotFound(*exerted_id))?;
+            if !exert_chars.keywords.contains(&KeywordAbility::Exert) {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "Exert: attacker {:?} does not have the \"may exert as it attacks\" \
+                     static ability (CR 701.43d)",
+                    exerted_id
+                )));
+            }
+            let exerted_obj = state.object(*exerted_id)?;
+            if exerted_obj.zone != ZoneId::Battlefield {
+                return Err(GameStateError::ObjectNotOnBattlefield(*exerted_id));
+            }
+            if exerted_obj.designations.contains(Designations::EXERTED) {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "Exert: creature {:?} has already been exerted this turn (CR 701.43a/b)",
+                    exerted_id
+                )));
+            }
+            if exert_ids_used.contains(exerted_id) {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "Exert: creature {:?} appears more than once in exert_choices",
+                    exerted_id
+                )));
+            }
+            exert_ids_used.push(*exerted_id);
+        }
+    }
     let mut events = Vec::new();
     // Tap non-Vigilance attackers (CR 508.1f).
     // Uses pre-computed vigilance flags to avoid a redundant calculate_characteristics call.
@@ -507,6 +556,19 @@ pub fn handle_declare_attackers(
     // CR 702.154a: Store enlist pairings for trigger collection in abilities.rs.
     if let Some(combat) = state.combat.as_mut() {
         combat.enlist_pairings = enlist_choices.clone();
+    }
+    // CR 701.43a/d: Set Designations::EXERTED on each exerted attacker and store the
+    // exert choices in combat state for linked-trigger collection in abilities.rs.
+    for exerted_id in &exert_choices {
+        if let Some(obj) = state.objects.get_mut(exerted_id) {
+            obj.designations.insert(Designations::EXERTED);
+        }
+        events.push(GameEvent::PermanentExerted {
+            object_id: *exerted_id,
+        });
+    }
+    if let Some(combat) = state.combat.as_mut() {
+        combat.exerted_attackers = exert_choices.iter().copied().collect();
     }
     // CR 702.147a: Tag creatures with decayed for EOC sacrifice.
     // "When this creature attacks, sacrifice it at end of combat."

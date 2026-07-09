@@ -148,6 +148,7 @@ fn test_myriad_basic_creates_token_copies_in_4_player() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -279,6 +280,7 @@ fn test_myriad_2_player_no_tokens_created() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -346,6 +348,7 @@ fn test_myriad_tokens_exiled_at_end_of_combat() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -453,6 +456,7 @@ fn test_myriad_token_has_correct_flags() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -523,6 +527,7 @@ fn test_myriad_multiple_instances_trigger_separately() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -600,6 +605,7 @@ fn test_myriad_multiplayer_correct_opponents_targeted() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p3))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -678,6 +684,7 @@ fn test_myriad_original_attacker_unaffected() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");

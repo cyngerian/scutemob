@@ -130,6 +130,7 @@ fn test_clone_independence_object_modification() {
                 kicker_times_paid: 0,
                 cast_alt_cost: None,
                 foretold_turn: 0,
+                warped_turn: 0,
                 was_unearthed: false,
                 myriad_exile_at_eoc: false,
                 decayed_sacrifice_at_eoc: false,

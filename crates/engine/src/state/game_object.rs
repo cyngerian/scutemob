@@ -43,6 +43,18 @@ bitflags! {
         /// Once a Case becomes solved, it stays solved until it leaves the battlefield.
         /// The solved designation is neither an ability nor part of the permanent's copiable values.
         const SOLVED         = 1 << 9;
+        /// CR 701.43a: Exerted -- set when a permanent is exerted (as an attack cost or
+        /// an activation cost). Cleared during the controller's next untap step, at which
+        /// point the permanent also does NOT untap (CR 701.43a/b: expires during that
+        /// untap step even if exerted multiple times before it).
+        const EXERTED        = 1 << 10;
+        /// CR 702.185b: Warped (a "warped card in exile") -- set on the exiled object by
+        /// the delayed triggered ability created by a warp ability, distinguishing it from
+        /// cards exiled by other means. Paired with `warped_turn` for the "after the current
+        /// turn has ended" recast gate (CR 702.185a). Cleared on any zone change out of
+        /// exile (CR 400.7 -- the recast produces a new object anyway, but this flag must
+        /// not leak if the object is moved by non-recast means).
+        const WARPED         = 1 << 11;
     }
 }
 /// Identifies a game object instance. Per CR 400.7, when an object changes
@@ -261,6 +273,11 @@ pub struct ActivationCost {
     /// destination zone and the emitted event.
     #[serde(default)]
     pub exile_self: bool,
+    /// CR 701.43a/c: True if activating this ability requires exerting the source
+    /// permanent as a cost (`Cost::Exert`). The source must be on the battlefield;
+    /// `Designations::EXERTED` is set at activation time.
+    #[serde(default)]
+    pub exert: bool,
 }
 /// A non-mana activated ability that uses the stack (CR 602).
 ///
@@ -791,6 +808,14 @@ pub struct GameObject {
     /// Zero means not foretold. Set alongside `is_foretold`.
     #[serde(default)]
     pub foretold_turn: u32,
+    /// CR 702.185a/b: The turn number when this card was exiled by a warp ability's
+    /// delayed triggered ability.
+    ///
+    /// The card can only be cast for its warp cost "after the current turn has ended"
+    /// -- i.e., on any turn where `state.turn.turn_number > warped_turn`. Zero means not
+    /// warped. Set alongside `Designations::WARPED`. Mirrors `foretold_turn`.
+    #[serde(default)]
+    pub warped_turn: u32,
     /// CR 702.84a: If true, this permanent was returned to the battlefield via
     /// an unearth ability. Two effects track this:
     /// 1. Replacement effect: if this permanent would leave the battlefield for

@@ -237,6 +237,7 @@ fn test_nadaar_attacks_ventures() {
             player: p1,
             attackers: vec![(nadaar_id, mtg_engine::AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("declare attackers should succeed");

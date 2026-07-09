@@ -47,6 +47,7 @@ impl Bot for RandomBot {
                     player,
                     attackers,
                     enlist_choices: Vec::new(),
+                    exert_choices: Vec::new(),
                 };
             }
         }
@@ -180,6 +181,7 @@ pub(crate) fn action_to_command(
                     player,
                     attackers: Vec::new(),
                     enlist_choices: Vec::new(),
+                    exert_choices: Vec::new(),
                 };
             }
             let count = rng.gen_range(0..=eligible.len());
@@ -197,6 +199,7 @@ pub(crate) fn action_to_command(
                 player,
                 attackers,
                 enlist_choices: Vec::new(),
+                exert_choices: Vec::new(),
             }
         }
         LegalAction::DeclareBlockers {

@@ -148,6 +148,7 @@ fn test_suspect_negative_can_attack() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     );
 

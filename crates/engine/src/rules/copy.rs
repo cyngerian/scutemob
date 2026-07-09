@@ -181,6 +181,7 @@ pub fn copy_spell_on_stack(
         cast_with_aftermath: false,
         // CR 702.109a: Copies are never cast, so was_dashed is always false.
         was_dashed: false,
+        was_warped: false,
         // CR 702.152a: Copies are never cast, so was_blitzed is always false.
         was_blitzed: false,
         // CR 702.170d: Copies are never cast, so was_plotted is always false.
@@ -416,6 +417,7 @@ pub fn resolve_cascade(
                 cast_with_aftermath: false,
                 // CR 702.109a: cascade free-cast spells are not dash casts.
                 was_dashed: false,
+                was_warped: false,
                 // CR 702.152a: cascade free-cast spells are not blitz casts.
                 was_blitzed: false,
                 // CR 702.170d: cascade free-cast spells are not plot casts.
@@ -651,6 +653,7 @@ pub fn resolve_discover(
                 cast_with_jump_start: false,
                 cast_with_aftermath: false,
                 was_dashed: false,
+                was_warped: false,
                 was_blitzed: false,
                 was_plotted: false,
                 was_prototyped: false,

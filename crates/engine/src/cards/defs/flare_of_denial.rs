@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Spell {
                 effect: Effect::CounterSpell {
                     target: EffectTarget::DeclaredTarget { index: 0 },
+                    exile_instead: false,
                 },
                 targets: vec![TargetRequirement::TargetSpell],
                 modes: None,

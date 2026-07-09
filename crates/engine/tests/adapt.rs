@@ -86,6 +86,7 @@ fn adapt_ability(adapt_n: u32, mana: ManaCost) -> ActivatedAbility {
             sacrifice_filter: None,
             remove_counter_cost: None,
             exile_self: false,
+            exert: false,
         },
         description: format!("Adapt {adapt_n} (CR 701.46a)"),
         effect: Some(Effect::Conditional {

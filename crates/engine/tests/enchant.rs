@@ -1743,6 +1743,7 @@ fn test_animate_land_summoning_sickness_propagation() {
             player: p1,
             attackers: vec![(mountain_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     );
     assert!(
@@ -1761,6 +1762,7 @@ fn test_animate_land_summoning_sickness_propagation() {
             player: p1,
             attackers: vec![(mountain_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     );
     assert!(

@@ -96,6 +96,7 @@ fn test_cant_block_keyword_does_not_prevent_attacking() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     );
 

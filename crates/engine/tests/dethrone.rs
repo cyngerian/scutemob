@@ -76,6 +76,7 @@ fn test_dethrone_basic_attacks_player_with_most_life() {
             player: p1,
             attackers: vec![(dt_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -164,6 +165,7 @@ fn test_dethrone_tied_for_most_life() {
             player: p1,
             attackers: vec![(dt_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -247,6 +249,7 @@ fn test_dethrone_does_not_trigger_against_lower_life() {
             player: p1,
             attackers: vec![(dt_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -324,6 +327,7 @@ fn test_dethrone_multiplayer_four_player_most_life() {
             // P2 is tied for most life (40); attack them.
             attackers: vec![(dt_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -412,6 +416,7 @@ fn test_dethrone_multiplayer_not_most_life() {
             // P2 has only 25 life; P3 has 40 (the max). Dethrone should NOT fire.
             attackers: vec![(dt_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -481,6 +486,7 @@ fn test_dethrone_multiple_instances_trigger_separately() {
             player: p1,
             attackers: vec![(dt_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -580,6 +586,7 @@ fn test_dethrone_does_not_trigger_on_planeswalker_attack() {
             // Attack the planeswalker, NOT the player directly.
             attackers: vec![(dt_id, AttackTarget::Planeswalker(pw_id))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -651,6 +658,7 @@ fn test_dethrone_attacker_has_most_life_attacks_lower() {
             // P2 only has 20 life — no trigger.
             attackers: vec![(dt_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");

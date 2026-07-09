@@ -72,6 +72,13 @@ pub struct CombatState {
     /// `is_blocked()` checks this set so that a creature remains "blocked" even
     /// after all its blockers are removed from combat (CR 509.1h).
     pub blocked_attackers: OrdSet<ObjectId>,
+    /// CR 701.43d / CR 508.1g: Attackers exerted as an optional attack cost this combat.
+    ///
+    /// Populated during `handle_declare_attackers()`. Used by `abilities::check_triggers`
+    /// to queue each attacker's card-def `TriggerCondition::WhenExertedAsAttacks` linked
+    /// trigger (CR 607.2h) -- ONLY for attackers in this set, not on every attack.
+    /// Cleared naturally when CombatState is dropped at end of combat.
+    pub exerted_attackers: OrdSet<ObjectId>,
 }
 impl CombatState {
     /// Create a fresh `CombatState` for the given attacking player.
@@ -86,6 +93,7 @@ impl CombatState {
             forced_blocks: OrdMap::new(),
             enlist_pairings: Vec::new(),
             blocked_attackers: OrdSet::new(),
+            exerted_attackers: OrdSet::new(),
         }
     }
     /// Returns the blockers assigned to `attacker` in damage assignment order.

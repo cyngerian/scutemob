@@ -300,6 +300,13 @@ pub struct StackObject {
     /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
     #[serde(default)]
     pub was_blitzed: bool,
+    /// CR 702.185a: If true, this spell was cast by paying its warp cost (an alternative
+    /// cost). When the permanent enters the battlefield, an end-step delayed trigger
+    /// exiles it (CR 702.185a/b); it becomes recastable from exile on a later turn.
+    ///
+    /// Must always be false for copies (`is_copy: true`) — copies are not cast.
+    #[serde(default)]
+    pub was_warped: bool,
     /// CR 702.170d: If true, this spell was cast from exile as a plotted card
     /// (without paying its mana cost). Used for tracking that this was a plot-cast.
     ///
@@ -525,6 +532,7 @@ impl StackObject {
             cast_with_aftermath: false,
             was_dashed: false,
             was_blitzed: false,
+            was_warped: false,
             was_plotted: false,
             was_prototyped: false,
             was_impended: false,

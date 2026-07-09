@@ -263,6 +263,8 @@ impl ReplaySession {
                                 *mutate_on_top,
                                 None, // gift_opponent_name — not yet wired in replay viewer UI
                                 None, // sacrifice_card_name — not yet wired in replay viewer UI
+                                &[],  // exert_names — not yet wired in replay viewer UI
+                                None, // pitch_exile_card_name — not yet wired in replay viewer UI
                                 &current_state,
                                 &player_map,
                             );

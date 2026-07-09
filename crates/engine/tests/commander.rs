@@ -1991,6 +1991,7 @@ fn test_companion_rejected_with_non_empty_stack() {
         cast_with_jump_start: false,
         cast_with_aftermath: false,
         was_dashed: false,
+        was_warped: false,
         was_blitzed: false,
         was_plotted: false,
         was_prototyped: false,
@@ -2064,6 +2065,7 @@ fn run_unblocked_attack(
             player: attacker_player,
             attackers: vec![(attacker_obj, AttackTarget::Player(defending_player))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .unwrap();

@@ -74,6 +74,7 @@ fn test_702_121a_melee_basic_one_opponent_attacked() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -169,6 +170,7 @@ fn test_702_121a_melee_multiplayer_two_opponents() {
                 (helper_id, AttackTarget::Player(p3)),
             ],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -245,6 +247,7 @@ fn test_702_121a_melee_multiplayer_three_opponents() {
                 (vanilla_c, AttackTarget::Player(p2)),
             ],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -315,6 +318,7 @@ fn test_702_121a_melee_does_not_count_planeswalker_attacks() {
             player: p1,
             attackers: vec![(melee_id, AttackTarget::Planeswalker(pw_id))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -393,6 +397,7 @@ fn test_702_121b_melee_multiple_instances() {
             player: p1,
             attackers: vec![(melee_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -486,6 +491,7 @@ fn test_702_121a_melee_source_leaves_battlefield_no_bonus() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -555,6 +561,7 @@ fn test_702_121a_melee_attacking_alone_still_counts() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");

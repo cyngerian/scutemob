@@ -30,6 +30,7 @@ pub fn card() -> CardDefinition {
                     // Mode 0: Counter target spell.
                     Effect::CounterSpell {
                         target: EffectTarget::DeclaredTarget { index: 0 },
+                        exile_instead: false,
                     },
                     // Mode 1: Return target permanent to its owner's hand.
                     // CR 108.3: "owner's hand" uses OwnerOf, not ControllerOf.

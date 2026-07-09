@@ -445,6 +445,7 @@ impl GameState {
             // CR 400.7: alt-cost status (evoke/escape/dash) is not preserved across zone changes.
             cast_alt_cost: None,
             foretold_turn: 0,
+            warped_turn: 0,
             // CR 400.7: unearth status is not preserved across zone changes.
             was_unearthed: false,
             // CR 400.7: myriad token exile flag is not preserved across zone changes.
@@ -626,6 +627,7 @@ impl GameState {
                     kicker_times_paid: 0,
                     cast_alt_cost: None,
                     foretold_turn: 0,
+                    warped_turn: 0,
                     was_unearthed: false,
                     myriad_exile_at_eoc: false,
                     decayed_sacrifice_at_eoc: false,
@@ -747,6 +749,7 @@ impl GameState {
                         kicker_times_paid: 0,
                         cast_alt_cost: None,
                         foretold_turn: 0,
+                        warped_turn: 0,
                         was_unearthed: false,
                         myriad_exile_at_eoc: false,
                         decayed_sacrifice_at_eoc: false,
@@ -925,6 +928,7 @@ impl GameState {
             // CR 400.7: alt-cost status (evoke/escape/dash) is not preserved across zone changes.
             cast_alt_cost: None,
             foretold_turn: 0,
+            warped_turn: 0,
             // CR 400.7: unearth status is not preserved across zone changes.
             was_unearthed: false,
             // CR 400.7: myriad token exile flag is not preserved across zone changes.

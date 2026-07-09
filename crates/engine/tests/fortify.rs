@@ -72,6 +72,7 @@ fn fortify_ability(generic_mana: u32) -> ActivatedAbility {
             sacrifice_filter: None,
             remove_counter_cost: None,
             exile_self: false,
+            exert: false,
         },
         description: format!("Fortify {{{}}}", generic_mana),
         effect: Some(Effect::AttachFortification {

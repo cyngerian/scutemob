@@ -164,6 +164,8 @@ fn test_harness_declare_attackers_basic() {
         false,  // mutate_on_top: not used for combat harness actions
         None,   // gift_opponent_name: not used for combat harness actions
         None,   // sacrifice_card_name: not used for combat harness actions
+        &[],    // exert_names: not used for combat harness actions
+        None,   // pitch_exile_card_name: not used for combat harness actions
         &state,
         &players,
     );
@@ -249,6 +251,8 @@ fn test_harness_declare_attackers_empty() {
         false,  // mutate_on_top: not used for combat harness actions
         None,   // gift_opponent_name: not used for combat harness actions
         None,   // sacrifice_card_name: not used for combat harness actions
+        &[],    // exert_names: not used for combat harness actions
+        None,   // pitch_exile_card_name: not used for combat harness actions
         &state,
         &players,
     );
@@ -275,6 +279,7 @@ fn test_harness_declare_attackers_empty() {
         player: p1,
         attackers: vec![],
         enlist_choices: vec![],
+        exert_choices: vec![],
     };
     let (state_after, _) =
         process_command(state, cmd_empty).expect("Empty DeclareAttackers should succeed");
@@ -316,6 +321,7 @@ fn test_harness_declare_blockers_basic() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -372,6 +378,8 @@ fn test_harness_declare_blockers_basic() {
         false,  // mutate_on_top: not used for combat harness actions
         None,   // gift_opponent_name: not used for combat harness actions
         None,   // sacrifice_card_name: not used for combat harness actions
+        &[],    // exert_names: not used for combat harness actions
+        None,   // pitch_exile_card_name: not used for combat harness actions
         &state,
         &players,
     );
@@ -415,6 +423,7 @@ fn test_harness_declare_blockers_empty() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -464,6 +473,8 @@ fn test_harness_declare_blockers_empty() {
         false,  // mutate_on_top: not used for combat harness actions
         None,   // gift_opponent_name: not used for combat harness actions
         None,   // sacrifice_card_name: not used for combat harness actions
+        &[],    // exert_names: not used for combat harness actions
+        None,   // pitch_exile_card_name: not used for combat harness actions
         &state,
         &players,
     );
@@ -539,6 +550,8 @@ fn test_harness_full_combat_unblocked_damage() {
         false,  // mutate_on_top: not used for combat harness actions
         None,   // gift_opponent_name: not used for combat harness actions
         None,   // sacrifice_card_name: not used for combat harness actions
+        &[],    // exert_names: not used for combat harness actions
+        None,   // pitch_exile_card_name: not used for combat harness actions
         &state,
         &players,
     )
@@ -586,6 +599,8 @@ fn test_harness_full_combat_unblocked_damage() {
         false,  // mutate_on_top: not used for combat harness actions
         None,   // gift_opponent_name: not used for combat harness actions
         None,   // sacrifice_card_name: not used for combat harness actions
+        &[],    // exert_names: not used for combat harness actions
+        None,   // pitch_exile_card_name: not used for combat harness actions
         &state,
         &players,
     )
@@ -657,6 +672,8 @@ fn test_harness_declare_attackers_default_target() {
         false,  // mutate_on_top: not used for combat harness actions
         None,   // gift_opponent_name: not used for combat harness actions
         None,   // sacrifice_card_name: not used for combat harness actions
+        &[],    // exert_names: not used for combat harness actions
+        None,   // pitch_exile_card_name: not used for combat harness actions
         &state,
         &players,
     );

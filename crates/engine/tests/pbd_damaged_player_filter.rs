@@ -141,6 +141,7 @@ fn test_damaged_player_target_controller_creature_match_fires() {
             player: p1,
             attackers: vec![(thug_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers failed");
@@ -217,6 +218,7 @@ fn test_damaged_player_target_controller_negative_excludes_other_opponent() {
             player: p1,
             attackers: vec![(thug_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers failed");
@@ -426,6 +428,7 @@ fn test_damaged_player_foreach_land_tap_nature_will_pattern() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers failed");
@@ -561,6 +564,7 @@ fn test_damaged_player_destroy_all_filter_multiplayer_isolation() {
             player: p1,
             attackers: vec![(battlecry_id, AttackTarget::Player(p3))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers failed");
@@ -603,7 +607,7 @@ fn test_damaged_player_hash_parity_all_variants() {
     // Hash sentinel bumped to 27 (BASELINE-LKI-01: GameEvent::CreatureDied.pre_death_characteristics,
     // CR 603.10a / CR 613.1d LKI snapshot for filtered death triggers).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 31u8,
+        HASH_SCHEMA_VERSION, 32u8,
         "BASELINE-LKI-01 bumped HASH_SCHEMA_VERSION 26→27 (GameEvent::CreatureDied.pre_death_characteristics: Option<Characteristics>, CR 603.10a / CR 613.1d LKI snapshot for filtered death triggers). If you bumped again, update this test and state/hash.rs history."
     );
 
@@ -743,6 +747,7 @@ fn test_throat_slitter_end_to_end_precision_fix() {
             player: p1,
             attackers: vec![(slitter_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers with Throat Slitter failed");

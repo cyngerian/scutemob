@@ -83,6 +83,7 @@ fn test_exalted_basic_attacks_alone_gives_plus_one() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -175,6 +176,7 @@ fn test_exalted_does_not_trigger_with_multiple_attackers() {
                 (second_id, AttackTarget::Player(p2)),
             ],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -237,6 +239,7 @@ fn test_exalted_multiple_instances_stack() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -315,6 +318,7 @@ fn test_exalted_on_non_attacker_permanent_targets_attacker() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -397,6 +401,7 @@ fn test_exalted_does_not_trigger_on_opponent_attack() {
             player: p2,
             attackers: vec![(p2_attacker_id, AttackTarget::Player(p1))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -450,6 +455,7 @@ fn test_exalted_bonus_expires_at_end_of_turn() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -536,6 +542,7 @@ fn test_exalted_multiplayer_only_attacker_controller_triggers() {
             player: p1,
             attackers: vec![(p1_attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -605,6 +612,7 @@ fn test_exalted_with_zero_attackers_does_not_trigger() {
             player: p1,
             attackers: vec![],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers with empty list should succeed");

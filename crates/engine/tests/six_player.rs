@@ -153,6 +153,7 @@ fn test_six_player_combat_five_defenders() {
             player: p(1),
             attackers: attackers_decl,
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers failed");

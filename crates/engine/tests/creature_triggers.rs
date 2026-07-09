@@ -195,6 +195,7 @@ fn test_whenever_creature_you_control_dies_fires_on_your_creature() {
             player: p2,
             attackers: vec![(attacker_id, AttackTarget::Player(p1))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers");
@@ -271,6 +272,7 @@ fn test_whenever_creature_you_control_dies_ignores_opponent_creature() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers");
@@ -339,6 +341,7 @@ fn test_whenever_any_creature_dies_fires_on_any() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers");
@@ -408,6 +411,7 @@ fn test_whenever_creature_opponent_controls_dies_fires() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers");
@@ -476,6 +480,7 @@ fn test_whenever_creature_opponent_controls_dies_ignores_your_creature() {
             player: p2,
             attackers: vec![(attacker_id, AttackTarget::Player(p1))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers");
@@ -543,6 +548,7 @@ fn test_whenever_creature_you_control_attacks_fires() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers");
@@ -595,6 +601,7 @@ fn test_whenever_creature_you_control_attacks_ignores_opponent() {
             player: p2,
             attackers: vec![(attacker_id, AttackTarget::Player(p1))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers");
@@ -658,6 +665,7 @@ fn test_whenever_creature_you_control_attacks_fires_per_creature() {
                 (a3_id, AttackTarget::Player(p2)),
             ],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers");
@@ -715,6 +723,7 @@ fn test_whenever_creature_you_control_deals_combat_damage_to_player_fires() {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers");
@@ -771,6 +780,7 @@ fn test_whenever_creature_you_control_deals_combat_damage_ignores_opponent() {
             player: p2,
             attackers: vec![(attacker_id, AttackTarget::Player(p1))],
             enlist_choices: vec![],
+            exert_choices: vec![],
         },
     )
     .expect("DeclareAttackers");
