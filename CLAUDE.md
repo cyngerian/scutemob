@@ -14,15 +14,15 @@
 > Detailed PB-by-PB handoffs, hazards, and seed inventories live in `memory/workstream-state.md`.
 > Worker sessions: append detail there, not here. CLAUDE.md tracks current snapshot only.
 
-- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage 954/1,748 = 54.6% per `tools/authoring-report.py`)
-- **Tests**: **2957 passing**; build/clippy/fmt clean
+- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage 960/1,748 = 54.9% per `tools/authoring-report.py`)
+- **Tests**: **2984 passing**; build/clippy/fmt clean
 - **Abilities**: ~199 validated; 42/42 P1; 17/17 P2; 40/40 P3; 95/95 P4 implemented (9 permanent-n/a; 1 deferred: Banding)
 - **Primitives**: PB-0..PB-37 + named-letter chain (PB-A/B/E/J/M/S/X/Q/Q4/N/D/P/L/T/SFT/CC-{W,B,C,A}/TS/LKI-CC/CD/LKI-Power/EWC/XS/XS-E/XA/EAT/XA2/EWC-D) all DONE. PB-Q2/Q3/Q5 reserved.
-- **Last shipped**: **PB-AC4** (`scutemob-46`, merge `dca25ec0`) — `ModeSelection.mode_targets: Option<Vec<Vec<TargetRequirement>>>` (per-mode targeting, CR 601.2c) wired through casting + resolution; Escalate+mode_targets cast-time hard-reject fail-safe; UpToN verified already complete from PB-T (not re-implemented); hash schema 30→31. Backfill: 11 cards migrated (Casualties of War was uncastable; Cryptic Command + Archmage's Charm stubs replaced) + 2 UpToN stale-TODO cleanups; 2 HIGH card-review fixes (Golgari regenerate, Abzan target filter). Prior: PB-AC3 (`scutemob-45`, dynamic P/T & count amounts), PB-AC2 (`scutemob-44`), PB-AC1 (`scutemob-43`). Next: PB-AC5 (alt-costs & timing keywords).
+- **Last shipped**: **PB-AC5** (`scutemob-47`, merge `0ce2c470`) — Warp (CR 702.185, `AltCostKind::Warp` + exile/recast), Transmute (CR 702.53), Exert (CR 701.43, both attack-cost and activation-cost shapes), `Cost::ExileFromHand` + `AltCostKind::Pitch` (CR 118.9); hash schema →32. Review found 2 HIGH (was_warped + exert omitted from HashInto — mutation-verified fixes). Backfill: 6 cards clean (Timeline Culler, Dimir Infiltrator, Combat Celebrant, Force of Will/Vigor/Negation) + Starfield Shepherd MEDIUM fix; 3 stay ENGINE-BLOCKED with narrowed markers. Prior: PB-AC4 (`scutemob-46`, per-mode targeting), PB-AC3 (`scutemob-45`), PB-AC2 (`scutemob-44`), PB-AC1 (`scutemob-43`). Next: PB-AC6 (phase/opponent-action conditions).
 - **Open primitive seeds**: OOS-XA2-1/2/4/5, OOS-EWCD-1..3, OOS-EAT-1..3, OOS-XS-E-2; older OOS-XS-1/3/4, OOS-LKI-Power-1/4/5, OOS-LKI-1..4, OOS-TS-1..4 — all 0-yield defensives or card-gated; high-confidence backlog exhausted. (OOS-XA-3/XA2-3 RESOLVED by `scutemob-30`; OOS-LKI-Power-3 shipped.) Full list: `memory/primitives/pb-retriage-CC.md`.
 - **Known issues**: 0 HIGH; 2 MEDIUM (pre-M8 deferred to M10+); **6 LOW open** (4 M10-gated: MR-M8-11, MR-B16-04/05/06; 2 permanent perf: MR-M1-18, MR-M6-14). Full: `docs/mtg-engine-milestone-reviews.md`.
 - **Strategic Review**: `docs/mtg-engine-strategic-review.md` (2026-03-07) — decouple M11 from M10, split M10, downscope M12, web-vs-Tauri decision pending
-- **Last Updated**: 2026-07-08 (PB-AC4 collected — 2957 tests, clean coverage 54.6%)
+- **Last Updated**: 2026-07-08 (PB-AC5 collected — 2984 tests, clean coverage 54.9%)
 
 ### What Exists (M0-M9.5 + Engine Core Complete + all P3/P4 abilities)
 
