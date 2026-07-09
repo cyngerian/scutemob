@@ -43,14 +43,12 @@ pub fn card() -> CardDefinition {
                 ]),
                 targets: vec![],
             },
-            // TODO: −2 Ninja token needs "can't be blocked" — TokenSpec lacks static
-            //   abilities (only keywords). Unblockable is a static, not a keyword.
-            AbilityDefinition::LoyaltyAbility {
-                cost: LoyaltyCost::Minus(2),
-                effect: Effect::Nothing,
-                targets: vec![],
-            },
-            // TODO: −7 emblem with combat damage → search library. Not expressible.
+            // ENGINE-BLOCKED: −2 creates a 1/1 blue Ninja token with "This token can't be
+            // blocked." TokenSpec carries keywords only, and unblockable is a static ability,
+            // not a keyword. Left UNAUTHORED rather than declared as a LoyaltyAbility with
+            // Effect::Nothing — that shape let a player pay 2 loyalty for no effect, which is
+            // wrong game state.
+            // ENGINE-BLOCKED: −7 emblem with combat damage → search library. Not expressible.
         ],
         ..Default::default()
     }

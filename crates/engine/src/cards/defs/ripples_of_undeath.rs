@@ -11,10 +11,11 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Enchantment]),
         oracle_text: "At the beginning of your first main phase, mill three cards. Then you may pay 1 life. If you do, return a card from among those milled this way to your hand.".to_string(),
         abilities: vec![
-            // ENGINE-BLOCKED: the "return one of the milled cards" clause needs the set of
-            // cards milled by THIS resolution to be carried forward as the target pool for
-            // the pay-1-life optional return. No mill-tracking / milled-cards-this-resolution
-            // handle exists in the DSL.
+            // ENGINE-BLOCKED: "mill three cards. Then you may pay {1} and 3 life. If you do,
+            // put a card from among those cards into your hand." The optional cost is {1} AND
+            // 3 life, and the returned card must be chosen from among the cards milled by THIS
+            // resolution. No milled-cards-this-resolution handle exists in the DSL to carry
+            // that set forward as the selection pool.
             // (The "at the beginning of your first main phase" trigger itself is now
             // available as TriggerCondition::AtBeginningOfFirstMainPhase — PB-AC6.)
         ],
