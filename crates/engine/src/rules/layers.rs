@@ -1309,6 +1309,20 @@ fn toposort_with_timestamp_fallback(mut effects: Vec<&ContinuousEffect>) -> Vec<
     }
     // Sort by timestamp as the baseline ordering (CR 613.7).
     // The topological sort will preserve timestamp order for independent effects.
+    //
+    // NOTE (F-VR1, PB-AC7 card review): `sort_by_key` is a STABLE sort — for two
+    // effects with an EQUAL timestamp (which happens whenever multiple
+    // `ApplyContinuousEffect`s are executed from one `Effect::Sequence` within a
+    // single resolution; see the `ts`-not-advanced note in
+    // `effects/mod.rs::execute_effect_inner`), this relies on stability to
+    // preserve the effects' original push/vec order as the tiebreak. Some card
+    // defs depend on this for correctness when there is no explicit `depends_on`
+    // dependency edge between the two effects below — e.g. Vraska, Betrayal's
+    // Sting's -2 pushes `RemoveAllAbilities` before the granted `AddManaAbility`
+    // so the grant survives the removal at the SAME timestamp (regression-guarded
+    // by `test_vraska_betrayals_sting_minus2_full_integration` in
+    // `crates/engine/tests/pb_ac7_card_integration.rs`). Do not replace this with
+    // an unstable sort.
     effects.sort_by_key(|e| e.timestamp);
     // Build the dependency graph.
     // in_degree[i]: number of effects that must be applied before effects[i].

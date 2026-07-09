@@ -8,16 +8,23 @@
 //! `TriggerCondition::WheneverYouCastSpell.spell_subtype_filter`) are wired
 //! correctly into each card's abilities.
 //!
-//! Final Showdown (mode 0) and Vraska, Betrayal's Sting (-2) are PARTIAL clauses on
-//! multi-ability cards; not given dedicated integration tests here (their
-//! now-expressible clauses reuse patterns already covered by the unit tests in
-//! `pb_ac7_type_change_ability_removal.rs` and the Oko/Darksteel-Mutation
-//! precedents), per the backfill scope (fully-clean roster only).
+//! Final Showdown (mode 0) is a PARTIAL clause on a multi-mode card; not given a
+//! dedicated integration test here (its now-expressible clause reuses a pattern
+//! already covered by the unit tests in `pb_ac7_type_change_ability_removal.rs`),
+//! per the backfill scope (fully-clean roster only).
+//!
+//! Vraska, Betrayal's Sting (-2) DOES get a dedicated integration test below
+//! (`test_vraska_betrayals_sting_minus2_full_integration`) — see review finding
+//! F-VR1 (`memory/card-authoring/review-pb-ac7-backfill.md`): the -2 ability
+//! applies `RemoveAllAbilities` and a granted `AddManaAbility` at the SAME
+//! timestamp (within one `Effect::Sequence`), so the granted ability's survival
+//! depends on stable-sort insertion order rather than distinct timestamps. This
+//! test locks that behavior in as a regression guard.
 
 use mtg_engine::{
     calculate_characteristics, enrich_spec_from_def, process_command, CardDefinition, CardId,
-    CardRegistry, CardType, Command, GameEvent, GameState, GameStateBuilder, KeywordAbility,
-    ObjectId, ObjectSpec, PlayerId, Step, SubType, Target, ZoneId,
+    CardRegistry, CardType, Command, CounterType, GameEvent, GameState, GameStateBuilder,
+    KeywordAbility, ObjectId, ObjectSpec, PlayerId, Step, SubType, SuperType, Target, ZoneId,
 };
 use std::collections::HashMap;
 
@@ -549,5 +556,127 @@ fn test_leaf_crowned_visionary_full_integration() {
         hand_count(&state, p1),
         hand_before_2 - 1,
         "casting a non-Elf spell must NOT fire the may-pay-{{G}}-to-draw trigger (only -1 for the cast)"
+    );
+}
+
+// ── 6. Vraska, Betrayal's Sting — -2 ────────────────────────────────────────────
+
+#[test]
+/// Oracle: "-2: Target creature becomes a Treasure artifact with '{T}, Sacrifice
+/// this artifact: Add one mana of any color' and loses all other card types and
+/// abilities." Ruling (2023-02-04): "The target ... will lose any other subtypes
+/// and card types it previously had and will be only a Treasure artifact. It will
+/// retain any supertypes it had."
+///
+/// Regression guard for review finding F-VR1: the -2 ability's `Effect::Sequence`
+/// applies `RemoveAllAbilities` and a granted `AddManaAbility` in the SAME
+/// `Effect::ApplyContinuousEffect` "batch" — the timestamp counter (CR 613.7b) is
+/// not advanced between pushes within one `Sequence`
+/// (`crates/engine/src/effects/mod.rs`, `let ts = state.timestamp_counter;`), so
+/// both continuous effects share one timestamp. There is no CR 613.8a dependency
+/// arm between `RemoveAllAbilities` and `AddManaAbility`
+/// (`crates/engine/src/rules/layers.rs::depends_on`), so `resolve_layer_order`
+/// falls back to a stable sort on that shared timestamp
+/// (`toposort_with_timestamp_fallback`), which preserves the original push/vec
+/// order: `RemoveAllAbilities` is pushed before `AddManaAbility` in the card def,
+/// so Remove applies first and the granted mana ability survives. This mirrors
+/// the already-tested Darksteel Mutation pattern (`RemoveAllAbilities` before
+/// `AddKeyword`), just with `AddManaAbility` instead of `AddKeyword` and equal
+/// (not distinct/incrementing) timestamps. If the push order in
+/// `vraska_betrayals_sting.rs` is ever reversed, or the sort at
+/// `toposort_with_timestamp_fallback` stops being stable for tied timestamps,
+/// this test fails.
+fn test_vraska_betrayals_sting_minus2_full_integration() {
+    let def = mtg_engine::cards::defs::vraska_betrayals_sting::card();
+    let registry = CardRegistry::new(vec![def.clone()]);
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(
+            card_spec(
+                p1,
+                "Vraska, Betrayal's Sting",
+                "vraska-betrayals-sting",
+                ZoneId::Battlefield,
+                &def,
+            )
+            .with_counter(CounterType::Loyalty, 6),
+        )
+        .object(
+            ObjectSpec::creature(p2, "Target Creature", 3, 3)
+                .with_keyword(KeywordAbility::Flying)
+                .with_supertypes(vec![SuperType::Legendary]),
+        )
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    let vraska_id = find_object(&state, "Vraska, Betrayal's Sting");
+    let target_id = find_object(&state, "Target Creature");
+
+    let (state, _) = process_command(
+        state,
+        Command::ActivateLoyaltyAbility {
+            player: p1,
+            source: vraska_id,
+            ability_index: 1, // -2: target creature becomes a Treasure
+            targets: vec![Target::Object(target_id)],
+            x_value: None,
+        },
+    )
+    .unwrap();
+    let state = resolve_stack(state, &[p1, p2]);
+
+    let chars = calculate_characteristics(&state, target_id).unwrap();
+    assert_eq!(
+        chars.card_types,
+        im::OrdSet::unit(CardType::Artifact),
+        "loses all other card types (is only a Treasure artifact)"
+    );
+    assert_eq!(
+        chars.subtypes,
+        im::OrdSet::unit(SubType("Treasure".to_string())),
+        "loses all other subtypes ... only a Treasure artifact"
+    );
+    assert!(
+        chars.supertypes.contains(&SuperType::Legendary),
+        "ruling: retains any supertypes it had"
+    );
+    assert!(
+        chars.keywords.is_empty(),
+        "loses all other abilities: Flying must be gone"
+    );
+    assert!(
+        chars.activated_abilities.is_empty(),
+        "loses all other abilities: no leftover activated abilities"
+    );
+    assert!(
+        chars.triggered_abilities.is_empty(),
+        "loses all other abilities: no leftover triggered abilities"
+    );
+    assert_eq!(
+        chars.mana_abilities.len(),
+        1,
+        "the granted mana ability must survive the 'loses all other abilities' removal \
+         (F-VR1 — this is the regression guard for the equal-timestamp ordering)"
+    );
+    let granted = chars.mana_abilities.front().unwrap();
+    assert!(
+        granted.requires_tap,
+        "granted ability is '{{T}}, Sacrifice this artifact: Add one mana of any color'"
+    );
+    assert!(granted.sacrifice_self, "granted ability requires Sacrifice");
+    assert!(
+        granted.any_color,
+        "granted ability adds one mana of any color"
+    );
+    assert!(
+        granted.produces.is_empty(),
+        "any_color ability has no fixed 'produces' map"
     );
 }
