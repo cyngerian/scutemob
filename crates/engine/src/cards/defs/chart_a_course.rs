@@ -1,8 +1,9 @@
 // Chart a Course — {1}{U}, Sorcery
 // Draw two cards. Then discard a card unless you attacked this turn.
 //
-// TODO: "Unless you attacked this turn" conditional discard — needs attack-tracking
-//   condition. Implementing draw only (no discard).
+// PB-AC6 added Condition::YouAttackedThisTurn (CR 508.1). The discard is mandatory
+// unless the raid condition is met, so a false branch discards and a true branch is
+// a no-op (Effect::Nothing).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -13,11 +14,20 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Sorcery]),
         oracle_text: "Draw two cards. Then discard a card unless you attacked this turn.".to_string(),
         abilities: vec![AbilityDefinition::Spell {
-            // TODO: "Then discard unless you attacked" not expressible.
-            effect: Effect::DrawCards {
-                player: PlayerTarget::Controller,
-                count: EffectAmount::Fixed(2),
-            },
+            effect: Effect::Sequence(vec![
+                Effect::DrawCards {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(2),
+                },
+                Effect::Conditional {
+                    condition: Condition::YouAttackedThisTurn,
+                    if_true: Box::new(Effect::Nothing),
+                    if_false: Box::new(Effect::DiscardCards {
+                        player: PlayerTarget::Controller,
+                        count: EffectAmount::Fixed(1),
+                    }),
+                },
+            ]),
             targets: vec![],
             modes: None,
             cant_be_countered: false,

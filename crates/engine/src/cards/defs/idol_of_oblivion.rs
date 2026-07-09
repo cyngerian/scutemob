@@ -12,7 +12,7 @@ pub fn card() -> CardDefinition {
         oracle_text: "{T}: Draw a card. Activate only if you created a token this turn.\n{8}, {T}, Sacrifice Idol of Oblivion: Create a 10/10 colorless Eldrazi creature token.".to_string(),
         abilities: vec![
             // {T}: Draw a card. Activate only if you created a token this turn.
-            // TODO: Activation condition "created a token this turn" not in DSL.
+            // CR 111.10: PB-AC6 added Condition::CreatedATokenThisTurn.
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
                 effect: Effect::DrawCards {
@@ -21,8 +21,7 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
-                activation_condition: None, // TODO: YouCreatedATokenThisTurn
-
+                activation_condition: Some(Condition::CreatedATokenThisTurn),
                 activation_zone: None,
             once_per_turn: false,
             },
