@@ -42,10 +42,17 @@ pub fn card() -> CardDefinition {
                         cant_be_regenerated: false,
                     },
                     // Mode 2: Regenerate each creature you control.
-                    // ENGINE-BLOCKED: no bulk-regenerate Effect variant exists (a single
-                    // `Effect::Regenerate` only targets one object). Unrelated to AC4's
-                    // per-mode-targeting scope.
-                    Effect::Sequence(vec![]),
+                    // `Effect::Regenerate` resolves a target *list* via
+                    // `resolve_effect_target_list` and applies a regeneration shield to
+                    // every resolved object (effects/mod.rs), so an `AllPermanentsMatching`
+                    // target list is sufficient — no bulk-specific primitive needed.
+                    Effect::Regenerate {
+                        target: EffectTarget::AllPermanentsMatching(Box::new(TargetFilter {
+                            has_card_type: Some(CardType::Creature),
+                            controller: TargetController::You,
+                            ..Default::default()
+                        })),
+                    },
                 ],
                 mode_targets: Some(vec![vec![], vec![TargetRequirement::TargetEnchantment], vec![]]),
             }),

@@ -26,9 +26,9 @@
 
 use mtg_engine::rules::events::GameEvent;
 use mtg_engine::{
-    all_cards, enrich_spec_from_def, process_command, CardId, CardRegistry, CardType, Command,
-    GameStateBuilder, ManaColor, ObjectId, ObjectSpec, PlayerId, StackObject, StackObjectKind,
-    Step, Target, ZoneId,
+    all_cards, enrich_spec_from_def, process_command, CardEffectTarget, CardId, CardRegistry,
+    CardType, Command, CounterType, Effect, GameStateBuilder, ManaColor, ObjectId, ObjectSpec,
+    PlayerId, StackObject, StackObjectKind, Step, Target, TargetController, TargetFilter, ZoneId,
 };
 use std::collections::HashMap;
 
@@ -75,6 +75,13 @@ fn obj_in_hand(state: &mtg_engine::GameState, name: &str, owner: PlayerId) -> bo
         .objects
         .values()
         .any(|o| o.characteristics.name == name && o.zone == ZoneId::Hand(owner))
+}
+
+fn obj_on_battlefield(state: &mtg_engine::GameState, name: &str) -> bool {
+    state
+        .objects
+        .values()
+        .any(|o| o.characteristics.name == name && o.zone == ZoneId::Battlefield)
 }
 
 fn obj_controller(state: &mtg_engine::GameState, name: &str) -> PlayerId {
@@ -449,5 +456,147 @@ fn test_archmages_charm_gain_control_of_low_mv_permanent() {
         obj_controller(&state, "Cheap Trinket"),
         p1,
         "CR 613.1b: mode 2 must have given p1 control of the mana-value-1 permanent"
+    );
+}
+
+// ── 5. Golgari Charm — mode 2 regenerates only the caster's creatures ─────────────
+
+/// CR 701.19a / CR 700.2c — Golgari Charm: "Choose one — All creatures get -1/-1
+/// until end of turn. / Destroy target enchantment. / Regenerate each creature you
+/// control." Before the H1 fix, mode 2 (index 2) was a silent `Effect::Sequence(vec![])`
+/// no-op: casting Golgari Charm in response to a board wipe protected nothing. This
+/// test casts mode 2, then simulates a "destroy all creatures" board wipe and asserts
+/// the caster's creature survives (regeneration shield intercepts) while the
+/// opponent's creature (never shielded — "you control" scopes the mode to the caster)
+/// dies normally.
+#[test]
+fn test_golgari_charm_mode_2_regenerates_only_callers_creatures() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let defs = load_defs();
+
+    let golgari = enrich_spec_from_def(
+        ObjectSpec::card(p1, "Golgari Charm")
+            .with_card_id(CardId("golgari-charm".to_string()))
+            .in_zone(ZoneId::Hand(p1)),
+        &defs,
+    );
+    let p1_bear = ObjectSpec::creature(p1, "P1 Bear", 2, 2);
+    let p2_bear = ObjectSpec::creature(p2, "P2 Bear", 2, 2);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(CardRegistry::new(all_cards()))
+        .object(golgari)
+        .object(p1_bear)
+        .object(p2_bear)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    {
+        let pool = &mut state.players.get_mut(&p1).unwrap().mana_pool;
+        pool.add(ManaColor::Black, 1);
+        pool.add(ManaColor::Green, 1);
+    }
+
+    // Mode 2 (index 2) = "Regenerate each creature you control" -- no targets.
+    let (state, _) = cast_modal(state, p1, "Golgari Charm", vec![], vec![2]);
+    let (mut state, _) = pass_all(state, &[p1, p2]);
+
+    // Both creatures are still alive after resolution -- Golgari Charm mode 2 itself
+    // destroys nothing, it only grants shields.
+    assert!(obj_on_battlefield(&state, "P1 Bear"));
+    assert!(obj_on_battlefield(&state, "P2 Bear"));
+
+    // Simulate a "destroy all creatures" board wipe via the same DestroyPermanent
+    // primitive real board wipes use (e.g. Wrath of God).
+    use mtg_engine::effects::EffectContext;
+    let wipe = Effect::DestroyPermanent {
+        target: CardEffectTarget::AllPermanentsMatching(Box::new(TargetFilter {
+            has_card_type: Some(CardType::Creature),
+            controller: TargetController::Any,
+            ..Default::default()
+        })),
+        cant_be_regenerated: false,
+    };
+    let mut wipe_ctx = EffectContext::new(p1, ObjectId(999), vec![]);
+    let _ = mtg_engine::effects::execute_effect(&mut state, &wipe, &mut wipe_ctx);
+
+    assert!(
+        obj_on_battlefield(&state, "P1 Bear"),
+        "CR 701.19a: p1's creature must survive the board wipe via mode 2's regeneration shield"
+    );
+    assert!(
+        !obj_on_battlefield(&state, "P2 Bear"),
+        "CR 700.2c: mode 2 only shields creatures the CASTER controls -- p2's creature is not shielded and must die"
+    );
+}
+
+// ── 6. Abzan Charm — mode 2 can legally target an opponent's creature ─────────────
+
+/// CR 700.2c — Abzan Charm: "Choose one — Exile target creature with power 3 or
+/// greater. / You draw two cards and you lose 2 life. / Distribute two +1/+1
+/// counters among one or two target creatures." Oracle mode 2 carries no controller
+/// restriction. Before the H2 fix, `mode_targets[2]` wrongly filtered on
+/// `TargetController::You`, silently rejecting an opponent's creature as a legal
+/// target. This test casts mode 2 targeting an opponent-controlled creature and
+/// asserts it legally resolves (2 +1/+1 counters placed).
+#[test]
+fn test_abzan_charm_mode_2_can_target_opponents_creature() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let defs = load_defs();
+
+    let abzan = enrich_spec_from_def(
+        ObjectSpec::card(p1, "Abzan Charm")
+            .with_card_id(CardId("abzan-charm".to_string()))
+            .in_zone(ZoneId::Hand(p1)),
+        &defs,
+    );
+    let opp_creature = ObjectSpec::creature(p2, "Opponent's Creature", 2, 2);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(CardRegistry::new(all_cards()))
+        .object(abzan)
+        .object(opp_creature)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    {
+        let pool = &mut state.players.get_mut(&p1).unwrap().mana_pool;
+        pool.add(ManaColor::White, 1);
+        pool.add(ManaColor::Black, 1);
+        pool.add(ManaColor::Green, 1);
+    }
+
+    let opp_id = find_by_name(&state, "Opponent's Creature");
+
+    // Mode 2 (index 2) targets a creature controlled by an OPPONENT -- legal per
+    // oracle text (no controller restriction on "one or two target creatures").
+    let (state, _) = cast_modal(
+        state,
+        p1,
+        "Abzan Charm",
+        vec![Target::Object(opp_id)],
+        vec![2],
+    );
+
+    let (state, _) = pass_all(state, &[p1, p2]);
+    let counters = state
+        .objects
+        .values()
+        .find(|o| o.characteristics.name == "Opponent's Creature")
+        .and_then(|o| o.counters.get(&CounterType::PlusOnePlusOne).copied())
+        .unwrap_or(0);
+    assert_eq!(
+        counters, 2,
+        "CR 700.2c: mode 2 must legally target and place 2 +1/+1 counters on the opponent's creature"
     );
 }

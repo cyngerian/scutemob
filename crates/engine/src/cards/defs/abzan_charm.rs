@@ -1,9 +1,10 @@
 // Abzan Charm — {W}{B}{G} Instant; choose one of three modes:
 // 0: Exile target creature with power 3 or greater.
 // 1: Draw 2 cards and lose 2 life.
-// 2: Distribute two +1/+1 counters among one or two target creatures you control.
-//    (ENGINE-BLOCKED: approximated — add 2 counters to a single target creature you
-//    control. See inline comment on mode 2 below for the missing primitive.)
+// 2: Distribute two +1/+1 counters among one or two target creatures. (No controller
+//    restriction — any creature is a legal target.)
+//    (ENGINE-BLOCKED: approximated — add 2 counters to a single target creature. See
+//    inline comment on mode 2 below for the missing distribute-N-among-M primitive.)
 //
 // PB-AC4 (CR 700.2c/700.2f): per-mode targets migrated — modes 0 and 2 each declare their
 // own single target via `mode_targets`, LOCAL to that mode (`Spell.targets` is empty).
@@ -52,7 +53,8 @@ pub fn card() -> CardDefinition {
                     // independently-declared targets needs a distribute-N-among-M-targets
                     // primitive that does not exist in the DSL (unrelated to AC4's
                     // per-mode-targeting scope). Approximated: both counters go on a single
-                    // declared target creature you control.
+                    // declared target creature (no controller restriction — any creature is
+                    // a legal target per oracle text).
                     Effect::AddCounter {
                         target: EffectTarget::DeclaredTarget { index: 0 },
                         counter: CounterType::PlusOnePlusOne,
@@ -65,10 +67,7 @@ pub fn card() -> CardDefinition {
                         ..Default::default()
                     })],
                     vec![],
-                    vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
-                        controller: TargetController::You,
-                        ..Default::default()
-                    })],
+                    vec![TargetRequirement::TargetCreature],
                 ]),
             }),
             cant_be_countered: false,
