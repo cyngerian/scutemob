@@ -1,142 +1,135 @@
-# Primitive WIP: PB-AC9 — Misc & mana (final AC-chain batch)
+# Primitive WIP: PB-AC3 — Dynamic P/T & count amounts (CDA residual)
 
-batch: PB-AC9
-title: Misc & mana (final AC-chain batch)
-cards_affected: 10 fully clean + 1 partial-correctness upgrade (Reforge the Soul)
-started: 2026-07-10
-phase: implement (complete — pending review)
-plan_file: memory/primitives/pb-plan-AC9.md
-recon_file: memory/primitives/pb-recon-AC9.md
+batch: PB-AC3
+title: Dynamic P/T & count amounts (CDA residual)
+cards_affected: ~14 (discounted; real roster to be identified from oracle text)
+started: 2026-07-08
+phase: closed
+plan_file: memory/primitives/pb-plan-AC3.md
 
-## Scope decision (confirmed from plan, verified again during implementation)
+## Close-out (2026-07-08)
+- Primitive review (primitive-impl-reviewer): 0 HIGH, 1 MEDIUM, 4 LOW. MEDIUM
+  fixed inline (Mirror Entity `AddAllCreatureTypes` moved Layer 6 -> Layer 4
+  `TypeChange`, CR 613.1d). 4 LOW pre-existing/out-of-scope. `pb-review-AC3.md`.
+- Card review (card-batch-reviewer, `pb-review-AC3-cards.md`): 7 CLEAN backfill
+  cards oracle-accurate; found 4 HIGH wrong-game-state on PARTIAL cards. ALL FIXED
+  (author now-expressible clause via PB-AC3 primitives, TODO the truly-blocked one):
+  mishra (Fixed(1)->AttackingCreatureCount), multani (dying 0/0 -> CdaModify Sum),
+  ashaya (dying */* -> CdaPowerToughness; removed overbroad token type-grant),
+  wight (omitted self-sac ability per vampire_gourmand precedent).
+- +2 CDA regression tests (Ashaya, Multani) -> 21 tests in pb_ac3 file, 2940 total.
+- Coverage: clean 946 -> 951 (54.1% -> 54.4%). Krenko misclassified 'empty' by a
+  pre-existing authoring-report.py regex bug (documented, out of scope).
+- Gates ALL GREEN: build --workspace, test --all (2940/0), clippy --all-targets
+  -D warnings, fmt --check.
+- Commits: 6daf98bc, 0f30d81e, af4ee811 (engine+backfill+gates), 0d274517 (MED fix),
+  d771b795 (card-review HIGH fixes + regression tests).
 
-Three of five briefed primitives already existed and were correctly dropped from
-scope by the plan: `Effect::RollDice` (d20 + results table), `ReplacementModification::DoubleTokens`
-(token doubling), `Effect::AddManaFilterChoice` (multi-output filter mana, M10-deferred).
-`SearchLibrary` multi-name dropped (zero roster). Confirmed both by grep and by using
-these primitives directly in the card-def backfill (RollDice in 3 dragon defs;
-DoubleTokens in 3 enchantment defs) — no re-implementation occurred.
+## Coordinator decisions on plan (2026-07-08)
+- **HandSize**: ADD it (criterion 4225 names it literally) as a thin alias
+  `EffectAmount::HandSize { player }` delegating to the same counting logic as
+  `CardCount{Hand}` in BOTH resolve_amount and resolve_cda_amount; doc-comment flags
+  it as a convenience alias. Discriminant 21.
+- **Hash collision at LayerModification disc 26** (RemoveSuperType vs ModifyPowerDynamic):
+  FIX in-batch — reassign RemoveSuperType → next free disc; schema is already bumping.
 
-## Implementation progress (2026-07-10)
-
-- [x] `Effect::WheelHand { player, disposal, draw }` + `WheelDisposal`
-      (Discard / ShuffleHandIntoLibrary / ShuffleHandAndGraveyardIntoLibrary) +
-      `WheelDraw` (ThatMany / Fixed(u32)) — `cards/card_definition.rs` enum defs;
-      dispatch in `effects/mod.rs` (snapshots hand size BEFORE disposal); new
-      helper `move_zone_all_then_shuffle()` for the two shuffle dispositions
-      (mirrors the existing `Effect::Shuffle` seed_from_u64(timestamp_counter)
-      pattern). Routes Discard through the existing `discard_cards()` helper
-      (Madness → exile preserved). Exported from `cards/helpers.rs`.
-- [x] `Effect::SetNoMaximumHandSize { player }` + persistent
-      `PlayerState.no_max_hand_size_permanent: bool` — `state/player.rs` field;
-      `state/builder.rs:257` literal updated; dispatch in `effects/mod.rs`;
-      cleanup recompute in `rules/turn_actions.rs` changed from
-      `ps.no_max_hand_size = has_no_max;` to
-      `ps.no_max_hand_size = has_no_max || ps.no_max_hand_size_permanent;`
-      (the `calculate_characteristics()` layer-correctness scan above it,
-      fixed by PB-AC8, was left untouched — verified NOT regressed).
-- [x] hash.rs: `Effect::WheelHand` (disc 91) + `Effect::SetNoMaximumHandSize`
-      (disc 92) hash arms; `HashInto for WheelDisposal` + `HashInto for WheelDraw`
-      sub-enum impls; `PlayerState.no_max_hand_size_permanent` hashed;
-      `HASH_SCHEMA_VERSION` 35 → 36 with changelog block. Bulk-updated all 27
-      test-file `35u8` sentinel assertions → `36u8` (hash.rs itself excluded —
-      its own internal `35u8` discriminants for unrelated enums are untouched).
-- [x] Card fixes (10 fully clean, matching plan's yield table exactly):
-      `incendiary_command.rs` (mode 3 → WheelHand), `shattered_perception.rs`,
-      `winds_of_change.rs`, `echo_of_eons.rs` (WheelHand family);
-      `ancient_silver_dragon.rs` (Sequence[RollDice, SetNoMaximumHandSize]);
-      `parallel_lives.rs`, `anointed_procession.rs`, `doubling_season.rs`
-      (token + counter doubling replacement registration);
-      `ancient_copper_dragon.rs`, `ancient_gold_dragon.rs` (RollDice → CreateToken
-      with `EffectAmount::LastDiceRoll`).
-- [x] `reforge_the_soul.rs` — PARTIAL correctness upgrade only: swapped the
-      wrong-game-state `DiscardCards{Fixed(7)}` for `WheelHand{Discard, Fixed(7)}`
-      (now discards the WHOLE hand, not exactly 7). Miracle TODO deliberately
-      retained — card stays PARTIAL, NOT counted as clean.
-- [x] Token-doubling completeness pass (§5, separate scope from the two new
-      primitives) — `apply_token_creation_replacement()` was wired at only 2 of
-      13 actual `GameEvent::TokenCreated` emission sites (verified by grep, not
-      "~13" from the plan — exactly 13). Wired the remaining 9 (plan's table
-      named 8 classes across `resolution.rs`/`effects/mod.rs`; a systematic final
-      grep sweep found 2 more the plan's table missed — `Effect::Investigate`
-      and `Effect::Amass` — both wired too, each with its own regression test):
-      `CreateTokenAndAttachSource` (Living Weapon), Squad (batch-level doubling),
-      Offspring (single-instance), Myriad (per-opponent-instance), Embalm,
-      Eternalize, Encore (per-opponent-instance), Gift Food/Treasure (keyed to
-      **recipient**, not the gifting spell's controller — the exact subtlety the
-      plan flagged), Investigate (per-instance), Amass (single-instance; doubled
-      Army token created, only the FIRST receives the amass counters — a design
-      call I made by analogy to the existing Living Weapon "only the first gets
-      equipped" precedent comment, NOT verified against a specific CR ruling for
-      the Amass+Doubling-Season interaction; flagged for reviewer attention).
-      Plan's original table mislabeled one site as "Populate" — no `Populate`
-      keyword/mechanic exists anywhere in the engine; that site is actually Squad.
-- [x] Unit tests: new file `crates/engine/tests/pb_ac9_wheel_and_misc.rs` (18
-      tests: 7 WheelHand, 4 SetNoMaximumHandSize incl. mutation-verified hash
-      test, 1 hash sentinel, 6 card integration). Plus 7 token-doubling
-      completeness regression tests added to existing keyword test files:
-      `squad.rs` (+1), `myriad.rs` (+1), `living_weapon.rs` (+1), `gift.rs` (+2,
-      including the negative control proving recipient-vs-giver controller
-      keying), `investigate.rs` (+1), `amass.rs` (+1). Total: 25 new tests.
+## Implementation progress (2026-07-08)
+- [x] `EffectAmount::AttackingCreatureCount` (disc 19), `TappedCreatureCount` (disc 20) —
+      `crates/engine/src/cards/card_definition.rs` (enum def), `resolve_amount`
+      (`effects/mod.rs`) and `resolve_cda_amount` (`rules/layers.rs`) both wired (lockstep).
+- [x] `EffectAmount::HandSize { player }` (disc 21) — thin alias delegating to
+      `CardCount{Hand}` in both resolve_amount and resolve_cda_amount, per coordinator decision.
+- [x] `LayerModification::SetBothDynamic { amount: Box<EffectAmount> }` (disc 28, Layer 7b) —
+      `state/continuous_effect.rs` enum def; substitution arm in `effects/mod.rs`
+      `ApplyContinuousEffect`; apply arm in `rules/layers.rs` `apply_layer_modification`.
+- [x] `CombatState::is_attacking` helper — `state/combat.rs`; wired into both count arms
+      (not left dead).
+- [x] hash.rs: 3 new `EffectAmount` HashInto arms (19/20/21) + 1 `LayerModification` arm
+      (28) + `HASH_SCHEMA_VERSION` 29 -> 30 with changelog block.
+- [x] Hash collision verdict: CONFIRMED REAL — `RemoveSuperType` and `ModifyPowerDynamic`
+      both hashed prefix `26u8`. Fixed: `RemoveSuperType` reassigned to discriminant 29.
+      Updated all 21 test files asserting `HASH_SCHEMA_VERSION, 29u8` -> `30u8`.
+- [x] Card fixes: keep_watch (AttackingCreatureCount), throne_of_the_god_pharaoh
+      (Triggered end-step + TappedCreatureCount), mirror_entity (SetBothDynamic +
+      AddAllCreatureTypes), krenko_tin_street_kingpin (PowerOf(Source) token count),
+      ulvenwald_hydra (CdaPowerToughness lands), wight_of_the_reliquary
+      (CdaModifyPowerToughness graveyard-creature-count; SacrificeAnother TODO
+      intentionally left — separate pre-existing DSL gap, out of PB-AC3 scope),
+      storm_kiln_artist (CdaModifyPowerToughness artifact count).
+- [x] PARTIAL TODOs updated (galadhrim_ambush, mishra_claimed_by_gix,
+      ashaya_soul_of_the_wild, multani_yavimayas_avatar) — functional code untouched
+      per coordinator instruction, comments updated to name remaining gap.
+      OOS cards (grand_warlord_radha, harvest_season, commissar_severina_raine,
+      dawnstrike_vanguard, opposition, springleaf_drum, mothdust_changeling,
+      glare_of_subdual, iroas_god_of_victory, dolmen_gate, reconnaissance) left alone.
+- [x] Unit tests file `pb_ac3_dynamic_pt_counts.rs` — 19 tests, all passing.
 - [x] Gates — ALL GREEN:
-      `cargo build --workspace` clean (confirms no TUI/replay-viewer arms needed —
-      the plan's positive assertion held, verified: neither file matches on
-      `Effect::`, only `StackObjectKind`/`KeywordAbility`).
-      `cargo test --all`: 3062 → 3087 (+25), 0 failed.
-      `cargo clippy --all-targets -- -D warnings`: clean.
-      `cargo fmt --check`: clean (after 2 `cargo fmt` auto-fix passes for the
-      manually-inserted loop-wrapping code in `resolution.rs` and 2 new test files).
-      `python3 tools/authoring-report.py`: clean 973 → 982 (55.7% → 56.2%),
-      matches plan's expectation of +9 clean, +1 partial→partial exactly.
-      Zero remaining `TODO`/`ENGINE-BLOCKED` markers in the 10 clean cards
-      (verified by grep); Reforge the Soul retains exactly 1 (Miracle).
-
-## Deviations / findings for the reviewer
-
-1. **Gotcha discovered (test-writing, not engine)**: `next_object_id()` shares
-   the SAME counter as `timestamp_counter` (dice-roll/shuffle seeding). A test
-   that builds many pre-placed objects via `GameStateBuilder` and THEN forces
-   `state.timestamp_counter` to a small fixed value (to control a dice roll)
-   will collide new object ids with existing object ids, silently corrupting
-   the state (`OrdMap::insert` overwrite). Hit this in
-   `test_ancient_silver_dragon_draw_and_no_max` (20 library objects + forced
-   `timestamp_counter = 9` → only 6/10 draws succeeded before silent
-   corruption). Fixed by forcing a value well ABOVE the post-build object
-   count instead (`1009`, chosen so `1009 % 20 == 9` for the same roll).
-   Recommend adding this to `memory/gotchas-infra.md` if not already covered.
-2. **Amass + Doubling Season interaction**: no MCP CR/ruling lookup was
-   performed for this specific interaction (Amass wasn't in the plan's scope
-   at all — found via a final completeness sweep). Implemented as "doubled
-   Army token creation, counters go on the first only," by analogy to the
-   Living Weapon precedent already in the codebase. **Flag for review** —
-   verify against the actual Amass + Doubling Season ruling if one exists.
-3. **Plan's site-table label was wrong** for the `resolution.rs:4739`-ish
-   site: labeled "Populate (SOK)" — no `Populate` keyword/mechanic exists in
-   this engine at all (grep-confirmed). That site is Squad's ETB trigger. Not
-   a blocker — Squad was wired regardless, just noting the plan's minor label
-   error (consistent with the plan's own admission that it overturned the
-   recon's table once already).
-4. **Two additional token-doubling sites found beyond the plan's table**:
-   `Effect::Investigate` (effects/mod.rs) and `Effect::Amass` (effects/mod.rs).
-   The plan said "~13" `TokenCreated` sites; the table only named 10 (2
-   pre-wired + 8 to wire). A final grep-count found exactly 13 total sites —
-   these 2 were the gap. Wired both, each with a regression test, since they
-   were low-risk (same `apply_token_creation_replacement` chokepoint pattern)
-   and genuinely in-scope for "route every applicable site" per the task brief.
+      `cargo build --workspace` clean; `cargo test --all` 2938 passed / 0 failed
+      (2919 baseline + 19 new); `cargo clippy --all-targets -- -D warnings` clean;
+      `cargo fmt --check` clean (after one `cargo fmt` auto-fix pass).
+      `python3 tools/authoring-report.py`: clean 946->951 (54.1%->54.4%), todo
+      621->616, total_todos 1122->1106.
+      **Finding for coordinator**: expected +6 clean (6 CLEAN-roster cards fixed)
+      but delta is +5. Root cause: `tools/authoring-report.py`'s `classify_file`
+      empty-abilities regex `abilities:\s*vec!\[\s*\]\s*,` has NO word boundary, so
+      it false-positive-matches the substring in `activated_abilities: vec![],` /
+      `mana_abilities: vec![],` (present in Krenko's TokenSpec literal, pre-existing,
+      unrelated to this batch's edit). Krenko is misclassified "empty" both before
+      and after this batch's fix — its card def is functionally correct and covered
+      by `test_krenko_tokens_equal_power` (loads the actual shipped CardDefinition).
+      This is a pre-existing tooling defect, not a PB-AC3 regression; left unfixed
+      (out of declared PB-AC3 scope — tooling change, not engine/card/test).
 
 ## Task reference
+- ESM task: scutemob-45
+- Branch: feat/pb-ac3-dynamic-pt-count-amounts-cda-residual
+- Acceptance criteria:
+  - 4225: Engine primitives implemented — `LayerModification::ModifyBoth` accepting
+    `EffectAmount`; `EffectAmount::{AttackingCreatureCount, TappedCreatureCount,
+    HandSize}`; power-based token count — each with tests citing CR sections (layer
+    interactions covered)
+  - 4226: Review pass complete; primitive-impl-reviewer findings written; all
+    HIGH/MEDIUM fixed
+  - 4227: Backfill complete; all cards unblocked by PB-AC3 re-authored, stale
+    TODO/ENGINE-BLOCKED markers removed, reviewed by card-batch-reviewer
+  - 4228: All gates green; authoring-report rerun and coverage delta posted as
+    task comment
 
-- Branch: feat/pb-ac9-misc-mana
-- No ESM task ID recorded in this worktree's context at session start.
+## Scope (from campaign-plan-2026-05-16.md §2, PB-AC3 row)
+Primitives to add:
+- `LayerModification::ModifyBoth` accepting `EffectAmount` — dynamic P/T set/modify
+  (CDA residual). Layer 7a (CDA), dependency-ordered per CR 613.4.
+- `EffectAmount::{AttackingCreatureCount, TappedCreatureCount, HandSize}` — dynamic
+  count amounts.
+- Power-based token count (token count = a creature's power / some dynamic value).
+
+CR refs (613 layers, 107.3) are ADVISORY — verify against the CR via the mtg-rules
+MCP. Card rosters in the plan are advisory; identify the real roster from oracle
+text (feedback_oversight_primitive_category_not_cards). Grep card defs for BOTH
+`// TODO` and `// ENGINE-BLOCKED` markers citing dynamic-P/T / CDA / count-amount
+patterns.
+
+## Hazards (from task description)
+1. **LAYER SYSTEM batch** — load `memory/gotchas-rules.md` before planning. CDA P/T
+   is Layer 7a; characteristic-defining abilities apply in the CDA sublayer,
+   dependency-ordered (CR 613.4). All battlefield characteristic reads must go
+   through `calculate_characteristics()` (W3-LC discipline).
+2. Card DSL gotcha: `*/*` CDA creatures use `power: None, toughness: None`
+   (NOT `Some(0)`).
+3. Verify KW/AbilDef/SOK discriminant chain from current code before adding variants.
+4. New struct fields / mutable runtime fields MUST be added to `state/hash.rs`
+   HashInto impls (PB-AC1 review HIGH was exactly this).
+5. Exhaustive matches in `tools/tui/src/play/panels/stack_view.rs` AND
+   `tools/replay-viewer/src/view_model.rs` need arms for every new enum variant —
+   verify with `cargo build --workspace`.
+6. Do NOT commit phantom `.claude/skills/*/SKILL.md` deletions in the worktree.
 
 ## Gates
-
 - cargo build --workspace
 - cargo test --all
 - cargo clippy --all-targets -- -D warnings
 - cargo fmt --check
-- python3 tools/authoring-report.py → clean coverage delta posted above
+- python3 tools/authoring-report.py → post clean-coverage delta as task comment
 
 ## Commit prefix
-
 W6-prim:
