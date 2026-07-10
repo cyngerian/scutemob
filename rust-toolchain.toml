@@ -1,2 +1,22 @@
+# Pinned Rust toolchain — the single source of truth for this workspace (SR-11).
+#
+# WHY an exact version, not `channel = "stable"`: `stable` floats to whatever the
+# newest stable release is at resolution time. CI (which fetches a fresh toolchain
+# every run) and a dev box (which only moves on `rustup update`) then silently
+# diverge — a ~6-week Rust release can turn CI red on a new clippy lint with no
+# commit to this repo, and a local `cargo clippy -- -D warnings` cannot reproduce
+# it. That inverts the SR track's premise (machine guarantees, not process ones).
+#
+# rustup honors this file for every cargo/clippy/rustfmt invocation in the repo and
+# auto-installs the toolchain (with the components below) if it is missing. CI reads
+# the same `channel` value out of this file and feeds it to the toolchain action, so
+# CI and local agree by construction. See `.github/workflows/ci.yml`.
+#
+# TO BUMP: change `channel` here (one place), run `rustup update` / `rustup toolchain
+# install <version>` locally, re-run the full gate (fmt + clippy --all-targets -D
+# warnings + test --all + build --workspace) to catch new lints, and commit. Do this
+# on a deliberate schedule, not incidentally.
 [toolchain]
-channel = "stable"
+channel = "1.95.0"
+components = ["rustfmt", "clippy"]
+profile = "minimal"

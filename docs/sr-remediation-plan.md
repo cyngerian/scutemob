@@ -46,7 +46,7 @@ Full evidence (file:line) is in each task's ESM description — run
 | 9b | scutemob-70 | SR-9b: Harness-vs-direct equivalence property test | M | **DONE 2026-07-10.** `tests/scripts/harness_equivalence.rs`. Four harness divergences found and fixed/pinned; `build_initial_state` was **nondeterministic**. |
 | 9c | scutemob-71 | SR-9c: Golden-script corpus triage | M | **DONE 2026-07-10.** 94→**210 approved**, **61 retired** (each with a recorded reason), **0 pending**. Six scripts didn't even deserialize; the replay checker passed 244 unimplemented-path + 583 `zones.stack` assertions vacuously — all closed. Gate: `run_all_scripts.rs`. |
 | 10 | scutemob-62 | SR-10: Dependency & lint hygiene | S–M | **DONE 2026-07-10.** im→imbl migrated (704/705 refs ordered collections), rand 0.9, `[workspace.lints]` (non-vacuous), CastSpell boxed (`PROTOCOL_VERSION` 1→2). Chore C bakes toolchain-float into local builds → makes SR-11 more urgent. |
-| 11 | scutemob-63 | SR-11: Pin the Rust toolchain | S | Discovered during SR-1. CI floats to newest stable; new lints redden CI with no commit, and the local clippy gate can't reproduce them. Pairs well with SR-10. |
+| 11 | scutemob-63 | SR-11: Pin the Rust toolchain | S | **DONE 2026-07-10.** `rust-toolchain.toml` pins exact stable `1.95.0` (single source of truth); CI reads `channel` from it and verifies the installed rustc matches. Local `clippy -D warnings` is now an authoritative CI preview. |
 | 12 | scutemob-64 | SR-12: Unbypassable invariant-9 gate + marker anti-rot | M | Discovered during SR-2 review. `GameStateBuilder`/`start_game` skip `validate_deck`; only the Inert marker class has a rot guard. |
 | 13 | scutemob-65 | SR-13: Damage-source characteristics must use LKI | M | Discovered during SR-4. Wither/infect "function no matter what zone" (CR 702.80c/702.90e) but the engine reads the source through a live lookup and treats a dead source as having neither. Real bug, not an assert. |
 | 14 | scutemob-66 | SR-14: Extend the SR-4 diagnostics vocabulary to the rest of `rules/` | M | Discovered during SR-4, which scoped to its two named files. ~200 unswept `calculate_characteristics` sites; method is written up in `docs/sr-4-silent-failure-audit.md`. |
@@ -581,10 +581,59 @@ Task-specific extras:
      `cargo test --all` stayed at **3185 passed / 0 failed**: same tests, just wrapped — the count not
      moving is the evidence the box is behaviour-neutral.
 
+- **SR-11: DONE (2026-07-10).** The brief's recommendation (option a — pin exact stable
+  in `rust-toolchain.toml` + components, single source of truth) was correct and held up.
+  What mattered:
+  1. **A `rust-toolchain.toml` already existed and was itself the float.** It said
+     `channel = "stable"`, tracked since M0. `stable` floats to the newest release at
+     resolution time, so it gave the *appearance* of a pin while providing none — CI's
+     `dtolnay/rust-toolchain@stable` and a dev box's last-`rustup-update`d stable resolve
+     to different versions from the same file. Fixed to `channel = "1.95.0"` (the dev-box
+     version), + `components = ["rustfmt", "clippy"]` + `profile = "minimal"`. **Check
+     whether the lever already exists before adding one; here it existed and was lying.**
+  2. **`dtolnay/rust-toolchain` does not read `rust-toolchain.toml`.** Its `@rev` (`@stable`,
+     `@1.95.0`) *is* the toolchain selector; there is no auto-detect. So a single source of
+     truth requires *extracting* the version and passing it to the action, not hoping the
+     action honors the file. CI now has a "Read pinned toolchain" step
+     (`grep -oP '^\s*channel\s*=\s*"\K[^"]+' rust-toolchain.toml` → `$GITHUB_OUTPUT`) feeding
+     `dtolnay/rust-toolchain@master`'s `toolchain:` input. The `^\s*channel` anchor is load-
+     bearing: the file's explanatory comment contains the word "channel" in prose, and an
+     unanchored grep matches it — verified the extraction yields exactly one line, `1.95.0`.
+  3. **The pin needs its own machine gate, or it is just another process guarantee.** A
+     "Verify toolchain matches the pin" step asserts `rustc --version` equals the extracted
+     channel and fails the run otherwise — catching a rustup resolution surprise or a future
+     edit that re-floats the version. Without it, "CI installs the pin" is a claim nobody
+     checks, exactly the shape this track exists to delete.
+  4. **This closes the loop SR-10 chore C opened.** SR-10's `[workspace.lints] warnings =
+     "deny"` baked `-D warnings` into local `cargo build`, so a newer stable's new lints
+     could redden the *local* build too — not just CI. With the toolchain pinned, local and
+     CI share one lint set by construction, and `cargo clippy -- -D warnings` locally is an
+     authoritative preview of the CI clippy gate. Documented in `.claude/CLAUDE.local.md`
+     (Project-Scoped Version Pinning + CI sections): the local gate is only as authoritative
+     as the pin, so bump `channel` and `rustup install` deliberately, then re-run the full
+     gate to surface new lints.
+
 ## Session Log
 
 _One entry per session, newest first. Format:_
 `- YYYY-MM-DD — SR-<N> (scutemob-<id>) — <status: done / in progress / blocked> — <one-line outcome + hazards + pointer for next session>`
+
+- 2026-07-10 — SR-11 (scutemob-63) — **done (in_review, awaiting /collect)** — Pinned the Rust
+  toolchain. The repo already had a tracked `rust-toolchain.toml` that said `channel = "stable"`
+  — a pin in appearance only, since `stable` floats to the newest release, so CI (fresh fetch)
+  and the dev box (last `rustup update`) diverge from the same file. Changed to `channel =
+  "1.95.0"` (dev-box version) + `components = ["rustfmt", "clippy"]` + `profile = "minimal"`,
+  which becomes the single source of truth: rustup honors it locally and auto-installs on demand.
+  `dtolnay/rust-toolchain` does **not** read the file, so CI now greps `channel` out of it
+  (`^\s*channel` anchored — the comment says "channel" in prose) and feeds it to
+  `@master`'s `toolchain:` input, then a verify step fails the run if `rustc --version` ≠ the pin.
+  That verify step is the machine gate that keeps the pin honest. Closes the loop SR-10 chore C
+  opened (`[workspace.lints] warnings="deny"` had baked toolchain-float into local `cargo build`
+  too); local `clippy -D warnings` is now an authoritative CI preview. Docs updated:
+  `.claude/CLAUDE.local.md` (version-pinning + CI sections), this file's gotcha + inventory row.
+  **Gates:** `cargo test --all`, `clippy --all-targets -D warnings`, `fmt --all --check`,
+  `build --workspace` all green on 1.95.0. **Next:** SR-12 (`scutemob-64`, unbypassable invariant-9
+  gate + marker anti-rot), then SR-13+.
 
 - 2026-07-10 — SR-10 (scutemob-62) — **done (in_review, awaiting /collect)** — Dependency & lint
   hygiene, four independent chores, each its own revertable commit. (A) **im 15.1 → imbl 7.0**:
