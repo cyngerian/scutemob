@@ -157,7 +157,9 @@
   `stack/170` and `cc31` were retired rather than edited to match a possibly-wrong engine. The 61
   retirements each name the one missing card/primitive/harness-Command that would un-retire it — a ready
   worklist for the authoring campaign. Ninth consecutive SR task whose sharpest finding was a hole in a
-  *checker*, not engine code. 3185 tests. Earlier same day: SR-9b — the JSON-script regime and the hand-written `Command` regime
+  *checker*, not engine code — and `/review` then found a tenth: `every_approved_script_asserts_something`
+  counted `assert_state` checkpoints, so an empty `assertions: {}` map would have passed vacuously; fixed to
+  count assertion entries. 3185 tests. Earlier same day: SR-9b — the JSON-script regime and the hand-written `Command` regime
   now cross-validate. Four divergences, all the harness's, as gotcha SR-9(b) predicted. The load-bearing
   one: **`build_initial_state` was not deterministic** — `RandomState` seeds each `HashMap` instance
   separately, `ObjectId`s are handed out in insertion order, so two deserializations of the same JSON in

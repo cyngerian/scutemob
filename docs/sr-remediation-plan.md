@@ -552,7 +552,12 @@ _One entry per session, newest first. Format:_
   disturb, order-replacements all still un-wired), the empty-target ETB DSL gap, and the informational
   `stack_resolve` that leaves a spell's follow-on trigger unresolved. **Adversarial demo**
   (`crates/engine/tests/scripts/adversarial_demo.sh`, seven attacks, each asserted to change a file first):
-  all seven reddened exactly their gate. **First demo run "survived" five attacks — because the runner used
+  all seven reddened exactly their gate. **`/review` (Opus) then found an eighth hole — again in the gate,
+  not the code, tenth consecutive SR task with that shape:** `every_approved_script_asserts_something`
+  counted `assert_state` *checkpoints*, so an approved script whose only checkpoint carried an empty
+  `assertions: {}` map (zero mismatches, unconditionally green) would have satisfied it. No approved script
+  did this today, but a future one could. Fixed to count assertion *entries*, with an eighth attack added to
+  the demo. **First demo run "survived" five attacks — because the runner used
   `cargo test <bare-name> -- --exact` and the tests are namespaced `run_all_scripts::<name>`, so the filter
   matched 0 tests and cargo exited 0.** SR-9a/9b's lesson restated: an attack that runs nothing reads as
   "survived," so the runner now treats "0 tests ran" as a distinct `NO TARGET` error. **Gates:** 3178 →
