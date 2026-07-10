@@ -174,11 +174,13 @@ error with a wrong arm.
   keeps this inside invariant #1: the *library* still does no IO.)
 
 - **`registry_sites_match_the_source_tree`.** For each `Handled` variant, the declared
-  `sites` must **exactly equal** the set of engine files whose code names it; for each
-  `Marker`, that set must be empty. Exact equality, not containment, so this fires in
-  four directions: a keyword losing its last dispatch site, a keyword gaining a site
-  in an unlisted file, a `Marker` that someone starts branching on, and a `Handled`
-  entry that has quietly become inert.
+  `sites` must be non-empty and must **exactly equal** the set of engine files whose
+  code names it; for each `Marker`, that set must be empty. Exact equality, not
+  containment, so this fires in four directions: a keyword losing its last dispatch
+  site, a keyword gaining a site in an unlisted file, a `Marker` that someone starts
+  branching on, and a `Handled` entry that has quietly become inert. The non-empty
+  check closes the one remaining escape — `Handled { sites: &[] }` on a keyword nothing
+  reads would otherwise compare `{} == {}` and pass. (Found by `/review`, not by me.)
 
 - **`marker_keywords_are_the_reviewed_set`.** Pins the 18 names above.
 
@@ -190,10 +192,12 @@ comparing an empty declared set against an empty found set, for every keyword. O
 green suite proved nothing until the guards were there.
 
 The site scan strips comments, string literals, and char literals before searching,
-preserving byte offsets. Without that, a doc comment reading ``/// see
-`KeywordAbility::Flying` `` would register as a dispatch site, and the anti-rot
-direction — "this keyword no longer has any code that reads it" — would be
-unfalsifiable. `comment_stripper_blanks_prose_and_strings` asserts this directly.
+blanking them in place rather than deleting them. Without that, a doc comment reading
+``/// see `KeywordAbility::Flying` `` would register as a dispatch site, and the
+anti-rot direction — "this keyword no longer has any code that reads it" — would be
+unfalsifiable. `comment_stripper_blanks_prose_and_strings` asserts this directly. The
+stripper handles nested block comments, raw and byte strings, and distinguishes a
+lifetime (`'static`) from a char literal (`'x'`, `'\''`).
 
 ## Part 4 — the trial variant (acceptance criterion 4445)
 

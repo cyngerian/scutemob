@@ -33,11 +33,15 @@ fn engine_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 }
 
-/// Blank out comments, string literals, and char literals, preserving byte length
-/// so that a later `contains` cannot match a keyword named only in prose.
+/// Blank out comments, string literals, and char literals so that a later `contains`
+/// cannot match a keyword named only in prose.
 ///
 /// A doc comment that says "see `KeywordAbility::Flying`" must not count as a
 /// dispatch site — otherwise the anti-rot direction of these tests is vacuous.
+///
+/// Blanking is char-for-char (newlines survive), so positions in the result line up
+/// with `src` only for ASCII input. Nothing depends on that: callers search and slice
+/// entirely within the returned string and never map an index back onto `src`.
 fn strip_comments_and_literals(src: &str) -> String {
     let b: Vec<char> = src.chars().collect();
     let mut out: Vec<char> = b.clone();
@@ -363,7 +367,11 @@ let real = KeywordAbility::Menace;
         code.contains("KeywordAbility::Menace"),
         "real code was blanked"
     );
-    assert_eq!(code.len(), src.len(), "stripper must preserve byte offsets");
+    assert_eq!(
+        code.len(),
+        src.len(),
+        "stripper must blank in place, not delete (this input is ASCII, so chars == bytes)"
+    );
 }
 
 /// Every `Handled` variant's declared `sites` must equal the set of engine files
@@ -386,6 +394,15 @@ fn registry_sites_match_the_source_tree() {
         let found = &actual[&name];
         match handling(&keyword) {
             KeywordHandling::Handled { sites } => {
+                // Without this, `Handled { sites: &[] }` on a keyword nothing reads
+                // would satisfy the equality below ({} == {}) and pass — the one way
+                // to declare a keyword handled while leaving it inert.
+                assert!(
+                    !sites.is_empty(),
+                    "{name}: declared Handled with no sites. A keyword no engine code \
+                     reads is not handled — classify it as a Marker (and justify that \
+                     in docs/sr-5-keyword-catchall-audit.md), or give it real dispatch."
+                );
                 let declared: BTreeSet<String> = sites.iter().map(|s| (*s).to_string()).collect();
                 if declared != *found {
                     problems.push(format!(
