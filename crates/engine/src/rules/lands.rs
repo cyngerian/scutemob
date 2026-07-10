@@ -106,8 +106,7 @@ pub fn handle_play_land(
     // CR 614.12 / 614.15: Apply ETB replacement effects before emitting LandPlayed.
     // Self-ETB replacements from the card definition apply first (CR 614.15).
     let card_id = state
-        .objects
-        .get(&new_land_id)
+        .expect_object(new_land_id)
         .and_then(|obj| obj.card_id.clone());
     let registry = state.card_registry.clone();
     let mut events: Vec<GameEvent> = Vec::new();
@@ -130,8 +129,7 @@ pub fn handle_play_land(
     // CR 702.63c: Multiple instances of Vanishing each work separately -- sum all N values.
     {
         let total_vanishing: u32 = state
-            .objects
-            .get(&new_land_id)
+            .expect_object(new_land_id)
             .map(|obj| {
                 obj.characteristics
                     .keywords
@@ -147,7 +145,7 @@ pub fn handle_play_land(
             })
             .unwrap_or(0);
         if total_vanishing > 0 {
-            if let Some(obj) = state.objects.get_mut(&new_land_id) {
+            if let Some(obj) = state.expect_object_mut(new_land_id) {
                 let current = obj.counters.get(&CounterType::Time).copied().unwrap_or(0);
                 obj.counters = obj
                     .counters
@@ -160,8 +158,7 @@ pub fn handle_play_land(
     // (resolution.rs and lands.rs) per gotchas-infra.md.
     {
         let total_fading: u32 = state
-            .objects
-            .get(&new_land_id)
+            .expect_object(new_land_id)
             .map(|obj| {
                 obj.characteristics
                     .keywords
@@ -177,7 +174,7 @@ pub fn handle_play_land(
             })
             .unwrap_or(0);
         if total_fading > 0 {
-            if let Some(obj) = state.objects.get_mut(&new_land_id) {
+            if let Some(obj) = state.expect_object_mut(new_land_id) {
                 let current = obj.counters.get(&CounterType::Fade).copied().unwrap_or(0);
                 obj.counters = obj
                     .counters
@@ -193,8 +190,7 @@ pub fn handle_play_land(
     // CR 702.58b: Multiple instances each work separately -- sum all N values.
     {
         let total_graft: u32 = state
-            .objects
-            .get(&new_land_id)
+            .expect_object(new_land_id)
             .map(|obj| {
                 obj.characteristics
                     .keywords
@@ -210,7 +206,7 @@ pub fn handle_play_land(
             })
             .unwrap_or(0);
         if total_graft > 0 {
-            if let Some(obj) = state.objects.get_mut(&new_land_id) {
+            if let Some(obj) = state.expect_object_mut(new_land_id) {
                 let current = obj
                     .counters
                     .get(&CounterType::PlusOnePlusOne)
@@ -230,8 +226,7 @@ pub fn handle_play_land(
     {
         // Collect Amplify instances from the land's keyword set.
         let amplify_instances: Vec<u32> = state
-            .objects
-            .get(&new_land_id)
+            .expect_object(new_land_id)
             .map(|obj| {
                 obj.characteristics
                     .keywords
@@ -249,9 +244,7 @@ pub fn handle_play_land(
         if !amplify_instances.is_empty() {
             // Resolve entering land's subtypes (via layer system -- respects CDAs).
             let entering_subtypes: imbl::OrdSet<SubType> =
-                crate::rules::layers::calculate_characteristics(state, new_land_id)
-                    .map(|c| c.subtypes)
-                    .unwrap_or_default();
+                crate::rules::layers::expect_characteristics(state, new_land_id).subtypes;
             // Count hand cards sharing a creature subtype with the land.
             // Lands have no creature subtypes, so this is always 0 in practice.
             let hand_obj_ids: Vec<ObjectId> = state
@@ -264,9 +257,7 @@ pub fn handle_play_land(
                 .iter()
                 .filter(|&&hand_id| {
                     let hand_subtypes =
-                        crate::rules::layers::calculate_characteristics(state, hand_id)
-                            .map(|c| c.subtypes)
-                            .unwrap_or_default();
+                        crate::rules::layers::expect_characteristics(state, hand_id).subtypes;
                     !entering_subtypes.is_empty()
                         && !entering_subtypes
                             .clone()
@@ -279,7 +270,7 @@ pub fn handle_play_land(
                 total_amplify_counters += n * eligible_count;
             }
             if total_amplify_counters > 0 {
-                if let Some(obj) = state.objects.get_mut(&new_land_id) {
+                if let Some(obj) = state.expect_object_mut(new_land_id) {
                     let current = obj
                         .counters
                         .get(&CounterType::PlusOnePlusOne)
@@ -306,8 +297,7 @@ pub fn handle_play_land(
     // CR 800.4a: Eliminated/conceded players are not opponents.
     {
         let bloodthirst_instances: Vec<u32> = state
-            .objects
-            .get(&new_land_id)
+            .expect_object(new_land_id)
             .map(|obj| {
                 obj.characteristics
                     .keywords
@@ -333,7 +323,7 @@ pub fn handle_play_land(
             if any_opponent_damaged {
                 let total_counters: u32 = bloodthirst_instances.iter().sum();
                 if total_counters > 0 {
-                    if let Some(obj) = state.objects.get_mut(&new_land_id) {
+                    if let Some(obj) = state.expect_object_mut(new_land_id) {
                         let current = obj
                             .counters
                             .get(&CounterType::PlusOnePlusOne)
@@ -371,7 +361,7 @@ pub fn handle_play_land(
     // you pay [cost]." Setting echo_pending models the condition.
     // Echo lands are extremely rare, but the ETB hook must exist at both sites
     // (resolution.rs and lands.rs) per gotchas-infra.md.
-    if let Some(obj) = state.objects.get_mut(&new_land_id) {
+    if let Some(obj) = state.expect_object_mut(new_land_id) {
         if obj
             .characteristics
             .keywords
