@@ -29,7 +29,7 @@ fn p(n: u64) -> PlayerId {
 /// Find an object by name in the game state (panics if not found).
 fn find_by_name(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -39,7 +39,7 @@ fn find_by_name(state: &mtg_engine::GameState, name: &str) -> ObjectId {
 /// Count objects with a given name on the battlefield.
 fn count_clues_on_battlefield(state: &mtg_engine::GameState, controller: PlayerId) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|obj| {
             obj.zone == ZoneId::Battlefield
@@ -115,7 +115,7 @@ fn test_investigate_creates_clue_token() {
 
     // Verify token characteristics per CR 111.10f.
     let clue_obj = state
-        .objects
+        .objects()
         .values()
         .find(|o| {
             o.zone == ZoneId::Battlefield && o.controller == p1 && o.characteristics.name == "Clue"
@@ -397,7 +397,7 @@ fn test_investigate_clue_can_be_activated() {
 
     // Give p1 {1} generic mana to cast the sorcery.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -441,16 +441,16 @@ fn test_investigate_clue_can_be_activated() {
     // Give p1 {2} to pay for the Clue activation.
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let clue_id = find_by_name(&state, "Clue");
     let initial_hand_size = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -476,7 +476,7 @@ fn test_investigate_clue_can_be_activated() {
 
     // After resolution: p1 drew 1 card.
     let final_hand_size = state_final
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -547,7 +547,7 @@ fn test_investigate_doubling_season_doubles_per_instance() {
         .unwrap();
 
     let doubler_id = find_by_name(&state, "Investigate Doubler Test");
-    let registry = state.card_registry.clone();
+    let registry = state.card_registry().clone();
     mtg_engine::rules::replacement::register_permanent_replacement_abilities(
         &mut state,
         doubler_id,

@@ -1,12 +1,13 @@
 //! Tests for zone integrity: every object in exactly one zone, correct zone
 //! types, add/remove operations, and zone creation per player.
 
+use mtg_engine::state::test_util;
 use mtg_engine::state::*;
 
 /// Helper: verify that every object in the state is in exactly one zone,
 /// and that the zone it reports matches where it's actually stored.
 fn assert_zone_integrity(state: &GameState) {
-    for (obj_id, obj) in state.objects.iter() {
+    for (obj_id, obj) in state.objects().iter() {
         // Object's zone field points to a real zone
         let zone = state.zone(&obj.zone).unwrap_or_else(|_| {
             panic!(
@@ -25,7 +26,7 @@ fn assert_zone_integrity(state: &GameState) {
 
         // Object is in exactly one zone (not present in any other zone)
         let mut zone_count = 0;
-        for (_zid, z) in state.zones.iter() {
+        for (_zid, z) in state.zones().iter() {
             if z.contains(obj_id) {
                 zone_count += 1;
             }
@@ -38,10 +39,10 @@ fn assert_zone_integrity(state: &GameState) {
     }
 
     // Converse: every ObjectId in a zone is in the objects map
-    for (zone_id, zone) in state.zones.iter() {
+    for (zone_id, zone) in state.zones().iter() {
         for obj_id in zone.object_ids() {
             assert!(
-                state.objects.contains_key(&obj_id),
+                state.objects().contains_key(&obj_id),
                 "zone {:?} contains {:?} but it's not in the objects map",
                 zone_id,
                 obj_id
@@ -241,7 +242,7 @@ fn test_add_object_to_state() {
         skip_untap_steps: 0,
     };
 
-    let id = state.add_object(obj, ZoneId::Battlefield).unwrap();
+    let id = test_util::add_object(&mut state, obj, ZoneId::Battlefield).unwrap();
     assert_zone_integrity(&state);
     assert_eq!(state.total_objects(), 1);
     assert!(state.zone(&ZoneId::Battlefield).unwrap().contains(&id));

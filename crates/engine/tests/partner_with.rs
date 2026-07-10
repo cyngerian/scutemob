@@ -17,6 +17,7 @@
 //! - The trigger fires even when the partner is on the battlefield (search finds nothing) (CR 702.124j).
 //! - Permanents without PartnerWith do NOT generate a PartnerWithTrigger (negative test).
 
+use mtg_engine::state::test_util;
 use mtg_engine::state::{CardType, SuperType};
 use mtg_engine::validate_partner_commanders;
 use mtg_engine::{
@@ -33,7 +34,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -42,7 +43,7 @@ fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
 
 fn find_object_opt(state: &mtg_engine::GameState, name: &str) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -71,7 +72,7 @@ fn pass_all_until_empty(
 ) -> (mtg_engine::GameState, Vec<GameEvent>) {
     let mut all_events = Vec::new();
     for _ in 0..50 {
-        if state.stack_objects.is_empty() {
+        if state.stack_objects().is_empty() {
             break;
         }
         let (s, ev) = pass_all(state, players);
@@ -373,9 +374,9 @@ fn test_partner_with_etb_trigger_fires() {
     let pir_id = find_object(&state, "Pir, Imaginative Rascal");
 
     // Manually push the PartnerWithTrigger onto the stack (simulates ETB flush).
-    let trigger_id = state.next_object_id();
+    let trigger_id = test_util::next_object_id(&mut state);
     state
-        .stack_objects
+        .stack_objects_mut()
         .push_back(make_partner_with_trigger_stack_obj(
             trigger_id,
             pir_id,
@@ -383,10 +384,10 @@ fn test_partner_with_etb_trigger_fires() {
             p1,
             p1,
         ));
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // The trigger should be on the stack.
-    let has_trigger = state.stack_objects.iter().any(|so| {
+    let has_trigger = state.stack_objects().iter().any(|so| {
         matches!(
             so.kind,
             StackObjectKind::KeywordTrigger {
@@ -405,7 +406,7 @@ fn test_partner_with_etb_trigger_fires() {
 
     // Stack should be empty.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "CR 702.124j: stack should be empty after PartnerWithTrigger resolves"
     );
@@ -447,15 +448,15 @@ fn test_partner_with_trigger_finds_partner_in_library() {
     // Verify Toothy starts in P1's library.
     let toothy_before = find_object_opt(&state, "Toothy, Imaginary Friend").unwrap();
     assert_eq!(
-        state.objects.get(&toothy_before).unwrap().zone,
+        state.objects().get(&toothy_before).unwrap().zone,
         ZoneId::Library(p1),
         "Toothy should start in P1's library"
     );
 
     // Manually push the PartnerWithTrigger.
-    let trigger_id = state.next_object_id();
+    let trigger_id = test_util::next_object_id(&mut state);
     state
-        .stack_objects
+        .stack_objects_mut()
         .push_back(make_partner_with_trigger_stack_obj(
             trigger_id,
             pir_id,
@@ -463,14 +464,14 @@ fn test_partner_with_trigger_finds_partner_in_library() {
             p1,
             p1,
         ));
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Resolve the trigger.
     let (state, _) = pass_all_until_empty(state, &[p1, p2]);
 
     // Toothy should now be in P1's hand (it gets a new ObjectId after zone move,
     // so search by name).
-    let toothy_in_hand = state.objects.values().any(|obj| {
+    let toothy_in_hand = state.objects().values().any(|obj| {
         obj.characteristics.name == "Toothy, Imaginary Friend" && obj.zone == ZoneId::Hand(p1)
     });
     assert!(
@@ -480,7 +481,7 @@ fn test_partner_with_trigger_finds_partner_in_library() {
 
     // Library count should have decreased by 1 (Toothy moved to hand).
     let lib_count = state
-        .zones
+        .zones()
         .get(&ZoneId::Library(p1))
         .map(|z| z.object_ids().len())
         .unwrap_or(0);
@@ -527,15 +528,15 @@ fn test_partner_with_trigger_partner_not_in_library() {
     // Verify Toothy starts in P1's hand.
     let toothy_before = find_object_opt(&state, "Toothy, Imaginary Friend").unwrap();
     assert_eq!(
-        state.objects.get(&toothy_before).unwrap().zone,
+        state.objects().get(&toothy_before).unwrap().zone,
         ZoneId::Hand(p1),
         "Toothy should start in P1's hand"
     );
 
     // Manually push the PartnerWithTrigger.
-    let trigger_id = state.next_object_id();
+    let trigger_id = test_util::next_object_id(&mut state);
     state
-        .stack_objects
+        .stack_objects_mut()
         .push_back(make_partner_with_trigger_stack_obj(
             trigger_id,
             pir_id,
@@ -543,17 +544,17 @@ fn test_partner_with_trigger_partner_not_in_library() {
             p1,
             p1,
         ));
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Resolve the trigger.
     let (state, _) = pass_all_until_empty(state, &[p1, p2]);
 
     // Stack is empty.
-    assert_eq!(state.stack_objects.len(), 0, "stack should be empty");
+    assert_eq!(state.stack_objects().len(), 0, "stack should be empty");
 
     // Toothy should still be in P1's hand (same card, no duplicate).
     let toothy_count = state
-        .objects
+        .objects()
         .values()
         .filter(|obj| {
             obj.characteristics.name == "Toothy, Imaginary Friend" && obj.zone == ZoneId::Hand(p1)
@@ -566,7 +567,7 @@ fn test_partner_with_trigger_partner_not_in_library() {
 
     // Library still has 2 cards (nothing moved out of it).
     let lib_count = state
-        .zones
+        .zones()
         .get(&ZoneId::Library(p1))
         .map(|z| z.object_ids().len())
         .unwrap_or(0);
@@ -615,9 +616,9 @@ fn test_partner_with_trigger_fires_when_partner_already_on_battlefield() {
     let pir_id = find_object(&state, "Pir, Imaginative Rascal");
 
     // Manually push the PartnerWithTrigger.
-    let trigger_id = state.next_object_id();
+    let trigger_id = test_util::next_object_id(&mut state);
     state
-        .stack_objects
+        .stack_objects_mut()
         .push_back(make_partner_with_trigger_stack_obj(
             trigger_id,
             pir_id,
@@ -625,21 +626,21 @@ fn test_partner_with_trigger_fires_when_partner_already_on_battlefield() {
             p1,
             p1,
         ));
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Resolve the trigger.
     let (state, _) = pass_all_until_empty(state, &[p1, p2]);
 
     // Stack is empty — trigger resolved without error.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "CR 702.124j: trigger should resolve even when partner is on battlefield"
     );
 
     // Library still has 2 cards (nothing moved out of it).
     let lib_count = state
-        .zones
+        .zones()
         .get(&ZoneId::Library(p1))
         .map(|z| z.object_ids().len())
         .unwrap_or(0);
@@ -649,7 +650,7 @@ fn test_partner_with_trigger_fires_when_partner_already_on_battlefield() {
     );
 
     // Toothy should NOT be in hand (it was on battlefield, not in library).
-    let toothy_in_hand = state.objects.values().any(|obj| {
+    let toothy_in_hand = state.objects().values().any(|obj| {
         obj.characteristics.name == "Toothy, Imaginary Friend" && obj.zone == ZoneId::Hand(p1)
     });
     assert!(
@@ -684,7 +685,7 @@ fn test_partner_with_negative_no_keyword() {
         .unwrap();
 
     // No PartnerWithTrigger should be pending or on the stack.
-    let has_trigger = state.stack_objects.iter().any(|so| {
+    let has_trigger = state.stack_objects().iter().any(|so| {
         matches!(
             so.kind,
             StackObjectKind::KeywordTrigger {
@@ -699,7 +700,7 @@ fn test_partner_with_negative_no_keyword() {
     );
 
     let has_pending = state
-        .pending_triggers
+        .pending_triggers()
         .iter()
         .any(|t| t.kind == mtg_engine::state::stubs::PendingTriggerKind::PartnerWith);
     assert!(

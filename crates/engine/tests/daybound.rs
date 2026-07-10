@@ -22,7 +22,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -104,7 +104,7 @@ fn test_daybound_sets_day() {
 
     // Game starts with neither day nor night.
     assert!(
-        state.day_night.is_none(),
+        state.day_night().is_none(),
         "game should start with no day/night"
     );
 
@@ -112,7 +112,7 @@ fn test_daybound_sets_day() {
     let events = mtg_engine::rules::turn_actions::enforce_daybound_nightbound(&mut state);
 
     assert_eq!(
-        state.day_night,
+        state.day_night(),
         Some(DayNight::Day),
         "game should become day when a daybound permanent is on the battlefield (CR 702.145d)"
     );
@@ -148,13 +148,13 @@ fn test_daybound_transforms_at_night() {
     let cathar_id = find_object(&state, "Brutal Cathar");
 
     // Set game state to Night.
-    state.day_night = Some(DayNight::Night);
+    *state.day_night_mut() = Some(DayNight::Night);
 
     // Call enforce_daybound_nightbound — Brutal Cathar has Daybound, front face, Night → transform.
     let events = mtg_engine::rules::turn_actions::enforce_daybound_nightbound(&mut state);
 
     assert!(
-        state.objects[&cathar_id].is_transformed,
+        state.objects()[&cathar_id].is_transformed,
         "daybound permanent should transform immediately when it's night (CR 702.145c)"
     );
     assert!(
@@ -197,18 +197,18 @@ fn test_nightbound_transforms_at_day() {
     let cathar_id = find_object(&state, "Brutal Cathar");
 
     // Manually transform to back face (simulate was already transformed).
-    if let Some(obj) = state.objects.get_mut(&cathar_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&cathar_id) {
         obj.is_transformed = true;
     }
 
     // Set game state to Day.
-    state.day_night = Some(DayNight::Day);
+    *state.day_night_mut() = Some(DayNight::Day);
 
     // enforce_daybound_nightbound — back face has Nightbound, it's Day → transform back to front.
     let events = mtg_engine::rules::turn_actions::enforce_daybound_nightbound(&mut state);
 
     assert!(
-        !state.objects[&cathar_id].is_transformed,
+        !state.objects()[&cathar_id].is_transformed,
         "nightbound permanent (back face up) should transform back to front when it's day (CR 702.145f)"
     );
     assert!(
@@ -294,13 +294,13 @@ fn test_nightbound_sets_night() {
     let cathar_id = find_object(&state, "Brutal Cathar");
 
     // Manually transform to back face (Nightbound face).
-    if let Some(obj) = state.objects.get_mut(&cathar_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&cathar_id) {
         obj.is_transformed = true;
     }
 
     // Game starts with neither day nor night.
     assert!(
-        state.day_night.is_none(),
+        state.day_night().is_none(),
         "game should start with no day/night"
     );
 
@@ -308,7 +308,7 @@ fn test_nightbound_sets_night() {
     let events = mtg_engine::rules::turn_actions::enforce_daybound_nightbound(&mut state);
 
     assert_eq!(
-        state.day_night,
+        state.day_night(),
         Some(DayNight::Night),
         "game should become night when nightbound exists and no daybound (CR 702.145g)"
     );
@@ -343,13 +343,13 @@ fn test_day_night_no_change_without_permanents() {
         .build()
         .unwrap();
 
-    assert!(state.day_night.is_none());
+    assert!(state.day_night().is_none());
 
     let events = mtg_engine::rules::turn_actions::enforce_daybound_nightbound(&mut state);
 
     // Without any daybound/nightbound permanents, nothing changes.
     assert!(
-        state.day_night.is_none(),
+        state.day_night().is_none(),
         "no change without daybound/nightbound permanents"
     );
     assert!(

@@ -21,7 +21,7 @@ use mtg_engine::{
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -170,18 +170,18 @@ fn test_ward_basic_counter_on_targeting() {
 
     // Give p2 mana to cast Doom Blade {1B}.
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let creature_id = find_object(&state, "Ward Creature");
     let spell_id = find_object(&state, "Doom Blade");
@@ -229,7 +229,7 @@ fn test_ward_basic_counter_on_targeting() {
 
     // Stack: Doom Blade + Ward trigger (ward trigger goes on top, resolves first).
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "stack should have Doom Blade + ward trigger"
     );
@@ -249,7 +249,7 @@ fn test_ward_basic_counter_on_targeting() {
 
     // Ward creature survives (was not destroyed).
     assert!(
-        state.objects.values().any(|o| {
+        state.objects().values().any(|o| {
             o.characteristics.name == "Ward Creature" && o.zone == ZoneId::Battlefield
         }),
         "Ward creature should still be on the battlefield"
@@ -257,7 +257,7 @@ fn test_ward_basic_counter_on_targeting() {
 
     // Doom Blade is in graveyard (countered, moved there).
     assert!(
-        state.objects.values().any(|o| {
+        state.objects().values().any(|o| {
             o.characteristics.name == "Doom Blade" && matches!(o.zone, ZoneId::Graveyard(_))
         }),
         "Doom Blade should be in graveyard after being countered"
@@ -301,13 +301,13 @@ fn test_ward_does_not_trigger_for_controller() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -344,14 +344,14 @@ fn test_ward_does_not_trigger_for_controller() {
     // check_triggers should NOT queue a ward trigger.
     // Verify this by checking the stack — only Doom Blade, no ward trigger.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.21a: only Doom Blade should be on stack — ward does NOT trigger for controller targeting own permanent"
     );
 
     // No ward trigger in pending_triggers either.
     assert!(
-        state.pending_triggers.is_empty(),
+        state.pending_triggers().is_empty(),
         "CR 702.21a: no pending ward trigger when controller targets own permanent"
     );
 }
@@ -396,18 +396,18 @@ fn test_ward_does_not_trigger_for_non_targeting_spell() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let spell_id = find_object(&state, "Wrath of God");
 
@@ -444,7 +444,7 @@ fn test_ward_does_not_trigger_for_non_targeting_spell() {
 
     // Stack has only Wrath (no ward trigger).
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "only Wrath of God should be on stack (no ward trigger)"
     );
@@ -454,7 +454,7 @@ fn test_ward_does_not_trigger_for_non_targeting_spell() {
     let (state, _) = pass_all(state, &[p2, p1]); // Wrath resolves
 
     assert!(
-        !state.objects.values().any(|o| {
+        !state.objects().values().any(|o| {
             o.characteristics.name == "Ward Creature" && o.zone == ZoneId::Battlefield
         }),
         "Ward Creature should be destroyed by Wrath of God (ward did not trigger)"
@@ -547,13 +547,13 @@ fn test_ward_triggers_for_activated_ability_targeting() {
 
     // Stack: activated ability + ward trigger.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "stack should have activated ability + ward trigger"
     );
 
     // Ward trigger is the top entry (it goes on after the ability, resolves first).
-    let top_kind = &state.stack_objects.back().unwrap().kind;
+    let top_kind = &state.stack_objects().back().unwrap().kind;
     assert!(
         matches!(top_kind, StackObjectKind::TriggeredAbility { .. }),
         "ward trigger should be on top of the stack (resolves first)"
@@ -603,18 +603,18 @@ fn test_ward_cant_be_countered_spell_resolves_normally() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let creature_id = find_object(&state, "Ward Creature");
     let spell_id = find_object(&state, "Raze to the Ground");
@@ -651,7 +651,7 @@ fn test_ward_cant_be_countered_spell_resolves_normally() {
     );
 
     // Both spell and ward trigger on stack.
-    assert_eq!(state.stack_objects.len(), 2);
+    assert_eq!(state.stack_objects().len(), 2);
 
     // Both players pass — ward trigger resolves first (it's on top).
     // Active player is p2 — they have priority first.
@@ -687,7 +687,7 @@ fn test_ward_cant_be_countered_spell_resolves_normally() {
 
     // Ward creature should be destroyed (spell resolved despite ward trigger).
     assert!(
-        !state.objects.values().any(|o| {
+        !state.objects().values().any(|o| {
             o.characteristics.name == "Ward Creature" && o.zone == ZoneId::Battlefield
         }),
         "CR 101.6 + 702.21a: cant-be-countered spell should destroy creature despite ward"
@@ -771,18 +771,18 @@ fn test_ward_multiple_targets_trigger_separately() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let a_id = find_object(&state, "Ward Creature A");
     let b_id = find_object(&state, "Ward Creature B");
@@ -823,7 +823,7 @@ fn test_ward_multiple_targets_trigger_separately() {
 
     // Stack: spell + two ward triggers.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         3,
         "stack should have the spell + 2 ward triggers (one per ward creature)"
     );
@@ -870,18 +870,18 @@ fn test_ward_multiplayer_opponent_check() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p3)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p3)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p3);
+    state.turn_mut().priority_holder = Some(p3);
 
     let creature_id = find_object(&state, "Ward Creature");
     let spell_id = find_object(&state, "Doom Blade");
@@ -921,7 +921,7 @@ fn test_ward_multiplayer_opponent_check() {
 
     // Stack: spell + ward trigger.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "spell + ward trigger should both be on stack"
     );

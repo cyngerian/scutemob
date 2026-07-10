@@ -30,7 +30,7 @@ use mtg_engine::{
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -223,18 +223,18 @@ fn test_flashback_basic_cast_from_graveyard() {
 
     // p1 has {2}{U} mana (flashback cost).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Think Twice");
 
@@ -271,13 +271,13 @@ fn test_flashback_basic_cast_from_graveyard() {
 
     // Think Twice is now on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.34a: Think Twice should be on the stack"
     );
 
     // Mana pool should be empty (flashback cost {2}{U} paid).
-    let pool = &state.players[&p1].mana_pool;
+    let pool = &state.players()[&p1].mana_pool;
     assert_eq!(
         pool.blue + pool.colorless + pool.red + pool.green + pool.black + pool.white,
         0,
@@ -285,7 +285,7 @@ fn test_flashback_basic_cast_from_graveyard() {
     );
 
     // The stack object has cast_with_flashback: true.
-    let stack_obj = state.stack_objects.back().unwrap();
+    let stack_obj = state.stack_objects().back().unwrap();
     assert!(
         stack_obj.cast_with_flashback,
         "CR 702.34a: stack object should have cast_with_flashback: true"
@@ -324,18 +324,18 @@ fn test_flashback_exile_on_resolution() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Think Twice");
 
@@ -375,7 +375,7 @@ fn test_flashback_exile_on_resolution() {
 
     // Think Twice should be in exile, NOT in graveyard.
     let in_exile = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Think Twice" && o.zone == ZoneId::Exile);
     assert!(
@@ -384,7 +384,7 @@ fn test_flashback_exile_on_resolution() {
     );
 
     let in_graveyard = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Think Twice" && matches!(o.zone, ZoneId::Graveyard(_)));
     assert!(
@@ -436,24 +436,24 @@ fn test_flashback_exile_on_counter() {
 
     // p1 has {2}{U} for flashback cost; p2 has {U}{U} for counterspell.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let flashback_id = find_object(&state, "Think Twice");
 
@@ -480,12 +480,12 @@ fn test_flashback_exile_on_counter() {
     )
     .unwrap();
 
-    // Find Think Twice on the stack (as a game object in state.objects with zone == Stack).
-    // The counterspell targets the card object (state.objects), not the StackObject entry.
+    // Find Think Twice on the stack (as a game object in state.objects() with zone == Stack).
+    // The counterspell targets the card object (state.objects()), not the StackObject entry.
     // The effects/mod.rs CounterSpell effect also matches on StackObject.kind.source_object,
     // so targeting the card's ObjectId in zone Stack is correct per the targeting API.
     let spell_card_on_stack = state
-        .objects
+        .objects()
         .iter()
         .find_map(|(&id, obj)| {
             if obj.characteristics.name == "Think Twice" && obj.zone == ZoneId::Stack {
@@ -537,7 +537,7 @@ fn test_flashback_exile_on_counter() {
 
     // Think Twice should be in exile, NOT in graveyard.
     let in_exile = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Think Twice" && o.zone == ZoneId::Exile);
     assert!(
@@ -546,7 +546,7 @@ fn test_flashback_exile_on_counter() {
     );
 
     let in_graveyard = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Think Twice" && matches!(o.zone, ZoneId::Graveyard(_)));
     assert!(
@@ -587,18 +587,18 @@ fn test_flashback_sorcery_timing_from_graveyard() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Faithless Looting");
 
@@ -661,12 +661,12 @@ fn test_flashback_non_flashback_card_cannot_cast_from_graveyard() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Lightning Bolt");
 
@@ -739,18 +739,18 @@ fn test_flashback_pays_flashback_cost_not_mana_cost() {
 
     // Provide exactly {2}{U} — enough for flashback cost but not more.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Think Twice");
 
@@ -786,7 +786,7 @@ fn test_flashback_pays_flashback_cost_not_mana_cost() {
     );
 
     // Mana pool should be completely empty (all {2}{U} consumed).
-    let pool = &state.players[&p1].mana_pool;
+    let pool = &state.players()[&p1].mana_pool;
     let total_mana = pool.blue + pool.colorless + pool.red + pool.green + pool.black + pool.white;
     assert_eq!(
         total_mana, 0,
@@ -828,18 +828,18 @@ fn test_flashback_normal_hand_cast_not_exiled() {
 
     // p1 pays mana cost {1}{U}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Think Twice");
 
@@ -867,7 +867,7 @@ fn test_flashback_normal_hand_cast_not_exiled() {
     .unwrap();
 
     // Verify cast_with_flashback is false on the stack object.
-    let stack_obj = state.stack_objects.back().unwrap();
+    let stack_obj = state.stack_objects().back().unwrap();
     assert!(
         !stack_obj.cast_with_flashback,
         "CR 702.34a: normal hand cast should have cast_with_flashback: false"
@@ -878,7 +878,7 @@ fn test_flashback_normal_hand_cast_not_exiled() {
 
     // Think Twice should be in graveyard (not exile) — normal cast behavior.
     let in_graveyard = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Think Twice" && matches!(o.zone, ZoneId::Graveyard(_)));
     assert!(
@@ -887,7 +887,7 @@ fn test_flashback_normal_hand_cast_not_exiled() {
     );
 
     let in_exile = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Think Twice" && o.zone == ZoneId::Exile);
     assert!(
@@ -929,18 +929,18 @@ fn test_flashback_cast_with_flashback_flag_set_on_stack() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Think Twice");
 
@@ -967,7 +967,7 @@ fn test_flashback_cast_with_flashback_flag_set_on_stack() {
     .unwrap();
 
     let stack_obj = state
-        .stack_objects
+        .stack_objects()
         .back()
         .expect("spell should be on stack");
 
@@ -1012,18 +1012,18 @@ fn test_flashback_insufficient_flashback_mana_rejected() {
 
     // Only {1}{U} — NOT enough for flashback cost {2}{U}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Think Twice");
 
@@ -1088,18 +1088,18 @@ fn test_flashback_mana_value_unchanged() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Think Twice");
 
@@ -1127,7 +1127,7 @@ fn test_flashback_mana_value_unchanged() {
 
     // The card on the stack should still have its printed mana cost {1}{U} (MV=2).
     let spell_obj = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Think Twice" && o.zone == ZoneId::Stack)
         .expect("Think Twice should be on stack");

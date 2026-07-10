@@ -29,7 +29,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -38,7 +38,7 @@ fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
 
 fn find_object_on_battlefield(state: &mtg_engine::GameState, name: &str) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
         .map(|(id, _)| *id)
@@ -47,7 +47,7 @@ fn find_object_on_battlefield(state: &mtg_engine::GameState, name: &str) -> Opti
 /// Get the +1/+1 counter count on an object.
 fn get_plus_counters(state: &mtg_engine::GameState, id: ObjectId) -> u32 {
     state
-        .objects
+        .objects()
         .get(&id)
         .and_then(|obj| obj.counters.get(&CounterType::PlusOnePlusOne).copied())
         .unwrap_or(0)
@@ -347,13 +347,13 @@ fn test_adapt_activation_always_legal() {
 
     // The ability should be on the stack.
     assert!(
-        !state.stack_objects.is_empty(),
+        !state.stack_objects().is_empty(),
         "ruling 2019-01-25: ability should be on the stack even when creature has +1/+1 counters"
     );
 
     // Mana was consumed (both generic and green).
     assert_eq!(
-        state.players.get(&p1).unwrap().mana_pool.total(),
+        state.players().get(&p1).unwrap().mana_pool.total(),
         0,
         "ruling 2019-01-25: mana cost should be paid at activation time"
     );
@@ -447,13 +447,13 @@ fn test_adapt_after_losing_counters() {
 
     // Replenish mana for second activation.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -534,7 +534,7 @@ fn test_adapt_pays_mana_cost() {
 
     // CR 602.2: mana pool should be completely drained.
     assert_eq!(
-        state.players.get(&p1).unwrap().mana_pool.total(),
+        state.players().get(&p1).unwrap().mana_pool.total(),
         0,
         "CR 602.2: mana pool should be drained after paying activation cost"
     );
@@ -549,7 +549,7 @@ fn test_adapt_pays_mana_cost() {
 
     // Ability is on the stack.
     assert!(
-        !state.stack_objects.is_empty(),
+        !state.stack_objects().is_empty(),
         "CR 602.2: ability should be on the stack after activation"
     );
 }

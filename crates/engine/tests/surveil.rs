@@ -24,7 +24,7 @@ use mtg_engine::{
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -37,7 +37,7 @@ fn find_by_name_in_zone(
     zone: ZoneId,
 ) -> Option<mtg_engine::ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -67,7 +67,7 @@ fn count_in_zone(
 ) -> usize {
     let zone = zone_fn(player);
     state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.zone == zone)
         .count()
@@ -176,7 +176,7 @@ fn test_surveil_basic_cards_go_to_graveyard() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -279,7 +279,7 @@ fn test_surveil_zero_no_event() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -376,7 +376,7 @@ fn test_surveil_empty_library_still_emits_event() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -461,7 +461,7 @@ fn test_surveil_library_fewer_than_n() {
     let state = builder.build().unwrap();
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -568,7 +568,7 @@ fn test_surveil_then_draw_sequence() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -708,7 +708,7 @@ fn test_whenever_you_surveil_trigger() {
     let state = builder.build().unwrap();
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -746,7 +746,7 @@ fn test_whenever_you_surveil_trigger() {
 
     // CR 701.25d: Spybug should have a +1/+1 counter.
     let spybug = state
-        .objects
+        .objects()
         .values()
         .find(|obj| obj.characteristics.name == "Spybug" && obj.zone == ZoneId::Battlefield)
         .expect("Spybug must still be on the battlefield");
@@ -821,7 +821,7 @@ fn test_surveil_zero_does_not_fire_trigger() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -868,7 +868,7 @@ fn test_surveil_zero_does_not_fire_trigger() {
 
     // CR 701.25c: Spybug must have NO +1/+1 counters.
     let spybug = state
-        .objects
+        .objects()
         .values()
         .find(|obj| obj.characteristics.name == "Spybug" && obj.zone == ZoneId::Battlefield)
         .expect("Spybug must still be on the battlefield");

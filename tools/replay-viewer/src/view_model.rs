@@ -180,7 +180,7 @@ impl StateViewModel {
         let players = build_players_view(state, player_names);
         let zones = build_zones_view(state, player_names);
         let combat = state
-            .combat
+            .combat()
             .as_ref()
             .map(|c| build_combat_view(c, state, player_names));
 
@@ -206,12 +206,12 @@ fn player_name(pid: PlayerId, player_names: &HashMap<PlayerId, String>) -> Strin
 
 fn build_turn_view(state: &GameState, player_names: &HashMap<PlayerId, String>) -> TurnView {
     TurnView {
-        number: state.turn.turn_number,
-        active_player: player_name(state.turn.active_player, player_names),
-        phase: format!("{:?}", state.turn.phase),
-        step: format!("{:?}", state.turn.step),
+        number: state.turn().turn_number,
+        active_player: player_name(state.turn().active_player, player_names),
+        phase: format!("{:?}", state.turn().phase),
+        step: format!("{:?}", state.turn().step),
         priority: state
-            .turn
+            .turn()
             .priority_holder
             .map(|p| player_name(p, player_names)),
     }
@@ -225,22 +225,22 @@ fn build_players_view(
 ) -> HashMap<String, PlayerView> {
     let mut result = HashMap::new();
 
-    for (pid, player) in &state.players {
+    for (pid, player) in state.players() {
         let name = player_name(*pid, player_names);
 
         // Count objects in each zone for this player.
         let hand_size = state
-            .objects
+            .objects()
             .values()
             .filter(|o| o.zone == ZoneId::Hand(*pid))
             .count();
         let library_size = state
-            .zones
+            .zones()
             .get(&ZoneId::Library(*pid))
             .map(|z| z.len())
             .unwrap_or(0);
         let graveyard_size = state
-            .zones
+            .zones()
             .get(&ZoneId::Graveyard(*pid))
             .map(|z| z.len())
             .unwrap_or(0);
@@ -254,7 +254,7 @@ fn build_players_view(
             for (card_id, &damage) in by_card {
                 // Try to find the card's name from the objects map using card_id.
                 let card_name = state
-                    .objects
+                    .objects()
                     .values()
                     .find(|o| o.card_id.as_ref() == Some(card_id))
                     .map(|o| o.characteristics.name.clone())
@@ -296,7 +296,7 @@ fn build_players_view(
 fn build_zones_view(state: &GameState, player_names: &HashMap<PlayerId, String>) -> ZonesView {
     // Determine which card_ids are commanders (any player's commander_ids).
     let commander_card_ids: std::collections::HashSet<_> = state
-        .players
+        .players()
         .values()
         .flat_map(|p| p.commander_ids.iter().cloned())
         .collect();
@@ -304,15 +304,15 @@ fn build_zones_view(state: &GameState, player_names: &HashMap<PlayerId, String>)
     // ── Battlefield ────────────────────────────────────────────────────────
     // Iterate the Battlefield zone's own object-id list (the single source of
     // truth for zone membership), consistent with `objects_in_zone_as_card_views`,
-    // rather than scanning all of `state.objects` in OrdMap key order.
+    // rather than scanning all of `state.objects()` in OrdMap key order.
     let mut battlefield: HashMap<String, Vec<PermanentView>> = HashMap::new();
     let battlefield_ids = state
-        .zones
+        .zones()
         .get(&ZoneId::Battlefield)
         .map(|z| z.object_ids())
         .unwrap_or_default();
     for obj_id in battlefield_ids {
-        let Some(obj) = state.objects.get(&obj_id) else {
+        let Some(obj) = state.objects().get(&obj_id) else {
             continue;
         };
         let controller_name = player_name(obj.controller, player_names);
@@ -359,7 +359,7 @@ fn build_zones_view(state: &GameState, player_names: &HashMap<PlayerId, String>)
 
     // ── Hands ──────────────────────────────────────────────────────────────
     let mut hand: HashMap<String, Vec<CardInZoneView>> = HashMap::new();
-    for pid in state.players.keys() {
+    for pid in state.players().keys() {
         let pname = player_name(*pid, player_names);
         let cards = objects_in_zone_as_card_views(state, &ZoneId::Hand(*pid));
         hand.insert(pname, cards);
@@ -367,7 +367,7 @@ fn build_zones_view(state: &GameState, player_names: &HashMap<PlayerId, String>)
 
     // ── Graveyards ─────────────────────────────────────────────────────────
     let mut graveyard: HashMap<String, Vec<CardInZoneView>> = HashMap::new();
-    for pid in state.players.keys() {
+    for pid in state.players().keys() {
         let pname = player_name(*pid, player_names);
         let cards = objects_in_zone_as_card_views(state, &ZoneId::Graveyard(*pid));
         graveyard.insert(pname, cards);
@@ -378,7 +378,7 @@ fn build_zones_view(state: &GameState, player_names: &HashMap<PlayerId, String>)
 
     // ── Command zones ──────────────────────────────────────────────────────
     let mut command_zone: HashMap<String, Vec<CardInZoneView>> = HashMap::new();
-    for pid in state.players.keys() {
+    for pid in state.players().keys() {
         let pname = player_name(*pid, player_names);
         let cards = objects_in_zone_as_card_views(state, &ZoneId::Command(*pid));
         command_zone.insert(pname, cards);
@@ -386,13 +386,13 @@ fn build_zones_view(state: &GameState, player_names: &HashMap<PlayerId, String>)
 
     // ── Stack ─────────────────────────────────────────────────────────────
     let stack: Vec<StackItemView> = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .map(|so| {
             let controller_name = player_name(so.controller, player_names);
             let (kind, source_id) = stack_kind_info(&so.kind);
             let source_name = source_id
-                .and_then(|oid| state.objects.get(&oid))
+                .and_then(|oid| state.objects().get(&oid))
                 .map(|o| o.characteristics.name.clone())
                 .unwrap_or_else(|| "unknown".to_string());
 
@@ -575,7 +575,7 @@ fn format_target(
         Target::Player(pid) => format!("player:{}", player_name(*pid, player_names)),
         Target::Object(oid) => {
             let name = state
-                .objects
+                .objects()
                 .get(oid)
                 .map(|o| o.characteristics.name.clone())
                 .unwrap_or_else(|| format!("object_{}", oid.0));
@@ -586,12 +586,12 @@ fn format_target(
 
 /// Collect all objects in a zone as `CardInZoneView`s, in zone order.
 fn objects_in_zone_as_card_views(state: &GameState, zone_id: &ZoneId) -> Vec<CardInZoneView> {
-    let ids = match state.zones.get(zone_id) {
+    let ids = match state.zones().get(zone_id) {
         Some(zone) => zone.object_ids(),
         None => return vec![],
     };
     ids.iter()
-        .filter_map(|id| state.objects.get(id))
+        .filter_map(|id| state.objects().get(id))
         .map(|obj| CardInZoneView {
             object_id: obj.id.0,
             name: obj.characteristics.name.clone(),
@@ -619,7 +619,7 @@ fn build_combat_view(
         .iter()
         .map(|(attacker_id, attack_target)| {
             let attacker_name = state
-                .objects
+                .objects()
                 .get(attacker_id)
                 .map(|o| o.characteristics.name.clone())
                 .unwrap_or_else(|| format!("object_{}", attacker_id.0));
@@ -630,7 +630,7 @@ fn build_combat_view(
                 }
                 AttackTarget::Planeswalker(oid) => {
                     let pw_name = state
-                        .objects
+                        .objects()
                         .get(oid)
                         .map(|o| o.characteristics.name.clone())
                         .unwrap_or_else(|| format!("object_{}", oid.0));
@@ -645,7 +645,7 @@ fn build_combat_view(
                 .filter(|(_, &a)| a == *attacker_id)
                 .map(|(blocker_id, _)| {
                     let blocker_name = state
-                        .objects
+                        .objects()
                         .get(blocker_id)
                         .map(|o| o.characteristics.name.clone())
                         .unwrap_or_else(|| format!("object_{}", blocker_id.0));

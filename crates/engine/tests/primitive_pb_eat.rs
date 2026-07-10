@@ -42,7 +42,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_by_name(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -51,7 +51,7 @@ fn find_by_name(state: &GameState, name: &str) -> ObjectId {
 
 fn find_on_battlefield(state: &GameState, name: &str) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
         .map(|(id, _)| *id)
@@ -98,14 +98,14 @@ fn cast_creature(
     mana: &[(ManaColor, u32)],
 ) -> (GameState, Vec<GameEvent>) {
     {
-        let pool = &mut state.players.get_mut(&caster).unwrap().mana_pool;
+        let pool = &mut state.players_mut().get_mut(&caster).unwrap().mana_pool;
         for &(color, n) in mana {
             if n > 0 {
                 pool.add(color, n);
             }
         }
     }
-    state.turn.priority_holder = Some(caster);
+    state.turn_mut().priority_holder = Some(caster);
     process_command(
         state,
         Command::CastSpell {
@@ -274,7 +274,7 @@ fn test_master_biomancer_grants_mutant_subtype_and_counters() {
 
     let bf_mystic =
         find_on_battlefield(&state, "Elvish Mystic").expect("Elvish Mystic must be on battlefield");
-    let mystic_obj = state.objects.get(&bf_mystic).unwrap();
+    let mystic_obj = state.objects().get(&bf_mystic).unwrap();
 
     // PB-EAT half: Mutant subtype was added during entry.
     assert!(
@@ -371,7 +371,7 @@ fn test_eat_idempotent_when_subtype_already_present() {
 
     let bf_initiate = find_on_battlefield(&state, "Simic Initiate")
         .expect("Simic Initiate must be on battlefield");
-    let initiate_obj = state.objects.get(&bf_initiate).unwrap();
+    let initiate_obj = state.objects().get(&bf_initiate).unwrap();
 
     // Mutant is still present (printed + replacement — both contribute, OrdSet
     // dedups).

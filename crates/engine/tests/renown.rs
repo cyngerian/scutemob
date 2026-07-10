@@ -17,6 +17,7 @@
 //!   the trigger does nothing.
 //! - CR 702.112a: Multiplayer -- trigger fires when dealing damage to any player.
 
+use mtg_engine::state::test_util;
 use mtg_engine::{
     process_command, AbilityDefinition, AttackTarget, CardDefinition, CardId, CardRegistry,
     CardType, Command, Completeness, CounterType, GameEvent, GameStateBuilder, KeywordAbility,
@@ -27,7 +28,7 @@ use mtg_engine::{
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -56,7 +57,7 @@ fn pass_all(
 fn plus_counters(state: &mtg_engine::GameState, name: &str) -> u32 {
     let id = find_object(state, name);
     state
-        .objects
+        .objects()
         .get(&id)
         .and_then(|obj| obj.counters.get(&CounterType::PlusOnePlusOne))
         .copied()
@@ -68,7 +69,7 @@ fn plus_counters(state: &mtg_engine::GameState, name: &str) -> u32 {
 fn is_renowned(state: &mtg_engine::GameState, name: &str) -> bool {
     let id = find_object(state, name);
     state
-        .objects
+        .objects()
         .get(&id)
         .map(|obj| {
             obj.designations
@@ -142,7 +143,7 @@ fn test_702_112a_renown_basic_counters_and_renowned() {
 
     // Attacker dealt 2 damage (creature is 2/2).
     assert_eq!(
-        state.players.get(&p2).unwrap().life_total,
+        state.players().get(&p2).unwrap().life_total,
         38,
         "CR 702.112a: p2 should have taken 2 combat damage"
     );
@@ -162,7 +163,7 @@ fn test_702_112a_renown_basic_counters_and_renowned() {
 
     // Renown trigger should be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.112a: Renown trigger should be on the stack"
     );
@@ -181,7 +182,7 @@ fn test_702_112a_renown_basic_counters_and_renowned() {
 
     // Stack is empty.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after Renown trigger resolves"
     );
 
@@ -250,7 +251,7 @@ fn test_702_112a_renown_n2_places_two_counters() {
 
     // Trigger on stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.112a: Renown trigger should be on the stack"
     );
@@ -296,7 +297,7 @@ fn test_702_112a_renown_no_trigger_when_already_renowned() {
     // Manually set the creature as renowned (simulating a previous trigger).
     let attacker_id = find_object(&state, "Already Renowned");
     let mut state = state;
-    if let Some(obj) = state.objects.get_mut(&attacker_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&attacker_id) {
         obj.designations.insert(mtg_engine::Designations::RENOWNED);
     }
 
@@ -340,7 +341,7 @@ fn test_702_112a_renown_no_trigger_when_already_renowned() {
 
     // P2 took 2 damage (combat damage still happens).
     assert_eq!(
-        state.players.get(&p2).unwrap().life_total,
+        state.players().get(&p2).unwrap().life_total,
         38,
         "CR 702.112a: combat damage still applies even when Renown doesn't trigger"
     );
@@ -360,7 +361,7 @@ fn test_702_112a_renown_no_trigger_when_already_renowned() {
 
     // Stack is empty — no renown trigger.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "CR 603.4: stack should be empty — Renown did not trigger (creature already renowned)"
     );
 
@@ -396,7 +397,7 @@ fn test_702_112b_renown_resets_on_zone_change() {
     // a resolved Renown trigger).
     let creature_id = find_object(&state, "Zone Change Renown");
     let mut state = state;
-    if let Some(obj) = state.objects.get_mut(&creature_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&creature_id) {
         obj.designations.insert(mtg_engine::Designations::RENOWNED);
         obj.counters = obj.counters.update(CounterType::PlusOnePlusOne, 1);
     }
@@ -413,12 +414,11 @@ fn test_702_112b_renown_resets_on_zone_change() {
 
     // Simulate zone change: move the creature to its owner's hand.
     // move_object_to_zone resets all CR 400.7 flags including is_renowned.
-    let (new_id, _) = state
-        .move_object_to_zone(creature_id, ZoneId::Hand(p1))
+    let (new_id, _) = test_util::move_object_to_zone(&mut state, creature_id, ZoneId::Hand(p1))
         .expect("move_object_to_zone failed");
 
     // The new object (in hand) should NOT be renowned (CR 400.7 reset).
-    let new_obj = state.objects.get(&new_id).expect("new object not found");
+    let new_obj = state.objects().get(&new_id).expect("new object not found");
     assert!(
         !new_obj
             .designations
@@ -438,13 +438,12 @@ fn test_702_112b_renown_resets_on_zone_change() {
     );
 
     // Move the creature back to the battlefield.
-    let (bf_id, _) = state
-        .move_object_to_zone(new_id, ZoneId::Battlefield)
+    let (bf_id, _) = test_util::move_object_to_zone(&mut state, new_id, ZoneId::Battlefield)
         .expect("move to battlefield failed");
 
     // The re-entered creature is NOT renowned.
     let bf_obj = state
-        .objects
+        .objects()
         .get(&bf_id)
         .expect("battlefield object not found");
     assert!(
@@ -555,7 +554,7 @@ fn test_702_112c_renown_multiple_instances_first_resolves() {
 
     // Two triggers on the stack (CR 702.112c: each instance triggers separately).
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "CR 702.112c: 2 Renown triggers should be on the stack"
     );
@@ -564,7 +563,7 @@ fn test_702_112c_renown_multiple_instances_first_resolves() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "one trigger should remain after resolving the first"
     );
@@ -582,7 +581,7 @@ fn test_702_112c_renown_multiple_instances_first_resolves() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after both triggers resolve"
     );
 
@@ -652,7 +651,7 @@ fn test_702_112_renown_creature_leaves_before_resolution() {
 
     // Trigger should be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "Renown trigger should be on the stack before creature is removed"
     );
@@ -660,14 +659,13 @@ fn test_702_112_renown_creature_leaves_before_resolution() {
     // Remove the creature from the battlefield before the trigger resolves
     // (simulate it dying, bouncing, etc.) by moving it to the graveyard.
     let mut state = state;
-    let (_, _) = state
-        .move_object_to_zone(attacker_id, ZoneId::Graveyard(p1))
+    let (_, _) = test_util::move_object_to_zone(&mut state, attacker_id, ZoneId::Graveyard(p1))
         .expect("move_object_to_zone failed");
 
     // Verify the creature is no longer on the battlefield.
     assert!(
         !state
-            .objects
+            .objects()
             .values()
             .any(|o| o.characteristics.name == "Renown Then Dies" && o.zone == ZoneId::Battlefield),
         "setup: creature should be off battlefield before trigger resolves"
@@ -687,13 +685,13 @@ fn test_702_112_renown_creature_leaves_before_resolution() {
 
     // Stack is empty.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after trigger resolves (doing nothing)"
     );
 
     // The creature is in the graveyard with no counters (new object after zone change).
     let graveyard_obj = state
-        .objects
+        .objects()
         .values()
         .find(|o| {
             o.characteristics.name == "Renown Then Dies" && matches!(o.zone, ZoneId::Graveyard(_))
@@ -741,7 +739,7 @@ fn test_702_112a_renown_multiplayer_specific_player() {
         .unwrap();
 
     let attacker_id = find_object(&state, "Renown Multiplayer");
-    let p3_initial_life = state.players.get(&p3).unwrap().life_total;
+    let p3_initial_life = state.players().get(&p3).unwrap().life_total;
 
     // Attacker declares against P3 (not P2 or P4).
     let (state, _) = process_command(
@@ -773,26 +771,26 @@ fn test_702_112a_renown_multiplayer_specific_player() {
 
     // P3 took 2 damage.
     assert_eq!(
-        state.players.get(&p3).unwrap().life_total,
+        state.players().get(&p3).unwrap().life_total,
         p3_initial_life - 2,
         "CR 702.112a: p3 should have taken 2 combat damage"
     );
 
     // P2 and P4 untouched.
     assert_eq!(
-        state.players.get(&p2).unwrap().life_total,
+        state.players().get(&p2).unwrap().life_total,
         p3_initial_life, // all players start with same life
         "CR 702.112a: p2 should be untouched (not attacked)"
     );
     assert_eq!(
-        state.players.get(&p4).unwrap().life_total,
+        state.players().get(&p4).unwrap().life_total,
         p3_initial_life,
         "CR 702.112a: p4 should be untouched (not attacked)"
     );
 
     // Renown trigger on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.112a: Renown trigger should be on the stack (multiplayer)"
     );

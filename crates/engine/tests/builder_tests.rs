@@ -352,7 +352,7 @@ fn test_builder_unique_object_ids() {
         .build()
         .unwrap();
 
-    let ids: Vec<ObjectId> = state.objects.keys().cloned().collect();
+    let ids: Vec<ObjectId> = state.objects().keys().cloned().collect();
     // All IDs are unique
     for i in 0..ids.len() {
         for j in (i + 1)..ids.len() {

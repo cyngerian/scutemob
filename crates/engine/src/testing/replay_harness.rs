@@ -34,6 +34,20 @@ use std::collections::HashMap;
 ///
 /// Player names are sorted alphabetically and assigned `PlayerId(1)`, `PlayerId(2)`, …
 /// This is deterministic for a given set of player names.
+///
+/// # Relationship to the sealed `GameState` (SR-3)
+///
+/// This module is `pub` and is shared with the replay viewer, so it is compiled
+/// into production builds — it therefore cannot use the `test-util` escape
+/// hatches in [`crate::state::test_util`].
+///
+/// It does not need them. It lives *inside* the engine crate, so it patches the
+/// `pub(crate)` fields directly for the few things [`GameStateBuilder`] cannot
+/// express (life totals, mana pools, land plays). Crucially, the state is
+/// finished before it escapes: this function hands back an owned [`GameState`]
+/// by value and never lends `&mut GameState` to a caller. From outside the
+/// engine, this is a documented constructor, not a mutation channel — which is
+/// what keeps architecture invariant #3 intact.
 pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, PlayerId>) {
     // Sort player names deterministically.
     let mut names: Vec<String> = init.players.keys().cloned().collect();

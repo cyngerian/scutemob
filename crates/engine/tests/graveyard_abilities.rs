@@ -24,7 +24,7 @@ fn p(n: u64) -> PlayerId {
 }
 
 fn find_obj_in_zone(state: &mtg_engine::GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
-    state.objects.iter().find_map(|(&id, obj)| {
+    state.objects().iter().find_map(|(&id, obj)| {
         if obj.characteristics.name == name && obj.zone == zone {
             Some(id)
         } else {
@@ -98,7 +98,7 @@ fn test_graveyard_activated_ability_activatable() {
         .unwrap();
 
     // Give p1 {1}{B} mana.
-    if let Some(ps) = state.players.get_mut(&p1) {
+    if let Some(ps) = state.players_mut().get_mut(&p1) {
         ps.mana_pool.colorless = 1;
         ps.mana_pool.black = 1;
     }
@@ -153,7 +153,7 @@ fn test_graveyard_activated_ability_zone_check() {
         .unwrap();
 
     // Give p1 {1}{B} mana.
-    if let Some(ps) = state.players.get_mut(&p1) {
+    if let Some(ps) = state.players_mut().get_mut(&p1) {
         ps.mana_pool.colorless = 1;
         ps.mana_pool.black = 1;
     }

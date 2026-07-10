@@ -22,7 +22,7 @@ use mtg_engine::{
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -93,7 +93,7 @@ fn test_dethrone_basic_attacks_player_with_most_life() {
 
     // Stack has 1 trigger.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.105a: dethrone trigger should be on the stack"
     );
@@ -103,7 +103,7 @@ fn test_dethrone_basic_attacks_player_with_most_life() {
 
     // Creature has 1 +1/+1 counter.
     let obj = state
-        .objects
+        .objects()
         .get(&dt_id)
         .expect("Dethrone Warrior on battlefield");
     let counter_count = obj
@@ -179,7 +179,7 @@ fn test_dethrone_tied_for_most_life() {
     );
 
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.105a: trigger should be on the stack"
     );
@@ -189,7 +189,7 @@ fn test_dethrone_tied_for_most_life() {
 
     // Creature has 1 +1/+1 counter; P/T = 3/3.
     let obj = state
-        .objects
+        .objects()
         .get(&dt_id)
         .expect("Tied Dethrone on battlefield");
     assert_eq!(
@@ -266,14 +266,14 @@ fn test_dethrone_does_not_trigger_against_lower_life() {
 
     // Stack is empty.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "CR 702.105a: stack must be empty when dethrone does not trigger"
     );
 
     // Creature has 0 counters.
     let obj = state
-        .objects
+        .objects()
         .get(&dt_id)
         .expect("No Trigger Dethrone on battlefield");
     assert_eq!(
@@ -339,7 +339,7 @@ fn test_dethrone_multiplayer_four_player_most_life() {
     );
 
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.105a: one dethrone trigger on the stack"
     );
@@ -348,7 +348,7 @@ fn test_dethrone_multiplayer_four_player_most_life() {
     let (state, _) = pass_all(state, &[p1, p2, p3, p4]);
 
     let obj = state
-        .objects
+        .objects()
         .get(&dt_id)
         .expect("Commander Dethrone on battlefield");
     assert_eq!(
@@ -432,13 +432,13 @@ fn test_dethrone_multiplayer_not_most_life() {
     );
 
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "CR 702.105a: stack must be empty — no dethrone trigger in multiplayer non-max case"
     );
 
     let obj = state
-        .objects
+        .objects()
         .get(&dt_id)
         .expect("Quiet Dethrone on battlefield");
     assert_eq!(
@@ -503,7 +503,7 @@ fn test_dethrone_multiple_instances_trigger_separately() {
 
     // Two triggers on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "CR 702.105b: two dethrone triggers should be on the stack"
     );
@@ -515,7 +515,7 @@ fn test_dethrone_multiple_instances_trigger_separately() {
 
     // Creature should have 2 +1/+1 counters.
     let obj = state
-        .objects
+        .objects()
         .get(&dt_id)
         .expect("Double Dethrone on battlefield");
     assert_eq!(
@@ -602,13 +602,13 @@ fn test_dethrone_does_not_trigger_on_planeswalker_attack() {
     );
 
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "Ruling 2023-07-28: stack must be empty — no dethrone trigger on planeswalker attack"
     );
 
     let obj = state
-        .objects
+        .objects()
         .get(&dt_id)
         .expect("Planeswalker Attacker on battlefield");
     assert_eq!(
@@ -674,13 +674,13 @@ fn test_dethrone_attacker_has_most_life_attacks_lower() {
     );
 
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "CR 702.105a: stack must be empty — dethrone checks defending player's life, not attacker's"
     );
 
     let obj = state
-        .objects
+        .objects()
         .get(&dt_id)
         .expect("Self Most Life on battlefield");
     assert_eq!(

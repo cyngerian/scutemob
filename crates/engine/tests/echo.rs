@@ -30,7 +30,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -38,7 +38,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 }
 
 fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
-    state.objects.iter().find_map(|(&id, obj)| {
+    state.objects().iter().find_map(|(&id, obj)| {
         if obj.characteristics.name == name && obj.zone == zone {
             Some(id)
         } else {
@@ -191,18 +191,18 @@ fn test_echo_etb_sets_pending() {
 
     // Give p1 mana to cast.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Test Echo RR Creature");
 
@@ -241,7 +241,7 @@ fn test_echo_etb_sets_pending() {
     let obj_id =
         find_in_zone(&state, "Test Echo RR Creature", ZoneId::Battlefield).expect("on battlefield");
     assert!(
-        state.objects[&obj_id]
+        state.objects()[&obj_id]
             .designations
             .contains(mtg_engine::Designations::ECHO_PENDING),
         "CR 702.30a: echo_pending should be true after the permanent enters the battlefield"
@@ -267,7 +267,7 @@ fn test_echo_pending_false_without_echo() {
 
     let obj_id = find_object(&state, "Vanilla Bear");
     assert!(
-        !state.objects[&obj_id]
+        !state.objects()[&obj_id]
             .designations
             .contains(mtg_engine::Designations::ECHO_PENDING),
         "CR 702.30a: echo_pending must be false for a permanent without Echo"
@@ -296,23 +296,23 @@ fn test_echo_upkeep_trigger_fires() {
 
     // Manually set echo_pending = true (simulating ETB from spell resolution).
     let obj_id = find_object(&state, "Test Echo RR Creature");
-    if let Some(obj) = state.objects.get_mut(&obj_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&obj_id) {
         obj.designations
             .insert(mtg_engine::Designations::ECHO_PENDING);
     }
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Advance Untap -> Upkeep (enter_step calls upkeep_actions, queuing EchoTrigger).
     let (state, _) = pass_all(state, &[p1, p2]);
     assert_eq!(
-        state.turn.step,
+        state.turn().step,
         Step::Upkeep,
         "should be at Upkeep after advancing from Untap"
     );
 
     // EchoTrigger should be on the stack.
     assert!(
-        state.stack_objects.iter().any(|so| matches!(
+        state.stack_objects().iter().any(|so| matches!(
             &so.kind,
             StackObjectKind::KeywordTrigger {
                 keyword: KeywordAbility::Echo(_),
@@ -346,15 +346,15 @@ fn test_echo_pay_cost_keeps_permanent() {
 
     // Set echo_pending.
     let obj_id = find_object(&state, "Test Echo RR Creature");
-    if let Some(obj) = state.objects.get_mut(&obj_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&obj_id) {
         obj.designations
             .insert(mtg_engine::Designations::ECHO_PENDING);
     }
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Advance Untap -> Upkeep -> EchoTrigger queued.
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::Upkeep);
+    assert_eq!(state.turn().step, Step::Upkeep);
 
     // Both pass -> EchoTrigger resolves -> EchoPaymentRequired emitted.
     let (mut state, events) = pass_all(state, &[p1, p2]);
@@ -371,13 +371,13 @@ fn test_echo_pay_cost_keeps_permanent() {
 
     // Give p1 mana to pay the echo cost NOW (after step transitions which clear mana pools).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -404,7 +404,7 @@ fn test_echo_pay_cost_keeps_permanent() {
     let obj_id_after =
         find_in_zone(&state, "Test Echo RR Creature", ZoneId::Battlefield).expect("on battlefield");
     assert!(
-        !state.objects[&obj_id_after]
+        !state.objects()[&obj_id_after]
             .designations
             .contains(mtg_engine::Designations::ECHO_PENDING),
         "CR 702.30a: echo_pending should be false after paying echo cost"
@@ -441,15 +441,15 @@ fn test_echo_decline_payment_sacrifices() {
 
     // Set echo_pending = true but give NO mana (can't pay, will decline).
     let obj_id = find_object(&state, "Test Echo RR Creature");
-    if let Some(obj) = state.objects.get_mut(&obj_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&obj_id) {
         obj.designations
             .insert(mtg_engine::Designations::ECHO_PENDING);
     }
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Advance Untap -> Upkeep -> EchoTrigger queued.
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::Upkeep);
+    assert_eq!(state.turn().step, Step::Upkeep);
 
     // Both pass -> trigger resolves -> EchoPaymentRequired.
     let (state, _) = pass_all(state, &[p1, p2]);
@@ -511,15 +511,15 @@ fn test_echo_no_trigger_after_paid() {
 
     // Set echo_pending = true.
     let obj_id = find_object(&state, "Test Echo RR Creature");
-    if let Some(obj) = state.objects.get_mut(&obj_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&obj_id) {
         obj.designations
             .insert(mtg_engine::Designations::ECHO_PENDING);
     }
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // === First upkeep: echo fires and is paid ===
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::Upkeep);
+    assert_eq!(state.turn().step, Step::Upkeep);
 
     let (mut state, _) = pass_all(state, &[p1, p2]); // trigger resolves -> EchoPaymentRequired
 
@@ -528,13 +528,13 @@ fn test_echo_no_trigger_after_paid() {
 
     // Give p1 mana to pay NOW (step transitions clear mana pools).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -554,7 +554,7 @@ fn test_echo_no_trigger_after_paid() {
     let obj_id_after =
         find_in_zone(&state, "Test Echo RR Creature", ZoneId::Battlefield).expect("on battlefield");
     assert!(
-        !state.objects[&obj_id_after]
+        !state.objects()[&obj_id_after]
             .designations
             .contains(mtg_engine::Designations::ECHO_PENDING),
         "echo_pending should be false after paying"
@@ -562,15 +562,15 @@ fn test_echo_no_trigger_after_paid() {
 
     // === Second upkeep: echo must NOT fire ===
     let mut state = state;
-    state.turn.step = Step::Untap;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().step = Step::Untap;
+    state.turn_mut().priority_holder = Some(p1);
 
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::Upkeep);
+    assert_eq!(state.turn().step, Step::Upkeep);
 
     // No EchoTrigger on stack this time.
     assert!(
-        !state.stack_objects.iter().any(|so| matches!(
+        !state.stack_objects().iter().any(|so| matches!(
             &so.kind,
             StackObjectKind::KeywordTrigger {
                 keyword: KeywordAbility::Echo(_),
@@ -613,19 +613,19 @@ fn test_echo_different_cost() {
         .unwrap();
 
     let obj_id = find_object(&state, "Test Echo Different Cost");
-    if let Some(obj) = state.objects.get_mut(&obj_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&obj_id) {
         obj.designations
             .insert(mtg_engine::Designations::ECHO_PENDING);
     }
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Advance to upkeep.
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::Upkeep);
+    assert_eq!(state.turn().step, Step::Upkeep);
 
     // EchoTrigger should be on the stack.
     assert!(
-        state.stack_objects.iter().any(|so| matches!(
+        state.stack_objects().iter().any(|so| matches!(
             &so.kind,
             StackObjectKind::KeywordTrigger {
                 keyword: KeywordAbility::Echo(_),
@@ -638,7 +638,7 @@ fn test_echo_different_cost() {
 
     // Verify the trigger carries the ECHO cost ({3}{W}{W}), not the mana cost ({1}{W}).
     let echo_trigger = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .find(|so| {
             matches!(
@@ -696,19 +696,19 @@ fn test_echo_multiplayer_only_controller_upkeep() {
 
     // Set echo_pending = true for p1's creature.
     let obj_id = find_object(&state, "Test Echo RR Creature");
-    if let Some(obj) = state.objects.get_mut(&obj_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&obj_id) {
         obj.designations
             .insert(mtg_engine::Designations::ECHO_PENDING);
     }
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     // Advance p2's Untap -> p2's Upkeep.
     let (state, _) = pass_all(state, &[p2, p1]);
-    assert_eq!(state.turn.step, Step::Upkeep);
+    assert_eq!(state.turn().step, Step::Upkeep);
 
     // No EchoTrigger for p1's permanent during p2's upkeep.
     assert!(
-        !state.stack_objects.iter().any(|so| matches!(
+        !state.stack_objects().iter().any(|so| matches!(
             &so.kind,
             StackObjectKind::KeywordTrigger {
                 keyword: KeywordAbility::Echo(_),
@@ -722,7 +722,7 @@ fn test_echo_multiplayer_only_controller_upkeep() {
     // echo_pending still true (hasn't been consumed).
     let obj_id_check = find_object(&state, "Test Echo RR Creature");
     assert!(
-        state.objects[&obj_id_check]
+        state.objects()[&obj_id_check]
             .designations
             .contains(mtg_engine::Designations::ECHO_PENDING),
         "CR 702.30a: echo_pending should remain true during a non-controller's upkeep"
@@ -751,19 +751,19 @@ fn test_echo_permanent_left_battlefield() {
 
     // Set echo_pending = true.
     let obj_id = find_object(&state, "Test Echo RR Creature");
-    if let Some(obj) = state.objects.get_mut(&obj_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&obj_id) {
         obj.designations
             .insert(mtg_engine::Designations::ECHO_PENDING);
     }
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Advance to Upkeep -> EchoTrigger queued.
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::Upkeep);
+    assert_eq!(state.turn().step, Step::Upkeep);
 
     // Verify EchoTrigger is on stack.
     assert!(
-        state.stack_objects.iter().any(|so| matches!(
+        state.stack_objects().iter().any(|so| matches!(
             &so.kind,
             StackObjectKind::KeywordTrigger {
                 keyword: KeywordAbility::Echo(_),
@@ -777,7 +777,7 @@ fn test_echo_permanent_left_battlefield() {
     // Simulate the permanent leaving the battlefield BEFORE the trigger resolves
     // by finding the trigger's echo_permanent and removing the object from the battlefield.
     let echo_trigger = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .find(|so| {
             matches!(
@@ -803,14 +803,14 @@ fn test_echo_permanent_left_battlefield() {
 
     // Move the permanent to its graveyard to simulate it leaving.
     let mut state = state;
-    if let Some(obj) = state.objects.get_mut(&perm_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&perm_id) {
         let old_zone = obj.zone;
         obj.zone = ZoneId::Graveyard(p1);
         // Update the zone collections.
-        if let Some(zone) = state.zones.get_mut(&old_zone) {
+        if let Some(zone) = state.zones_mut().get_mut(&old_zone) {
             zone.remove(&perm_id);
         }
-        if let Some(zone) = state.zones.get_mut(&ZoneId::Graveyard(p1)) {
+        if let Some(zone) = state.zones_mut().get_mut(&ZoneId::Graveyard(p1)) {
             zone.insert(perm_id);
         }
     }
@@ -827,7 +827,7 @@ fn test_echo_permanent_left_battlefield() {
 
     // No pending echo payments.
     assert!(
-        state.pending_echo_payments.is_empty(),
+        state.pending_echo_payments().is_empty(),
         "CR 400.7: pending_echo_payments should be empty if permanent left battlefield"
     );
 }

@@ -30,7 +30,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -38,7 +38,7 @@ fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId>
 
 fn find_any_zone(state: &GameState, name: &str) -> Option<(ObjectId, ZoneId)> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, obj)| (*id, obj.zone))
@@ -146,12 +146,12 @@ fn test_adventure_cast_adventure_half_from_hand() {
 
     // Add mana for adventure cost {R}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Cast as Adventure.
     let (state, _) = process_command(
@@ -177,8 +177,12 @@ fn test_adventure_cast_adventure_half_from_hand() {
     .expect("Cast as Adventure from hand should succeed");
 
     // CR 715.3b: Spell is on the stack with was_cast_as_adventure = true.
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
-    let stack_obj = &state.stack_objects[0];
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "spell should be on the stack"
+    );
+    let stack_obj = &state.stack_objects()[0];
     assert!(
         stack_obj.was_cast_as_adventure,
         "CR 715.3b: spell cast as Adventure should have was_cast_as_adventure=true"
@@ -214,12 +218,12 @@ fn test_adventure_exile_on_resolution() {
 
     // Add mana {R}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Cast as Adventure.
     let (mut state, _) = process_command(
@@ -245,7 +249,7 @@ fn test_adventure_exile_on_resolution() {
     .expect("Cast as Adventure from hand should succeed");
 
     // Both players pass to resolve the spell.
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // CR 715.3d: Card should be in exile (not graveyard).
@@ -260,7 +264,7 @@ fn test_adventure_exile_on_resolution() {
 
     // adventure_exiled_by should be set to p1.
     let (exile_id, _) = find_any_zone(&state, "Stomp Giant").expect("should be in some zone");
-    let exile_obj = state.objects.get(&exile_id).unwrap();
+    let exile_obj = state.objects().get(&exile_id).unwrap();
     assert_eq!(
         exile_obj.adventure_exiled_by,
         Some(p1),
@@ -292,12 +296,12 @@ fn test_adventure_cast_creature_from_exile() {
 
     // Step 1: Cast as Adventure ({R}).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let (mut state, _) = process_command(
         state,
@@ -322,7 +326,7 @@ fn test_adventure_cast_creature_from_exile() {
     .expect("Cast as Adventure should succeed");
 
     // Resolve Adventure → card goes to exile.
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let (mut state, _) = pass_all(state, &[p1, p2]);
 
     let exiled_id = find_in_zone(&state, "Stomp Giant", ZoneId::Exile)
@@ -331,18 +335,18 @@ fn test_adventure_cast_creature_from_exile() {
     // Step 2: Cast creature half from exile (normal cast, no AltCost).
     // Pay {2}{R} for the creature mana cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let (mut state, _) = process_command(
         state,
@@ -368,18 +372,18 @@ fn test_adventure_cast_creature_from_exile() {
 
     // Spell is on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "creature spell should be on stack"
     );
     // was_cast_as_adventure should be false for the creature cast.
     assert!(
-        !state.stack_objects[0].was_cast_as_adventure,
+        !state.stack_objects()[0].was_cast_as_adventure,
         "creature cast from exile should NOT be an adventure"
     );
 
     // Resolve creature → enters battlefield.
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let (state, _) = pass_all(state, &[p1, p2]);
 
     assert!(
@@ -444,12 +448,12 @@ fn test_adventure_countered_goes_to_graveyard() {
 
     // Cast as Adventure ({R}).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let (state, _) = process_command(
         state,
@@ -476,7 +480,7 @@ fn test_adventure_countered_goes_to_graveyard() {
     // The Adventure spell is now on the stack.
     // For targeting, we need the ObjectId of the card in the Stack zone (not the StackObject.id).
     let adventure_stack_id = state
-        .objects
+        .objects()
         .iter()
         .find_map(|(&id, obj)| {
             if obj.characteristics.name == "Stomp Giant" && obj.zone == ZoneId::Stack {
@@ -493,12 +497,12 @@ fn test_adventure_countered_goes_to_graveyard() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 2);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let (mut state, _) = process_command(
         state,
@@ -523,7 +527,7 @@ fn test_adventure_countered_goes_to_graveyard() {
     .expect("Cast counterspell should succeed");
 
     // Resolve the counter (both players pass priority).
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
     let (state, _) = pass_all(state, &[p2, p1]);
 
     // CR 715.3d: When countered, the Adventure card goes to GRAVEYARD (not exile).
@@ -561,12 +565,12 @@ fn test_adventure_cannot_recast_as_adventure_from_exile() {
 
     // Cast as Adventure ({R}).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let (mut state, _) = process_command(
         state,
@@ -591,7 +595,7 @@ fn test_adventure_cannot_recast_as_adventure_from_exile() {
     .expect("Cast as Adventure should succeed");
 
     // Resolve → exile.
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let (mut state, _) = pass_all(state, &[p1, p2]);
 
     let exiled_id =
@@ -599,12 +603,12 @@ fn test_adventure_cannot_recast_as_adventure_from_exile() {
 
     // Try to cast as Adventure from exile — should fail (CR 715.3d).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let result = process_command(
         state,
@@ -654,7 +658,7 @@ fn test_adventure_normal_characteristics_in_hand() {
 
     // The card in hand should be a Creature (Giant), NOT an Instant.
     let (giant_id, _) = find_any_zone(&state, "Stomp Giant").expect("should exist");
-    let obj = state.objects.get(&giant_id).unwrap();
+    let obj = state.objects().get(&giant_id).unwrap();
     // CR 715.4: In hand, the object has the main face's card types (Creature).
     assert!(
         obj.characteristics.card_types.contains(&CardType::Creature),
@@ -769,12 +773,12 @@ fn test_search_library_only() {
         find_in_zone(&state, "Dual Tutor", ZoneId::Hand(p1)).expect("tutor should be in hand");
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let (mut state, _) = process_command(
         state,
@@ -798,7 +802,7 @@ fn test_search_library_only() {
     )
     .expect("casting tutor should succeed");
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // Dragon was in library — should now be in hand.
@@ -858,12 +862,12 @@ fn test_search_library_and_graveyard() {
         find_in_zone(&state, "Dual Tutor", ZoneId::Hand(p1)).expect("tutor should be in hand");
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let (mut state, _) = process_command(
         state,
@@ -887,7 +891,7 @@ fn test_search_library_and_graveyard() {
     )
     .expect("casting tutor should succeed");
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // Zombie was in graveyard — should now be in hand (found via also_search_graveyard).
@@ -962,12 +966,12 @@ fn test_search_graveyard_still_shuffles_library() {
         find_in_zone(&state, "Dual Tutor", ZoneId::Hand(p1)).expect("tutor should be in hand");
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let (mut state, _) = process_command(
         state,
@@ -991,7 +995,7 @@ fn test_search_graveyard_still_shuffles_library() {
     )
     .expect("casting tutor should succeed");
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // Elf found in graveyard → now in hand.

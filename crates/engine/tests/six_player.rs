@@ -26,7 +26,7 @@ fn cid(s: &str) -> CardId {
 /// Pass priority until the step or turn advances (handles variable player counts).
 fn pass_until_advance(mut state: GameState) -> (GameState, Vec<GameEvent>) {
     let mut all_events = Vec::new();
-    while let Some(holder) = state.turn.priority_holder {
+    while let Some(holder) = state.turn().priority_holder {
         let (new_state, events) = process_command(state, Command::PassPriority { player: holder })
             .unwrap_or_else(|e| panic!("PassPriority by {:?} failed: {:?}", holder, e));
         let advanced = events.iter().any(|e| {
@@ -71,30 +71,30 @@ fn test_six_player_priority_rotation() {
     let state = six_player_at(Step::PreCombatMain);
 
     // Player 1 (active) has priority first.
-    assert_eq!(state.turn.priority_holder, Some(p(1)));
+    assert_eq!(state.turn().priority_holder, Some(p(1)));
 
     // P1 passes → P2
     let (state, ev) = process_command(state, Command::PassPriority { player: p(1) }).unwrap();
     assert!(ev
         .iter()
         .any(|e| matches!(e, GameEvent::PriorityPassed { player } if *player == p(1))));
-    assert_eq!(state.turn.priority_holder, Some(p(2)));
+    assert_eq!(state.turn().priority_holder, Some(p(2)));
 
     // P2 → P3
     let (state, _) = process_command(state, Command::PassPriority { player: p(2) }).unwrap();
-    assert_eq!(state.turn.priority_holder, Some(p(3)));
+    assert_eq!(state.turn().priority_holder, Some(p(3)));
 
     // P3 → P4
     let (state, _) = process_command(state, Command::PassPriority { player: p(3) }).unwrap();
-    assert_eq!(state.turn.priority_holder, Some(p(4)));
+    assert_eq!(state.turn().priority_holder, Some(p(4)));
 
     // P4 → P5
     let (state, _) = process_command(state, Command::PassPriority { player: p(4) }).unwrap();
-    assert_eq!(state.turn.priority_holder, Some(p(5)));
+    assert_eq!(state.turn().priority_holder, Some(p(5)));
 
     // P5 → P6
     let (state, _) = process_command(state, Command::PassPriority { player: p(5) }).unwrap();
-    assert_eq!(state.turn.priority_holder, Some(p(6)));
+    assert_eq!(state.turn().priority_holder, Some(p(6)));
 
     // P6 passes → all 6 have passed → step advances (AllPlayersPassed emitted)
     let (state, ev) = process_command(state, Command::PassPriority { player: p(6) }).unwrap();
@@ -104,7 +104,7 @@ fn test_six_player_priority_rotation() {
     );
     // Step should have advanced beyond PreCombatMain
     assert_ne!(
-        state.turn.step,
+        state.turn().step,
         Step::PreCombatMain,
         "step should advance after all 6 players pass"
     );
@@ -133,7 +133,7 @@ fn test_six_player_combat_five_defenders() {
 
     // Collect attacker IDs owned by P1 (the 5 attackers).
     let mut attacker_ids: Vec<mtg_engine::ObjectId> = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.controller == p(1))
         .map(|o| o.id)
@@ -160,7 +160,7 @@ fn test_six_player_combat_five_defenders() {
 
     // All players pass to advance to DeclareBlockers.
     let (state, _) = pass_until_advance(state);
-    assert_eq!(state.turn.step, Step::DeclareBlockers);
+    assert_eq!(state.turn().step, Step::DeclareBlockers);
 
     // Each of P2–P6 declares their blocker for the attacker targeting them.
     // The attacker-to-defender mapping: attacker_ids[i] attacks p(i+2).
@@ -169,7 +169,7 @@ fn test_six_player_combat_five_defenders() {
         let def_pid = p(i as u64 + 2);
         // Find this player's blocker (the creature they own).
         let blocker_id = state
-            .objects
+            .objects()
             .values()
             .find(|o| o.controller == def_pid && o.zone == ZoneId::Battlefield)
             .map(|o| o.id)
@@ -205,7 +205,7 @@ fn test_six_player_combat_five_defenders() {
 
     // No defending player should have lost life (all damage was absorbed by blockers).
     for pid in 2..=6u64 {
-        let life = state.players.get(&p(pid)).unwrap().life_total;
+        let life = state.players().get(&p(pid)).unwrap().life_total;
         assert_eq!(
             life, 40,
             "P{} should not have taken damage (was blocked)",
@@ -232,7 +232,7 @@ fn test_six_player_apnap_ordering() {
     let state = builder.build().unwrap();
 
     // Verify turn order is 1→2→3→4→5→6.
-    let turn_order: Vec<PlayerId> = state.turn.turn_order.iter().copied().collect();
+    let turn_order: Vec<PlayerId> = state.turn().turn_order.iter().copied().collect();
     assert_eq!(
         turn_order,
         vec![p(1), p(2), p(3), p(4), p(5), p(6)],
@@ -249,7 +249,7 @@ fn test_six_player_apnap_ordering() {
         "P2's turn should have started after P1's End step"
     );
     assert_eq!(
-        state.turn.active_player,
+        state.turn().active_player,
         p(2),
         "P2 should be active after P1's turn"
     );
@@ -272,13 +272,13 @@ fn test_six_player_apnap_ordering() {
             break;
         }
         // Safety: if we've gone past P3 starting, check current active player.
-        if state.turn.active_player == p(3) {
+        if state.turn().active_player == p(3) {
             found_p3 = true;
             break;
         }
     }
     assert!(
-        found_p3 || state.turn.active_player == p(3),
+        found_p3 || state.turn().active_player == p(3),
         "P3 should become active after P2's turn"
     );
 }
@@ -293,7 +293,7 @@ fn test_six_player_turn_advancement_skips_eliminated() {
     let (state, _) = process_command(state, Command::Concede { player: p(3) }).unwrap();
 
     // Verify P3 has conceded.
-    let p3_state = state.players.get(&p(3)).unwrap();
+    let p3_state = state.players().get(&p(3)).unwrap();
     assert!(
         p3_state.has_conceded || p3_state.has_lost,
         "P3 should be eliminated after conceding"
@@ -302,7 +302,7 @@ fn test_six_player_turn_advancement_skips_eliminated() {
     // P1 passes → should skip P3 → P4 (or directly check that P3 is not priority holder).
     let (state, _) = process_command(state, Command::PassPriority { player: p(1) }).unwrap();
     assert_eq!(
-        state.turn.priority_holder,
+        state.turn().priority_holder,
         Some(p(2)),
         "after P1 passes, P2 should hold priority (P3 is eliminated)"
     );
@@ -310,21 +310,21 @@ fn test_six_player_turn_advancement_skips_eliminated() {
     let (state, _) = process_command(state, Command::PassPriority { player: p(2) }).unwrap();
     // P3 is skipped
     assert_eq!(
-        state.turn.priority_holder,
+        state.turn().priority_holder,
         Some(p(4)),
         "after P2 passes, P4 should hold priority (P3 is skipped)"
     );
 
     let (state, _) = process_command(state, Command::PassPriority { player: p(4) }).unwrap();
     assert_eq!(
-        state.turn.priority_holder,
+        state.turn().priority_holder,
         Some(p(5)),
         "after P4 passes, P5 should hold priority"
     );
 
     let (state, _) = process_command(state, Command::PassPriority { player: p(5) }).unwrap();
     assert_eq!(
-        state.turn.priority_holder,
+        state.turn().priority_holder,
         Some(p(6)),
         "after P5 passes, P6 should hold priority"
     );
@@ -351,7 +351,7 @@ fn test_six_player_concession_mid_game() {
 
     // P1 still holds priority (concession during P1's turn doesn't change active player).
     assert_eq!(
-        state.turn.priority_holder,
+        state.turn().priority_holder,
         Some(p(1)),
         "P1 should still hold priority after P4 concedes"
     );
@@ -359,14 +359,14 @@ fn test_six_player_concession_mid_game() {
     // P1 passes → P2 (P3 is next, then P4 would be skipped, then P5, P6).
     let (state, _) = process_command(state, Command::PassPriority { player: p(1) }).unwrap();
     assert_eq!(
-        state.turn.priority_holder,
+        state.turn().priority_holder,
         Some(p(2)),
         "P2 should hold priority after P1 passes"
     );
 
     let (state, _) = process_command(state, Command::PassPriority { player: p(2) }).unwrap();
     assert_eq!(
-        state.turn.priority_holder,
+        state.turn().priority_holder,
         Some(p(3)),
         "P3 should hold priority after P2 passes"
     );
@@ -374,7 +374,7 @@ fn test_six_player_concession_mid_game() {
     // P3 passes → P4 is conceded, should skip to P5.
     let (state, _) = process_command(state, Command::PassPriority { player: p(3) }).unwrap();
     assert_eq!(
-        state.turn.priority_holder,
+        state.turn().priority_holder,
         Some(p(5)),
         "P5 should hold priority after P3 passes (P4 is conceded/eliminated)"
     );
@@ -406,7 +406,7 @@ fn test_six_player_game_start_all_commanders_correct() {
 
     // Verify: each player starts at 40 life.
     for pid in 1..=6u64 {
-        let life = state.players.get(&p(pid)).unwrap().life_total;
+        let life = state.players().get(&p(pid)).unwrap().life_total;
         assert_eq!(life, 40, "P{} should start at 40 life (CR 903.7)", pid);
     }
 
@@ -427,7 +427,7 @@ fn test_six_player_game_start_all_commanders_correct() {
     // Verify: commander_ids are registered for each player.
     for (i, cid_val) in commander_ids.iter().enumerate() {
         let pid = p(i as u64 + 1);
-        let player_state = state.players.get(&pid).unwrap();
+        let player_state = state.players().get(&pid).unwrap();
         assert!(
             player_state.commander_ids.contains(cid_val),
             "P{} should have their commander registered in commander_ids",
@@ -438,7 +438,7 @@ fn test_six_player_game_start_all_commanders_correct() {
     // Verify: replacement effects are registered (2 per commander: hand + library redirect).
     // 6 players × 2 effects = 12 replacement effects.
     assert_eq!(
-        state.replacement_effects.len(),
+        state.replacement_effects().len(),
         12,
         "should have 12 commander zone replacement effects (2 per player × 6 players)"
     );

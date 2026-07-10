@@ -19,12 +19,12 @@ fn p2() -> PlayerId {
 
 /// Find an object on the battlefield by name.
 fn find_on_battlefield(state: &GameState, name: &str) -> ObjectId {
-    let bf = state.zones.get(&ZoneId::Battlefield).unwrap();
+    let bf = state.zones().get(&ZoneId::Battlefield).unwrap();
     *bf.object_ids()
         .iter()
         .find(|id| {
             state
-                .objects
+                .objects()
                 .get(id)
                 .map(|o| o.characteristics.name == name)
                 .unwrap_or(false)
@@ -69,12 +69,12 @@ fn test_conditional_static_life_threshold() {
         .unwrap();
 
     // Set p1 to 30 life (condition met).
-    state.players.get_mut(&p1()).unwrap().life_total = 30;
+    state.players_mut().get_mut(&p1()).unwrap().life_total = 30;
 
     let ascendant_id = find_on_battlefield(&state, "Serra Ascendant");
 
     // Add conditional +5/+5 (Layer 7c) gated on ControllerLifeAtLeast(30).
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(101),
         source: Some(ascendant_id),
         timestamp: 10,
@@ -86,7 +86,7 @@ fn test_conditional_static_life_threshold() {
         condition: Some(Condition::ControllerLifeAtLeast(30)),
     });
     // Add conditional flying (Layer 6).
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(102),
         source: Some(ascendant_id),
         timestamp: 11,
@@ -116,7 +116,7 @@ fn test_conditional_static_life_threshold() {
     );
 
     // Set p1 to 29 life (condition not met).
-    state.players.get_mut(&p1()).unwrap().life_total = 29;
+    state.players_mut().get_mut(&p1()).unwrap().life_total = 29;
     let chars = calculate_characteristics(&state, ascendant_id).unwrap();
     assert_eq!(
         chars.power,
@@ -148,7 +148,7 @@ fn test_conditional_static_untapped() {
 
     // Add conditional hexproof gated on SourceIsUntapped.
     state
-        .continuous_effects
+        .continuous_effects_mut()
         .push_back(conditional_keyword_effect(
             ojutai_id,
             ojutai_id,
@@ -157,7 +157,7 @@ fn test_conditional_static_untapped() {
         ));
 
     // Untapped (default): should have hexproof.
-    let obj = state.objects.get(&ojutai_id).unwrap();
+    let obj = state.objects().get(&ojutai_id).unwrap();
     assert!(
         !obj.status.tapped,
         "Dragonlord Ojutai should start untapped"
@@ -169,7 +169,12 @@ fn test_conditional_static_untapped() {
     );
 
     // Tap Ojutai.
-    state.objects.get_mut(&ojutai_id).unwrap().status.tapped = true;
+    state
+        .objects_mut()
+        .get_mut(&ojutai_id)
+        .unwrap()
+        .status
+        .tapped = true;
     let chars = calculate_characteristics(&state, ojutai_id).unwrap();
     assert!(
         !chars.keywords.contains(&KeywordAbility::Hexproof),
@@ -197,7 +202,7 @@ fn test_conditional_static_counter_threshold() {
     let bear_id = find_on_battlefield(&state, "Bear");
 
     // Add conditional +5/+5 gated on SourceHasCounters { Quest, min: 7 }.
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(100),
         source: Some(ascension_id),
         timestamp: 10,
@@ -222,7 +227,7 @@ fn test_conditional_static_counter_threshold() {
 
     // Add 6 quest counters to Beastmaster Ascension: still no bonus.
     state
-        .objects
+        .objects_mut()
         .get_mut(&ascension_id)
         .unwrap()
         .counters
@@ -236,7 +241,7 @@ fn test_conditional_static_counter_threshold() {
 
     // Add 1 more (total 7): bonus kicks in.
     state
-        .objects
+        .objects_mut()
         .get_mut(&ascension_id)
         .unwrap()
         .counters
@@ -268,7 +273,7 @@ fn test_conditional_static_dungeon() {
     let knight_id = find_on_battlefield(&state, "Knight");
 
     // Add conditional +1/+1 to other creatures on CompletedADungeon.
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(100),
         source: Some(nadaar_id),
         timestamp: 10,
@@ -289,7 +294,11 @@ fn test_conditional_static_dungeon() {
     );
 
     // Complete a dungeon.
-    state.players.get_mut(&p1()).unwrap().dungeons_completed = 1;
+    state
+        .players_mut()
+        .get_mut(&p1())
+        .unwrap()
+        .dungeons_completed = 1;
     let chars = calculate_characteristics(&state, knight_id).unwrap();
     assert_eq!(
         chars.power,
@@ -316,7 +325,7 @@ fn test_conditional_static_opponent_life() {
     let ghast_id = find_on_battlefield(&state, "Bloodghast");
 
     state
-        .continuous_effects
+        .continuous_effects_mut()
         .push_back(conditional_keyword_effect(
             ghast_id,
             ghast_id,
@@ -325,7 +334,7 @@ fn test_conditional_static_opponent_life() {
         ));
 
     // P2 at 20 life: no haste.
-    state.players.get_mut(&p2()).unwrap().life_total = 20;
+    state.players_mut().get_mut(&p2()).unwrap().life_total = 20;
     let chars = calculate_characteristics(&state, ghast_id).unwrap();
     assert!(
         !chars.keywords.contains(&KeywordAbility::Haste),
@@ -333,7 +342,7 @@ fn test_conditional_static_opponent_life() {
     );
 
     // P2 drops to 10 life: haste activates.
-    state.players.get_mut(&p2()).unwrap().life_total = 10;
+    state.players_mut().get_mut(&p2()).unwrap().life_total = 10;
     let chars = calculate_characteristics(&state, ghast_id).unwrap();
     assert!(
         chars.keywords.contains(&KeywordAbility::Haste),
@@ -341,7 +350,7 @@ fn test_conditional_static_opponent_life() {
     );
 
     // P2 drops to 0: still haste.
-    state.players.get_mut(&p2()).unwrap().life_total = 0;
+    state.players_mut().get_mut(&p2()).unwrap().life_total = 0;
     let chars = calculate_characteristics(&state, ghast_id).unwrap();
     assert!(
         chars.keywords.contains(&KeywordAbility::Haste),
@@ -367,7 +376,7 @@ fn test_conditional_static_is_your_turn() {
     let needlehead_id = find_on_battlefield(&state, "Razorkin Needlehead");
 
     state
-        .continuous_effects
+        .continuous_effects_mut()
         .push_back(conditional_keyword_effect(
             needlehead_id,
             needlehead_id,
@@ -376,7 +385,7 @@ fn test_conditional_static_is_your_turn() {
         ));
 
     // Active player is p1 (default): first strike active.
-    state.turn.active_player = p1();
+    state.turn_mut().active_player = p1();
     let chars = calculate_characteristics(&state, needlehead_id).unwrap();
     assert!(
         chars.keywords.contains(&KeywordAbility::FirstStrike),
@@ -384,7 +393,7 @@ fn test_conditional_static_is_your_turn() {
     );
 
     // Switch to P2's turn: first strike inactive.
-    state.turn.active_player = p2();
+    state.turn_mut().active_player = p2();
     let chars = calculate_characteristics(&state, needlehead_id).unwrap();
     assert!(
         !chars.keywords.contains(&KeywordAbility::FirstStrike),
@@ -409,7 +418,7 @@ fn test_conditional_static_devotion_single() {
     let purphoros_id = find_on_battlefield(&state, "Purphoros");
     // Make it also an Enchantment (in addition to Creature).
     state
-        .objects
+        .objects_mut()
         .get_mut(&purphoros_id)
         .unwrap()
         .characteristics
@@ -417,7 +426,7 @@ fn test_conditional_static_devotion_single() {
         .insert(CardType::Enchantment);
 
     // Add RemoveCardTypes(Creature) gated on DevotionToColorsLessThan { Red, 5 }.
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(100),
         source: Some(purphoros_id),
         timestamp: 10,
@@ -460,7 +469,7 @@ fn test_conditional_static_devotion_multicolor() {
     let athreos_id = find_on_battlefield(&state, "Athreos");
     // Make it also an Enchantment.
     state
-        .objects
+        .objects_mut()
         .get_mut(&athreos_id)
         .unwrap()
         .characteristics
@@ -468,7 +477,7 @@ fn test_conditional_static_devotion_multicolor() {
         .insert(CardType::Enchantment);
 
     // Add RemoveCardTypes(Creature) gated on DevotionToColorsLessThan { W+B, 7 }.
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(100),
         source: Some(athreos_id),
         timestamp: 10,
@@ -513,7 +522,7 @@ fn test_conditional_static_remove_type() {
     let god_id = find_on_battlefield(&state, "God");
     // Also give it Enchantment type.
     state
-        .objects
+        .objects_mut()
         .get_mut(&god_id)
         .unwrap()
         .characteristics
@@ -521,7 +530,7 @@ fn test_conditional_static_remove_type() {
         .insert(CardType::Enchantment);
 
     // Unconditional RemoveCardTypes(Creature) — should always apply.
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(100),
         source: Some(god_id),
         timestamp: 10,
@@ -561,7 +570,7 @@ fn test_conditional_static_toggles_midgame() {
 
     let ascendant_id = find_on_battlefield(&state, "Serra Ascendant");
 
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(100),
         source: Some(ascendant_id),
         timestamp: 10,
@@ -574,17 +583,17 @@ fn test_conditional_static_toggles_midgame() {
     });
 
     // Start below threshold.
-    state.players.get_mut(&p1()).unwrap().life_total = 20;
+    state.players_mut().get_mut(&p1()).unwrap().life_total = 20;
     let chars = calculate_characteristics(&state, ascendant_id).unwrap();
     assert_eq!(chars.power, Some(1), "Should be 1/* below threshold");
 
     // Gain life to reach threshold.
-    state.players.get_mut(&p1()).unwrap().life_total = 30;
+    state.players_mut().get_mut(&p1()).unwrap().life_total = 30;
     let chars = calculate_characteristics(&state, ascendant_id).unwrap();
     assert_eq!(chars.power, Some(6), "Should be 6/* at threshold");
 
     // Lose 1 life — drops below threshold immediately.
-    state.players.get_mut(&p1()).unwrap().life_total = 29;
+    state.players_mut().get_mut(&p1()).unwrap().life_total = 29;
     let chars = calculate_characteristics(&state, ascendant_id).unwrap();
     assert_eq!(chars.power, Some(1), "Should be 1/* below threshold again");
 }
@@ -598,7 +607,7 @@ fn test_conditional_static_toggles_midgame() {
 /// `EffectFilter::Source` with `EffectFilter::SingleObject(new_id)`.
 ///
 /// We verify this by placing a conditional effect with `EffectFilter::Source` in
-/// state.continuous_effects directly (simulating what the registration call would do)
+/// state.continuous_effects() directly (simulating what the registration call would do)
 /// and checking that the condition-based calculation uses the correct object.
 #[test]
 fn test_conditional_static_source_filter_resolved() {
@@ -613,7 +622,7 @@ fn test_conditional_static_source_filter_resolved() {
     let ascendant_id = find_on_battlefield(&state, "Serra Ascendant");
 
     // Directly push an effect using SingleObject (as register_static_continuous_effects does).
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(100),
         source: Some(ascendant_id),
         timestamp: 10,
@@ -626,7 +635,7 @@ fn test_conditional_static_source_filter_resolved() {
     });
 
     // The registered effect should have a SingleObject filter.
-    let effect = state.continuous_effects.iter().next().unwrap();
+    let effect = state.continuous_effects().iter().next().unwrap();
     assert!(
         matches!(effect.filter, EffectFilter::SingleObject(_)),
         "Filter should be SingleObject, not EffectFilter::Source, got {:?}",
@@ -646,7 +655,7 @@ fn test_conditional_static_source_filter_resolved() {
     );
 
     // At 40 life: condition active, buff applies.
-    state.players.get_mut(&p1()).unwrap().life_total = 40;
+    state.players_mut().get_mut(&p1()).unwrap().life_total = 40;
     let chars = calculate_characteristics(&state, ascendant_id).unwrap();
     assert_eq!(
         chars.power,
@@ -655,7 +664,7 @@ fn test_conditional_static_source_filter_resolved() {
     );
 
     // At 20 life: condition inactive, buff does not apply.
-    state.players.get_mut(&p1()).unwrap().life_total = 20;
+    state.players_mut().get_mut(&p1()).unwrap().life_total = 20;
     let chars = calculate_characteristics(&state, ascendant_id).unwrap();
     assert_eq!(
         chars.power,

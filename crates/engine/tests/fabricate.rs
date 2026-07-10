@@ -31,7 +31,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -40,7 +40,7 @@ fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
 
 fn find_object_on_battlefield(state: &mtg_engine::GameState, name: &str) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
         .map(|(id, _)| *id)
@@ -48,7 +48,7 @@ fn find_object_on_battlefield(state: &mtg_engine::GameState, name: &str) -> Opti
 
 fn count_servos_on_battlefield(state: &mtg_engine::GameState) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|obj| {
             obj.zone == ZoneId::Battlefield
@@ -86,12 +86,12 @@ fn cast_creature(
 ) -> mtg_engine::GameState {
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&caster)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Colorless, generic_cost);
-    state.turn.priority_holder = Some(caster);
+    state.turn_mut().priority_holder = Some(caster);
 
     let (state, _) = process_command(
         state,
@@ -261,7 +261,7 @@ fn test_fabricate_basic_counters() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Fabricate 2 Test Creature");
     let state = cast_creature(state, p1, card_id, 2);
@@ -270,7 +270,7 @@ fn test_fabricate_basic_counters() {
     let bf_id = find_object_on_battlefield(&state, "Fabricate 2 Test Creature")
         .expect("CR 702.123a: Fabricate creature should be on the battlefield");
 
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -312,7 +312,7 @@ fn test_fabricate_no_servo_tokens_when_counters_chosen() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Fabricate 2 Test Creature");
     let state = cast_creature(state, p1, card_id, 2);
@@ -383,7 +383,7 @@ fn test_fabricate_3_places_three_counters() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Fabricate 3 Test Creature");
     let state = cast_creature(state, p1, card_id, 3);
@@ -392,7 +392,7 @@ fn test_fabricate_3_places_three_counters() {
     let bf_id = find_object_on_battlefield(&state, "Fabricate 3 Test Creature")
         .expect("CR 702.123a: Fabricate 3 creature should be on the battlefield");
 
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -435,7 +435,7 @@ fn test_fabricate_multiple_instances_trigger_separately() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Double Fabricate Test");
     let state = cast_creature(state, p1, card_id, 3);
@@ -444,7 +444,7 @@ fn test_fabricate_multiple_instances_trigger_separately() {
     let bf_id = find_object_on_battlefield(&state, "Double Fabricate Test")
         .expect("CR 702.123b: Double Fabricate creature should be on the battlefield");
 
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -485,7 +485,7 @@ fn test_non_fabricate_no_counters_no_tokens() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Plain Creature");
     let state = cast_creature(state, p1, card_id, 2);
@@ -494,7 +494,7 @@ fn test_non_fabricate_no_counters_no_tokens() {
     let bf_id = find_object_on_battlefield(&state, "Plain Creature")
         .expect("Plain creature should be on the battlefield");
 
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -542,7 +542,7 @@ fn test_fabricate_1_places_one_counter() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Fabricate 1 Test Creature");
     let state = cast_creature(state, p1, card_id, 2);
@@ -551,7 +551,7 @@ fn test_fabricate_1_places_one_counter() {
     let bf_id = find_object_on_battlefield(&state, "Fabricate 1 Test Creature")
         .expect("CR 702.123a: Fabricate 1 creature should be on the battlefield");
 
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -577,7 +577,7 @@ fn test_fabricate_1_places_one_counter() {
 ///
 /// This test directly exercises the `else` branch in
 /// `fire_when_enters_triggered_effects` (replacement.rs) by removing the
-/// Fabricate permanent from `state.objects` before calling the function, so
+/// Fabricate permanent from `state.objects()` before calling the function, so
 /// `permanent_on_bf` evaluates to false and the token path fires.
 ///
 /// Verifies: N=2 Servo tokens are created; each token is 1/1, colorless,
@@ -613,14 +613,14 @@ fn test_fabricate_token_fallback() {
 
     // Remove the object from state to simulate it having left the battlefield
     // before the Fabricate trigger resolves (ruling 2016-09-20).
-    state.objects = state.objects.without(&fabricate_id);
+    *state.objects_mut() = state.objects().without(&fabricate_id);
     assert!(
-        state.objects.get(&fabricate_id).is_none(),
+        state.objects().get(&fabricate_id).is_none(),
         "Object must be absent from state for the token fallback path to fire"
     );
 
     // Call queue_carddef_etb_triggers directly with the now-absent ID.
-    // The fabricate block checks `state.objects.get(&new_id)` — because the
+    // The fabricate block checks `state.objects().get(&new_id)` — because the
     // object is absent, `permanent_on_bf` is false → token path executes.
     let card_id = CardId("fabricate-2-test".to_string());
     let evts = mtg_engine::rules::replacement::queue_carddef_etb_triggers(
@@ -640,7 +640,7 @@ fn test_fabricate_token_fallback() {
 
     // Verify Servo token characteristics: 1/1, colorless, Artifact Creature — Servo.
     let servo_tokens: Vec<_> = state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.zone == ZoneId::Battlefield && obj.characteristics.name == "Servo")
         .collect();
@@ -742,7 +742,7 @@ fn test_fabricate_multiplayer_4_players() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Fabricate 2 Test Creature");
     let state = cast_creature(state, p1, card_id, 2);
@@ -751,7 +751,7 @@ fn test_fabricate_multiplayer_4_players() {
     let bf_id = find_object_on_battlefield(&state, "Fabricate 2 Test Creature")
         .expect("CR 702.123a: Fabricate creature should be on battlefield in 4-player game");
 
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()

@@ -1,5 +1,6 @@
 //! Tests for basic GameState construction, field defaults, and accessors.
 
+use mtg_engine::state::test_util;
 use mtg_engine::state::*;
 
 #[test]
@@ -7,7 +8,7 @@ fn test_four_player_construction_defaults() {
     let state = GameStateBuilder::four_player().build().unwrap();
 
     // 4 players created
-    assert_eq!(state.players.len(), 4);
+    assert_eq!(state.players().len(), 4);
 
     // Each player has correct defaults
     for pid in 1..=4u64 {
@@ -29,16 +30,16 @@ fn test_four_player_construction_defaults() {
 fn test_four_player_turn_state_defaults() {
     let state = GameStateBuilder::four_player().build().unwrap();
 
-    assert_eq!(state.turn.active_player, PlayerId(1));
-    assert_eq!(state.turn.priority_holder, Some(PlayerId(1)));
-    assert_eq!(state.turn.phase, Phase::PreCombatMain);
-    assert_eq!(state.turn.step, Step::PreCombatMain);
-    assert_eq!(state.turn.turn_number, 1);
-    assert!(state.turn.players_passed.is_empty());
-    assert!(state.turn.extra_turns.is_empty());
+    assert_eq!(state.turn().active_player, PlayerId(1));
+    assert_eq!(state.turn().priority_holder, Some(PlayerId(1)));
+    assert_eq!(state.turn().phase, Phase::PreCombatMain);
+    assert_eq!(state.turn().step, Step::PreCombatMain);
+    assert_eq!(state.turn().turn_number, 1);
+    assert!(state.turn().players_passed.is_empty());
+    assert!(state.turn().extra_turns.is_empty());
 
     // Turn order is 1, 2, 3, 4
-    let order: Vec<PlayerId> = state.turn.turn_order.iter().copied().collect();
+    let order: Vec<PlayerId> = state.turn().turn_order.iter().copied().collect();
     assert_eq!(
         order,
         vec![PlayerId(1), PlayerId(2), PlayerId(3), PlayerId(4)]
@@ -64,14 +65,14 @@ fn test_zones_created_for_each_player() {
     }
 
     // Total zones: 3 shared + 4 per-player * 4 players = 19
-    assert_eq!(state.zones.len(), 19);
+    assert_eq!(state.zones().len(), 19);
 }
 
 #[test]
 fn test_empty_state_has_no_objects() {
     let state = GameStateBuilder::four_player().build().unwrap();
     assert_eq!(state.total_objects(), 0);
-    assert!(state.objects.is_empty());
+    assert!(state.objects().is_empty());
 }
 
 #[test]
@@ -152,12 +153,16 @@ fn test_active_players_excludes_lost() {
     assert_eq!(state.active_players().len(), 4);
 
     // Player 2 loses
-    state.player_mut(PlayerId(2)).unwrap().has_lost = true;
+    test_util::player_mut(&mut state, PlayerId(2))
+        .unwrap()
+        .has_lost = true;
     assert_eq!(state.active_players().len(), 3);
     assert!(!state.active_players().contains(&PlayerId(2)));
 
     // Player 4 concedes
-    state.player_mut(PlayerId(4)).unwrap().has_conceded = true;
+    test_util::player_mut(&mut state, PlayerId(4))
+        .unwrap()
+        .has_conceded = true;
     assert_eq!(state.active_players().len(), 2);
     let active = state.active_players();
     assert!(active.contains(&PlayerId(1)));
@@ -170,5 +175,5 @@ fn test_turn_number_configurable() {
         .turn_number(5)
         .build()
         .unwrap();
-    assert_eq!(state.turn.turn_number, 5);
+    assert_eq!(state.turn().turn_number, 5);
 }

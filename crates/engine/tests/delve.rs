@@ -35,7 +35,7 @@ fn cid(s: &str) -> CardId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -45,7 +45,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 /// Count objects with the given name in the exile zone.
 fn count_in_exile(state: &GameState, name: &str) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.characteristics.name == name && o.zone == ZoneId::Exile)
         .count()
@@ -54,7 +54,7 @@ fn count_in_exile(state: &GameState, name: &str) -> usize {
 /// Count total objects in the exile zone.
 fn total_in_exile(state: &GameState) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Exile)
         .count()
@@ -63,7 +63,7 @@ fn total_in_exile(state: &GameState) -> usize {
 /// Count objects in the caster's graveyard.
 fn graveyard_size(state: &GameState, owner: PlayerId) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Graveyard(owner))
         .count()
@@ -157,12 +157,12 @@ fn test_delve_basic_exile_cards_reduce_generic_cost() {
 
     // Give p1 {U} — pays the 1 blue pip. The 7 generic are paid by 7 exiled cards.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Treasure Cruise");
     let id1 = find_object(&state, "Card 1");
@@ -197,7 +197,7 @@ fn test_delve_basic_exile_cards_reduce_generic_cost() {
 
     // Spell is on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.66a: spell should be on the stack after delve cast"
     );
@@ -217,7 +217,7 @@ fn test_delve_basic_exile_cards_reduce_generic_cost() {
     );
 
     // Mana pool is empty (blue pip consumed).
-    let pool = &state.players[&p1].mana_pool;
+    let pool = &state.players()[&p1].mana_pool;
     assert_eq!(
         pool.white + pool.blue + pool.black + pool.red + pool.green + pool.colorless,
         0,
@@ -265,18 +265,18 @@ fn test_delve_partial_reduction() {
 
     // Pay {1}{B} from pool (3 generic paid by 3 exiled cards, 1 generic + 1 black remain).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Murderous Cut");
     let id1 = find_object(&state, "Dead Card 1");
@@ -307,7 +307,7 @@ fn test_delve_partial_reduction() {
 
     // Spell is on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.66a: spell should be on the stack after partial delve cast"
     );
@@ -327,7 +327,7 @@ fn test_delve_partial_reduction() {
     );
 
     // Mana pool is empty ({1}{B} consumed).
-    let pool = &state.players[&p1].mana_pool;
+    let pool = &state.players()[&p1].mana_pool;
     assert_eq!(
         pool.white + pool.blue + pool.black + pool.red + pool.green + pool.colorless,
         0,
@@ -364,7 +364,7 @@ fn test_delve_object_exiled_events() {
         .unwrap();
 
     // No mana needed — 3 generic paid by 3 exiled cards.
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Delve Spell");
     let id1 = find_object(&state, "Exile Target 1");
@@ -407,7 +407,7 @@ fn test_delve_object_exiled_events() {
     // Verify old ObjectIds are retired (not present as objects in graveyard).
     for old_id in [id1, id2, id3] {
         assert!(
-            !state.objects.contains_key(&old_id),
+            !state.objects().contains_key(&old_id),
             "CR 400.7: old ObjectId {:?} should be retired after exile zone change",
             old_id
         );
@@ -456,12 +456,12 @@ fn test_delve_reject_no_keyword() {
 
     // Provide enough mana to pay the cost (but we'll also try to use delve).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Plain Sorcery");
     let card_id = find_object(&state, "Graveyard Card");
@@ -528,12 +528,12 @@ fn test_delve_reject_too_many_cards() {
 
     // Provide {U} for the blue pip.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Small Delve Spell");
     let id1 = find_object(&state, "Graveyard Card 1");
@@ -597,7 +597,7 @@ fn test_delve_reject_card_not_in_graveyard() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Delve Spell");
     let creature_id = find_object(&state, "Battlefield Creature");
@@ -658,7 +658,7 @@ fn test_delve_reject_opponents_graveyard() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Delve Spell");
     let opp_card_id = find_object(&state, "Opponent's Card");
@@ -718,7 +718,7 @@ fn test_delve_reject_duplicate_cards() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Delve Spell");
     let card_id = find_object(&state, "Lone Graveyard Card");
@@ -779,18 +779,18 @@ fn test_delve_zero_cards_normal_cast() {
 
     // Pay full cost from mana pool — no delve.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Delve Spell");
 
@@ -818,13 +818,13 @@ fn test_delve_zero_cards_normal_cast() {
 
     // Spell is on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.66a: spell with no delve cards should go on stack normally"
     );
 
     // Mana pool is empty (full cost paid).
-    let pool = &state.players[&p1].mana_pool;
+    let pool = &state.players()[&p1].mana_pool;
     assert_eq!(
         pool.white + pool.blue + pool.black + pool.red + pool.green + pool.colorless,
         0,
@@ -885,7 +885,7 @@ fn test_delve_with_commander_tax() {
     // Pre-set tax to 1 (cast once previously) — adds {2} to total cost.
     // Total cost = {4}{U}{U} + {2} tax = {6}{U}{U}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .commander_tax
@@ -893,18 +893,18 @@ fn test_delve_with_commander_tax() {
 
     // Give p1 {U}{U} — to pay the 2 colored blue pips. Cards pay the {6} generic.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Register commander zone replacements (required for casting from command zone).
     mtg_engine::register_commander_zone_replacements(&mut state);
 
     let cmd_obj_id = state
-        .zones
+        .zones()
         .get(&ZoneId::Command(p1))
         .unwrap()
         .object_ids()
@@ -943,14 +943,14 @@ fn test_delve_with_commander_tax() {
 
     // Spell is on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.66b + 903.8: commander delve spell should be on the stack"
     );
 
     // Commander tax incremented to 2.
     assert_eq!(
-        state.players[&p1].commander_tax.get(&cmd_id).copied(),
+        state.players()[&p1].commander_tax.get(&cmd_id).copied(),
         Some(2),
         "CR 903.8: commander tax should increment to 2 after second cast"
     );
@@ -976,7 +976,7 @@ fn test_delve_with_commander_tax() {
     );
 
     // Mana pool empty.
-    let pool = &state.players[&p1].mana_pool;
+    let pool = &state.players()[&p1].mana_pool;
     assert_eq!(
         pool.white + pool.blue + pool.black + pool.red + pool.green + pool.colorless,
         0,

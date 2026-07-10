@@ -20,7 +20,7 @@ use mtg_engine::{
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -48,7 +48,7 @@ fn pass_all(
 
 fn count_in_exile(state: &mtg_engine::GameState) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Exile)
         .count()
@@ -58,7 +58,7 @@ fn count_in_exile(state: &mtg_engine::GameState) -> usize {
 
 fn library_size(state: &mtg_engine::GameState, player: PlayerId) -> usize {
     state
-        .zones
+        .zones()
         .get(&ZoneId::Library(player))
         .map(|z| z.len())
         .unwrap_or(0)
@@ -131,7 +131,7 @@ fn test_702_115_ingest_basic_exiles_top_card() {
 
     // P2 took 2 combat damage (life 40 - 2 = 38).
     assert_eq!(
-        state.players.get(&p2).unwrap().life_total,
+        state.players().get(&p2).unwrap().life_total,
         38,
         "CR 702.115a: p2 should have taken 2 combat damage"
     );
@@ -151,7 +151,7 @@ fn test_702_115_ingest_basic_exiles_top_card() {
 
     // The ingest trigger should be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.115a: Ingest trigger should be on the stack"
     );
@@ -184,7 +184,7 @@ fn test_702_115_ingest_basic_exiles_top_card() {
 
     // Stack is empty after resolution.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after Ingest trigger resolves"
     );
 }
@@ -260,7 +260,7 @@ fn test_702_115_ingest_does_not_trigger_when_blocked() {
 
     // Stack is empty — no ingest trigger.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty — Ingest did not trigger (blocked creature)"
     );
 
@@ -337,7 +337,7 @@ fn test_702_115_ingest_empty_library_is_noop() {
 
     // Trigger is on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "Ingest trigger should be on the stack even with empty library"
     );
@@ -370,11 +370,11 @@ fn test_702_115_ingest_empty_library_is_noop() {
 
     // P2 is still alive (not forced to draw from empty library).
     assert!(
-        state.players.get(&p2).is_some(),
+        state.players().get(&p2).is_some(),
         "ruling 2015-08-25: p2 should still be in the game after empty-library no-op"
     );
     assert!(
-        state.players.get(&p2).unwrap().life_total > 0,
+        state.players().get(&p2).unwrap().life_total > 0,
         "p2 should still have positive life total"
     );
 }
@@ -462,7 +462,7 @@ fn test_702_115a_ingest_two_creatures_each_trigger() {
 
     // Two items on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "CR 702.115a: 2 ingest triggers should be on the stack"
     );
@@ -471,7 +471,7 @@ fn test_702_115a_ingest_two_creatures_each_trigger() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "one trigger should remain after resolving the first"
     );
@@ -485,7 +485,7 @@ fn test_702_115a_ingest_two_creatures_each_trigger() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after both triggers resolve"
     );
 
@@ -617,7 +617,7 @@ fn test_702_115b_ingest_single_creature_multiple_instances() {
 
     // Two items on the stack from a single attacker.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "CR 702.115b: 2 ingest triggers on the stack from a single creature"
     );
@@ -626,7 +626,7 @@ fn test_702_115b_ingest_single_creature_multiple_instances() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "one trigger should remain after resolving the first"
     );
@@ -640,7 +640,7 @@ fn test_702_115b_ingest_single_creature_multiple_instances() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after both triggers resolve"
     );
 
@@ -741,7 +741,7 @@ fn test_702_115_ingest_multiplayer_targets_correct_player() {
 
     // Two triggers on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "CR 702.115a: 2 ingest triggers should fire (one for P2, one for P3)"
     );
@@ -751,7 +751,7 @@ fn test_702_115_ingest_multiplayer_targets_correct_player() {
     let (state, _) = pass_all(state, &[p1, p2, p3, p4]);
 
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after both triggers resolve"
     );
 

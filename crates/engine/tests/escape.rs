@@ -39,7 +39,7 @@ use mtg_engine::{
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -48,7 +48,7 @@ fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectI
 
 fn find_objects(state: &mtg_engine::GameState, name: &str) -> Vec<mtg_engine::ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .filter(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -57,7 +57,7 @@ fn find_objects(state: &mtg_engine::GameState, name: &str) -> Vec<mtg_engine::Ob
 
 fn count_in_exile(state: &mtg_engine::GameState, name: &str) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.characteristics.name == name && o.zone == ZoneId::Exile)
         .count()
@@ -65,7 +65,7 @@ fn count_in_exile(state: &mtg_engine::GameState, name: &str) -> usize {
 
 fn total_in_exile(state: &mtg_engine::GameState) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Exile)
         .count()
@@ -73,7 +73,7 @@ fn total_in_exile(state: &mtg_engine::GameState) -> usize {
 
 fn graveyard_size(state: &mtg_engine::GameState, owner: PlayerId) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Graveyard(owner))
         .count()
@@ -81,7 +81,7 @@ fn graveyard_size(state: &mtg_engine::GameState, owner: PlayerId) -> usize {
 
 fn battlefield_count(state: &mtg_engine::GameState, name: &str) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.characteristics.name == name && o.zone == ZoneId::Battlefield)
         .count()
@@ -305,18 +305,18 @@ fn test_escape_basic_cast_from_graveyard() {
 
     // p1 has {G}{U} mana (Uro's escape cost).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let uro_id = find_object(&state, "Uro");
     let fodder_a_id = find_object(&state, "Fodder A");
@@ -358,13 +358,13 @@ fn test_escape_basic_cast_from_graveyard() {
 
     // Uro is now on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.138a: Uro should be on the stack"
     );
 
     // Mana pool should be empty (escape cost {G}{U} paid).
-    let pool = &state.players[&p1].mana_pool;
+    let pool = &state.players()[&p1].mana_pool;
     assert_eq!(
         pool.green + pool.blue + pool.red + pool.colorless + pool.black + pool.white,
         0,
@@ -372,7 +372,7 @@ fn test_escape_basic_cast_from_graveyard() {
     );
 
     // The stack object has was_escaped: true.
-    let stack_obj = state.stack_objects.back().unwrap();
+    let stack_obj = state.stack_objects().back().unwrap();
     assert!(
         stack_obj.was_escaped,
         "CR 702.138b: stack object should have was_escaped: true"
@@ -437,18 +437,18 @@ fn test_escape_exile_cost_events() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let uro_id = find_object(&state, "Uro");
     let c1_id = find_object(&state, "Card 1");
@@ -532,18 +532,18 @@ fn test_escape_permanent_resolves_to_battlefield() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let uro_id = find_object(&state, "Uro");
     let f1_id = find_object(&state, "F1");
@@ -637,18 +637,18 @@ fn test_escape_was_escaped_flag_on_permanent() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let uro_id = find_object(&state, "Uro");
     let x1_id = find_object(&state, "X1");
@@ -680,7 +680,7 @@ fn test_escape_was_escaped_flag_on_permanent() {
     .unwrap();
 
     // was_escaped on the stack object.
-    let stack_obj = state.stack_objects.back().unwrap();
+    let stack_obj = state.stack_objects().back().unwrap();
     assert!(
         stack_obj.was_escaped,
         "CR 702.138b: StackObject.was_escaped should be true after escape cast"
@@ -691,7 +691,7 @@ fn test_escape_was_escaped_flag_on_permanent() {
 
     // was_escaped on the permanent.
     let uro_bf = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Uro" && o.zone == ZoneId::Battlefield)
         .expect("Uro should be on battlefield");
@@ -742,12 +742,12 @@ fn test_escape_with_counter() {
 
     // Ox's escape cost is {R}{R}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let ox_id = find_object(&state, "Ox of Agonas");
     let chaff_ids: Vec<_> = (1..=5)
@@ -781,7 +781,7 @@ fn test_escape_with_counter() {
 
     // Ox should be on battlefield.
     let ox_bf = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Ox of Agonas" && o.zone == ZoneId::Battlefield)
         .expect("Ox of Agonas should be on battlefield");
@@ -833,18 +833,18 @@ fn test_escape_with_counter_not_applied_when_not_escaped() {
 
     // Pay printed mana cost {3}{R}{R}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let ox_id = find_object(&state, "Ox of Agonas");
 
@@ -872,7 +872,7 @@ fn test_escape_with_counter_not_applied_when_not_escaped() {
     .unwrap();
 
     // Stack object should NOT have was_escaped.
-    let stack_obj = state.stack_objects.back().unwrap();
+    let stack_obj = state.stack_objects().back().unwrap();
     assert!(
         !stack_obj.was_escaped,
         "CR 702.138b: was_escaped should be false when cast from hand"
@@ -883,7 +883,7 @@ fn test_escape_with_counter_not_applied_when_not_escaped() {
 
     // Ox on battlefield should have NO +1/+1 counter.
     let ox_bf = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Ox of Agonas" && o.zone == ZoneId::Battlefield)
         .expect("Ox should be on battlefield");
@@ -939,18 +939,18 @@ fn test_escape_insufficient_exile_cards_rejected() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let uro_id = find_object(&state, "Uro");
     let o1_id = find_object(&state, "Only1");
@@ -1025,18 +1025,18 @@ fn test_escape_duplicate_exile_ids_rejected() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let uro_id = find_object(&state, "Uro");
     let d1_id = find_object(&state, "Dup1");
@@ -1113,18 +1113,18 @@ fn test_escape_exile_card_not_in_graveyard_rejected() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let uro_id = find_object(&state, "Uro");
     let hand_id = find_object(&state, "HandCard");
@@ -1204,12 +1204,12 @@ fn test_escape_on_dual_keyword_card_succeeds() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let loot_id = find_object(&state, "Loot");
     let z1_id = find_object(&state, "Z1");
@@ -1248,7 +1248,7 @@ fn test_escape_on_dual_keyword_card_succeeds() {
          (Escape+Flashback) must succeed -- player chose escape, flashback has no effect"
     );
     let (state, _) = result.unwrap();
-    let stack_obj = state.stack_objects.back().unwrap();
+    let stack_obj = state.stack_objects().back().unwrap();
     assert!(
         stack_obj.was_escaped,
         "CR 702.138b: was_escaped must be true when cast via escape"
@@ -1297,18 +1297,18 @@ fn test_escape_requires_card_in_graveyard() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let uro_id = find_object(&state, "Uro");
     let h1_id = find_object(&state, "H1");
@@ -1386,18 +1386,18 @@ fn test_escape_mana_value_unchanged() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let uro_id = find_object(&state, "Uro");
     let m1_id = find_object(&state, "M1");
@@ -1432,16 +1432,16 @@ fn test_escape_mana_value_unchanged() {
     // Uro's printed cost is {1}{G}{U} = mana value 3.
     // Escape cost is {G}{U} = mana value 2.
     // The mana cost on the characteristics should be the PRINTED cost.
-    let stack_obj = state.stack_objects.back().unwrap();
+    let stack_obj = state.stack_objects().back().unwrap();
     // The characteristics.mana_cost was set from the card's printed cost at build time.
     // After escape cast, the printed mana_cost should be unchanged.
     let printed_mc = &state
-        .objects
+        .objects()
         .values()
         .find(|o| {
             o.zone == ZoneId::Stack
                 || state
-                    .stack_objects
+                    .stack_objects()
                     .iter()
                     .any(|s| matches!(s.kind, mtg_engine::StackObjectKind::Spell { source_object: id } if id == o.id))
         })
@@ -1502,18 +1502,18 @@ fn test_escape_auto_detected_from_graveyard() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let uro_id = find_object(&state, "Uro");
     let a1_id = find_object(&state, "A1");
@@ -1554,7 +1554,7 @@ fn test_escape_auto_detected_from_graveyard() {
         "CR 702.138a: escape should be auto-detected when card is in graveyard with Escape keyword"
     );
     let (state, _) = result.unwrap();
-    let stack_obj = state.stack_objects.back().unwrap();
+    let stack_obj = state.stack_objects().back().unwrap();
     assert!(
         stack_obj.was_escaped,
         "CR 702.138a: was_escaped should be true even with auto-detection"
@@ -1602,18 +1602,18 @@ fn test_escape_exile_cards_get_new_ids_in_exile() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let uro_id = find_object(&state, "Uro");
     let r1_id = find_object(&state, "Retire1");
@@ -1647,15 +1647,15 @@ fn test_escape_exile_cards_get_new_ids_in_exile() {
     // Old IDs (r1_id, r2_id, r3_id) should no longer exist in the objects map.
     // They have been replaced by new IDs after zone transition (CR 400.7).
     assert!(
-        !state.objects.contains_key(&r1_id),
+        !state.objects().contains_key(&r1_id),
         "CR 400.7: old exile card ID should be retired after zone transition"
     );
     assert!(
-        !state.objects.contains_key(&r2_id),
+        !state.objects().contains_key(&r2_id),
         "CR 400.7: old exile card ID should be retired after zone transition"
     );
     assert!(
-        !state.objects.contains_key(&r3_id),
+        !state.objects().contains_key(&r3_id),
         "CR 400.7: old exile card ID should be retired after zone transition"
     );
 
@@ -1719,12 +1719,12 @@ fn test_escape_sorcery_resolves_to_graveyard() {
 
     // p1 has {R} mana (escape cost).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let sorcery_id = find_object(&state, "Escape Sorcery Test");
     let fodder_id = find_object(&state, "GY Fodder");
@@ -1830,18 +1830,18 @@ fn test_escape_exile_from_opponent_graveyard_rejected() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let uro_id = find_object(&state, "Uro");
     let p1_c1_id = find_object(&state, "P1 Card 1");

@@ -18,6 +18,7 @@
 //! - WhilePaired CEs grant effects to both creatures while paired.
 //! - No trigger fires if no other unpaired creature exists (CR 702.95a intervening-if).
 
+use mtg_engine::state::test_util;
 use mtg_engine::{
     calculate_characteristics, check_and_apply_sbas, process_command, AbilityDefinition,
     CardDefinition, CardId, CardRegistry, CardType, Command, EffectLayer, GameEvent, GameState,
@@ -33,7 +34,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -42,7 +43,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 fn find_object_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -239,18 +240,18 @@ fn build_state(
 
     // Add mana for {5}{G}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 5);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     state
 }
@@ -291,8 +292,8 @@ fn test_soulbond_self_etb_pairs_with_unpaired_creature() {
     let silverheart_id = find_object_in_zone(&state, "Mock Silverheart", ZoneId::Battlefield)
         .expect("Mock Silverheart should be on battlefield");
 
-    let silverheart_obj = state.objects.get(&silverheart_id).unwrap();
-    let vanilla_obj = state.objects.get(&vanilla_id).unwrap();
+    let silverheart_obj = state.objects().get(&silverheart_id).unwrap();
+    let vanilla_obj = state.objects().get(&vanilla_id).unwrap();
 
     // CR 702.95b: Pairing is symmetric.
     assert_eq!(
@@ -336,27 +337,27 @@ fn test_soulbond_other_etb_pairs_with_entering_creature() {
         false,
         soulbond_4_4_grant_def(),
     );
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let silverheart_id = find_object_in_zone(&state, "Mock Silverheart", ZoneId::Battlefield)
         .expect("Silverheart should be on battlefield");
 
     // Silverheart starts unpaired.
     assert_eq!(
-        state.objects.get(&silverheart_id).unwrap().paired_with,
+        state.objects().get(&silverheart_id).unwrap().paired_with,
         None,
         "Silverheart should start unpaired"
     );
 
     // Add mana for vanilla {1}{G}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -370,8 +371,8 @@ fn test_soulbond_other_etb_pairs_with_entering_creature() {
     let vanilla_id = find_object_in_zone(&state, "Mock Vanilla", ZoneId::Battlefield)
         .expect("Vanilla should be on battlefield");
 
-    let silverheart_obj = state.objects.get(&silverheart_id).unwrap();
-    let vanilla_obj = state.objects.get(&vanilla_id).unwrap();
+    let silverheart_obj = state.objects().get(&silverheart_id).unwrap();
+    let vanilla_obj = state.objects().get(&vanilla_id).unwrap();
 
     // CR 702.95b: Symmetric pairing.
     assert_eq!(
@@ -422,7 +423,7 @@ fn test_soulbond_grants_apply_while_paired() {
     // Both should be paired.
     assert!(
         state
-            .objects
+            .objects()
             .get(&silverheart_id)
             .unwrap()
             .paired_with
@@ -431,7 +432,7 @@ fn test_soulbond_grants_apply_while_paired() {
     );
     assert!(
         state
-            .objects
+            .objects()
             .get(&vanilla_id)
             .unwrap()
             .paired_with
@@ -503,18 +504,17 @@ fn test_soulbond_unpair_on_zone_change() {
 
     // Confirm they are paired.
     assert_eq!(
-        state.objects.get(&silverheart_id).unwrap().paired_with,
+        state.objects().get(&silverheart_id).unwrap().paired_with,
         Some(vanilla_id)
     );
 
     // Manually move vanilla to graveyard (simulating death).
     // This calls move_object_to_zone which clears paired_with on both.
-    state
-        .move_object_to_zone(vanilla_id, ZoneId::Graveyard(p1))
+    test_util::move_object_to_zone(&mut state, vanilla_id, ZoneId::Graveyard(p1))
         .unwrap_or_else(|e| panic!("move_object_to_zone failed: {:?}", e));
 
     // Silverheart should now be unpaired.
-    let silverheart_obj = state.objects.get(&silverheart_id).unwrap();
+    let silverheart_obj = state.objects().get(&silverheart_id).unwrap();
     assert_eq!(
         silverheart_obj.paired_with, None,
         "Silverheart should be unpaired after vanilla died"
@@ -543,7 +543,7 @@ fn test_soulbond_no_trigger_if_no_unpaired_partner() {
 
     // Should be unpaired because no other creature was available.
     assert_eq!(
-        state.objects.get(&silverheart_id).unwrap().paired_with,
+        state.objects().get(&silverheart_id).unwrap().paired_with,
         None,
         "Silverheart should be unpaired (no other creature)"
     );
@@ -584,8 +584,16 @@ fn test_soulbond_already_paired_cannot_repair() {
     // Manually pair vanilla1 with vanilla2 to simulate them already being paired.
     let vanilla2_id = find_object_in_zone(&state, "Mock Big Vanilla", ZoneId::Battlefield)
         .expect("vanilla2 should be on battlefield");
-    state.objects.get_mut(&vanilla_id).unwrap().paired_with = Some(vanilla2_id);
-    state.objects.get_mut(&vanilla2_id).unwrap().paired_with = Some(vanilla_id);
+    state
+        .objects_mut()
+        .get_mut(&vanilla_id)
+        .unwrap()
+        .paired_with = Some(vanilla2_id);
+    state
+        .objects_mut()
+        .get_mut(&vanilla2_id)
+        .unwrap()
+        .paired_with = Some(vanilla_id);
 
     // Cast Silverheart — it enters, checks for unpaired creatures.
     // Both vanillas are paired, so the intervening-if should not find an unpaired partner.
@@ -597,14 +605,14 @@ fn test_soulbond_already_paired_cannot_repair() {
 
     // Silverheart should remain unpaired — no unpaired partner available.
     assert_eq!(
-        state.objects.get(&silverheart_id).unwrap().paired_with,
+        state.objects().get(&silverheart_id).unwrap().paired_with,
         None,
         "Silverheart should be unpaired (no unpaired creatures available)"
     );
 
     // The pre-existing pair should be undisturbed.
     assert_eq!(
-        state.objects.get(&vanilla_id).unwrap().paired_with,
+        state.objects().get(&vanilla_id).unwrap().paired_with,
         Some(vanilla2_id),
         "Pre-existing pair should remain intact"
     );
@@ -641,8 +649,7 @@ fn test_soulbond_resolution_fizzle_target_leaves() {
     // At this point, the soulbond trigger should be on the stack.
     // Before it resolves, kill the vanilla creature (zone change = fizzle).
     let mut state = state;
-    state
-        .move_object_to_zone(vanilla_id, ZoneId::Graveyard(p1))
+    test_util::move_object_to_zone(&mut state, vanilla_id, ZoneId::Graveyard(p1))
         .unwrap_or_else(|e| panic!("move_object_to_zone failed: {:?}", e));
 
     // Now resolve the trigger — it should fizzle.
@@ -653,7 +660,7 @@ fn test_soulbond_resolution_fizzle_target_leaves() {
 
     // Neither creature is paired — fizzle.
     assert_eq!(
-        state.objects.get(&silverheart_id).unwrap().paired_with,
+        state.objects().get(&silverheart_id).unwrap().paired_with,
         None,
         "Silverheart should be unpaired after fizzle"
     );
@@ -692,23 +699,23 @@ fn test_soulbond_unpair_on_controller_change() {
 
     // Confirm paired.
     assert_eq!(
-        state.objects.get(&silverheart_id).unwrap().paired_with,
+        state.objects().get(&silverheart_id).unwrap().paired_with,
         Some(vanilla_id)
     );
 
     // Simulate controller change: give vanilla to p2.
-    state.objects.get_mut(&vanilla_id).unwrap().controller = p2;
+    state.objects_mut().get_mut(&vanilla_id).unwrap().controller = p2;
 
     // Run SBAs — CR 702.95e should clear the pairing.
     let _events = check_and_apply_sbas(&mut state);
 
     assert_eq!(
-        state.objects.get(&silverheart_id).unwrap().paired_with,
+        state.objects().get(&silverheart_id).unwrap().paired_with,
         None,
         "Silverheart should be unpaired after vanilla changed controller"
     );
     assert_eq!(
-        state.objects.get(&vanilla_id).unwrap().paired_with,
+        state.objects().get(&vanilla_id).unwrap().paired_with,
         None,
         "Vanilla should be unpaired after controller change"
     );
@@ -755,9 +762,7 @@ fn test_soulbond_grants_removed_when_unpaired() {
     );
 
     // Break the pair by moving vanilla to graveyard.
-    state
-        .move_object_to_zone(vanilla_id, ZoneId::Graveyard(p1))
-        .unwrap();
+    test_util::move_object_to_zone(&mut state, vanilla_id, ZoneId::Graveyard(p1)).unwrap();
 
     // Silverheart is now unpaired — its grants should not apply to itself either.
     let sh_chars = calculate_characteristics(&state, silverheart_id).unwrap();
@@ -816,8 +821,8 @@ fn test_soulbond_self_etb_pairs_with_other_soulbond_creature() {
     // sb2_id may have changed if zone transitions occurred; use the current id.
     let _ = sb2_id; // the pre-cast id (may differ from post-cast on battlefield)
 
-    let sh_obj = state.objects.get(&sh_id).unwrap();
-    let sb2_obj = state.objects.get(&sb2_id_after).unwrap();
+    let sh_obj = state.objects().get(&sh_id).unwrap();
+    let sb2_obj = state.objects().get(&sb2_id_after).unwrap();
 
     // CR 702.95b: Symmetric pairing — one of the two triggers succeeded.
     assert_eq!(

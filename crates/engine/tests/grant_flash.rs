@@ -34,7 +34,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -57,8 +57,8 @@ fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent
 /// Advance from the current turn to the next turn (through cleanup).
 fn advance_to_next_turn(mut state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent>) {
     let mut all_events = Vec::new();
-    let initial_turn = state.turn.turn_number;
-    while state.turn.turn_number == initial_turn {
+    let initial_turn = state.turn().turn_number;
+    while state.turn().turn_number == initial_turn {
         let (s, ev) = pass_all(state, players);
         state = s;
         all_events.extend(ev);
@@ -260,15 +260,15 @@ fn test_grant_flash_all_spells_allows_sorcery_at_instant_speed() {
 
     // p1 has enough mana.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Red, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Inject a flash grant for AllSpells for p1.
-    state.flash_grants.push_back(FlashGrant {
+    state.flash_grants_mut().push_back(FlashGrant {
         source: None,
         player: p1,
         filter: FlashGrantFilter::AllSpells,
@@ -303,12 +303,12 @@ fn test_grant_flash_without_grant_sorcery_fails_during_opponents_turn() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Red, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // No flash grant — p1 cannot cast sorcery during p2's turn.
     let card_id = find_object(&state, "Test Sorcery");
@@ -340,14 +340,14 @@ fn test_grant_flash_sorceries_filter_applies_to_sorcery() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Red, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
-    state.flash_grants.push_back(FlashGrant {
+    state.flash_grants_mut().push_back(FlashGrant {
         source: None,
         player: p1,
         filter: FlashGrantFilter::Sorceries,
@@ -382,15 +382,15 @@ fn test_grant_flash_sorceries_filter_does_not_apply_to_creature() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Green, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Grant is for sorceries only — should NOT help a creature.
-    state.flash_grants.push_back(FlashGrant {
+    state.flash_grants_mut().push_back(FlashGrant {
         source: None,
         player: p1,
         filter: FlashGrantFilter::Sorceries,
@@ -426,14 +426,14 @@ fn test_grant_flash_green_creatures_filter_applies_to_green_creature() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Green, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
-    state.flash_grants.push_back(FlashGrant {
+    state.flash_grants_mut().push_back(FlashGrant {
         source: None,
         player: p1,
         filter: FlashGrantFilter::GreenCreatures,
@@ -468,14 +468,14 @@ fn test_grant_flash_green_creatures_filter_does_not_apply_to_red_creature() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
-    state.flash_grants.push_back(FlashGrant {
+    state.flash_grants_mut().push_back(FlashGrant {
         source: None,
         player: p1,
         filter: FlashGrantFilter::GreenCreatures,
@@ -519,16 +519,16 @@ fn test_grant_flash_inactive_when_source_not_on_battlefield() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Green, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Inject a stale WhileSourceOnBattlefield grant (source is in graveyard).
     let yeva_id = find_object(&state, "Yeva (graveyard)");
-    state.flash_grants.push_back(FlashGrant {
+    state.flash_grants_mut().push_back(FlashGrant {
         source: Some(yeva_id),
         player: p1,
         filter: FlashGrantFilter::GreenCreatures,
@@ -564,15 +564,15 @@ fn test_grant_flash_applies_only_to_recipient_not_other_players() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Red, 3);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     // Flash grant for p1 only.
-    state.flash_grants.push_back(FlashGrant {
+    state.flash_grants_mut().push_back(FlashGrant {
         source: None,
         player: p1,
         filter: FlashGrantFilter::AllSpells,
@@ -610,7 +610,7 @@ fn test_grant_flash_until_end_of_turn_expires_at_cleanup() {
         .unwrap();
 
     // Inject an UntilEndOfTurn flash grant for p1.
-    state.flash_grants.push_back(FlashGrant {
+    state.flash_grants_mut().push_back(FlashGrant {
         source: None,
         player: p1,
         filter: FlashGrantFilter::AllSpells,
@@ -618,7 +618,7 @@ fn test_grant_flash_until_end_of_turn_expires_at_cleanup() {
     });
 
     assert_eq!(
-        state.flash_grants.len(),
+        state.flash_grants().len(),
         1,
         "grant should exist before end of turn"
     );
@@ -627,7 +627,7 @@ fn test_grant_flash_until_end_of_turn_expires_at_cleanup() {
     let (state, _) = advance_to_next_turn(state, &[p1, p2]);
 
     assert_eq!(
-        state.flash_grants.len(),
+        state.flash_grants().len(),
         0,
         "UntilEndOfTurn grant should expire at cleanup step"
     );
@@ -662,15 +662,15 @@ fn test_teferi_passive_opponents_cannot_cast_at_instant_speed() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Red, 3);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let teferi_id = find_object(&state, "Teferi Placeholder");
-    state.restrictions.push_back(ActiveRestriction {
+    state.restrictions_mut().push_back(ActiveRestriction {
         source: teferi_id,
         controller: p1,
         restriction: GameRestriction::OpponentsCanOnlyCastAtSorcerySpeed,
@@ -710,22 +710,22 @@ fn test_teferi_restriction_overrides_flash_grant_for_opponents() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Red, 3);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let teferi_id = find_object(&state, "Teferi Placeholder");
-    state.restrictions.push_back(ActiveRestriction {
+    state.restrictions_mut().push_back(ActiveRestriction {
         source: teferi_id,
         controller: p1,
         restriction: GameRestriction::OpponentsCanOnlyCastAtSorcerySpeed,
     });
 
     // Give p2 an AllSpells flash grant (simulating p2 cast Borne Upon a Wind).
-    state.flash_grants.push_back(FlashGrant {
+    state.flash_grants_mut().push_back(FlashGrant {
         source: None,
         player: p2,
         filter: FlashGrantFilter::AllSpells,
@@ -767,15 +767,15 @@ fn test_grant_flash_multiplayer_grant_is_player_specific() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p3)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Red, 3);
-    state.turn.priority_holder = Some(p3);
+    state.turn_mut().priority_holder = Some(p3);
 
     // Grant is for p1 only — p3 should not benefit.
-    state.flash_grants.push_back(FlashGrant {
+    state.flash_grants_mut().push_back(FlashGrant {
         source: None,
         player: p1,
         filter: FlashGrantFilter::AllSpells,
@@ -792,9 +792,9 @@ fn test_grant_flash_multiplayer_grant_is_player_specific() {
 
 // ── Test 9: Yeva static flash grant registration on ETB ───────────────────────
 
-/// CR 601.3b — Casting Yeva populates state.flash_grants via register_static_continuous_effects.
+/// CR 601.3b — Casting Yeva populates state.flash_grants() via register_static_continuous_effects.
 /// Tests the full engine pipeline: cast Yeva (Flash) → resolve → register_static_continuous_effects
-/// → state.flash_grants contains a WhileSourceOnBattlefield GreenCreatures grant for p1.
+/// → state.flash_grants() contains a WhileSourceOnBattlefield GreenCreatures grant for p1.
 #[test]
 fn test_yeva_static_flash_grant_registered_on_etb() {
     let p1 = p(1);
@@ -826,16 +826,16 @@ fn test_yeva_static_flash_grant_registered_on_etb() {
 
     // Provide {2}{G}{G} — 4 green mana covers both generic and green pips.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Green, 4);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // No flash grant yet — flash_grants starts empty.
     assert!(
-        state.flash_grants.is_empty(),
+        state.flash_grants().is_empty(),
         "flash_grants should be empty before Yeva enters the battlefield"
     );
 
@@ -850,12 +850,12 @@ fn test_yeva_static_flash_grant_registered_on_etb() {
     // After resolution Yeva is on the battlefield and flash_grants is populated.
     // register_static_continuous_effects fires on ETB and pushes a FlashGrant.
     assert_eq!(
-        state.flash_grants.len(),
+        state.flash_grants().len(),
         1,
         "flash_grants should contain exactly one entry after Yeva resolves"
     );
 
-    let grant = state.flash_grants.iter().next().unwrap();
+    let grant = state.flash_grants().iter().next().unwrap();
     assert_eq!(
         grant.player, p1,
         "grant should be for Yeva's controller (p1)"
@@ -876,7 +876,7 @@ fn test_yeva_static_flash_grant_registered_on_etb() {
     // Verify the grant's source is Yeva on the battlefield.
     let source_id = grant.source.unwrap();
     let source_obj = state
-        .objects
+        .objects()
         .get(&source_id)
         .expect("Yeva should be on the battlefield");
     assert!(

@@ -55,7 +55,7 @@ fn card_spec(
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -64,7 +64,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -72,7 +72,7 @@ fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId>
 
 fn hand_count(state: &GameState, player: PlayerId) -> usize {
     state
-        .objects
+        .objects()
         .iter()
         .filter(|(_, obj)| obj.zone == ZoneId::Hand(player))
         .count()
@@ -97,7 +97,7 @@ fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent
 fn advance_to_step(mut state: GameState, target: Step) -> GameState {
     let mut guard = 0;
     loop {
-        if state.turn.step == target {
+        if state.turn().step == target {
             return state;
         }
         guard += 1;
@@ -105,7 +105,7 @@ fn advance_to_step(mut state: GameState, target: Step) -> GameState {
             guard < 500,
             "advance_to_step exceeded safety guard (infinite loop?)"
         );
-        let holder = state.turn.priority_holder.expect("no priority holder");
+        let holder = state.turn().priority_holder.expect("no priority holder");
         let (new_state, _) = process_command(state, Command::PassPriority { player: holder })
             .unwrap_or_else(|e| panic!("PassPriority by {:?} failed: {:?}", holder, e));
         state = new_state;
@@ -117,7 +117,7 @@ fn advance_to_step(mut state: GameState, target: Step) -> GameState {
 /// the stack (CR 603.3) and need priority passes.
 fn resolve_stack(mut state: GameState, players: &[PlayerId]) -> GameState {
     let mut guard = 0;
-    while !state.stack_objects.is_empty() {
+    while !state.stack_objects().is_empty() {
         guard += 1;
         assert!(guard < 100, "resolve_stack exceeded safety guard");
         state = pass_all(state, players).0;
@@ -192,7 +192,7 @@ fn test_searslicer_goblin_raid_creates_token_only_if_attacked() {
         // it must be resolved by priority passes before the token exists.
         let state = advance_to_step(state, Step::End);
         let state = resolve_stack(state, &[p1, p2]);
-        let token = state.objects.iter().find(|(_, obj)| {
+        let token = state.objects().iter().find(|(_, obj)| {
             obj.characteristics.name == "Goblin" && obj.zone == ZoneId::Battlefield
         });
         assert!(
@@ -226,7 +226,7 @@ fn test_searslicer_goblin_raid_creates_token_only_if_attacked() {
         // No DeclareAttackers command issued -- attacked_this_turn stays false.
         let state = advance_to_step(state, Step::End);
         let state = resolve_stack(state, &[p1, p2]);
-        let token = state.objects.iter().find(|(_, obj)| {
+        let token = state.objects().iter().find(|(_, obj)| {
             obj.characteristics.name == "Goblin" && obj.zone == ZoneId::Battlefield
         });
         assert!(
@@ -273,11 +273,16 @@ fn test_chart_a_course_discards_unless_attacked() {
             .at_step(Step::PreCombatMain)
             .build()
             .unwrap();
-        state.players.get_mut(&p1).unwrap().mana_pool.colorless = 1;
-        state.players.get_mut(&p1).unwrap().mana_pool.blue = 1;
-        state.turn.priority_holder = Some(p1);
+        state
+            .players_mut()
+            .get_mut(&p1)
+            .unwrap()
+            .mana_pool
+            .colorless = 1;
+        state.players_mut().get_mut(&p1).unwrap().mana_pool.blue = 1;
+        state.turn_mut().priority_holder = Some(p1);
         if attacked {
-            state.players.get_mut(&p1).unwrap().attacked_this_turn = true;
+            state.players_mut().get_mut(&p1).unwrap().attacked_this_turn = true;
         }
         state
     };
@@ -297,7 +302,7 @@ fn test_chart_a_course_discards_unless_attacked() {
         // count only the discarded library card.
         assert_eq!(
             state
-                .objects
+                .objects()
                 .iter()
                 .filter(|(_, obj)| obj.zone == ZoneId::Graveyard(p1())
                     && obj.characteristics.name.starts_with("Library Card"))
@@ -372,9 +377,14 @@ fn test_bloodsoaked_champion_raid_reanimation_gated_by_attack() {
         )
         .unwrap();
 
-        state.players.get_mut(&p1).unwrap().mana_pool.colorless = 1;
-        state.players.get_mut(&p1).unwrap().mana_pool.black = 1;
-        state.turn.priority_holder = Some(p1);
+        state
+            .players_mut()
+            .get_mut(&p1)
+            .unwrap()
+            .mana_pool
+            .colorless = 1;
+        state.players_mut().get_mut(&p1).unwrap().mana_pool.black = 1;
+        state.turn_mut().priority_holder = Some(p1);
 
         let champion_id = find_object(&state, "Bloodsoaked Champion");
         let (state, _) = process_command(
@@ -420,9 +430,14 @@ fn test_bloodsoaked_champion_raid_reanimation_gated_by_attack() {
             .build()
             .unwrap();
 
-        state.players.get_mut(&p1).unwrap().mana_pool.colorless = 1;
-        state.players.get_mut(&p1).unwrap().mana_pool.black = 1;
-        state.turn.priority_holder = Some(p1);
+        state
+            .players_mut()
+            .get_mut(&p1)
+            .unwrap()
+            .mana_pool
+            .colorless = 1;
+        state.players_mut().get_mut(&p1).unwrap().mana_pool.black = 1;
+        state.turn_mut().priority_holder = Some(p1);
 
         let champion_id = find_object(&state, "Bloodsoaked Champion");
         let result = process_command(
@@ -474,7 +489,7 @@ fn test_idol_of_oblivion_draw_gated_by_created_token() {
             .at_step(Step::PreCombatMain)
             .build()
             .unwrap();
-        state.turn.priority_holder = Some(p1);
+        state.turn_mut().priority_holder = Some(p1);
 
         let dummy_source = ObjectId(99999);
         let mut ctx = EffectContext::new(p1, dummy_source, vec![]);
@@ -540,7 +555,7 @@ fn test_idol_of_oblivion_draw_gated_by_created_token() {
             .at_step(Step::PreCombatMain)
             .build()
             .unwrap();
-        state.turn.priority_holder = Some(p1);
+        state.turn_mut().priority_holder = Some(p1);
 
         let idol_id = find_object(&state, "Idol of Oblivion");
         let result = process_command(
@@ -613,9 +628,14 @@ fn test_dark_petition_spell_mastery_bonus_mana() {
             .at_step(Step::PreCombatMain)
             .build()
             .unwrap();
-        state.players.get_mut(&p1).unwrap().mana_pool.colorless = 3;
-        state.players.get_mut(&p1).unwrap().mana_pool.black = 2;
-        state.turn.priority_holder = Some(p1);
+        state
+            .players_mut()
+            .get_mut(&p1)
+            .unwrap()
+            .mana_pool
+            .colorless = 3;
+        state.players_mut().get_mut(&p1).unwrap().mana_pool.black = 2;
+        state.turn_mut().priority_holder = Some(p1);
 
         let spell_id = find_object(&state, "Dark Petition");
         let (state, _) = process_command(state, empty_cast_spell(p1, spell_id)).unwrap();
@@ -626,7 +646,7 @@ fn test_dark_petition_spell_mastery_bonus_mana() {
             "base search effect must put the found card into hand"
         );
         assert_eq!(
-            state.players.get(&p1).unwrap().mana_pool.black,
+            state.players().get(&p1).unwrap().mana_pool.black,
             3,
             "spell mastery: {{B}}{{B}}{{B}} must be added to the mana pool (pool was \
              fully spent on the cast, so the only black mana remaining is the bonus)"
@@ -659,16 +679,21 @@ fn test_dark_petition_spell_mastery_bonus_mana() {
             .at_step(Step::PreCombatMain)
             .build()
             .unwrap();
-        state.players.get_mut(&p1).unwrap().mana_pool.colorless = 3;
-        state.players.get_mut(&p1).unwrap().mana_pool.black = 2;
-        state.turn.priority_holder = Some(p1);
+        state
+            .players_mut()
+            .get_mut(&p1)
+            .unwrap()
+            .mana_pool
+            .colorless = 3;
+        state.players_mut().get_mut(&p1).unwrap().mana_pool.black = 2;
+        state.turn_mut().priority_holder = Some(p1);
 
         let spell_id = find_object(&state, "Dark Petition");
         let (state, _) = process_command(state, empty_cast_spell(p1, spell_id)).unwrap();
         let (state, _) = pass_all(state, &[p1, p2]);
 
         assert_eq!(
-            state.players.get(&p1).unwrap().mana_pool.black,
+            state.players().get(&p1).unwrap().mana_pool.black,
             0,
             "without spell mastery, no bonus {{B}}{{B}}{{B}} is added (pool was fully \
              spent paying the cast)"
@@ -715,14 +740,14 @@ fn test_land_tax_upkeep_search_gated_by_opponent_lands() {
         let mut state = b.active_player(p1).at_step(Step::Untap).build().unwrap();
         // CR 502: the untap step grants no priority, so the builder leaves the holder
         // unset. Seed it so we can pass out of untap (see tests/cumulative_upkeep.rs).
-        state.turn.priority_holder = Some(p1);
+        state.turn_mut().priority_holder = Some(p1);
 
         // CR 603.3: the upkeep trigger is queued on the stack at step entry; resolve it.
         let state = advance_to_step(state, Step::Upkeep);
         let state = resolve_stack(state, &[p1, p2]);
 
         let basics_in_hand = state
-            .objects
+            .objects()
             .iter()
             .filter(|(_, obj)| {
                 obj.zone == ZoneId::Hand(p1) && obj.characteristics.name.starts_with("Basic")
@@ -758,7 +783,7 @@ fn test_land_tax_upkeep_search_gated_by_opponent_lands() {
                 .in_zone(ZoneId::Library(p1)),
         );
         let mut state = b.active_player(p1).at_step(Step::Untap).build().unwrap();
-        state.turn.priority_holder = Some(p1);
+        state.turn_mut().priority_holder = Some(p1);
 
         // Resolve the upkeep stack, then stop. Passing further would reach the draw
         // step and pull "Basic Unused" into hand for an unrelated reason, which would

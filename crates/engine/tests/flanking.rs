@@ -23,7 +23,7 @@ use mtg_engine::{
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -48,7 +48,7 @@ fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent
 
 fn count_in_graveyard(state: &GameState, player: PlayerId) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Graveyard(player))
         .count()
@@ -125,7 +125,7 @@ fn test_702_25_flanking_basic_minus_one_minus_one() {
 
     // Flanking trigger should be on the stack immediately after DeclareBlockers.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.25a: Flanking trigger should be on the stack after blockers declared"
     );
@@ -159,7 +159,7 @@ fn test_702_25_flanking_basic_minus_one_minus_one() {
 
     // Stack should be empty.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after flanking trigger resolves"
     );
 }
@@ -231,7 +231,7 @@ fn test_702_25_flanking_does_not_trigger_on_flanking_blocker() {
 
     // Stack should be empty — no flanking trigger fired.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty — no flanking trigger fired"
     );
 
@@ -276,7 +276,7 @@ fn test_702_25_flanking_kills_1_toughness_blocker() {
 
     // P2 starts at 40 life.
     assert_eq!(
-        state.players.get(&p2).unwrap().life_total,
+        state.players().get(&p2).unwrap().life_total,
         40,
         "setup: p2 starts at 40 life"
     );
@@ -318,7 +318,7 @@ fn test_702_25_flanking_kills_1_toughness_blocker() {
 
     // Flanking trigger should be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.25a: Flanking trigger should be on the stack"
     );
@@ -336,7 +336,7 @@ fn test_702_25_flanking_kills_1_toughness_blocker() {
     // Blocker object is no longer on the battlefield.
     assert!(
         !state
-            .objects
+            .objects()
             .values()
             .any(|o| o.id == blocker_id && o.zone == ZoneId::Battlefield),
         "CR 702.25a: blocker should not be on battlefield after dying from flanking"
@@ -345,7 +345,7 @@ fn test_702_25_flanking_kills_1_toughness_blocker() {
     // P2 still has 40 life — attacker is blocked, no damage to player without trample.
     // (Combat damage hasn't been dealt yet — we're still in DeclareBlockers step.)
     assert_eq!(
-        state.players.get(&p2).unwrap().life_total,
+        state.players().get(&p2).unwrap().life_total,
         40,
         "P2 takes no damage in DeclareBlockers step (combat damage not yet dealt)"
     );
@@ -456,7 +456,7 @@ fn test_702_25b_flanking_multiple_instances() {
 
     // Two items on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "CR 702.25b: 2 flanking triggers on the stack from a single creature"
     );
@@ -464,7 +464,7 @@ fn test_702_25b_flanking_multiple_instances() {
     // Resolve first trigger — blocker should be 2/2.
     let (state, _) = pass_all(state, &[p1, p2]);
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "one trigger should remain after resolving the first"
     );
@@ -483,7 +483,7 @@ fn test_702_25b_flanking_multiple_instances() {
     // Resolve second trigger — blocker should be 1/1.
     let (state, _) = pass_all(state, &[p1, p2]);
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after both triggers resolve"
     );
 
@@ -568,19 +568,19 @@ fn test_702_25_flanking_multiple_blockers() {
     );
 
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "CR 702.25a: 2 flanking triggers on the stack (one per blocker)"
     );
 
     // Resolve first trigger.
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.stack_objects.len(), 1, "one trigger should remain");
+    assert_eq!(state.stack_objects().len(), 1, "one trigger should remain");
 
     // Resolve second trigger.
     let (state, _) = pass_all(state, &[p1, p2]);
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after both triggers resolve"
     );
 
@@ -660,14 +660,14 @@ fn test_702_25_flanking_effect_expires_at_end_of_turn() {
     .expect("declare blockers failed");
 
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "trigger should be on stack after DeclareBlockers"
     );
 
     // Resolve trigger — blocker becomes 1/1.
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert!(state.stack_objects.is_empty(), "stack should be empty");
+    assert!(state.stack_objects().is_empty(), "stack should be empty");
 
     // Blocker should be 1/1 now (after trigger resolved).
     let chars = calculate_characteristics(&state, blocker_id)
@@ -799,7 +799,7 @@ fn test_702_25_flanking_multiplayer() {
 
     // Two triggers on the stack (one from each defender's DeclareBlockers).
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "CR 702.25a: 2 flanking triggers on the stack"
     );
@@ -807,7 +807,7 @@ fn test_702_25_flanking_multiplayer() {
     // Resolve first trigger.
     let (state, _) = pass_all(state, &[p1, p2, p3, p4]);
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "one trigger should remain after first resolves"
     );
@@ -815,7 +815,7 @@ fn test_702_25_flanking_multiplayer() {
     // Resolve second trigger.
     let (state, _) = pass_all(state, &[p1, p2, p3, p4]);
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after both triggers resolve"
     );
 

@@ -22,7 +22,7 @@ use mtg_engine::{
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -77,7 +77,7 @@ fn test_702_39a_provoke_basic_untap_and_forced_block() {
 
     // Verify defender starts tapped.
     assert!(
-        state.objects.get(&defender_id).unwrap().status.tapped,
+        state.objects().get(&defender_id).unwrap().status.tapped,
         "Defender should start tapped"
     );
 
@@ -101,14 +101,14 @@ fn test_702_39a_provoke_basic_untap_and_forced_block() {
         "CR 702.39a: AbilityTriggered event expected from provoke"
     );
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.39a: provoke trigger should be on the stack"
     );
 
     // P2's defender is still tapped (trigger hasn't resolved yet).
     assert!(
-        state.objects.get(&defender_id).unwrap().status.tapped,
+        state.objects().get(&defender_id).unwrap().status.tapped,
         "Defender should still be tapped before trigger resolves"
     );
 
@@ -125,7 +125,7 @@ fn test_702_39a_provoke_basic_untap_and_forced_block() {
 
     // P2's defender should now be untapped.
     assert!(
-        !state.objects.get(&defender_id).unwrap().status.tapped,
+        !state.objects().get(&defender_id).unwrap().status.tapped,
         "CR 702.39a: Defender should be untapped after provoke trigger resolves"
     );
 
@@ -139,7 +139,7 @@ fn test_702_39a_provoke_basic_untap_and_forced_block() {
 
     // Stack is now empty.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "Stack should be empty after provoke trigger resolves"
     );
 
@@ -147,7 +147,7 @@ fn test_702_39a_provoke_basic_untap_and_forced_block() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     assert_eq!(
-        state.turn.step,
+        state.turn().step,
         Step::DeclareBlockers,
         "Game should have advanced to DeclareBlockers after all players pass with empty stack"
     );
@@ -163,7 +163,7 @@ fn test_702_39a_provoke_basic_untap_and_forced_block() {
     .expect("CR 702.39a: P2 should be able to block with the provoked creature");
 
     // Verify blocking is recorded.
-    let combat = state.combat.as_ref().unwrap();
+    let combat = state.combat().as_ref().unwrap();
     assert_eq!(
         combat.blockers.get(&defender_id),
         Some(&attacker_id),
@@ -220,7 +220,7 @@ fn test_702_39a_provoke_forces_block_requirement() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     assert_eq!(
-        state.turn.step,
+        state.turn().step,
         Step::DeclareBlockers,
         "Game should be in DeclareBlockers"
     );
@@ -280,7 +280,7 @@ fn test_702_39a_provoke_tapped_creature_untapped() {
     let defender_id = find_object(&state, "Tapped Defender");
 
     assert!(
-        state.objects.get(&defender_id).unwrap().status.tapped,
+        state.objects().get(&defender_id).unwrap().status.tapped,
         "Tapped Defender should start tapped"
     );
 
@@ -301,7 +301,7 @@ fn test_702_39a_provoke_tapped_creature_untapped() {
 
     // Creature should be untapped.
     assert!(
-        !state.objects.get(&defender_id).unwrap().status.tapped,
+        !state.objects().get(&defender_id).unwrap().status.tapped,
         "CR 702.39a: Tapped Defender should be untapped after provoke resolves"
     );
 
@@ -367,7 +367,7 @@ fn test_702_39a_provoke_creature_cant_block_flying() {
 
     // Creature is untapped (the untap part of provoke still resolves).
     assert!(
-        !state.objects.get(&defender_id).unwrap().status.tapped,
+        !state.objects().get(&defender_id).unwrap().status.tapped,
         "CR 702.39a: Ground Defender should be untapped even when it can't block the flier"
     );
 
@@ -375,7 +375,7 @@ fn test_702_39a_provoke_creature_cant_block_flying() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     assert_eq!(
-        state.turn.step,
+        state.turn().step,
         Step::DeclareBlockers,
         "Game should be in DeclareBlockers"
     );
@@ -451,7 +451,7 @@ fn test_702_39b_provoke_multiple_instances_trigger_separately() {
 
     // Two triggers should be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "CR 702.39b: Two ProvokeTrigger stack objects should be on the stack"
     );
@@ -460,7 +460,7 @@ fn test_702_39b_provoke_multiple_instances_trigger_separately() {
     // DIFFERENT creature. Collect the provoked_creature from each stack object
     // and verify they are distinct.
     let targets: Vec<ObjectId> = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .filter_map(|so| match &so.kind {
             mtg_engine::StackObjectKind::KeywordTrigger {
@@ -532,7 +532,7 @@ fn test_702_39a_provoke_no_valid_target() {
     );
 
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "CR 603.3d: Stack should be empty when no valid provoke target exists"
     );
 }
@@ -592,13 +592,13 @@ fn test_702_39a_provoke_multiplayer_correct_defender() {
 
     // Exactly one trigger should be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 508.5a: Exactly one provoke trigger should be on the stack"
     );
 
     // The trigger's target should be P2's creature, not P3's.
-    let trigger = &state.stack_objects[0];
+    let trigger = &state.stack_objects()[0];
     if let mtg_engine::StackObjectKind::KeywordTrigger {
         keyword: mtg_engine::KeywordAbility::Provoke,
         data: mtg_engine::state::stack::TriggerData::CombatProvoke { target },

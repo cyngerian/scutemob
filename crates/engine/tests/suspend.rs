@@ -38,7 +38,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -46,7 +46,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 }
 
 fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
-    state.objects.iter().find_map(|(&id, obj)| {
+    state.objects().iter().find_map(|(&id, obj)| {
         if obj.characteristics.name == name && obj.zone == zone {
             Some(id)
         } else {
@@ -66,7 +66,7 @@ fn in_exile(state: &GameState, name: &str) -> bool {
 /// Count time counters on the named card (wherever it is).
 fn time_counters(state: &GameState, name: &str) -> u32 {
     state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == name)
         .and_then(|o| o.counters.get(&CounterType::Time).copied())
@@ -198,16 +198,16 @@ fn test_suspend_basic_exile_from_hand() {
 
     // Give p1 {R} for the suspend cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Rift Bolt");
     assert_eq!(
-        state.objects[&card_id].zone,
+        state.objects()[&card_id].zone,
         ZoneId::Hand(p1),
         "Rift Bolt should start in hand"
     );
@@ -242,7 +242,7 @@ fn test_suspend_basic_exile_from_hand() {
 
     // Exile object should be marked as suspended (face up, not face down).
     let exile_obj = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.zone == ZoneId::Exile && o.characteristics.name == "Rift Bolt")
         .expect("Rift Bolt should exist in exile");
@@ -300,13 +300,13 @@ fn test_suspend_counter_removal_on_upkeep() {
 
     // Manually set is_suspended and time counters (simulating a previously suspended card).
     let card_id = find_object(&state, "Rift Bolt");
-    if let Some(obj) = state.objects.get_mut(&card_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&card_id) {
         obj.designations.insert(mtg_engine::Designations::SUSPENDED);
         obj.counters = obj.counters.update(CounterType::Time, 2);
     }
 
     // Set priority at p1 at Untap (unusual but valid for test setup).
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Pass priority for all players at Untap -> advances to Upkeep -> upkeep_actions queues trigger.
     // The trigger goes on the stack and priority is given to p1.
@@ -314,7 +314,7 @@ fn test_suspend_counter_removal_on_upkeep() {
 
     // Now at Upkeep with SuspendCounterTrigger on the stack.
     assert_eq!(
-        state.turn.step,
+        state.turn().step,
         Step::Upkeep,
         "should be at Upkeep after advancing from Untap"
     );
@@ -371,12 +371,12 @@ fn test_suspend_last_counter_triggers_cast() {
         .unwrap();
 
     let card_id = find_object(&state, "Rift Bolt");
-    if let Some(obj) = state.objects.get_mut(&card_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&card_id) {
         obj.designations.insert(mtg_engine::Designations::SUSPENDED);
         obj.counters = obj.counters.update(CounterType::Time, 1);
     }
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Advance Untap -> Upkeep (enter_step queues SuspendCounterTrigger, flushes to stack).
     let (state, _) = pass_all(state, &[p1, p2]);
@@ -445,12 +445,12 @@ fn test_suspend_creature_gains_haste() {
         .unwrap();
 
     let dragon_id = find_object(&state, "Rorix Bladewing");
-    if let Some(obj) = state.objects.get_mut(&dragon_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&dragon_id) {
         obj.designations.insert(mtg_engine::Designations::SUSPENDED);
         obj.counters = obj.counters.update(CounterType::Time, 1);
     }
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Advance Untap -> Upkeep (enter_step queues counter trigger).
     let (state, _) = pass_all(state, &[p1, p2]);
@@ -472,7 +472,7 @@ fn test_suspend_creature_gains_haste() {
 
     // Rorix should NOT have summoning sickness (haste granted via suspend).
     let rorix = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Rorix Bladewing" && o.zone == ZoneId::Battlefield)
         .expect("Rorix Bladewing should be on battlefield");
@@ -504,21 +504,21 @@ fn test_suspend_cast_without_paying_mana_cost() {
         .unwrap();
 
     let card_id = find_object(&state, "Rift Bolt");
-    if let Some(obj) = state.objects.get_mut(&card_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&card_id) {
         obj.designations.insert(mtg_engine::Designations::SUSPENDED);
         obj.counters = obj.counters.update(CounterType::Time, 1);
     }
 
     // Give p1 some mana -- it should NOT be spent when suspend triggers fire.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
-    let mana_before = state.players[&p1].mana_pool.red;
+    let mana_before = state.players()[&p1].mana_pool.red;
 
     // Advance Untap -> Upkeep -> counter trigger queued.
     let (state, _) = pass_all(state, &[p1, p2]);
@@ -543,7 +543,7 @@ fn test_suspend_cast_without_paying_mana_cost() {
     // Also verify the mana pool was not depleted as payment (mana may be emptied at step
     // transitions but should not be spent by the suspend cast mechanics).
     let _ = mana_before;
-    let mana_after = state.players[&p1].mana_pool.red;
+    let mana_after = state.players()[&p1].mana_pool.red;
     let _ = mana_after; // may be 0 due to empty_all_mana_pools at step transition
 }
 
@@ -574,12 +574,12 @@ fn test_suspend_invalid_not_in_hand() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Rift Bolt");
     let result = process_command(
@@ -638,12 +638,12 @@ fn test_suspend_invalid_no_keyword() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Plain Sorcery");
     let result = process_command(
@@ -683,11 +683,11 @@ fn test_suspend_no_longer_suspended_after_cast() {
         .unwrap();
 
     let card_id = find_object(&state, "Rift Bolt");
-    if let Some(obj) = state.objects.get_mut(&card_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&card_id) {
         obj.designations.insert(mtg_engine::Designations::SUSPENDED);
         obj.counters = obj.counters.update(CounterType::Time, 1);
     }
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Advance to Upkeep -> counter trigger -> cast trigger -> spell cast.
     let (state, _) = pass_all(state, &[p1, p2]);
@@ -702,10 +702,10 @@ fn test_suspend_no_longer_suspended_after_cast() {
     );
 
     // The card should be on the stack as a spell or resolved to graveyard.
-    let bolt_on_stack = state.stack_objects.iter().any(|so| {
+    let bolt_on_stack = state.stack_objects().iter().any(|so| {
         if let StackObjectKind::Spell { source_object } = so.kind {
             state
-                .objects
+                .objects()
                 .get(&source_object)
                 .map(|o| o.characteristics.name == "Rift Bolt")
                 .unwrap_or(false)
@@ -749,12 +749,12 @@ fn test_suspend_not_active_player_upkeep_no_trigger() {
         .unwrap();
 
     let card_id = find_object(&state, "Rift Bolt");
-    if let Some(obj) = state.objects.get_mut(&card_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&card_id) {
         obj.designations.insert(mtg_engine::Designations::SUSPENDED);
         obj.counters = obj.counters.update(CounterType::Time, 2);
     }
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // All players pass priority at Untap -> advances to Upkeep via enter_step.
     // upkeep_actions is called for p1's upkeep. Since p2 is the OWNER of the

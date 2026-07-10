@@ -32,7 +32,7 @@ use mtg_engine::{
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -60,7 +60,7 @@ fn pass_all(
 
 fn poison_counters(state: &mtg_engine::GameState, player: PlayerId) -> u32 {
     state
-        .players
+        .players()
         .get(&player)
         .map(|p| p.poison_counters)
         .unwrap_or_else(|| panic!("player {:?} not found", player))
@@ -91,7 +91,7 @@ fn test_702_164_toxic_basic_combat_damage_gives_poison() {
         .unwrap();
 
     let attacker_id = find_object(&state, "Toxic Attacker");
-    let initial_life = state.players[&p2].life_total;
+    let initial_life = state.players()[&p2].life_total;
 
     assert_eq!(
         poison_counters(&state, p2),
@@ -129,7 +129,7 @@ fn test_702_164_toxic_basic_combat_damage_gives_poison() {
 
     // CR 120.3a: normal life loss occurs (2 damage from the 2/2).
     assert_eq!(
-        state.players[&p2].life_total,
+        state.players()[&p2].life_total,
         initial_life - 2,
         "CR 120.3a: p2 should have lost 2 life from combat damage"
     );
@@ -169,7 +169,7 @@ fn test_702_164_toxic_basic_combat_damage_gives_poison() {
 
     // Stack must be empty immediately after combat damage (no trigger on stack).
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "CR 702.164a: Toxic is static — stack must be empty after combat damage step"
     );
 
@@ -256,7 +256,8 @@ fn test_702_164_toxic_damage_to_creature_no_poison() {
 
     // P2's life total is unchanged (fully blocked).
     assert_eq!(
-        state.players[&p2].life_total, 40,
+        state.players()[&p2].life_total,
+        40,
         "p2's life should be unchanged (attack was fully blocked)"
     );
 }
@@ -320,7 +321,7 @@ fn test_702_164_toxic_multiple_instances_cumulative() {
         .unwrap();
 
     let attacker_id = find_object(&state, "Multi-Toxic Creature");
-    let initial_life = state.players[&p2].life_total;
+    let initial_life = state.players()[&p2].life_total;
 
     assert_eq!(
         poison_counters(&state, p2),
@@ -365,7 +366,7 @@ fn test_702_164_toxic_multiple_instances_cumulative() {
 
     // Life loss also occurs (Toxic is additive, not a replacement).
     assert_eq!(
-        state.players[&p2].life_total,
+        state.players()[&p2].life_total,
         initial_life - 1,
         "CR 702.164c: p2 should have lost 1 life from the 1/1 combat damage"
     );
@@ -385,7 +386,7 @@ fn test_702_164_toxic_multiple_instances_cumulative() {
 
     // Stack is empty — Toxic is static, no trigger.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "CR 702.164a: Toxic is static — stack must be empty after combat damage"
     );
 }
@@ -415,7 +416,7 @@ fn test_702_164_toxic_zero_damage_no_poison() {
         .unwrap();
 
     let attacker_id = find_object(&state, "Zero Power Toxic");
-    let initial_life = state.players[&p2].life_total;
+    let initial_life = state.players()[&p2].life_total;
 
     // Declare attacker.
     let (state, _) = process_command(
@@ -454,7 +455,8 @@ fn test_702_164_toxic_zero_damage_no_poison() {
 
     // Life total unchanged.
     assert_eq!(
-        state.players[&p2].life_total, initial_life,
+        state.players()[&p2].life_total,
+        initial_life,
         "p2's life should be unchanged (0 damage from 0-power creature)"
     );
 
@@ -496,7 +498,7 @@ fn test_702_164_toxic_with_infect() {
         .unwrap();
 
     let attacker_id = find_object(&state, "Infect-Toxic Attacker");
-    let initial_life = state.players[&p2].life_total;
+    let initial_life = state.players()[&p2].life_total;
 
     // Declare attacker.
     let (state, _) = process_command(
@@ -528,7 +530,8 @@ fn test_702_164_toxic_with_infect() {
 
     // CR 702.90b: Infect replaces life loss — p2's life total must be UNCHANGED.
     assert_eq!(
-        state.players[&p2].life_total, initial_life,
+        state.players()[&p2].life_total,
+        initial_life,
         "CR 702.90b: Infect replaces life loss — p2 life should be unchanged"
     );
 
@@ -566,7 +569,7 @@ fn test_702_164_toxic_with_infect() {
 
     // Stack is empty (Toxic is static; Infect is also inline, not a trigger).
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack must be empty after combat damage (both Infect and Toxic are static)"
     );
 }
@@ -630,14 +633,14 @@ fn test_702_164_toxic_with_lifelink() {
 
     // CR 702.15a: Lifelink — p1 gains 2 life (40 + 2 = 42).
     assert_eq!(
-        state.players[&p1].life_total,
+        state.players()[&p1].life_total,
         initial_p1_life + 2,
         "CR 702.15a: p1 should have gained 2 life from Lifelink"
     );
 
     // CR 120.3a: normal life loss — p2 loses 2 life (40 - 2 = 38).
     assert_eq!(
-        state.players[&p2].life_total,
+        state.players()[&p2].life_total,
         initial_p2_life - 2,
         "CR 120.3a: p2 should have lost 2 life from combat damage"
     );
@@ -686,7 +689,7 @@ fn test_702_164_toxic_kills_via_poison_sba() {
         "setup: p2 starts with 9 poison counters"
     );
     assert!(
-        !state.players.get(&p2).unwrap().has_lost,
+        !state.players().get(&p2).unwrap().has_lost,
         "setup: p2 has not yet lost"
     );
 
@@ -739,7 +742,7 @@ fn test_702_164_toxic_kills_via_poison_sba() {
     );
 
     assert!(
-        state.players.get(&p2).unwrap().has_lost,
+        state.players().get(&p2).unwrap().has_lost,
         "CR 704.5c: p2.has_lost must be true after 10 poison counters via Toxic"
     );
 }
@@ -824,7 +827,8 @@ fn test_702_164_toxic_multiplayer_correct_player() {
 
     // P3's life also decreased (Toxic is additive, not a replacement).
     assert_eq!(
-        state.players[&p3].life_total, 38,
+        state.players()[&p3].life_total,
+        38,
         "CR 702.164c: p3 should have lost 2 life from 2/2 combat damage (Toxic is additive)"
     );
 
@@ -843,7 +847,7 @@ fn test_702_164_toxic_multiplayer_correct_player() {
 
     // Stack is empty (Toxic is static).
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "CR 702.164a: Toxic is static — stack must be empty after combat damage"
     );
 }

@@ -10,6 +10,7 @@
 //! - DFCs in non-battlefield zones use only front face characteristics (CR 712.8a).
 //! - CR 701.27f: Transform once guard — ability can't re-transform if already transformed.
 
+use mtg_engine::state::test_util;
 use mtg_engine::{
     calculate_characteristics, process_command, AbilityDefinition, CardDefinition, CardFace,
     CardId, CardRegistry, CardType, Color, Command, CounterType, GameEvent, GameState,
@@ -23,7 +24,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -134,7 +135,7 @@ fn test_transform_basic_flip() {
         .unwrap();
 
     let delver_id = find_object(&state, "Delver");
-    assert!(!state.objects[&delver_id].is_transformed);
+    assert!(!state.objects()[&delver_id].is_transformed);
 
     // Transform the permanent.
     let (state, events) = process_command(
@@ -148,7 +149,7 @@ fn test_transform_basic_flip() {
 
     // Verify is_transformed flag.
     assert!(
-        state.objects[&delver_id].is_transformed,
+        state.objects()[&delver_id].is_transformed,
         "should be transformed"
     );
 
@@ -206,7 +207,7 @@ fn test_transform_preserves_counters() {
     let delver_id = find_object(&state, "Delver");
 
     // Place a +1/+1 counter on the permanent before transforming.
-    if let Some(obj) = state.objects.get_mut(&delver_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&delver_id) {
         obj.counters = obj.counters.update(CounterType::PlusOnePlusOne, 1);
     }
 
@@ -221,7 +222,7 @@ fn test_transform_preserves_counters() {
     .expect("Transform should succeed");
 
     // Counter must still be present (same object).
-    let counter_count = state.objects[&delver_id]
+    let counter_count = state.objects()[&delver_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -231,7 +232,8 @@ fn test_transform_preserves_counters() {
         "counter should persist after transform (CR 712.18)"
     );
     assert_eq!(
-        state.objects[&delver_id].id, delver_id,
+        state.objects()[&delver_id].id,
+        delver_id,
         "object identity must not change (CR 712.18)"
     );
 }
@@ -278,7 +280,7 @@ fn test_transform_non_dfc_does_nothing() {
 
     // No transform event emitted, is_transformed unchanged.
     assert!(
-        !state.objects[&creature_id].is_transformed,
+        !state.objects()[&creature_id].is_transformed,
         "non-DFC should remain untransformed (CR 701.27c)"
     );
     assert!(
@@ -323,7 +325,7 @@ fn test_transform_once_guard() {
     )
     .expect("first transform should succeed");
 
-    assert!(state.objects[&delver_id].is_transformed);
+    assert!(state.objects()[&delver_id].is_transformed);
 
     // Transform back (simulates the "twice" scenario).
     let (state, _) = process_command(
@@ -337,7 +339,7 @@ fn test_transform_once_guard() {
 
     // After two transforms, should be front face again.
     assert!(
-        !state.objects[&delver_id].is_transformed,
+        !state.objects()[&delver_id].is_transformed,
         "two transforms should flip back to front face"
     );
 }
@@ -395,7 +397,7 @@ fn test_transform_dfc_mana_value_uses_front_face() {
     );
     // The registry still has the front face's mana_cost {U} = MV 1.
     let def = state
-        .card_registry
+        .card_registry()
         .get(CardId("mock-delver".to_string()))
         .expect("def should be in registry");
     let front_mv = def
@@ -440,18 +442,18 @@ fn test_transform_dfc_graveyard_uses_front_face() {
         },
     )
     .expect("transform should succeed");
-    assert!(state.objects[&delver_id].is_transformed);
+    assert!(state.objects()[&delver_id].is_transformed);
 
     // Move to graveyard (CR 712.8a: zone change resets to front face).
     // move_object_to_zone takes &mut self and returns (new_id, old_obj).
     let mut state = state;
-    let (new_id, _old) = state
-        .move_object_to_zone(delver_id, ZoneId::Graveyard(p1))
-        .expect("move to graveyard should succeed");
+    let (new_id, _old) =
+        test_util::move_object_to_zone(&mut state, delver_id, ZoneId::Graveyard(p1))
+            .expect("move to graveyard should succeed");
 
     // is_transformed must be reset (CR 712.8a: non-battlefield zones use front face).
     assert!(
-        !state.objects[&new_id].is_transformed,
+        !state.objects()[&new_id].is_transformed,
         "DFC in graveyard should have is_transformed=false (CR 712.8a)"
     );
 

@@ -36,7 +36,7 @@ fn test_cast_spell_sorcery_speed_happy_path() {
 
     // Find the card's ObjectId in hand.
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -66,12 +66,12 @@ fn test_cast_spell_sorcery_speed_happy_path() {
     .unwrap();
 
     // Card moved from hand to Stack zone.
-    assert!(new_state.zones.get(&ZoneId::Hand(p1)).unwrap().is_empty());
-    assert_eq!(new_state.zones.get(&ZoneId::Stack).unwrap().len(), 1);
+    assert!(new_state.zones().get(&ZoneId::Hand(p1)).unwrap().is_empty());
+    assert_eq!(new_state.zones().get(&ZoneId::Stack).unwrap().len(), 1);
 
     // One StackObject pushed.
-    assert_eq!(new_state.stack_objects.len(), 1);
-    let stack_obj = &new_state.stack_objects[0];
+    assert_eq!(new_state.stack_objects().len(), 1);
+    let stack_obj = &new_state.stack_objects()[0];
     assert_eq!(stack_obj.controller, p1);
     assert!(matches!(stack_obj.kind, StackObjectKind::Spell { .. }));
 
@@ -84,9 +84,9 @@ fn test_cast_spell_sorcery_speed_happy_path() {
         .any(|e| matches!(e, GameEvent::PriorityGiven { player } if *player == p1)));
 
     // Active player retains priority.
-    assert_eq!(new_state.turn.priority_holder, Some(p1));
+    assert_eq!(new_state.turn().priority_holder, Some(p1));
     // players_passed reset.
-    assert!(new_state.turn.players_passed.is_empty());
+    assert!(new_state.turn().players_passed.is_empty());
 }
 
 #[test]
@@ -105,7 +105,7 @@ fn test_cast_spell_sorcery_postcombat_main_ok() {
         .unwrap();
 
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -158,10 +158,10 @@ fn test_cast_spell_instant_during_opponents_upkeep() {
 
     // Manually give priority to p2 (simulate p1 passing).
     let mut state = state;
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p2))
         .unwrap()
         .object_ids()
@@ -190,12 +190,12 @@ fn test_cast_spell_instant_during_opponents_upkeep() {
     )
     .unwrap();
 
-    assert_eq!(new_state.stack_objects.len(), 1);
+    assert_eq!(new_state.stack_objects().len(), 1);
     assert!(events
         .iter()
         .any(|e| matches!(e, GameEvent::SpellCast { player, .. } if *player == p2)));
     // CR 601.2i: active player (p1) gets priority.
-    assert_eq!(new_state.turn.priority_holder, Some(p1));
+    assert_eq!(new_state.turn().priority_holder, Some(p1));
 }
 
 #[test]
@@ -216,7 +216,7 @@ fn test_cast_spell_flash_at_instant_speed() {
         .unwrap();
 
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -274,7 +274,7 @@ fn test_cast_spell_lifo_stack_order() {
 
     // Cast first spell.
     let hand_ids: Vec<_> = state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -305,7 +305,7 @@ fn test_cast_spell_lifo_stack_order() {
 
     // Cast second spell — stack has something on it but instants are ok.
     let hand_ids: Vec<_> = state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -334,9 +334,9 @@ fn test_cast_spell_lifo_stack_order() {
     )
     .unwrap();
 
-    assert_eq!(state.stack_objects.len(), 2);
+    assert_eq!(state.stack_objects().len(), 2);
     // Second spell is at the back (top of stack, LIFO).
-    let top = &state.stack_objects[state.stack_objects.len() - 1];
+    let top = &state.stack_objects()[state.stack_objects().len() - 1];
     assert_eq!(top.controller, p1);
 }
 
@@ -361,7 +361,7 @@ fn test_cast_spell_not_priority_holder_fails() {
         .unwrap();
 
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p2))
         .unwrap()
         .object_ids()
@@ -411,10 +411,10 @@ fn test_cast_spell_sorcery_during_opponents_turn_fails() {
         .object(sorcery)
         .build()
         .unwrap();
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p2))
         .unwrap()
         .object_ids()
@@ -460,7 +460,7 @@ fn test_cast_spell_sorcery_in_upkeep_fails() {
         .unwrap();
 
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -511,7 +511,7 @@ fn test_cast_spell_sorcery_with_nonempty_stack_fails() {
 
     // Cast the instant first (puts something on the stack).
     let hand_ids: Vec<_> = state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -522,7 +522,7 @@ fn test_cast_spell_sorcery_with_nonempty_stack_fails() {
         .iter()
         .find(|&&id| {
             state
-                .objects
+                .objects()
                 .get(&id)
                 .map(|o| o.characteristics.card_types.contains(&CardType::Instant))
                 .unwrap_or(false)
@@ -554,7 +554,7 @@ fn test_cast_spell_sorcery_with_nonempty_stack_fails() {
 
     // Now try to cast the sorcery — stack is not empty.
     let sorcery_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -597,7 +597,7 @@ fn test_cast_spell_land_fails() {
         .unwrap();
 
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -644,7 +644,7 @@ fn test_cast_spell_card_not_in_hand_fails() {
         .unwrap();
 
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -690,12 +690,12 @@ fn test_cast_spell_priority_resets_to_active_player() {
         .object(instant)
         .build()
         .unwrap();
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
     // Simulate p1 already having passed.
-    state.turn.players_passed.insert(p1);
+    state.turn_mut().players_passed.insert(p1);
 
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p2))
         .unwrap()
         .object_ids()
@@ -725,6 +725,6 @@ fn test_cast_spell_priority_resets_to_active_player() {
     .unwrap();
 
     // Active player (p1) gets priority; passed set is empty.
-    assert_eq!(new_state.turn.priority_holder, Some(p1));
-    assert!(new_state.turn.players_passed.is_empty());
+    assert_eq!(new_state.turn().priority_holder, Some(p1));
+    assert!(new_state.turn().players_passed.is_empty());
 }

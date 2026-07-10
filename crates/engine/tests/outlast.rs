@@ -28,7 +28,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -37,7 +37,7 @@ fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
 
 fn find_object_on_battlefield(state: &mtg_engine::GameState, name: &str) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
         .map(|(id, _)| *id)
@@ -46,7 +46,7 @@ fn find_object_on_battlefield(state: &mtg_engine::GameState, name: &str) -> Opti
 /// Get the +1/+1 counter count on an object.
 fn get_plus_counters(state: &mtg_engine::GameState, id: ObjectId) -> u32 {
     state
-        .objects
+        .objects()
         .get(&id)
         .and_then(|obj| obj.counters.get(&CounterType::PlusOnePlusOne).copied())
         .unwrap_or(0)
@@ -121,13 +121,13 @@ fn build_outlast_state(
 
     // Clear summoning sickness so tap cost is payable.
     let ids: Vec<_> = state
-        .objects
+        .objects()
         .iter()
         .filter(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
         .collect();
     for id in ids {
-        if let Some(obj) = state.objects.get_mut(&id) {
+        if let Some(obj) = state.objects_mut().get_mut(&id) {
             obj.has_summoning_sickness = false;
         }
     }
@@ -230,13 +230,13 @@ fn test_outlast_sorcery_speed_restriction() {
 
     // Clear summoning sickness.
     let ids: Vec<_> = state
-        .objects
+        .objects()
         .iter()
         .filter(|(_, obj)| obj.characteristics.name == "Outlast Warrior")
         .map(|(id, _)| *id)
         .collect();
     for id in ids {
-        if let Some(obj) = state.objects.get_mut(&id) {
+        if let Some(obj) = state.objects_mut().get_mut(&id) {
             obj.has_summoning_sickness = false;
         }
     }
@@ -295,7 +295,7 @@ fn test_outlast_summoning_sickness_prevents_activation() {
     // as having been on the battlefield since turn start). Manually set sickness to simulate
     // a creature that entered this turn (CR 302.6 / Ruling 2014-09-20).
     let source_id = find_object(&state, "Fresh Outlaster");
-    if let Some(obj) = state.objects.get_mut(&source_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&source_id) {
         obj.has_summoning_sickness = true;
     }
 
@@ -375,7 +375,7 @@ fn test_outlast_already_tapped() {
 
     // Tap the creature manually.
     let source_id = find_object(&state, "Outlast Warrior");
-    if let Some(obj) = state.objects.get_mut(&source_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&source_id) {
         obj.status.tapped = true;
     }
 
@@ -447,11 +447,11 @@ fn test_outlast_stacks_counters() {
     );
 
     // Reset for second activation: untap and refill mana.
-    if let Some(obj) = state.objects.get_mut(&source_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&source_id) {
         obj.status.tapped = false;
     }
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -506,7 +506,7 @@ fn test_outlast_not_a_cast() {
     let source_id = find_object(&state, "Outlast Monk");
 
     let spells_before = state
-        .players
+        .players()
         .get(&p1)
         .map(|ps| ps.spells_cast_this_turn)
         .unwrap_or(0);
@@ -542,7 +542,7 @@ fn test_outlast_not_a_cast() {
 
     // spells_cast_this_turn should be unchanged.
     let spells_after = state
-        .players
+        .players()
         .get(&p1)
         .map(|ps| ps.spells_cast_this_turn)
         .unwrap_or(0);

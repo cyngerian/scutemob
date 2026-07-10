@@ -17,6 +17,7 @@
 //! - If the source leaves the battlefield before the trigger resolves, the token IS still
 //!   created (ruling 2024-07-26 LKI -- different from Squad's skip behavior).
 
+use mtg_engine::state::test_util;
 use mtg_engine::AdditionalCost;
 use mtg_engine::{
     calculate_characteristics, process_command, AbilityDefinition, CardDefinition, CardId,
@@ -32,7 +33,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_objects_on_battlefield(state: &mtg_engine::GameState, name: &str) -> Vec<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .filter(|(_, obj)| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
         .map(|(id, _)| *id)
@@ -169,16 +170,16 @@ fn setup_offspring_state(
         .unwrap();
 
     let mut state = state;
-    let ps = state.players.get_mut(&p1).unwrap();
+    let ps = state.players_mut().get_mut(&p1).unwrap();
     // Base cost: {2}{W}
     ps.mana_pool.add(ManaColor::Colorless, 2);
     ps.mana_pool.add(ManaColor::White, 1);
     // Extra colorless for offspring payment
     ps.mana_pool.add(ManaColor::Colorless, extra_generic);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Offspring Warrior")
         .map(|(id, _)| *id)
@@ -240,7 +241,7 @@ fn test_offspring_not_paid() {
 
     // Only the spell should be on the stack -- no trigger.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.175a intervening-if: no OffspringTrigger when offspring cost was not paid"
     );
@@ -257,7 +258,7 @@ fn test_offspring_not_paid() {
 
     // No OffspringTrigger on the stack.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "CR 702.175a: no OffspringTrigger should be on stack when offspring_paid=false"
     );
 }
@@ -274,7 +275,7 @@ fn test_offspring_basic_paid() {
 
     // Only the spell is on the stack immediately after casting (no on-cast trigger).
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "only the spell should be on the stack immediately after casting"
     );
@@ -289,7 +290,7 @@ fn test_offspring_basic_paid() {
         "original creature should be on battlefield after spell resolves"
     );
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.175a: OffspringTrigger should be on stack after spell resolves with offspring_paid=true"
     );
@@ -304,7 +305,7 @@ fn test_offspring_basic_paid() {
         "CR 702.175a: original + 1 token copy should be on battlefield (offspring_paid=true)"
     );
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after OffspringTrigger resolves"
     );
 }
@@ -333,14 +334,20 @@ fn test_offspring_token_is_1_1() {
     // Find the token (is_token == true).
     let token_id = all_warriors
         .iter()
-        .find(|id| state.objects.get(id).map(|o| o.is_token).unwrap_or(false))
+        .find(|id| state.objects().get(id).map(|o| o.is_token).unwrap_or(false))
         .copied()
         .expect("CR 702.175a: exactly one token should exist");
 
     // Find the original (is_token == false).
     let original_id = all_warriors
         .iter()
-        .find(|id| state.objects.get(id).map(|o| !o.is_token).unwrap_or(false))
+        .find(|id| {
+            state
+                .objects()
+                .get(id)
+                .map(|o| !o.is_token)
+                .unwrap_or(false)
+        })
         .copied()
         .expect("CR 702.175a: exactly one non-token should exist");
 
@@ -401,14 +408,14 @@ fn test_offspring_rejected_without_keyword() {
         .unwrap();
 
     let mut state = state;
-    let ps = state.players.get_mut(&p1).unwrap();
+    let ps = state.players_mut().get_mut(&p1).unwrap();
     ps.mana_pool.add(ManaColor::Colorless, 1);
     ps.mana_pool.add(ManaColor::White, 1);
     ps.mana_pool.add(ManaColor::Colorless, 2); // extra for bogus offspring payment
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Plain Soldier Offspring")
         .map(|(id, _)| *id)
@@ -449,13 +456,13 @@ fn test_offspring_tokens_not_cast() {
     let (state, p1, p2, card_id) = setup_offspring_state(2);
 
     // Record spells_cast_this_turn before casting.
-    let spells_before = state.players[&p1].spells_cast_this_turn;
+    let spells_before = state.players()[&p1].spells_cast_this_turn;
 
     // Cast the Offspring creature.
     let (state, _) = cast_offspring(state, p1, card_id, true);
 
     // spells_cast_this_turn should have increased by 1 (the spell itself).
-    let spells_after_cast = state.players[&p1].spells_cast_this_turn;
+    let spells_after_cast = state.players()[&p1].spells_cast_this_turn;
     assert_eq!(
         spells_after_cast,
         spells_before + 1,
@@ -469,7 +476,7 @@ fn test_offspring_tokens_not_cast() {
 
     // spells_cast_this_turn should STILL be spells_before + 1 -- token not cast.
     assert_eq!(
-        state.players[&p1].spells_cast_this_turn,
+        state.players()[&p1].spells_cast_this_turn,
         spells_before + 1,
         "ruling 2024-07-26: token copies created by Offspring are not cast; \
          spells_cast_this_turn should not increase"
@@ -501,7 +508,7 @@ fn test_offspring_source_leaves_still_creates_token() {
         "original should be on battlefield after spell resolves"
     );
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "OffspringTrigger should be on stack"
     );
@@ -514,7 +521,7 @@ fn test_offspring_source_leaves_still_creates_token() {
 
     // Manually move the original to exile (simulating removal before trigger resolves).
     let mut state = state;
-    let _ = state.move_object_to_zone(original_id, ZoneId::Exile);
+    let _ = test_util::move_object_to_zone(&mut state, original_id, ZoneId::Exile);
 
     assert_eq!(
         count_on_battlefield(&state, "Offspring Warrior"),
@@ -522,7 +529,7 @@ fn test_offspring_source_leaves_still_creates_token() {
         "original should be in exile after manual removal"
     );
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "OffspringTrigger should still be on stack"
     );
@@ -544,7 +551,7 @@ fn test_offspring_source_leaves_still_creates_token() {
     assert!(
         token_ids
             .iter()
-            .all(|id| state.objects.get(id).map(|o| o.is_token).unwrap_or(false)),
+            .all(|id| state.objects().get(id).map(|o| o.is_token).unwrap_or(false)),
         "the remaining Offspring Warrior should be a token"
     );
 }
@@ -583,7 +590,7 @@ fn test_offspring_token_pt_is_layer7b_known_deviation() {
 
     // OffspringTrigger is now on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "OffspringTrigger should be on stack before token creation"
     );
@@ -593,7 +600,7 @@ fn test_offspring_token_pt_is_layer7b_known_deviation() {
 
     // Locate the token.
     let tokens: Vec<ObjectId> = state
-        .objects
+        .objects()
         .iter()
         .filter(|(_, obj)| {
             obj.characteristics.name == "Offspring Warrior"

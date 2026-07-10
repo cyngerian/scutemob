@@ -30,7 +30,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -42,7 +42,7 @@ fn find_object_in_zone(
     name: &str,
     zone: ZoneId,
 ) -> Option<mtg_engine::ObjectId> {
-    state.objects.iter().find_map(|(&id, obj)| {
+    state.objects().iter().find_map(|(&id, obj)| {
         if obj.characteristics.name == name && obj.zone == zone {
             Some(id)
         } else {
@@ -204,18 +204,18 @@ fn setup_bargain_state(
 
     // Add {1}{W} mana.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Bargain Instant");
     (state, p1, p2, spell_id)
@@ -236,7 +236,7 @@ fn test_bargain_basic_instant_with_sacrifice() {
         .token(); // is_token: true
 
     let (state, _p1, _p2, spell_id) = setup_bargain_state(vec![token]);
-    let initial_life = state.players[&p1].life_total;
+    let initial_life = state.players()[&p1].life_total;
 
     let token_id = find_object(&state, "Creature Token");
 
@@ -268,7 +268,7 @@ fn test_bargain_basic_instant_with_sacrifice() {
 
     // CR 702.166b: The spell on the stack should be marked as bargained.
     assert!(
-        state.stack_objects[0].was_bargained,
+        state.stack_objects()[0].was_bargained,
         "CR 702.166b: was_bargained should be true on stack object after paying bargain cost"
     );
 
@@ -284,7 +284,7 @@ fn test_bargain_basic_instant_with_sacrifice() {
 
     // CR 702.166b: Bargained effect (3 life) should have applied.
     assert_eq!(
-        state.players[&p1].life_total,
+        state.players()[&p1].life_total,
         initial_life + 3,
         "CR 702.166b: bargained spell should grant 3 life (not 1)"
     );
@@ -310,7 +310,7 @@ fn test_bargain_basic_instant_without_sacrifice() {
     let p1 = p(1);
 
     let (state, _p1, _p2, spell_id) = setup_bargain_state(vec![]);
-    let initial_life = state.players[&p1].life_total;
+    let initial_life = state.players()[&p1].life_total;
 
     // Cast Bargain Instant without bargaining.
     let (state, _) = process_command(
@@ -337,7 +337,7 @@ fn test_bargain_basic_instant_without_sacrifice() {
 
     // CR 702.166b: The spell on the stack should NOT be marked as bargained.
     assert!(
-        !state.stack_objects[0].was_bargained,
+        !state.stack_objects()[0].was_bargained,
         "CR 702.166b: was_bargained should be false when sacrifice was not provided"
     );
 
@@ -346,7 +346,7 @@ fn test_bargain_basic_instant_without_sacrifice() {
 
     // Base effect (1 life) should apply, not the bargained effect.
     assert_eq!(
-        state.players[&p1].life_total,
+        state.players()[&p1].life_total,
         initial_life + 1,
         "CR 702.166a: un-bargained spell should grant only 1 life (not 3)"
     );
@@ -416,7 +416,7 @@ fn test_bargain_sacrifice_artifact() {
 
     // CR 702.166b: spell should be bargained.
     assert!(
-        state.stack_objects[0].was_bargained,
+        state.stack_objects()[0].was_bargained,
         "CR 702.166a: artifact sacrifice should mark spell as bargained"
     );
 
@@ -472,7 +472,7 @@ fn test_bargain_sacrifice_enchantment() {
 
     // CR 702.166b: spell should be bargained.
     assert!(
-        state.stack_objects[0].was_bargained,
+        state.stack_objects()[0].was_bargained,
         "CR 702.166a: enchantment sacrifice should mark spell as bargained"
     );
 
@@ -530,7 +530,7 @@ fn test_bargain_sacrifice_creature_token() {
 
     // CR 702.166b: spell should be bargained.
     assert!(
-        state.stack_objects[0].was_bargained,
+        state.stack_objects()[0].was_bargained,
         "CR 702.166a: creature token sacrifice should mark spell as bargained (tokens qualify)"
     );
 }
@@ -685,12 +685,12 @@ fn test_bargain_no_keyword_sacrifice_ignored() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Plain Instant");
     let artifact_id = find_object(&state, "Sol Ring");
@@ -770,12 +770,12 @@ fn test_bargain_permanent_etb_was_bargained() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Bargain Artifact");
     let enchantment_id = find_object(&state, "Pacifism");
@@ -808,7 +808,7 @@ fn test_bargain_permanent_etb_was_bargained() {
 
     // Spell is on the stack and is bargained.
     assert!(
-        state.stack_objects[0].was_bargained,
+        state.stack_objects()[0].was_bargained,
         "CR 702.166b: was_bargained must be true on StackObject before resolution"
     );
 
@@ -816,7 +816,7 @@ fn test_bargain_permanent_etb_was_bargained() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // Find the Bargain Artifact on the battlefield.
-    let artifact_on_bf = state.objects.values().find(|obj| {
+    let artifact_on_bf = state.objects().values().find(|obj| {
         obj.characteristics.name == "Bargain Artifact" && obj.zone == ZoneId::Battlefield
     });
 
@@ -868,12 +868,12 @@ fn test_bargain_permanent_etb_not_bargained() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Bargain Artifact");
 
@@ -902,7 +902,7 @@ fn test_bargain_permanent_etb_not_bargained() {
 
     // Spell is on the stack and is NOT bargained.
     assert!(
-        !state.stack_objects[0].was_bargained,
+        !state.stack_objects()[0].was_bargained,
         "CR 702.166b: was_bargained must be false on StackObject when no sacrifice provided"
     );
 
@@ -910,7 +910,7 @@ fn test_bargain_permanent_etb_not_bargained() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // Find the Bargain Artifact on the battlefield.
-    let artifact_on_bf = state.objects.values().find(|obj| {
+    let artifact_on_bf = state.objects().values().find(|obj| {
         obj.characteristics.name == "Bargain Artifact" && obj.zone == ZoneId::Battlefield
     });
 

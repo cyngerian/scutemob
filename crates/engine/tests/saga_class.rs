@@ -4,6 +4,7 @@
 //! CR 714.3a (ETB lore counter), CR 714.3b (precombat main lore counter),
 //! CR 714.4 (sacrifice after final chapter), CR 716.2a (level-up).
 
+use mtg_engine::state::test_util;
 use mtg_engine::{check_and_apply_sbas, *};
 
 // ── Saga Helpers ────────────────────────────────────────────────────────────
@@ -73,7 +74,7 @@ fn build_saga_state() -> (GameState, ObjectId, PlayerId) {
         .unwrap();
 
     let saga_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Test Saga")
         .unwrap()
@@ -114,7 +115,7 @@ fn saga_etb_places_lore_counter_cr714_3a() {
 
     // Simpler test: verify that the precombat_main TBA adds a lore counter.
     let saga_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Test Saga")
         .unwrap()
@@ -122,7 +123,7 @@ fn saga_etb_places_lore_counter_cr714_3a() {
 
     // No lore counter yet (builder doesn't fire ETB replacements).
     let lore = state
-        .objects
+        .objects()
         .get(&saga_id)
         .unwrap()
         .counters
@@ -136,7 +137,7 @@ fn saga_etb_places_lore_counter_cr714_3a() {
 
     // Should have added a lore counter.
     let lore = state
-        .objects
+        .objects()
         .get(&saga_id)
         .unwrap()
         .counters
@@ -150,7 +151,7 @@ fn saga_etb_places_lore_counter_cr714_3a() {
 
     // Should have queued a chapter 1 trigger.
     assert!(
-        !state.pending_triggers.is_empty(),
+        !state.pending_triggers().is_empty(),
         "Chapter 1 trigger should be queued"
     );
 }
@@ -162,7 +163,7 @@ fn saga_precombat_main_adds_lore_counter_cr714_3b() {
     let (mut state, saga_id, _p1) = build_saga_state();
 
     // Manually set 1 lore counter (simulating ETB already happened).
-    if let Some(obj) = state.objects.get_mut(&saga_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&saga_id) {
         obj.counters.insert(CounterType::Lore, 1);
     }
 
@@ -170,7 +171,7 @@ fn saga_precombat_main_adds_lore_counter_cr714_3b() {
     let _events = mtg_engine::rules::turn_actions::execute_turn_based_actions(&mut state).unwrap();
 
     let lore = state
-        .objects
+        .objects()
         .get(&saga_id)
         .unwrap()
         .counters
@@ -189,18 +190,18 @@ fn saga_chapter_trigger_fires_at_threshold_cr714_2b() {
     let (mut state, saga_id, _p1) = build_saga_state();
 
     // Set lore to 1 (chapter 1 already happened). Precombat main goes to 2.
-    if let Some(obj) = state.objects.get_mut(&saga_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&saga_id) {
         obj.counters.insert(CounterType::Lore, 1);
     }
 
     // Clear any existing triggers.
-    state.pending_triggers = im::Vector::new();
+    *state.pending_triggers_mut() = im::Vector::new();
 
     let _events = mtg_engine::rules::turn_actions::execute_turn_based_actions(&mut state).unwrap();
 
     // Chapter 2 should be queued (was < 2, now >= 2).
     assert!(
-        !state.pending_triggers.is_empty(),
+        !state.pending_triggers().is_empty(),
         "Chapter 2 trigger should be queued when lore counter goes from 1 to 2"
     );
 }
@@ -211,10 +212,10 @@ fn saga_multiple_chapters_can_trigger_cr714_2c() {
     let (mut state, saga_id, p1) = build_saga_state();
 
     // Set lore to 0 — then manually add 2 counters to cross chapters 1 AND 2.
-    state.pending_triggers = im::Vector::new();
+    *state.pending_triggers_mut() = im::Vector::new();
 
     // Use the fire_saga_chapter_triggers function directly.
-    let registry = state.card_registry.clone();
+    let registry = state.card_registry().clone();
     let def = registry.get(CardId("test-saga".to_string())).unwrap();
     let _events = mtg_engine::rules::replacement::fire_saga_chapter_triggers(
         &mut state, saga_id, p1, 0, 2, def,
@@ -222,7 +223,7 @@ fn saga_multiple_chapters_can_trigger_cr714_2c() {
 
     // Both chapter 1 (was < 1, now >= 1) and chapter 2 (was < 2, now >= 2) should trigger.
     assert_eq!(
-        state.pending_triggers.len(),
+        state.pending_triggers().len(),
         2,
         "Both chapter 1 and 2 should trigger when lore jumps from 0 to 2"
     );
@@ -234,7 +235,7 @@ fn saga_sacrifice_sba_after_final_chapter_cr714_4() {
     let (mut state, saga_id, _p1) = build_saga_state();
 
     // Set lore to 3 (final chapter number for our 3-chapter saga).
-    if let Some(obj) = state.objects.get_mut(&saga_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&saga_id) {
         obj.counters.insert(CounterType::Lore, 3);
     }
 
@@ -243,7 +244,7 @@ fn saga_sacrifice_sba_after_final_chapter_cr714_4() {
 
     // Saga should no longer be on the battlefield.
     let saga_on_bf = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Test Saga" && o.zone == ZoneId::Battlefield);
     assert!(
@@ -258,12 +259,12 @@ fn saga_not_sacrificed_while_chapter_on_stack_cr714_4() {
     let (mut state, saga_id, p1) = build_saga_state();
 
     // Set lore to 3 (final chapter).
-    if let Some(obj) = state.objects.get_mut(&saga_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&saga_id) {
         obj.counters.insert(CounterType::Lore, 3);
     }
 
     // Put a TriggeredAbility from this Saga on the stack (simulating chapter trigger).
-    let stack_id = state.next_object_id();
+    let stack_id = test_util::next_object_id(&mut state);
     let stack_obj = StackObject {
         id: stack_id,
         controller: p1,
@@ -316,13 +317,13 @@ fn saga_not_sacrificed_while_chapter_on_stack_cr714_4() {
         lki_counters: im::OrdMap::new(),
         lki_power: None,
     };
-    state.stack_objects.push_back(stack_obj);
+    state.stack_objects_mut().push_back(stack_obj);
 
     // Run SBAs — Saga should NOT be sacrificed because chapter is on the stack.
     let _events = check_and_apply_sbas(&mut state);
 
     let saga_on_bf = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Test Saga" && o.zone == ZoneId::Battlefield);
     assert!(
@@ -411,19 +412,19 @@ fn build_class_state() -> (GameState, ObjectId, PlayerId) {
         .unwrap();
 
     let class_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Test Class")
         .unwrap()
         .id;
 
     // Set class_level to 1 (simulating ETB).
-    if let Some(obj) = state.objects.get_mut(&class_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&class_id) {
         obj.class_level = 1;
     }
 
     // Give player enough mana.
-    if let Some(player) = state.players.get_mut(&p1) {
+    if let Some(player) = state.players_mut().get_mut(&p1) {
         player.mana_pool.green = 5;
         player.mana_pool.colorless = 10;
     }
@@ -453,13 +454,13 @@ fn class_level_up_from_1_to_2_cr716_2a() {
     state = new_state;
 
     // Level is NOT set yet — it's on the stack.
-    let class_level = state.objects.get(&class_id).unwrap().class_level;
+    let class_level = state.objects().get(&class_id).unwrap().class_level;
     assert_eq!(
         class_level, 1,
         "Level should still be 1 while level-up is on the stack"
     );
     assert!(
-        !state.stack_objects.is_empty(),
+        !state.stack_objects().is_empty(),
         "ClassLevelAbility should be on the stack"
     );
 
@@ -469,7 +470,7 @@ fn class_level_up_from_1_to_2_cr716_2a() {
         state = s;
     }
 
-    let class_level = state.objects.get(&class_id).unwrap().class_level;
+    let class_level = state.objects().get(&class_id).unwrap().class_level;
     assert_eq!(
         class_level, 2,
         "Class should be at level 2 after level-up resolves"
@@ -503,7 +504,7 @@ fn class_level_up_requires_sorcery_speed_cr716_2a() {
     let (mut state, class_id, p1) = build_class_state();
 
     // Put something on the stack.
-    let stack_id = state.next_object_id();
+    let stack_id = test_util::next_object_id(&mut state);
     let stack_obj = StackObject {
         id: stack_id,
         controller: p1,
@@ -553,7 +554,7 @@ fn class_level_up_requires_sorcery_speed_cr716_2a() {
         lki_counters: im::OrdMap::new(),
         lki_power: None,
     };
-    state.stack_objects.push_back(stack_obj);
+    state.stack_objects_mut().push_back(stack_obj);
 
     let result = process_command(
         state,
@@ -576,7 +577,7 @@ fn class_level_up_requires_mana_payment_cr716_2a() {
     let (mut state, class_id, p1) = build_class_state();
 
     // Empty the mana pool.
-    if let Some(player) = state.players.get_mut(&p1) {
+    if let Some(player) = state.players_mut().get_mut(&p1) {
         player.mana_pool = ManaPool::default();
     }
 
@@ -620,7 +621,7 @@ fn class_sequential_level_up_cr716_2a() {
         state = s;
     }
 
-    assert_eq!(state.objects.get(&class_id).unwrap().class_level, 2);
+    assert_eq!(state.objects().get(&class_id).unwrap().class_level, 2);
 
     // Level 2 → 3 (pushed onto stack).
     let (s, _) = process_command(
@@ -641,7 +642,7 @@ fn class_sequential_level_up_cr716_2a() {
     }
 
     assert_eq!(
-        state.objects.get(&class_id).unwrap().class_level,
+        state.objects().get(&class_id).unwrap().class_level,
         3,
         "Class should be at level 3 after two level-ups resolve"
     );

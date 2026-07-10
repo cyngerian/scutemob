@@ -37,7 +37,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == name)
         .map(|(&id, _)| id)
@@ -70,7 +70,7 @@ fn test_modify_power_dynamic_substituted_at_apply_time() {
 
     // Pre-place 3 oil counters on the creature.
     {
-        let obj = state.objects.get_mut(&fuseling_id).unwrap();
+        let obj = state.objects_mut().get_mut(&fuseling_id).unwrap();
         obj.counters.insert(CounterType::Oil, 3);
     }
 
@@ -96,7 +96,7 @@ fn test_modify_power_dynamic_substituted_at_apply_time() {
     execute_effect(&mut state, &effect, &mut ctx);
 
     // Stored effect must be ModifyPower(3), NOT ModifyPowerDynamic.
-    let dynamic_in_effects = state.continuous_effects.iter().any(|e| {
+    let dynamic_in_effects = state.continuous_effects().iter().any(|e| {
         matches!(
             &e.modification,
             LayerModification::ModifyPowerDynamic { .. }
@@ -109,7 +109,7 @@ fn test_modify_power_dynamic_substituted_at_apply_time() {
     );
 
     let has_modify_power_3 = state
-        .continuous_effects
+        .continuous_effects()
         .iter()
         .any(|e| matches!(&e.modification, LayerModification::ModifyPower(3)));
     assert!(
@@ -149,7 +149,7 @@ fn test_modify_toughness_dynamic_substituted_at_apply_time() {
 
     // Pre-place 2 oil counters on the creature.
     {
-        let obj = state.objects.get_mut(&stub_id).unwrap();
+        let obj = state.objects_mut().get_mut(&stub_id).unwrap();
         obj.counters.insert(CounterType::Oil, 2);
     }
 
@@ -174,7 +174,7 @@ fn test_modify_toughness_dynamic_substituted_at_apply_time() {
     execute_effect(&mut state, &effect, &mut ctx);
 
     // Stored effect must be ModifyToughness(2), NOT ModifyToughnessDynamic.
-    let dynamic_in_effects = state.continuous_effects.iter().any(|e| {
+    let dynamic_in_effects = state.continuous_effects().iter().any(|e| {
         matches!(
             &e.modification,
             LayerModification::ModifyToughnessDynamic { .. }
@@ -187,7 +187,7 @@ fn test_modify_toughness_dynamic_substituted_at_apply_time() {
     );
 
     let has_modify_toughness_2 = state
-        .continuous_effects
+        .continuous_effects()
         .iter()
         .any(|e| matches!(&e.modification, LayerModification::ModifyToughness(2)));
     assert!(
@@ -244,7 +244,7 @@ fn test_modify_power_dynamic_resolves_via_cda_amount_when_unsubstituted() {
     // Directly insert an unsubstituted ModifyPowerDynamic — simulates the residual case
     // where substitution was bypassed. PB-CC-C-followup: this now calls resolve_cda_amount
     // instead of debug_assert!-ing.
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(9900),
         source: Some(stub_id),
         timestamp: 9900,
@@ -286,7 +286,7 @@ fn test_modify_toughness_dynamic_resolves_via_cda_amount_when_unsubstituted() {
 
     let stub_id = find_object(&state, "Bug Stub T");
 
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(9901),
         source: Some(stub_id),
         timestamp: 9901,
@@ -349,7 +349,7 @@ fn test_modify_power_dynamic_x_locked_at_resolution() {
 
     // Step 1: Place 2 oil counters on the creature (state at spell resolution time).
     {
-        let obj = state.objects.get_mut(&target_id).unwrap();
+        let obj = state.objects_mut().get_mut(&target_id).unwrap();
         obj.counters.insert(CounterType::Oil, 2);
     }
 
@@ -375,7 +375,7 @@ fn test_modify_power_dynamic_x_locked_at_resolution() {
     execute_effect(&mut state, &effect, &mut ctx);
 
     // Step 3: Verify substitution stored ModifyPower(2), not the dynamic placeholder.
-    let dynamic_in_effects = state.continuous_effects.iter().any(|e| {
+    let dynamic_in_effects = state.continuous_effects().iter().any(|e| {
         matches!(
             &e.modification,
             LayerModification::ModifyPowerDynamic { .. }
@@ -397,7 +397,7 @@ fn test_modify_power_dynamic_x_locked_at_resolution() {
 
     // Step 5: Mutate source counter count (simulate post-resolution counter additions).
     {
-        let obj = state.objects.get_mut(&target_id).unwrap();
+        let obj = state.objects_mut().get_mut(&target_id).unwrap();
         obj.counters.insert(CounterType::Oil, 5);
     }
 

@@ -26,7 +26,7 @@ use std::collections::HashMap;
 
 fn find_object_id(state: &GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -35,7 +35,7 @@ fn find_object_id(state: &GameState, name: &str) -> mtg_engine::ObjectId {
 
 fn life_total(state: &GameState, player: PlayerId) -> i32 {
     state
-        .players
+        .players()
         .get(&player)
         .map(|p| p.life_total)
         .unwrap_or_default()
@@ -43,7 +43,7 @@ fn life_total(state: &GameState, player: PlayerId) -> i32 {
 
 fn hand_count(state: &GameState, player: PlayerId) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(player))
         .count()
@@ -52,12 +52,12 @@ fn hand_count(state: &GameState, player: PlayerId) -> usize {
 /// Count TriggeredAbility stack objects from a given source.
 fn trigger_count_for(state: &GameState, source: mtg_engine::ObjectId) -> usize {
     let pending = state
-        .pending_triggers
+        .pending_triggers()
         .iter()
         .filter(|t| t.source == source)
         .count();
     let on_stack = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .filter(|so| {
             matches!(
@@ -91,15 +91,20 @@ fn cast_creature(
     mana_amount: u32,
 ) -> (GameState, Vec<GameEvent>) {
     let card_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == ZoneId::Hand(player))
         .map(|(id, _)| *id)
         .unwrap_or_else(|| panic!("card '{}' not found in {}'s hand", name, player.0));
 
     let mut state = state;
-    state.players.get_mut(&player).unwrap().mana_pool.colorless = mana_amount;
-    state.turn.priority_holder = Some(player);
+    state
+        .players_mut()
+        .get_mut(&player)
+        .unwrap()
+        .mana_pool
+        .colorless = mana_amount;
+    state.turn_mut().priority_holder = Some(player);
 
     process_command(
         state,
@@ -289,8 +294,8 @@ fn test_etb_subtype_filter_fires_on_match() {
         trigger_count_for(&state, watcher_id) > 0,
         "CR 603.2 / CR 205.3: Dragon-ETB trigger should fire when a Dragon enters. \
          pending={}, stack={}",
-        state.pending_triggers.len(),
-        state.stack_objects.len()
+        state.pending_triggers().len(),
+        state.stack_objects().len()
     );
 
     // Resolve the trigger — P1 gains 1 life.
@@ -550,7 +555,7 @@ fn test_etb_nontoken_filter_no_fire_on_token() {
         "CR 111.1 / CR 603.2: Nontoken-Dragon-ETB trigger must NOT fire when a token Dragon \
          enters (is_nontoken filter). stack_objects={:?}",
         state
-            .stack_objects
+            .stack_objects()
             .iter()
             .map(|s| &s.kind)
             .collect::<Vec<_>>()
@@ -644,8 +649,8 @@ fn test_etb_subtype_and_nontoken_combined() {
         trigger_count_for(&state, watcher_id) > 0,
         "CR 603.2 / CR 205.3: Nontoken-Dragon trigger MUST fire for nontoken Dragon. \
          pending={}, stack={}",
-        state.pending_triggers.len(),
-        state.stack_objects.len()
+        state.pending_triggers().len(),
+        state.stack_objects().len()
     );
 
     // Resolve trigger — P1 draws.
@@ -740,8 +745,8 @@ fn test_etb_exclude_self_with_subtype() {
         trigger_count_for(&state, lathliss_id) > 0,
         "CR 603.2: Lathliss trigger MUST fire when another nontoken Dragon enters. \
          pending={}, stack={}",
-        state.pending_triggers.len(),
-        state.stack_objects.len()
+        state.pending_triggers().len(),
+        state.stack_objects().len()
     );
 
     // Resolve trigger — P1 draws.
@@ -897,7 +902,7 @@ fn test_etb_ganax_treasure_integration() {
 
     let count_treasures = |state: &GameState| -> usize {
         state
-            .objects
+            .objects()
             .values()
             .filter(|o| o.characteristics.name == "Treasure" && o.is_token)
             .count()
@@ -1071,7 +1076,7 @@ fn test_etb_lathliss_token_integration() {
 
     let count_dragon_tokens = |state: &GameState| -> usize {
         state
-            .objects
+            .objects()
             .values()
             .filter(|o| {
                 o.is_token
@@ -1207,7 +1212,7 @@ fn test_etb_great_henge_counter_on_entering_creature() {
 
     // Verify +1/+1 counter is on the Elf (TriggeringCreature), not on Henge.
     let elf_id = find_object_id(&state, "Henge Test Elf");
-    let elf = state.objects.get(&elf_id).unwrap();
+    let elf = state.objects().get(&elf_id).unwrap();
     let elf_plus_counters = elf
         .counters
         .get(&mtg_engine::CounterType::PlusOnePlusOne)
@@ -1221,7 +1226,7 @@ fn test_etb_great_henge_counter_on_entering_creature() {
 
     // Verify Henge has no +1/+1 counters (old EffectTarget::Source bug would put it here).
     let henge_id = find_object_id(&state, "Great Henge Equivalent");
-    let henge_obj = state.objects.get(&henge_id);
+    let henge_obj = state.objects().get(&henge_id);
     let henge_counters = henge_obj
         .map(|h| {
             h.counters
@@ -1323,11 +1328,11 @@ fn test_etb_death_path_unaffected() {
 
     // Verify both creatures died.
     let dragon_gone = !state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Dying Dragon" && o.zone == ZoneId::Battlefield);
     let goblin_gone = !state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Dying Goblin" && o.zone == ZoneId::Battlefield);
     assert!(
@@ -1464,7 +1469,7 @@ fn test_etb_ganax_carddef_integration_via_enrich() {
 
     let count_treasures = |state: &GameState| -> usize {
         state
-            .objects
+            .objects()
             .values()
             .filter(|o| o.characteristics.name == "Treasure" && o.is_token)
             .count()
@@ -1630,7 +1635,7 @@ fn test_etb_lathliss_carddef_integration_via_enrich() {
 
     let count_dragon_tokens = |state: &GameState| -> usize {
         state
-            .objects
+            .objects()
             .values()
             .filter(|o| {
                 o.is_token

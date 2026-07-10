@@ -31,7 +31,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == name)
         .map(|(&id, _)| id)
@@ -45,7 +45,7 @@ fn load_defs() -> HashMap<String, CardDefinition> {
 
 fn make_ctx(state: &GameState, source: ObjectId) -> EffectContext {
     let controller = state
-        .objects
+        .objects()
         .get(&source)
         .map(|o| o.controller)
         .unwrap_or(p(1));
@@ -108,7 +108,7 @@ fn test_chosen_creature_type_etb_sets_type() {
 
     // The source permanent should have chosen_creature_type set.
     let chosen_on_perm = state2
-        .objects
+        .objects()
         .get(&source_id)
         .and_then(|o| o.chosen_creature_type.clone());
     assert_eq!(
@@ -153,7 +153,7 @@ fn test_chosen_type_anthem_basic() {
 
     let mut state2 = state;
     // Set chosen type on the banner.
-    if let Some(obj) = state2.objects.get_mut(&banner_id) {
+    if let Some(obj) = state2.objects_mut().get_mut(&banner_id) {
         obj.chosen_creature_type = Some(SubType("Elf".to_string()));
     }
 
@@ -165,7 +165,7 @@ fn test_chosen_type_anthem_basic() {
         LayerModification::ModifyBoth(1),
         EffectFilter::CreaturesYouControlOfChosenType,
     );
-    state2.continuous_effects.push_back(effect);
+    state2.continuous_effects_mut().push_back(effect);
 
     let elf_chars = calculate_characteristics(&state2, elf_id).unwrap();
     let human_chars = calculate_characteristics(&state2, human_id).unwrap();
@@ -216,7 +216,7 @@ fn test_chosen_type_anthem_other() {
     let other_elf_id = find_object(&state, "Other Elf");
 
     let mut state2 = state;
-    if let Some(obj) = state2.objects.get_mut(&lord_id) {
+    if let Some(obj) = state2.objects_mut().get_mut(&lord_id) {
         obj.chosen_creature_type = Some(SubType("Elf".to_string()));
     }
 
@@ -227,7 +227,7 @@ fn test_chosen_type_anthem_other() {
         LayerModification::ModifyBoth(1),
         EffectFilter::OtherCreaturesYouControlOfChosenType,
     );
-    state2.continuous_effects.push_back(effect);
+    state2.continuous_effects_mut().push_back(effect);
 
     let lord_chars = calculate_characteristics(&state2, lord_id).unwrap();
     let other_chars = calculate_characteristics(&state2, other_elf_id).unwrap();
@@ -361,13 +361,13 @@ fn test_chosen_type_spell_level_choice_propagates() {
     let human_id = find_object(&state2, "Doomed Human");
 
     assert_eq!(
-        state2.objects.get(&elf_id).map(|o| o.zone),
+        state2.objects().get(&elf_id).map(|o| o.zone),
         Some(ZoneId::Battlefield),
         "Elf should survive (of chosen type) — CR 205.3m"
     );
     assert!(
         matches!(
-            state2.objects.get(&human_id).map(|o| &o.zone),
+            state2.objects().get(&human_id).map(|o| &o.zone),
             Some(ZoneId::Graveyard(_))
         ),
         "Human should be destroyed (not of chosen type) — CR 205.3m"
@@ -463,25 +463,25 @@ fn test_chosen_type_destroy_all_except() {
     let human_b_id = find_object(&state2, "Human B");
 
     assert_eq!(
-        state2.objects.get(&elf_a_id).map(|o| o.zone),
+        state2.objects().get(&elf_a_id).map(|o| o.zone),
         Some(ZoneId::Battlefield),
         "Elf A should survive (chosen type)"
     );
     assert_eq!(
-        state2.objects.get(&elf_b_id).map(|o| o.zone),
+        state2.objects().get(&elf_b_id).map(|o| o.zone),
         Some(ZoneId::Battlefield),
         "Elf B should survive (chosen type)"
     );
     assert!(
         matches!(
-            state2.objects.get(&human_a_id).map(|o| &o.zone),
+            state2.objects().get(&human_a_id).map(|o| &o.zone),
             Some(ZoneId::Graveyard(_))
         ),
         "Human A should be destroyed"
     );
     assert!(
         matches!(
-            state2.objects.get(&human_b_id).map(|o| &o.zone),
+            state2.objects().get(&human_b_id).map(|o| &o.zone),
             Some(ZoneId::Graveyard(_))
         ),
         "Human B should be destroyed"
@@ -508,7 +508,7 @@ fn test_top_card_creature_of_chosen_type_true() {
 
     let source_id = find_object(&state, "Horn Source");
     let mut state2 = state;
-    if let Some(obj) = state2.objects.get_mut(&source_id) {
+    if let Some(obj) = state2.objects_mut().get_mut(&source_id) {
         obj.chosen_creature_type = Some(SubType("Elf".to_string()));
     }
 
@@ -541,7 +541,7 @@ fn test_top_card_creature_of_chosen_type_false() {
 
     let source_id = find_object(&state, "Horn Source");
     let mut state2 = state;
-    if let Some(obj) = state2.objects.get_mut(&source_id) {
+    if let Some(obj) = state2.objects_mut().get_mut(&source_id) {
         obj.chosen_creature_type = Some(SubType("Elf".to_string()));
     }
 
@@ -622,11 +622,15 @@ fn test_chosen_type_permanent_count_via_effect() {
 
     let source_id = find_object(&state, "Count Source");
     let mut state2 = state;
-    if let Some(obj) = state2.objects.get_mut(&source_id) {
+    if let Some(obj) = state2.objects_mut().get_mut(&source_id) {
         obj.chosen_creature_type = Some(SubType("Elf".to_string()));
     }
 
-    let initial_life = state2.players.get(&p1).map(|ps| ps.life_total).unwrap_or(0);
+    let initial_life = state2
+        .players()
+        .get(&p1)
+        .map(|ps| ps.life_total)
+        .unwrap_or(0);
     let mut ctx = make_ctx(&state2, source_id);
 
     // GainLife with ChosenTypeCreatureCount: should gain 2 life (2 Elves controlled).
@@ -641,7 +645,11 @@ fn test_chosen_type_permanent_count_via_effect() {
         &mut ctx,
     );
 
-    let final_life = state2.players.get(&p1).map(|ps| ps.life_total).unwrap_or(0);
+    let final_life = state2
+        .players()
+        .get(&p1)
+        .map(|ps| ps.life_total)
+        .unwrap_or(0);
     assert_eq!(
         final_life - initial_life,
         2,

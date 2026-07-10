@@ -42,7 +42,7 @@ fn cid(s: &str) -> CardId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -51,7 +51,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -100,7 +100,7 @@ fn test_domain_count_zero_lands() {
 
     let source_id = find_object(&state, "Source");
     let initial_hand = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -118,7 +118,7 @@ fn test_domain_count_zero_lands() {
     );
 
     let hand_after = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -172,7 +172,7 @@ fn test_domain_count_all_five_types() {
 
     let source_id = find_object(&state, "Source");
     let initial_hand = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -190,7 +190,7 @@ fn test_domain_count_all_five_types() {
     );
 
     let hand_after = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -236,7 +236,7 @@ fn test_domain_count_duplicate_types() {
 
     let source_id = find_object(&state, "Source");
     let initial_hand = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -254,7 +254,7 @@ fn test_domain_count_duplicate_types() {
     );
 
     let hand_after = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -305,7 +305,7 @@ fn test_domain_count_only_controllers_lands() {
 
     let source_id = find_object(&state, "Source");
     let initial_hand = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -323,7 +323,7 @@ fn test_domain_count_only_controllers_lands() {
     );
 
     let hand_after = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -402,7 +402,7 @@ fn test_domain_count_dual_land() {
         is_cda: false,
         condition: None,
     };
-    state.continuous_effects.push_back(layer4_effect);
+    state.continuous_effects_mut().push_back(layer4_effect);
 
     // Verify via calculate_characteristics that the layer effect is applied.
     let chars = calculate_characteristics(&state, nonbasic_id)
@@ -415,7 +415,7 @@ fn test_domain_count_dual_land() {
     // Now exercise DomainCount via the resolve_amount path (execute_effect).
     // With all 5 basic land subtypes on "Exotic Land", domain count = 5.
     let initial_hand = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -433,7 +433,7 @@ fn test_domain_count_dual_land() {
     );
 
     let hand_after = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -512,7 +512,7 @@ fn test_territorial_maro_cda() {
         is_cda: true,
         condition: None,
     };
-    state.continuous_effects.push_back(cda_effect);
+    state.continuous_effects_mut().push_back(cda_effect);
 
     let chars = calculate_characteristics(&state, maro_id)
         .expect("Territorial Maro should have layer-resolved characteristics");
@@ -585,7 +585,7 @@ fn test_territorial_maro_cda_zero_lands() {
         is_cda: true,
         condition: None,
     };
-    state.continuous_effects.push_back(cda_effect);
+    state.continuous_effects_mut().push_back(cda_effect);
 
     let chars = calculate_characteristics(&state, maro_id)
         .expect("Territorial Maro should have characteristics");
@@ -699,7 +699,7 @@ fn test_commander_free_cast_with_commander() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Test Free Cast Spell");
 
@@ -733,7 +733,7 @@ fn test_commander_free_cast_with_commander() {
         "CR 118.9: SpellCast event expected for CommanderFreeCast"
     );
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 118.9: Spell should be on the stack after free-cast"
     );
@@ -764,7 +764,7 @@ fn test_commander_free_cast_without_commander() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let spell_id = find_object(&state, "Test Free Cast Spell");
 
     let result = process_command(
@@ -846,7 +846,7 @@ fn test_commander_free_cast_any_commander() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let spell_id = find_object(&state, "Test Free Cast Spell");
 
     // p1 controls p2's commander on the battlefield — should satisfy the condition.
@@ -912,17 +912,17 @@ fn test_coiling_oracle_land_to_battlefield() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Add mana to cast Coiling Oracle ({G}{U}).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -1001,15 +1001,15 @@ fn test_coiling_oracle_nonland_to_hand() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool

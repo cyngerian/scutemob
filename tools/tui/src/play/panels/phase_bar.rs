@@ -6,10 +6,10 @@ use ratatui::widgets::*;
 use crate::play::app::PlayApp;
 
 pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
-    let turn = app.state.turn.turn_number;
-    let active = app.state.turn.active_player;
-    let step = &app.state.turn.step;
-    let priority = app.state.turn.priority_holder;
+    let turn = app.state.turn().turn_number;
+    let active = app.state.turn().active_player;
+    let step = &app.state.turn().step;
+    let priority = app.state.turn().priority_holder;
 
     let priority_text = if let Some(p) = priority {
         if p == app.human_player {

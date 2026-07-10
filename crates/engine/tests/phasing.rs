@@ -37,7 +37,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -46,21 +46,21 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 fn is_phased_out(state: &GameState, name: &str) -> bool {
     state
-        .objects
+        .objects()
         .values()
         .any(|obj| obj.characteristics.name == name && obj.status.phased_out)
 }
 
 fn is_phased_out_indirectly(state: &GameState, name: &str) -> bool {
     state
-        .objects
+        .objects()
         .values()
         .any(|obj| obj.characteristics.name == name && obj.phased_out_indirectly)
 }
 
 fn is_on_battlefield(state: &GameState, name: &str) -> bool {
     state
-        .objects
+        .objects()
         .values()
         .any(|obj| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
 }
@@ -151,7 +151,7 @@ fn test_phasing_basic_phase_in_on_next_untap() {
 
     // Manually set phased-out status (simulating previous turn's phase-out).
     let obj_id = find_object(&state, "Phased-Out Creature");
-    if let Some(obj) = state.objects.get_mut(&obj_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&obj_id) {
         obj.status.phased_out = true;
         obj.phased_out_controller = Some(p1);
         // phased_out_indirectly = false (direct phase-out)
@@ -197,7 +197,7 @@ fn test_phasing_phase_in_without_keyword() {
 
     // Manually set phased-out status (as if phased out by "Teferi's Protection" or similar).
     let obj_id = find_object(&state, "Plain Creature");
-    if let Some(obj) = state.objects.get_mut(&obj_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&obj_id) {
         obj.status.phased_out = true;
         obj.phased_out_controller = Some(p1);
     }
@@ -246,7 +246,7 @@ fn test_phasing_no_zone_change_preserves_object_id_and_counters() {
     let obj_id_before = find_object(&state, "Counter Creature");
 
     // Add a +1/+1 counter to the creature before phasing.
-    if let Some(obj) = state.objects.get_mut(&obj_id_before) {
+    if let Some(obj) = state.objects_mut().get_mut(&obj_id_before) {
         obj.counters = obj
             .counters
             .update(mtg_engine::CounterType::PlusOnePlusOne, 1);
@@ -262,7 +262,7 @@ fn test_phasing_no_zone_change_preserves_object_id_and_counters() {
     );
 
     // Zone is still Battlefield (phased-out objects remain in their zone).
-    let obj = state.objects.get(&obj_id_after).unwrap();
+    let obj = state.objects().get(&obj_id_after).unwrap();
     assert_eq!(
         obj.zone,
         ZoneId::Battlefield,
@@ -305,10 +305,10 @@ fn test_phasing_indirect_aura_phases_out_with_host() {
     // Manually attach the Aura to the creature.
     let host_id = find_object(&state, "Phasing Host");
     let aura_id = find_object(&state, "Attached Aura");
-    if let Some(host) = state.objects.get_mut(&host_id) {
+    if let Some(host) = state.objects_mut().get_mut(&host_id) {
         host.attachments = vec![aura_id].into_iter().collect();
     }
-    if let Some(aura) = state.objects.get_mut(&aura_id) {
+    if let Some(aura) = state.objects_mut().get_mut(&aura_id) {
         aura.attached_to = Some(host_id);
     }
 
@@ -355,12 +355,12 @@ fn test_phasing_indirect_phases_in_together() {
     let aura_id = find_object(&state, "Phased Aura");
 
     // Attach aura to host.
-    if let Some(host) = state.objects.get_mut(&host_id) {
+    if let Some(host) = state.objects_mut().get_mut(&host_id) {
         host.attachments = vec![aura_id].into_iter().collect();
         host.status.phased_out = true;
         host.phased_out_controller = Some(p1);
     }
-    if let Some(aura) = state.objects.get_mut(&aura_id) {
+    if let Some(aura) = state.objects_mut().get_mut(&aura_id) {
         aura.attached_to = Some(host_id);
         aura.status.phased_out = true;
         aura.phased_out_indirectly = true;
@@ -390,7 +390,7 @@ fn test_phasing_indirect_phases_in_together() {
 
     // Aura should still be attached to the host after phasing in.
     let aura = state
-        .objects
+        .objects()
         .values()
         .find(|obj| obj.characteristics.name == "Phased Aura")
         .unwrap();
@@ -421,7 +421,7 @@ fn test_phasing_no_etb_triggers_on_phase_in() {
 
     // Manually phase out the creature.
     let obj_id = find_object(&state, "ETB Creature");
-    if let Some(obj) = state.objects.get_mut(&obj_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&obj_id) {
         obj.status.phased_out = true;
         obj.phased_out_controller = Some(p1);
     }
@@ -502,7 +502,7 @@ fn test_phasing_emits_phased_in_event() {
 
     // Manually phase out the creature (no Phasing keyword, so it won't re-phase-out).
     let obj_id = find_object(&state, "Plain Creature");
-    if let Some(obj) = state.objects.get_mut(&obj_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&obj_id) {
         obj.status.phased_out = true;
         obj.phased_out_controller = Some(p1);
     }
@@ -545,7 +545,7 @@ fn test_phasing_excluded_from_sba() {
 
     // Manually phase out the 0/0 creature.
     let obj_id = find_object(&state, "Phased-Out Tiny");
-    if let Some(obj) = state.objects.get_mut(&obj_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&obj_id) {
         obj.status.phased_out = true;
         obj.phased_out_controller = Some(p1);
     }
@@ -586,7 +586,7 @@ fn test_phasing_excluded_from_combat_attack() {
 
     // Manually phase out the creature.
     let obj_id = find_object(&state, "Phased-Out Attacker");
-    if let Some(obj) = state.objects.get_mut(&obj_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&obj_id) {
         obj.status.phased_out = true;
         obj.phased_out_controller = Some(p1);
     }
@@ -631,14 +631,14 @@ fn test_phasing_excluded_from_combat_block() {
     let blocker_id = find_object(&state, "Phased-Out Blocker");
 
     // Set up combat with the attacker.
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
     });
 
     // Manually phase out the blocker.
-    if let Some(obj) = state.objects.get_mut(&blocker_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&blocker_id) {
         obj.status.phased_out = true;
         obj.phased_out_controller = Some(p2);
     }
@@ -684,7 +684,7 @@ fn test_phasing_token_survives_phase_out() {
     // Ensure the token exists and is a token.
     let obj_id = find_object(&state, "Phasing Token");
     assert!(
-        state.objects.get(&obj_id).unwrap().is_token,
+        state.objects().get(&obj_id).unwrap().is_token,
         "should be a token"
     );
 
@@ -725,7 +725,7 @@ fn test_phasing_multiplayer_controller_tracking() {
 
     // Manually phase out p1's creature.
     let obj_id = find_object(&state, "P1 Phased Creature");
-    if let Some(obj) = state.objects.get_mut(&obj_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&obj_id) {
         obj.status.phased_out = true;
         obj.phased_out_controller = Some(p1);
     }
@@ -735,7 +735,7 @@ fn test_phasing_multiplayer_controller_tracking() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // State should now be at p2's Upkeep. p1's creature should still be phased out.
-    assert_eq!(state.turn.active_player, p2, "should be p2's turn now");
+    assert_eq!(state.turn().active_player, p2, "should be p2's turn now");
     assert!(
         is_phased_out(&state, "P1 Phased Creature"),
         "CR 702.26a: p1's phased-out creature should NOT phase in during p2's untap step"
@@ -804,14 +804,14 @@ fn test_phasing_excluded_from_continuous_effects() {
 
     // Manually phase out one creature.
     let phased_out_id = find_object(&state, "Phased-Out Creature");
-    if let Some(obj) = state.objects.get_mut(&phased_out_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&phased_out_id) {
         obj.status.phased_out = true;
         obj.phased_out_controller = Some(p1);
     }
 
     // Add a global "+1/+1 to all creatures" continuous effect (Layer 7c / PtModify).
     // CR 702.26e: this effect must NOT apply to the phased-out creature.
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(9001),
         source: None,
         timestamp: 100,

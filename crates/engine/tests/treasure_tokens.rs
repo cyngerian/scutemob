@@ -26,7 +26,7 @@ fn p(n: u64) -> PlayerId {
 /// Find an object in the game state by name (panics if not found).
 fn find_by_name(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -36,7 +36,7 @@ fn find_by_name(state: &GameState, name: &str) -> ObjectId {
 /// Find an object by name in a specific zone. Returns None if not found.
 fn find_by_name_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -45,7 +45,7 @@ fn find_by_name_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<O
 /// Count objects with a given name on the battlefield.
 fn count_on_battlefield(state: &GameState, name: &str) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
         .count()
@@ -109,7 +109,7 @@ fn test_treasure_token_has_mana_ability() {
         .unwrap();
 
     let obj = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Treasure")
         .expect("Treasure token should be on battlefield");
@@ -250,13 +250,13 @@ fn test_treasure_mana_resolves_immediately_no_stack() {
 
     // Stack must be empty — mana abilities do not use the stack (CR 605.3b).
     assert!(
-        new_state.stack_objects.is_empty(),
+        new_state.stack_objects().is_empty(),
         "CR 605.3b: Mana abilities don't use the stack; stack should remain empty"
     );
 
     // Priority is still held by p1 (CR 605.5: mana abilities don't reset priority).
     assert_eq!(
-        new_state.turn.priority_holder,
+        new_state.turn().priority_holder,
         Some(p1),
         "CR 605.5: Player retains priority after activating a mana ability"
     );
@@ -456,7 +456,7 @@ fn test_treasure_token_ceases_to_exist_after_sba() {
     // Token is in the graveyard before SBA check.
     assert!(
         after_sacrifice
-            .objects
+            .objects()
             .values()
             .any(|o| o.characteristics.name == "Treasure" && o.zone == ZoneId::Graveyard(p1)),
         "Treasure should be in graveyard before SBA"
@@ -476,7 +476,7 @@ fn test_treasure_token_ceases_to_exist_after_sba() {
     // Token no longer exists in any zone.
     assert!(
         !after_sba
-            .objects
+            .objects()
             .values()
             .any(|o| o.characteristics.name == "Treasure"),
         "CR 704.5d: Token should no longer exist in any zone after SBA"

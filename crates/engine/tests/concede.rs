@@ -39,7 +39,7 @@ fn test_concede_player_skipped_in_priority() {
 
     // P1 passes → should skip P2 → P3
     let (state, _) = pass(state, PlayerId(1));
-    assert_eq!(state.turn.priority_holder, Some(PlayerId(3)));
+    assert_eq!(state.turn().priority_holder, Some(PlayerId(3)));
 }
 
 #[test]
@@ -52,17 +52,17 @@ fn test_concede_player_turn_skipped() {
 
     // Complete P1's turn by passing for remaining active players
     let mut state = state;
-    while let Some(holder) = state.turn.priority_holder {
-        let old_turn = state.turn.turn_number;
+    while let Some(holder) = state.turn().priority_holder {
+        let old_turn = state.turn().turn_number;
         let (new_state, _) = pass(state, holder);
         state = new_state;
-        if state.turn.turn_number > old_turn {
+        if state.turn().turn_number > old_turn {
             break;
         }
     }
 
     // P2's turn should be skipped → P3 is active
-    assert_eq!(state.turn.active_player, PlayerId(3));
+    assert_eq!(state.turn().active_player, PlayerId(3));
 }
 
 #[test]
@@ -78,7 +78,7 @@ fn test_concede_game_continues() {
         .any(|e| matches!(e, GameEvent::GameOver { .. })));
 
     // Game should continue
-    assert!(state.turn.priority_holder.is_some());
+    assert!(state.turn().priority_holder.is_some());
 }
 
 #[test]
@@ -142,17 +142,17 @@ fn test_concede_active_player_with_all_others_passed_no_double_advance() {
     // Manually set players_passed so P2/P3/P4 have already passed but P1 hasn't.
     // (Simulates: P1 took an action, then P2/P3/P4 passed back to P1.)
     let mut state = state;
-    state.turn.players_passed.insert(PlayerId(2));
-    state.turn.players_passed.insert(PlayerId(3));
-    state.turn.players_passed.insert(PlayerId(4));
-    state.turn.priority_holder = Some(PlayerId(1));
+    state.turn_mut().players_passed.insert(PlayerId(2));
+    state.turn_mut().players_passed.insert(PlayerId(3));
+    state.turn_mut().players_passed.insert(PlayerId(4));
+    state.turn_mut().priority_holder = Some(PlayerId(1));
 
     // P1 (active) concedes — next_priority_player(P1) returns None (all others passed).
     let (state, events) = concede(state, PlayerId(1));
 
     // P2 should now be the active player (next in turn order after P1).
     assert_eq!(
-        state.turn.active_player,
+        state.turn().active_player,
         PlayerId(2),
         "P2 should be active after P1 concedes"
     );
@@ -185,21 +185,21 @@ fn test_concede_active_player_with_all_others_passed_no_double_advance() {
 
 #[test]
 /// MR-M2-15: Conceding while active with in-progress combat must clear
-/// state.combat so the next player doesn't inherit a stale combat state.
+/// state.combat() so the next player doesn't inherit a stale combat state.
 fn test_concede_active_player_during_combat_clears_combat_state() {
     // Set up P1 in BeginningOfCombat (combat state is initialised).
     let state = four_player_at(Step::BeginningOfCombat);
 
     // Initialize a combat state (simulating that begin_combat fired).
     let mut state = state;
-    state.combat = Some(mtg_engine::state::CombatState::new(PlayerId(1)));
+    *state.combat_mut() = Some(mtg_engine::state::CombatState::new(PlayerId(1)));
 
     // P1 concedes while active.
     let (state, _events) = concede(state, PlayerId(1));
 
     // Combat state must be cleared.
     assert!(
-        state.combat.is_none(),
+        state.combat().is_none(),
         "combat state should be cleared when active player concedes"
     );
 }
@@ -219,25 +219,25 @@ fn test_concede_active_player_all_others_passed_turn_advances_cleanly() {
     // that P1, P2, P4 have all passed (P3 now holds priority about to cycle back).
     // Also set last_regular_active so advance_turn() knows to advance from P3 → P4.
     let mut state = state;
-    state.turn.active_player = PlayerId(3);
-    state.turn.last_regular_active = PlayerId(3);
-    state.turn.priority_holder = Some(PlayerId(3));
-    state.turn.players_passed.insert(PlayerId(1));
-    state.turn.players_passed.insert(PlayerId(2));
-    state.turn.players_passed.insert(PlayerId(4));
+    state.turn_mut().active_player = PlayerId(3);
+    state.turn_mut().last_regular_active = PlayerId(3);
+    state.turn_mut().priority_holder = Some(PlayerId(3));
+    state.turn_mut().players_passed.insert(PlayerId(1));
+    state.turn_mut().players_passed.insert(PlayerId(2));
+    state.turn_mut().players_passed.insert(PlayerId(4));
 
     // P3 (active, all others passed) concedes.
     let (state, events) = concede(state, PlayerId(3));
 
     // P3 should be eliminated.
     assert!(
-        state.players[&PlayerId(3)].has_conceded,
+        state.players()[&PlayerId(3)].has_conceded,
         "P3 should be eliminated after conceding"
     );
 
     // P4 should be the next active player (next in turn order after P3).
     assert_eq!(
-        state.turn.active_player,
+        state.turn().active_player,
         PlayerId(4),
         "P4 should be the next active player after P3 concedes"
     );
@@ -248,7 +248,7 @@ fn test_concede_active_player_all_others_passed_turn_advances_cleanly() {
         .any(|e| matches!(e, GameEvent::GameOver { .. })));
     assert_eq!(
         state
-            .players
+            .players()
             .values()
             .filter(|p| !p.has_conceded && !p.has_lost)
             .count(),
@@ -267,20 +267,20 @@ fn test_concede_non_active_player_during_combat() {
     let mut state = four_player_at(Step::BeginningOfCombat);
 
     // Set up a minimal combat state for P1.
-    state.combat = Some(mtg_engine::state::CombatState::new(PlayerId(1)));
+    *state.combat_mut() = Some(mtg_engine::state::CombatState::new(PlayerId(1)));
 
     // P2 concedes during combat.
     let (state, events) = concede(state, PlayerId(2));
 
     // P2 should be eliminated.
     assert!(
-        state.players[&PlayerId(2)].has_conceded,
+        state.players()[&PlayerId(2)].has_conceded,
         "P2 should be eliminated after conceding"
     );
 
     // Combat state remains (P1 is still the active player in combat).
     assert!(
-        state.combat.is_some(),
+        state.combat().is_some(),
         "combat state should NOT be cleared when a non-active player concedes"
     );
 
@@ -291,7 +291,7 @@ fn test_concede_non_active_player_during_combat() {
 
     // P1 still has priority (still in combat).
     assert_eq!(
-        state.turn.active_player,
+        state.turn().active_player,
         PlayerId(1),
         "P1 should still be the active player after non-active P2 concedes"
     );

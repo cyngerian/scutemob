@@ -85,7 +85,7 @@ fn default_cast(player: PlayerId, card: ObjectId) -> Command {
 
 fn find_by_name(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -94,7 +94,7 @@ fn find_by_name(state: &GameState, name: &str) -> ObjectId {
 
 fn is_in_zone(state: &GameState, name: &str, zone_check: impl Fn(&ZoneId) -> bool) -> bool {
     state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == name && zone_check(&o.zone))
 }
@@ -832,7 +832,7 @@ fn test_search_library_no_match_finds_nothing() {
     let (state, _) = pass_all(state, &players);
 
     let hand_count = state
-        .objects
+        .objects()
         .values()
         .filter(|o| matches!(o.zone, ZoneId::Hand(pid) if pid == p(1)))
         .count();

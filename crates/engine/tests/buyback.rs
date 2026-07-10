@@ -33,7 +33,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -45,7 +45,7 @@ fn find_object_in_zone(
     name: &str,
     zone: ZoneId,
 ) -> Option<mtg_engine::ObjectId> {
-    state.objects.iter().find_map(|(&id, obj)| {
+    state.objects().iter().find_map(|(&id, obj)| {
         if obj.characteristics.name == name && obj.zone == zone {
             Some(id)
         } else {
@@ -250,20 +250,20 @@ fn test_buyback_basic_return_to_hand() {
 
     // Pay {4}{R} — base {R} + buyback {4}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 4);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
-    let initial_p2_life = state.players[&p2].life_total;
+    let initial_p2_life = state.players()[&p2].life_total;
     let spell_id = find_object(&state, "Searing Touch");
 
     // Cast Searing Touch with buyback, targeting p2.
@@ -291,12 +291,12 @@ fn test_buyback_basic_return_to_hand() {
 
     // `was_buyback_paid` should be true on the stack object.
     assert!(
-        state.stack_objects[0].was_buyback_paid,
+        state.stack_objects()[0].was_buyback_paid,
         "CR 702.27a: was_buyback_paid should be true on stack object"
     );
 
     // Mana pool should be empty — {4}{R} consumed.
-    let pool = &state.players[&p1].mana_pool;
+    let pool = &state.players()[&p1].mana_pool;
     assert_eq!(
         pool.white + pool.blue + pool.black + pool.red + pool.green + pool.colorless,
         0,
@@ -308,7 +308,7 @@ fn test_buyback_basic_return_to_hand() {
 
     // P2 should have taken 1 damage.
     assert_eq!(
-        state.players[&p2].life_total,
+        state.players()[&p2].life_total,
         initial_p2_life - 1,
         "CR 702.27a: Searing Touch should deal 1 damage to p2"
     );
@@ -320,7 +320,7 @@ fn test_buyback_basic_return_to_hand() {
         "CR 702.27a: buyback spell should return to owner's hand after resolving"
     );
 
-    let in_graveyard = state.objects.values().any(|o| {
+    let in_graveyard = state.objects().values().any(|o| {
         o.characteristics.name == "Searing Touch" && matches!(o.zone, ZoneId::Graveyard(_))
     });
     assert!(
@@ -362,12 +362,12 @@ fn test_buyback_not_paid_goes_to_graveyard() {
 
     // Pay only {R} — no buyback.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Searing Touch");
 
@@ -396,7 +396,7 @@ fn test_buyback_not_paid_goes_to_graveyard() {
 
     // `was_buyback_paid` should be false on the stack object.
     assert!(
-        !state.stack_objects[0].was_buyback_paid,
+        !state.stack_objects()[0].was_buyback_paid,
         "CR 702.27a: was_buyback_paid should be false when not paying buyback"
     );
 
@@ -405,7 +405,7 @@ fn test_buyback_not_paid_goes_to_graveyard() {
 
     // Searing Touch should be in p1's graveyard (NOT hand).
     let in_graveyard = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Searing Touch" && o.zone == ZoneId::Graveyard(p1));
     assert!(
@@ -465,24 +465,24 @@ fn test_buyback_paid_spell_countered_goes_to_graveyard() {
 
     // p1 has {4}{R} for buyback cast; p2 has {U}{U} for counterspell.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 4);
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let buyback_id = find_object(&state, "Searing Touch");
 
@@ -511,7 +511,7 @@ fn test_buyback_paid_spell_countered_goes_to_graveyard() {
 
     // Find Searing Touch on the stack (as a game object in zone Stack).
     let spell_on_stack = state
-        .objects
+        .objects()
         .iter()
         .find_map(|(&id, obj)| {
             if obj.characteristics.name == "Searing Touch" && obj.zone == ZoneId::Stack {
@@ -563,7 +563,7 @@ fn test_buyback_paid_spell_countered_goes_to_graveyard() {
 
     // Searing Touch should be in p1's GRAVEYARD (not hand), even though buyback was paid.
     let in_graveyard = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Searing Touch" && o.zone == ZoneId::Graveyard(p1));
     assert!(
@@ -612,18 +612,18 @@ fn test_buyback_cost_added_to_total() {
 
     // Exactly {4}{R} — just enough for buyback cast.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 4);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Searing Touch");
 
@@ -651,7 +651,7 @@ fn test_buyback_cost_added_to_total() {
     .unwrap_or_else(|e| panic!("CastSpell with exact buyback mana failed: {:?}", e));
 
     // Mana pool must be empty — all {4}{R} consumed.
-    let pool = &state.players[&p1].mana_pool;
+    let pool = &state.players()[&p1].mana_pool;
     assert_eq!(
         pool.white + pool.blue + pool.black + pool.red + pool.green + pool.colorless,
         0,
@@ -693,12 +693,12 @@ fn test_buyback_insufficient_mana_rejected() {
 
     // Only {R} — enough for base cost but NOT for buyback {4}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Searing Touch");
 
@@ -762,12 +762,12 @@ fn test_buyback_no_buyback_ability_rejected() {
 
     // Plenty of mana — only failure should be missing buyback ability.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 6);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Lightning Bolt");
 
@@ -844,18 +844,18 @@ fn test_buyback_with_flashback_exile_wins() {
 
     // Pay flashback cost {2}{R} + buyback {4} = {6}{R} total.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 6);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Flashback Buyback");
 
@@ -889,7 +889,7 @@ fn test_buyback_with_flashback_exile_wins() {
 
     // The card should be in EXILE (flashback wins), NOT in hand (buyback) or graveyard.
     let in_exile = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Flashback Buyback" && o.zone == ZoneId::Exile);
     assert!(
@@ -903,7 +903,7 @@ fn test_buyback_with_flashback_exile_wins() {
         "CR 702.34a: buyback must NOT win over flashback — card must not be in hand"
     );
 
-    let in_graveyard = state.objects.values().any(|o| {
+    let in_graveyard = state.objects().values().any(|o| {
         o.characteristics.name == "Flashback Buyback" && matches!(o.zone, ZoneId::Graveyard(_))
     });
     assert!(
@@ -966,22 +966,22 @@ fn test_buyback_paid_spell_fizzles_goes_to_graveyard() {
 
     // P1 needs {4}{R} for Searing Touch + buyback, plus {R} for Lightning Bolt = {4}{R}{R}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 4);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Find the creature on the battlefield.
     let creature_id = state
-        .objects
+        .objects()
         .iter()
         .find_map(|(&id, obj)| {
             if obj.characteristics.name == "Goblin Token" && obj.zone == ZoneId::Battlefield {
@@ -1020,7 +1020,7 @@ fn test_buyback_paid_spell_fizzles_goes_to_graveyard() {
     .unwrap_or_else(|e| panic!("CastSpell Searing Touch with buyback failed: {:?}", e));
 
     assert!(
-        state.stack_objects[0].was_buyback_paid,
+        state.stack_objects()[0].was_buyback_paid,
         "CR 702.27a: was_buyback_paid should be true on stack object"
     );
 
@@ -1053,7 +1053,7 @@ fn test_buyback_paid_spell_fizzles_goes_to_graveyard() {
 
     // Creature should be dead (in graveyard or no longer on battlefield).
     let creature_on_bf = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Goblin Token" && o.zone == ZoneId::Battlefield);
     assert!(
@@ -1077,7 +1077,7 @@ fn test_buyback_paid_spell_fizzles_goes_to_graveyard() {
     // CR 702.27a: buyback only returns the card "as it resolves"; a fizzled spell
     // does not resolve, so buyback does not apply.
     let in_graveyard = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Searing Touch" && o.zone == ZoneId::Graveyard(p1));
     assert!(
@@ -1124,18 +1124,18 @@ fn test_buyback_spell_cast_event_emitted() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 4);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Searing Touch");
 

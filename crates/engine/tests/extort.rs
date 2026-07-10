@@ -23,7 +23,7 @@ use mtg_engine::{
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -32,7 +32,7 @@ fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectI
 
 fn life_total(state: &mtg_engine::GameState, player: PlayerId) -> i32 {
     state
-        .players
+        .players()
         .get(&player)
         .map(|ps| ps.life_total)
         .unwrap_or_else(|| panic!("player {:?} not found", player))
@@ -146,12 +146,12 @@ fn test_extort_basic_drain_on_spell_cast() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Lightning Bolt");
 
@@ -188,7 +188,7 @@ fn test_extort_basic_drain_on_spell_cast() {
 
     // Stack has 2 items: the spell + extort trigger.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "CR 702.101a: stack should have spell + extort trigger"
     );
@@ -260,18 +260,18 @@ fn test_extort_triggers_on_creature_spell() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Grizzly Bears");
 
@@ -299,7 +299,7 @@ fn test_extort_triggers_on_creature_spell() {
 
     // Stack has 2 items: creature spell + extort trigger.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "CR 702.101a: extort should trigger on creature spell (no type restriction)"
     );
@@ -349,12 +349,12 @@ fn test_extort_does_not_trigger_for_opponent_spell() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let spell_id = find_object(&state, "Lightning Bolt");
 
@@ -382,7 +382,7 @@ fn test_extort_does_not_trigger_for_opponent_spell() {
 
     // Only the spell on the stack — NO extort trigger.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.101a: p2's spell should NOT trigger p1's extort (only controller's spells trigger)"
     );
@@ -437,12 +437,12 @@ fn test_extort_multiple_instances_trigger_separately() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Record starting life totals.
     let p1_start = life_total(&state, p1);
@@ -488,7 +488,7 @@ fn test_extort_multiple_instances_trigger_separately() {
 
     // Stack: spell + 2 extort triggers = 3 items.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         3,
         "CR 702.101b: stack should have spell + 2 extort triggers"
     );
@@ -498,7 +498,11 @@ fn test_extort_multiple_instances_trigger_separately() {
 
     // After first trigger: each opponent lost 1 life, p1 gained 3.
     // Stack now has spell + 1 extort trigger = 2 items.
-    assert_eq!(state.stack_objects.len(), 2, "one extort trigger resolved");
+    assert_eq!(
+        state.stack_objects().len(),
+        2,
+        "one extort trigger resolved"
+    );
 
     // Resolve second extort trigger (all pass again).
     let (state, _) = pass_all(state, &[p1, p2, p3, p4]);
@@ -565,12 +569,12 @@ fn test_extort_does_not_target_hits_all_opponents() {
     let p2_start = life_total(&state, p2);
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Lightning Bolt");
 
@@ -651,12 +655,12 @@ fn test_extort_resolves_before_triggering_spell() {
     let p2_start = life_total(&state, p2);
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Lightning Bolt");
 
@@ -684,7 +688,7 @@ fn test_extort_resolves_before_triggering_spell() {
     .unwrap();
 
     // Stack: Lightning Bolt (bottom) + extort trigger (top).
-    assert_eq!(state.stack_objects.len(), 2);
+    assert_eq!(state.stack_objects().len(), 2);
 
     // Both pass — extort trigger resolves first.
     let (state, _) = pass_all(state, &[p1, p2]);
@@ -703,7 +707,7 @@ fn test_extort_resolves_before_triggering_spell() {
 
     // Lightning Bolt is still on the stack (not yet resolved).
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "Ruling 2024-01-12: Lightning Bolt should still be on stack after extort resolves"
     );
@@ -749,16 +753,16 @@ fn test_extort_multiplayer_4_player_drain() {
 
     // Set all players to 40 life (Commander starting life total).
     for pid in [p1, p2, p3, p4] {
-        state.players.get_mut(&pid).unwrap().life_total = 40;
+        state.players_mut().get_mut(&pid).unwrap().life_total = 40;
     }
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Lightning Bolt");
 

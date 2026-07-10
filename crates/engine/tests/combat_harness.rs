@@ -196,7 +196,7 @@ fn test_harness_declare_attackers_basic() {
 
     // Find the Llanowar Elves object on the battlefield.
     let elf = state_after
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Llanowar Elves")
         .expect("Llanowar Elves should still be on battlefield");
@@ -285,7 +285,7 @@ fn test_harness_declare_attackers_empty() {
         process_command(state, cmd_empty).expect("Empty DeclareAttackers should succeed");
 
     let p2_life = state_after
-        .players
+        .players()
         .get(&p2)
         .map(|ps| ps.life_total)
         .unwrap_or(0);
@@ -309,7 +309,7 @@ fn test_harness_declare_blockers_basic() {
 
     // First declare the attacker so the engine is in DeclareBlockers step.
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Llanowar Elves" && o.controller == p1)
         .expect("Llanowar Elves should be on battlefield")
@@ -333,7 +333,7 @@ fn test_harness_declare_blockers_basic() {
         .expect("p2 pass should succeed");
 
     assert_eq!(
-        state.turn.step,
+        state.turn().step,
         Step::DeclareBlockers,
         "should be in DeclareBlockers step"
     );
@@ -411,7 +411,7 @@ fn test_harness_declare_blockers_empty() {
 
     // Declare attacker.
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Llanowar Elves" && o.controller == p1)
         .expect("Llanowar Elves should be on battlefield")
@@ -433,7 +433,7 @@ fn test_harness_declare_blockers_empty() {
     let (state, _) = process_command(state, Command::PassPriority { player: p2 }).unwrap();
 
     assert_eq!(
-        state.turn.step,
+        state.turn().step,
         Step::DeclareBlockers,
         "should be in DeclareBlockers"
     );
@@ -491,7 +491,11 @@ fn test_harness_declare_blockers_empty() {
     let (state, _events) = process_command(state, Command::PassPriority { player: p2 }).unwrap();
 
     // After combat damage, p2 should have lost 1 life (Llanowar Elves is 1/1).
-    let p2_life = state.players.get(&p2).map(|ps| ps.life_total).unwrap_or(40);
+    let p2_life = state
+        .players()
+        .get(&p2)
+        .map(|ps| ps.life_total)
+        .unwrap_or(40);
     assert_eq!(
         p2_life, 39,
         "p2 should have 39 life after taking 1 damage from unblocked 1/1"
@@ -562,7 +566,7 @@ fn test_harness_full_combat_unblocked_damage() {
     // Step 2: Both players pass priority (advance to DeclareBlockers).
     let (state, _) = process_command(state, Command::PassPriority { player: p1 }).unwrap();
     let (state, _) = process_command(state, Command::PassPriority { player: p2 }).unwrap();
-    assert_eq!(state.turn.step, Step::DeclareBlockers);
+    assert_eq!(state.turn().step, Step::DeclareBlockers);
 
     // Step 3: Declare no blockers via harness.
     let cmd_blk = translate_player_action(
@@ -613,7 +617,11 @@ fn test_harness_full_combat_unblocked_damage() {
     let (state, _) = process_command(state, Command::PassPriority { player: p2 }).unwrap();
 
     // CR 510.1a: 1/1 unblocked deals 1 damage → p2 at 39 life.
-    let p2_life = state.players.get(&p2).map(|ps| ps.life_total).unwrap_or(40);
+    let p2_life = state
+        .players()
+        .get(&p2)
+        .map(|ps| ps.life_total)
+        .unwrap_or(40);
     assert_eq!(
         p2_life, 39,
         "p2 should have 39 life after unblocked 1/1 deals damage"

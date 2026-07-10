@@ -24,7 +24,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_by_name(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -33,7 +33,7 @@ fn find_by_name(state: &GameState, name: &str) -> ObjectId {
 
 fn find_by_name_opt(state: &GameState, name: &str) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -41,7 +41,7 @@ fn find_by_name_opt(state: &GameState, name: &str) -> Option<ObjectId> {
 
 fn count_on_battlefield(state: &GameState) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Battlefield)
         .count()
@@ -49,7 +49,7 @@ fn count_on_battlefield(state: &GameState) -> usize {
 
 fn count_in_exile(state: &GameState) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Exile)
         .count()
@@ -111,7 +111,7 @@ fn test_destroy_all_creatures_basic() {
     );
     assert!(
         find_by_name_opt(&state_after, "Bear Token")
-            .map(|id| { state_after.objects.get(&id).unwrap().zone != ZoneId::Battlefield })
+            .map(|id| { state_after.objects().get(&id).unwrap().zone != ZoneId::Battlefield })
             .unwrap_or(true),
         "Bear Token should leave battlefield"
     );
@@ -158,7 +158,7 @@ fn test_destroy_all_respects_indestructible() {
     // Indestructible Titan should still be on battlefield.
     let titan_id = find_by_name(&state_after, "Indestructible Titan");
     assert_eq!(
-        state_after.objects.get(&titan_id).unwrap().zone,
+        state_after.objects().get(&titan_id).unwrap().zone,
         ZoneId::Battlefield,
         "indestructible creature should survive DestroyAll (CR 702.12b)"
     );
@@ -186,17 +186,19 @@ fn test_destroy_all_cant_be_regenerated() {
 
     // Manually attach a regeneration shield to the skeleton.
     let skeleton_id = find_by_name(&state, "Drudge Skeletons");
-    state.replacement_effects.push_back(ReplacementEffect {
-        id: ReplacementId(9001),
-        source: Some(skeleton_id),
-        controller: p(1),
-        duration: EffectDuration::Indefinite,
-        is_self_replacement: true,
-        trigger: ReplacementTrigger::WouldBeDestroyed {
-            filter: ObjectFilter::SpecificObject(skeleton_id),
-        },
-        modification: ReplacementModification::Regenerate,
-    });
+    state
+        .replacement_effects_mut()
+        .push_back(ReplacementEffect {
+            id: ReplacementId(9001),
+            source: Some(skeleton_id),
+            controller: p(1),
+            duration: EffectDuration::Indefinite,
+            is_self_replacement: true,
+            trigger: ReplacementTrigger::WouldBeDestroyed {
+                filter: ObjectFilter::SpecificObject(skeleton_id),
+            },
+            modification: ReplacementModification::Regenerate,
+        });
 
     let effect = Effect::DestroyAll {
         filter: TargetFilter {
@@ -218,7 +220,7 @@ fn test_destroy_all_cant_be_regenerated() {
     );
     assert!(
         find_by_name_opt(&state_after, "Drudge Skeletons")
-            .map(|id| state_after.objects.get(&id).unwrap().zone != ZoneId::Battlefield)
+            .map(|id| state_after.objects().get(&id).unwrap().zone != ZoneId::Battlefield)
             .unwrap_or(true),
         "creature should leave battlefield"
     );
@@ -240,17 +242,19 @@ fn test_destroy_all_allows_regeneration() {
 
     let creature_id = find_by_name(&state, "Protected Creature");
     // Attach a regeneration shield.
-    state.replacement_effects.push_back(ReplacementEffect {
-        id: ReplacementId(9002),
-        source: Some(creature_id),
-        controller: p(1),
-        duration: EffectDuration::Indefinite,
-        is_self_replacement: true,
-        trigger: ReplacementTrigger::WouldBeDestroyed {
-            filter: ObjectFilter::SpecificObject(creature_id),
-        },
-        modification: ReplacementModification::Regenerate,
-    });
+    state
+        .replacement_effects_mut()
+        .push_back(ReplacementEffect {
+            id: ReplacementId(9002),
+            source: Some(creature_id),
+            controller: p(1),
+            duration: EffectDuration::Indefinite,
+            is_self_replacement: true,
+            trigger: ReplacementTrigger::WouldBeDestroyed {
+                filter: ObjectFilter::SpecificObject(creature_id),
+            },
+            modification: ReplacementModification::Regenerate,
+        });
 
     let effect = Effect::DestroyAll {
         filter: TargetFilter {
@@ -276,7 +280,7 @@ fn test_destroy_all_allows_regeneration() {
     );
     // Creature should still be on the battlefield (possibly tapped).
     assert_eq!(
-        state_after.objects.get(&creature_id).unwrap().zone,
+        state_after.objects().get(&creature_id).unwrap().zone,
         ZoneId::Battlefield,
         "regenerated creature should remain on battlefield"
     );
@@ -300,7 +304,7 @@ fn test_destroy_all_count_tracking() {
         .unwrap();
 
     // Initial life total for controller.
-    let initial_life = state.players.get(&p(1)).unwrap().life_total;
+    let initial_life = state.players().get(&p(1)).unwrap().life_total;
 
     let effect = Effect::Sequence(vec![
         Effect::DestroyAll {
@@ -335,7 +339,7 @@ fn test_destroy_all_count_tracking() {
         "Fumigate pattern: should gain 3 life for 3 creatures destroyed"
     );
     assert_eq!(
-        state_after.players.get(&p(1)).unwrap().life_total,
+        state_after.players().get(&p(1)).unwrap().life_total,
         initial_life + 3,
         "controller life should increase by number of creatures destroyed"
     );
@@ -399,13 +403,13 @@ fn test_destroy_all_nonland_opponents() {
     // p1's permanents should survive.
     assert!(
         find_by_name_opt(&state_after, "My Creature")
-            .map(|id| state_after.objects.get(&id).unwrap().zone == ZoneId::Battlefield)
+            .map(|id| state_after.objects().get(&id).unwrap().zone == ZoneId::Battlefield)
             .unwrap_or(false),
         "controller's creature should survive Ruinous Ultimatum pattern"
     );
     assert!(
         find_by_name_opt(&state_after, "My Artifact")
-            .map(|id| state_after.objects.get(&id).unwrap().zone == ZoneId::Battlefield)
+            .map(|id| state_after.objects().get(&id).unwrap().zone == ZoneId::Battlefield)
             .unwrap_or(false),
         "controller's artifact should survive Ruinous Ultimatum pattern"
     );
@@ -463,7 +467,7 @@ fn test_destroy_all_filtered_by_cmc() {
     // Dragon (CMC 6) should survive.
     assert!(
         find_by_name_opt(&state_after, "Expensive Dragon")
-            .map(|id| state_after.objects.get(&id).unwrap().zone == ZoneId::Battlefield)
+            .map(|id| state_after.objects().get(&id).unwrap().zone == ZoneId::Battlefield)
             .unwrap_or(false),
         "creature with CMC > max_cmc should survive"
     );
@@ -513,7 +517,7 @@ fn test_exile_all_basic() {
     // Land should not be exiled.
     assert!(
         find_by_name_opt(&state_after, "Mountain")
-            .map(|id| state_after.objects.get(&id).unwrap().zone == ZoneId::Battlefield)
+            .map(|id| state_after.objects().get(&id).unwrap().zone == ZoneId::Battlefield)
             .unwrap_or(false),
         "land should not be affected by ExileAll creature filter"
     );
@@ -590,7 +594,7 @@ fn test_all_permanents_matching_controller_filter() {
     // P1 creature should survive.
     assert!(
         find_by_name_opt(&state_after, "P1 Creature")
-            .map(|id| state_after.objects.get(&id).unwrap().zone == ZoneId::Battlefield)
+            .map(|id| state_after.objects().get(&id).unwrap().zone == ZoneId::Battlefield)
             .unwrap_or(false),
         "controller's creature should survive when filter is Opponent"
     );
@@ -732,13 +736,13 @@ fn test_fumigate_card_integration() {
 
     // Add 5 white mana.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 5);
 
-    let initial_life = state.players.get(&p1).unwrap().life_total;
+    let initial_life = state.players().get(&p1).unwrap().life_total;
     let fumigate_id = find_by_name(&state, "Fumigate");
 
     // Cast Fumigate.
@@ -770,7 +774,7 @@ fn test_fumigate_card_integration() {
 
     // Fumigate should have destroyed all 3 creatures.
     let creatures_on_bf = state
-        .objects
+        .objects()
         .values()
         .filter(|o| {
             o.zone == ZoneId::Battlefield
@@ -781,7 +785,7 @@ fn test_fumigate_card_integration() {
 
     // Controller should gain 3 life (one per creature destroyed).
     assert_eq!(
-        state.players.get(&p1).unwrap().life_total,
+        state.players().get(&p1).unwrap().life_total,
         initial_life + 3,
         "Fumigate should give 1 life per creature destroyed (3 total)"
     );

@@ -131,20 +131,20 @@ fn test_dungeon_state_default() {
 
     // No player should have a dungeon at game start
     assert!(
-        state.dungeon_state.is_empty(),
+        state.dungeon_state().is_empty(),
         "dungeon_state should be empty at game start, got: {:?}",
-        state.dungeon_state
+        state.dungeon_state()
     );
 
     // No player should have the initiative at game start
     assert!(
-        state.has_initiative.is_none(),
+        state.has_initiative().is_none(),
         "has_initiative should be None at game start, got: {:?}",
-        state.has_initiative
+        state.has_initiative()
     );
 
     // All players should have 0 dungeons_completed
-    for (player_id, player) in &state.players {
+    for (player_id, player) in state.players() {
         assert_eq!(
             player.dungeons_completed, 0,
             "player {:?} should have 0 dungeons_completed at game start",
@@ -179,7 +179,7 @@ fn test_dungeon_hash_determinism() {
         .build()
         .expect("build failed");
 
-    state_with_dungeon.dungeon_state.insert(
+    state_with_dungeon.dungeon_state_mut().insert(
         p(1),
         DungeonState {
             dungeon: DungeonId::LostMineOfPhandelver,
@@ -198,7 +198,7 @@ fn test_dungeon_hash_determinism() {
     let mut state_other_dungeon = GameStateBuilder::four_player()
         .build()
         .expect("build failed");
-    state_other_dungeon.dungeon_state.insert(
+    state_other_dungeon.dungeon_state_mut().insert(
         p(1),
         DungeonState {
             dungeon: DungeonId::TombOfAnnihilation,
@@ -215,7 +215,7 @@ fn test_dungeon_hash_determinism() {
     let mut state_room1 = GameStateBuilder::four_player()
         .build()
         .expect("build failed");
-    state_room1.dungeon_state.insert(
+    state_room1.dungeon_state_mut().insert(
         p(1),
         DungeonState {
             dungeon: DungeonId::LostMineOfPhandelver,
@@ -232,7 +232,7 @@ fn test_dungeon_hash_determinism() {
     let mut state_with_initiative = GameStateBuilder::four_player()
         .build()
         .expect("build failed");
-    state_with_initiative.has_initiative = Some(p(1));
+    *state_with_initiative.has_initiative_mut() = Some(p(1));
     let hash_with_initiative = state_with_initiative.public_state_hash();
     assert_ne!(
         hash_no_dungeon, hash_with_initiative,

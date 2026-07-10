@@ -78,7 +78,7 @@ fn test_activation_condition_met_allows_activation() {
         .unwrap();
 
     let artifact_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == "Conditioned Artifact")
         .map(|(id, _)| *id)
@@ -93,7 +93,7 @@ fn test_activation_condition_met_allows_activation() {
 
     let (state, _) = result.unwrap();
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "ability should be on the stack"
     );
@@ -113,7 +113,7 @@ fn test_activation_condition_not_met_rejects_activation() {
         .unwrap();
 
     let artifact_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == "Conditioned Artifact")
         .map(|(id, _)| *id)
@@ -169,7 +169,7 @@ fn test_activation_condition_changes_dynamically() {
         .unwrap();
 
     let artifact_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == "Conditioned Artifact 2")
         .map(|(id, _)| *id)
@@ -212,7 +212,7 @@ fn test_activation_condition_changes_dynamically() {
         .unwrap();
 
     let artifact_id2 = state2
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == "Conditioned Artifact 2")
         .map(|(id, _)| *id)

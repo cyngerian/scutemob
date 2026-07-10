@@ -21,7 +21,7 @@ use mtg_engine::{
 
 fn find_obj(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -30,14 +30,14 @@ fn find_obj(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
 
 fn on_battlefield(state: &mtg_engine::GameState, name: &str) -> bool {
     state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == name && o.zone == ZoneId::Battlefield)
 }
 
 fn in_graveyard(state: &mtg_engine::GameState, name: &str) -> bool {
     state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == name && matches!(o.zone, ZoneId::Graveyard(_)))
 }
@@ -441,7 +441,7 @@ fn test_damaged_player_foreach_land_tap_nature_will_pattern() {
 
     // Count P2's tapped lands.
     let p2_forests_tapped = state
-        .objects
+        .objects()
         .values()
         .filter(|o| {
             o.controller == p2
@@ -452,7 +452,7 @@ fn test_damaged_player_foreach_land_tap_nature_will_pattern() {
 
     // Count P3's tapped lands.
     let p3_plains_tapped = state
-        .objects
+        .objects()
         .values()
         .filter(|o| {
             o.controller == p3

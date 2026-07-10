@@ -45,7 +45,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_obj(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -404,7 +404,7 @@ fn test_pbxa2_activated_target_is_blocking_blocker_accepted() {
 
     // Inject combat: Steadfast Guard is blocking Charging Bear.
     let mut state = state;
-    state.combat = Some(combat_with_blocker(blocker_id, attacker_id));
+    *state.combat_mut() = Some(combat_with_blocker(blocker_id, attacker_id));
 
     let result = process_command(
         state,
@@ -514,7 +514,7 @@ fn test_pbxa2_activated_target_is_tapped_tapped_accepted() {
     // Manually set the target to tapped state.
     let mut state = state;
     state
-        .objects
+        .objects_mut()
         .get_mut(&tapped_id)
         .expect("Tapped Bear must exist")
         .status
@@ -574,7 +574,7 @@ fn test_pbxa2_activated_target_is_untapped_tapped_rejected() {
 
     let mut state = state;
     state
-        .objects
+        .objects_mut()
         .get_mut(&tapped_id)
         .expect("Sideways Bear must exist")
         .status
@@ -728,7 +728,7 @@ fn test_pbxa2_activated_target_attacking_or_blocking_accepts_attacker() {
 
     // Only attackers — no blockers. The (T,T) branch should accept via the attacker arm.
     let mut state = state;
-    state.combat = Some(combat_with_attacker(p(1), attacker_id));
+    *state.combat_mut() = Some(combat_with_attacker(p(1), attacker_id));
 
     let result = process_command(
         state,
@@ -786,7 +786,7 @@ fn test_pbxa2_activated_target_attacking_or_blocking_accepts_blocker() {
 
     // Stone Wall is blocking Charging Bear — in blockers but NOT in attackers.
     let mut state = state;
-    state.combat = Some(combat_with_blocker(blocker_id, attacker_id));
+    *state.combat_mut() = Some(combat_with_blocker(blocker_id, attacker_id));
 
     let result = process_command(
         state,
@@ -845,7 +845,7 @@ fn test_pbxa2_activated_target_attacking_or_blocking_rejects_non_combatant() {
 
     // Charging Bear is attacking, but Peaceful Bear is not in combat at all.
     let mut state = state;
-    state.combat = Some(combat_with_attacker(p(1), attacker_id));
+    *state.combat_mut() = Some(combat_with_attacker(p(1), attacker_id));
 
     let result = process_command(
         state,
@@ -969,7 +969,7 @@ fn test_pbxa2_trigger_picker_selects_blocking_creature_positive() {
         .object(defender) // Defender last → larger ObjectId.
         .build()
         .expect("builder must succeed");
-    state.turn.priority_holder = Some(p(1));
+    state.turn_mut().priority_holder = Some(p(1));
 
     let sitter_id = find_obj(&state, "Sitter");
     let attacker_id = find_obj(&state, "Attacker");
@@ -989,7 +989,7 @@ fn test_pbxa2_trigger_picker_selects_blocking_creature_positive() {
 
     // Inject combat: Defender is blocking Attacker. Sitter is on the battlefield
     // but is NOT in combat.blockers.
-    state.combat = Some(combat_with_blocker(defender_id, attacker_id));
+    *state.combat_mut() = Some(combat_with_blocker(defender_id, attacker_id));
 
     // Both players pass priority → SBAs fire → Blocking Scout dies → WhenDies
     // trigger queues → auto-target picker runs on TargetPermanentWithFilter
@@ -1016,7 +1016,7 @@ fn test_pbxa2_trigger_picker_selects_blocking_creature_positive() {
 
     // The WhenDies trigger must be on the stack with target = Defender.
     let trigger_so = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .find(|so| matches!(so.kind, StackObjectKind::TriggeredAbility { .. }))
         .expect("G-1: WhenDies TriggeredAbility must be on the stack");
@@ -1111,7 +1111,7 @@ fn test_pbxa2_trigger_picker_skipped_when_no_blocker() {
         .object(sitter)
         .build()
         .expect("builder must succeed");
-    state.turn.priority_holder = Some(p(1));
+    state.turn_mut().priority_holder = Some(p(1));
     // No combat state — no blockers at all.
 
     let (state, events) = {
@@ -1135,7 +1135,7 @@ fn test_pbxa2_trigger_picker_skipped_when_no_blocker() {
 
     // Per CR 603.3d: trigger with no legal target is not put on the stack.
     let no_trigger = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .all(|so| !matches!(so.kind, StackObjectKind::TriggeredAbility { .. }));
     assert!(
@@ -1143,7 +1143,7 @@ fn test_pbxa2_trigger_picker_skipped_when_no_blocker() {
         "PB-XA2 G-2 / CR 603.3d: WhenDies trigger with is_blocking=true and no blockers \
          must be SKIPPED (no stack object created). Stack: {:?}",
         state
-            .stack_objects
+            .stack_objects()
             .iter()
             .map(|so| format!("{:?}", so.kind))
             .collect::<Vec<_>>()

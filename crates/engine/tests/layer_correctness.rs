@@ -101,7 +101,7 @@ fn anthem_effects(
 
 fn find_object_by_name(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -229,7 +229,7 @@ fn test_w3lc_humility_suppresses_triggered_abilities() {
     );
 
     // Base characteristics should still have the trigger (not removed, just suppressed).
-    let obj = state.objects.get(&creature_id).unwrap();
+    let obj = state.objects().get(&creature_id).unwrap();
     assert_eq!(
         obj.characteristics.triggered_abilities.len(),
         1,
@@ -283,12 +283,12 @@ fn test_w3lc_animated_land_summoning_sickness_blocks_mana() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1());
-    state.turn.active_player = p1();
+    state.turn_mut().priority_holder = Some(p1());
+    state.turn_mut().active_player = p1();
 
     let land_id = find_object_by_name(&state, "Fresh Forest");
     state
-        .objects
+        .objects_mut()
         .get_mut(&land_id)
         .unwrap()
         .has_summoning_sickness = true;
@@ -328,12 +328,12 @@ fn test_w3lc_fervor_grants_haste_allows_mana_tap() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1());
-    state.turn.active_player = p1();
+    state.turn_mut().priority_holder = Some(p1());
+    state.turn_mut().active_player = p1();
 
     let land_id = find_object_by_name(&state, "Hasty Forest");
     state
-        .objects
+        .objects_mut()
         .get_mut(&land_id)
         .unwrap()
         .has_summoning_sickness = true;
@@ -370,12 +370,12 @@ fn test_w3lc_non_animated_land_ignores_summoning_sickness() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1());
-    state.turn.active_player = p1();
+    state.turn_mut().priority_holder = Some(p1());
+    state.turn_mut().active_player = p1();
 
     let land_id = find_object_by_name(&state, "Normal Forest");
     state
-        .objects
+        .objects_mut()
         .get_mut(&land_id)
         .unwrap()
         .has_summoning_sickness = true;
@@ -434,8 +434,8 @@ fn test_w3lc_sacrifice_mana_uses_layer_resolved_types() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1());
-    state.turn.active_player = p1();
+    state.turn_mut().priority_holder = Some(p1());
+    state.turn_mut().active_player = p1();
 
     let rock_id = find_object_by_name(&state, "Mana Rock");
 

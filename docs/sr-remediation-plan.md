@@ -35,7 +35,7 @@ Full evidence (file:line) is in each task's ESM description — run
 |-------|--------|------|------|-------|
 | 1 | scutemob-53 | SR-1: Revive CI | S | **DONE 2026-07-10.** CI green; every later task now has a machine gate. |
 | 2 | scutemob-54 | SR-2: Registry gate (invariant #9) | M | **DONE 2026-07-10.** Superseded archived scutemob-48. Card-authoring waves unblocked. Follow-up: `scutemob-64` (SR-12). |
-| 3 | scutemob-55 | SR-3: Seal GameState | M–L | Wide blast radius (tui, replay-viewer, simulator, network, testing). See collision rules below. |
+| 3 | scutemob-55 | SR-3: Seal GameState | M–L | **DONE 2026-07-10.** Invariant #3 machine-enforced. CI gained `cargo build --workspace` — do not drop it. |
 | 4 | scutemob-56 | SR-4: Silent-failure sweep | M–L | Mechanical but large; classification work. Can run any time after SR-1. |
 | 5 | scutemob-57 | SR-5: KeywordAbility catch-all audit | M | Pairs naturally with SR-4 (same files). |
 | 6 | scutemob-58 | SR-6: Extract card-defs crate | M | Wide blast radius. Coordinate with card authoring (collision rules). |
@@ -190,9 +190,39 @@ Task-specific extras:
   hazards it surfaced — chiefly that **you cannot detect `abilities: vec![]` with a regex**
   (it matches `mana_abilities: vec![]` and back faces), which had corrupted the authoring
   report's headline number for the whole campaign.
-- **SR-3:** the testing harness (`testing/replay_harness.rs`) constructs state
-  directly and is `pub` (shared with the replay viewer) — it will need explicit,
-  documented constructors, not raw field access.
+- **SR-3: DONE (2026-07-10).** The predicted harness problem was a non-problem:
+  `replay_harness.rs` is *inside* the engine crate, so `pub(crate)` fields remain
+  visible to it, and its only public state-producing function returns an owned
+  `GameState` by value rather than lending `&mut`. It is already a constructor.
+  What actually mattered, in order:
+  1. **Sealing the fields is not the seal.** `player_mut`, `object_mut`,
+     `zone_mut`, `add_object`, `move_object_to_zone`,
+     `move_object_to_bottom_of_zone`, `next_object_id` and `next_replacement_id`
+     were all `pub` and all hand out mutable access. Sealing only the fields
+     leaves invariant #3 fully bypassable. Zero production consumers used any of
+     them; all are now `pub(crate)`. **Before sealing a struct, enumerate its
+     `pub fn`s that take `&mut self`, not just its fields.**
+  2. **`cargo test --all` and `cargo clippy --all-targets` cannot prove a seal.**
+     Both build dev-dependencies, and cargo unifies features across the
+     workspace, so the engine's `test-util` feature is ON for *every* crate under
+     those commands. Only `cargo build --workspace` (no dev-deps) can catch a
+     production consumer using an escape hatch. It is now a CI step; do not drop
+     it. Corollary: a `compile_fail` doctest can guard the *fields* (they are
+     `pub(crate)` in every profile) but can never guard the *hatches*.
+  3. **Accessors lose disjoint field borrows.** `state.objects.get_mut(&id)`
+     alongside `state.card_registry` is legal — rustc borrows fields
+     independently — but `state.objects_mut()` borrows all of `state`. One site
+     (`tests/morph.rs`) had to hoist an `Arc::clone` of the registry above the
+     mutable borrow. Expect a handful of these in any future sealing work.
+  4. Mechanical migration (~2 000 sites across 287 files) is safe if it is
+     **compiler-driven**, not regex-driven: a syntactic first pass guesses
+     read-vs-write, then a loop over `cargo --message-format=json` spans corrects
+     each guess (E0616 → add `()`; E0599 → the receiver was not a `GameState`,
+     revert; E0594/E0596 → this site really mutates, use `_mut()`). Two bugs in
+     the first-pass regex (an over-eager `&x.field()` strip, and multi-line
+     method chains) were caught only because the tree was reset and redone rather
+     than patched forward. Verify no *other* type in the workspace has a method
+     named like a sealed field first, or a wrong rewrite compiles silently.
 - **SR-4/SR-5:** "expected fizzle" classifications must cite the CR rule
   (608.2b etc.) per project test convention; use the mtg-rules MCP server, and
   remember CR text is authoritative over card rulings.
@@ -207,6 +237,33 @@ Task-specific extras:
 
 _One entry per session, newest first. Format:_
 `- YYYY-MM-DD — SR-<N> (scutemob-<id>) — <status: done / in progress / blocked> — <one-line outcome + hazards + pointer for next session>`
+
+- 2026-07-10 — SR-3 (scutemob-55) — **done** — Invariant #3 is now a machine gate.
+  All 38 `GameState` fields are `pub(crate)`, with one public read accessor each
+  (by-ref for containers, by-value for `Copy` scalars). The eight `pub` methods that
+  handed out mutable access are `pub(crate)` too — sealing the fields alone would have
+  left the bypass wide open, and no production consumer used any of them. `zone_mut` had
+  zero callers repo-wide once it stopped being `pub`; deleted. Mutable access now exists
+  only in `state::test_util` (free functions, so `rg 'test_util::'` enumerates every use)
+  plus `*_mut()` accessors, both gated on `cfg(any(test, feature = "test-util"))`; the
+  engine enables the feature for its own tests/benches via a self dev-dependency.
+  Migrated 287 files (tests, benches, simulator, tui, replay-viewer). 3106 tests pass
+  (3104 baseline + 2 new doctests); all four gates clean.
+  **Hazards discovered:** all four written up in the SR-3 gotcha above — chiefly
+  (a) sealing fields without sealing `&mut self` methods proves nothing, and
+  (b) **`cargo test --all` / `cargo clippy --all-targets` cannot detect a broken seal**,
+  because dev-dependencies + feature unification turn `test-util` on workspace-wide.
+  Only `cargo build --workspace` can. It was missing from CI, so the consumer-side
+  guarantee was still process-only until this task added it — caught by `/review`, not
+  by me. Also: accessors cost you rustc's disjoint field borrows (one `Arc::clone` hoist
+  in `tests/morph.rs`).
+  **Deliberately not closed:** `GameStateBuilder`, `#[derive(Deserialize)]` and
+  `replay_harness::build_initial_state` still let a caller *construct* an arbitrary owned
+  state. None can mutate a live one behind the command log's back, which is the invariant
+  that rewind/replay actually depends on; documented on `GameState` rather than papered over.
+  **Next session:** SR-4/SR-5 as a pair (same six rules files), or SR-11 (`scutemob-63`,
+  pin the toolchain) as cheap filler — SR-3 added a CI step, so a toolchain float that
+  reddens CI now costs one more build.
 
 - 2026-07-10 — SR-2 (scutemob-54) — **done** — Invariant #9 is now a machine gate.
   `Completeness` on `CardDefinition` (`Default` = `Complete`, so an unmarked def is

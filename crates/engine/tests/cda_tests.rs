@@ -29,7 +29,7 @@ fn subtype(s: &str) -> SubType {
 
 fn find_bf_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
         .map(|(id, _)| *id)
@@ -97,7 +97,7 @@ fn test_cda_counts_self() {
     );
 
     let mut state = state;
-    state.continuous_effects.push_back(cda_effect);
+    state.continuous_effects_mut().push_back(cda_effect);
 
     let chars = calculate_characteristics(&state, cda_id).unwrap();
     // The CDA creature counts itself — 1 creature → P/T = 1/1.
@@ -145,7 +145,7 @@ fn test_cda_power_toughness_basic() {
     );
 
     let mut state = state;
-    state.continuous_effects.push_back(cda_effect);
+    state.continuous_effects_mut().push_back(cda_effect);
 
     let chars = calculate_characteristics(&state, cda_id).unwrap();
     // Two creatures (self + Vanilla Soldier) → P/T = 2/2.
@@ -201,8 +201,8 @@ fn test_cda_layer_7a_before_7b() {
     };
 
     let mut state = state;
-    state.continuous_effects.push_back(cda_effect);
-    state.continuous_effects.push_back(humility_effect);
+    state.continuous_effects_mut().push_back(cda_effect);
+    state.continuous_effects_mut().push_back(humility_effect);
 
     // CDA sets 2/2 (2 creatures) in 7a, then Humility overwrites to 1/1 in 7b.
     let chars = calculate_characteristics(&state, cda_id).unwrap();
@@ -247,7 +247,7 @@ fn test_cda_layer_7a_before_7c() {
     );
 
     let mut state = state;
-    state.continuous_effects.push_back(cda_effect);
+    state.continuous_effects_mut().push_back(cda_effect);
 
     // CDA: 1 creature (self) → 1/1. +1/+1 counter adds in Layer 7c → 2/2.
     let chars = calculate_characteristics(&state, cda_id).unwrap();
@@ -285,7 +285,7 @@ fn test_cda_updates_dynamically() {
         .unwrap();
     let cda_id_a = find_bf_object(&state_a, "CDA Dyn");
     let mut state_a = state_a;
-    state_a.continuous_effects.push_back(make_cda_effect(
+    state_a.continuous_effects_mut().push_back(make_cda_effect(
         100,
         cda_id_a,
         EffectFilter::SingleObject(cda_id_a),
@@ -310,7 +310,7 @@ fn test_cda_updates_dynamically() {
         .unwrap();
     let cda_id_b = find_bf_object(&state_b, "CDA Dyn");
     let mut state_b = state_b;
-    state_b.continuous_effects.push_back(make_cda_effect(
+    state_b.continuous_effects_mut().push_back(make_cda_effect(
         100,
         cda_id_b,
         EffectFilter::SingleObject(cda_id_b),
@@ -372,7 +372,7 @@ fn test_cda_partial_power_only() {
     };
 
     let mut state = state;
-    state.continuous_effects.push_back(cda_effect);
+    state.continuous_effects_mut().push_back(cda_effect);
 
     let chars = calculate_characteristics(&state, cda_id).unwrap();
     // 2 creatures (self + Other Creature): power = 2, toughness = 4.
@@ -447,7 +447,7 @@ fn test_cda_multiplayer_all_players() {
     };
 
     let mut state = state;
-    state.continuous_effects.push_back(cda_effect);
+    state.continuous_effects_mut().push_back(cda_effect);
 
     let chars = calculate_characteristics(&state, cda_id).unwrap();
     // 3 Goblins total: Reckless One (self), P1's other Goblin, P2's Goblin.
@@ -543,7 +543,7 @@ fn test_cda_with_effect_amount_sum() {
     };
 
     let mut state = state;
-    state.continuous_effects.push_back(cda_effect);
+    state.continuous_effects_mut().push_back(cda_effect);
 
     let chars = calculate_characteristics(&state, abom_id).unwrap();
     // Battlefield Elves: Abomination (1) + Elf Friend (1) = 2.
@@ -605,7 +605,7 @@ fn test_cda_card_count_in_hand() {
     };
 
     let mut state = state;
-    state.continuous_effects.push_back(cda_effect);
+    state.continuous_effects_mut().push_back(cda_effect);
 
     let chars = calculate_characteristics(&state, cda_id).unwrap();
     // 3 cards in hand → P/T = 3/3.

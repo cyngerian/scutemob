@@ -151,14 +151,14 @@ fn test_115_1_target_creature_in_your_graveyard_valid() {
         .unwrap();
 
     let spell_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
         .first()
         .unwrap();
     let creature_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Graveyard(p1))
         .unwrap()
         .object_ids()
@@ -174,7 +174,7 @@ fn test_115_1_target_creature_in_your_graveyard_valid() {
         "targeting a creature in your graveyard should succeed"
     );
     let (new_state, events) = result.unwrap();
-    assert_eq!(new_state.stack_objects.len(), 1);
+    assert_eq!(new_state.stack_objects().len(), 1);
     assert!(events
         .iter()
         .any(|e| matches!(e, GameEvent::SpellCast { .. })));
@@ -226,14 +226,14 @@ fn test_115_1_resolve_return_creature_from_gy_to_battlefield() {
         .unwrap();
 
     let spell_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
         .first()
         .unwrap();
     let creature_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Graveyard(p1))
         .unwrap()
         .object_ids()
@@ -252,7 +252,7 @@ fn test_115_1_resolve_return_creature_from_gy_to_battlefield() {
 
     // Creature should be on the battlefield (new ObjectId — CR 400.7).
     let bf_bears: Vec<_> = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Battlefield && o.characteristics.name == "Dead Bear")
         .collect();
@@ -264,12 +264,12 @@ fn test_115_1_resolve_return_creature_from_gy_to_battlefield() {
 
     // Graveyard should have only the sorcery.
     let gy_names: Vec<_> = state
-        .zones
+        .zones()
         .get(&ZoneId::Graveyard(p1))
         .unwrap()
         .object_ids()
         .iter()
-        .filter_map(|id| state.objects.get(id))
+        .filter_map(|id| state.objects().get(id))
         .map(|o| o.characteristics.name.as_str())
         .collect();
     assert!(
@@ -330,14 +330,14 @@ fn test_115_1_your_gy_rejects_opponent_gy_card() {
         .unwrap();
 
     let spell_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
         .first()
         .unwrap();
     let creature_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Graveyard(p2))
         .unwrap()
         .object_ids()
@@ -401,14 +401,14 @@ fn test_115_1_any_gy_accepts_opponent_gy_card() {
         .unwrap();
 
     let spell_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
         .first()
         .unwrap();
     let creature_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Graveyard(p2))
         .unwrap()
         .object_ids()
@@ -473,14 +473,14 @@ fn test_115_1_filter_rejects_wrong_card_type() {
         .unwrap();
 
     let spell_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
         .first()
         .unwrap();
     let artifact_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Graveyard(p1))
         .unwrap()
         .object_ids()
@@ -543,14 +543,14 @@ fn test_115_1_gy_targeting_rejects_battlefield_card() {
         .unwrap();
 
     let spell_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
         .first()
         .unwrap();
     let creature_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.zone == ZoneId::Battlefield && o.characteristics.name == "Living Bear")
         .unwrap()
@@ -615,14 +615,14 @@ fn test_has_subtypes_or_filter_matches() {
         .unwrap();
 
     let spell_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
         .first()
         .unwrap();
     let wizard_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Graveyard(p1))
         .unwrap()
         .object_ids()
@@ -688,14 +688,14 @@ fn test_has_subtypes_or_filter_rejects_no_match() {
         .unwrap();
 
     let spell_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
         .first()
         .unwrap();
     let goblin_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Graveyard(p1))
         .unwrap()
         .object_ids()
@@ -762,14 +762,14 @@ fn test_115_1_return_artifact_to_hand() {
         .unwrap();
 
     let spell_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
         .first()
         .unwrap();
     let artifact_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Graveyard(p1))
         .unwrap()
         .object_ids()
@@ -786,12 +786,12 @@ fn test_115_1_return_artifact_to_hand() {
     let (state, _) = pass_all_four(state, turn_order);
 
     let hand_names: Vec<_> = state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
         .iter()
-        .filter_map(|id| state.objects.get(id))
+        .filter_map(|id| state.objects().get(id))
         .map(|o| o.characteristics.name.as_str())
         .collect();
     assert!(
@@ -883,23 +883,23 @@ fn test_608_2b_fizzle_gy_target_exiled_before_resolution() {
         .unwrap();
 
     let hand_ids: Vec<ObjectId> = state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
         .to_vec();
     let raise_id = hand_ids
         .iter()
-        .find(|id| state.objects.get(id).unwrap().characteristics.name == "Raise Dead")
+        .find(|id| state.objects().get(id).unwrap().characteristics.name == "Raise Dead")
         .copied()
         .unwrap();
     let exile_id = hand_ids
         .iter()
-        .find(|id| state.objects.get(id).unwrap().characteristics.name == "Exile GY")
+        .find(|id| state.objects().get(id).unwrap().characteristics.name == "Exile GY")
         .copied()
         .unwrap();
     let creature_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Graveyard(p1))
         .unwrap()
         .object_ids()
@@ -918,16 +918,16 @@ fn test_608_2b_fizzle_gy_target_exiled_before_resolution() {
         default_cast(p1, exile_id, vec![Target::Object(creature_id)]),
     )
     .unwrap();
-    assert_eq!(state.stack_objects.len(), 2);
+    assert_eq!(state.stack_objects().len(), 2);
 
     let turn_order = [p(1), p(2), p(3), p(4)];
     // Resolve Exile GY — creature moves to exile.
     let (state, events1) = pass_all_four(state, turn_order);
-    assert_eq!(state.stack_objects.len(), 1, "one spell remaining");
+    assert_eq!(state.stack_objects().len(), 1, "one spell remaining");
 
     // Resolve Raise Dead — target gone from GY → should fizzle.
     let (state, events2) = pass_all_four(state, turn_order);
-    assert!(state.stack_objects.is_empty());
+    assert!(state.stack_objects().is_empty());
 
     let all_events: Vec<_> = events1.into_iter().chain(events2).collect();
     assert!(
@@ -938,7 +938,7 @@ fn test_608_2b_fizzle_gy_target_exiled_before_resolution() {
     );
 
     let bf_has_bear = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.zone == ZoneId::Battlefield && o.characteristics.name == "Dead Bear");
     assert!(!bf_has_bear, "Dead Bear should NOT be on the battlefield");
@@ -1003,14 +1003,14 @@ fn test_702_11b_hexproof_in_graveyard_is_targetable() {
         .unwrap();
 
     let spell_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p2))
         .unwrap()
         .object_ids()
         .first()
         .unwrap();
     let creature_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Graveyard(p1))
         .unwrap()
         .object_ids()
@@ -1103,14 +1103,14 @@ fn test_reanimate_from_opponent_gy_under_casters_control() {
         .unwrap();
 
     let spell_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
         .first()
         .unwrap();
     let creature_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Graveyard(p2))
         .unwrap()
         .object_ids()
@@ -1129,7 +1129,7 @@ fn test_reanimate_from_opponent_gy_under_casters_control() {
 
     // The dragon should be on the battlefield under p1's control (the caster), not p2's.
     let dragon = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.zone == ZoneId::Battlefield && o.characteristics.name == "Stolen Dragon");
 

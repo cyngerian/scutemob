@@ -16,7 +16,7 @@ use mtg_engine::{
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -48,7 +48,7 @@ fn test_cant_block_keyword_prevents_blocking() {
     let blocker_id = find_object(&state, "CantBlock Creature");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -135,7 +135,7 @@ fn test_cant_be_blocked_except_by_allows_matching_keyword() {
     let blocker_id = find_object(&state, "Flyer");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -182,7 +182,7 @@ fn test_cant_be_blocked_except_by_rejects_non_matching_keyword() {
     let blocker_id = find_object(&state, "Ground Creature");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -227,7 +227,7 @@ fn test_cant_be_blocked_except_by_has_keyword_allows_matching() {
     let blocker_id = find_object(&state, "Haste Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -272,7 +272,7 @@ fn test_cant_be_blocked_except_by_has_keyword_rejects_non_matching() {
     let blocker_id = find_object(&state, "Slow Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -328,7 +328,7 @@ fn test_cant_be_blocked_except_by_combined_with_menace() {
 
     // Two ground creatures can satisfy Menace but not CantBeBlockedExceptBy.
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -376,16 +376,16 @@ fn test_grant_player_protection_prevents_targeting() {
 
     // Manually grant P1 protection from everything (simulating GrantPlayerProtection effect).
     let mut state = state;
-    if let Some(ps) = state.players.get_mut(&p1) {
+    if let Some(ps) = state.players_mut().get_mut(&p1) {
         ps.protection_qualities.push(ProtectionQuality::FromAll);
     }
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let bolt_id = find_object(&state, "Lightning Bolt");
     let result = process_command(
@@ -449,12 +449,12 @@ fn test_protection_from_card_type_blocks_instants() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let result = process_command(
         state,

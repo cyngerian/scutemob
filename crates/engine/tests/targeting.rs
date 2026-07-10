@@ -37,7 +37,7 @@ fn test_601_2c_targeting_active_player_is_valid() {
         .unwrap();
 
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -69,8 +69,8 @@ fn test_601_2c_targeting_active_player_is_valid() {
 
     let (new_state, _) = result.unwrap();
     // Target is recorded on the StackObject.
-    assert_eq!(new_state.stack_objects.len(), 1);
-    assert_eq!(new_state.stack_objects[0].targets.len(), 1);
+    assert_eq!(new_state.stack_objects().len(), 1);
+    assert_eq!(new_state.stack_objects()[0].targets.len(), 1);
 }
 
 #[test]
@@ -91,14 +91,14 @@ fn test_601_2c_targeting_object_is_valid() {
         .unwrap();
 
     let creature_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Battlefield)
         .unwrap()
         .object_ids()
         .first()
         .unwrap();
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -128,7 +128,7 @@ fn test_601_2c_targeting_object_is_valid() {
     assert!(result.is_ok());
 
     let (new_state, _) = result.unwrap();
-    let target = &new_state.stack_objects[0].targets[0];
+    let target = &new_state.stack_objects()[0].targets[0];
     // Zone snapshot recorded as Battlefield.
     assert_eq!(target.zone_at_cast, Some(ZoneId::Battlefield));
 }
@@ -150,7 +150,7 @@ fn test_601_2c_targeting_nonexistent_object_fails() {
         .unwrap();
 
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -208,7 +208,7 @@ fn test_601_2c_targeting_eliminated_player_fails() {
     // p1 should still hold priority or get it).
     // Re-check who has priority and get the card.
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -216,11 +216,11 @@ fn test_601_2c_targeting_eliminated_player_fails() {
         .unwrap();
 
     // Ensure p1 has priority before trying to cast.
-    let state = if state.turn.priority_holder == Some(p1) {
+    let state = if state.turn().priority_holder == Some(p1) {
         state
     } else {
         // Pass from whoever has priority until p1 gets it.
-        let holder = state.turn.priority_holder.unwrap();
+        let holder = state.turn().priority_holder.unwrap();
         process_command(state, Command::PassPriority { player: holder })
             .unwrap()
             .0
@@ -274,7 +274,7 @@ fn test_608_2b_fizzle_player_target_concedes() {
         .unwrap();
 
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -303,7 +303,7 @@ fn test_608_2b_fizzle_player_target_concedes() {
         },
     )
     .unwrap();
-    assert_eq!(state.stack_objects.len(), 1);
+    assert_eq!(state.stack_objects().len(), 1);
 
     // p2 concedes between cast and resolution — target becomes illegal.
     let (state, _) = process_command(state, Command::Concede { player: p2 }).unwrap();
@@ -312,10 +312,10 @@ fn test_608_2b_fizzle_player_target_concedes() {
     let (mut state, mut all_events) = (state, Vec::new());
     for _ in 0..6 {
         // safety: max 6 passes for 3 active players × 2 rounds
-        if state.stack_objects.is_empty() {
+        if state.stack_objects().is_empty() {
             break;
         }
-        let holder = match state.turn.priority_holder {
+        let holder = match state.turn().priority_holder {
             Some(h) => h,
             None => break,
         };
@@ -326,7 +326,7 @@ fn test_608_2b_fizzle_player_target_concedes() {
 
     // Spell should have fizzled — stack is empty and SpellFizzled was emitted.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after fizzle"
     );
     assert!(
@@ -355,7 +355,7 @@ fn test_608_2b_fizzle_all_targets_illegal() {
         .unwrap();
 
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -395,10 +395,10 @@ fn test_608_2b_fizzle_all_targets_illegal() {
 
     for _ in 0..6 {
         // safety: max 6 passes for 3 active players × 2 rounds
-        if state.stack_objects.is_empty() {
+        if state.stack_objects().is_empty() {
             break;
         }
-        let holder = match state.turn.priority_holder {
+        let holder = match state.turn().priority_holder {
             Some(h) => h,
             None => break,
         };
@@ -409,14 +409,14 @@ fn test_608_2b_fizzle_all_targets_illegal() {
 
     // Spell should have fizzled.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after fizzle"
     );
-    assert!(state.zones.get(&ZoneId::Stack).unwrap().is_empty());
+    assert!(state.zones().get(&ZoneId::Stack).unwrap().is_empty());
 
     // Card is in p1's graveyard (not on battlefield).
-    assert_eq!(state.zones.get(&ZoneId::Graveyard(p1)).unwrap().len(), 1);
-    assert!(state.zones.get(&ZoneId::Battlefield).unwrap().is_empty());
+    assert_eq!(state.zones().get(&ZoneId::Graveyard(p1)).unwrap().len(), 1);
+    assert!(state.zones().get(&ZoneId::Battlefield).unwrap().is_empty());
 
     // SpellFizzled event emitted, NOT SpellResolved.
     assert!(
@@ -456,7 +456,7 @@ fn test_608_2b_partial_fizzle_spell_resolves() {
         .unwrap();
 
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -492,10 +492,10 @@ fn test_608_2b_partial_fizzle_spell_resolves() {
     // Pass priority for all remaining active players until spell resolves.
     let (mut state, mut all_events) = (state, Vec::new());
     for _ in 0..6 {
-        if state.stack_objects.is_empty() {
+        if state.stack_objects().is_empty() {
             break;
         }
-        let holder = match state.turn.priority_holder {
+        let holder = match state.turn().priority_holder {
             Some(h) => h,
             None => break,
         };
@@ -505,7 +505,7 @@ fn test_608_2b_partial_fizzle_spell_resolves() {
     }
 
     // Spell resolved (NOT fizzled) because p3 is still a legal target.
-    assert!(state.stack_objects.is_empty());
+    assert!(state.stack_objects().is_empty());
     assert!(
         all_events
             .iter()
@@ -520,7 +520,7 @@ fn test_608_2b_partial_fizzle_spell_resolves() {
     );
 
     // Card in graveyard (instant resolved normally, even if effect was partial).
-    assert_eq!(state.zones.get(&ZoneId::Graveyard(p1)).unwrap().len(), 1);
+    assert_eq!(state.zones().get(&ZoneId::Graveyard(p1)).unwrap().len(), 1);
 }
 
 // ---------------------------------------------------------------------------
@@ -556,7 +556,7 @@ fn test_601_mana_cost_deducted_on_cast() {
         .unwrap();
 
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -586,7 +586,7 @@ fn test_601_mana_cost_deducted_on_cast() {
     .unwrap();
 
     // Mana pool should be empty after paying {2}{B}.
-    let pool = &new_state.players[&p1].mana_pool;
+    let pool = &new_state.players()[&p1].mana_pool;
     assert_eq!(pool.black, 0);
     assert_eq!(pool.colorless, 0);
     assert_eq!(pool.total(), 0);
@@ -625,7 +625,7 @@ fn test_601_mana_cost_colored_and_generic() {
         .unwrap();
 
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -654,8 +654,8 @@ fn test_601_mana_cost_colored_and_generic() {
     )
     .unwrap();
 
-    assert_eq!(new_state.players[&p1].mana_pool.blue, 0);
-    assert_eq!(new_state.players[&p1].mana_pool.total(), 0);
+    assert_eq!(new_state.players()[&p1].mana_pool.blue, 0);
+    assert_eq!(new_state.players()[&p1].mana_pool.total(), 0);
 }
 
 #[test]
@@ -687,7 +687,7 @@ fn test_601_insufficient_mana_fails() {
         .unwrap();
 
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -753,7 +753,7 @@ fn test_601_generic_paid_from_any_color() {
         .unwrap();
 
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -783,7 +783,7 @@ fn test_601_generic_paid_from_any_color() {
     .unwrap();
 
     // Pool should be empty — all mana spent.
-    assert_eq!(new_state.players[&p1].mana_pool.total(), 0);
+    assert_eq!(new_state.players()[&p1].mana_pool.total(), 0);
 }
 
 #[test]
@@ -816,7 +816,7 @@ fn test_601_colorless_requirement_must_use_colorless() {
         .unwrap();
 
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -868,7 +868,7 @@ fn test_601_no_mana_cost_casts_free() {
         .unwrap();
 
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -950,7 +950,7 @@ fn doom_blade_state(
         .unwrap();
 
     let doom_card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -977,7 +977,7 @@ fn test_601_2c_doom_blade_cannot_target_black_creature() {
 
     // Find the black creature ID on the battlefield.
     let black_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.zone == ZoneId::Battlefield && o.characteristics.name == "Black Knight")
         .unwrap()
@@ -1031,7 +1031,7 @@ fn test_601_2c_doom_blade_can_target_non_black_creature() {
 
     // Find the red (non-black) creature ID.
     let red_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.zone == ZoneId::Battlefield && o.characteristics.name == "Goblin Guide")
         .unwrap()
@@ -1121,7 +1121,7 @@ fn test_601_2c_target_creature_rejects_non_creature() {
         .unwrap();
 
     let doom_card = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -1129,7 +1129,7 @@ fn test_601_2c_target_creature_rejects_non_creature() {
         .unwrap();
 
     let enchantment_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.zone == ZoneId::Battlefield)
         .unwrap()

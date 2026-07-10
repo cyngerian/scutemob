@@ -22,7 +22,7 @@ use mtg_engine::{
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -100,7 +100,7 @@ fn test_exalted_basic_attacks_alone_gives_plus_one() {
 
     // Stack has 1 trigger.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.83a: exalted trigger should be on the stack"
     );
@@ -189,7 +189,7 @@ fn test_exalted_does_not_trigger_with_multiple_attackers() {
         "CR 702.83b: exalted must NOT trigger when multiple creatures attack"
     );
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "CR 702.83b: stack must be empty when two attackers are declared"
     );
@@ -256,7 +256,7 @@ fn test_exalted_multiple_instances_stack() {
 
     // 3 triggers on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         3,
         "CR 702.83a: three exalted triggers on the stack"
     );
@@ -414,7 +414,7 @@ fn test_exalted_does_not_trigger_on_opponent_attack() {
         "CR 702.83a: p1's exalted must NOT trigger when p2 attacks alone"
     );
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "CR 702.83a: stack must be empty — p1's exalted does not trigger on p2's attack"
     );
@@ -625,7 +625,7 @@ fn test_exalted_with_zero_attackers_does_not_trigger() {
         "CR 702.83b: exalted must NOT trigger when zero attackers declared"
     );
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "CR 702.83b: stack must be empty when no attackers declared"
     );

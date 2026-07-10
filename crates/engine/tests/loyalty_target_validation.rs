@@ -133,19 +133,19 @@ fn build_state_with_targets() -> (
         .unwrap();
 
     let sorin_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Test Sorin")
         .unwrap()
         .id;
     let creature_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Target Creature")
         .unwrap()
         .id;
     let land_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Target Land")
         .unwrap()
@@ -210,7 +210,7 @@ fn test_l01_loyalty_ability_accepts_legal_target() {
     );
     let (state2, _) = result.unwrap();
     // Loyalty decreased by 2 (from 6 → 4).
-    let sorin = state2.objects.get(&sorin_id).unwrap();
+    let sorin = state2.objects().get(&sorin_id).unwrap();
     assert_eq!(
         sorin
             .counters
@@ -222,7 +222,7 @@ fn test_l01_loyalty_ability_accepts_legal_target() {
     );
     // Ability is on the stack.
     assert_eq!(
-        state2.stack_objects.len(),
+        state2.stack_objects().len(),
         1,
         "ability should be on the stack after activation"
     );
@@ -264,12 +264,12 @@ fn test_l01_loyalty_cost_not_paid_on_rejected_activation() {
     let (state, sorin_id, _creature_id, land_id, p1) = build_state_with_targets();
 
     let initial_loyalty = state
-        .objects
+        .objects()
         .get(&sorin_id)
         .and_then(|o| o.counters.get(&CounterType::Loyalty).copied())
         .unwrap_or(0);
     let initially_activated = state
-        .objects
+        .objects()
         .get(&sorin_id)
         .map(|o| o.loyalty_ability_activated_this_turn)
         .unwrap_or(false);
@@ -333,7 +333,7 @@ fn test_l01_no_target_ability_unaffected() {
         "CR 606.3: a no-target loyalty ability must still activate correctly"
     );
     let (state2, _) = result.unwrap();
-    let sorin = state2.objects.get(&sorin_id).unwrap();
+    let sorin = state2.objects().get(&sorin_id).unwrap();
     assert_eq!(
         sorin
             .counters

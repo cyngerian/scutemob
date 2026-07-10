@@ -13,10 +13,10 @@ fn pass(state: GameState, player: PlayerId) -> (GameState, Vec<GameEvent>) {
 fn advance_to_step(mut state: GameState, target: Step) -> (GameState, Vec<GameEvent>) {
     let mut all_events = Vec::new();
     loop {
-        if state.turn.step == target {
+        if state.turn().step == target {
             return (state, all_events);
         }
-        let holder = state.turn.priority_holder.expect("no priority holder");
+        let holder = state.turn().priority_holder.expect("no priority holder");
         let (new_state, events) = pass(state, holder);
         all_events.extend(events);
         state = new_state;
@@ -49,7 +49,7 @@ fn test_untap_step_untaps_active_player_permanents() {
     }
 
     // All permanents should be untapped
-    for (_id, obj) in state.objects.iter() {
+    for (_id, obj) in state.objects().iter() {
         assert!(
             !obj.status.tapped,
             "object {} should be untapped",
@@ -74,7 +74,7 @@ fn test_untap_step_doesnt_affect_other_players() {
     // P1's creature should be untapped (it's P1's turn)
     // P2's creature should remain tapped
     let p2_creatures: Vec<_> = state
-        .objects
+        .objects()
         .iter()
         .filter(|(_, obj)| obj.controller == p2)
         .collect();
@@ -228,8 +228,8 @@ fn test_cleanup_clears_damage() {
 
     // Mark damage on the creature
     let mut state = state;
-    let obj_id = *state.objects.keys().next().unwrap();
-    state.objects.get_mut(&obj_id).unwrap().damage_marked = 1;
+    let obj_id = *state.objects().keys().next().unwrap();
+    state.objects_mut().get_mut(&obj_id).unwrap().damage_marked = 1;
 
     // Pass through End step to reach Cleanup
     let (state, _) = pass(state, PlayerId(1));
@@ -242,7 +242,7 @@ fn test_cleanup_clears_damage() {
 
     // The creature in the NEW turn should have 0 damage
     // (Note: the creature persists since it stays on battlefield)
-    for (_, obj) in state.objects.iter() {
+    for (_, obj) in state.objects().iter() {
         if obj.zone == ZoneId::Battlefield {
             assert_eq!(obj.damage_marked, 0);
         }
@@ -298,7 +298,7 @@ fn test_draw_card_skips_eliminated_player() {
 
     // Mark P1 as conceded
     let mut state = state;
-    state.players.get_mut(&p1).unwrap().has_conceded = true;
+    state.players_mut().get_mut(&p1).unwrap().has_conceded = true;
 
     // draw_card for a conceded player should return no events (not draw or lose)
     let events = draw_card(&mut state, p1).unwrap();
@@ -411,7 +411,7 @@ fn test_cleanup_sba_grants_priority_and_repeats() {
     // or the turn advanced directly after cleanup (if state ended up at turn 2).
     // The key invariant: the creature is dead and the state has moved past cleanup.
     let creature_still_alive = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Deathtouched" && o.zone == ZoneId::Battlefield);
     assert!(
@@ -424,12 +424,12 @@ fn test_cleanup_sba_grants_priority_and_repeats() {
     if priority_given {
         // Allow the cleanup priority window to resolve (everyone passes)
         let holder = state
-            .turn
+            .turn()
             .priority_holder
             .expect("should have priority holder");
         let (state, _) = pass(state, holder);
         // After cleanup priority window, turn should advance or another cleanup fires
         // Either way, we just verify no panic / no infinite loop.
-        let _ = state.turn.active_player; // state is valid
+        let _ = state.turn().active_player; // state is valid
     }
 }

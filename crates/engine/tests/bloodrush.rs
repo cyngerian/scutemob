@@ -29,7 +29,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -37,7 +37,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 }
 
 fn find_in_graveyard(state: &GameState, player: PlayerId, name: &str) -> Option<ObjectId> {
-    state.objects.iter().find_map(|(id, obj)| {
+    state.objects().iter().find_map(|(id, obj)| {
         if obj.characteristics.name == name && obj.zone == ZoneId::Graveyard(player) {
             Some(*id)
         } else {
@@ -168,11 +168,11 @@ fn setup_combat_state(
     .expect("DeclareAttackers should succeed");
 
     // Give p1 mana for bloodrush cost.
-    let player_state = state.players.get_mut(&p1).unwrap();
+    let player_state = state.players_mut().get_mut(&p1).unwrap();
     player_state.mana_pool.add(ManaColor::Red, mana_red);
     player_state.mana_pool.add(ManaColor::Green, mana_green);
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     (state, attacker_id)
 }
@@ -219,13 +219,13 @@ fn test_bloodrush_basic_pump() {
 
     // Ability is on the stack.
     assert!(
-        !state.stack_objects.is_empty(),
+        !state.stack_objects().is_empty(),
         "CR 602.2: bloodrush ability should be on the stack after activation"
     );
 
     // CR 602.2b: Card discarded as cost — no longer in hand.
     let card_in_hand = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Bloodrush Pump" && o.zone == ZoneId::Hand(p1));
     assert!(
@@ -235,7 +235,7 @@ fn test_bloodrush_basic_pump() {
 
     // Card is now in graveyard.
     let card_in_gy = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Bloodrush Pump" && o.zone == ZoneId::Graveyard(p1));
     assert!(
@@ -361,18 +361,18 @@ fn test_bloodrush_target_must_be_attacking() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Attempt to activate bloodrush targeting a non-attacking creature.
     let result = process_command(
@@ -425,18 +425,18 @@ fn test_bloodrush_no_combat_fails() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Attempt bloodrush with no combat state.
     let result = process_command(
@@ -495,7 +495,7 @@ fn test_bloodrush_card_discarded_as_cost() {
 
     // Stack still has the ability (not yet resolved).
     assert!(
-        !state.stack_objects.is_empty(),
+        !state.stack_objects().is_empty(),
         "CR 602.2b: ability should still be on the stack (not resolved yet)"
     );
 }
@@ -548,7 +548,7 @@ fn test_bloodrush_insufficient_mana_fails() {
 
     // Give NO mana — bloodrush cost {R}{G} cannot be paid.
     let mut state = state;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let result = process_command(
         state,
@@ -612,18 +612,18 @@ fn test_bloodrush_not_in_hand_fails() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Attempt bloodrush from battlefield (should fail).
     let result = process_command(
@@ -691,7 +691,7 @@ fn test_bloodrush_pump_expires_end_of_turn() {
         let (s, _) = pass_all(current, &[p1, p2]);
         current = s;
         // Stop once we're past cleanup (new turn has started for p2, or p1's next upkeep).
-        if current.turn.active_player != p1 {
+        if current.turn().active_player != p1 {
             break;
         }
     }

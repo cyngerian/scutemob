@@ -462,8 +462,8 @@ mod property_tests {
 
             for i in 0..num_passes {
                 // Determine who has priority — must be the same for both
-                let holder1 = s1.turn.priority_holder;
-                let holder2 = s2.turn.priority_holder;
+                let holder1 = s1.turn().priority_holder;
+                let holder2 = s2.turn().priority_holder;
                 prop_assert_eq!(holder1, holder2, "priority holders diverged at pass {}", i);
 
                 let player = match holder1 {

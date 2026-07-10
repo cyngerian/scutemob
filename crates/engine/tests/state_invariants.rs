@@ -3,12 +3,13 @@
 //! These tests verify that state invariants hold across random state
 //! configurations and operations.
 
+use mtg_engine::state::test_util;
 use mtg_engine::state::*;
 use proptest::prelude::*;
 
 /// Verify that every object is in exactly one zone.
 fn check_zone_integrity(state: &GameState) {
-    for (obj_id, obj) in state.objects.iter() {
+    for (obj_id, obj) in state.objects().iter() {
         // Object's zone exists
         let zone = state.zone(&obj.zone);
         assert!(
@@ -28,7 +29,7 @@ fn check_zone_integrity(state: &GameState) {
 
         // Object is in exactly one zone
         let mut count = 0;
-        for (_, z) in state.zones.iter() {
+        for (_, z) in state.zones().iter() {
             if z.contains(obj_id) {
                 count += 1;
             }
@@ -37,10 +38,10 @@ fn check_zone_integrity(state: &GameState) {
     }
 
     // Every ID in a zone is in the objects map
-    for (zone_id, zone) in state.zones.iter() {
+    for (zone_id, zone) in state.zones().iter() {
         for obj_id in zone.object_ids() {
             assert!(
-                state.objects.contains_key(&obj_id),
+                state.objects().contains_key(&obj_id),
                 "zone {:?} has orphaned object {:?}",
                 zone_id,
                 obj_id
@@ -51,7 +52,7 @@ fn check_zone_integrity(state: &GameState) {
 
 /// Verify all ObjectIds are unique.
 fn check_unique_ids(state: &GameState) {
-    let ids: Vec<ObjectId> = state.objects.keys().cloned().collect();
+    let ids: Vec<ObjectId> = state.objects().keys().cloned().collect();
     for i in 0..ids.len() {
         for j in (i + 1)..ids.len() {
             assert_ne!(ids[i], ids[j], "duplicate ObjectId found");
@@ -117,8 +118,8 @@ proptest! {
             builder = builder.add_player(PlayerId(i));
         }
         let state = builder.build().unwrap();
-        prop_assert_eq!(state.players.len(), num_players as usize);
-        prop_assert_eq!(state.turn.turn_order.len(), num_players as usize);
+        prop_assert_eq!(state.players().len(), num_players as usize);
+        prop_assert_eq!(state.turn().turn_order.len(), num_players as usize);
     }
 
     /// Move preserves total object count.
@@ -138,8 +139,7 @@ proptest! {
 
         // Move the first object to graveyard
         let first_id = state.objects_in_zone(&ZoneId::Battlefield)[0].id;
-        state
-            .move_object_to_zone(first_id, ZoneId::Graveyard(p1))
+        test_util::move_object_to_zone(&mut state, first_id, ZoneId::Graveyard(p1))
             .unwrap();
 
         // Object count unchanged (old removed, new created)
@@ -166,8 +166,8 @@ proptest! {
         for i in 0..num_moves {
             let target_zone = zones[i as usize % zones.len()];
             // Find the object (it might be in any zone after previous moves)
-            let obj_id = state.objects.keys().next().copied().unwrap();
-            state.move_object_to_zone(obj_id, target_zone).unwrap();
+            let obj_id = state.objects().keys().next().copied().unwrap();
+            test_util::move_object_to_zone(&mut state, obj_id, target_zone).unwrap();
         }
 
         check_zone_integrity(&state);

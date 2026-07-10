@@ -33,7 +33,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -134,9 +134,9 @@ fn setup_spectacle_state(
 
     // Directly set the life_lost_this_turn counter to simulate prior life loss.
     let mut state = state;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     if p2_life_lost > 0 {
-        if let Some(ps) = state.players.get_mut(&p2) {
+        if let Some(ps) = state.players_mut().get_mut(&p2) {
             ps.life_lost_this_turn = p2_life_lost;
             ps.life_total -= p2_life_lost as i32;
         }
@@ -157,13 +157,13 @@ fn test_spectacle_basic_cast_after_opponent_life_loss() {
 
     // Give p1 enough mana for the spectacle cost {1}{R} (not the full {3}{R}).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -204,7 +204,7 @@ fn test_spectacle_basic_cast_after_opponent_life_loss() {
     );
     // Verify the spell is on the stack (not still in hand).
     let on_stack = state_after
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Spectacle Creature" && o.zone == ZoneId::Stack);
     assert!(
@@ -221,13 +221,13 @@ fn test_spectacle_rejected_when_no_opponent_lost_life() {
 
     // Give mana (spectacle cost would be {1}{R}, but it should be rejected).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -274,13 +274,13 @@ fn test_spectacle_normal_cast_without_spectacle() {
 
     // Give mana for the full printed cost {3}{R}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -341,9 +341,13 @@ fn test_spectacle_no_keyword_rejects() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     // Set p2 as having lost life so that isn't the rejection reason.
-    state.players.get_mut(&p2).unwrap().life_lost_this_turn = 3;
+    state
+        .players_mut()
+        .get_mut(&p2)
+        .unwrap()
+        .life_lost_this_turn = 3;
 
     let spell_id = find_object(&state, "Plain Spell");
 
@@ -391,13 +395,13 @@ fn test_spectacle_no_keyword_rejects() {
 fn test_spectacle_valid_cast_with_preconditions_met() {
     let (mut state, p1, _p2, spell_id) = setup_spectacle_state(3);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -440,16 +444,16 @@ fn test_spectacle_life_lost_counter_resets_on_turn_boundary() {
 
     // Confirm p2 has life_lost_this_turn = 5 before the turn boundary.
     assert_eq!(
-        state.players.get(&p2).unwrap().life_lost_this_turn,
+        state.players().get(&p2).unwrap().life_lost_this_turn,
         5,
         "p2 should have lost 5 life this turn"
     );
 
     // Advance to the next turn by passing priority for whoever holds it.
     // We need to reach p2's turn (turn number 2), where reset_turn_state fires.
-    let initial_turn = state.turn.turn_number;
+    let initial_turn = state.turn().turn_number;
     for _ in 0..30 {
-        let priority_holder = match state.turn.priority_holder {
+        let priority_holder = match state.turn().priority_holder {
             Some(ph) => ph,
             None => break,
         };
@@ -460,7 +464,7 @@ fn test_spectacle_life_lost_counter_resets_on_turn_boundary() {
             process_command(state, cmd).unwrap_or_else(|e| panic!("PassPriority failed: {:?}", e));
         state = s;
         // Once we've advanced past p1's turn, stop.
-        if state.turn.turn_number > initial_turn {
+        if state.turn().turn_number > initial_turn {
             break;
         }
     }
@@ -468,12 +472,12 @@ fn test_spectacle_life_lost_counter_resets_on_turn_boundary() {
     // After the turn has advanced to the next player, life_lost_this_turn should be 0.
     // Note: reset_turn_state fires at the start of each new turn.
     assert_eq!(
-        state.players.get(&p2).unwrap().life_lost_this_turn,
+        state.players().get(&p2).unwrap().life_lost_this_turn,
         0,
         "p2's life_lost_this_turn should reset to 0 at the start of the next turn"
     );
     assert_eq!(
-        state.players.get(&p1).unwrap().life_lost_this_turn,
+        state.players().get(&p1).unwrap().life_lost_this_turn,
         0,
         "p1's life_lost_this_turn should also reset to 0 at the start of the next turn"
     );
@@ -510,18 +514,18 @@ fn test_spectacle_life_lost_counter_not_set_for_infect() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Simulate infect damage: poison counters increase, life_total does NOT change,
     // and life_lost_this_turn remains 0.
     {
-        let ps = state.players.get_mut(&p2).unwrap();
+        let ps = state.players_mut().get_mut(&p2).unwrap();
         ps.poison_counters += 3; // 3 infect damage → 3 poison counters
                                  // life_total is unchanged — infect does NOT cause life loss
                                  // life_lost_this_turn stays at 0
     }
 
-    let p2_life_lost = state.players.get(&p2).unwrap().life_lost_this_turn;
+    let p2_life_lost = state.players().get(&p2).unwrap().life_lost_this_turn;
     assert_eq!(
         p2_life_lost, 0,
         "infect damage should NOT increment life_lost_this_turn"
@@ -529,13 +533,13 @@ fn test_spectacle_life_lost_counter_not_set_for_infect() {
 
     let spell_id = find_object(&state, "Spectacle Creature");
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -610,22 +614,26 @@ fn test_spectacle_multiplayer_any_opponent_enables() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Only P3 lost life — P2 and P4 have not.
-    state.players.get_mut(&p3).unwrap().life_lost_this_turn = 4;
-    state.players.get_mut(&p3).unwrap().life_total -= 4;
+    state
+        .players_mut()
+        .get_mut(&p3)
+        .unwrap()
+        .life_lost_this_turn = 4;
+    state.players_mut().get_mut(&p3).unwrap().life_total -= 4;
 
     let spell_id = find_object(&state, "Spectacle Creature");
     // Give mana for spectacle cost {1}{R}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -666,19 +674,23 @@ fn test_spectacle_own_life_loss_does_not_enable() {
     let (mut state, p1, p2, spell_id) = setup_spectacle_state(0);
 
     // Only P1 (the caster) lost life — not any opponent.
-    state.players.get_mut(&p1).unwrap().life_lost_this_turn = 3;
-    state.players.get_mut(&p1).unwrap().life_total -= 3;
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .life_lost_this_turn = 3;
+    state.players_mut().get_mut(&p1).unwrap().life_total -= 3;
     // Confirm p2 has NOT lost life.
-    assert_eq!(state.players.get(&p2).unwrap().life_lost_this_turn, 0);
+    assert_eq!(state.players().get(&p2).unwrap().life_lost_this_turn, 0);
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -748,18 +760,18 @@ fn test_spectacle_life_lost_counter_tracks_lose_life_effect() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Simulate a LoseLife effect: directly decrement life_total AND set life_lost_this_turn
     // (as the engine's LoseLife effect handler does after this commit).
     {
-        let ps = state.players.get_mut(&p2).unwrap();
+        let ps = state.players_mut().get_mut(&p2).unwrap();
         let loss = 2u32;
         ps.life_total -= loss as i32;
         ps.life_lost_this_turn += loss; // This is what the LoseLife effect now does.
     }
 
-    let p2_life_lost = state.players.get(&p2).unwrap().life_lost_this_turn;
+    let p2_life_lost = state.players().get(&p2).unwrap().life_lost_this_turn;
     assert_eq!(
         p2_life_lost, 2,
         "life_lost_this_turn should be 2 after LoseLife effect"
@@ -768,13 +780,13 @@ fn test_spectacle_life_lost_counter_tracks_lose_life_effect() {
     let spell_id = find_object(&state, "Spectacle Creature");
     // Give mana for spectacle cost {1}{R}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -877,30 +889,34 @@ fn test_spectacle_commander_tax_applies() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Pre-set commander tax to 1 (cast once previously) — adds {2} to total cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .commander_tax
         .insert(cmd_id.clone(), 1);
 
     // Opponent (p2) has lost life this turn — spectacle precondition is met.
-    state.players.get_mut(&p2).unwrap().life_lost_this_turn = 3;
-    state.players.get_mut(&p2).unwrap().life_total -= 3;
+    state
+        .players_mut()
+        .get_mut(&p2)
+        .unwrap()
+        .life_lost_this_turn = 3;
+    state.players_mut().get_mut(&p2).unwrap().life_total -= 3;
 
     // Total cost with spectacle + tax: {1}{R} spectacle + {2} tax = {3}{R}.
     // Provide exactly {3}{R}: 1 red + 3 colorless.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -909,7 +925,7 @@ fn test_spectacle_commander_tax_applies() {
     register_commander_zone_replacements(&mut state);
 
     let cmd_obj_id = state
-        .zones
+        .zones()
         .get(&ZoneId::Command(p1))
         .unwrap()
         .object_ids()
@@ -949,14 +965,17 @@ fn test_spectacle_commander_tax_applies() {
 
     // Commander tax should have been incremented to 2 (one more cast).
     assert_eq!(
-        state_after.players[&p1].commander_tax.get(&cmd_id).copied(),
+        state_after.players()[&p1]
+            .commander_tax
+            .get(&cmd_id)
+            .copied(),
         Some(2),
         "CR 903.8: commander tax should increment to 2 after second cast"
     );
 
     // Spell should be on the stack.
     assert_eq!(
-        state_after.stack_objects.len(),
+        state_after.stack_objects().len(),
         1,
         "CR 118.9d + 903.8: commander spectacle spell should be on the stack"
     );

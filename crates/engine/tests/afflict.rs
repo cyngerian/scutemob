@@ -20,7 +20,7 @@ use mtg_engine::{
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -43,7 +43,7 @@ fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent
 /// Get the life total of a player.
 fn life_total(state: &GameState, player: PlayerId) -> i32 {
     state
-        .players
+        .players()
         .get(&player)
         .map(|p| p.life_total)
         .unwrap_or_else(|| panic!("player {:?} not found", player))
@@ -94,7 +94,7 @@ fn test_702_130a_afflict_basic_life_loss() {
 
     // No trigger yet — afflict fires on becomes blocked, not on attacking.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "CR 702.130a: afflict trigger should NOT fire at DeclareAttackers — only at DeclareBlockers"
     );
 
@@ -119,7 +119,7 @@ fn test_702_130a_afflict_basic_life_loss() {
         "CR 702.130a: AbilityTriggered event expected when creature becomes blocked"
     );
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.130a: afflict trigger should be on the stack"
     );
@@ -202,7 +202,7 @@ fn test_702_130a_afflict_not_blocked_no_trigger() {
         "CR 509.3c: afflict should NOT trigger when creature is unblocked"
     );
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "CR 509.3c: stack should be empty — no afflict trigger when unblocked"
     );
 
@@ -281,7 +281,7 @@ fn test_509_3c_afflict_multiple_blockers_single_trigger() {
         "CR 509.3c: afflict should trigger exactly once regardless of how many creatures block it"
     );
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 509.3c: exactly one afflict trigger on the stack for two blockers"
     );
@@ -361,7 +361,7 @@ fn test_702_130b_afflict_multiple_instances_trigger_separately() {
         "CR 702.130b: two afflict instances should generate two separate triggers"
     );
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "CR 702.130b: two afflict triggers should be on the stack"
     );

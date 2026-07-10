@@ -31,7 +31,7 @@ fn cid(s: &str) -> CardId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -120,18 +120,18 @@ fn test_undaunted_basic_4player_reduce_generic_cost() {
 
     // Give p1 {3}{W} — pays the reduced cost (6 - 3 = 3 generic remaining).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Undaunted Spell");
 
@@ -139,11 +139,15 @@ fn test_undaunted_basic_4player_reduce_generic_cost() {
         .expect("CR 702.125a: 3 opponents should reduce {6}{W} to {3}{W}");
 
     // Spell on the stack.
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "spell should be on the stack"
+    );
 
     // Mana pool should be empty (3 colorless + 1 white consumed).
     assert!(
-        state.players.get(&p1).unwrap().mana_pool.is_empty(),
+        state.players().get(&p1).unwrap().mana_pool.is_empty(),
         "CR 702.125a: mana pool should be empty after undaunted reduction + payment"
     );
 }
@@ -176,12 +180,12 @@ fn test_undaunted_reduce_to_zero() {
 
     // Give p1 {W} only — generic should be reduced to 0.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Undaunted Spell");
 
@@ -189,11 +193,15 @@ fn test_undaunted_reduce_to_zero() {
         .expect("CR 702.125a + CR 601.2f: 3 opponents should reduce {3} to {0}");
 
     // Spell on the stack.
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "spell should be on the stack"
+    );
 
     // Mana pool empty (only white consumed).
     assert!(
-        state.players.get(&p1).unwrap().mana_pool.is_empty(),
+        state.players().get(&p1).unwrap().mana_pool.is_empty(),
         "CR 601.2f: mana pool should be empty — generic reduced to {{0}}, white paid"
     );
 }
@@ -231,12 +239,12 @@ fn test_undaunted_excess_opponents_floors_at_zero() {
 
     // Give p1 {W} only — generic floors at {0}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Undaunted Spell");
 
@@ -244,11 +252,15 @@ fn test_undaunted_excess_opponents_floors_at_zero() {
         cast_spell(state, p1, spell_id).expect("CR 601.2f: 5 opponents should floor {3} at {0}");
 
     // Spell on the stack.
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "spell should be on the stack"
+    );
 
     // Mana pool empty.
     assert!(
-        state.players.get(&p1).unwrap().mana_pool.is_empty(),
+        state.players().get(&p1).unwrap().mana_pool.is_empty(),
         "CR 601.2f: mana pool should be empty — generic floored at {{0}}"
     );
 }
@@ -291,18 +303,18 @@ fn test_undaunted_does_not_reduce_colored_pips() {
 
     // Give p1 {W}{U} — generic reduced to {0}, but colored pips still required.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Undaunted Spell");
 
@@ -311,11 +323,15 @@ fn test_undaunted_does_not_reduce_colored_pips() {
     );
 
     // Spell on the stack.
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "spell should be on the stack"
+    );
 
     // Mana pool empty ({W}{U} consumed).
     assert!(
-        state.players.get(&p1).unwrap().mana_pool.is_empty(),
+        state.players().get(&p1).unwrap().mana_pool.is_empty(),
         "CR 702.125a: mana pool should be empty after paying {{W}}{{U}}"
     );
 }
@@ -348,18 +364,18 @@ fn test_undaunted_no_keyword_no_reduction() {
 
     // Give p1 only {3}{W} — not enough for {6}{W} without reduction.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Plain Spell");
 
@@ -395,18 +411,18 @@ fn test_undaunted_2player_one_opponent() {
 
     // Give p1 {5}{W} — pays the reduced cost (6 - 1 = 5 generic remaining).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 5);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Undaunted Spell");
 
@@ -414,11 +430,15 @@ fn test_undaunted_2player_one_opponent() {
         .expect("CR 702.125a: 1 opponent should reduce {6}{W} to {5}{W}");
 
     // Spell on the stack.
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "spell should be on the stack"
+    );
 
     // Mana pool should be empty.
     assert!(
-        state.players.get(&p1).unwrap().mana_pool.is_empty(),
+        state.players().get(&p1).unwrap().mana_pool.is_empty(),
         "CR 702.125a: mana pool should be empty after paying {{5}}{{W}}"
     );
 }
@@ -450,22 +470,22 @@ fn test_undaunted_eliminated_opponents_not_counted() {
         .unwrap();
 
     // p4 has lost — only 2 active opponents remain (p2, p3).
-    state.players.get_mut(&p4).unwrap().has_lost = true;
+    state.players_mut().get_mut(&p4).unwrap().has_lost = true;
 
     // Give p1 {4}{W} — pays reduced cost (6 - 2 = 4 generic; only 2 active opponents).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 4);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Undaunted Spell");
 
@@ -474,11 +494,15 @@ fn test_undaunted_eliminated_opponents_not_counted() {
     );
 
     // Spell on the stack.
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "spell should be on the stack"
+    );
 
     // Mana pool empty.
     assert!(
-        state.players.get(&p1).unwrap().mana_pool.is_empty(),
+        state.players().get(&p1).unwrap().mana_pool.is_empty(),
         "CR 702.125b: mana pool should be empty after paying {{4}}{{W}}"
     );
 }
@@ -528,18 +552,18 @@ fn test_undaunted_ordset_deduplicates_unit_variant() {
     // OrdSet deduplication means only 1 instance of Undaunted is stored.
     // Reduction = 1 instance * 3 opponents = 3. Pay {3}{W}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Double Undaunted Spell");
 
@@ -548,11 +572,15 @@ fn test_undaunted_ordset_deduplicates_unit_variant() {
     );
 
     // Spell on the stack.
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "spell should be on the stack"
+    );
 
     // Mana pool empty.
     assert!(
-        state.players.get(&p1).unwrap().mana_pool.is_empty(),
+        state.players().get(&p1).unwrap().mana_pool.is_empty(),
         "mana pool should be empty after paying {{3}}{{W}}"
     );
 }
@@ -600,7 +628,7 @@ fn test_undaunted_with_commander_tax() {
     // Total cost: base {4}{W} + tax {2} = {6}{W}.
     // Undaunted with 3 opponents: {6} - 3 = {3}. Must pay {3}{W}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .commander_tax
@@ -608,22 +636,22 @@ fn test_undaunted_with_commander_tax() {
 
     // Give p1 {3}{W} only.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Find the commander in the command zone.
     let card_obj_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Command(p1))
         .unwrap()
         .object_ids()
@@ -636,14 +664,14 @@ fn test_undaunted_with_commander_tax() {
 
     // Spell on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "commander should be on the stack"
     );
 
     // Mana pool empty.
     assert!(
-        state.players.get(&p1).unwrap().mana_pool.is_empty(),
+        state.players().get(&p1).unwrap().mana_pool.is_empty(),
         "mana pool should be empty after paying {{3}}{{W}}"
     );
 }
@@ -692,18 +720,18 @@ fn test_undaunted_combined_with_affinity() {
 
     // Affinity: {8} - 2 = {6}. Undaunted: {6} - 3 = {3}. Pay {3}{U}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Undaunted Affinity Spell");
 
@@ -711,11 +739,15 @@ fn test_undaunted_combined_with_affinity() {
         .expect("Affinity(-2) + Undaunted(-3) should compose: {8}{U} -> {6}{U} -> {3}{U}");
 
     // Spell on the stack.
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "spell should be on the stack"
+    );
 
     // Mana pool empty.
     assert!(
-        state.players.get(&p1).unwrap().mana_pool.is_empty(),
+        state.players().get(&p1).unwrap().mana_pool.is_empty(),
         "mana pool should be empty after paying {{3}}{{U}}"
     );
 }
@@ -752,18 +784,18 @@ fn test_undaunted_6player_game() {
 
     // Give p1 {1}{W} — pays the reduced cost (6 - 5 = 1 generic remaining).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Undaunted Spell");
 
@@ -771,11 +803,15 @@ fn test_undaunted_6player_game() {
         .expect("CR 702.125a: 5 opponents in 6-player game should reduce {6}{W} to {1}{W}");
 
     // Spell on the stack.
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "spell should be on the stack"
+    );
 
     // Mana pool should be empty.
     assert!(
-        state.players.get(&p1).unwrap().mana_pool.is_empty(),
+        state.players().get(&p1).unwrap().mana_pool.is_empty(),
         "CR 702.125a: mana pool should be empty after paying {{1}}{{W}}"
     );
 }

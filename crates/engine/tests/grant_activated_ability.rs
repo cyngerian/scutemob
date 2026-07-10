@@ -82,7 +82,7 @@ fn humility_effect(eff_id: u64, ts: u64) -> ContinuousEffect {
 
 fn find_obj_by_name(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -115,7 +115,7 @@ fn test_cryptolith_rite_grants_mana_ability_to_creatures() {
 
     // Add the grant effect sourced from the token.
     let grant = cryptolith_grant(1, source_id, 10);
-    state.continuous_effects.push_back(grant);
+    state.continuous_effects_mut().push_back(grant);
 
     // Both creatures should have the granted mana ability.
     let alpha_chars = calculate_characteristics(&state, alpha_id)
@@ -158,13 +158,13 @@ fn test_granted_mana_ability_taps_and_produces_mana() {
         .object(ObjectSpec::creature(p1(), "Mana Bear", 2, 2))
         .build()
         .unwrap();
-    state.turn.priority_holder = Some(p1());
+    state.turn_mut().priority_holder = Some(p1());
 
     let source_id = find_obj_by_name(&state, "Rite Source");
     let bear_id = find_obj_by_name(&state, "Mana Bear");
 
     let grant = cryptolith_grant(1, source_id, 10);
-    state.continuous_effects.push_back(grant);
+    state.continuous_effects_mut().push_back(grant);
 
     // Verify bear has the granted mana ability at index 0.
     let chars = calculate_characteristics(&state, bear_id).unwrap();
@@ -186,7 +186,7 @@ fn test_granted_mana_ability_taps_and_produces_mana() {
 
     // Bear is now tapped.
     assert!(
-        state_after.objects[&bear_id].status.tapped,
+        state_after.objects()[&bear_id].status.tapped,
         "creature should be tapped after activating tap-for-mana grant"
     );
 
@@ -218,7 +218,7 @@ fn test_cryptolith_rite_grant_ends_when_source_leaves() {
         .object(ObjectSpec::creature(p1(), "Forest Bear", 2, 2))
         .build()
         .unwrap();
-    state.turn.priority_holder = Some(p1());
+    state.turn_mut().priority_holder = Some(p1());
 
     let rite_id = find_obj_by_name(&state, "Cryptolith Rite");
     let bear_id = find_obj_by_name(&state, "Forest Bear");
@@ -241,7 +241,7 @@ fn test_cryptolith_rite_grant_ends_when_source_leaves() {
         is_cda: false,
         condition: None,
     };
-    state.continuous_effects.push_back(grant);
+    state.continuous_effects_mut().push_back(grant);
 
     // Bear has the grant initially.
     let chars_before = calculate_characteristics(&state, bear_id).unwrap();
@@ -252,7 +252,7 @@ fn test_cryptolith_rite_grant_ends_when_source_leaves() {
 
     // Move Rite to graveyard — simulates it leaving the battlefield.
     // is_effect_active in layers.rs checks WhileSourceOnBattlefield against source zone.
-    state.objects.get_mut(&rite_id).unwrap().zone = ZoneId::Graveyard(p1());
+    state.objects_mut().get_mut(&rite_id).unwrap().zone = ZoneId::Graveyard(p1());
 
     // Now bear should lose the grant (source not on battlefield).
     let chars_after = calculate_characteristics(&state, bear_id).unwrap();
@@ -282,7 +282,7 @@ fn test_two_cryptolith_rites_grant_two_abilities_but_one_tap() {
         .object(ObjectSpec::creature(p1(), "Dual Bear", 2, 2))
         .build()
         .unwrap();
-    state.turn.priority_holder = Some(p1());
+    state.turn_mut().priority_holder = Some(p1());
 
     let source1_id = find_obj_by_name(&state, "Rite Source 1");
     let source2_id = find_obj_by_name(&state, "Rite Source 2");
@@ -290,10 +290,10 @@ fn test_two_cryptolith_rites_grant_two_abilities_but_one_tap() {
 
     // Two separate Cryptolith-Rite grants from two different sources.
     state
-        .continuous_effects
+        .continuous_effects_mut()
         .push_back(cryptolith_grant(1, source1_id, 10));
     state
-        .continuous_effects
+        .continuous_effects_mut()
         .push_back(cryptolith_grant(2, source2_id, 11));
 
     // Creature should have exactly 2 mana abilities (one per Rite).
@@ -321,7 +321,7 @@ fn test_two_cryptolith_rites_grant_two_abilities_but_one_tap() {
     .expect("first TapForMana should succeed");
 
     assert!(
-        state_after_first.objects[&bear_id].status.tapped,
+        state_after_first.objects()[&bear_id].status.tapped,
         "creature should be tapped after first activation"
     );
 
@@ -366,7 +366,7 @@ fn test_chromatic_lantern_grants_only_lands_not_creatures() {
     let warrior_id = find_obj_by_name(&state, "Elvish Warrior");
 
     state
-        .continuous_effects
+        .continuous_effects_mut()
         .push_back(lantern_grant(1, source_id, 10));
 
     let forest_chars = calculate_characteristics(&state, forest_id).unwrap();
@@ -415,7 +415,7 @@ fn test_chromatic_lantern_lands_keep_existing_abilities() {
     let forest_id = find_obj_by_name(&state, "Ancient Forest");
 
     state
-        .continuous_effects
+        .continuous_effects_mut()
         .push_back(lantern_grant(1, source_id, 10));
 
     let chars = calculate_characteristics(&state, forest_id).unwrap();
@@ -462,8 +462,12 @@ fn test_paradise_mantle_grants_only_equipped_creature() {
     let mantle_id = find_obj_by_name(&state, "Mantle");
 
     // Attach mantle to the equipped creature.
-    state.objects.get_mut(&mantle_id).unwrap().attached_to = Some(equipped_id);
-    state.objects.get_mut(&equipped_id).unwrap().attachments = im::vector![mantle_id];
+    state.objects_mut().get_mut(&mantle_id).unwrap().attached_to = Some(equipped_id);
+    state
+        .objects_mut()
+        .get_mut(&equipped_id)
+        .unwrap()
+        .attachments = im::vector![mantle_id];
 
     // Register the grant effect sourced from the mantle.
     let grant = ContinuousEffect {
@@ -483,7 +487,7 @@ fn test_paradise_mantle_grants_only_equipped_creature() {
         is_cda: false,
         condition: None,
     };
-    state.continuous_effects.push_back(grant);
+    state.continuous_effects_mut().push_back(grant);
 
     let equipped_chars = calculate_characteristics(&state, equipped_id).unwrap();
     let unequipped_chars = calculate_characteristics(&state, unequipped_id).unwrap();
@@ -517,18 +521,18 @@ fn test_granted_mana_ability_respects_summoning_sickness() {
         .object(ObjectSpec::creature(p1(), "New Creature", 2, 2))
         .build()
         .unwrap();
-    state.turn.priority_holder = Some(p1());
+    state.turn_mut().priority_holder = Some(p1());
 
     let source_id = find_obj_by_name(&state, "Rite Source");
     let creature_id = find_obj_by_name(&state, "New Creature");
 
     state
-        .continuous_effects
+        .continuous_effects_mut()
         .push_back(cryptolith_grant(1, source_id, 10));
 
     // Mark creature as having summoning sickness.
     state
-        .objects
+        .objects_mut()
         .get_mut(&creature_id)
         .unwrap()
         .has_summoning_sickness = true;
@@ -578,10 +582,12 @@ fn test_humility_removes_granted_mana_ability() {
 
     // Rite grant at timestamp 10 (earlier).
     state
-        .continuous_effects
+        .continuous_effects_mut()
         .push_back(cryptolith_grant(1, source_id, 10));
     // Humility at timestamp 20 (later) — wipes all abilities including grants.
-    state.continuous_effects.push_back(humility_effect(2, 20));
+    state
+        .continuous_effects_mut()
+        .push_back(humility_effect(2, 20));
 
     let chars = calculate_characteristics(&state, bear_id).unwrap();
 
@@ -625,7 +631,7 @@ fn test_face_down_creature_inherits_granted_mana_ability() {
     let creature_id = find_obj_by_name(&state, "Exalted Morph");
 
     state
-        .continuous_effects
+        .continuous_effects_mut()
         .push_back(cryptolith_grant(1, source_id, 10));
 
     // (a) Verify grant is present on the face-up creature.
@@ -642,12 +648,16 @@ fn test_face_down_creature_inherits_granted_mana_ability() {
     // Turn the creature face-down.
     // layers.rs face-down override requires BOTH status.face_down AND face_down_as.
     state
-        .objects
+        .objects_mut()
         .get_mut(&creature_id)
         .unwrap()
         .status
         .face_down = true;
-    state.objects.get_mut(&creature_id).unwrap().face_down_as = Some(FaceDownKind::Morph);
+    state
+        .objects_mut()
+        .get_mut(&creature_id)
+        .unwrap()
+        .face_down_as = Some(FaceDownKind::Morph);
 
     // (b) Face-down creature: grant should still be present (Layer 6 re-adds it after
     // the face-down override clears printed abilities). Front-face Flying should be gone.
@@ -663,12 +673,16 @@ fn test_face_down_creature_inherits_granted_mana_ability() {
 
     // (c) Turn face-up: front-face abilities return AND grant is still present.
     state
-        .objects
+        .objects_mut()
         .get_mut(&creature_id)
         .unwrap()
         .status
         .face_down = false;
-    state.objects.get_mut(&creature_id).unwrap().face_down_as = None;
+    state
+        .objects_mut()
+        .get_mut(&creature_id)
+        .unwrap()
+        .face_down_as = None;
     let chars_face_up_again = calculate_characteristics(&state, creature_id).unwrap();
     assert!(
         chars_face_up_again
@@ -736,7 +750,7 @@ fn test_granted_once_per_turn_activated_ability_is_preserved_and_enforced() {
         once_per_turn: true,
     };
 
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(1),
         source: Some(source_id),
         timestamp: 10,
@@ -787,7 +801,7 @@ fn test_granted_once_per_turn_activated_ability_is_preserved_and_enforced() {
 
     // After first activation, the counter should be > 0, preventing a second activation.
     let counter = state
-        .objects
+        .objects()
         .get(&creature_id)
         .map(|o| o.abilities_activated_this_turn)
         .unwrap_or(0);
@@ -854,10 +868,12 @@ fn test_humility_before_grant_preserves_grant() {
     let bear_id = find_obj_by_name(&state, "Bear Under Humility");
 
     // Humility at timestamp 10 (EARLIER) — wipes all abilities first.
-    state.continuous_effects.push_back(humility_effect(1, 10));
+    state
+        .continuous_effects_mut()
+        .push_back(humility_effect(1, 10));
     // Cryptolith Rite grant at timestamp 20 (LATER) — adds grant after Humility.
     state
-        .continuous_effects
+        .continuous_effects_mut()
         .push_back(cryptolith_grant(2, source_id, 20));
 
     let chars = calculate_characteristics(&state, bear_id).unwrap();

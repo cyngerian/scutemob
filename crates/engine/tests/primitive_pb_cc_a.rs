@@ -41,7 +41,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == name)
         .map(|(&id, _)| id)
@@ -59,7 +59,7 @@ fn resolve_via_apply(
     player: PlayerTarget,
     counter: CounterType,
 ) -> i32 {
-    let pre_len = state.continuous_effects.len();
+    let pre_len = state.continuous_effects().len();
     let effect = Effect::ApplyContinuousEffect {
         effect_def: Box::new(ContinuousEffectDef {
             layer: EffectLayer::PtModify,
@@ -77,7 +77,7 @@ fn resolve_via_apply(
 
     // Last pushed effect carries the substituted ModifyBoth(N).
     let post = state
-        .continuous_effects
+        .continuous_effects()
         .iter()
         .nth(pre_len)
         .expect("ApplyContinuousEffect must push exactly one effect");
@@ -119,8 +119,8 @@ fn test_player_counter_count_controller() {
         .build()
         .unwrap();
 
-    state.players.get_mut(&p1).unwrap().poison_counters = 4;
-    state.players.get_mut(&p2).unwrap().poison_counters = 7;
+    state.players_mut().get_mut(&p1).unwrap().poison_counters = 4;
+    state.players_mut().get_mut(&p2).unwrap().poison_counters = 7;
 
     let src = find_object(&state, "Source");
     let n = resolve_via_apply(
@@ -154,10 +154,10 @@ fn test_player_counter_count_each_opponent_sums() {
         .unwrap();
 
     // Controller p1 has 100 poison — must NOT be summed.
-    state.players.get_mut(&p1).unwrap().poison_counters = 100;
-    state.players.get_mut(&p2).unwrap().poison_counters = 1;
-    state.players.get_mut(&p3).unwrap().poison_counters = 2;
-    state.players.get_mut(&p4).unwrap().poison_counters = 5;
+    state.players_mut().get_mut(&p1).unwrap().poison_counters = 100;
+    state.players_mut().get_mut(&p2).unwrap().poison_counters = 1;
+    state.players_mut().get_mut(&p3).unwrap().poison_counters = 2;
+    state.players_mut().get_mut(&p4).unwrap().poison_counters = 5;
 
     let src = find_object(&state, "Source");
     let n = resolve_via_apply(
@@ -191,9 +191,9 @@ fn test_player_counter_count_each_player_sums() {
         .build()
         .unwrap();
 
-    state.players.get_mut(&p1).unwrap().poison_counters = 3;
-    state.players.get_mut(&p2).unwrap().poison_counters = 4;
-    state.players.get_mut(&p3).unwrap().poison_counters = 5;
+    state.players_mut().get_mut(&p1).unwrap().poison_counters = 3;
+    state.players_mut().get_mut(&p2).unwrap().poison_counters = 4;
+    state.players_mut().get_mut(&p3).unwrap().poison_counters = 5;
 
     let src = find_object(&state, "Source");
     let n = resolve_via_apply(
@@ -227,9 +227,9 @@ fn test_player_counter_count_declared_target() {
         .build()
         .unwrap();
 
-    state.players.get_mut(&p1).unwrap().poison_counters = 1;
-    state.players.get_mut(&p2).unwrap().poison_counters = 9;
-    state.players.get_mut(&p3).unwrap().poison_counters = 2;
+    state.players_mut().get_mut(&p1).unwrap().poison_counters = 1;
+    state.players_mut().get_mut(&p2).unwrap().poison_counters = 9;
+    state.players_mut().get_mut(&p3).unwrap().poison_counters = 2;
 
     let src = find_object(&state, "Source");
 
@@ -240,7 +240,7 @@ fn test_player_counter_count_declared_target() {
     }];
     let mut ctx = EffectContext::new(p1, src, ctx_targets);
 
-    let pre_len = state.continuous_effects.len();
+    let pre_len = state.continuous_effects().len();
     let effect = Effect::ApplyContinuousEffect {
         effect_def: Box::new(ContinuousEffectDef {
             layer: EffectLayer::PtModify,
@@ -258,7 +258,7 @@ fn test_player_counter_count_declared_target() {
     };
     execute_effect(&mut state, &effect, &mut ctx);
 
-    let post = state.continuous_effects.iter().nth(pre_len).unwrap();
+    let post = state.continuous_effects().iter().nth(pre_len).unwrap();
     match &post.modification {
         LayerModification::ModifyBoth(n) => assert_eq!(
             *n, 9,
@@ -284,8 +284,8 @@ fn test_player_counter_count_unsupported_kind_returns_zero() {
         .build()
         .unwrap();
 
-    state.players.get_mut(&p1).unwrap().poison_counters = 12;
-    state.players.get_mut(&p2).unwrap().poison_counters = 12;
+    state.players_mut().get_mut(&p1).unwrap().poison_counters = 12;
+    state.players_mut().get_mut(&p2).unwrap().poison_counters = 12;
 
     let src = find_object(&state, "Source");
 
@@ -354,8 +354,8 @@ fn test_player_counter_count_cda_path_layer7a() {
         .build()
         .unwrap();
 
-    state.players.get_mut(&p2).unwrap().poison_counters = 3;
-    state.players.get_mut(&p3).unwrap().poison_counters = 5;
+    state.players_mut().get_mut(&p2).unwrap().poison_counters = 3;
+    state.players_mut().get_mut(&p3).unwrap().poison_counters = 5;
     // controller p1 has 0 poison
 
     let src = find_object(&state, "Test CDA");
@@ -367,7 +367,7 @@ fn test_player_counter_count_cda_path_layer7a() {
         counter: CounterType::Poison,
     };
     state
-        .continuous_effects
+        .continuous_effects_mut()
         .push_back(mtg_engine::ContinuousEffect {
             id: mtg_engine::EffectId(7700),
             source: Some(src),
@@ -425,7 +425,7 @@ fn test_player_counter_count_cda_scaling_4p_sum() {
         counter: CounterType::Poison,
     };
     state
-        .continuous_effects
+        .continuous_effects_mut()
         .push_back(mtg_engine::ContinuousEffect {
             id: mtg_engine::EffectId(7800),
             source: Some(src),
@@ -447,18 +447,18 @@ fn test_player_counter_count_cda_scaling_4p_sum() {
     assert_eq!(chars.toughness, Some(0));
 
     // (b) Distribute 3 across opponents (p2=1, p3=1, p4=1). Sum = 3.
-    state.players.get_mut(&p2).unwrap().poison_counters = 1;
-    state.players.get_mut(&p3).unwrap().poison_counters = 1;
-    state.players.get_mut(&p4).unwrap().poison_counters = 1;
+    state.players_mut().get_mut(&p2).unwrap().poison_counters = 1;
+    state.players_mut().get_mut(&p3).unwrap().poison_counters = 1;
+    state.players_mut().get_mut(&p4).unwrap().poison_counters = 1;
     let chars = calculate_characteristics(&state, src).unwrap();
     assert_eq!(chars.power, Some(3), "1+1+1 = 3");
     assert_eq!(chars.toughness, Some(3));
 
     // (c) Distribute 8 unevenly (p2=5, p3=2, p4=1). Sum = 8 (NOT max=5,
     // NOT count-of-poisoned=3).
-    state.players.get_mut(&p2).unwrap().poison_counters = 5;
-    state.players.get_mut(&p3).unwrap().poison_counters = 2;
-    state.players.get_mut(&p4).unwrap().poison_counters = 1;
+    state.players_mut().get_mut(&p2).unwrap().poison_counters = 5;
+    state.players_mut().get_mut(&p3).unwrap().poison_counters = 2;
+    state.players_mut().get_mut(&p4).unwrap().poison_counters = 1;
     let chars = calculate_characteristics(&state, src).unwrap();
     assert_eq!(
         chars.power,
@@ -468,7 +468,7 @@ fn test_player_counter_count_cda_scaling_4p_sum() {
     assert_eq!(chars.toughness, Some(8));
 
     // (d) Controller's own poison is irrelevant for EachOpponent.
-    state.players.get_mut(&p1).unwrap().poison_counters = 999;
+    state.players_mut().get_mut(&p1).unwrap().poison_counters = 999;
     let chars = calculate_characteristics(&state, src).unwrap();
     assert_eq!(
         chars.power,

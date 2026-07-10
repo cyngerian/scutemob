@@ -53,7 +53,7 @@ fn card_spec(
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -62,7 +62,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 fn monk_token_count(state: &GameState, player: PlayerId) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|o| {
             o.zone == ZoneId::Battlefield
@@ -112,7 +112,7 @@ fn pass_all(state: GameState, players: &[PlayerId]) -> GameState {
 
 fn resolve_stack(mut state: GameState, players: &[PlayerId]) -> GameState {
     let mut guard = 0;
-    while !state.stack_objects.is_empty() {
+    while !state.stack_objects().is_empty() {
         guard += 1;
         assert!(guard < 100, "resolve_stack exceeded safety guard");
         state = pass_all(state, players);
@@ -212,8 +212,13 @@ fn test_monastery_mentor_noncreature_only_creature_spell_no_token() {
         .at_step(Step::PreCombatMain)
         .build()
         .unwrap();
-    state.players.get_mut(&p1).unwrap().mana_pool.colorless = 10;
-    state.turn.priority_holder = Some(p1);
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .colorless = 10;
+    state.turn_mut().priority_holder = Some(p1);
 
     let creature_spell_id = find_object(&state, "Test Creature Spell");
     let monks_before = monk_token_count(&state, p1);
@@ -257,8 +262,13 @@ fn test_monastery_mentor_noncreature_only_noncreature_spell_creates_token() {
         .at_step(Step::PreCombatMain)
         .build()
         .unwrap();
-    state.players.get_mut(&p1).unwrap().mana_pool.colorless = 10;
-    state.turn.priority_holder = Some(p1);
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .colorless = 10;
+    state.turn_mut().priority_holder = Some(p1);
 
     let noncreature_spell_id = find_object(&state, "Test Noncreature Spell");
     let monks_before = monk_token_count(&state, p1);

@@ -29,7 +29,7 @@ fn p(n: u64) -> PlayerId {
 /// Find an object in the game state by name (panics if not found).
 fn find_by_name(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -39,7 +39,7 @@ fn find_by_name(state: &GameState, name: &str) -> ObjectId {
 /// Find an object by name in a specific zone. Returns None if not found.
 fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -162,16 +162,16 @@ fn test_forage_sacrifice_food() {
     // Give p1 {2} generic mana.
     for _ in 0..2 {
         state
-            .players
+            .players_mut()
             .get_mut(&p1)
             .unwrap()
             .mana_pool
             .add(ManaColor::Colorless, 1);
     }
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let creature_id = find_by_name(&state, "Forager Creature");
-    let p1_life_before = state.players[&p1].life_total;
+    let p1_life_before = state.players()[&p1].life_total;
 
     // Activate the forage ability (ability_index 0 = first non-mana ability).
     let (state, activate_events) = process_command(
@@ -218,7 +218,7 @@ fn test_forage_sacrifice_food() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // After resolution, p1 should have gained 2 life.
-    let p1_life_after = state.players[&p1].life_total;
+    let p1_life_after = state.players()[&p1].life_total;
     assert_eq!(
         p1_life_after,
         p1_life_before + 2,
@@ -248,9 +248,9 @@ fn test_forage_exile_three_from_graveyard() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let creature_id = find_by_name(&state, "Forage-Only Creature");
-    let p1_life_before = state.players[&p1].life_total;
+    let p1_life_before = state.players()[&p1].life_total;
 
     let (state, activate_events) = process_command(
         state,
@@ -294,7 +294,7 @@ fn test_forage_exile_three_from_graveyard() {
     // Resolve the ability.
     let (state, _) = pass_all(state, &[p1, p2]);
 
-    let p1_life_after = state.players[&p1].life_total;
+    let p1_life_after = state.players()[&p1].life_total;
     assert_eq!(
         p1_life_after,
         p1_life_before + 1,
@@ -324,7 +324,7 @@ fn test_forage_insufficient_resources() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let creature_id = find_by_name(&state, "Forage-Only Creature");
 
     let result = process_command(
@@ -412,7 +412,7 @@ fn test_forage_food_is_artifact_subtype_not_just_token() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let creature_id = find_by_name(&state, "Forage-Only Creature");
 
     // Should succeed: Heaped Harvest has Food subtype.
@@ -511,7 +511,7 @@ fn test_forage_prefers_food_when_both_available() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let creature_id = find_by_name(&state, "Forage-Only Creature");
 
     let (state, activate_events) = process_command(

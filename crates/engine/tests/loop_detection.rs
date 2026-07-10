@@ -60,7 +60,7 @@ fn test_mandatory_loop_detected_draws_game() {
     // one below the threshold (threshold = 3).
     // The next call to check_for_mandatory_loop with the same hash should trigger detection.
     let test_hash: u64 = 0xDEAD_BEEF_CAFE_1234;
-    state.loop_detection_hashes.insert(test_hash, 2);
+    state.loop_detection_hashes_mut().insert(test_hash, 2);
 
     // Call the detection function directly.
     let result = mtg_engine::rules::loop_detection::check_for_mandatory_loop(&mut state);
@@ -169,9 +169,9 @@ fn test_optional_loop_not_detected() {
 
     // After reset, the count should be 0 for all hashes.
     assert!(
-        state.loop_detection_hashes.is_empty(),
+        state.loop_detection_hashes().is_empty(),
         "After reset, loop_detection_hashes should be empty; got {} entries",
-        state.loop_detection_hashes.len()
+        state.loop_detection_hashes().len()
     );
 
     // Calling check again starts fresh: first occurrence, NOT a loop.
@@ -210,12 +210,16 @@ fn test_loop_detection_resets_on_player_choice() {
     let mut state = state;
 
     // Pre-load the loop_detection_hashes with some data to simulate a partial loop.
-    state.loop_detection_hashes = OrdMap::new();
-    state.loop_detection_hashes.insert(0xABCD_1234u64, 2u32);
-    state.loop_detection_hashes.insert(0xEF01_5678u64, 1u32);
+    *state.loop_detection_hashes_mut() = OrdMap::new();
+    state
+        .loop_detection_hashes_mut()
+        .insert(0xABCD_1234u64, 2u32);
+    state
+        .loop_detection_hashes_mut()
+        .insert(0xEF01_5678u64, 1u32);
 
     assert_eq!(
-        state.loop_detection_hashes.len(),
+        state.loop_detection_hashes().len(),
         2,
         "Pre-condition: loop_detection_hashes should have 2 entries"
     );
@@ -233,9 +237,9 @@ fn test_loop_detection_resets_on_player_choice() {
     // For simplicity, directly verify the reset function clears the map as expected.
     mtg_engine::rules::loop_detection::reset_loop_detection(&mut state);
     assert!(
-        state.loop_detection_hashes.is_empty(),
+        state.loop_detection_hashes().is_empty(),
         "After reset_loop_detection, map should be empty; got {} entries",
-        state.loop_detection_hashes.len()
+        state.loop_detection_hashes().len()
     );
 }
 
@@ -269,11 +273,11 @@ fn test_loop_detection_hashes_excluded_from_public_state_hash() {
     let state_b = build_state();
 
     // Give state_a some loop detection entries.
-    state_a.loop_detection_hashes.insert(0x1111u64, 2u32);
-    state_a.loop_detection_hashes.insert(0x2222u64, 1u32);
+    state_a.loop_detection_hashes_mut().insert(0x1111u64, 2u32);
+    state_a.loop_detection_hashes_mut().insert(0x2222u64, 1u32);
 
     // State B has no loop detection entries.
-    assert!(state_b.loop_detection_hashes.is_empty());
+    assert!(state_b.loop_detection_hashes().is_empty());
 
     // The public state hashes should be IDENTICAL because loop_detection_hashes is excluded.
     let hash_a = state_a.public_state_hash();

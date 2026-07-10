@@ -24,7 +24,7 @@ use mtg_engine::{
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -52,7 +52,7 @@ fn pass_all(
 
 fn poison_counters(state: &mtg_engine::GameState, player: PlayerId) -> u32 {
     state
-        .players
+        .players()
         .get(&player)
         .map(|p| p.poison_counters)
         .unwrap_or_else(|| panic!("player {:?} not found", player))
@@ -86,7 +86,7 @@ fn test_702_70a_poisonous_basic_gives_poison_counter() {
     let attacker_id = find_object(&state, "Poisonous Viper");
 
     assert_eq!(
-        state.players.get(&p2).unwrap().life_total,
+        state.players().get(&p2).unwrap().life_total,
         40,
         "setup: p2 starts at 40 life"
     );
@@ -126,7 +126,7 @@ fn test_702_70a_poisonous_basic_gives_poison_counter() {
 
     // CR 702.70a: P2 took 2 combat damage (life 40 - 2 = 38).
     assert_eq!(
-        state.players.get(&p2).unwrap().life_total,
+        state.players().get(&p2).unwrap().life_total,
         38,
         "CR 702.70a: p2 should have taken 2 combat damage (life 40 → 38)"
     );
@@ -146,7 +146,7 @@ fn test_702_70a_poisonous_basic_gives_poison_counter() {
 
     // The poisonous trigger should be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.70a: Poisonous trigger should be on the stack"
     );
@@ -185,7 +185,7 @@ fn test_702_70a_poisonous_basic_gives_poison_counter() {
 
     // Stack is empty after resolution.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after Poisonous trigger resolves"
     );
 
@@ -251,14 +251,14 @@ fn test_702_70a_poisonous_amount_independent_of_damage() {
 
     // Verify life loss (5 damage from the 5/5).
     assert_eq!(
-        state.players.get(&p2).unwrap().life_total,
+        state.players().get(&p2).unwrap().life_total,
         35,
         "CR 702.70a: p2 should have taken 5 combat damage (life 40 → 35)"
     );
 
     // Trigger is on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "Poisonous 1 trigger should be on the stack"
     );
@@ -343,7 +343,7 @@ fn test_702_70a_poisonous_blocked_no_trigger() {
 
     // Stack is empty — no poisonous trigger.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty — Poisonous did not trigger (blocked creature)"
     );
 
@@ -356,7 +356,7 @@ fn test_702_70a_poisonous_blocked_no_trigger() {
 
     // P2's life total is unchanged (the attack was fully blocked).
     assert_eq!(
-        state.players.get(&p2).unwrap().life_total,
+        state.players().get(&p2).unwrap().life_total,
         40,
         "p2's life should be unchanged (attack was fully blocked)"
     );
@@ -478,7 +478,7 @@ fn test_702_70b_poisonous_multiple_instances_trigger_separately() {
 
     // Two triggers on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "CR 702.70b: 2 poisonous triggers should be on the stack"
     );
@@ -487,7 +487,7 @@ fn test_702_70b_poisonous_multiple_instances_trigger_separately() {
     let (state, first_resolve) = pass_all(state, &[p1, p2]);
 
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "one trigger should remain after resolving the first"
     );
@@ -512,7 +512,7 @@ fn test_702_70b_poisonous_multiple_instances_trigger_separately() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after both triggers resolve"
     );
 
@@ -557,7 +557,7 @@ fn test_702_70a_poisonous_kills_via_sba() {
         "setup: p2 starts with 9 poison counters"
     );
     assert!(
-        !state.players.get(&p2).unwrap().has_lost,
+        !state.players().get(&p2).unwrap().has_lost,
         "setup: p2 has not yet lost"
     );
 
@@ -591,7 +591,7 @@ fn test_702_70a_poisonous_kills_via_sba() {
 
     // Trigger is on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "Poisonous 1 trigger should be on the stack"
     );
@@ -608,7 +608,7 @@ fn test_702_70a_poisonous_kills_via_sba() {
 
     // SBA check should have marked P2 as having lost.
     assert!(
-        state.players.get(&p2).unwrap().has_lost,
+        state.players().get(&p2).unwrap().has_lost,
         "CR 704.5c: p2 should have lost (has_lost == true) after reaching 10 poison counters"
     );
 }
@@ -688,7 +688,7 @@ fn test_702_70a_poisonous_multiplayer_correct_player() {
 
     // One trigger on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.70a: exactly 1 poisonous trigger should be on the stack"
     );
@@ -724,7 +724,7 @@ fn test_702_70a_poisonous_multiplayer_correct_player() {
 
     // Stack is empty.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after trigger resolves"
     );
 }

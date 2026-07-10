@@ -57,7 +57,7 @@ fn card_spec(
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -66,7 +66,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 fn hand_count(state: &GameState, player: PlayerId) -> usize {
     state
-        .objects
+        .objects()
         .iter()
         .filter(|(_, obj)| obj.zone == ZoneId::Hand(player))
         .count()
@@ -116,7 +116,7 @@ fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent
 /// Resolve everything currently on the stack by passing priority in turn order.
 fn resolve_stack(mut state: GameState, players: &[PlayerId]) -> GameState {
     let mut guard = 0;
-    while !state.stack_objects.is_empty() {
+    while !state.stack_objects().is_empty() {
         guard += 1;
         assert!(guard < 100, "resolve_stack exceeded safety guard");
         state = pass_all(state, players).0;
@@ -160,9 +160,14 @@ fn test_kenriths_transformation_full_integration() {
         .unwrap();
 
     let mut state = state;
-    state.players.get_mut(&p1).unwrap().mana_pool.colorless = 1;
-    state.players.get_mut(&p1).unwrap().mana_pool.green = 1;
-    state.turn.priority_holder = Some(p1);
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .colorless = 1;
+    state.players_mut().get_mut(&p1).unwrap().mana_pool.green = 1;
+    state.turn_mut().priority_holder = Some(p1);
 
     let target_id = find_object(&state, "Legendary Flyer");
     let spell_id = find_object(&state, "Kenrith's Transformation");
@@ -238,9 +243,14 @@ fn test_eaten_by_piranhas_full_integration() {
         .at_step(Step::PreCombatMain)
         .build()
         .unwrap();
-    state.players.get_mut(&p1).unwrap().mana_pool.colorless = 1;
-    state.players.get_mut(&p1).unwrap().mana_pool.blue = 1;
-    state.turn.priority_holder = Some(p1);
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .colorless = 1;
+    state.players_mut().get_mut(&p1).unwrap().mana_pool.blue = 1;
+    state.turn_mut().priority_holder = Some(p1);
 
     let target_id = find_object(&state, "Red Dragon");
     let spell_id = find_object(&state, "Eaten by Piranhas");
@@ -294,9 +304,14 @@ fn test_darksteel_mutation_full_integration() {
         .at_step(Step::PreCombatMain)
         .build()
         .unwrap();
-    state.players.get_mut(&p1).unwrap().mana_pool.colorless = 1;
-    state.players.get_mut(&p1).unwrap().mana_pool.white = 1;
-    state.turn.priority_holder = Some(p1);
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .colorless = 1;
+    state.players_mut().get_mut(&p1).unwrap().mana_pool.white = 1;
+    state.turn_mut().priority_holder = Some(p1);
 
     let target_id = find_object(&state, "Big Flyer");
     let spell_id = find_object(&state, "Darksteel Mutation");
@@ -383,8 +398,13 @@ fn test_sram_senior_edificer_spell_subtype_filter() {
         .at_step(Step::PreCombatMain)
         .build()
         .unwrap();
-    state.players.get_mut(&p1).unwrap().mana_pool.colorless = 10;
-    state.turn.priority_holder = Some(p1);
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .colorless = 10;
+    state.turn_mut().priority_holder = Some(p1);
 
     let sram_id = find_object(&state, "Sram, Senior Edificer");
 
@@ -486,9 +506,14 @@ fn test_leaf_crowned_visionary_full_integration() {
         .build()
         .unwrap();
     let mut state = state;
-    state.players.get_mut(&p1).unwrap().mana_pool.colorless = 10;
-    state.players.get_mut(&p1).unwrap().mana_pool.green = 10;
-    state.turn.priority_holder = Some(p1);
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .colorless = 10;
+    state.players_mut().get_mut(&p1).unwrap().mana_pool.green = 10;
+    state.turn_mut().priority_holder = Some(p1);
 
     // `GameStateBuilder` places the permanent directly on the battlefield without
     // going through the ETB path, so `register_static_continuous_effects` (normally
@@ -496,7 +521,10 @@ fn test_leaf_crowned_visionary_full_integration() {
     // +1/+1 is never registered. Register it manually, mirroring the pattern used
     // by `pb_ac3_dynamic_pt_counts.rs::test_ashaya_pt_equals_lands_you_control`.
     let leaf_id = find_object(&state, "Leaf-Crowned Visionary");
-    let card_id = state.objects.get(&leaf_id).and_then(|o| o.card_id.clone());
+    let card_id = state
+        .objects()
+        .get(&leaf_id)
+        .and_then(|o| o.card_id.clone());
     mtg_engine::rules::replacement::register_static_continuous_effects(
         &mut state,
         leaf_id,
@@ -572,7 +600,7 @@ fn test_leaf_crowned_visionary_full_integration() {
 /// applies `RemoveAllAbilities` and a granted `AddManaAbility` in the SAME
 /// `Effect::ApplyContinuousEffect` "batch" — the timestamp counter (CR 613.7b) is
 /// not advanced between pushes within one `Sequence`
-/// (`crates/engine/src/effects/mod.rs`, `let ts = state.timestamp_counter;`), so
+/// (`crates/engine/src/effects/mod.rs`, `let ts = state.timestamp_counter();`), so
 /// both continuous effects share one timestamp. There is no CR 613.8a dependency
 /// arm between `RemoveAllAbilities` and `AddManaAbility`
 /// (`crates/engine/src/rules/layers.rs::depends_on`), so `resolve_layer_order`

@@ -29,7 +29,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -38,7 +38,7 @@ fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectI
 
 fn count_in_zone(state: &mtg_engine::GameState, zone: ZoneId, name: &str) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.zone == zone && obj.characteristics.name == name)
         .count()
@@ -247,13 +247,13 @@ fn test_splice_basic_onto_arcane() {
 
     // Fund mana: {1}{U} for the Arcane spell + {1}{R} for splice cost = {2}{U}{R}
     {
-        let ps = state.players.get_mut(&p1).unwrap();
+        let ps = state.players_mut().get_mut(&p1).unwrap();
         ps.mana_pool.add(ManaColor::Colorless, 2);
         ps.mana_pool.add(ManaColor::Blue, 1);
         ps.mana_pool.add(ManaColor::Red, 1);
         ps.life_total = 10; // starting life for easy assertion
     }
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let arcane_id = find_object(&state, "Arcane Instant");
     let splice_id = find_object(&state, "Splice Card");
@@ -287,7 +287,7 @@ fn test_splice_basic_onto_arcane() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // Life should be: 10 (base) + 1 (main Arcane effect) + 2 (splice effect) = 13.
-    let p1_life = state.players.get(&p1).unwrap().life_total;
+    let p1_life = state.players().get(&p1).unwrap().life_total;
     assert_eq!(
         p1_life, 13,
         "CR 702.47a: main spell (gain 1) + splice effect (gain 2) should both resolve; expected 13 life, got {}",
@@ -334,11 +334,11 @@ fn test_splice_cost_added() {
 
     // Only enough mana for the base cost {1}{U}, NOT for the splice cost {1}{R}.
     {
-        let ps = state.players.get_mut(&p1).unwrap();
+        let ps = state.players_mut().get_mut(&p1).unwrap();
         ps.mana_pool.add(ManaColor::Colorless, 1);
         ps.mana_pool.add(ManaColor::Blue, 1);
     }
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let arcane_id = find_object(&state, "Arcane Instant");
     let splice_id = find_object(&state, "Splice Card");
@@ -411,12 +411,12 @@ fn test_splice_card_stays_in_hand() {
         .unwrap();
 
     {
-        let ps = state.players.get_mut(&p1).unwrap();
+        let ps = state.players_mut().get_mut(&p1).unwrap();
         ps.mana_pool.add(ManaColor::Colorless, 2);
         ps.mana_pool.add(ManaColor::Blue, 1);
         ps.mana_pool.add(ManaColor::Red, 1);
     }
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let arcane_id = find_object(&state, "Arcane Instant");
     let splice_id = find_object(&state, "Splice Card");
@@ -506,11 +506,11 @@ fn test_splice_wrong_subtype_rejected() {
         .unwrap();
 
     {
-        let ps = state.players.get_mut(&p1).unwrap();
+        let ps = state.players_mut().get_mut(&p1).unwrap();
         ps.mana_pool.add(ManaColor::Colorless, 3);
         ps.mana_pool.add(ManaColor::Red, 1);
     }
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let non_arcane_id = find_object(&state, "Non-Arcane Instant");
     let splice_id = find_object(&state, "Splice Card");
@@ -582,12 +582,12 @@ fn test_splice_same_card_twice_rejected() {
         .unwrap();
 
     {
-        let ps = state.players.get_mut(&p1).unwrap();
+        let ps = state.players_mut().get_mut(&p1).unwrap();
         ps.mana_pool.add(ManaColor::Colorless, 4);
         ps.mana_pool.add(ManaColor::Blue, 1);
         ps.mana_pool.add(ManaColor::Red, 2);
     }
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let arcane_id = find_object(&state, "Arcane Instant");
     let splice_id = find_object(&state, "Splice Card");
@@ -661,12 +661,12 @@ fn test_splice_not_in_hand_rejected() {
         .unwrap();
 
     {
-        let ps = state.players.get_mut(&p1).unwrap();
+        let ps = state.players_mut().get_mut(&p1).unwrap();
         ps.mana_pool.add(ManaColor::Colorless, 2);
         ps.mana_pool.add(ManaColor::Blue, 1);
         ps.mana_pool.add(ManaColor::Red, 1);
     }
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let arcane_id = find_object(&state, "Arcane Instant");
     let splice_id = find_object(&state, "Splice Card");
@@ -751,14 +751,14 @@ fn test_splice_multiple_cards() {
 
     // Base {1}{U} + splice1 {1}{R} + splice2 {1}{G} = {3}{U}{R}{G}
     {
-        let ps = state.players.get_mut(&p1).unwrap();
+        let ps = state.players_mut().get_mut(&p1).unwrap();
         ps.mana_pool.add(ManaColor::Colorless, 3);
         ps.mana_pool.add(ManaColor::Blue, 1);
         ps.mana_pool.add(ManaColor::Red, 1);
         ps.mana_pool.add(ManaColor::Green, 1);
         ps.life_total = 10;
     }
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let arcane_id = find_object(&state, "Arcane Instant");
     let splice_id_1 = find_object(&state, "Splice Card");
@@ -791,7 +791,7 @@ fn test_splice_multiple_cards() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // Life: 10 + 1 (main) + 2 (splice1) + 3 (splice2) = 16
-    let p1_life = state.players.get(&p1).unwrap().life_total;
+    let p1_life = state.players().get(&p1).unwrap().life_total;
     assert_eq!(
         p1_life, 16,
         "CR 702.47b: two splice effects (gain 2, gain 3) plus main (gain 1) should total +6 life; got life={}",
@@ -851,13 +851,13 @@ fn test_splice_main_effect_first() {
         .unwrap();
 
     {
-        let ps = state.players.get_mut(&p1).unwrap();
+        let ps = state.players_mut().get_mut(&p1).unwrap();
         ps.mana_pool.add(ManaColor::Colorless, 2);
         ps.mana_pool.add(ManaColor::Blue, 1);
         ps.mana_pool.add(ManaColor::Red, 1);
         ps.life_total = 20;
     }
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let arcane_id = find_object(&state, "Arcane Instant");
     let splice_id = find_object(&state, "Splice Card");
@@ -890,7 +890,7 @@ fn test_splice_main_effect_first() {
 
     // CR 702.47b: Both effects resolved in order (main first, then splice).
     // Life: 20 + 1 (main) + 2 (splice) = 23.
-    let p1_life = state.players.get(&p1).unwrap().life_total;
+    let p1_life = state.players().get(&p1).unwrap().life_total;
     assert_eq!(
         p1_life, 23,
         "CR 702.47b: main effect (gain 1) before splice effect (gain 2) — total should be +3; got {}",
@@ -974,11 +974,11 @@ fn test_splice_onto_itself_rejected() {
         .unwrap();
 
     {
-        let ps = state.players.get_mut(&p1).unwrap();
+        let ps = state.players_mut().get_mut(&p1).unwrap();
         ps.mana_pool.add(ManaColor::Colorless, 2);
         ps.mana_pool.add(ManaColor::Red, 2);
     }
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let self_id = find_object(&state, "Self Splice");
 

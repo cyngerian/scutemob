@@ -22,7 +22,7 @@ use mtg_engine::{
 
 fn find_by_name(state: &GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -35,7 +35,7 @@ fn find_by_name_in_zone(
     zone: ZoneId,
 ) -> Option<mtg_engine::ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -44,7 +44,7 @@ fn find_by_name_in_zone(
 /// Count objects with a given name on the battlefield.
 fn count_on_battlefield(state: &GameState, name: &str) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
         .count()
@@ -101,13 +101,13 @@ fn test_afterlife_basic_creates_spirit_token() {
 
     // Afterlife trigger should be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.135a: Afterlife trigger should be on the stack"
     );
     assert!(
         matches!(
-            state.stack_objects[0].kind,
+            state.stack_objects()[0].kind,
             StackObjectKind::TriggeredAbility { .. }
         ),
         "stack object should be a triggered ability (Afterlife)"
@@ -137,7 +137,7 @@ fn test_afterlife_basic_creates_spirit_token() {
 
     // Verify the token's characteristics.
     let token_id = find_by_name(&state, "Spirit");
-    let token_obj = state.objects.get(&token_id).unwrap();
+    let token_obj = state.objects().get(&token_id).unwrap();
     let chars = calculate_characteristics(&state, token_id)
         .expect("Spirit token should have calculable characteristics");
 
@@ -197,7 +197,7 @@ fn test_afterlife_n_creates_n_tokens() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.135a: one Afterlife trigger on stack"
     );
@@ -251,7 +251,7 @@ fn test_afterlife_no_intervening_if() {
 
     // Afterlife trigger should be on the stack despite the -1/-1 counter.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.135a: Afterlife has no intervening-if — trigger fires even with -1/-1 counter"
     );
@@ -271,9 +271,9 @@ fn test_afterlife_no_intervening_if() {
 #[test]
 /// CR 702.135a + CR 704.5d — A token creature with Afterlife 1 dies; the Afterlife trigger
 /// is queued when CreatureDied fires. However, SBA CR 704.5d then ceases the token from all
-/// zones (removes it from state.objects). When the trigger resolves, the engine reads the
-/// effect definition from the source object (state.objects.get(&source_object)); since the
-/// token no longer exists in state.objects, the effect is a no-op.
+/// zones (removes it from state.objects()). When the trigger resolves, the engine reads the
+/// effect definition from the source object (state.objects().get(&source_object)); since the
+/// token no longer exists in state.objects(), the effect is a no-op.
 ///
 /// This is a current engine limitation: the trigger fires and queues, but the Spirit token
 /// is NOT created for token-with-Afterlife because the source is expunged before resolution.
@@ -315,7 +315,7 @@ fn test_afterlife_token_trigger_queues_but_source_ceases_to_exist() {
 
     // Trigger is queued on the stack at this point.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "Afterlife trigger should be on the stack after token death"
     );
@@ -325,7 +325,7 @@ fn test_afterlife_token_trigger_queues_but_source_ceases_to_exist() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // Original token must not be on the battlefield or graveyard (ceased to exist, CR 704.5d).
-    let original_still_exists = state.objects.values().any(|obj| {
+    let original_still_exists = state.objects().values().any(|obj| {
         obj.characteristics.name == "Afterlife Token Bear"
             && matches!(obj.zone, ZoneId::Graveyard(_))
     });
@@ -335,7 +335,7 @@ fn test_afterlife_token_trigger_queues_but_source_ceases_to_exist() {
     );
 
     // NOTE: Spirit token is NOT created in this scenario because the source token was
-    // removed from state.objects by SBA CR 704.5d before the trigger resolved.
+    // removed from state.objects() by SBA CR 704.5d before the trigger resolved.
     // This is a known engine limitation (effect definition read from source object).
     // Non-token permanents with Afterlife work correctly (see test_afterlife_basic_creates_spirit_token).
     assert_eq!(
@@ -376,7 +376,7 @@ fn test_afterlife_multiple_instances_trigger_separately() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "CR 702.135b: two separate Afterlife triggers expected (one per keyword instance)"
     );
@@ -443,7 +443,7 @@ fn test_afterlife_multiplayer_apnap() {
 
     // Two Afterlife triggers on the stack (APNAP ordered).
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "CR 603.3: two Afterlife triggers on the stack"
     );
@@ -456,7 +456,7 @@ fn test_afterlife_multiplayer_apnap() {
 
     // Both players should each have one Spirit token.
     let p1_spirits = state
-        .objects
+        .objects()
         .values()
         .filter(|obj| {
             obj.characteristics.name == "Spirit"
@@ -465,7 +465,7 @@ fn test_afterlife_multiplayer_apnap() {
         })
         .count();
     let p3_spirits = state
-        .objects
+        .objects()
         .values()
         .filter(|obj| {
             obj.characteristics.name == "Spirit"

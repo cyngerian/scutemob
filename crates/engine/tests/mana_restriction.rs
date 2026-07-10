@@ -251,12 +251,12 @@ fn test_choose_creature_type_effect_sets_type() {
         .unwrap();
 
     // Set active player and step
-    state.turn.active_player = p1;
-    state.turn.step = Step::PreCombatMain;
+    state.turn_mut().active_player = p1;
+    state.turn_mut().step = Step::PreCombatMain;
 
     // Play the land
     let land_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Type Chooser Land")
         .unwrap()
@@ -272,7 +272,7 @@ fn test_choose_creature_type_effect_sets_type() {
 
     // Find the land on the battlefield (new ObjectId after zone change)
     let land = state
-        .objects
+        .objects()
         .values()
         .find(|o| {
             o.characteristics.name == "Type Chooser Land" && matches!(o.zone, ZoneId::Battlefield)
@@ -327,11 +327,11 @@ fn test_choose_creature_type_fallback_default() {
         .build()
         .unwrap();
 
-    state.turn.active_player = p1;
-    state.turn.step = Step::PreCombatMain;
+    state.turn_mut().active_player = p1;
+    state.turn_mut().step = Step::PreCombatMain;
 
     let land_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Type Chooser Land")
         .unwrap()
@@ -346,7 +346,7 @@ fn test_choose_creature_type_fallback_default() {
     .unwrap();
 
     let land = state
-        .objects
+        .objects()
         .values()
         .find(|o| {
             o.characteristics.name == "Type Chooser Land" && matches!(o.zone, ZoneId::Battlefield)
@@ -377,7 +377,7 @@ fn test_add_mana_restricted_effect_via_execute() {
 
     // Create a dummy source object for the effect context
     let source_id = state
-        .objects
+        .objects()
         .values()
         .next()
         .map(|o| o.id)

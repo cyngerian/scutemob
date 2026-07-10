@@ -27,7 +27,7 @@ use mtg_engine::{
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -60,7 +60,7 @@ fn test_702_31_horsemanship_creature_cannot_be_blocked_by_non_horsemanship() {
     let blocker_id = find_object(&state, "Normal Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -107,7 +107,7 @@ fn test_702_31_horsemanship_creature_can_be_blocked_by_horsemanship() {
     let blocker_id = find_object(&state, "Horsemanship Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -153,7 +153,7 @@ fn test_702_31_non_horsemanship_can_be_blocked_by_horsemanship() {
     let blocker_id = find_object(&state, "Horsemanship Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -195,7 +195,7 @@ fn test_702_31_non_horsemanship_can_block_non_horsemanship() {
     let blocker_id = find_object(&state, "Normal Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -244,7 +244,7 @@ fn test_702_31_horsemanship_does_not_interact_with_flying() {
     let blocker_id = find_object(&state, "Flying Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -296,7 +296,7 @@ fn test_702_31_horsemanship_plus_flying_both_must_be_satisfied() {
     let blocker_id = find_object(&state, "Horsemanship Ground Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -347,7 +347,7 @@ fn test_702_31_horsemanship_plus_flying_satisfied_by_horsemanship_flying() {
     let blocker_id = find_object(&state, "Horsemanship Flying Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs

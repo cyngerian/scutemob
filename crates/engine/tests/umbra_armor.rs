@@ -17,6 +17,7 @@
 //! - Umbra armor works on non-creature permanents (lands, artifacts) enchanted by an Aura.
 //! - UmbraArmorApplied event emitted with correct protected_id and aura_id.
 
+use mtg_engine::state::test_util;
 use mtg_engine::{
     check_and_apply_sbas, AttackTarget, CardEffectTarget, CardRegistry, CardType, CombatState,
     Effect, GameEvent, GameStateBuilder, KeywordAbility, ObjectId, ObjectSpec, PlayerId,
@@ -27,7 +28,7 @@ use mtg_engine::{
 
 fn find_on_battlefield(state: &mtg_engine::GameState, name: &str) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
         .map(|(id, _)| *id)
@@ -35,18 +36,22 @@ fn find_on_battlefield(state: &mtg_engine::GameState, name: &str) -> Option<Obje
 
 fn is_in_graveyard(state: &mtg_engine::GameState, name: &str, owner: PlayerId) -> bool {
     state
-        .objects
+        .objects()
         .iter()
         .any(|(_, obj)| obj.characteristics.name == name && obj.zone == ZoneId::Graveyard(owner))
 }
 
 fn damage_marked(state: &mtg_engine::GameState, id: ObjectId) -> u32 {
-    state.objects.get(&id).map(|o| o.damage_marked).unwrap_or(0)
+    state
+        .objects()
+        .get(&id)
+        .map(|o| o.damage_marked)
+        .unwrap_or(0)
 }
 
 fn deathtouch_damage_flag(state: &mtg_engine::GameState, id: ObjectId) -> bool {
     state
-        .objects
+        .objects()
         .get(&id)
         .map(|o| o.deathtouch_damage)
         .unwrap_or(false)
@@ -54,7 +59,7 @@ fn deathtouch_damage_flag(state: &mtg_engine::GameState, id: ObjectId) -> bool {
 
 fn is_tapped(state: &mtg_engine::GameState, id: ObjectId) -> bool {
     state
-        .objects
+        .objects()
         .get(&id)
         .map(|o| o.status.tapped)
         .unwrap_or(false)
@@ -92,10 +97,10 @@ fn umbra_aura_spec(owner: PlayerId, name: &str) -> ObjectSpec {
 /// Sets `aura.attached_to = Some(permanent_id)` and adds `aura_id` to
 /// `permanent.attachments`, matching the real attachment setup in resolution.rs.
 fn attach_aura(state: &mut mtg_engine::GameState, aura_id: ObjectId, permanent_id: ObjectId) {
-    if let Some(aura) = state.objects.get_mut(&aura_id) {
+    if let Some(aura) = state.objects_mut().get_mut(&aura_id) {
         aura.attached_to = Some(permanent_id);
     }
-    if let Some(perm) = state.objects.get_mut(&permanent_id) {
+    if let Some(perm) = state.objects_mut().get_mut(&permanent_id) {
         perm.attachments.push_back(aura_id);
     }
 }
@@ -380,7 +385,7 @@ fn test_umbra_armor_does_not_tap_or_remove_from_combat() {
     combat
         .attackers
         .insert(attacker_id, AttackTarget::Player(p2));
-    state.combat = Some(combat);
+    *state.combat_mut() = Some(combat);
 
     // Apply destroy effect.
     let (effect, mut ctx) = destroy_effect(attacker_id);
@@ -403,7 +408,7 @@ fn test_umbra_armor_does_not_tap_or_remove_from_combat() {
     // Creature should still be in combat (unlike regeneration which removes from combat).
     assert!(
         state
-            .combat
+            .combat()
             .as_ref()
             .map(|c| c.attackers.contains_key(&survivor_id))
             .unwrap_or(false),
@@ -499,8 +504,8 @@ fn test_umbra_armor_does_not_prevent_sacrifice() {
     attach_aura(&mut state, aura_id, creature_id);
 
     // Sacrifice the creature by moving it directly to the graveyard (as sacrifice does).
-    let owner = state.objects.get(&creature_id).unwrap().owner;
-    let _ = state.move_object_to_zone(creature_id, ZoneId::Graveyard(owner));
+    let owner = state.objects().get(&creature_id).unwrap().owner;
+    let _ = test_util::move_object_to_zone(&mut state, creature_id, ZoneId::Graveyard(owner));
 
     // Run SBAs so the now-enchanting-nothing Aura falls off (SBA 704.5m).
     check_and_apply_sbas(&mut state);
@@ -738,7 +743,7 @@ fn test_umbra_armor_multiple_auras_one_consumed_per_event() {
 
     // Exactly one Aura should remain on the battlefield.
     let auras_on_bf: Vec<_> = state
-        .objects
+        .objects()
         .values()
         .filter(|obj| {
             obj.zone == ZoneId::Battlefield
@@ -772,7 +777,7 @@ fn test_umbra_armor_multiple_auras_one_consumed_per_event() {
 
     // Both Auras should now be in the graveyard.
     let auras_on_bf2: Vec<_> = state
-        .objects
+        .objects()
         .values()
         .filter(|obj| {
             obj.zone == ZoneId::Battlefield

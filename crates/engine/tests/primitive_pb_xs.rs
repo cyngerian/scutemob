@@ -43,7 +43,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_obj(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -420,11 +420,11 @@ fn test_pbxs_graveyard_filter_excludes_source() {
 
     // Sanity check: the source is on the battlefield, the Elf is in the graveyard.
     assert_eq!(
-        state.objects.get(&source_id).unwrap().zone,
+        state.objects().get(&source_id).unwrap().zone,
         ZoneId::Battlefield
     );
     assert_eq!(
-        state.objects.get(&elf_id).unwrap().zone,
+        state.objects().get(&elf_id).unwrap().zone,
         ZoneId::Graveyard(p(1))
     );
 
@@ -554,18 +554,18 @@ fn test_pbxs_death_trigger_graveyard_picker_excludes_source() {
         .object(other_elf)
         .build()
         .expect("builder must succeed");
-    state.turn.priority_holder = Some(p(1));
+    state.turn_mut().priority_holder = Some(p(1));
 
     // Sanity: both objects exist with expected zones before SBAs fire.
     let ritualist_id_pre = find_obj(&state, "Test Elderfang");
     let other_elf_id = find_obj(&state, "Lurking Elf");
     assert_eq!(
-        state.objects.get(&ritualist_id_pre).unwrap().zone,
+        state.objects().get(&ritualist_id_pre).unwrap().zone,
         ZoneId::Battlefield,
         "pre-SBA: Ritualist on battlefield"
     );
     assert_eq!(
-        state.objects.get(&other_elf_id).unwrap().zone,
+        state.objects().get(&other_elf_id).unwrap().zone,
         ZoneId::Graveyard(p(1)),
         "pre-SBA: Other Elf in graveyard"
     );
@@ -599,7 +599,7 @@ fn test_pbxs_death_trigger_graveyard_picker_excludes_source() {
     // post-death Ritualist's new graveyard ObjectId.
     use mtg_engine::StackObjectKind;
     let trigger_so = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .find(|so| matches!(so.kind, StackObjectKind::TriggeredAbility { .. }))
         .expect("F-1: WhenDies TriggeredAbility must be on the stack");
@@ -620,7 +620,7 @@ fn test_pbxs_death_trigger_graveyard_picker_excludes_source() {
     // discrimination: per CR 400.7 it is a DIFFERENT ObjectId from the
     // pre-death one. We locate it by name in the graveyard.
     let post_death_ritualist_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| {
             o.characteristics.name == "Test Elderfang" && o.zone == ZoneId::Graveyard(p(1))
@@ -711,7 +711,7 @@ fn test_pbxs_death_trigger_skipped_when_only_source_is_legal() {
         .object(dying_ritualist)
         .build()
         .expect("builder must succeed");
-    state.turn.priority_holder = Some(p(1));
+    state.turn_mut().priority_holder = Some(p(1));
 
     let (state, events) = {
         let mut all = Vec::new();
@@ -737,7 +737,7 @@ fn test_pbxs_death_trigger_skipped_when_only_source_is_legal() {
     // the stack at all (handled by `flush_pending_triggers`).
     use mtg_engine::StackObjectKind;
     let no_dies_trigger = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .all(|so| !matches!(so.kind, StackObjectKind::TriggeredAbility { .. }));
     assert!(
@@ -745,7 +745,7 @@ fn test_pbxs_death_trigger_skipped_when_only_source_is_legal() {
         "F-2 / CR 603.3d: WhenDies trigger with only-self in graveyard must be SKIPPED \
          (exclude_self=true rejects post-death source; no other Elf exists); got stack: {:?}",
         state
-            .stack_objects
+            .stack_objects()
             .iter()
             .map(|so| format!("{:?}", so.kind))
             .collect::<Vec<_>>()

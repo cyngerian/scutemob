@@ -45,7 +45,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_obj(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -54,14 +54,14 @@ fn find_obj(state: &GameState, name: &str) -> ObjectId {
 
 fn obj_on_battlefield(state: &GameState, name: &str) -> bool {
     state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == name && o.zone == ZoneId::Battlefield)
 }
 
 fn obj_in_graveyard(state: &GameState, name: &str, owner: PlayerId) -> bool {
     state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == name && o.zone == ZoneId::Graveyard(owner))
 }
@@ -355,7 +355,7 @@ fn build_state(
     let mut state = builder
         .build()
         .expect("GameStateBuilder::build must succeed");
-    state.turn.priority_holder = Some(players[0]);
+    state.turn_mut().priority_holder = Some(players[0]);
     state
 }
 
@@ -414,14 +414,14 @@ fn test_700_2c_unchosen_mode_targets_not_required() {
     let defs = vec![modal_strike_def()];
     let state = build_2p_state(defs, vec!["Modal Strike"], vec![]);
     let spell_id = find_obj(&state, "Modal Strike");
-    let initial_life = state.players[&p1].life_total;
+    let initial_life = state.players()[&p1].life_total;
 
     let (state, _) = process_command(state, cast_modal(p1, spell_id, vec![], vec![3]))
         .expect("CR 700.2c: choosing the targetless mode requires 0 declared targets");
 
     let (state, _) = pass_all(state, &[p1, p2]);
     assert_eq!(
-        state.players[&p1].life_total,
+        state.players()[&p1].life_total,
         initial_life + 1,
         "CR 700.2c: mode 3 (gain 1 life) must have fired"
     );
@@ -600,7 +600,7 @@ fn test_608_2b_modal_all_targets_illegal_fizzles() {
     let modal_id = find_obj(&state, "Modal Strike");
     let remover_id = find_obj(&state, "Mandatory Destroy Creature");
     let creature_id = find_obj(&state, "Sole Target Creature");
-    let initial_life = state.players[&p1].life_total;
+    let initial_life = state.players()[&p1].life_total;
 
     let (state, _) = process_command(
         state,
@@ -629,7 +629,7 @@ fn test_608_2b_modal_all_targets_illegal_fizzles() {
         "CR 608.2b: Modal Strike's only target is illegal — it must fizzle"
     );
     assert_eq!(
-        state.players[&p1].life_total, initial_life,
+        state.players()[&p1].life_total, initial_life,
         "a fizzled spell has no effect (mode 3's life-gain never ran; mode 0 was the only chosen mode)"
     );
 }
@@ -746,14 +746,14 @@ fn test_ac4_backward_compat_mode_targets_none_unaffected() {
     let defs = vec![legacy_modal_def()];
     let state = build_2p_state(defs, vec!["Legacy Modal Spell"], vec![]);
     let spell_id = find_obj(&state, "Legacy Modal Spell");
-    let initial_life = state.players[&p1].life_total;
+    let initial_life = state.players()[&p1].life_total;
 
     let (state, _) = process_command(state, cast_modal(p1, spell_id, vec![], vec![0]))
         .expect("legacy modal spell (mode_targets: None) must cast exactly as before AC4");
 
     let (state, _) = pass_all(state, &[p1, p2]);
     assert_eq!(
-        state.players[&p1].life_total,
+        state.players()[&p1].life_total,
         initial_life + 3,
         "mode 0 (GainLife 3) must have fired; mode_targets: None is unaffected by AC4"
     );
@@ -841,7 +841,7 @@ fn test_700_2c_702_120a_escalate_with_mode_targets_rejected_at_cast() {
         .object(creature)
         .build()
         .expect("GameStateBuilder::build must succeed");
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_obj(&state, "Escalate Modal Strike");
     let creature_id = find_obj(&state, "Escalate Target Creature");

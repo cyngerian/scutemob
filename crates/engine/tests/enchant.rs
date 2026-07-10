@@ -9,6 +9,7 @@
 //! - CR 704.5m / 303.4c: SBA removes an Aura attached to an illegal object.
 //! - CR 702.5a: Enchant Permanent allows any permanent type.
 
+use mtg_engine::state::test_util;
 use mtg_engine::{
     calculate_characteristics, process_command, start_game, CardType, Command,
     EnchantControllerConstraint, EnchantFilter, EnchantTarget, GameEvent, GameStateBuilder,
@@ -23,7 +24,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -266,7 +267,7 @@ fn test_702_5_aura_attaches_to_target_on_resolution() {
 
     // CR 303.4b: Aura has attached_to set (it moved zones — find by name on battlefield).
     let aura_on_bf = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Test Aura" && o.zone == ZoneId::Battlefield);
     assert!(
@@ -274,7 +275,7 @@ fn test_702_5_aura_attaches_to_target_on_resolution() {
         "Aura should be on the battlefield after resolution"
     );
     let aura_bf_id = aura_on_bf.map(|o| o.id).unwrap();
-    let aura_obj = state.objects.get(&aura_bf_id).unwrap();
+    let aura_obj = state.objects().get(&aura_bf_id).unwrap();
     assert_eq!(
         aura_obj.attached_to,
         Some(creature_id),
@@ -282,7 +283,7 @@ fn test_702_5_aura_attaches_to_target_on_resolution() {
     );
 
     // Target creature should have the Aura in its attachments.
-    let creature_obj = state.objects.get(&creature_id).unwrap();
+    let creature_obj = state.objects().get(&creature_id).unwrap();
     assert!(
         creature_obj.attachments.contains(&aura_bf_id),
         "creature.attachments should contain the Aura"
@@ -369,14 +370,14 @@ fn test_704_5m_type_change_triggers_sba() {
     let aura_id = find_object(&state, "Creature Aura");
 
     // Manually simulate illegally attached state (e.g. after a type-change animation ended).
-    if let Some(aura_obj) = state.objects.get_mut(&aura_id) {
+    if let Some(aura_obj) = state.objects_mut().get_mut(&aura_id) {
         aura_obj.attached_to = Some(land_id);
         aura_obj
             .characteristics
             .keywords
             .insert(KeywordAbility::Enchant(EnchantTarget::Creature));
     }
-    if let Some(land_obj) = state.objects.get_mut(&land_id) {
+    if let Some(land_obj) = state.objects_mut().get_mut(&land_id) {
         land_obj.attachments.push_back(aura_id);
     }
 
@@ -650,8 +651,7 @@ fn test_702_5_aura_fizzles_when_target_killed() {
 
     // Simulate the creature leaving the battlefield (e.g. killed by a spell)
     // before the Aura resolves. The creature moves to p2's graveyard.
-    state
-        .move_object_to_zone(creature_id, ZoneId::Graveyard(p2))
+    test_util::move_object_to_zone(&mut state, creature_id, ZoneId::Graveyard(p2))
         .expect("move creature to graveyard should succeed");
 
     // Both players pass priority — Aura resolves with an illegal target → fizzle.
@@ -669,7 +669,7 @@ fn test_702_5_aura_fizzles_when_target_killed() {
 
     // CR 608.2b: The Aura card goes to the graveyard, not the battlefield.
     let aura_on_battlefield = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Test Aura" && o.zone == ZoneId::Battlefield);
     assert!(
@@ -678,7 +678,7 @@ fn test_702_5_aura_fizzles_when_target_killed() {
     );
 
     let aura_in_graveyard = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Test Aura" && matches!(o.zone, ZoneId::Graveyard(_)));
     assert!(aura_in_graveyard, "Fizzled Aura should be in the graveyard");
@@ -721,7 +721,7 @@ fn test_303_4d_aura_cant_enchant_itself() {
 
     // Manually wire the Aura to point to itself — an impossible but CR-specified
     // state that SBA 704.5m / CR 303.4d must handle.
-    if let Some(aura_obj) = state.objects.get_mut(&aura_id) {
+    if let Some(aura_obj) = state.objects_mut().get_mut(&aura_id) {
         aura_obj.attached_to = Some(aura_id);
         aura_obj.attachments.push_back(aura_id);
         aura_obj
@@ -1148,19 +1148,19 @@ fn test_enchant_filtered_sba_control_change() {
     let aura_id = find_object(&state, "Chained Aura");
 
     // Manually attach Aura to Mountain (initially legal: both p1-controlled).
-    if let Some(aura_obj) = state.objects.get_mut(&aura_id) {
+    if let Some(aura_obj) = state.objects_mut().get_mut(&aura_id) {
         aura_obj.attached_to = Some(mountain_id);
         aura_obj
             .characteristics
             .keywords
             .insert(KeywordAbility::Enchant(EnchantTarget::Filtered(filter)));
     }
-    if let Some(mt_obj) = state.objects.get_mut(&mountain_id) {
+    if let Some(mt_obj) = state.objects_mut().get_mut(&mountain_id) {
         mt_obj.attachments.push_back(aura_id);
     }
 
     // Transfer control of the Mountain to p2 → Aura now on opponent's land.
-    if let Some(mt_obj) = state.objects.get_mut(&mountain_id) {
+    if let Some(mt_obj) = state.objects_mut().get_mut(&mountain_id) {
         mt_obj.controller = p2;
     }
 
@@ -1212,19 +1212,19 @@ fn test_enchant_filtered_sba_land_becomes_nonland() {
     let aura_id = find_object(&state, "Enchant Mountain Aura");
 
     // Attach Aura to Mountain.
-    if let Some(aura_obj) = state.objects.get_mut(&aura_id) {
+    if let Some(aura_obj) = state.objects_mut().get_mut(&aura_id) {
         aura_obj.attached_to = Some(mountain_id);
         aura_obj
             .characteristics
             .keywords
             .insert(KeywordAbility::Enchant(EnchantTarget::Filtered(filter)));
     }
-    if let Some(mt_obj) = state.objects.get_mut(&mountain_id) {
+    if let Some(mt_obj) = state.objects_mut().get_mut(&mountain_id) {
         mt_obj.attachments.push_back(aura_id);
     }
 
     // Remove Land type from Mountain's base characteristics.
-    if let Some(mt_obj) = state.objects.get_mut(&mountain_id) {
+    if let Some(mt_obj) = state.objects_mut().get_mut(&mountain_id) {
         mt_obj.characteristics.card_types.remove(&CardType::Land);
     }
 
@@ -1527,15 +1527,15 @@ fn test_animate_land_pt_and_types_via_chained_or_awaken() {
     let aura_id = find_object(&state, "Awaken Aura");
 
     // Attach Aura to Mountain.
-    if let Some(aura_obj) = state.objects.get_mut(&aura_id) {
+    if let Some(aura_obj) = state.objects_mut().get_mut(&aura_id) {
         aura_obj.attached_to = Some(mountain_id);
     }
-    if let Some(mt_obj) = state.objects.get_mut(&mountain_id) {
+    if let Some(mt_obj) = state.objects_mut().get_mut(&mountain_id) {
         mt_obj.attachments.push_back(aura_id);
     }
 
     // Register static continuous effects mimicking Awaken the Ancient.
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: mtg_engine::EffectId(1),
         source: Some(aura_id),
         layer: EffectLayer::TypeChange,
@@ -1546,7 +1546,7 @@ fn test_animate_land_pt_and_types_via_chained_or_awaken() {
         is_cda: false,
         timestamp: 1000,
     });
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: mtg_engine::EffectId(2),
         source: Some(aura_id),
         layer: EffectLayer::TypeChange,
@@ -1559,7 +1559,7 @@ fn test_animate_land_pt_and_types_via_chained_or_awaken() {
         is_cda: false,
         timestamp: 1001,
     });
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: mtg_engine::EffectId(3),
         source: Some(aura_id),
         layer: EffectLayer::PtSet,
@@ -1573,7 +1573,7 @@ fn test_animate_land_pt_and_types_via_chained_or_awaken() {
         is_cda: false,
         timestamp: 1002,
     });
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: mtg_engine::EffectId(4),
         source: Some(aura_id),
         layer: EffectLayer::Ability,
@@ -1586,7 +1586,7 @@ fn test_animate_land_pt_and_types_via_chained_or_awaken() {
     });
     // Layer 5: Set color to red (Awaken the Ancient makes the land red).
     use mtg_engine::Color;
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: mtg_engine::EffectId(5),
         source: Some(aura_id),
         layer: EffectLayer::ColorChange,
@@ -1682,16 +1682,16 @@ fn test_animate_land_summoning_sickness_propagation() {
     let mountain_id = find_object(&state, "New Mountain");
     let aura_id = find_object(&state, "Haste Aura");
 
-    if let Some(aura_obj) = state.objects.get_mut(&aura_id) {
+    if let Some(aura_obj) = state.objects_mut().get_mut(&aura_id) {
         aura_obj.attached_to = Some(mountain_id);
     }
-    if let Some(mt_obj) = state.objects.get_mut(&mountain_id) {
+    if let Some(mt_obj) = state.objects_mut().get_mut(&mountain_id) {
         mt_obj.attachments.push_back(aura_id);
         mt_obj.has_summoning_sickness = true;
     }
 
     // Register Creature type + Haste on the Mountain.
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: mtg_engine::EffectId(10),
         source: Some(aura_id),
         layer: EffectLayer::TypeChange,
@@ -1702,7 +1702,7 @@ fn test_animate_land_summoning_sickness_propagation() {
         is_cda: false,
         timestamp: 2000,
     });
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: mtg_engine::EffectId(11),
         source: Some(aura_id),
         layer: EffectLayer::Ability,
@@ -1754,7 +1754,7 @@ fn test_animate_land_summoning_sickness_propagation() {
 
     // Negative case: same mountain without the Haste effect → must be blocked by sickness.
     state
-        .continuous_effects
+        .continuous_effects_mut()
         .retain(|e| e.id != mtg_engine::EffectId(11));
     let result_no_haste = process_command(
         state,

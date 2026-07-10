@@ -21,7 +21,7 @@ use mtg_engine::{
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -30,7 +30,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 fn life_total(state: &GameState, player: PlayerId) -> i32 {
     state
-        .players
+        .players()
         .get(&player)
         .map(|p| p.life_total)
         .unwrap_or_default()
@@ -649,7 +649,7 @@ fn test_when_leaves_battlefield_fires_on_death() {
 
     // Reduce toughness to 0 to trigger SBA death
     let mut state = state;
-    if let Some(obj) = state.objects.get_mut(&ltb_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&ltb_id) {
         obj.characteristics.toughness = Some(0);
     }
 
@@ -710,7 +710,7 @@ fn test_when_leaves_battlefield_fires_on_destruction() {
 
     // Kill via 0 toughness (SBA)
     let mut state = state;
-    if let Some(obj) = state.objects.get_mut(&ltb_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&ltb_id) {
         obj.characteristics.toughness = Some(0);
     }
 
@@ -957,7 +957,12 @@ fn test_whenever_you_gain_life_trigger_fires() {
         .build()
         .unwrap();
 
-    state.players.get_mut(&p1).unwrap().mana_pool.colorless = 3;
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .colorless = 3;
     let initial_p2_life = life_total(&state, p2);
 
     let creature_id = find_object(&state, "Gain Life Creature");
@@ -1086,7 +1091,12 @@ fn test_when_you_cast_this_spell_fires_from_stack() {
         .build()
         .unwrap();
 
-    state.players.get_mut(&p1).unwrap().mana_pool.colorless = 3;
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .colorless = 3;
 
     let initial_life = life_total(&state, p1);
     let card_id = find_object(&state, "Cast Trigger Creature");

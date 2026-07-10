@@ -34,7 +34,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_by_name(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -78,7 +78,7 @@ fn build_with_filter_land(name: &str) -> GameState {
         .build()
         .expect("state should build");
 
-    state.turn.priority_holder = Some(p(1));
+    state.turn_mut().priority_holder = Some(p(1));
     state
 }
 
@@ -128,7 +128,7 @@ fn test_filter_land_produces_two_mana_fetid_heath() {
     let (state_resolved, resolve_events) = pass_all(state_after_activate, &[p(1), p(2)]);
 
     // After resolution: p(1) should have 1 white and 1 black mana added.
-    let pool = &state_resolved.players[&p(1)].mana_pool;
+    let pool = &state_resolved.players()[&p(1)].mana_pool;
     assert_eq!(
         pool.white, 1,
         "AddManaFilterChoice should add 1 white mana to empty pool"
@@ -177,7 +177,7 @@ fn test_filter_land_tap_required() {
 
     // Tap the land manually before trying to activate.
     let land_id = find_by_name(&state, "Fetid Heath");
-    state.objects.get_mut(&land_id).unwrap().status.tapped = true;
+    state.objects_mut().get_mut(&land_id).unwrap().status.tapped = true;
 
     let result = process_command(
         state,
@@ -219,7 +219,7 @@ fn test_all_filter_lands_produce_correct_colors() {
         let land_id = find_by_name(&state, name);
 
         // Capture pool before activation.
-        let pool_before = state.players[&p(1)].mana_pool.clone();
+        let pool_before = state.players()[&p(1)].mana_pool.clone();
 
         let (state_activated, _) = process_command(
             state,
@@ -237,7 +237,7 @@ fn test_all_filter_lands_produce_correct_colors() {
 
         let (state_resolved, _) = pass_all(state_activated, &[p(1), p(2)]);
 
-        let pool_after = &state_resolved.players[&p(1)].mana_pool;
+        let pool_after = &state_resolved.players()[&p(1)].mana_pool;
 
         // Compute delta (mana added - mana spent; pre-existing hybrid enforcement gap means
         // the hybrid cost is NOT deducted from the pool, so delta is purely the AddManaFilterChoice).
@@ -304,7 +304,7 @@ fn test_add_mana_scaled_registered_as_mana_ability() {
         .expect("state should build");
 
     let land_id = find_by_name(&state, "Gaea's Cradle");
-    let obj = state.objects.get(&land_id).unwrap();
+    let obj = state.objects().get(&land_id).unwrap();
 
     // After PB-34 fix, Gaea's Cradle should have at least one registered ManaAbility.
     // (Pre-fix: AddManaScaled with Cost::Tap was not recognized by try_as_tap_mana_ability
@@ -361,7 +361,7 @@ fn test_add_mana_scaled_orphan_fix_all_cards() {
             .unwrap_or_else(|e| panic!("state build failed for {}: {:?}", name, e));
 
         let obj_id = find_by_name(&state, name);
-        let obj = state.objects.get(&obj_id).unwrap();
+        let obj = state.objects().get(&obj_id).unwrap();
 
         assert!(
             !obj.characteristics.mana_abilities.is_empty(),

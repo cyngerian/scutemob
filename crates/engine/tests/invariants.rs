@@ -22,6 +22,7 @@
 //!   - Continuous-effect invariants (effect IDs unique)
 
 use mtg_engine::rules::engine::{process_command, start_game};
+use mtg_engine::state::test_util;
 use mtg_engine::{
     check_and_apply_sbas, Command, GameEvent, GameState, GameStateBuilder, LossReason, ObjectId,
     ObjectSpec, PlayerId, Step, ZoneId,
@@ -33,7 +34,7 @@ use proptest::prelude::*;
 /// Verify every object is in exactly one zone and every zone ID is in objects.
 fn assert_zone_integrity(state: &GameState) {
     // Every object's zone field points to a real zone that contains it.
-    for (obj_id, obj) in state.objects.iter() {
+    for (obj_id, obj) in state.objects().iter() {
         let zone = state.zone(&obj.zone).unwrap_or_else(|_| {
             panic!(
                 "object {:?} references non-existent zone {:?}",
@@ -47,14 +48,18 @@ fn assert_zone_integrity(state: &GameState) {
             obj.zone
         );
         // Exactly one zone contains this object.
-        let count = state.zones.values().filter(|z| z.contains(obj_id)).count();
+        let count = state
+            .zones()
+            .values()
+            .filter(|z| z.contains(obj_id))
+            .count();
         assert_eq!(count, 1, "object {:?} found in {} zones", obj_id, count);
     }
     // Converse: every ID in a zone has an entry in objects.
-    for (zone_id, zone) in state.zones.iter() {
+    for (zone_id, zone) in state.zones().iter() {
         for id in zone.object_ids() {
             assert!(
-                state.objects.contains_key(&id),
+                state.objects().contains_key(&id),
                 "zone {:?} has orphaned object {:?}",
                 zone_id,
                 id
@@ -69,7 +74,7 @@ fn pass_n(n: usize) -> GameState {
     let state = GameStateBuilder::four_player().build().unwrap();
     let (mut state, _) = start_game(state).unwrap();
     for _ in 0..n {
-        let holder = match state.turn.priority_holder {
+        let holder = match state.turn().priority_holder {
             Some(h) => h,
             None => break,
         };
@@ -111,7 +116,7 @@ proptest! {
         let mut b = GameStateBuilder::four_player();
         for i in 0..obj_count { b = b.object(ObjectSpec::creature(p1, &format!("Obj{}", i), 1, 1)); }
         let state = b.build().unwrap();
-        let ids: Vec<ObjectId> = state.objects.keys().cloned().collect();
+        let ids: Vec<ObjectId> = state.objects().keys().cloned().collect();
         let unique: std::collections::HashSet<_> = ids.iter().collect();
         prop_assert_eq!(ids.len(), unique.len(), "duplicate ObjectIds found");
     }
@@ -132,8 +137,8 @@ proptest! {
         ];
         for i in 0..num_moves {
             let z = zones[i as usize % zones.len()];
-            let id = *state.objects.keys().next().unwrap();
-            state.move_object_to_zone(id, z).unwrap();
+            let id = *state.objects().keys().next().unwrap();
+            test_util::move_object_to_zone(&mut state, id, z).unwrap();
             assert_zone_integrity(&state);
         }
     }
@@ -147,7 +152,7 @@ proptest! {
         let mut state = b.build().unwrap();
         let before = state.total_objects();
         let first_id = state.objects_in_zone(&ZoneId::Battlefield)[0].id;
-        state.move_object_to_zone(first_id, ZoneId::Graveyard(p1)).unwrap();
+        test_util::move_object_to_zone(&mut state, first_id, ZoneId::Graveyard(p1)).unwrap();
         prop_assert_eq!(state.total_objects(), before, "object count changed after zone move");
         assert_zone_integrity(&state);
     }
@@ -170,9 +175,9 @@ proptest! {
     fn prop_pi_01_active_player_in_turn_order(num_passes in 1usize..200) {
         let state = pass_n(num_passes);
         prop_assert!(
-            state.turn.turn_order.contains(&state.turn.active_player),
+            state.turn().turn_order.contains(&state.turn().active_player),
             "active_player {:?} not found in turn_order",
-            state.turn.active_player
+            state.turn().active_player
         );
     }
 
@@ -180,7 +185,7 @@ proptest! {
     #[test]
     fn prop_pi_02_priority_holder_is_active_player(num_passes in 1usize..200) {
         let state = pass_n(num_passes);
-        if let Some(holder) = state.turn.priority_holder {
+        if let Some(holder) = state.turn().priority_holder {
             let player = state.player(holder).unwrap();
             prop_assert!(!player.has_lost, "priority holder {:?} has lost", holder);
             prop_assert!(!player.has_conceded, "priority holder {:?} has conceded", holder);
@@ -191,9 +196,9 @@ proptest! {
     #[test]
     fn prop_pi_03_priority_holder_in_turn_order(num_passes in 1usize..200) {
         let state = pass_n(num_passes);
-        if let Some(holder) = state.turn.priority_holder {
+        if let Some(holder) = state.turn().priority_holder {
             prop_assert!(
-                state.turn.turn_order.contains(&holder),
+                state.turn().turn_order.contains(&holder),
                 "priority_holder {:?} not in turn_order",
                 holder
             );
@@ -205,9 +210,9 @@ proptest! {
     fn prop_pi_04_active_player_in_players_map(num_passes in 1usize..200) {
         let state = pass_n(num_passes);
         prop_assert!(
-            state.players.contains_key(&state.turn.active_player),
+            state.players().contains_key(&state.turn().active_player),
             "active_player {:?} not in players map",
-            state.turn.active_player
+            state.turn().active_player
         );
     }
 
@@ -216,10 +221,10 @@ proptest! {
     fn prop_pi_05_turn_order_length_stable(num_passes in 1usize..200) {
         let state0 = GameStateBuilder::four_player().build().unwrap();
         let (state0, _) = start_game(state0).unwrap();
-        let original_len = state0.turn.turn_order.len();
+        let original_len = state0.turn().turn_order.len();
         let state = pass_n(num_passes);
         prop_assert_eq!(
-            state.turn.turn_order.len(),
+            state.turn().turn_order.len(),
             original_len,
             "turn_order length changed"
         );
@@ -268,7 +273,7 @@ proptest! {
         let mut b = GameStateBuilder::new();
         for i in 1..=num_players { b = b.add_player(PlayerId(i)); }
         let state = b.build().unwrap();
-        for (_, p) in state.players.iter() {
+        for (_, p) in state.players().iter() {
             prop_assert_eq!(p.life_total, 40, "player {:?} does not start at 40 life", p.id);
         }
     }
@@ -302,9 +307,9 @@ proptest! {
     #[test]
     fn prop_sk_01_stack_controllers_valid(num_passes in 1usize..100) {
         let state = pass_n(num_passes);
-        for so in state.stack_objects.iter() {
+        for so in state.stack_objects().iter() {
             prop_assert!(
-                state.players.contains_key(&so.controller),
+                state.players().contains_key(&so.controller),
                 "stack object controller {:?} not in players map", so.controller
             );
         }
@@ -318,7 +323,7 @@ proptest! {
         // stack_objects may include abilities (no card in Zone::Stack), so
         // stack_objects.len() >= stack_zone_len (abilities have no card object).
         // But all Spell entries DO have a card in the Stack zone.
-        let spell_count = state.stack_objects.iter().filter(|so| {
+        let spell_count = state.stack_objects().iter().filter(|so| {
             matches!(so.kind, mtg_engine::StackObjectKind::Spell { .. })
         }).count();
         prop_assert_eq!(
@@ -331,7 +336,7 @@ proptest! {
     #[test]
     fn prop_sk_03_stack_object_ids_unique(num_passes in 1usize..100) {
         let state = pass_n(num_passes);
-        let ids: Vec<ObjectId> = state.stack_objects.iter().map(|so| so.id).collect();
+        let ids: Vec<ObjectId> = state.stack_objects().iter().map(|so| so.id).collect();
         let unique: std::collections::HashSet<_> = ids.iter().collect();
         prop_assert_eq!(ids.len(), unique.len(), "duplicate stack object IDs");
     }
@@ -342,7 +347,7 @@ proptest! {
         let mut b = GameStateBuilder::new();
         for i in 1..=num_players { b = b.add_player(PlayerId(i)); }
         let state = b.build().unwrap();
-        prop_assert!(state.stack_objects.is_empty(), "fresh state has non-empty stack");
+        prop_assert!(state.stack_objects().is_empty(), "fresh state has non-empty stack");
         prop_assert_eq!(state.zone(&ZoneId::Stack).unwrap().len(), 0);
     }
 
@@ -350,8 +355,8 @@ proptest! {
     #[test]
     fn prop_sk_05_stack_controllers_in_players(num_passes in 1usize..150) {
         let state = pass_n(num_passes);
-        for so in state.stack_objects.iter() {
-            let player = state.players.get(&so.controller);
+        for so in state.stack_objects().iter() {
+            let player = state.players().get(&so.controller);
             prop_assert!(player.is_some(),
                 "stack object {:?} has controller {:?} not in players", so.id, so.controller);
         }
@@ -370,7 +375,7 @@ proptest! {
         // u32 is non-negative by type; this test now bounds against a sane upper limit
         // to catch overflow / corruption (no realistic mana pool exceeds 1M).
         const SANE_MAX: u32 = 1_000_000;
-        for (_, player) in state.players.iter() {
+        for (_, player) in state.players().iter() {
             prop_assert!(player.mana_pool.white    <= SANE_MAX);
             prop_assert!(player.mana_pool.blue     <= SANE_MAX);
             prop_assert!(player.mana_pool.black    <= SANE_MAX);
@@ -397,7 +402,7 @@ proptest! {
         let mut b = GameStateBuilder::new();
         for i in 1..=num_players { b = b.add_player(PlayerId(i)); }
         let state = b.build().unwrap();
-        for (_, p) in state.players.iter() {
+        for (_, p) in state.players().iter() {
             prop_assert!(p.mana_pool.is_empty(), "fresh player {:?} has non-empty mana pool", p.id);
         }
     }
@@ -413,7 +418,7 @@ proptest! {
         let mut s = state;
         // Pass priority for all 4 players to trigger a step change.
         for _ in 0..num_passes {
-            let holder = match s.turn.priority_holder {
+            let holder = match s.turn().priority_holder {
                 Some(h) => h,
                 None => break,
             };
@@ -421,7 +426,7 @@ proptest! {
                 Ok((ns, events)) => {
                     // After a step change, check mana pools are cleared.
                     if events.iter().any(|e| matches!(e, GameEvent::ManaPoolsEmptied)) {
-                        for (_, p) in ns.players.iter() {
+                        for (_, p) in ns.players().iter() {
                             prop_assert!(p.mana_pool.is_empty(),
                                 "mana pool of {:?} not empty after ManaPoolsEmptied", p.id);
                         }
@@ -444,14 +449,14 @@ proptest! {
     fn prop_to_01_turn_number_monotone(num_passes in 1usize..300) {
         let state = GameStateBuilder::four_player().build().unwrap();
         let (mut state, _) = start_game(state).unwrap();
-        let mut last_turn = state.turn.turn_number;
+        let mut last_turn = state.turn().turn_number;
         for _ in 0..num_passes {
-            let holder = match state.turn.priority_holder { Some(h) => h, None => break };
+            let holder = match state.turn().priority_holder { Some(h) => h, None => break };
             match process_command(state.clone(), Command::PassPriority { player: holder }) {
                 Ok((ns, _)) => {
-                    prop_assert!(ns.turn.turn_number >= last_turn,
-                        "turn decreased: {} -> {}", last_turn, ns.turn.turn_number);
-                    last_turn = ns.turn.turn_number;
+                    prop_assert!(ns.turn().turn_number >= last_turn,
+                        "turn decreased: {} -> {}", last_turn, ns.turn().turn_number);
+                    last_turn = ns.turn().turn_number;
                     state = ns;
                 }
                 Err(_) => break,
@@ -463,9 +468,9 @@ proptest! {
     #[test]
     fn prop_to_02_turn_order_ids_in_players_map(num_passes in 1usize..200) {
         let state = pass_n(num_passes);
-        for id in state.turn.turn_order.iter() {
+        for id in state.turn().turn_order.iter() {
             prop_assert!(
-                state.players.contains_key(id),
+                state.players().contains_key(id),
                 "turn_order has {:?} not in players", id
             );
         }
@@ -482,9 +487,9 @@ proptest! {
         let target = PlayerId(concede_player);
         let (mut state, _) = process_command(state, Command::Concede { player: target }).unwrap();
         for _ in 0..num_passes {
-            prop_assert!(state.turn.priority_holder != Some(target),
+            prop_assert!(state.turn().priority_holder != Some(target),
                 "eliminated player {:?} holds priority", target);
-            let holder = match state.turn.priority_holder { Some(h) => h, None => break };
+            let holder = match state.turn().priority_holder { Some(h) => h, None => break };
             match process_command(state.clone(), Command::PassPriority { player: holder }) {
                 Ok((ns, _)) => state = ns,
                 Err(_) => break,
@@ -498,12 +503,12 @@ proptest! {
     fn prop_to_04_phase_consistent_with_step(num_passes in 1usize..200) {
         let state = pass_n(num_passes);
         prop_assert_eq!(
-            state.turn.phase,
-            state.turn.step.phase(),
+            state.turn().phase,
+            state.turn().step.phase(),
             "phase {:?} does not match step {:?} (expected {:?})",
-            state.turn.phase,
-            state.turn.step,
-            state.turn.step.phase()
+            state.turn().phase,
+            state.turn().step,
+            state.turn().step.phase()
         );
     }
 
@@ -514,17 +519,17 @@ proptest! {
         let state = GameStateBuilder::four_player()
             .at_step(Step::PreCombatMain)
             .build().unwrap();
-        let initial_step = state.turn.step;
+        let initial_step = state.turn().step;
         let mut s = state;
         // Pass 4 players (1 complete round) + some extra passes.
         for _ in 0..(4 + n_extra) {
-            let holder = match s.turn.priority_holder { Some(h) => h, None => break };
+            let holder = match s.turn().priority_holder { Some(h) => h, None => break };
             match process_command(s.clone(), Command::PassPriority { player: holder }) {
                 Ok((ns, _)) => s = ns,
                 Err(_) => break,
             }
         }
-        prop_assert_ne!(s.turn.step, initial_step,
+        prop_assert_ne!(s.turn().step, initial_step,
             "step did not advance after all players passed");
     }
 }
@@ -742,7 +747,7 @@ proptest! {
         for i in 0..gy   { b = b.object(ObjectSpec::card(p1, &format!("GY{}", i)).in_zone(ZoneId::Graveyard(p1))); }
         for i in 0..lib  { b = b.object(ObjectSpec::card(p1, &format!("L{}", i)).in_zone(ZoneId::Library(p1))); }
         let state = b.build().unwrap();
-        let zone_sum: usize = state.zones.values().map(|z| z.len()).sum();
+        let zone_sum: usize = state.zones().values().map(|z| z.len()).sum();
         prop_assert_eq!(state.total_objects(), zone_sum,
             "total_objects() ({}) != zone sum ({})", state.total_objects(), zone_sum);
     }
@@ -769,9 +774,9 @@ proptest! {
         for i in 0..obj_count { b = b.object(ObjectSpec::creature(p1, &format!("C{}", i), 1, 1)); }
         let state = b.build().unwrap();
         prop_assert!(
-            state.timestamp_counter >= state.total_objects() as u64,
+            state.timestamp_counter() >= state.total_objects() as u64,
             "timestamp_counter ({}) < total_objects ({})",
-            state.timestamp_counter, state.total_objects()
+            state.timestamp_counter(), state.total_objects()
         );
     }
 
@@ -782,11 +787,11 @@ proptest! {
         let mut b = GameStateBuilder::four_player();
         for i in 0..obj_count { b = b.object(ObjectSpec::creature(p1, &format!("C{}", i), 1, 1)); }
         let state = b.build().unwrap();
-        for (id, obj) in state.objects.iter() {
+        for (id, obj) in state.objects().iter() {
             prop_assert!(
-                obj.timestamp <= state.timestamp_counter,
+                obj.timestamp <= state.timestamp_counter(),
                 "object {:?} timestamp {} > counter {}",
-                id, obj.timestamp, state.timestamp_counter
+                id, obj.timestamp, state.timestamp_counter()
             );
         }
     }
@@ -808,7 +813,7 @@ proptest! {
     fn prop_pp_02_always_active_player_or_game_over(num_passes in 1usize..200) {
         let state = pass_n(num_passes);
         let active = state.active_players();
-        prop_assert!(!active.is_empty() || state.turn.priority_holder.is_none(),
+        prop_assert!(!active.is_empty() || state.turn().priority_holder.is_none(),
             "no active players and game not ended");
     }
 
@@ -823,7 +828,7 @@ proptest! {
     #[test]
     fn prop_pp_04_phase_invariant_throughout(num_passes in 1usize..200) {
         let state = pass_n(num_passes);
-        prop_assert_eq!(state.turn.phase, state.turn.step.phase());
+        prop_assert_eq!(state.turn().phase, state.turn().step.phase());
     }
 
     /// INV-PP-05: Six-player game: random passes never invalidate player map.
@@ -832,15 +837,15 @@ proptest! {
         let state = GameStateBuilder::six_player().build().unwrap();
         let (mut state, _) = start_game(state).unwrap();
         for _ in 0..num_passes {
-            let holder = match state.turn.priority_holder { Some(h) => h, None => break };
+            let holder = match state.turn().priority_holder { Some(h) => h, None => break };
             match process_command(state.clone(), Command::PassPriority { player: holder }) {
                 Ok((ns, _)) => state = ns,
                 Err(_) => break,
             }
         }
         // All turn_order players are in the players map.
-        for id in state.turn.turn_order.iter() {
-            prop_assert!(state.players.contains_key(id),
+        for id in state.turn().turn_order.iter() {
+            prop_assert!(state.players().contains_key(id),
                 "player {:?} in turn_order but not in players map", id);
         }
     }
@@ -856,8 +861,8 @@ proptest! {
     fn prop_ps_01_players_map_and_turn_order_same_length(num_passes in 1usize..200) {
         let state = pass_n(num_passes);
         prop_assert_eq!(
-            state.players.len(),
-            state.turn.turn_order.len(),
+            state.players().len(),
+            state.turn().turn_order.len(),
             "players map and turn_order have different lengths"
         );
     }
@@ -866,7 +871,7 @@ proptest! {
     #[test]
     fn prop_ps_02_land_plays_remaining_nonneg(num_passes in 1usize..100) {
         let state = pass_n(num_passes);
-        for (_, p) in state.players.iter() {
+        for (_, p) in state.players().iter() {
             // u32 is always >= 0 by type; this asserts the value is sensible (not MAX).
             prop_assert!(p.land_plays_remaining <= 10,
                 "player {:?} land_plays_remaining is suspiciously large: {}",
@@ -878,10 +883,10 @@ proptest! {
     #[test]
     fn prop_ps_03_lost_player_has_consistent_state(num_passes in 1usize..200) {
         let state = pass_n(num_passes);
-        for (_, p) in state.players.iter() {
+        for (_, p) in state.players().iter() {
             if p.has_lost {
                 // A lost player should never hold priority.
-                prop_assert_ne!(state.turn.priority_holder, Some(p.id),
+                prop_assert_ne!(state.turn().priority_holder, Some(p.id),
                     "lost player {:?} holds priority", p.id);
             }
         }
@@ -930,7 +935,7 @@ proptest! {
         let mut b = GameStateBuilder::new();
         for i in 1..=num_players { b = b.add_player(PlayerId(i)); }
         let state = b.build().unwrap();
-        prop_assert!(state.continuous_effects.is_empty(),
+        prop_assert!(state.continuous_effects().is_empty(),
             "fresh state has continuous effects");
     }
 
@@ -940,7 +945,7 @@ proptest! {
         let mut b = GameStateBuilder::new();
         for i in 1..=num_players { b = b.add_player(PlayerId(i)); }
         let state = b.build().unwrap();
-        prop_assert!(state.pending_triggers.is_empty(),
+        prop_assert!(state.pending_triggers().is_empty(),
             "fresh state has pending triggers");
     }
 
@@ -950,7 +955,7 @@ proptest! {
         let mut b = GameStateBuilder::new();
         for i in 1..=num_players { b = b.add_player(PlayerId(i)); }
         let state = b.build().unwrap();
-        prop_assert!(state.replacement_effects.is_empty(),
+        prop_assert!(state.replacement_effects().is_empty(),
             "fresh state has replacement effects");
     }
 }
@@ -964,7 +969,7 @@ proptest! {
     #[test]
     fn prop_mx_01_player_map_key_equals_state_id(num_passes in 1usize..100) {
         let state = pass_n(num_passes);
-        for (key, player) in state.players.iter() {
+        for (key, player) in state.players().iter() {
             prop_assert_eq!(*key, player.id,
                 "players map key {:?} != player.id {:?}", key, player.id);
         }
@@ -977,7 +982,7 @@ proptest! {
         let mut b = GameStateBuilder::four_player();
         for i in 0..obj_count { b = b.object(ObjectSpec::creature(p1, &format!("C{}", i), 1, 1)); }
         let state = b.build().unwrap();
-        for (key, obj) in state.objects.iter() {
+        for (key, obj) in state.objects().iter() {
             prop_assert_eq!(*key, obj.id,
                 "objects map key {:?} != obj.id {:?}", key, obj.id);
         }
@@ -990,8 +995,8 @@ proptest! {
         let mut b = GameStateBuilder::four_player();
         for i in 0..obj_count { b = b.object(ObjectSpec::creature(p1, &format!("C{}", i), 1, 1)); }
         let state = b.build().unwrap();
-        for (id, obj) in state.objects.iter() {
-            prop_assert!(state.players.contains_key(&obj.owner),
+        for (id, obj) in state.objects().iter() {
+            prop_assert!(state.players().contains_key(&obj.owner),
                 "object {:?} owner {:?} not in players map", id, obj.owner);
         }
     }
@@ -1003,8 +1008,8 @@ proptest! {
         let mut b = GameStateBuilder::four_player();
         for i in 0..obj_count { b = b.object(ObjectSpec::creature(p1, &format!("C{}", i), 1, 1)); }
         let state = b.build().unwrap();
-        for (id, obj) in state.objects.iter() {
-            prop_assert!(state.players.contains_key(&obj.controller),
+        for (id, obj) in state.objects().iter() {
+            prop_assert!(state.players().contains_key(&obj.controller),
                 "object {:?} controller {:?} not in players map", id, obj.controller);
         }
     }

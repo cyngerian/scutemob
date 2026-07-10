@@ -30,7 +30,7 @@ fn p(n: u64) -> PlayerId {
 }
 
 fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
-    state.objects.iter().find_map(|(&id, obj)| {
+    state.objects().iter().find_map(|(&id, obj)| {
         if obj.characteristics.name == name && obj.zone == zone {
             Some(id)
         } else {
@@ -49,7 +49,7 @@ fn in_hand(state: &GameState, name: &str, owner: PlayerId) -> bool {
 
 fn in_exile(state: &GameState, name: &str) -> bool {
     state
-        .objects
+        .objects()
         .values()
         .any(|obj| obj.characteristics.name == name && matches!(obj.zone, ZoneId::Exile))
 }
@@ -164,7 +164,7 @@ fn test_recover_basic_creature_dies_triggers_recover() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Both players pass → handle_all_passed → SBAs fire → CreatureDied
     // → check_triggers queues RecoverTrigger → flush_pending_triggers puts it on stack.
@@ -172,7 +172,7 @@ fn test_recover_basic_creature_dies_triggers_recover() {
 
     // RecoverTrigger should be on the stack.
     assert!(
-        state.stack_objects.iter().any(|so| matches!(
+        state.stack_objects().iter().any(|so| matches!(
             &so.kind,
             StackObjectKind::KeywordTrigger {
                 keyword: KeywordAbility::Recover,
@@ -212,13 +212,13 @@ fn test_recover_pay_returns_to_hand() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Both pass → SBAs → RecoverTrigger on stack.
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // Confirm trigger is on stack.
-    let trigger_on_stack = state.stack_objects.iter().any(|so| {
+    let trigger_on_stack = state.stack_objects().iter().any(|so| {
         matches!(
             &so.kind,
             StackObjectKind::KeywordTrigger {
@@ -254,7 +254,7 @@ fn test_recover_pay_returns_to_hand() {
     // Add mana to pay the cost ({2} generic).
     use mtg_engine::ManaColor;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -313,7 +313,7 @@ fn test_recover_decline_exiles_card() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Both pass → SBAs → RecoverTrigger on stack.
     let (state, _) = pass_all(state, &[p1, p2]);
@@ -384,7 +384,7 @@ fn test_recover_card_left_graveyard_fizzles() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Both pass → SBAs → RecoverTrigger on stack.
     let (mut state, _) = pass_all(state, &[p1, p2]);
@@ -393,7 +393,7 @@ fn test_recover_card_left_graveyard_fizzles() {
     // that removed it — e.g., an opponent's Rest in Peace effect or Relic of Progenitus).
     let recover_id = find_in_zone(&state, "Test Recover Sorcery", ZoneId::Graveyard(p1))
         .expect("Recover card should be in graveyard");
-    if let Some(obj) = state.objects.get_mut(&recover_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&recover_id) {
         obj.zone = ZoneId::Exile;
     }
 
@@ -416,7 +416,7 @@ fn test_recover_card_left_graveyard_fizzles() {
 
     // No pending recover payments.
     assert!(
-        state.pending_recover_payments.is_empty(),
+        state.pending_recover_payments().is_empty(),
         "CR 400.7: no pending recover payments when trigger fizzles"
     );
 }
@@ -449,7 +449,7 @@ fn test_recover_creature_with_recover_dies_triggers_self() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Both pass → SBA kills creature → creature goes to p1's graveyard with Recover
     // → Recover triggers on itself.
@@ -464,7 +464,7 @@ fn test_recover_creature_with_recover_dies_triggers_self() {
     );
 
     // RecoverTrigger should be on the stack.
-    let has_recover_trigger = state.stack_objects.iter().any(|so| {
+    let has_recover_trigger = state.stack_objects().iter().any(|so| {
         matches!(
             &so.kind,
             StackObjectKind::KeywordTrigger {
@@ -498,13 +498,13 @@ fn test_recover_no_recover_card_in_graveyard_no_trigger() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // No RecoverTrigger on the stack.
     assert!(
-        !state.stack_objects.iter().any(|so| matches!(
+        !state.stack_objects().iter().any(|so| matches!(
             &so.kind,
             StackObjectKind::KeywordTrigger {
                 keyword: KeywordAbility::Recover,
@@ -538,7 +538,7 @@ fn test_recover_opponents_creature_death_no_trigger() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let (state, events) = pass_all(state, &[p1, p2]);
 
@@ -553,7 +553,7 @@ fn test_recover_opponents_creature_death_no_trigger() {
     // No RecoverTrigger on the stack — p2's creature went to p2's graveyard, not p1's.
     assert!(
         !state
-            .stack_objects
+            .stack_objects()
             .iter()
             .any(|so| matches!(&so.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Recover, .. })),
         "CR 702.59a: Recover should not trigger when opponent's creature dies into opponent's graveyard"
@@ -565,7 +565,7 @@ fn test_recover_opponents_creature_death_no_trigger() {
 #[test]
 /// CR 702.59a — When `check_and_apply_sbas` runs (from an external call), the
 /// CreatureDied event causes check_triggers to queue a RecoverTrigger in
-/// `state.pending_triggers` (ready to be flushed to the stack).
+/// `state.pending_triggers()` (ready to be flushed to the stack).
 fn test_recover_sba_queues_pending_trigger() {
     let p1 = p(1);
     let p2 = p(2);
@@ -595,7 +595,7 @@ fn test_recover_sba_queues_pending_trigger() {
 
     // RecoverTrigger should be queued in pending_triggers.
     let has_recover_pending = state
-        .pending_triggers
+        .pending_triggers()
         .iter()
         .any(|t| t.kind == mtg_engine::state::stubs::PendingTriggerKind::Recover);
     assert!(

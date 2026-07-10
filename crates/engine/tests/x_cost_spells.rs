@@ -25,7 +25,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -34,7 +34,7 @@ fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
 
 fn find_object_on_battlefield(state: &mtg_engine::GameState, name: &str) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
         .map(|(id, _)| *id)
@@ -69,7 +69,7 @@ fn cast_x_spell(
 ) -> (mtg_engine::GameState, Vec<GameEvent>) {
     let (mana_generic, mana_blue, mana_green, mana_red, mana_white, mana_black) = mana;
     let mut state = state;
-    let pool = &mut state.players.get_mut(&caster).unwrap().mana_pool;
+    let pool = &mut state.players_mut().get_mut(&caster).unwrap().mana_pool;
     if mana_generic > 0 {
         pool.add(ManaColor::Colorless, mana_generic);
     }
@@ -88,7 +88,7 @@ fn cast_x_spell(
     if mana_black > 0 {
         pool.add(ManaColor::Black, mana_black);
     }
-    state.turn.priority_holder = Some(caster);
+    state.turn_mut().priority_holder = Some(caster);
     process_command(
         state,
         Command::CastSpell {
@@ -157,7 +157,7 @@ fn test_x_cost_spell_basic_mana_payment() {
         .at_step(Step::PreCombatMain)
         .build()
         .unwrap();
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_obj_id = find_object(&state, "Pull from Tomorrow");
 
@@ -166,13 +166,13 @@ fn test_x_cost_spell_basic_mana_payment() {
 
     // The spell should be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "Pull from Tomorrow should be on the stack"
     );
 
     // Verify x_value is stored on the stack object.
-    let stack_obj = state.stack_objects.front().unwrap();
+    let stack_obj = state.stack_objects().front().unwrap();
     assert_eq!(
         stack_obj.x_value, 3,
         "stack object should carry x_value=3 (CR 107.3a)"
@@ -183,7 +183,7 @@ fn test_x_cost_spell_basic_mana_payment() {
 
     // Stack should be empty after resolution.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after resolution"
     );
 }
@@ -225,11 +225,11 @@ fn test_x_cost_effect_amount_xvalue_draw() {
         .at_step(Step::PreCombatMain)
         .build()
         .unwrap();
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_obj_id = find_object(&state, "Pull from Tomorrow");
     let initial_hand = state
-        .objects
+        .objects()
         .iter()
         .filter(|(_, o)| o.zone == ZoneId::Hand(p1))
         .count();
@@ -250,7 +250,7 @@ fn test_x_cost_effect_amount_xvalue_draw() {
 
     // Hand: -1 (spell) +3 (draw) -1 (discard) = initial + 1.
     let final_hand = state
-        .objects
+        .objects()
         .iter()
         .filter(|(_, o)| o.zone == ZoneId::Hand(p1))
         .count();
@@ -296,7 +296,7 @@ fn test_x_cost_etb_counters_ingenious_prodigy() {
         .at_step(Step::PreCombatMain)
         .build()
         .unwrap();
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_obj_id = find_object(&state, "Ingenious Prodigy");
 
@@ -315,7 +315,7 @@ fn test_x_cost_etb_counters_ingenious_prodigy() {
 
     // Verify 4 +1/+1 counters were placed.
     let counter_count = state
-        .objects
+        .objects()
         .get(&creature_id)
         .and_then(|o| o.counters.get(&CounterType::PlusOnePlusOne).copied())
         .unwrap_or(0);
@@ -375,12 +375,12 @@ fn test_x_cost_repeat_creates_x_tokens() {
         .at_step(Step::PreCombatMain)
         .build()
         .unwrap();
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_obj_id = find_object(&state, "Awaken the Woods");
 
     let tokens_before = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Battlefield && o.characteristics.name == "Forest Dryad")
         .count();
@@ -391,7 +391,7 @@ fn test_x_cost_repeat_creates_x_tokens() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     let tokens_after = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Battlefield && o.characteristics.name == "Forest Dryad")
         .count();
@@ -465,7 +465,7 @@ fn test_x_cost_conditional_xvalue_at_least_martial_coup_x5() {
         .at_step(Step::PreCombatMain)
         .build()
         .unwrap();
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_obj_id = find_object(&state, "Martial Coup");
 
@@ -564,7 +564,7 @@ fn test_x_cost_conditional_xvalue_at_least_martial_coup_x4_no_wipe() {
         .at_step(Step::PreCombatMain)
         .build()
         .unwrap();
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_obj_id = find_object(&state, "Martial Coup");
 
@@ -574,7 +574,7 @@ fn test_x_cost_conditional_xvalue_at_least_martial_coup_x4_no_wipe() {
 
     // 4 Soldier tokens.
     let soldiers = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Battlefield && o.characteristics.name == "Soldier")
         .count();
@@ -621,14 +621,14 @@ fn test_x_cost_activated_ability_double_x_treasure_vault() {
         .at_step(Step::PreCombatMain)
         .build()
         .unwrap();
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let vault_id = find_object_on_battlefield(&state, "Treasure Vault")
         .expect("Treasure Vault should be on battlefield");
 
     // Add 4 colorless mana (X=2, x_count=2 → 2*2=4 generic).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -664,7 +664,7 @@ fn test_x_cost_activated_ability_double_x_treasure_vault() {
 
     // 2 Treasure tokens should be on battlefield.
     let treasures = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Battlefield && o.characteristics.name == "Treasure")
         .count();
@@ -709,7 +709,7 @@ fn test_x_cost_permanent_retains_x_value_for_etb() {
         .at_step(Step::PreCombatMain)
         .build()
         .unwrap();
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_obj_id = find_object(&state, "Ingenious Prodigy");
 
@@ -717,7 +717,7 @@ fn test_x_cost_permanent_retains_x_value_for_etb() {
     let (state, _) = cast_x_spell(state, p1, card_obj_id, (6, 1, 0, 0, 0, 0), 6);
 
     // After cast, the stack object should carry x_value=6.
-    let so = state.stack_objects.front().unwrap();
+    let so = state.stack_objects().front().unwrap();
     assert_eq!(
         so.x_value, 6,
         "stack object x_value should be 6 before resolution"
@@ -732,7 +732,7 @@ fn test_x_cost_permanent_retains_x_value_for_etb() {
     let creature_id = find_object_on_battlefield(&state, "Ingenious Prodigy")
         .expect("Ingenious Prodigy should be on battlefield");
     let stored_x = state
-        .objects
+        .objects()
         .get(&creature_id)
         .map(|o| o.x_value)
         .unwrap_or(0);
@@ -743,7 +743,7 @@ fn test_x_cost_permanent_retains_x_value_for_etb() {
 
     // Counters should be 6.
     let counters = state
-        .objects
+        .objects()
         .get(&creature_id)
         .and_then(|o| o.counters.get(&CounterType::PlusOnePlusOne).copied())
         .unwrap_or(0);
@@ -787,7 +787,7 @@ fn test_x_cost_repeat_zero_creates_no_tokens() {
         .at_step(Step::PreCombatMain)
         .build()
         .unwrap();
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_obj_id = find_object(&state, "Awaken the Woods");
 
@@ -796,7 +796,7 @@ fn test_x_cost_repeat_zero_creates_no_tokens() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     let tokens = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Battlefield && o.characteristics.name == "Forest Dryad")
         .count();
@@ -869,9 +869,9 @@ fn test_x_cost_condition_xvalue_at_least_below_threshold() {
         .at_step(Step::PreCombatMain)
         .build()
         .unwrap();
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
-    let initial_life = state.players.get(&p1).unwrap().life_total;
+    let initial_life = state.players().get(&p1).unwrap().life_total;
     let card_obj_id = find_object(&state, "White Sun's Twilight");
 
     // Cast with X=4 (4 generic + 2 white).
@@ -879,7 +879,7 @@ fn test_x_cost_condition_xvalue_at_least_below_threshold() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // Gained 4 life.
-    let final_life = state.players.get(&p1).unwrap().life_total;
+    let final_life = state.players().get(&p1).unwrap().life_total;
     assert_eq!(
         final_life,
         initial_life + 4,
@@ -888,7 +888,7 @@ fn test_x_cost_condition_xvalue_at_least_below_threshold() {
 
     // 4 Phyrexian Mite tokens.
     let mites = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Battlefield && o.characteristics.name == "Phyrexian Mite")
         .count();

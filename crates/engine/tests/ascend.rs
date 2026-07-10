@@ -29,7 +29,7 @@ use mtg_engine::{
 
 fn find_object(state: &GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -84,7 +84,7 @@ fn test_ascend_basic_permanent_grants_blessing() {
 
     // Verify the count before SBA check.
     let count_before = state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.zone == ZoneId::Battlefield && obj.controller == p1)
         .count();
@@ -104,7 +104,7 @@ fn test_ascend_basic_permanent_grants_blessing() {
     // P1 now has the city's blessing.
     assert!(
         state
-            .players
+            .players()
             .get(&p1)
             .map(|p| p.has_citys_blessing)
             .unwrap_or(false),
@@ -146,7 +146,7 @@ fn test_ascend_below_threshold_no_blessing() {
     let state = builder.build().unwrap();
 
     let count_before = state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.zone == ZoneId::Battlefield && obj.controller == p1)
         .count();
@@ -165,7 +165,7 @@ fn test_ascend_below_threshold_no_blessing() {
     // P1 does not have the city's blessing.
     assert!(
         !state
-            .players
+            .players()
             .get(&p1)
             .map(|p| p.has_citys_blessing)
             .unwrap_or(true),
@@ -203,7 +203,7 @@ fn test_ascend_blessing_permanent_once_gained() {
     let mut state = builder.build().unwrap();
 
     // Simulate the player having previously gained the blessing.
-    if let Some(p) = state.players.get_mut(&p1) {
+    if let Some(p) = state.players_mut().get_mut(&p1) {
         p.has_citys_blessing = true;
     }
 
@@ -221,7 +221,7 @@ fn test_ascend_blessing_permanent_once_gained() {
     // Blessing is still true.
     assert!(
         state
-            .players
+            .players()
             .get(&p1)
             .map(|p| p.has_citys_blessing)
             .unwrap_or(false),
@@ -259,7 +259,7 @@ fn test_ascend_no_ascend_source_no_blessing() {
     let state = builder.build().unwrap();
 
     let count = state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.zone == ZoneId::Battlefield && obj.controller == p1)
         .count();
@@ -280,7 +280,7 @@ fn test_ascend_no_ascend_source_no_blessing() {
 
     assert!(
         !state
-            .players
+            .players()
             .get(&p1)
             .map(|p| p.has_citys_blessing)
             .unwrap_or(true),
@@ -347,7 +347,7 @@ fn test_ascend_multiple_players_independent() {
 
     assert!(
         state
-            .players
+            .players()
             .get(&p1)
             .map(|p| p.has_citys_blessing)
             .unwrap_or(false),
@@ -355,7 +355,7 @@ fn test_ascend_multiple_players_independent() {
     );
     assert!(
         state
-            .players
+            .players()
             .get(&p2)
             .map(|p| p.has_citys_blessing)
             .unwrap_or(false),
@@ -408,7 +408,7 @@ fn test_ascend_tokens_count_as_permanents() {
 
     // Verify: 1 (ascend) + 5 (lands) + 4 (tokens) = 10.
     let count = state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.zone == ZoneId::Battlefield && obj.controller == p1)
         .count();
@@ -429,7 +429,7 @@ fn test_ascend_tokens_count_as_permanents() {
 
     assert!(
         state
-            .players
+            .players()
             .get(&p1)
             .map(|p| p.has_citys_blessing)
             .unwrap_or(false),
@@ -483,7 +483,7 @@ fn test_ascend_instant_sorcery_on_resolution() {
 
     // Verify 10 permanents (lands only — spell is in hand, not a permanent).
     let land_count = state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.zone == ZoneId::Battlefield && obj.controller == p1)
         .count();
@@ -492,7 +492,7 @@ fn test_ascend_instant_sorcery_on_resolution() {
     // ASSERT: no blessing yet before casting.
     assert!(
         !state
-            .players
+            .players()
             .get(&p1)
             .map(|p| p.has_citys_blessing)
             .unwrap_or(true),
@@ -530,7 +530,7 @@ fn test_ascend_instant_sorcery_on_resolution() {
     // city's blessing until it resolves."
     assert!(
         !state
-            .players
+            .players()
             .get(&p1)
             .map(|p| p.has_citys_blessing)
             .unwrap_or(true),
@@ -551,7 +551,7 @@ fn test_ascend_instant_sorcery_on_resolution() {
     // ASSERT: P1 has the blessing after resolution.
     assert!(
         state
-            .players
+            .players()
             .get(&p1)
             .map(|p| p.has_citys_blessing)
             .unwrap_or(false),
@@ -639,7 +639,7 @@ fn test_condition_has_citys_blessing() {
     let (state_a, _) = pass_all(state_a, &[p1, p2]);
 
     let hand_count_a = state_a
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.zone == ZoneId::Hand(p1))
         .count();
@@ -650,7 +650,7 @@ fn test_condition_has_citys_blessing() {
 
     // ── Case B: With city's blessing → draw happens ──
     let mut state_b = state;
-    if let Some(p) = state_b.players.get_mut(&p1) {
+    if let Some(p) = state_b.players_mut().get_mut(&p1) {
         p.has_citys_blessing = true;
     }
 
@@ -672,7 +672,7 @@ fn test_condition_has_citys_blessing() {
     let (state_b, _) = pass_all(state_b, &[p1, p2]);
 
     let hand_count_b = state_b
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.zone == ZoneId::Hand(p1))
         .count();

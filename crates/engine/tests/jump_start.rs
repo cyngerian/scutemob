@@ -33,7 +33,7 @@ use mtg_engine::{
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -236,18 +236,18 @@ fn test_jump_start_basic_cast_from_graveyard() {
 
     // p1 has {1}{U} mana (normal mana cost of Radical Idea).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Radical Idea");
     let discard_id = find_object(&state, "Grizzly Bears");
@@ -285,13 +285,13 @@ fn test_jump_start_basic_cast_from_graveyard() {
 
     // Radical Idea is now on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.133a: Radical Idea should be on the stack"
     );
 
     // Mana pool should be empty (normal cost {1}{U} paid).
-    let pool = &state.players[&p1].mana_pool;
+    let pool = &state.players()[&p1].mana_pool;
     assert_eq!(
         pool.blue + pool.colorless + pool.red + pool.green + pool.black + pool.white,
         0,
@@ -300,7 +300,7 @@ fn test_jump_start_basic_cast_from_graveyard() {
 
     // Grizzly Bears should be in p1's graveyard (discarded).
     let bears_in_graveyard = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Grizzly Bears" && o.zone == ZoneId::Graveyard(p1));
     assert!(
@@ -360,18 +360,18 @@ fn test_jump_start_exile_on_resolution() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Radical Idea");
     let discard_id = find_object(&state, "Grizzly Bears");
@@ -403,7 +403,7 @@ fn test_jump_start_exile_on_resolution() {
 
     // Radical Idea should be in exile.
     let in_exile = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Radical Idea" && o.zone == ZoneId::Exile);
     assert!(
@@ -413,7 +413,7 @@ fn test_jump_start_exile_on_resolution() {
 
     // Radical Idea should NOT be in p1's graveyard.
     let in_graveyard = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Radical Idea" && o.zone == ZoneId::Graveyard(p1));
     assert!(
@@ -469,24 +469,24 @@ fn test_jump_start_exile_on_counter() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Radical Idea");
     let discard_id = find_object(&state, "Grizzly Bears");
@@ -518,7 +518,7 @@ fn test_jump_start_exile_on_counter() {
 
     // Find Radical Idea's card object in the Stack zone (this is what Counterspell targets).
     let spell_on_stack_id = state
-        .objects
+        .objects()
         .iter()
         .find_map(|(&id, obj)| {
             if obj.characteristics.name == "Radical Idea" && obj.zone == ZoneId::Stack {
@@ -560,7 +560,7 @@ fn test_jump_start_exile_on_counter() {
 
     // Radical Idea should be in exile (not graveyard).
     let in_exile = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Radical Idea" && o.zone == ZoneId::Exile);
     assert!(
@@ -569,7 +569,7 @@ fn test_jump_start_exile_on_counter() {
     );
 
     let in_graveyard = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Radical Idea" && o.zone == ZoneId::Graveyard(p1));
     assert!(
@@ -616,18 +616,18 @@ fn test_jump_start_sorcery_timing() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Jump Start Sorcery");
     let discard_id = find_object(&state, "Grizzly Bears");
@@ -698,12 +698,12 @@ fn test_jump_start_non_jump_start_card_cannot_cast() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Lightning Bolt");
     let discard_id = find_object(&state, "Grizzly Bears");
@@ -781,18 +781,18 @@ fn test_jump_start_pays_normal_mana_cost() {
 
     // Exactly {1}{U} — the normal mana cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Radical Idea");
     let discard_id = find_object(&state, "Grizzly Bears");
@@ -827,7 +827,7 @@ fn test_jump_start_pays_normal_mana_cost() {
 
     let (state, _) = result.unwrap();
     // Mana pool should be empty.
-    let pool = &state.players[&p1].mana_pool;
+    let pool = &state.players()[&p1].mana_pool;
     assert_eq!(
         pool.blue + pool.colorless + pool.red + pool.green + pool.black + pool.white,
         0,
@@ -867,18 +867,18 @@ fn test_jump_start_discard_required() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Radical Idea");
 
@@ -949,18 +949,18 @@ fn test_jump_start_discard_must_be_in_hand() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Radical Idea");
     let discard_id = find_object(&state, "Grizzly Bears");
@@ -1038,18 +1038,18 @@ fn test_jump_start_discard_any_card() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Radical Idea");
     let discard_id = find_object(&state, "Grizzly Bears");
@@ -1122,18 +1122,18 @@ fn test_jump_start_normal_hand_cast_not_exiled() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Radical Idea");
 
@@ -1165,7 +1165,7 @@ fn test_jump_start_normal_hand_cast_not_exiled() {
 
     // Radical Idea should be in graveyard (normal destination for instants).
     let in_graveyard = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Radical Idea" && o.zone == ZoneId::Graveyard(p1));
     assert!(
@@ -1175,7 +1175,7 @@ fn test_jump_start_normal_hand_cast_not_exiled() {
 
     // Should NOT be in exile.
     let in_exile = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Radical Idea" && o.zone == ZoneId::Exile);
     assert!(
@@ -1222,18 +1222,18 @@ fn test_jump_start_flag_set_on_stack() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Radical Idea");
     let discard_id = find_object(&state, "Grizzly Bears");
@@ -1260,7 +1260,7 @@ fn test_jump_start_flag_set_on_stack() {
     )
     .unwrap();
 
-    let stack_obj = state.stack_objects.back().unwrap();
+    let stack_obj = state.stack_objects().back().unwrap();
 
     assert!(
         stack_obj.cast_with_jump_start,
@@ -1311,13 +1311,13 @@ fn test_jump_start_insufficient_mana_rejected() {
 
     // Only {U} — not enough for {1}{U}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     // Missing 1 generic mana.
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Radical Idea");
     let discard_id = find_object(&state, "Grizzly Bears");

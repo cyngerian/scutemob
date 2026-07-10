@@ -31,7 +31,7 @@ use mtg_engine::{
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -203,18 +203,18 @@ fn test_aftermath_basic_cast_first_half_from_hand() {
 
     // p1 has {1}{R} mana for Cut's first-half cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Cut // Ribbons");
     let creature_id = find_object(&state, "Target Creature");
@@ -252,13 +252,13 @@ fn test_aftermath_basic_cast_first_half_from_hand() {
 
     // Spell is on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 709.3: Cut should be on the stack"
     );
 
     // cast_with_flashback is false (not an exile-on-departure spell when cast from hand).
-    let stack_obj = state.stack_objects.back().unwrap();
+    let stack_obj = state.stack_objects().back().unwrap();
     assert!(
         !stack_obj.cast_with_flashback,
         "CR 709.3: first half cast from hand must have cast_with_flashback: false"
@@ -269,7 +269,7 @@ fn test_aftermath_basic_cast_first_half_from_hand() {
     );
 
     // Mana pool should be empty ({1}{R} deducted).
-    let pool = &state.players[&p1].mana_pool;
+    let pool = &state.players()[&p1].mana_pool;
     assert_eq!(
         pool.blue + pool.colorless + pool.red + pool.green + pool.black + pool.white,
         0,
@@ -311,18 +311,18 @@ fn test_aftermath_cast_second_half_from_graveyard() {
 
     // p1 has {2}{B}{B} mana for Ribbons' aftermath cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Cut // Ribbons");
 
@@ -359,13 +359,13 @@ fn test_aftermath_cast_second_half_from_graveyard() {
 
     // Spell is on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.127a: Ribbons should be on the stack"
     );
 
     // cast_with_aftermath: true on the stack object.
-    let stack_obj = state.stack_objects.back().unwrap();
+    let stack_obj = state.stack_objects().back().unwrap();
     assert!(
         stack_obj.cast_with_aftermath,
         "CR 702.127a: stack object must have cast_with_aftermath: true"
@@ -377,7 +377,7 @@ fn test_aftermath_cast_second_half_from_graveyard() {
     );
 
     // Aftermath cost {2}{B}{B} should have been deducted.
-    let pool = &state.players[&p1].mana_pool;
+    let pool = &state.players()[&p1].mana_pool;
     assert_eq!(
         pool.blue + pool.colorless + pool.red + pool.green + pool.black + pool.white,
         0,
@@ -418,18 +418,18 @@ fn test_aftermath_exile_on_resolution() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Cut // Ribbons");
 
@@ -469,7 +469,7 @@ fn test_aftermath_exile_on_resolution() {
 
     // Cut // Ribbons should be in EXILE, not in graveyard.
     let in_exile = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Cut // Ribbons" && o.zone == ZoneId::Exile);
     assert!(
@@ -477,7 +477,7 @@ fn test_aftermath_exile_on_resolution() {
         "CR 702.127a: aftermath spell should be exiled on resolution, not in graveyard"
     );
 
-    let in_graveyard = state.objects.values().any(|o| {
+    let in_graveyard = state.objects().values().any(|o| {
         o.characteristics.name == "Cut // Ribbons" && matches!(o.zone, ZoneId::Graveyard(_))
     });
     assert!(
@@ -530,24 +530,24 @@ fn test_aftermath_exile_on_counter() {
 
     // p1 has {2}{B}{B} for Ribbons; p2 has {U}{U} for Counterspell.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let aftermath_id = find_object(&state, "Cut // Ribbons");
 
@@ -576,7 +576,7 @@ fn test_aftermath_exile_on_counter() {
 
     // Find the Ribbons spell on the stack as a game object.
     let spell_on_stack = state
-        .objects
+        .objects()
         .iter()
         .find_map(|(&id, obj)| {
             if obj.characteristics.name == "Cut // Ribbons" && obj.zone == ZoneId::Stack {
@@ -628,7 +628,7 @@ fn test_aftermath_exile_on_counter() {
 
     // Cut // Ribbons should be in exile, NOT in graveyard.
     let in_exile = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Cut // Ribbons" && o.zone == ZoneId::Exile);
     assert!(
@@ -636,7 +636,7 @@ fn test_aftermath_exile_on_counter() {
         "CR 702.127a: countered aftermath spell should be exiled, not in graveyard"
     );
 
-    let in_graveyard = state.objects.values().any(|o| {
+    let in_graveyard = state.objects().values().any(|o| {
         o.characteristics.name == "Cut // Ribbons" && matches!(o.zone, ZoneId::Graveyard(_))
     });
     assert!(
@@ -679,18 +679,18 @@ fn test_aftermath_cannot_cast_second_half_from_hand() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Cut // Ribbons");
 
@@ -755,18 +755,18 @@ fn test_aftermath_cannot_cast_second_half_without_flag() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Cut // Ribbons");
 
@@ -842,18 +842,18 @@ fn test_aftermath_first_half_goes_to_graveyard() {
 
     // p1 has {1}{R} for Cut.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Cut // Ribbons");
     let creature_id = find_object(&state, "Target Creature");
@@ -885,7 +885,7 @@ fn test_aftermath_first_half_goes_to_graveyard() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // Cut // Ribbons should be in p1's GRAVEYARD, not in exile.
-    let in_graveyard = state.objects.values().any(|o| {
+    let in_graveyard = state.objects().values().any(|o| {
         o.characteristics.name == "Cut // Ribbons"
             && matches!(o.zone, ZoneId::Graveyard(p) if p == p1)
     });
@@ -895,7 +895,7 @@ fn test_aftermath_first_half_goes_to_graveyard() {
     );
 
     let in_exile = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Cut // Ribbons" && o.zone == ZoneId::Exile);
     assert!(
@@ -938,18 +938,18 @@ fn test_aftermath_pays_aftermath_cost() {
 
     // Provide exactly {2}{B}{B} — enough for aftermath cost, not for the first-half {1}{R}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Cut // Ribbons");
 
@@ -985,7 +985,7 @@ fn test_aftermath_pays_aftermath_cost() {
     );
 
     // All {2}{B}{B} consumed (4 mana total).
-    let pool = &state.players[&p1].mana_pool;
+    let pool = &state.players()[&p1].mana_pool;
     let total = pool.blue + pool.colorless + pool.red + pool.green + pool.black + pool.white;
     assert_eq!(
         total, 0,
@@ -1025,18 +1025,18 @@ fn test_aftermath_card_without_aftermath_in_graveyard_fails() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Lightning Bolt");
 
@@ -1104,24 +1104,24 @@ fn test_aftermath_uses_aftermath_effect() {
         .unwrap();
 
     // Record p2 and p3 life totals before resolution.
-    let p2_life_before = state.players[&p2].life_total;
-    let p3_life_before = state.players[&p3].life_total;
-    let p1_life_before = state.players[&p1].life_total;
+    let p2_life_before = state.players()[&p2].life_total;
+    let p3_life_before = state.players()[&p3].life_total;
+    let p1_life_before = state.players()[&p1].life_total;
 
     // p1 has {2}{B}{B} for Ribbons.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Cut // Ribbons");
 
@@ -1153,19 +1153,20 @@ fn test_aftermath_uses_aftermath_effect() {
 
     // Opponents p2 and p3 should each have lost 3 life (Ribbons effect).
     assert_eq!(
-        state.players[&p2].life_total,
+        state.players()[&p2].life_total,
         p2_life_before - 3,
         "CR 702.127a: p2 should have lost 3 life from Ribbons effect"
     );
     assert_eq!(
-        state.players[&p3].life_total,
+        state.players()[&p3].life_total,
         p3_life_before - 3,
         "CR 702.127a: p3 should have lost 3 life from Ribbons effect"
     );
 
     // Controller p1 should NOT have lost life.
     assert_eq!(
-        state.players[&p1].life_total, p1_life_before,
+        state.players()[&p1].life_total,
+        p1_life_before,
         "CR 702.127a: controller p1 should NOT lose life from Ribbons"
     );
 }
@@ -1212,18 +1213,18 @@ fn test_aftermath_full_lifecycle() {
 
     // Phase 1: Cast Cut (first half) from hand.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Cut // Ribbons");
     let creature_id = find_object(&state, "Target Creature");
@@ -1255,7 +1256,7 @@ fn test_aftermath_full_lifecycle() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // Phase 2: Cut // Ribbons should now be in p1's graveyard.
-    let in_graveyard = state.objects.values().any(|o| {
+    let in_graveyard = state.objects().values().any(|o| {
         o.characteristics.name == "Cut // Ribbons"
             && matches!(o.zone, ZoneId::Graveyard(p) if p == p1)
     });
@@ -1267,7 +1268,7 @@ fn test_aftermath_full_lifecycle() {
     // Phase 3: Cast Ribbons (aftermath half) from graveyard.
     // Find the new object ID (zone change created a new object per CR 400.7).
     let card_in_graveyard = state
-        .objects
+        .objects()
         .iter()
         .find_map(|(&id, obj)| {
             if obj.characteristics.name == "Cut // Ribbons"
@@ -1280,23 +1281,23 @@ fn test_aftermath_full_lifecycle() {
         })
         .expect("Cut // Ribbons should be in graveyard after Cut resolves");
 
-    let p2_life_before = state.players[&p2].life_total;
+    let p2_life_before = state.players()[&p2].life_total;
 
     let mut state = state;
     // Add mana for Ribbons aftermath cost {2}{B}{B}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Cast Ribbons from graveyard.
     let (state, _) = process_command(
@@ -1326,7 +1327,7 @@ fn test_aftermath_full_lifecycle() {
 
     // Phase 4: Cut // Ribbons should be in EXILE (not graveyard).
     let in_exile = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Cut // Ribbons" && o.zone == ZoneId::Exile);
     assert!(
@@ -1334,7 +1335,7 @@ fn test_aftermath_full_lifecycle() {
         "CR 702.127a: after aftermath resolution, card should be in exile"
     );
 
-    let in_graveyard = state.objects.values().any(|o| {
+    let in_graveyard = state.objects().values().any(|o| {
         o.characteristics.name == "Cut // Ribbons" && matches!(o.zone, ZoneId::Graveyard(_))
     });
     assert!(
@@ -1344,7 +1345,7 @@ fn test_aftermath_full_lifecycle() {
 
     // Ribbons effect fired: p2 should have lost 3 life.
     assert_eq!(
-        state.players[&p2].life_total,
+        state.players()[&p2].life_total,
         p2_life_before - 3,
         "CR 702.127a: Ribbons effect should have made p2 lose 3 life"
     );
@@ -1384,18 +1385,18 @@ fn test_aftermath_insufficient_mana_rejected() {
 
     // Only {1}{B}{B} — NOT enough for aftermath cost {2}{B}{B}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Cut // Ribbons");
 

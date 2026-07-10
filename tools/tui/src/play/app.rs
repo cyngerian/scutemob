@@ -233,15 +233,15 @@ impl PlayApp {
 
     pub fn acting_player(&self) -> PlayerId {
         // Check pending commander zone choices
-        if let Some((pid, _)) = self.state.pending_commander_zone_choices.iter().next() {
+        if let Some((pid, _)) = self.state.pending_commander_zone_choices().iter().next() {
             return *pid;
         }
         // Priority holder
-        if let Some(pid) = self.state.turn.priority_holder {
+        if let Some(pid) = self.state.turn().priority_holder {
             return pid;
         }
         // Default to active player
-        self.state.turn.active_player
+        self.state.turn().active_player
     }
 
     pub fn execute_bot_turn(&mut self) -> anyhow::Result<()> {
@@ -321,12 +321,12 @@ impl PlayApp {
     /// Stops at the human's own main phases (where they can play lands/spells).
     pub fn should_stop_auto_pass(&self) -> bool {
         use mtg_engine::Step;
-        let is_active = self.state.turn.active_player == self.human_player;
+        let is_active = self.state.turn().active_player == self.human_player;
         let is_main = matches!(
-            self.state.turn.step,
+            self.state.turn().step,
             Step::PreCombatMain | Step::PostCombatMain
         );
-        let stack_empty = self.state.stack_objects.is_empty();
+        let stack_empty = self.state.stack_objects().is_empty();
         is_active && is_main && stack_empty
     }
 
@@ -423,7 +423,7 @@ impl PlayApp {
     }
 
     fn log_events(&mut self, events: &[GameEvent]) {
-        let turn = self.state.turn.turn_number;
+        let turn = self.state.turn().turn_number;
         for event in events {
             let text = format_event(event, &self.state);
             if !text.is_empty() {

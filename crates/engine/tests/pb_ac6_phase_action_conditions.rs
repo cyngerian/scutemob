@@ -44,7 +44,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -74,7 +74,7 @@ fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent
 fn advance_to_step(mut state: GameState, players: &[PlayerId], target: Step) -> GameState {
     let mut guard = 0;
     loop {
-        if state.turn.step == target {
+        if state.turn().step == target {
             return state;
         }
         guard += 1;
@@ -82,7 +82,7 @@ fn advance_to_step(mut state: GameState, players: &[PlayerId], target: Step) -> 
             guard < 500,
             "advance_to_step exceeded safety guard (infinite loop?)"
         );
-        let holder = state.turn.priority_holder.expect("no priority holder");
+        let holder = state.turn().priority_holder.expect("no priority holder");
         let (new_state, _) = process_command(state, Command::PassPriority { player: holder })
             .unwrap_or_else(|e| panic!("PassPriority by {:?} failed: {:?}", holder, e));
         state = new_state;
@@ -166,7 +166,7 @@ fn tap_target_spell_def(card_id: &str, name: &str) -> CardDefinition {
 
 fn life_total(state: &GameState, player: PlayerId) -> i32 {
     state
-        .players
+        .players()
         .get(&player)
         .map(|p| p.life_total)
         .unwrap_or(0)
@@ -194,7 +194,7 @@ fn test_hash_sensitive_attacked_this_turn() {
         .build()
         .unwrap();
     let h0 = state.public_state_hash();
-    state.players.get_mut(&p1).unwrap().attacked_this_turn = true;
+    state.players_mut().get_mut(&p1).unwrap().attacked_this_turn = true;
     let h1 = state.public_state_hash();
     assert_ne!(
         h0, h1,
@@ -214,7 +214,11 @@ fn test_hash_sensitive_created_token_this_turn() {
         .build()
         .unwrap();
     let h0 = state.public_state_hash();
-    state.players.get_mut(&p1).unwrap().created_token_this_turn = true;
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .created_token_this_turn = true;
     let h1 = state.public_state_hash();
     assert_ne!(
         h0, h1,
@@ -235,7 +239,7 @@ fn test_hash_sensitive_spells_cast_this_game_turn() {
         .unwrap();
     let h0 = state.public_state_hash();
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .spells_cast_this_game_turn = 3;
@@ -281,7 +285,7 @@ fn test_first_main_phase_trigger_fires_once() {
     let state = advance_to_step(state, &[p1, p2], Step::PreCombatMain);
 
     let matching: Vec<_> = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .filter(|so| {
             matches!(
@@ -334,7 +338,7 @@ fn test_postcombat_main_trigger_fires_and_not_on_precombat() {
 
     // Reaching Step::PreCombatMain: no postcombat trigger should have queued yet.
     let state = advance_to_step(state, &[p1, p2], Step::PreCombatMain);
-    let none_yet = state.stack_objects.iter().any(|so| {
+    let none_yet = state.stack_objects().iter().any(|so| {
         matches!(
             so.kind,
             StackObjectKind::TriggeredAbility { source_object, .. } if source_object == obj_id
@@ -348,7 +352,7 @@ fn test_postcombat_main_trigger_fires_and_not_on_precombat() {
     // Continue to Step::PostCombatMain (no attackers declared, combat auto-skips).
     let state = advance_to_step(state, &[p1, p2], Step::PostCombatMain);
     let matching: Vec<_> = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .filter(|so| {
             matches!(
@@ -412,13 +416,13 @@ fn test_first_main_trigger_only_active_player() {
     let other_id = find_object(&state, "Non-Active Player Herald");
     let state = advance_to_step(state, &[p1, p2], Step::PreCombatMain);
 
-    let active_fired = state.stack_objects.iter().any(|so| {
+    let active_fired = state.stack_objects().iter().any(|so| {
         matches!(
             so.kind,
             StackObjectKind::TriggeredAbility { source_object, .. } if source_object == active_id
         )
     });
-    let other_fired = state.stack_objects.iter().any(|so| {
+    let other_fired = state.stack_objects().iter().any(|so| {
         matches!(
             so.kind,
             StackObjectKind::TriggeredAbility { source_object, .. } if source_object == other_id
@@ -486,8 +490,13 @@ fn test_becomes_target_self_by_spell() {
             .at_step(Step::PreCombatMain)
             .build()
             .unwrap();
-        state.players.get_mut(&p2).unwrap().mana_pool.colorless = 1;
-        state.turn.priority_holder = Some(p2);
+        state
+            .players_mut()
+            .get_mut(&p2)
+            .unwrap()
+            .mana_pool
+            .colorless = 1;
+        state.turn_mut().priority_holder = Some(p2);
 
         let creature_id = find_object(&state, "Target Creature");
         let spell_id = find_object(&state, "Tap Bolt");
@@ -516,7 +525,7 @@ fn test_becomes_target_self_by_spell() {
         .unwrap();
 
         assert_eq!(
-            state.stack_objects.len(),
+            state.stack_objects().len(),
             2,
             "stack should have Tap Bolt + becomes-target trigger"
         );
@@ -666,8 +675,13 @@ fn test_becomes_target_scope_you_control() {
             .at_step(Step::PreCombatMain)
             .build()
             .unwrap();
-        state.players.get_mut(&p2).unwrap().mana_pool.colorless = 1;
-        state.turn.priority_holder = Some(p2);
+        state
+            .players_mut()
+            .get_mut(&p2)
+            .unwrap()
+            .mana_pool
+            .colorless = 1;
+        state.turn_mut().priority_holder = Some(p2);
         state
     };
 
@@ -794,8 +808,13 @@ fn test_becomes_target_by_opponent_gate() {
             .at_step(Step::PreCombatMain)
             .build()
             .unwrap();
-        state.players.get_mut(&caster).unwrap().mana_pool.colorless = 1;
-        state.turn.priority_holder = Some(caster);
+        state
+            .players_mut()
+            .get_mut(&caster)
+            .unwrap()
+            .mana_pool
+            .colorless = 1;
+        state.turn_mut().priority_holder = Some(caster);
         state
     };
 
@@ -921,8 +940,13 @@ fn test_becomes_target_fires_at_announcement_not_resolution() {
         .at_step(Step::PreCombatMain)
         .build()
         .unwrap();
-    state.players.get_mut(&p2).unwrap().mana_pool.colorless = 1;
-    state.turn.priority_holder = Some(p2);
+    state
+        .players_mut()
+        .get_mut(&p2)
+        .unwrap()
+        .mana_pool
+        .colorless = 1;
+    state.turn_mut().priority_holder = Some(p2);
 
     let creature_id = find_object(&state, "Announcement Creature");
     let spell_id = find_object(&state, "Tap Bolt 4");
@@ -953,12 +977,12 @@ fn test_becomes_target_fires_at_announcement_not_resolution() {
     // trigger ABOVE (resolves before) the spell -- proving the trigger fired at
     // announcement, not at spell resolution.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "stack should hold spell + trigger"
     );
-    let bottom = state.stack_objects.front().unwrap();
-    let top = state.stack_objects.back().unwrap();
+    let bottom = state.stack_objects().front().unwrap();
+    let top = state.stack_objects().back().unwrap();
     assert!(
         matches!(bottom.kind, StackObjectKind::Spell { .. }),
         "bottom of stack should be the targeting spell"
@@ -1056,7 +1080,7 @@ fn test_token_entering_attacking_does_not_set_attacked_this_turn() {
     );
 
     assert!(
-        !state.players.get(&p1).unwrap().attacked_this_turn,
+        !state.players().get(&p1).unwrap().attacked_this_turn,
         "CR 508.4: a token entering the battlefield attacking must NOT set \
          attacked_this_turn (only handle_declare_attackers does)"
     );
@@ -1258,7 +1282,7 @@ fn test_opponent_controls_more_lands() {
             .unwrap();
         let phased_land = find_object(&state, "P2 Land 3b");
         state
-            .objects
+            .objects_mut()
             .get_mut(&phased_land)
             .unwrap()
             .status
@@ -1292,7 +1316,7 @@ fn test_opponent_cast_n_spells() {
         .build()
         .unwrap();
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .spells_cast_this_game_turn = 3;
@@ -1335,7 +1359,7 @@ fn test_all_players_trackers_reset_at_turn_boundary_multiplayer() {
         .unwrap();
 
     for pid in [p1, p2, p3, p4] {
-        let ps = state.players.get_mut(&pid).unwrap();
+        let ps = state.players_mut().get_mut(&pid).unwrap();
         ps.attacked_this_turn = true;
         ps.created_token_this_turn = true;
         ps.spells_cast_this_game_turn = 5;
@@ -1345,7 +1369,7 @@ fn test_all_players_trackers_reset_at_turn_boundary_multiplayer() {
     mtg_engine::rules::turn_actions::reset_turn_state(&mut state, p3);
 
     for pid in [p1, p2, p3, p4] {
-        let ps = state.players.get(&pid).unwrap();
+        let ps = state.players().get(&pid).unwrap();
         assert!(
             !ps.attacked_this_turn,
             "attacked_this_turn must reset for player {:?} (including non-active players)",
@@ -1386,8 +1410,8 @@ fn test_scope_filter_discriminates_creature_vs_noncreature() {
         has_card_type: Some(CardType::Creature),
         ..Default::default()
     };
-    let creature_chars = &state.objects.get(&creature_id).unwrap().characteristics;
-    let land_chars = &state.objects.get(&land_id).unwrap().characteristics;
+    let creature_chars = &state.objects().get(&creature_id).unwrap().characteristics;
+    let land_chars = &state.objects().get(&land_id).unwrap().characteristics;
     assert!(matches_filter(creature_chars, &filter));
     assert!(!matches_filter(land_chars, &filter));
 }

@@ -49,7 +49,7 @@ fn run_bolster(
 /// Find an object by name in the game state (panics if not found).
 fn find_by_name(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -59,7 +59,7 @@ fn find_by_name(state: &mtg_engine::GameState, name: &str) -> ObjectId {
 /// Get the +1/+1 counter count on an object.
 fn get_plus_counters(state: &mtg_engine::GameState, id: ObjectId) -> u32 {
     state
-        .objects
+        .objects()
         .get(&id)
         .and_then(|obj| obj.counters.get(&CounterType::PlusOnePlusOne).copied())
         .unwrap_or(0)

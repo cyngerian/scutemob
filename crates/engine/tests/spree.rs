@@ -28,7 +28,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -210,7 +210,7 @@ fn build_spree_state(
 
 /// Helper: add mana to p1's pool.
 fn add_mana(state: &mut mtg_engine::GameState, p1: PlayerId, generic: u32, white: u32) {
-    let pool = &mut state.players.get_mut(&p1).unwrap().mana_pool;
+    let pool = &mut state.players_mut().get_mut(&p1).unwrap().mana_pool;
     pool.add(ManaColor::Colorless, generic);
     pool.add(ManaColor::White, white);
 }
@@ -227,11 +227,11 @@ fn test_spree_single_mode_adds_mode_cost() {
     let registry = spree_registry();
     let mut state = build_spree_state(p1, p2, registry, 0);
 
-    let initial_life = state.players[&p1].life_total;
+    let initial_life = state.players()[&p1].life_total;
 
     // Base {1}{W} + mode-0 {1} = {2}{W} = 3 mana total.
     add_mana(&mut state, p1, 2, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Spree Test Spell");
 
@@ -257,9 +257,13 @@ fn test_spree_single_mode_adds_mode_cost() {
     )
     .unwrap_or_else(|e| panic!("cast with mode 0 failed: {:?}", e));
 
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
     assert_eq!(
-        state.stack_objects[0].modes_chosen,
+        state.stack_objects().len(),
+        1,
+        "spell should be on the stack"
+    );
+    assert_eq!(
+        state.stack_objects()[0].modes_chosen,
         vec![0],
         "CR 702.172a: modes_chosen should record mode 0"
     );
@@ -269,7 +273,7 @@ fn test_spree_single_mode_adds_mode_cost() {
 
     // Mode 0 (GainLife 4) executed; modes 1 and 2 did not.
     assert_eq!(
-        state.players[&p1].life_total,
+        state.players()[&p1].life_total,
         initial_life + 4,
         "CR 702.172a: Mode 0 (GainLife 4) should have executed"
     );
@@ -287,11 +291,11 @@ fn test_spree_two_modes_adds_both_costs() {
     let registry = spree_registry();
     let mut state = build_spree_state(p1, p2, registry, 4);
 
-    let initial_life = state.players[&p1].life_total;
+    let initial_life = state.players()[&p1].life_total;
 
     // Base {1}{W} + mode-0 {1} + mode-1 {2} = {4}{W} = 5 mana.
     add_mana(&mut state, p1, 4, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Spree Test Spell");
 
@@ -317,18 +321,18 @@ fn test_spree_two_modes_adds_both_costs() {
     )
     .unwrap_or_else(|e| panic!("cast with modes [0,1] failed: {:?}", e));
 
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on stack");
+    assert_eq!(state.stack_objects().len(), 1, "spell should be on stack");
 
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // Mode 0 (GainLife 4) + Mode 1 (DrawCards 2) both executed.
     assert_eq!(
-        state.players[&p1].life_total,
+        state.players()[&p1].life_total,
         initial_life + 4,
         "CR 702.172a: Mode 0 (GainLife 4) should have executed"
     );
     let hand_count = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -350,11 +354,11 @@ fn test_spree_all_three_modes() {
     let registry = spree_registry();
     let mut state = build_spree_state(p1, p2, registry, 4);
 
-    let initial_life = state.players[&p1].life_total;
+    let initial_life = state.players()[&p1].life_total;
 
     // Base {1}{W} + mode-0 {1} + mode-1 {2} + mode-2 {1}{W} = {5}{W}{W} = 7 mana.
     add_mana(&mut state, p1, 5, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Spree Test Spell");
 
@@ -384,12 +388,12 @@ fn test_spree_all_three_modes() {
 
     // Mode 0 (+4 life) + Mode 1 (draw 2) + Mode 2 (-3 life) = net +1 life.
     assert_eq!(
-        state.players[&p1].life_total,
+        state.players()[&p1].life_total,
         initial_life + 4 - 3,
         "CR 702.172a: all 3 modes should execute: +4 life (mode 0), draw 2 (mode 1), -3 life (mode 2)"
     );
     let hand_count = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -413,7 +417,7 @@ fn test_spree_zero_modes_rejected() {
 
     // Provide plenty of mana — rejection should be due to 0 modes, not mana.
     add_mana(&mut state, p1, 10, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Spree Test Spell");
 
@@ -463,7 +467,7 @@ fn test_spree_insufficient_mana_rejected() {
 
     // Provide only {2}{W} instead of {4}{W} needed for modes 0+1.
     add_mana(&mut state, p1, 2, 1); // only enough for base + mode 0 ({2}{W}), not base + mode 0 + mode 1
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Spree Test Spell");
 
@@ -505,7 +509,7 @@ fn test_spree_duplicate_mode_rejected() {
     let mut state = build_spree_state(p1, p2, registry, 0);
 
     add_mana(&mut state, p1, 10, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Spree Test Spell");
 
@@ -550,7 +554,7 @@ fn test_spree_mode_order_ascending() {
 
     // Modes 0 and 2: base {1}{W} + mode-0 {1} + mode-2 {1}{W} = {3}{W}{W} = 5 mana.
     add_mana(&mut state, p1, 3, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Spree Test Spell");
 
@@ -579,7 +583,7 @@ fn test_spree_mode_order_ascending() {
 
     // The spell should now be on the stack. Verify modes_chosen was sorted to [0, 2].
     let stack_obj = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .next()
         .expect("spell should be on the stack");
@@ -603,7 +607,7 @@ fn test_spree_keyword_marker_present() {
     let state = build_spree_state(p1, p2, registry, 0);
 
     let spell_id = find_object(&state, "Spree Test Spell");
-    let obj = &state.objects[&spell_id];
+    let obj = &state.objects()[&spell_id];
     assert!(
         obj.characteristics
             .keywords
@@ -642,12 +646,12 @@ fn test_spree_non_spree_spell_unchanged() {
 
     // Pay only the base {1} mana cost — should be sufficient.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Plain Sorcery");
 
@@ -718,7 +722,7 @@ fn build_insatiable_avarice_state(p1: PlayerId, p2: PlayerId) -> mtg_engine::Gam
 
 /// Add `colorless` colorless mana and `black` black mana to p1's pool.
 fn add_mana_cb(state: &mut mtg_engine::GameState, p1: PlayerId, colorless: u32, black: u32) {
-    let pool = &mut state.players.get_mut(&p1).unwrap().mana_pool;
+    let pool = &mut state.players_mut().get_mut(&p1).unwrap().mana_pool;
     pool.add(ManaColor::Colorless, colorless);
     pool.add(ManaColor::Black, black);
 }
@@ -770,17 +774,17 @@ fn test_spree_insatiable_avarice_base_plus_mode_costs_summed() {
     // Provide exactly 2 colorless + 3 black.
     let mut state = build_insatiable_avarice_state(p1, p2);
     add_mana_cb(&mut state, p1, 2, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let (state, _) = cast_insatiable_avarice(state, p1, vec![0, 1])
         .unwrap_or_else(|e| panic!("cast [0,1] with exact {{2}}{{B}}{{B}}{{B}} failed: {:?}", e));
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "Insatiable Avarice should be on the stack after paying base + both mode costs"
     );
     assert_eq!(
-        state.stack_objects[0].modes_chosen,
+        state.stack_objects()[0].modes_chosen,
         vec![0, 1],
         "CR 702.172a: both chosen modes should be recorded"
     );
@@ -789,7 +793,7 @@ fn test_spree_insatiable_avarice_base_plus_mode_costs_summed() {
     // for base {B} + mode-0 {2}, but NOT mode-1's {B}{B}. Must be rejected.
     let mut state = build_insatiable_avarice_state(p1, p2);
     add_mana_cb(&mut state, p1, 2, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let result = cast_insatiable_avarice(state, p1, vec![0, 1]);
     assert!(
@@ -802,17 +806,17 @@ fn test_spree_insatiable_avarice_base_plus_mode_costs_summed() {
     // proving the cost charged tracks exactly the selected modes.
     let mut state = build_insatiable_avarice_state(p1, p2);
     add_mana_cb(&mut state, p1, 2, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let (state, _) = cast_insatiable_avarice(state, p1, vec![0])
         .unwrap_or_else(|e| panic!("cast [0] with exact {{2}}{{B}} failed: {:?}", e));
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 601.2f: base {{B}} + mode-0 {{2}} = {{2}}{{B}} should be exactly payable"
     );
     assert_eq!(
-        state.stack_objects[0].modes_chosen,
+        state.stack_objects()[0].modes_chosen,
         vec![0],
         "CR 702.172a: only mode 0 should be recorded"
     );
@@ -833,7 +837,7 @@ fn test_spree_insatiable_avarice_zero_modes_rejected() {
     // Provide far more than the base {B} — rejection must be due to zero modes,
     // not insufficient mana for the base cost.
     add_mana_cb(&mut state, p1, 5, 5);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let result = cast_insatiable_avarice(state, p1, vec![]);
     assert!(

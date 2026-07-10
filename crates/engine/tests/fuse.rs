@@ -31,7 +31,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -172,32 +172,32 @@ fn test_fuse_basic_both_halves_execute() {
         .unwrap();
 
     // Record initial states
-    let initial_p1_life = state.players[&p1].life_total;
-    let initial_p2_life = state.players[&p2].life_total;
+    let initial_p1_life = state.players()[&p1].life_total;
+    let initial_p2_life = state.players()[&p2].life_total;
 
     let spell_id = find_object(&state, "Fuse Test Spell");
 
     let mut state = state;
     // Pay combined fuse cost: {1}{R} (left) + {W} (right) = {1}{R}{W}
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Cast with fuse=true, targeting p2 for the left half (3 damage).
     let (state, _) = process_command(
@@ -227,14 +227,14 @@ fn test_fuse_basic_both_halves_execute() {
 
     // CR 702.102d: Left half (3 damage to p2) executes first.
     assert_eq!(
-        state.players[&p2].life_total,
+        state.players()[&p2].life_total,
         initial_p2_life - 3,
         "CR 702.102d: left half should deal 3 damage to p2"
     );
 
     // CR 702.102d: Right half (5 life to p1) executes second.
     assert_eq!(
-        state.players[&p1].life_total,
+        state.players()[&p1].life_total,
         initial_p1_life + 5,
         "CR 702.102d: right half should gain 5 life for p1"
     );
@@ -272,25 +272,25 @@ fn test_fuse_single_half_cast() {
         .build()
         .unwrap();
 
-    let initial_p1_life = state.players[&p1].life_total;
-    let initial_p2_life = state.players[&p2].life_total;
+    let initial_p1_life = state.players()[&p1].life_total;
+    let initial_p2_life = state.players()[&p2].life_total;
     let spell_id = find_object(&state, "Fuse Test Spell");
 
     let mut state = state;
     // Pay only the left half cost: {1}{R}
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let (state, _) = process_command(
         state,
@@ -319,13 +319,14 @@ fn test_fuse_single_half_cast() {
 
     // Only left half fires: 3 damage to p2.
     assert_eq!(
-        state.players[&p2].life_total,
+        state.players()[&p2].life_total,
         initial_p2_life - 3,
         "CR 709.3: left half should deal 3 damage to p2"
     );
     // Right half does NOT fire: p1 life unchanged.
     assert_eq!(
-        state.players[&p1].life_total, initial_p1_life,
+        state.players()[&p1].life_total,
+        initial_p1_life,
         "CR 709.3: right half should NOT fire when fuse=false"
     );
 }
@@ -367,24 +368,24 @@ fn test_fuse_from_hand_only_rejected_from_graveyard() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let result = process_command(
         state,
@@ -449,12 +450,12 @@ fn test_fuse_no_keyword_rejected() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 5);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let result = process_command(
         state,
@@ -528,18 +529,18 @@ fn test_fuse_combined_mana_cost_required() {
     // Intentionally provide INSUFFICIENT mana: only {1}{R} (left half cost only).
     // The right half requires {W} — this should cause cost payment to fail.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let result = process_command(
         state,
@@ -601,30 +602,30 @@ fn test_fuse_resolution_order_left_then_right() {
         .build()
         .unwrap();
 
-    let initial_p1_life = state.players[&p1].life_total;
-    let initial_p2_life = state.players[&p2].life_total;
+    let initial_p1_life = state.players()[&p1].life_total;
+    let initial_p2_life = state.players()[&p2].life_total;
     let spell_id = find_object(&state, "Fuse Test Spell");
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let (state, _) = process_command(
         state,
@@ -652,13 +653,13 @@ fn test_fuse_resolution_order_left_then_right() {
 
     // CR 702.102d: Damage (left) applied to p2.
     assert_eq!(
-        state.players[&p2].life_total,
+        state.players()[&p2].life_total,
         initial_p2_life - 3,
         "CR 702.102d: left half damage should apply to p2"
     );
     // CR 702.102d: Life gain (right) applied to p1 after damage.
     assert_eq!(
-        state.players[&p1].life_total,
+        state.players()[&p1].life_total,
         initial_p1_life + 5,
         "CR 702.102d: right half life gain should apply to p1"
     );
@@ -727,12 +728,12 @@ fn test_fuse_alt_cost_rejected() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 5);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let result = process_command(
         state,

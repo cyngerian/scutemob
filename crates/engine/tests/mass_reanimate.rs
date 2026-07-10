@@ -18,6 +18,7 @@ use mtg_engine::effects::{execute_effect, EffectContext};
 use mtg_engine::state::replacement_effect::{
     ObjectFilter, ReplacementEffect, ReplacementModification, ReplacementTrigger,
 };
+use mtg_engine::state::test_util;
 use mtg_engine::{
     CardType, Effect, EffectDuration, GameEvent, GameState, GameStateBuilder, ObjectId, ObjectSpec,
     PlayerId, Step, TargetFilter, ZoneId, ZoneType,
@@ -30,12 +31,12 @@ fn p(n: u64) -> PlayerId {
 }
 
 fn count_in_zone(state: &GameState, zone: ZoneId) -> usize {
-    state.objects.values().filter(|o| o.zone == zone).count()
+    state.objects().values().filter(|o| o.zone == zone).count()
 }
 
 fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -161,7 +162,7 @@ fn test_return_all_lands_enters_tapped() {
 
     // All returned lands must be tapped.
     let all_tapped = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Battlefield)
         .all(|o| o.status.tapped);
@@ -243,7 +244,7 @@ fn test_return_all_controller_is_owner() {
 
     // P2's artifact should be controlled by P2, not P1.
     let artifact = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.zone == ZoneId::Battlefield && o.characteristics.name == "P2 Artifact")
         .expect("P2 Artifact should be on battlefield");
@@ -496,7 +497,7 @@ fn test_mass_reanimate_multiplayer() {
         (p(4), "P4 Angel"),
     ] {
         let obj = state
-            .objects
+            .objects()
             .values()
             .find(|o| o.zone == ZoneId::Battlefield && o.characteristics.name == name)
             .unwrap_or_else(|| panic!("{name} should be on battlefield"));
@@ -639,20 +640,22 @@ fn test_living_death_replacement_exile_not_returned() {
 
     // Register a Leyline-of-the-Void-like replacement: any permanent that would
     // go to a graveyard from the battlefield goes to exile instead.
-    let repl_id = state.next_replacement_id();
-    state.replacement_effects.push_back(ReplacementEffect {
-        id: repl_id,
-        source: None,
-        controller: p(1),
-        duration: EffectDuration::Indefinite,
-        is_self_replacement: false,
-        trigger: ReplacementTrigger::WouldChangeZone {
-            from: Some(ZoneType::Battlefield),
-            to: ZoneType::Graveyard,
-            filter: ObjectFilter::Any,
-        },
-        modification: ReplacementModification::RedirectToZone(ZoneType::Exile),
-    });
+    let repl_id = test_util::next_replacement_id(&mut state);
+    state
+        .replacement_effects_mut()
+        .push_back(ReplacementEffect {
+            id: repl_id,
+            source: None,
+            controller: p(1),
+            duration: EffectDuration::Indefinite,
+            is_self_replacement: false,
+            trigger: ReplacementTrigger::WouldChangeZone {
+                from: Some(ZoneType::Battlefield),
+                to: ZoneType::Graveyard,
+                filter: ObjectFilter::Any,
+            },
+            modification: ReplacementModification::RedirectToZone(ZoneType::Exile),
+        });
 
     let (state, _events) = run_effect(state, p(1), Effect::LivingDeath);
 
@@ -675,7 +678,7 @@ fn test_living_death_replacement_exile_not_returned() {
 
     // Only the Angel should be on the battlefield.
     let bf_count = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Battlefield)
         .count();

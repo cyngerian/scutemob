@@ -5,6 +5,7 @@
 
 use mtg_engine::state::builder::{GameStateBuilder, ObjectSpec};
 use mtg_engine::state::player::{CardId, PlayerId};
+use mtg_engine::state::test_util;
 use mtg_engine::state::turn::Step;
 use mtg_engine::state::types::{CounterType, EnchantTarget, SubType, SuperType};
 use mtg_engine::state::zone::ZoneId;
@@ -526,21 +527,21 @@ fn test_sba_704_5m_aura_target_left_battlefield() {
 
     // Wire up the attachment (legal state: aura enchants creature on battlefield).
     let creature_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Host Creature")
         .map(|(id, _)| *id)
         .unwrap();
     let aura_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Rancor Aura")
         .map(|(id, _)| *id)
         .unwrap();
 
-    state.objects.get_mut(&aura_id).unwrap().attached_to = Some(creature_id);
+    state.objects_mut().get_mut(&aura_id).unwrap().attached_to = Some(creature_id);
     state
-        .objects
+        .objects_mut()
         .get_mut(&creature_id)
         .unwrap()
         .attachments
@@ -548,9 +549,8 @@ fn test_sba_704_5m_aura_target_left_battlefield() {
 
     // The creature "dies": zone change produces a new ObjectId for the graveyard copy.
     // The aura's attached_to still holds the stale (old) creature_id.
-    let (_new_id, _) = state
-        .move_object_to_zone(creature_id, ZoneId::Graveyard(p(1)))
-        .unwrap();
+    let (_new_id, _) =
+        test_util::move_object_to_zone(&mut state, creature_id, ZoneId::Graveyard(p(1))).unwrap();
 
     // SBA check: aura attached to non-existent (or off-battlefield) object → falls off.
     let events = sba_events_from_start(state);
@@ -587,22 +587,22 @@ fn test_sba_704_5n_equipment_on_non_creature_unattaches() {
 
     // Manually attach sword to the land (simulating illegal attachment).
     let sword_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == "Sword of Stuff")
         .map(|(id, _)| *id)
         .unwrap();
     let land_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == "Forest")
         .map(|(id, _)| *id)
         .unwrap();
 
-    if let Some(sword) = state.objects.get_mut(&sword_id) {
+    if let Some(sword) = state.objects_mut().get_mut(&sword_id) {
         sword.attached_to = Some(land_id);
     }
-    if let Some(land) = state.objects.get_mut(&land_id) {
+    if let Some(land) = state.objects_mut().get_mut(&land_id) {
         land.attachments.push_back(sword_id);
     }
 
@@ -644,7 +644,7 @@ fn test_sba_704_5q_equal_counters_annihilate() {
 
     // Verify counters are gone from state.
     let bear = new_state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Modular Bear")
         .unwrap();
@@ -676,7 +676,7 @@ fn test_sba_704_5q_unequal_counters_partial_annihilation() {
     assert!(annihilated, "2 pairs should be annihilated");
 
     let bear = new_state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Persist Bear")
         .unwrap();
@@ -707,7 +707,7 @@ fn test_sba_704_5u_commander_damage_21_loses() {
             .unwrap();
 
         // Set player 1's commander damage received from player 2's commander to 21.
-        if let Some(player1) = b.players.get_mut(&p(1)) {
+        if let Some(player1) = b.players_mut().get_mut(&p(1)) {
             let mut inner: OrdMap<CardId, u32> = OrdMap::new();
             inner.insert(commander_card.clone(), 21);
             player1.commander_damage_received.insert(p(2), inner);
@@ -741,7 +741,7 @@ fn test_sba_704_5u_commander_damage_20_survives() {
             .build()
             .unwrap();
 
-        if let Some(player1) = b.players.get_mut(&p(1)) {
+        if let Some(player1) = b.players_mut().get_mut(&p(1)) {
             let mut inner: OrdMap<CardId, u32> = OrdMap::new();
             inner.insert(commander_card.clone(), 20);
             player1.commander_damage_received.insert(p(2), inner);
@@ -784,7 +784,7 @@ fn test_sba_convergence_only_applicable_sbas_fire() {
 
     // Verify the healthy creature is still on the battlefield.
     let healthy_on_battlefield = new_state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Healthy" && o.zone == ZoneId::Battlefield);
     assert!(
@@ -1284,26 +1284,26 @@ fn test_cc31_aura_falls_off_after_type_change_ends() {
 
     // Manually attach the aura to the land (simulating illegal attachment after animation ended).
     let land_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == "Animated Land")
         .map(|(id, _)| *id)
         .unwrap();
     let aura_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == "Bear Umbra")
         .map(|(id, _)| *id)
         .unwrap();
 
-    if let Some(aura) = state.objects.get_mut(&aura_id) {
+    if let Some(aura) = state.objects_mut().get_mut(&aura_id) {
         aura.attached_to = Some(land_id);
         // CR 702.5a: set Enchant(Creature) keyword to enforce the restriction via SBA.
         aura.characteristics
             .keywords
             .insert(KeywordAbility::Enchant(EnchantTarget::Creature));
     }
-    if let Some(land) = state.objects.get_mut(&land_id) {
+    if let Some(land) = state.objects_mut().get_mut(&land_id) {
         land.attachments.push_back(aura_id);
     }
 

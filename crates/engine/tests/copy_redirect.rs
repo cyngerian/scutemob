@@ -8,6 +8,7 @@
 
 use mtg_engine::effects::{execute_effect, EffectContext};
 use mtg_engine::state::stack::{StackObject, StackObjectKind};
+use mtg_engine::state::test_util;
 use mtg_engine::{
     CardEffectTarget, CardType, Effect, EffectAmount, GameEvent, GameState, GameStateBuilder,
     ObjectId, ObjectSpec, PlayerId, SpellTarget, Step, Target, ZoneId,
@@ -118,8 +119,8 @@ fn push_spell_targeting_player(
     controller: PlayerId,
     target_player: PlayerId,
 ) -> ObjectId {
-    let id = state.next_object_id();
-    let source = state.next_object_id(); // dummy source
+    let id = test_util::next_object_id(state);
+    let source = test_util::next_object_id(state); // dummy source
     let spell = make_stack_spell(
         id,
         controller,
@@ -129,16 +130,16 @@ fn push_spell_targeting_player(
             zone_at_cast: None,
         }],
     );
-    state.stack_objects.push_back(spell);
+    state.stack_objects_mut().push_back(spell);
     id
 }
 
 /// Push a targetless spell onto the stack, returning its assigned ID.
 fn push_targetless_spell(state: &mut GameState, controller: PlayerId) -> ObjectId {
-    let id = state.next_object_id();
-    let source = state.next_object_id();
+    let id = test_util::next_object_id(state);
+    let source = test_util::next_object_id(state);
     let spell = make_stack_spell(id, controller, source, vec![]);
-    state.stack_objects.push_back(spell);
+    state.stack_objects_mut().push_back(spell);
     id
 }
 
@@ -151,7 +152,7 @@ fn test_copy_spell_on_stack_basic() {
     let mut state = two_player_state();
     let original_stack_id = push_spell_targeting_player(&mut state, p(1), p(2));
 
-    assert_eq!(state.stack_objects.len(), 1);
+    assert_eq!(state.stack_objects().len(), 1);
 
     // Execute CopySpellOnStack — the controller targets the original stack spell.
     let copy_target = SpellTarget {
@@ -170,14 +171,14 @@ fn test_copy_spell_on_stack_basic() {
 
     // One copy should be on the stack now (total 2).
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "expected original + 1 copy on stack"
     );
 
     // The copy should have is_copy: true.
     let copy = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .find(|so| so.is_copy)
         .expect("copy not found");
@@ -228,12 +229,16 @@ fn test_copy_spell_on_stack_twice() {
 
     // 3 total: original + 2 copies.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         3,
         "expected original + 2 copies on stack"
     );
 
-    let copies: Vec<_> = state.stack_objects.iter().filter(|so| so.is_copy).collect();
+    let copies: Vec<_> = state
+        .stack_objects()
+        .iter()
+        .filter(|so| so.is_copy)
+        .collect();
     assert_eq!(copies.len(), 2, "expected exactly 2 copies");
 
     let copy_events: Vec<_> = events
@@ -270,7 +275,7 @@ fn test_change_targets_must_change_redirects_to_new_player() {
     );
 
     let bolt = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .find(|s| s.id == bolt_stack_id)
         .expect("bolt not found on stack");
@@ -323,7 +328,7 @@ fn test_change_targets_no_alternative_leaves_unchanged() {
     );
 
     let spell = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .find(|s| s.id == spell_stack_id)
         .expect("spell not found");
@@ -359,7 +364,7 @@ fn test_change_targets_may_choose_new_leaves_unchanged() {
     );
 
     let spell = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .find(|s| s.id == spell_stack_id)
         .expect("spell not found");
@@ -402,7 +407,7 @@ fn test_change_targets_accepts_single_target_spell() {
     );
 
     let spell = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .find(|s| s.id == single_target_stack_id)
         .expect("spell not found");
@@ -441,7 +446,7 @@ fn test_change_targets_object_redirect() {
 
     // Find the two battlefield objects.
     let mut bf_ids: Vec<ObjectId> = state
-        .objects
+        .objects()
         .iter()
         .filter(|(_, obj)| obj.zone == ZoneId::Battlefield)
         .map(|(id, _)| *id)
@@ -452,8 +457,8 @@ fn test_change_targets_object_redirect() {
     let creature_b_id = bf_ids[1];
 
     // A spell on the stack targeting Creature A.
-    let bolt_stack_id = state.next_object_id();
-    let source = state.next_object_id();
+    let bolt_stack_id = test_util::next_object_id(&mut state);
+    let source = test_util::next_object_id(&mut state);
     let bolt = make_stack_spell(
         bolt_stack_id,
         p(1),
@@ -463,7 +468,7 @@ fn test_change_targets_object_redirect() {
             zone_at_cast: Some(ZoneId::Battlefield),
         }],
     );
-    state.stack_objects.push_back(bolt);
+    state.stack_objects_mut().push_back(bolt);
 
     let redirect_target = SpellTarget {
         target: Target::Object(bolt_stack_id),
@@ -480,7 +485,7 @@ fn test_change_targets_object_redirect() {
     );
 
     let bolt = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .find(|s| s.id == bolt_stack_id)
         .expect("bolt not found");
@@ -527,7 +532,7 @@ fn test_bolt_bend_redirects_single_target_spell() {
 
     // The bolt's target should now be p(1) (the Bolt Bend controller).
     let bolt = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .find(|s| s.id == bolt_stack_id)
         .expect("lightning bolt not found");

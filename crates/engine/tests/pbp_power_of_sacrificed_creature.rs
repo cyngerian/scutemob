@@ -29,7 +29,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_obj(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -38,13 +38,13 @@ fn find_obj(state: &GameState, name: &str) -> ObjectId {
 
 fn in_graveyard(state: &GameState, name: &str, owner: PlayerId) -> bool {
     state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == name && o.zone == ZoneId::Graveyard(owner))
 }
 
 fn count_in_zone(state: &GameState, zone: ZoneId) -> usize {
-    state.objects.values().filter(|o| o.zone == zone).count()
+    state.objects().values().filter(|o| o.zone == zone).count()
 }
 
 /// Pass priority for all listed players once, accumulating events.
@@ -170,7 +170,7 @@ fn test_altar_of_dementia_mills_by_sacrificed_power() {
     let altar_id = find_obj(&state, "Altar of Dementia");
     let goblin_id = find_obj(&state, "Sacrificial Goblin");
     let p2_id = state
-        .players
+        .players()
         .iter()
         .find(|(id, _)| **id == p2)
         .map(|(id, _)| *id)
@@ -390,7 +390,7 @@ fn test_lifes_legacy_draws_by_sacrificed_power_on_resolve() {
     let mut state = builder.build().unwrap();
 
     // Grant P1 {1}{G} mana (Life's Legacy costs {1}{G}).
-    if let Some(ps) = state.players.get_mut(&p1) {
+    if let Some(ps) = state.players_mut().get_mut(&p1) {
         ps.mana_pool = ManaPool {
             colorless: 1,
             green: 1,
@@ -531,7 +531,7 @@ fn test_lki_correctness_anthem_boosted_creature_sacrifice() {
     let altar_id = find_obj(&state, "Altar of Dementia");
     let bear_id = find_obj(&state, "Anthem Bear");
     let p2_id = state
-        .players
+        .players()
         .iter()
         .find(|(id, _)| **id == p2)
         .map(|(id, _)| *id)
@@ -571,7 +571,7 @@ fn test_lki_correctness_anthem_boosted_creature_sacrifice() {
 
     // Verify that the graveyard Bear's base power is 2 (anthem no longer applies — BASELINE-LKI-01).
     let graveyard_bear = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Anthem Bear")
         .expect("Anthem Bear should exist in state");
@@ -659,7 +659,7 @@ fn test_zero_power_creature_sacrifice_mills_zero() {
     let altar_id = find_obj(&state, "Altar of Dementia");
     let wall_id = find_obj(&state, "Humble Wall");
     let p2_id = state
-        .players
+        .players()
         .iter()
         .find(|(id, _)| **id == p2)
         .map(|(id, _)| *id)
@@ -875,7 +875,7 @@ fn test_backward_compat_existing_powerof_cards_still_work() {
         .unwrap();
 
     // Grant P1 {W} mana.
-    if let Some(ps) = state.players.get_mut(&p1) {
+    if let Some(ps) = state.players_mut().get_mut(&p1) {
         ps.mana_pool = ManaPool {
             white: 1,
             ..Default::default()
@@ -885,7 +885,11 @@ fn test_backward_compat_existing_powerof_cards_still_work() {
     let swords_id = find_obj(&state, "Swords to Plowshares");
     let victim_id = find_obj(&state, "P2 Big Creature");
 
-    let p2_life_before = state.players.get(&p2).map(|ps| ps.life_total).unwrap_or(40);
+    let p2_life_before = state
+        .players()
+        .get(&p2)
+        .map(|ps| ps.life_total)
+        .unwrap_or(40);
 
     // Cast Swords to Plowshares targeting P2's 5/5 creature.
     let (state, _) = process_command(
@@ -915,7 +919,7 @@ fn test_backward_compat_existing_powerof_cards_still_work() {
 
     // P2's creature is exiled.
     let victim_still_on_bf = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "P2 Big Creature" && o.zone == ZoneId::Battlefield);
     assert!(
@@ -924,7 +928,11 @@ fn test_backward_compat_existing_powerof_cards_still_work() {
     );
 
     // P2 gains life equal to exiled creature's power (5).
-    let p2_life_after = state.players.get(&p2).map(|ps| ps.life_total).unwrap_or(40);
+    let p2_life_after = state
+        .players()
+        .get(&p2)
+        .map(|ps| ps.life_total)
+        .unwrap_or(40);
     let life_gained = p2_life_after - p2_life_before;
     assert_eq!(
         life_gained, 5,
@@ -1008,7 +1016,7 @@ fn test_sacrifice_negative_power_creature_mills_zero() {
     let altar_id = find_obj(&state, "Altar of Dementia");
     let cursed_id = find_obj(&state, "Cursed Creature");
     let p2_id = state
-        .players
+        .players()
         .iter()
         .find(|(id, _)| **id == p2)
         .map(|(id, _)| *id)
@@ -1105,7 +1113,7 @@ fn test_lifes_legacy_with_zero_power_creature_draws_zero() {
     let mut state = builder.build().unwrap();
 
     // Grant {1}{G} mana.
-    if let Some(ps) = state.players.get_mut(&p1) {
+    if let Some(ps) = state.players_mut().get_mut(&p1) {
         ps.mana_pool = ManaPool {
             colorless: 1,
             green: 1,

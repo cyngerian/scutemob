@@ -19,6 +19,7 @@
 //!   CR 502.3  — "doesn't untap during its controller's next untap step"
 
 use mtg_engine::effects::{execute_effect, EffectContext};
+use mtg_engine::state::test_util;
 use mtg_engine::{
     CardEffectTarget, Effect, GameEvent, GameState, GameStateBuilder, ObjectId, ObjectSpec,
     PlayerId, SpellTarget, Step, Target, ZoneId,
@@ -32,7 +33,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_by_name(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -41,7 +42,7 @@ fn find_by_name(state: &GameState, name: &str) -> ObjectId {
 
 fn skip_untap_steps_of(state: &GameState, name: &str) -> u32 {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == name)
         .map(|(_, o)| o.skip_untap_steps)
@@ -50,7 +51,7 @@ fn skip_untap_steps_of(state: &GameState, name: &str) -> u32 {
 
 fn is_tapped(state: &GameState, name: &str) -> bool {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == name)
         .map(|(_, o)| o.status.tapped)
@@ -77,7 +78,7 @@ fn apply_freeze(mut state: GameState, controller: PlayerId, target_id: ObjectId)
 
 /// Run the untap step for `active` by calling untap_active_player_permanents directly.
 fn run_untap(mut state: GameState, active: PlayerId) -> (GameState, Vec<GameEvent>) {
-    state.turn.active_player = active;
+    state.turn_mut().active_player = active;
     let events = mtg_engine::rules::turn_actions::untap_active_player_permanents(&mut state);
     (state, events)
 }
@@ -100,7 +101,7 @@ fn test_l03_frozen_permanent_skips_one_untap_step() {
 
     // Tap the creature manually.
     let bear_id = find_by_name(&state, "Frozen Bear");
-    state.objects.get_mut(&bear_id).unwrap().status.tapped = true;
+    state.objects_mut().get_mut(&bear_id).unwrap().status.tapped = true;
 
     // Apply the freeze effect.
     let state = apply_freeze(state, p(1), bear_id);
@@ -170,7 +171,7 @@ fn test_l03_freeze_stacks() {
         .unwrap();
 
     let id = find_by_name(&state, "Doubly Frozen");
-    state.objects.get_mut(&id).unwrap().status.tapped = true;
+    state.objects_mut().get_mut(&id).unwrap().status.tapped = true;
 
     // Apply freeze twice (simulating two separate "doesn't untap" effects).
     let state = apply_freeze(state, p(1), id);
@@ -263,7 +264,7 @@ fn test_l03_zone_change_resets_freeze() {
         .unwrap();
 
     let id = find_by_name(&state, "Phoenix");
-    state.objects.get_mut(&id).unwrap().status.tapped = true;
+    state.objects_mut().get_mut(&id).unwrap().status.tapped = true;
 
     // Apply freeze.
     let mut state = apply_freeze(state, p(1), id);
@@ -271,14 +272,13 @@ fn test_l03_zone_change_resets_freeze() {
 
     // Manually move to graveyard (simulates death — no full destroy pipeline needed).
     let owner = p(1);
-    let (new_gy_id, _) = state
-        .move_object_to_zone(id, ZoneId::Graveyard(owner))
+    let (new_gy_id, _) = test_util::move_object_to_zone(&mut state, id, ZoneId::Graveyard(owner))
         .expect("move to graveyard");
 
     // The graveyard copy must have skip_untap_steps = 0 (field resets on zone change).
     // Note: GameObject has #[serde(default)] on skip_untap_steps; new_gy_id is fresh.
     let gy_skip = state
-        .objects
+        .objects()
         .get(&new_gy_id)
         .map(|o| o.skip_untap_steps)
         .unwrap_or(99);
@@ -288,12 +288,11 @@ fn test_l03_zone_change_resets_freeze() {
     );
 
     // Re-enter the battlefield.
-    let (new_bf_id, _) = state
-        .move_object_to_zone(new_gy_id, ZoneId::Battlefield)
+    let (new_bf_id, _) = test_util::move_object_to_zone(&mut state, new_gy_id, ZoneId::Battlefield)
         .expect("move to battlefield");
 
     let bf_skip = state
-        .objects
+        .objects()
         .get(&new_bf_id)
         .map(|o| o.skip_untap_steps)
         .unwrap_or(99);
@@ -319,7 +318,7 @@ fn test_l03_only_controllers_untap_step_decrements() {
         .unwrap();
 
     let id = find_by_name(&state, "P1 Creature");
-    state.objects.get_mut(&id).unwrap().status.tapped = true;
+    state.objects_mut().get_mut(&id).unwrap().status.tapped = true;
 
     let state = apply_freeze(state, p(1), id);
     assert_eq!(skip_untap_steps_of(&state, "P1 Creature"), 1);

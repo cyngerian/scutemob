@@ -1,6 +1,7 @@
 //! Tests for state snapshot performance: clone independence and structural
 //! sharing with the real GameState type.
 
+use mtg_engine::state::test_util;
 use mtg_engine::state::*;
 use std::time::Instant;
 
@@ -80,16 +81,18 @@ fn test_clone_independence_real_types() {
         let snapshot = state.clone();
 
         // Modify the original
-        state.player_mut(PlayerId(1)).unwrap().life_total = 20;
-        state.turn.turn_number = 99;
+        test_util::player_mut(&mut state, PlayerId(1))
+            .unwrap()
+            .life_total = 20;
+        state.turn_mut().turn_number = 99;
 
         // Snapshot unchanged
         assert_eq!(snapshot.player(PlayerId(1)).unwrap().life_total, 40);
-        assert_eq!(snapshot.turn.turn_number, 1);
+        assert_eq!(snapshot.turn().turn_number, 1);
 
         // Original changed
         assert_eq!(state.player(PlayerId(1)).unwrap().life_total, 20);
-        assert_eq!(state.turn.turn_number, 99);
+        assert_eq!(state.turn().turn_number, 99);
     });
 }
 
@@ -178,7 +181,7 @@ fn test_clone_independence_object_modification() {
                 entered_turn: None,
                 skip_untap_steps: 0,
             };
-            modified.add_object(new_obj, ZoneId::Battlefield).unwrap();
+            test_util::add_object(&mut modified, new_obj, ZoneId::Battlefield).unwrap();
 
             // Original unaffected
             assert_eq!(
@@ -246,8 +249,8 @@ fn test_structural_sharing_memory_efficiency() {
         // All snapshots should be equal in content
         for snapshot in &snapshots {
             assert_eq!(snapshot.total_objects(), state.total_objects());
-            assert_eq!(snapshot.players.len(), state.players.len());
-            assert_eq!(snapshot.zones.len(), state.zones.len());
+            assert_eq!(snapshot.players().len(), state.players().len());
+            assert_eq!(snapshot.zones().len(), state.zones().len());
         }
     });
 }
@@ -261,7 +264,7 @@ fn test_incremental_modification_is_cheap() {
         let start = Instant::now();
         for _ in 0..1000 {
             let mut s = state.clone();
-            s.turn.turn_number += 1;
+            s.turn_mut().turn_number += 1;
         }
         let elapsed = start.elapsed();
 

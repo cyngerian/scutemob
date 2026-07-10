@@ -24,7 +24,7 @@ use mtg_engine::{
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -55,7 +55,7 @@ fn count_in_zone(
 ) -> usize {
     let zone = zone_fn(player);
     state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.zone == zone)
         .count()
@@ -164,7 +164,7 @@ fn test_connive_basic_nonland_discard_adds_counter() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -199,7 +199,7 @@ fn test_connive_basic_nonland_discard_adds_counter() {
 
     // CR 701.50a: The creature should have a +1/+1 counter (nonland card discarded).
     let creature = state
-        .objects
+        .objects()
         .values()
         .find(|obj| {
             obj.characteristics.name == "Target Creature" && obj.zone == ZoneId::Battlefield
@@ -293,7 +293,7 @@ fn test_connive_land_discard_no_counter() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -339,7 +339,7 @@ fn test_connive_land_discard_no_counter() {
     // After draw, the land was in hand first, gets discarded.
     // The drawn nonland card is NOT discarded (higher ObjectId than the pre-existing land).
     let creature = state
-        .objects
+        .objects()
         .values()
         .find(|obj| obj.characteristics.name == "Land Target" && obj.zone == ZoneId::Battlefield)
         .expect("Land Target must still be on the battlefield");
@@ -409,7 +409,7 @@ fn test_connive_n_multiple_draws_and_discards() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -453,7 +453,7 @@ fn test_connive_n_multiple_draws_and_discards() {
 
     // CR 701.50e: All 3 drawn cards are nonland, so 3 +1/+1 counters.
     let creature = state
-        .objects
+        .objects()
         .values()
         .find(|obj| obj.characteristics.name == "Big Conniver" && obj.zone == ZoneId::Battlefield)
         .expect("Big Conniver must still be on the battlefield");
@@ -517,7 +517,7 @@ fn test_connive_empty_library_still_connives() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -619,13 +619,13 @@ fn test_connive_etb_trigger_on_creature() {
 
     // Pay {1}{W} for Raffine's Informant.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -666,7 +666,7 @@ fn test_connive_etb_trigger_on_creature() {
 
     // Creature should be on the battlefield.
     let creature = state
-        .objects
+        .objects()
         .values()
         .find(|obj| {
             obj.characteristics.name == "Raffine's Informant" && obj.zone == ZoneId::Battlefield
@@ -751,7 +751,7 @@ fn test_connive_self_trigger_fires_on_connive() {
     let state = builder.build().unwrap();
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -792,7 +792,7 @@ fn test_connive_self_trigger_fires_on_connive() {
     // CR 701.50b: Creature should have at least 1 counter from SourceConnives trigger.
     // (The connive effect also adds 1 counter if a nonland was discarded.)
     let creature = state
-        .objects
+        .objects()
         .values()
         .find(|obj| {
             obj.characteristics.name == "Ledger Shredder Stand-in"
@@ -910,7 +910,7 @@ fn test_connive_creature_left_battlefield_no_counter() {
     let state = builder.build().unwrap();
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -971,14 +971,14 @@ fn test_connive_creature_left_battlefield_no_counter() {
     }
 
     // CR 701.50c: The creature must be in the graveyard (not on the battlefield).
-    let doomed_on_battlefield = _state.objects.values().any(|obj| {
+    let doomed_on_battlefield = _state.objects().values().any(|obj| {
         obj.characteristics.name == "Doomed Conniver" && obj.zone == ZoneId::Battlefield
     });
     assert!(
         !doomed_on_battlefield,
         "Doomed Conniver must not be on the battlefield after MoveZone (CR 701.50c test setup)"
     );
-    let doomed_in_graveyard = _state.objects.values().any(|obj| {
+    let doomed_in_graveyard = _state.objects().values().any(|obj| {
         obj.characteristics.name == "Doomed Conniver" && obj.zone == ZoneId::Graveyard(p1)
     });
     assert!(

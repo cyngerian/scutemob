@@ -23,6 +23,7 @@
 //! - 4-player multiplayer scenario.
 //! - Commander ninjutsu from command zone; no commander tax increment (CR 702.49d).
 
+use mtg_engine::state::test_util;
 use mtg_engine::{
     process_command, AbilityDefinition, AttackTarget, CardDefinition, CardId, CardRegistry,
     CardType, CombatState, Command, GameEvent, GameState, GameStateBuilder, KeywordAbility,
@@ -37,7 +38,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -46,7 +47,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -147,8 +148,8 @@ fn ninja_in_hand(owner: PlayerId) -> ObjectSpec {
 /// The attacker must already be on the battlefield.
 fn setup_combat(state: &mut GameState, attacker_name: &str, defender: PlayerId) {
     let attacker_id = find_object(state, attacker_name);
-    let active = state.turn.active_player;
-    state.combat = Some({
+    let active = state.turn().active_player;
+    *state.combat_mut() = Some({
         let mut cs = CombatState::new(active);
         cs.attackers
             .insert(attacker_id, AttackTarget::Player(defender));
@@ -186,12 +187,12 @@ fn test_ninjutsu_basic_swap() {
 
     // Give p1 {U} mana.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Activate ninjutsu: return Foot Soldier, put Test Ninja on stack.
     let (state, activate_events) = process_command(
@@ -214,7 +215,7 @@ fn test_ninjutsu_basic_swap() {
 
     // NinjutsuAbility is on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.49a: NinjutsuAbility should be on stack"
     );
@@ -230,7 +231,7 @@ fn test_ninjutsu_basic_swap() {
 
     // Stack should be empty.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "Stack should be empty after resolution"
     );
 
@@ -244,12 +245,12 @@ fn test_ninjutsu_basic_swap() {
     let ninja_bf_id = find_in_zone(&state, "Test Ninja", ZoneId::Battlefield)
         .expect("Test Ninja should be on battlefield");
     assert!(
-        state.objects.get(&ninja_bf_id).unwrap().status.tapped,
+        state.objects().get(&ninja_bf_id).unwrap().status.tapped,
         "CR 702.49a: ninja enters tapped"
     );
 
     // Test Ninja is registered in combat.attackers targeting p2.
-    let combat = state.combat.as_ref().expect("combat state should exist");
+    let combat = state.combat().as_ref().expect("combat state should exist");
     assert!(
         combat
             .attackers
@@ -294,7 +295,7 @@ fn test_ninjutsu_ninja_attacks_same_target() {
 
     // Scout attacking P3 (not P2).
     let scout_id = find_object(&state, "Scout");
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = CombatState::new(p1);
         cs.attackers.insert(scout_id, AttackTarget::Player(p3));
         cs
@@ -302,12 +303,12 @@ fn test_ninjutsu_ninja_attacks_same_target() {
 
     let ninja_id = find_object(&state, "Test Ninja");
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let (state, _) = process_command(
         state,
@@ -325,7 +326,7 @@ fn test_ninjutsu_ninja_attacks_same_target() {
     // Ninja should be attacking P3 (the inherited target).
     let ninja_bf_id = find_in_zone(&state, "Test Ninja", ZoneId::Battlefield)
         .expect("Test Ninja should be on battlefield");
-    let combat = state.combat.as_ref().expect("combat state should exist");
+    let combat = state.combat().as_ref().expect("combat state should exist");
     assert!(
         combat
             .attackers
@@ -364,12 +365,12 @@ fn test_ninjutsu_not_declared_as_attacker() {
     let scout_id = find_object(&state, "Scout");
     let ninja_id = find_object(&state, "Test Ninja");
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let (state, _activate_events) = process_command(
         state,
@@ -423,12 +424,12 @@ fn test_ninjutsu_wrong_step_rejected() {
     let scout_id = find_object(&state, "Scout");
     let ninja_id = find_object(&state, "Test Ninja");
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let result = process_command(
         state.clone(),
@@ -458,12 +459,12 @@ fn test_ninjutsu_wrong_step_rejected() {
     let scout_id2 = find_object(&state2, "Scout");
     let ninja_id2 = find_object(&state2, "Test Ninja");
     state2
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state2.turn.priority_holder = Some(p1);
+    state2.turn_mut().priority_holder = Some(p1);
 
     let result2 = process_command(
         state2,
@@ -495,12 +496,12 @@ fn test_ninjutsu_wrong_step_rejected() {
     let scout_id3 = find_object(&state3, "Scout");
     let ninja_id3 = find_object(&state3, "Test Ninja");
     state3
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state3.turn.priority_holder = Some(p1);
+    state3.turn_mut().priority_holder = Some(p1);
 
     let result3 = process_command(
         state3,
@@ -544,7 +545,7 @@ fn test_ninjutsu_blocked_attacker_rejected() {
     let ninja_id = find_object(&state, "Test Ninja");
 
     // Set up combat: Attacker is attacking and HAS a blocker declared.
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         // Add a blocker for Attacker. Also record in blocked_attackers so
@@ -555,12 +556,12 @@ fn test_ninjutsu_blocked_attacker_rejected() {
     });
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let result = process_command(
         state,
@@ -608,12 +609,12 @@ fn test_ninjutsu_ninja_not_in_hand_rejected() {
     let scout_id = find_object(&state, "Scout");
     let ninja_id = find_object(&state, "Test Ninja");
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let result = process_command(
         state,
@@ -656,12 +657,12 @@ fn test_ninjutsu_ninja_leaves_hand_before_resolution() {
     let scout_id = find_object(&state, "Scout");
     let ninja_id = find_object(&state, "Test Ninja");
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Activate ninjutsu: attacker returned to hand as cost.
     let (mut state, _) = process_command(
@@ -677,13 +678,12 @@ fn test_ninjutsu_ninja_leaves_hand_before_resolution() {
     // Manually move the ninja from hand to graveyard (simulate discard).
     let ninja_hand_id = find_in_zone(&state, "Test Ninja", ZoneId::Hand(p1))
         .expect("Test Ninja should be in hand (it was not moved as a cost)");
-    let (_, _) = state
-        .move_object_to_zone(ninja_hand_id, ZoneId::Graveyard(p1))
+    let (_, _) = test_util::move_object_to_zone(&mut state, ninja_hand_id, ZoneId::Graveyard(p1))
         .expect("move to graveyard should succeed");
 
     // The ability is still on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "ability should still be on stack"
     );
@@ -698,7 +698,7 @@ fn test_ninjutsu_ninja_leaves_hand_before_resolution() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // Stack should be empty.
-    assert!(state.stack_objects.is_empty(), "stack should be empty");
+    assert!(state.stack_objects().is_empty(), "stack should be empty");
 
     // Ninja should NOT be on the battlefield.
     assert!(
@@ -735,12 +735,12 @@ fn test_ninjutsu_returns_to_owner_not_controller() {
 
     // Set controller of Stolen Creature to p1.
     let stolen_id = find_object(&state, "Stolen Creature");
-    if let Some(obj) = state.objects.get_mut(&stolen_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&stolen_id) {
         obj.controller = p1;
     }
 
     // Set up combat: Stolen Creature attacking p2 under p1's control.
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = CombatState::new(p1);
         cs.attackers.insert(stolen_id, AttackTarget::Player(p2));
         cs
@@ -748,12 +748,12 @@ fn test_ninjutsu_returns_to_owner_not_controller() {
 
     let ninja_id = find_object(&state, "Test Ninja");
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let (state, _) = process_command(
         state,
@@ -802,12 +802,12 @@ fn test_ninjutsu_combat_damage() {
     let scout_id = find_object(&state, "Scout");
     let ninja_id = find_object(&state, "Test Ninja");
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Activate ninjutsu.
     let (state, _) = process_command(
@@ -837,7 +837,11 @@ fn test_ninjutsu_combat_damage() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // P2 should have lost 2 life (ninja is 2/2).
-    let p2_life = state.players.get(&p2).map(|ps| ps.life_total).unwrap_or(40);
+    let p2_life = state
+        .players()
+        .get(&p2)
+        .map(|ps| ps.life_total)
+        .unwrap_or(40);
     assert_eq!(
         p2_life, 38,
         "CR 702.49c: 2/2 ninja attacks unblocked, p2 should be at 38 life"
@@ -874,7 +878,7 @@ fn test_ninjutsu_split_second_blocks() {
 
     // Place a fake split-second spell on the stack.
     // We set it up using a StackObject directly.
-    let fake_spell_id = state.next_object_id();
+    let fake_spell_id = test_util::next_object_id(&mut state);
     use mtg_engine::StackObject;
     let stack_obj = StackObject {
         id: fake_spell_id,
@@ -927,23 +931,23 @@ fn test_ninjutsu_split_second_blocks() {
         lki_counters: im::OrdMap::new(),
         lki_power: None,
     };
-    state.stack_objects.push_back(stack_obj);
+    state.stack_objects_mut().push_back(stack_obj);
 
     // Grant the scout (used as the "source object") split second keyword so
     // has_split_second_on_stack() returns true.
-    if let Some(obj) = state.objects.get_mut(&scout_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&scout_id) {
         obj.characteristics
             .keywords
             .insert(KeywordAbility::SplitSecond);
     }
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let result = process_command(
         state,
@@ -987,7 +991,7 @@ fn test_ninjutsu_multiplayer_four_player() {
 
     // Scout attacking P3.
     let scout_id = find_object(&state, "Scout");
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = CombatState::new(p1);
         cs.attackers.insert(scout_id, AttackTarget::Player(p3));
         cs
@@ -995,12 +999,12 @@ fn test_ninjutsu_multiplayer_four_player() {
 
     let ninja_id = find_object(&state, "Test Ninja");
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let (state, _) = process_command(
         state,
@@ -1018,7 +1022,7 @@ fn test_ninjutsu_multiplayer_four_player() {
     // Ninja attacking P3.
     let ninja_bf_id = find_in_zone(&state, "Test Ninja", ZoneId::Battlefield)
         .expect("ninja should be on battlefield");
-    let combat = state.combat.as_ref().expect("combat state should exist");
+    let combat = state.combat().as_ref().expect("combat state should exist");
     assert!(
         combat
             .attackers
@@ -1029,8 +1033,16 @@ fn test_ninjutsu_multiplayer_four_player() {
     );
 
     // P2 and P4 life totals should be unchanged (40 each).
-    let p2_life = state.players.get(&p2).map(|ps| ps.life_total).unwrap_or(0);
-    let p4_life = state.players.get(&p4).map(|ps| ps.life_total).unwrap_or(0);
+    let p2_life = state
+        .players()
+        .get(&p2)
+        .map(|ps| ps.life_total)
+        .unwrap_or(0);
+    let p4_life = state
+        .players()
+        .get(&p4)
+        .map(|ps| ps.life_total)
+        .unwrap_or(0);
     assert_eq!(p2_life, 40, "P2 should not have lost life");
     assert_eq!(p4_life, 40, "P4 should not have lost life");
 }
@@ -1071,23 +1083,23 @@ fn test_commander_ninjutsu_from_command_zone() {
     let ninja_id = find_object(&state, "Commander Ninja");
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Verify the ninja is in the command zone.
     assert_eq!(
-        state.objects.get(&ninja_id).map(|o| o.zone),
+        state.objects().get(&ninja_id).map(|o| o.zone),
         Some(ZoneId::Command(p1)),
         "Commander Ninja should be in command zone before activation"
     );
 
     // Record commander tax before activation (should be empty).
     let tax_before = state
-        .players
+        .players()
         .get(&p1)
         .map(|ps| {
             ps.commander_tax
@@ -1127,7 +1139,7 @@ fn test_commander_ninjutsu_from_command_zone() {
 
     // Commander tax must NOT be incremented (this is an activated ability, not a cast).
     let tax_after = state
-        .players
+        .players()
         .get(&p1)
         .map(|ps| {
             ps.commander_tax

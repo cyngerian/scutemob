@@ -17,6 +17,7 @@ use mtg_engine::state::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
 };
 use mtg_engine::state::game_object::{Designations, TriggerEvent};
+use mtg_engine::state::test_util;
 use mtg_engine::state::types::{CardType, SubType};
 use mtg_engine::{
     all_cards, calculate_characteristics, enrich_spec_from_def, CardDefinition, CardRegistry,
@@ -32,7 +33,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == name)
         .map(|(&id, _)| id)
@@ -42,7 +43,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 /// Build an EffectContext for a given source object.
 fn make_ctx(state: &GameState, source: ObjectId) -> EffectContext {
     let controller = state
-        .objects
+        .objects()
         .get(&source)
         .map(|o| o.controller)
         .unwrap_or(p(1));
@@ -90,7 +91,7 @@ fn test_burgeoning_trigger_on_opponent_land_play() {
     let burgeoning_id = find_object(&state, "Burgeoning");
 
     // Verify enrich_spec_from_def created the OpponentPlaysLand triggered ability.
-    let burgeoning_obj = state.objects.get(&burgeoning_id).unwrap();
+    let burgeoning_obj = state.objects().get(&burgeoning_id).unwrap();
     let has_opponent_plays_land = burgeoning_obj
         .characteristics
         .triggered_abilities
@@ -238,7 +239,7 @@ fn test_put_land_does_not_count_as_land_play() {
         .unwrap();
 
     let placeholder_id = find_object(&state, "PH");
-    let land_plays_before = state.players.get(&p1).unwrap().land_plays_remaining;
+    let land_plays_before = state.players().get(&p1).unwrap().land_plays_remaining;
 
     let mut ctx = EffectContext::new(p1, placeholder_id, vec![]);
     execute_effect(
@@ -247,7 +248,7 @@ fn test_put_land_does_not_count_as_land_play() {
         &mut ctx,
     );
 
-    let land_plays_after = state.players.get(&p1).unwrap().land_plays_remaining;
+    let land_plays_after = state.players().get(&p1).unwrap().land_plays_remaining;
     assert_eq!(
         land_plays_before, land_plays_after,
         "CR 305.4: PutLandFromHandOntoBattlefield must not change land_plays_remaining"
@@ -297,7 +298,7 @@ fn test_put_land_triggers_landfall() {
     );
     // The land should now be on the battlefield.
     let on_bf = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Mountain" && o.zone == ZoneId::Battlefield);
     assert!(
@@ -324,7 +325,7 @@ fn test_put_land_no_op_when_hand_empty() {
 
     let placeholder_id = find_object(&state, "PH");
     let bf_count_before = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Battlefield)
         .count();
@@ -337,7 +338,7 @@ fn test_put_land_no_op_when_hand_empty() {
     );
 
     let bf_count_after = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Battlefield)
         .count();
@@ -386,7 +387,7 @@ fn test_dryad_additional_land_play() {
     // would do during the actual game). This tests the turn-state integration.
     use mtg_engine::state::stubs::AdditionalLandPlaySource;
     state
-        .additional_land_play_sources
+        .additional_land_play_sources_mut()
         .push_back(AdditionalLandPlaySource {
             source: dryad_id,
             controller: p1,
@@ -397,7 +398,7 @@ fn test_dryad_additional_land_play() {
     reset_turn_state(&mut state, p1);
 
     assert_eq!(
-        state.players.get(&p1).unwrap().land_plays_remaining,
+        state.players().get(&p1).unwrap().land_plays_remaining,
         2,
         "CR 305.2: Dryad grants 1 additional land play (total = 2)"
     );
@@ -430,10 +431,10 @@ fn test_dryad_lands_have_all_basic_types() {
 
     // Manually register the Dryad's "Lands you control are every basic land type" Layer 4 effect.
     // This is what register_static_continuous_effects does when Dryad enters the battlefield.
-    let eff_id = state.next_object_id().0;
-    let ts = state.timestamp_counter;
-    state.timestamp_counter += 1;
-    state.continuous_effects.push_back(ContinuousEffect {
+    let eff_id = test_util::next_object_id(&mut state).0;
+    let ts = state.timestamp_counter();
+    *state.timestamp_counter_mut() += 1;
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(eff_id),
         source: Some(dryad_id),
         timestamp: ts,
@@ -493,10 +494,10 @@ fn test_dryad_opponent_lands_unaffected() {
     let p2_swamp_id = find_object(&state, "Swamp");
 
     // Register Dryad's layer 4 LandsYouControl effect (source = p1's Dryad).
-    let eff_id = state.next_object_id().0;
-    let ts = state.timestamp_counter;
-    state.timestamp_counter += 1;
-    state.continuous_effects.push_back(ContinuousEffect {
+    let eff_id = test_util::next_object_id(&mut state).0;
+    let ts = state.timestamp_counter();
+    *state.timestamp_counter_mut() += 1;
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(eff_id),
         source: Some(dryad_id),
         timestamp: ts,
@@ -554,10 +555,10 @@ fn test_dryad_lands_keep_original_types() {
     let forest_id = find_object(&state, "Forest");
 
     // Register Dryad's LandsYouControl AddSubtypes effect.
-    let eff_id = state.next_object_id().0;
-    let ts = state.timestamp_counter;
-    state.timestamp_counter += 1;
-    state.continuous_effects.push_back(ContinuousEffect {
+    let eff_id = test_util::next_object_id(&mut state).0;
+    let ts = state.timestamp_counter();
+    *state.timestamp_counter_mut() += 1;
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(eff_id),
         source: Some(dryad_id),
         timestamp: ts,
@@ -615,7 +616,7 @@ fn test_solve_case_sets_designation() {
     // Before: not solved.
     assert!(
         !state
-            .objects
+            .objects()
             .get(&case_id)
             .unwrap()
             .designations
@@ -630,7 +631,7 @@ fn test_solve_case_sets_designation() {
     // After: solved.
     assert!(
         state
-            .objects
+            .objects()
             .get(&case_id)
             .unwrap()
             .designations
@@ -698,7 +699,7 @@ fn test_solve_case_designation_persists_until_ltb() {
 
     assert!(
         state
-            .objects
+            .objects()
             .get(&case_id)
             .unwrap()
             .designations
@@ -707,12 +708,11 @@ fn test_solve_case_designation_persists_until_ltb() {
     );
 
     // Move to graveyard (CR 400.7: new object, no designations).
-    let (new_id, _) = state
-        .move_object_to_zone(case_id, ZoneId::Graveyard(p1))
-        .unwrap();
+    let (new_id, _) =
+        test_util::move_object_to_zone(&mut state, case_id, ZoneId::Graveyard(p1)).unwrap();
 
     // New object in graveyard must NOT have SOLVED designation (CR 400.7 + 719.3b).
-    let new_obj = state.objects.get(&new_id).unwrap();
+    let new_obj = state.objects().get(&new_id).unwrap();
     assert!(
         !new_obj.designations.contains(Designations::SOLVED),
         "CR 719.3b + 400.7: SOLVED designation must be cleared on zone change (new object)"
@@ -842,7 +842,7 @@ fn test_case_already_solved_no_retrigger() {
     let case_id = find_object(&state, "Case of the Locked Hothouse");
 
     // Mark the Case as already solved.
-    if let Some(obj) = state.objects.get_mut(&case_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&case_id) {
         obj.designations.insert(Designations::SOLVED);
     }
 

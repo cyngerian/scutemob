@@ -22,7 +22,7 @@ use mtg_engine::{
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -32,7 +32,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 /// Count permanents on the battlefield controlled by `player`.
 fn battlefield_count(state: &GameState, player: PlayerId) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.zone == ZoneId::Battlefield && obj.controller == player)
         .count()
@@ -106,7 +106,7 @@ fn test_annihilator_basic_sacrifice_on_attack() {
         "CR 702.86a: AbilityTriggered event expected from annihilator"
     );
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.86a: annihilator trigger should be on the stack"
     );
@@ -322,7 +322,7 @@ fn test_annihilator_multiple_instances_trigger_separately() {
         "CR 702.86b: two annihilator instances should generate two separate triggers"
     );
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "CR 702.86b: two annihilator triggers should be on the stack"
     );
@@ -487,7 +487,7 @@ fn test_annihilator_sacrifice_ignores_indestructible() {
     );
 
     // The permanent should be in P2's graveyard.
-    let in_graveyard = state.objects.values().any(|obj| {
+    let in_graveyard = state.objects().values().any(|obj| {
         obj.characteristics.name == "Indestructible Perm" && obj.zone == ZoneId::Graveyard(p2)
     });
     assert!(

@@ -22,6 +22,7 @@ use mtg_engine::cards::card_definition::{
     CastFromGraveyardAdditionalCost, EffectAmount, PlayerTarget,
 };
 use mtg_engine::state::stubs::PlayFromGraveyardPermission;
+use mtg_engine::state::test_util;
 use mtg_engine::{
     enrich_spec_from_def, process_command, AbilityDefinition, AltCostKind, CardDefinition, CardId,
     CardRegistry, CardType, Command, Effect, GameEvent, GameState, GameStateBuilder,
@@ -34,7 +35,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -215,7 +216,7 @@ fn filler_card_def(n: u8) -> CardDefinition {
 // Inject a LandsOnly graveyard permission for testing.
 fn inject_gy_lands_only(state: &mut GameState, source: ObjectId, controller: PlayerId) {
     state
-        .play_from_graveyard_permissions
+        .play_from_graveyard_permissions_mut()
         .push_back(PlayFromGraveyardPermission {
             source,
             controller,
@@ -232,7 +233,7 @@ fn inject_gy_permanents_and_lands(
     is_emblem: bool,
 ) {
     state
-        .play_from_graveyard_permissions
+        .play_from_graveyard_permissions_mut()
         .push_back(PlayFromGraveyardPermission {
             source,
             controller,
@@ -241,7 +242,7 @@ fn inject_gy_permanents_and_lands(
         });
     // If the source is an emblem, mark it so the retain() sweep keeps it.
     if is_emblem {
-        if let Some(obj) = state.objects.get_mut(&source) {
+        if let Some(obj) = state.objects_mut().get_mut(&source) {
             obj.is_emblem = true;
         }
     }
@@ -274,7 +275,7 @@ fn test_play_from_graveyard_land_basic() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let source_id = find_object(&state, "Permission Source");
     inject_gy_lands_only(&mut state, source_id, p1);
@@ -292,7 +293,7 @@ fn test_play_from_graveyard_land_basic() {
     );
     // Land should now be on the battlefield, not in the graveyard.
     let on_bf = state2
-        .objects
+        .objects()
         .values()
         .any(|obj| obj.characteristics.name == "GY Plains" && obj.zone == ZoneId::Battlefield);
     assert!(
@@ -324,7 +325,7 @@ fn test_play_from_graveyard_land_timing_restriction() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let source_id = find_object(&state, "Permission Source");
     inject_gy_lands_only(&mut state, source_id, p1);
@@ -361,9 +362,9 @@ fn test_play_from_graveyard_land_uses_land_play_count() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     // Exhaust the land play
-    if let Some(p) = state.players.get_mut(&p1) {
+    if let Some(p) = state.players_mut().get_mut(&p1) {
         p.land_plays_remaining = 0;
     }
 
@@ -401,19 +402,19 @@ fn test_play_from_graveyard_permission_removed_when_source_leaves() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let source_id = find_object(&state, "Permission Source");
     inject_gy_lands_only(&mut state, source_id, p1);
 
     // Move source to graveyard (simulating it being destroyed).
-    let _ = state.move_object_to_zone(source_id, ZoneId::Graveyard(p1));
+    let _ = test_util::move_object_to_zone(&mut state, source_id, ZoneId::Graveyard(p1));
 
     // After reset_turn_state (which sweeps stale permissions), no permission should exist.
     mtg_engine::rules::turn_actions::reset_turn_state(&mut state, p1);
 
     assert!(
-        state.play_from_graveyard_permissions.is_empty(),
+        state.play_from_graveyard_permissions().is_empty(),
         "Permission should be removed when source is no longer on battlefield"
     );
 }
@@ -446,9 +447,9 @@ fn test_play_from_graveyard_permanent_spell() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     // Add enough mana to cast {2}
-    if let Some(p) = state.players.get_mut(&p1) {
+    if let Some(p) = state.players_mut().get_mut(&p1) {
         p.mana_pool.colorless = 5;
     }
 
@@ -468,7 +469,7 @@ fn test_play_from_graveyard_permanent_spell() {
     );
     // Creature should now be on the stack.
     let on_stack = state2
-        .stack_objects
+        .stack_objects()
         .iter()
         .any(|so| matches!(so.kind, mtg_engine::StackObjectKind::Spell { .. }));
     assert!(on_stack, "Creature spell should be on the stack");
@@ -502,8 +503,8 @@ fn test_play_from_graveyard_no_instant_sorcery() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
-    if let Some(p) = state.players.get_mut(&p1) {
+    state.turn_mut().priority_holder = Some(p1);
+    if let Some(p) = state.players_mut().get_mut(&p1) {
         p.mana_pool.colorless = 5;
     }
 
@@ -546,9 +547,9 @@ fn test_cast_self_from_graveyard_oathsworn_gained_life() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     // Controller gained life this turn.
-    if let Some(p) = state.players.get_mut(&p1) {
+    if let Some(p) = state.players_mut().get_mut(&p1) {
         p.life_gained_this_turn = 3;
         p.mana_pool.black = 1;
         p.mana_pool.colorless = 1;
@@ -594,9 +595,9 @@ fn test_cast_self_from_graveyard_oathsworn_no_life_gained() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     // life_gained_this_turn defaults to 0 — condition not met.
-    if let Some(p) = state.players.get_mut(&p1) {
+    if let Some(p) = state.players_mut().get_mut(&p1) {
         p.mana_pool.black = 1;
         p.mana_pool.colorless = 1;
     }
@@ -648,12 +649,12 @@ fn test_cast_self_from_graveyard_squee_with_4_fillers() {
     }
 
     let mut state = builder.build().unwrap();
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     // Squee's alt cost from GY is {3}{R}. Supply EXACTLY {3}{R} (4 total).
     // If the engine incorrectly charges the normal mana cost {2}{R} (3 total),
     // this would still succeed — so we also run a tighter test below that
     // demonstrates the cost enforcement. This test verifies the happy path.
-    if let Some(p) = state.players.get_mut(&p1) {
+    if let Some(p) = state.players_mut().get_mut(&p1) {
         p.mana_pool.red = 1;
         p.mana_pool.colorless = 3;
     }
@@ -698,8 +699,8 @@ fn test_cast_self_from_graveyard_squee_insufficient_exile_cards() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
-    if let Some(p) = state.players.get_mut(&p1) {
+    state.turn_mut().priority_holder = Some(p1);
+    if let Some(p) = state.players_mut().get_mut(&p1) {
         p.mana_pool.red = 1;
         p.mana_pool.colorless = 3;
     }
@@ -778,8 +779,8 @@ fn test_cast_self_from_graveyard_brokkos_requires_mutate() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
-    if let Some(p) = state.players.get_mut(&p1) {
+    state.turn_mut().priority_holder = Some(p1);
+    if let Some(p) = state.players_mut().get_mut(&p1) {
         p.mana_pool.blue = 2;
         p.mana_pool.black = 2;
         p.mana_pool.green = 3;
@@ -842,22 +843,22 @@ fn test_life_gained_this_turn_tracking() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Initially zero.
     assert_eq!(
-        state.players.get(&p1).unwrap().life_gained_this_turn,
+        state.players().get(&p1).unwrap().life_gained_this_turn,
         0,
         "life_gained_this_turn should start at 0"
     );
 
     // Manually set life_gained_this_turn to simulate gaining life.
-    if let Some(p) = state.players.get_mut(&p1) {
+    if let Some(p) = state.players_mut().get_mut(&p1) {
         p.life_gained_this_turn = 5;
     }
 
     assert_eq!(
-        state.players.get(&p1).unwrap().life_gained_this_turn,
+        state.players().get(&p1).unwrap().life_gained_this_turn,
         5,
         "life_gained_this_turn should be 5 after gaining life"
     );
@@ -866,7 +867,7 @@ fn test_life_gained_this_turn_tracking() {
     mtg_engine::rules::turn_actions::reset_turn_state(&mut state, p1);
 
     assert_eq!(
-        state.players.get(&p1).unwrap().life_gained_this_turn,
+        state.players().get(&p1).unwrap().life_gained_this_turn,
         0,
         "life_gained_this_turn should reset to 0 at turn start"
     );
@@ -896,11 +897,11 @@ fn test_play_from_graveyard_emblem_permission_persists() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Mark the source as an emblem so the retain() sweep keeps it.
     let emblem_id = find_object(&state, "Wrenn Emblem");
-    if let Some(obj) = state.objects.get_mut(&emblem_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&emblem_id) {
         obj.is_emblem = true;
         obj.zone = ZoneId::Command(p1);
     }
@@ -912,13 +913,13 @@ fn test_play_from_graveyard_emblem_permission_persists() {
 
     // Permission should still exist because source is an emblem.
     assert_eq!(
-        state.play_from_graveyard_permissions.len(),
+        state.play_from_graveyard_permissions().len(),
         1,
         "Emblem-sourced graveyard permission should persist after reset_turn_state"
     );
 
     // Now verify land play works.
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let plains_id = find_object(&state, "GY Plains");
 
     let (_, events) = process_command(state, play_land(p1, plains_id))
@@ -970,10 +971,10 @@ fn test_cast_self_from_graveyard_squee_alt_cost_enforced() {
     }
 
     let mut state = builder.build().unwrap();
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     // Provide only {2}{R} — Squee's normal mana cost, not the GY alt cost {3}{R}.
     // The cast must fail: the engine must charge the alt cost {3}{R}.
-    if let Some(p) = state.players.get_mut(&p1) {
+    if let Some(p) = state.players_mut().get_mut(&p1) {
         p.mana_pool.red = 1;
         p.mana_pool.colorless = 2; // {2}{R} total — insufficient for {3}{R}
     }
@@ -1025,8 +1026,8 @@ fn test_cast_self_from_graveyard_squee_exiles_4_cards() {
     }
 
     let mut state = builder.build().unwrap();
-    state.turn.priority_holder = Some(p1);
-    if let Some(p) = state.players.get_mut(&p1) {
+    state.turn_mut().priority_holder = Some(p1);
+    if let Some(p) = state.players_mut().get_mut(&p1) {
         p.mana_pool.red = 1;
         p.mana_pool.colorless = 3; // {3}{R} — exact alt cost
     }
@@ -1050,7 +1051,7 @@ fn test_cast_self_from_graveyard_squee_exiles_4_cards() {
     // The filler cards should now be in exile, not in the graveyard.
     let gy_zone = ZoneId::Graveyard(p1);
     let gy_count = state2
-        .zones
+        .zones()
         .get(&gy_zone)
         .map(|z| z.object_ids().len())
         .unwrap_or(0);
@@ -1062,7 +1063,7 @@ fn test_cast_self_from_graveyard_squee_exiles_4_cards() {
     // The 4 filler cards should be in exile.
     let exile_zone = ZoneId::Exile;
     let exile_count = state2
-        .zones
+        .zones()
         .get(&exile_zone)
         .map(|z| z.object_ids().len())
         .unwrap_or(0);

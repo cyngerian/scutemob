@@ -11,6 +11,7 @@
 //! - CR 701.3c: New timestamp on reattach (layer ordering).
 //! - CR 704.5n: If the fortified permanent is no longer a land, Fortification becomes unattached.
 
+use mtg_engine::state::test_util;
 use mtg_engine::state::{
     ActivatedAbility, ActivationCost, ContinuousEffect, EffectId, GameStateError,
 };
@@ -28,7 +29,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -113,12 +114,12 @@ fn test_fortify_basic_attaches_to_land() {
 
     // Give p1 mana to pay Fortify {3}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let fort_id = find_object(&state, "Test Garrison");
     let land_id = find_object(&state, "Test Plains");
@@ -142,14 +143,14 @@ fn test_fortify_basic_attaches_to_land() {
     let (state, resolve_events) = pass_all(state, &[p1, p2]);
 
     // Fortification is attached to the land.
-    let fort_obj = state.objects.get(&fort_id).expect("fortification exists");
+    let fort_obj = state.objects().get(&fort_id).expect("fortification exists");
     assert_eq!(
         fort_obj.attached_to,
         Some(land_id),
         "fortification.attached_to should be the land"
     );
 
-    let land_obj = state.objects.get(&land_id).expect("land exists");
+    let land_obj = state.objects().get(&land_id).expect("land exists");
     assert!(
         land_obj.attachments.contains(&fort_id),
         "land.attachments should contain the fortification"
@@ -192,12 +193,12 @@ fn test_fortify_sorcery_speed_only() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let fort_id = find_object(&state, "Test Garrison");
     let land_id = find_object(&state, "Test Plains");
@@ -249,12 +250,12 @@ fn test_fortify_target_must_be_land() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let fort_id = find_object(&state, "Test Garrison");
     let creature_id = find_object(&state, "Test Bear");
@@ -307,12 +308,12 @@ fn test_fortify_requires_controller_ownership() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let fort_id = find_object(&state, "Test Garrison");
     let land_id = find_object(&state, "Opponent Plains");
@@ -372,9 +373,9 @@ fn test_fortify_moves_between_lands() {
     let land_b_id = find_object(&state, "Land B");
 
     // Manually pre-attach to Land A.
-    state.objects.get_mut(&fort_id).unwrap().attached_to = Some(land_a_id);
+    state.objects_mut().get_mut(&fort_id).unwrap().attached_to = Some(land_a_id);
     state
-        .objects
+        .objects_mut()
         .get_mut(&land_a_id)
         .unwrap()
         .attachments
@@ -382,12 +383,12 @@ fn test_fortify_moves_between_lands() {
 
     // Now fortify targeting Land B.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let (state, _) = process_command(
         state,
@@ -407,7 +408,7 @@ fn test_fortify_moves_between_lands() {
 
     // Fortification is now attached to Land B.
     assert_eq!(
-        state.objects.get(&fort_id).unwrap().attached_to,
+        state.objects().get(&fort_id).unwrap().attached_to,
         Some(land_b_id),
         "fortification should be attached to Land B"
     );
@@ -415,7 +416,7 @@ fn test_fortify_moves_between_lands() {
     // Land A no longer has the fortification in its attachments.
     assert!(
         !state
-            .objects
+            .objects()
             .get(&land_a_id)
             .unwrap()
             .attachments
@@ -426,7 +427,7 @@ fn test_fortify_moves_between_lands() {
     // Land B has the fortification.
     assert!(
         state
-            .objects
+            .objects()
             .get(&land_b_id)
             .unwrap()
             .attachments
@@ -466,9 +467,9 @@ fn test_fortify_sba_unattaches_from_nonland() {
     let land_id = find_object(&state, "Animated Plains");
 
     // Manually pre-attach to land.
-    state.objects.get_mut(&fort_id).unwrap().attached_to = Some(land_id);
+    state.objects_mut().get_mut(&fort_id).unwrap().attached_to = Some(land_id);
     state
-        .objects
+        .objects_mut()
         .get_mut(&land_id)
         .unwrap()
         .attachments
@@ -476,7 +477,7 @@ fn test_fortify_sba_unattaches_from_nonland() {
 
     // Strip Land type from the object (simulating a continuous effect that removed it).
     state
-        .objects
+        .objects_mut()
         .get_mut(&land_id)
         .unwrap()
         .characteristics
@@ -484,12 +485,12 @@ fn test_fortify_sba_unattaches_from_nonland() {
         .remove(&CardType::Land);
 
     // Trigger SBA check by passing priority (the engine runs SBAs after each priority pass).
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // SBA should have unattached the Fortification since the target is no longer a land.
     let fort_obj = state
-        .objects
+        .objects()
         .get(&fort_id)
         .expect("fortification still exists");
     assert_eq!(
@@ -532,10 +533,10 @@ fn test_fortify_static_ability_grants_to_land() {
     // what register_static_continuous_effects does at ETB time.
     // This grants Indestructible to whatever the fortification is attached to.
     {
-        let eff_id = state.next_object_id().0;
-        state.timestamp_counter += 1;
-        let ts = state.timestamp_counter;
-        state.continuous_effects.push_back(ContinuousEffect {
+        let eff_id = test_util::next_object_id(&mut state).0;
+        *state.timestamp_counter_mut() += 1;
+        let ts = state.timestamp_counter();
+        state.continuous_effects_mut().push_back(ContinuousEffect {
             id: EffectId(eff_id),
             source: Some(fort_id),
             timestamp: ts,
@@ -562,12 +563,12 @@ fn test_fortify_static_ability_grants_to_land() {
 
     // Fortify targeting the land.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let (state, _) = process_command(
         state,
@@ -587,7 +588,7 @@ fn test_fortify_static_ability_grants_to_land() {
 
     // Fortification is attached.
     assert_eq!(
-        state.objects.get(&fort_id).unwrap().attached_to,
+        state.objects().get(&fort_id).unwrap().attached_to,
         Some(land_id),
         "fortification should be attached to the land"
     );

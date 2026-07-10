@@ -9,7 +9,7 @@ use crate::play::app::PlayApp;
 use crate::play::panels::card_detail::card_color;
 
 pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
-    if app.state.stack_objects.is_empty() {
+    if app.state.stack_objects().is_empty() {
         let empty = Block::default()
             .borders(Borders::BOTTOM)
             .border_style(Style::default().fg(Color::DarkGray));
@@ -19,7 +19,7 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
 
     let items: Vec<Line> = app
         .state
-        .stack_objects
+        .stack_objects()
         .iter()
         .rev()
         .enumerate()

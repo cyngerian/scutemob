@@ -29,7 +29,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -42,7 +42,7 @@ fn find_object_in_zone(
     zone: ZoneId,
 ) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -239,10 +239,10 @@ fn test_702_148_cleave_basic_cast_sets_was_cleaved() {
         .unwrap();
 
     // Give p1 {3}{W} for cleave cost.
-    let pool = &mut state.players.get_mut(&p1).unwrap().mana_pool;
+    let pool = &mut state.players_mut().get_mut(&p1).unwrap().mana_pool;
     pool.add(ManaColor::White, 1);
     pool.add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Mock Fierce Retribution");
     let creature_id = find_object(&state, "Bear Token");
@@ -272,12 +272,12 @@ fn test_702_148_cleave_basic_cast_sets_was_cleaved() {
 
     // Stack object: was_cleaved = true.
     assert!(
-        state.stack_objects[0].was_cleaved,
+        state.stack_objects()[0].was_cleaved,
         "CR 702.148a: was_cleaved should be true on the stack object when cleave cost was paid"
     );
 
     // Mana should be fully consumed ({3}{W} = 4 total).
-    let pool = &state.players[&p1].mana_pool;
+    let pool = &state.players()[&p1].mana_pool;
     assert_eq!(
         pool.white + pool.blue + pool.black + pool.red + pool.green + pool.colorless,
         0,
@@ -320,10 +320,10 @@ fn test_702_148_normal_cast_does_not_set_was_cleaved() {
         .unwrap();
 
     // Give p1 {2}{W} for normal cost.
-    let pool = &mut state.players.get_mut(&p1).unwrap().mana_pool;
+    let pool = &mut state.players_mut().get_mut(&p1).unwrap().mana_pool;
     pool.add(ManaColor::White, 1);
     pool.add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Mock Fierce Retribution");
     let creature_id = find_object(&state, "Bear Token");
@@ -353,7 +353,7 @@ fn test_702_148_normal_cast_does_not_set_was_cleaved() {
 
     // Stack object: was_cleaved = false.
     assert!(
-        !state.stack_objects[0].was_cleaved,
+        !state.stack_objects()[0].was_cleaved,
         "CR 702.148a: was_cleaved should be false on normal cast"
     );
 }
@@ -392,10 +392,10 @@ fn test_702_148_cleave_mutually_exclusive_with_other_alt_costs() {
         .build()
         .unwrap();
 
-    let pool = &mut state.players.get_mut(&p1).unwrap().mana_pool;
+    let pool = &mut state.players_mut().get_mut(&p1).unwrap().mana_pool;
     pool.add(ManaColor::White, 2);
     pool.add(ManaColor::Colorless, 5);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Mock Fierce Retribution");
     let creature_id = find_object(&state, "Bear Token");
@@ -469,10 +469,10 @@ fn test_702_148_cleave_condition_routes_to_if_true_on_resolution() {
         .unwrap();
 
     // Give p1 {3}{W} for cleave cost.
-    let pool = &mut state.players.get_mut(&p1).unwrap().mana_pool;
+    let pool = &mut state.players_mut().get_mut(&p1).unwrap().mana_pool;
     pool.add(ManaColor::White, 1);
     pool.add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Mock Fierce Retribution");
     let creature_id = find_object(&state, "Bear Token");
@@ -546,10 +546,10 @@ fn test_702_148_normal_cast_routes_to_if_false_on_resolution() {
         .unwrap();
 
     // Give p1 {2}{W} for normal cost.
-    let pool = &mut state.players.get_mut(&p1).unwrap().mana_pool;
+    let pool = &mut state.players_mut().get_mut(&p1).unwrap().mana_pool;
     pool.add(ManaColor::White, 1);
     pool.add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Mock Fierce Retribution");
     let creature_id = find_object(&state, "Bear Token");
@@ -631,9 +631,9 @@ fn test_702_148_cleave_on_non_cleave_card_fails() {
         .build()
         .unwrap();
 
-    let pool = &mut state.players.get_mut(&p1).unwrap().mana_pool;
+    let pool = &mut state.players_mut().get_mut(&p1).unwrap().mana_pool;
     pool.add(ManaColor::Colorless, 6);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Bear Token");
     let creature_id = find_object(&state, "Wolf");
@@ -714,11 +714,11 @@ fn test_702_148_boardwipe_cleave_destroys_all_creatures() {
         .unwrap();
 
     // Give p1 {4}{W}{B} for cleave cost.
-    let pool = &mut state.players.get_mut(&p1).unwrap().mana_pool;
+    let pool = &mut state.players_mut().get_mut(&p1).unwrap().mana_pool;
     pool.add(ManaColor::White, 1);
     pool.add(ManaColor::Black, 1);
     pool.add(ManaColor::Colorless, 4);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Mock Path of Peril");
 
@@ -746,7 +746,7 @@ fn test_702_148_boardwipe_cleave_destroys_all_creatures() {
     .unwrap_or_else(|e| panic!("Cleave board-wipe CastSpell failed: {:?}", e));
 
     assert!(
-        state.stack_objects[0].was_cleaved,
+        state.stack_objects()[0].was_cleaved,
         "CR 702.148a: board-wipe cleave should set was_cleaved on the stack object"
     );
 
@@ -815,10 +815,10 @@ fn test_702_148_boardwipe_normal_cast_routes_to_if_false_no_destruction() {
         .unwrap();
 
     // Give p1 {1}{B}{B} for normal mana cost.
-    let pool = &mut state.players.get_mut(&p1).unwrap().mana_pool;
+    let pool = &mut state.players_mut().get_mut(&p1).unwrap().mana_pool;
     pool.add(ManaColor::Black, 2);
     pool.add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Mock Path of Peril");
 
@@ -846,7 +846,7 @@ fn test_702_148_boardwipe_normal_cast_routes_to_if_false_no_destruction() {
     .unwrap_or_else(|e| panic!("Normal board-wipe CastSpell failed: {:?}", e));
 
     assert!(
-        !state.stack_objects[0].was_cleaved,
+        !state.stack_objects()[0].was_cleaved,
         "CR 702.148a: normal cast should set was_cleaved = false"
     );
 

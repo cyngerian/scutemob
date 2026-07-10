@@ -31,7 +31,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -40,7 +40,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -48,7 +48,7 @@ fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId>
 
 fn find_face_down_on_bf(state: &GameState) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.zone == ZoneId::Battlefield && obj.status.face_down)
         .map(|(id, _)| *id)
@@ -75,7 +75,7 @@ fn count_in_zone(
 ) -> usize {
     let zone = zone_fn(player);
     state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.zone == zone)
         .count()
@@ -105,10 +105,13 @@ fn build_state_with_face_down_object(
     // after turning face up the layer system can use the real values.
     let obj_id = find_in_zone(&state, &name, ZoneId::Battlefield)
         .unwrap_or_else(|| panic!("object '{}' should be on battlefield", name));
-    if let Some(obj) = state.objects.get_mut(&obj_id) {
+    // The registry is read before the object is borrowed mutably: the accessors
+    // borrow all of `state`, so the two can no longer be borrowed disjointly.
+    let registry = Arc::clone(state.card_registry());
+    if let Some(obj) = state.objects_mut().get_mut(&obj_id) {
         // Enrich P/T and keywords from CardDefinition if available.
         if let Some(ref cid) = card_id {
-            if let Some(def) = state.card_registry.get(cid.clone()) {
+            if let Some(def) = registry.get(cid.clone()) {
                 if obj.characteristics.power.is_none() {
                     obj.characteristics.power = def.power;
                 }
@@ -360,12 +363,12 @@ fn test_morph_cast_face_down_basic() {
 
     // Give the player 3 generic mana (morph cost is {3}).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Mock Morph Creature");
 
@@ -393,10 +396,10 @@ fn test_morph_cast_face_down_basic() {
     .unwrap_or_else(|e| panic!("Morph cast failed: {:?}", e));
 
     // Spell is on stack.
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on stack");
+    assert_eq!(state.stack_objects().len(), 1, "spell should be on stack");
 
     // Mana consumed: 3 colorless.
-    let pool = &state.players[&p1].mana_pool;
+    let pool = &state.players()[&p1].mana_pool;
     assert_eq!(
         pool.white + pool.blue + pool.black + pool.red + pool.green + pool.colorless,
         0,
@@ -405,13 +408,13 @@ fn test_morph_cast_face_down_basic() {
 
     // The source object in the stack zone should be face-down.
     let stack_zone_obj = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.zone == ZoneId::Stack)
         .map(|(id, _)| *id);
     if let Some(stack_id) = stack_zone_obj {
         assert!(
-            state.objects[&stack_id].status.face_down,
+            state.objects()[&stack_id].status.face_down,
             "CR 708.4: source object in stack zone should be face-down"
         );
     }
@@ -442,7 +445,7 @@ fn test_morph_cast_face_down_basic() {
 
     // face_down_as should be Morph.
     assert_eq!(
-        state.objects[&face_down_id].face_down_as,
+        state.objects()[&face_down_id].face_down_as,
         Some(FaceDownKind::Morph),
         "face_down_as should be Morph"
     );
@@ -469,18 +472,18 @@ fn test_morph_turn_face_up() {
 
     // Morph cost: {1}{W}{W} -- give player 3 mana (1 generic + 2 white).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Turn face up via morph cost.
     let (state, events) = process_command(
@@ -495,11 +498,11 @@ fn test_morph_turn_face_up() {
 
     // Permanent is now face-up.
     assert!(
-        !state.objects[&face_down_id].status.face_down,
+        !state.objects()[&face_down_id].status.face_down,
         "permanent should be face-up after turning"
     );
     assert!(
-        state.objects[&face_down_id].face_down_as.is_none(),
+        state.objects()[&face_down_id].face_down_as.is_none(),
         "face_down_as should be cleared"
     );
 
@@ -529,7 +532,7 @@ fn test_morph_turn_face_up() {
     );
 
     // Mana should be consumed.
-    let pool = &state.players[&p1].mana_pool;
+    let pool = &state.players()[&p1].mana_pool;
     assert_eq!(
         pool.white + pool.blue + pool.black + pool.red + pool.green + pool.colorless,
         0,
@@ -572,12 +575,12 @@ fn test_morph_face_down_no_etb() {
 
     // Give player 3 mana for morph cost {3} (wait — morph cost is {2} for this card).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Mock Face-Up Trigger");
     let initial_hand_count = count_in_zone(&state, p1, ZoneId::Hand);
@@ -620,7 +623,7 @@ fn test_morph_face_down_no_etb() {
     // Verify the creature is face-down on the battlefield.
     let face_down_id = find_face_down_on_bf(&state).expect("face-down creature should be on bf");
     assert!(
-        state.objects[&face_down_id].status.face_down,
+        state.objects()[&face_down_id].status.face_down,
         "permanent should be face-down"
     );
 }
@@ -660,10 +663,12 @@ fn test_morph_when_turned_face_up_trigger() {
     // Set face-down status on the battlefield object.
     let face_down_id = find_in_zone(&state, &bf_spec_name, ZoneId::Battlefield)
         .expect("face-down creature should be on battlefield");
-    if let Some(obj) = state.objects.get_mut(&face_down_id) {
+    // Read the registry before borrowing the object mutably — see above.
+    let registry = Arc::clone(state.card_registry());
+    if let Some(obj) = state.objects_mut().get_mut(&face_down_id) {
         // Enrich from card def.
         if let Some(ref cid) = bf_spec_cid {
-            if let Some(def) = state.card_registry.get(cid.clone()) {
+            if let Some(def) = registry.get(cid.clone()) {
                 if obj.characteristics.power.is_none() {
                     obj.characteristics.power = def.power;
                 }
@@ -683,12 +688,12 @@ fn test_morph_when_turned_face_up_trigger() {
 
     // Morph cost for this card: {2} -- give player 2 mana.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let initial_hand_count = count_in_zone(&state, p1, ZoneId::Hand);
 
@@ -705,7 +710,7 @@ fn test_morph_when_turned_face_up_trigger() {
 
     // CR 708.8: "When turned face up" trigger should now be on the stack.
     assert!(
-        !state.stack_objects.is_empty(),
+        !state.stack_objects().is_empty(),
         "CR 708.8: 'when turned face up' trigger should be on the stack"
     );
 
@@ -741,7 +746,7 @@ fn test_morph_face_down_characteristics_layer() {
         build_state_with_face_down_object(p1, p2, registry, spec, FaceDownKind::Morph);
 
     // Place a +1/+1 counter on the face-down creature.
-    if let Some(obj) = state.objects.get_mut(&face_down_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&face_down_id) {
         obj.counters = obj.counters.update(CounterType::PlusOnePlusOne, 1);
     }
 
@@ -787,12 +792,12 @@ fn test_megamorph_counter() {
 
     // Megamorph cost: {3} generic.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Turn face up via morph cost (MorphCost is used for Megamorph too -- CR 702.37b).
     let (state, _) = process_command(
@@ -806,7 +811,7 @@ fn test_megamorph_counter() {
     .expect("TurnFaceUp (megamorph) should succeed");
 
     // CR 702.37b: +1/+1 counter should be added.
-    let counter_count = state.objects[&face_down_id]
+    let counter_count = state.objects()[&face_down_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -818,7 +823,7 @@ fn test_megamorph_counter() {
 
     // Should now be face-up with real characteristics + 1 counter = 4/4.
     assert!(
-        !state.objects[&face_down_id].status.face_down,
+        !state.objects()[&face_down_id].status.face_down,
         "permanent should be face-up"
     );
     let chars = calculate_characteristics(&state, face_down_id).expect("chars should exist");
@@ -917,12 +922,12 @@ fn test_manifest_creature_turn_face_up() {
 
     // Mana cost to turn face up: {2} generic.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // CR 701.40b: Turn face up by paying mana cost.
     let (state, _) = process_command(
@@ -937,7 +942,7 @@ fn test_manifest_creature_turn_face_up() {
 
     // Permanent should now be face-up with its real characteristics.
     assert!(
-        !state.objects[&face_down_id].status.face_down,
+        !state.objects()[&face_down_id].status.face_down,
         "permanent should be face-up"
     );
     let chars = calculate_characteristics(&state, face_down_id).expect("chars should exist");
@@ -970,12 +975,12 @@ fn test_manifest_noncreature_stuck() {
         build_state_with_face_down_object(p1, p2, registry, spec, FaceDownKind::Manifest);
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // CR 701.40b / 701.40g: Attempting to turn face up an instant via ManaCost should fail.
     let result = process_command(
@@ -1014,12 +1019,12 @@ fn test_manifest_with_morph() {
 
     // Morph cost: {G}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let result1 = process_command(
         state,
@@ -1044,18 +1049,18 @@ fn test_manifest_with_morph() {
         build_state_with_face_down_object(p1, p2, registry, spec2, FaceDownKind::Manifest);
 
     state2
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
     state2
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
-    state2.turn.priority_holder = Some(p1);
+    state2.turn_mut().priority_holder = Some(p1);
 
     let result2 = process_command(
         state2,
@@ -1091,24 +1096,24 @@ fn test_face_down_dies_reveal() {
     let (mut state, face_down_id) =
         build_state_with_face_down_object(p1, p2, registry, spec, FaceDownKind::Morph);
 
-    let card_id_before = state.objects[&face_down_id]
+    let card_id_before = state.objects()[&face_down_id]
         .card_id
         .clone()
         .expect("card_id should be present");
 
     // Deal lethal damage to the 2/2 face-down creature.
-    if let Some(obj) = state.objects.get_mut(&face_down_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&face_down_id) {
         obj.damage_marked = 2;
     }
 
     // SBAs kill it via priority pass.
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let (state, events) = process_command(state, Command::PassPriority { player: p1 })
         .expect("PassPriority should succeed");
 
     // CR 708.9: The creature should be in the graveyard with its real card_id.
     let in_gy = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| {
             obj.zone == ZoneId::Graveyard(p1) && obj.card_id.as_ref() == Some(&card_id_before)
@@ -1117,17 +1122,17 @@ fn test_face_down_dies_reveal() {
 
     if let Some(gy_id) = in_gy {
         assert_eq!(
-            state.objects[&gy_id].card_id,
+            state.objects()[&gy_id].card_id,
             Some(card_id_before),
             "CR 708.9: real card identity preserved in graveyard"
         );
         // In graveyard it should NOT be face-down.
         assert!(
-            !state.objects[&gy_id].status.face_down,
+            !state.objects()[&gy_id].status.face_down,
             "CR 708.9: face-down status cleared when leaving battlefield"
         );
         assert!(
-            state.objects[&gy_id].face_down_as.is_none(),
+            state.objects()[&gy_id].face_down_as.is_none(),
             "CR 708.9: face_down_as cleared in graveyard"
         );
 
@@ -1182,12 +1187,12 @@ fn test_morph_cast_face_down_is_creature_spell() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Mock Morph Creature");
 
@@ -1214,17 +1219,17 @@ fn test_morph_cast_face_down_is_creature_spell() {
     .unwrap_or_else(|e| panic!("Morph cast failed: {:?}", e));
 
     // The spell is on the stack.
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on stack");
+    assert_eq!(state.stack_objects().len(), 1, "spell should be on stack");
 
     // The source object in the Stack zone should be face-down and be a creature.
     let stack_zone_obj_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.zone == ZoneId::Stack)
         .map(|(id, _)| *id);
 
     if let Some(stack_id) = stack_zone_obj_id {
-        let obj = &state.objects[&stack_id];
+        let obj = &state.objects()[&stack_id];
         assert!(
             obj.status.face_down,
             "CR 708.4: source object in stack zone should be face-down"

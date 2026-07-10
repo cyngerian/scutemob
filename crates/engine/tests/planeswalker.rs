@@ -2,6 +2,7 @@
 //!
 //! CR 306 (Planeswalkers), CR 606 (Loyalty Abilities), CR 704.5i (0-loyalty SBA).
 
+use mtg_engine::state::test_util;
 use mtg_engine::{check_and_apply_sbas, *};
 
 fn test_pw_def() -> CardDefinition {
@@ -71,7 +72,7 @@ fn build_pw_state() -> (GameState, ObjectId, PlayerId) {
         .unwrap();
 
     let pw_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Test Planeswalker")
         .unwrap()
@@ -115,7 +116,7 @@ fn test_planeswalker_zero_loyalty_sba_cr704_5i() {
     // Run SBAs directly.
     let _sba_events = check_and_apply_sbas(&mut state);
 
-    let in_gy = state.objects.values().any(|o| {
+    let in_gy = state.objects().values().any(|o| {
         o.characteristics.name == "Zero Loyalty PW" && matches!(o.zone, ZoneId::Graveyard(_))
     });
     assert!(
@@ -144,7 +145,7 @@ fn test_planeswalker_damage_removes_loyalty_cr306_8() {
         .unwrap();
 
     let pw_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Damaged PW")
         .unwrap()
@@ -158,7 +159,7 @@ fn test_planeswalker_damage_removes_loyalty_cr306_8() {
     };
     let _events = effects::execute_effect(&mut state, &effect, &mut ctx);
 
-    let pw = state.objects.get(&pw_id).unwrap();
+    let pw = state.objects().get(&pw_id).unwrap();
     assert_eq!(
         pw.counters.get(&CounterType::Loyalty).copied().unwrap_or(0),
         2,
@@ -183,7 +184,7 @@ fn test_loyalty_plus_cost_adds_counters_cr606_4() {
     )
     .unwrap();
 
-    let pw = state2.objects.get(&pw_id).unwrap();
+    let pw = state2.objects().get(&pw_id).unwrap();
     assert_eq!(
         pw.counters.get(&CounterType::Loyalty).copied().unwrap_or(0),
         5, // 4 + 1
@@ -208,7 +209,7 @@ fn test_loyalty_minus_cost_removes_counters_cr606_4() {
     )
     .unwrap();
 
-    let pw = state2.objects.get(&pw_id).unwrap();
+    let pw = state2.objects().get(&pw_id).unwrap();
     assert_eq!(
         pw.counters.get(&CounterType::Loyalty).copied().unwrap_or(0),
         1, // 4 - 3
@@ -255,7 +256,7 @@ fn test_loyalty_once_per_turn_cr606_3() {
 #[test]
 fn test_loyalty_sorcery_speed_cr606_3() {
     let (mut state, pw_id, p1) = build_pw_state();
-    state.turn.step = Step::BeginningOfCombat;
+    state.turn_mut().step = Step::BeginningOfCombat;
 
     let result = rules::process_command(
         state,
@@ -323,7 +324,7 @@ fn test_loyalty_insufficient_counters_cr606_6() {
         .unwrap();
 
     let pw2_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Big Minus PW")
         .unwrap()
@@ -351,58 +352,60 @@ fn test_loyalty_needs_empty_stack_cr606_3() {
     let (mut state, pw_id, p1) = build_pw_state();
 
     // Put a dummy object on the stack.
-    let dummy_id = state.next_object_id();
-    state.stack_objects.push_back(state::stack::StackObject {
-        id: dummy_id,
-        controller: p1,
-        kind: state::stack::StackObjectKind::ActivatedAbility {
-            source_object: pw_id,
-            ability_index: 0,
-            embedded_effect: None,
-        },
-        targets: vec![],
-        cant_be_countered: false,
-        is_copy: false,
-        cast_with_flashback: false,
-        kicker_times_paid: 0,
-        was_evoked: false,
-        was_bestowed: false,
-        cast_with_madness: false,
-        cast_with_miracle: false,
-        was_escaped: false,
-        cast_with_foretell: false,
-        was_buyback_paid: false,
-        was_suspended: false,
-        was_overloaded: false,
-        cast_with_jump_start: false,
-        cast_with_aftermath: false,
-        was_dashed: false,
-        was_warped: false,
-        was_blitzed: false,
-        was_plotted: false,
-        was_prototyped: false,
-        was_impended: false,
-        was_bargained: false,
-        was_surged: false,
-        was_casualty_paid: false,
-        was_cleaved: false,
-        // CR 715.3d: test objects are not adventure casts.
-        was_cast_as_adventure: false,
-        spliced_effects: vec![],
-        spliced_card_ids: vec![],
-        modes_chosen: vec![],
-        x_value: 0,
-        evidence_collected: false,
-        is_cast_transformed: false,
-        additional_costs: vec![],
-        damaged_player: None,
-        combat_damage_amount: 0,
-        triggering_creature_id: None,
-        cast_from_top_with_bonus: false,
-        sacrificed_creature_powers: vec![],
-        lki_counters: im::OrdMap::new(),
-        lki_power: None,
-    });
+    let dummy_id = test_util::next_object_id(&mut state);
+    state
+        .stack_objects_mut()
+        .push_back(state::stack::StackObject {
+            id: dummy_id,
+            controller: p1,
+            kind: state::stack::StackObjectKind::ActivatedAbility {
+                source_object: pw_id,
+                ability_index: 0,
+                embedded_effect: None,
+            },
+            targets: vec![],
+            cant_be_countered: false,
+            is_copy: false,
+            cast_with_flashback: false,
+            kicker_times_paid: 0,
+            was_evoked: false,
+            was_bestowed: false,
+            cast_with_madness: false,
+            cast_with_miracle: false,
+            was_escaped: false,
+            cast_with_foretell: false,
+            was_buyback_paid: false,
+            was_suspended: false,
+            was_overloaded: false,
+            cast_with_jump_start: false,
+            cast_with_aftermath: false,
+            was_dashed: false,
+            was_warped: false,
+            was_blitzed: false,
+            was_plotted: false,
+            was_prototyped: false,
+            was_impended: false,
+            was_bargained: false,
+            was_surged: false,
+            was_casualty_paid: false,
+            was_cleaved: false,
+            // CR 715.3d: test objects are not adventure casts.
+            was_cast_as_adventure: false,
+            spliced_effects: vec![],
+            spliced_card_ids: vec![],
+            modes_chosen: vec![],
+            x_value: 0,
+            evidence_collected: false,
+            is_cast_transformed: false,
+            additional_costs: vec![],
+            damaged_player: None,
+            combat_damage_amount: 0,
+            triggering_creature_id: None,
+            cast_from_top_with_bonus: false,
+            sacrificed_creature_powers: vec![],
+            lki_counters: im::OrdMap::new(),
+            lki_power: None,
+        });
 
     let result = rules::process_command(
         state,
@@ -437,7 +440,7 @@ fn test_loyalty_zero_cost() {
     )
     .unwrap();
 
-    let pw = state2.objects.get(&pw_id).unwrap();
+    let pw = state2.objects().get(&pw_id).unwrap();
     assert_eq!(
         pw.counters.get(&CounterType::Loyalty).copied().unwrap_or(0),
         4,
@@ -464,7 +467,7 @@ fn test_loyalty_resets_on_turn_boundary() {
 
     assert!(
         state2
-            .objects
+            .objects()
             .get(&pw_id)
             .unwrap()
             .loyalty_ability_activated_this_turn
@@ -475,7 +478,7 @@ fn test_loyalty_resets_on_turn_boundary() {
 
     assert!(
         !state3
-            .objects
+            .objects()
             .get(&pw_id)
             .unwrap()
             .loyalty_ability_activated_this_turn,
@@ -489,7 +492,7 @@ fn test_loyalty_ability_resolves_effect() {
     let (state, pw_id, p1) = build_pw_state();
     let p2 = PlayerId(2);
 
-    let initial_life = state.players.get(&p1).unwrap().life_total;
+    let initial_life = state.players().get(&p1).unwrap().life_total;
 
     // Activate +1 (gains 5 life on resolve)
     let (state2, _) = rules::process_command(
@@ -507,7 +510,7 @@ fn test_loyalty_ability_resolves_effect() {
     // Resolve by passing priority
     let (state3, _) = pass_all(state2, &[p1, p2]);
 
-    let final_life = state3.players.get(&p1).unwrap().life_total;
+    let final_life = state3.players().get(&p1).unwrap().life_total;
     assert_eq!(
         final_life,
         initial_life + 5,
@@ -541,13 +544,13 @@ fn test_combat_damage_to_planeswalker_removes_loyalty_cr306_8() {
         .unwrap();
 
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Attacker")
         .unwrap()
         .id;
     let pw_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Combat Target PW")
         .unwrap()
@@ -567,7 +570,7 @@ fn test_combat_damage_to_planeswalker_removes_loyalty_cr306_8() {
 
     // Both players pass through DeclareAttackers → DeclareBlockers.
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::DeclareBlockers);
+    assert_eq!(state.turn().step, Step::DeclareBlockers);
 
     // p2 declares no blockers.
     let (state, _) = rules::process_command(
@@ -583,7 +586,7 @@ fn test_combat_damage_to_planeswalker_removes_loyalty_cr306_8() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // CR 306.8: Planeswalker should have 5 - 3 = 2 loyalty counters remaining.
-    let pw = state.objects.get(&pw_id).unwrap();
+    let pw = state.objects().get(&pw_id).unwrap();
     let loyalty = pw.counters.get(&CounterType::Loyalty).copied().unwrap_or(0);
     assert_eq!(
         loyalty, 2,
@@ -622,7 +625,7 @@ fn test_loyalty_only_own_planeswalker() {
         .unwrap();
 
     let pw_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Test Planeswalker")
         .unwrap()

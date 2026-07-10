@@ -24,7 +24,7 @@ use mtg_engine::{
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -101,7 +101,7 @@ fn test_702_149a_training_basic_attacks_with_greater_power() {
 
     // Stack has exactly 1 trigger (only the training creature triggered).
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.149a: training trigger should be on the stack"
     );
@@ -111,7 +111,7 @@ fn test_702_149a_training_basic_attacks_with_greater_power() {
 
     // Training creature has 1 +1/+1 counter.
     let obj = state
-        .objects
+        .objects()
         .get(&tr_id)
         .expect("Training Rookie on battlefield");
     let counter_count = obj
@@ -188,14 +188,14 @@ fn test_702_149a_training_does_not_trigger_alone() {
 
     // Stack is empty.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "CR 702.149a: stack must be empty when training does not trigger"
     );
 
     // Creature has 0 counters.
     let obj = state
-        .objects
+        .objects()
         .get(&tr_id)
         .expect("Lone Trainee on battlefield");
     assert_eq!(
@@ -262,13 +262,13 @@ fn test_702_149a_training_does_not_trigger_equal_power() {
     );
 
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "CR 702.149a: stack must be empty — equal power is not greater than"
     );
 
     let obj = state
-        .objects
+        .objects()
         .get(&tr_id)
         .expect("Equal Power Trainee on battlefield");
     assert_eq!(
@@ -336,13 +336,13 @@ fn test_702_149a_training_does_not_trigger_lower_power() {
     );
 
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "CR 702.149a: stack must be empty — co-attacker power is lower than training creature power"
     );
 
     let obj = state
-        .objects
+        .objects()
         .get(&tr_id)
         .expect("Strong Trainee on battlefield");
     assert_eq!(
@@ -414,7 +414,7 @@ fn test_702_149b_training_multiple_instances() {
 
     // Two triggers on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "CR 702.149b: two training triggers should be on the stack"
     );
@@ -426,7 +426,7 @@ fn test_702_149b_training_multiple_instances() {
 
     // Creature has 2 +1/+1 counters.
     let obj = state
-        .objects
+        .objects()
         .get(&dt_id)
         .expect("Double Trainee on battlefield");
     assert_eq!(
@@ -522,7 +522,7 @@ fn test_702_149a_training_two_training_creatures_both_trigger() {
 
     // Exactly 2 triggers on the stack (one per training creature).
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "CR 702.149a: two training triggers on the stack — one per training creature"
     );
@@ -533,7 +533,7 @@ fn test_702_149a_training_two_training_creatures_both_trigger() {
 
     // Trainee A: 1 counter, P/T = 2/2.
     let a_counters = state
-        .objects
+        .objects()
         .get(&a_id)
         .expect("Trainee A on battlefield")
         .counters
@@ -560,7 +560,7 @@ fn test_702_149a_training_two_training_creatures_both_trigger() {
 
     // Trainee B: 1 counter, P/T = 3/3.
     let b_counters = state
-        .objects
+        .objects()
         .get(&b_id)
         .expect("Trainee B on battlefield")
         .counters
@@ -647,7 +647,7 @@ fn test_702_149a_training_multiplayer_four_player() {
     );
 
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.149a: one training trigger on stack in multiplayer"
     );
@@ -656,7 +656,7 @@ fn test_702_149a_training_multiplayer_four_player() {
     let (state, _) = pass_all(state, &[p1, p2, p3, p4]);
 
     let obj = state
-        .objects
+        .objects()
         .get(&tr_id)
         .expect("Commander Trainee on battlefield");
     assert_eq!(

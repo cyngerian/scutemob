@@ -20,15 +20,23 @@
   non-`Complete` card with `DeckViolation::IncompleteCard`. `CardRegistry::try_new` errors on
   duplicate CardIds. Current markers: 68 inert, 627 partial, 47 known-wrong. **New card defs
   must be `Complete` or carry a marker with a note** — an inert def now fails a test.
-- **Tests**: **3104 passing**; build/clippy/fmt clean
-- **CI**: **LIVE and green** since 2026-07-10 (SR-1, merge `e9742dc2`) — single Ubuntu job (fmt + clippy + full tests) on push/PR to main + workflow_dispatch; rust-cache@v2, 45m timeout. Caveat: CI rustc floats to latest stable (1.97.0) vs local 1.95.0 — new lints can redden CI with no code change until SR-11 (`scutemob-63`) pins the toolchain. SR remediation track ACTIVE: `docs/sr-remediation-plan.md` (tasks `scutemob-53..64`, SR-1/SR-2 done).
+- **Invariant #3 is machine-enforced (SR-3).** All `GameState` fields are `pub(crate)` with
+  one public read accessor each; the `&mut`-handing methods (`player_mut`, `object_mut`,
+  `add_object`, `move_object_to_zone`, `next_object_id`, …) are `pub(crate)` too. Outside the
+  engine crate a `GameState` is read-only — the only mutation path is a `Command` through
+  `process_command`. Tests/benches get mutable access via `state::test_util` + `*_mut()`
+  accessors, gated on the `test-util` feature (self dev-dependency). **`cargo build
+  --workspace` is the only gate that proves the seal** — `test --all` and `clippy
+  --all-targets` enable `test-util` workspace-wide via feature unification. It is a CI step.
+- **Tests**: **3106 passing**; build/clippy/fmt clean
+- **CI**: **LIVE and green** since 2026-07-10 (SR-1, merge `e9742dc2`) — single Ubuntu job (fmt + clippy + `build --workspace` + full tests) on push/PR to main + workflow_dispatch; rust-cache@v2, 45m timeout. Caveat: CI rustc floats to latest stable (1.97.0) vs local 1.95.0 — new lints can redden CI with no code change until SR-11 (`scutemob-63`) pins the toolchain. SR remediation track ACTIVE: `docs/sr-remediation-plan.md` (tasks `scutemob-53..64`, SR-1/SR-2/SR-3 done).
 - **Abilities**: ~199 validated; 42/42 P1; 17/17 P2; 40/40 P3; 95/95 P4 implemented (9 permanent-n/a; 1 deferred: Banding)
 - **Primitives**: PB-0..PB-37 + named-letter chain (PB-A/B/E/J/M/S/X/Q/Q4/N/D/P/L/T/SFT/CC-{W,B,C,A}/TS/LKI-CC/CD/LKI-Power/EWC/XS/XS-E/XA/EAT/XA2/EWC-D) all DONE. PB-Q2/Q3/Q5 reserved.
 - **Last shipped**: **PB-AC9** (`scutemob-52`, merge `a4750cdb`) — **closes the AC chain**. Recon: 3/5 briefed primitives already existed (`Effect::RollDice` d20+results CR 706, `ReplacementModification::DoubleTokens` CR 614.1, `Effect::AddManaFilterChoice`); SearchLibrary multi-name 0-yield → OOS seed. Built: `Effect::WheelHand` + `Effect::SetNoMaximumHandSize` (unbriefed co-blocker — flag was recomputed each cleanup, "rest of the game" inexpressible). **Token doubling rewired 2→13/13 creation sites** (Squad, Offspring, Myriad, Embalm, Eternalize, Encore, Living Weapon, Gift keyed to recipient, Investigate, Amass — doublers were silently failing, invisible to any marker/roster). Review 0 HIGH / 1 MEDIUM fixed (Amass bypassed `apply_counter_replacement` — CR 701.47a; fix proven non-vacuous). Backfill: 11 clean incl. token doublers (Parallel Lives, Anointed Procession, Doubling Season), wheels (Echo of Eons, Winds of Change), d20 Ancient dragons; 1 backfill HIGH (Reforge the Soul stale Miracle marker — 2nd consecutive stale-marker HIGH; AC8+AC9 workers both recommend a campaign-wide marker sweep next). New gotcha logged: `timestamp_counter` IS the object-id counter — rewinding it aliases ObjectIds (`3d7e216c`). Prior: PB-AC8..AC1 (`scutemob-51..43`). Next per campaign plan: **W-PB2** (author ~55 cards unblocked by AC4..AC6), W-EMPTY/W-MISS derisking batches. Registry-gate debt **CLOSED** by SR-2 (`scutemob-54`); follow-up `scutemob-64` (SR-12).
 - **Open primitive seeds**: OOS-XA2-1/2/4/5, OOS-EWCD-1..3, OOS-EAT-1..3, OOS-XS-E-2; older OOS-XS-1/3/4, OOS-LKI-Power-1/4/5, OOS-LKI-1..4, OOS-TS-1..4 — all 0-yield defensives or card-gated; high-confidence backlog exhausted. (OOS-XA-3/XA2-3 RESOLVED by `scutemob-30`; OOS-LKI-Power-3 shipped.) Full list: `memory/primitives/pb-retriage-CC.md`.
 - **Known issues**: 0 HIGH; 2 MEDIUM (pre-M8 deferred to M10+); **6 LOW open** (4 M10-gated: MR-M8-11, MR-B16-04/05/06; 2 permanent perf: MR-M1-18, MR-M6-14). Full: `docs/mtg-engine-milestone-reviews.md`.
 - **Strategic Review**: `docs/mtg-engine-strategic-review.md` (2026-03-07) — decouple M11 from M10, split M10, downscope M12, web-vs-Tauri decision pending
-- **Last Updated**: 2026-07-10 (SR-2 — invariant #9 registry gate; 3104 tests, clean coverage 57.6%. The prior 56.2% was an undercount: the authoring report's `abilities: vec![]` regex also matched nested `mana_abilities: vec![]`. Earlier same day: SR-1 — CI live.)
+- **Last Updated**: 2026-07-10 (SR-3 — invariant #3 machine-enforced: GameState sealed, 287 files migrated, `cargo build --workspace` added to CI as the seal gate. Earlier same day: SR-2 — invariant #9 registry gate; 3104 tests, clean coverage 57.6%. The prior 56.2% was an undercount: the authoring report's `abilities: vec![]` regex also matched nested `mana_abilities: vec![]`. Earlier same day: SR-1 — CI live.)
 
 ### What Exists (M0-M9.5 + Engine Core Complete + all P3/P4 abilities)
 

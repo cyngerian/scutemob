@@ -44,7 +44,7 @@ fn cid(s: &str) -> CardId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -95,7 +95,7 @@ fn setup_4p(specs: Vec<ObjectSpec>) -> GameState {
         builder = builder.object(spec);
     }
     let mut state = builder.build().unwrap();
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     state
 }
 
@@ -114,13 +114,13 @@ fn test_assist_basic_another_player_pays_generic() {
 
     // P1 has {U} + 1 generic (pays the blue pip and 1 generic after P2 pays 3).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -128,7 +128,7 @@ fn test_assist_basic_another_player_pays_generic() {
 
     // P2 has 3 generic (colorless) to cover 3 of the 4 generic pips.
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
@@ -163,13 +163,13 @@ fn test_assist_basic_another_player_pays_generic() {
 
     // Spell is on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.132a: spell should be on the stack"
     );
 
     // P2's mana pool is drained (paid 3 generic).
-    let p2_pool = &state.players[&p2].mana_pool;
+    let p2_pool = &state.players()[&p2].mana_pool;
     assert_eq!(
         p2_pool.total(),
         0,
@@ -177,7 +177,7 @@ fn test_assist_basic_another_player_pays_generic() {
     );
 
     // P1's mana pool is also drained (paid {U} + 1 generic).
-    let p1_pool = &state.players[&p1].mana_pool;
+    let p1_pool = &state.players()[&p1].mana_pool;
     assert_eq!(
         p1_pool.total(),
         0,
@@ -196,13 +196,13 @@ fn test_assist_no_assist_player_pays_full_cost() {
 
     // P1 has full cost: {3}{U} = 3 generic + 1 blue.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -233,11 +233,11 @@ fn test_assist_no_assist_player_pays_full_cost() {
     .unwrap_or_else(|e| panic!("non-assist cast failed: {:?}", e));
 
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.132a: spell on stack when caster pays full cost"
     );
-    let p1_pool = &state.players[&p1].mana_pool;
+    let p1_pool = &state.players()[&p1].mana_pool;
     assert_eq!(
         p1_pool.total(),
         0,
@@ -255,7 +255,7 @@ fn test_assist_cannot_assist_self() {
     let mut state = setup_4p(vec![spell]);
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -312,13 +312,13 @@ fn test_assist_exceeds_generic_mana_rejected() {
     let mut state = setup_4p(vec![spell]);
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
@@ -374,14 +374,14 @@ fn test_assist_eliminated_player_cannot_assist() {
     let mut state = setup_4p(vec![spell]);
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
 
     // Mark P2 as eliminated (has_lost = true).
-    state.players.get_mut(&p2).unwrap().has_lost = true;
+    state.players_mut().get_mut(&p2).unwrap().has_lost = true;
 
     let spell_id = find_object(&state, "Huddle Up 5");
 
@@ -438,14 +438,14 @@ fn test_assist_pays_all_generic_caster_pays_only_colored() {
 
     // P1 has {U} only — P2 covers all the generic.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     // P2 has 3 generic (exactly enough to cover {3}).
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
@@ -479,14 +479,14 @@ fn test_assist_pays_all_generic_caster_pays_only_colored() {
     .unwrap_or_else(|e| panic!("assist all-generic cast failed: {:?}", e));
 
     // Spell on stack, both pools empty.
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on stack");
+    assert_eq!(state.stack_objects().len(), 1, "spell should be on stack");
     assert_eq!(
-        state.players[&p1].mana_pool.total(),
+        state.players()[&p1].mana_pool.total(),
         0,
         "P1's pool should be empty (paid blue only)"
     );
     assert_eq!(
-        state.players[&p2].mana_pool.total(),
+        state.players()[&p2].mana_pool.total(),
         0,
         "P2's pool should be empty (paid all 3 generic)"
     );
@@ -521,7 +521,7 @@ fn test_assist_with_convoke_reduces_assist_ceiling() {
 
     // P1 has {G} only (convoke covers 2 generic, P2's assist covers 2 generic).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -529,7 +529,7 @@ fn test_assist_with_convoke_reduces_assist_ceiling() {
 
     // P2 has 2 generic for assist.
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
@@ -564,10 +564,10 @@ fn test_assist_with_convoke_reduces_assist_ceiling() {
     )
     .unwrap_or_else(|e| panic!("convoke+assist cast failed: {:?}", e));
 
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on stack");
-    assert_eq!(state.players[&p1].mana_pool.total(), 0, "P1 paid green");
+    assert_eq!(state.stack_objects().len(), 1, "spell should be on stack");
+    assert_eq!(state.players()[&p1].mana_pool.total(), 0, "P1 paid green");
     assert_eq!(
-        state.players[&p2].mana_pool.total(),
+        state.players()[&p2].mana_pool.total(),
         0,
         "P2 paid 2 generic via assist"
     );
@@ -586,7 +586,7 @@ fn test_assist_amount_zero_is_noop() {
 
     // P1 pays full cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -594,7 +594,7 @@ fn test_assist_amount_zero_is_noop() {
 
     // P2 has mana that should NOT be consumed.
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
@@ -627,15 +627,19 @@ fn test_assist_amount_zero_is_noop() {
     )
     .unwrap_or_else(|e| panic!("zero-assist cast failed: {:?}", e));
 
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on stack");
+    assert_eq!(state.stack_objects().len(), 1, "spell should be on stack");
     // P2 pool unchanged.
     assert_eq!(
-        state.players[&p2].mana_pool.total(),
+        state.players()[&p2].mana_pool.total(),
         5,
         "P2's pool should be unchanged when assist_amount=0"
     );
     // P1 pool drained.
-    assert_eq!(state.players[&p1].mana_pool.total(), 0, "P1 paid full cost");
+    assert_eq!(
+        state.players()[&p1].mana_pool.total(),
+        0,
+        "P1 paid full cost"
+    );
 }
 
 // ── Test 9: Insufficient mana from assisting player ───────────────────────────
@@ -650,14 +654,14 @@ fn test_assist_insufficient_mana_assisting_player() {
     let mut state = setup_4p(vec![spell]);
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 5);
     // P2 has only 1 mana but assist_amount=3.
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
@@ -713,13 +717,13 @@ fn test_assist_spell_without_keyword_rejected() {
     let mut state = setup_4p(vec![spell]);
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
@@ -776,7 +780,7 @@ fn test_assist_multiplayer_any_opponent_can_assist() {
 
     // P1 has 0 generic — fully relying on P3 to pay all 4.
     state
-        .players
+        .players_mut()
         .get_mut(&p3)
         .unwrap()
         .mana_pool
@@ -810,12 +814,12 @@ fn test_assist_multiplayer_any_opponent_can_assist() {
     .unwrap_or_else(|e| panic!("P3 assist failed: {:?}", e));
 
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.132a: spell should be on stack when P3 assists"
     );
     assert_eq!(
-        state.players[&p3].mana_pool.total(),
+        state.players()[&p3].mana_pool.total(),
         0,
         "P3's mana should be consumed"
     );

@@ -56,7 +56,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_by_name(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -464,7 +464,11 @@ fn test_set_no_maximum_hand_size_survives_cleanup() {
     );
 
     assert!(
-        state.players.get(&p(1)).unwrap().no_max_hand_size_permanent,
+        state
+            .players()
+            .get(&p(1))
+            .unwrap()
+            .no_max_hand_size_permanent,
         "SetNoMaximumHandSize must set the persistent flag"
     );
 
@@ -500,7 +504,7 @@ fn test_set_no_max_hand_size_recompute_does_not_clobber() {
 
     // No battlefield permanent grants NoMaxHandSize -- has_no_max will be false.
     state
-        .players
+        .players_mut()
         .get_mut(&p(1))
         .unwrap()
         .no_max_hand_size_permanent = true;
@@ -508,7 +512,7 @@ fn test_set_no_max_hand_size_recompute_does_not_clobber() {
     let _events = cleanup_actions(&mut state);
 
     assert!(
-        state.players.get(&p(1)).unwrap().no_max_hand_size,
+        state.players().get(&p(1)).unwrap().no_max_hand_size,
         "the per-cleanup recompute must OR in no_max_hand_size_permanent, not \
          clobber it back to false when the battlefield scan finds nothing"
     );
@@ -533,7 +537,7 @@ fn test_set_no_max_hand_size_stacks_with_layer_granted_source() {
 
     // P2 gets NoMaxHandSize via a Layer 6 continuous effect (mirrors PB-AC8's regression test).
     let bear = find_by_name(&state, "Emblem Proxy Bear");
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(1),
         source: Some(bear),
         timestamp: 10,
@@ -549,7 +553,7 @@ fn test_set_no_max_hand_size_stacks_with_layer_granted_source() {
     // should have no effect on THIS cleanup (only the active player discards),
     // but must not be clobbered either.
     state
-        .players
+        .players_mut()
         .get_mut(&p(1))
         .unwrap()
         .no_max_hand_size_permanent = true;
@@ -569,7 +573,11 @@ fn test_set_no_max_hand_size_stacks_with_layer_granted_source() {
          player's cleanup discard after the PB-AC9 OR change"
     );
     assert!(
-        state.players.get(&p(1)).unwrap().no_max_hand_size_permanent,
+        state
+            .players()
+            .get(&p(1))
+            .unwrap()
+            .no_max_hand_size_permanent,
         "the non-active player's persistent flag must remain set (untouched by \
          this cleanup, which only recomputes the active player)"
     );
@@ -590,7 +598,7 @@ fn test_no_max_hand_size_permanent_hash_mutation() {
         .build()
         .unwrap();
     state_true
-        .players
+        .players_mut()
         .get_mut(&p(1))
         .unwrap()
         .no_max_hand_size_permanent = true;
@@ -790,12 +798,12 @@ fn test_ancient_copper_dragon_rolls_treasures() {
         .build()
         .unwrap();
     // timestamp 6 -> (6 % 20) + 1 = 7
-    state.timestamp_counter = 6;
+    *state.timestamp_counter_mut() = 6;
 
     let (state, events) = run_effect(state, p(1), effect);
 
     let treasure_count = state
-        .objects
+        .objects()
         .values()
         .filter(|o| {
             o.zone == ZoneId::Battlefield
@@ -832,12 +840,12 @@ fn test_ancient_gold_dragon_faerie_tokens() {
         .build()
         .unwrap();
     // timestamp 2 -> (2 % 20) + 1 = 3
-    state.timestamp_counter = 2;
+    *state.timestamp_counter_mut() = 2;
 
     let (state, _events) = run_effect(state, p(1), effect);
 
     let faerie_dragons: Vec<_> = state
-        .objects
+        .objects()
         .values()
         .filter(|o| {
             o.zone == ZoneId::Battlefield
@@ -897,7 +905,7 @@ fn test_ancient_silver_dragon_draw_and_no_max() {
     // would collide new draw-object ids with existing library card ids and
     // silently corrupt the library zone. Use a value well above any object id
     // allocated by the 20-card builder setup: 1009 % 20 = 9 -> roll = 10.
-    state.timestamp_counter = 1009;
+    *state.timestamp_counter_mut() = 1009;
 
     assert_eq!(
         library_count(&state, p(1)),
@@ -905,7 +913,11 @@ fn test_ancient_silver_dragon_draw_and_no_max() {
         "test setup: 20 library cards expected"
     );
     assert!(
-        !state.players.get(&p(1)).unwrap().no_max_hand_size_permanent,
+        !state
+            .players()
+            .get(&p(1))
+            .unwrap()
+            .no_max_hand_size_permanent,
         "test setup: flag should start false"
     );
 
@@ -928,7 +940,11 @@ fn test_ancient_silver_dragon_draw_and_no_max() {
         events
     );
     assert!(
-        state.players.get(&p(1)).unwrap().no_max_hand_size_permanent,
+        state
+            .players()
+            .get(&p(1))
+            .unwrap()
+            .no_max_hand_size_permanent,
         "CR 402.2: no_max_hand_size_permanent must be set after the combat damage trigger"
     );
 }
@@ -955,7 +971,7 @@ fn test_doubling_season_doubles_tokens_and_counters() {
     let mut state = state;
     let ds_id = find_by_name(&state, "Doubling Season");
     let card_id = mtg_engine::CardId("doubling-season".to_string());
-    let registry = state.card_registry.clone();
+    let registry = state.card_registry().clone();
     mtg_engine::rules::replacement::register_permanent_replacement_abilities(
         &mut state,
         ds_id,
@@ -973,7 +989,7 @@ fn test_doubling_season_doubles_tokens_and_counters() {
         },
     );
     let treasure_count = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Battlefield && o.characteristics.name == "Treasure")
         .count();
@@ -1003,7 +1019,7 @@ fn test_doubling_season_doubles_tokens_and_counters() {
         &mut ctx,
     );
     let counters = state
-        .objects
+        .objects()
         .get(&target)
         .unwrap()
         .counters
@@ -1037,7 +1053,7 @@ fn test_parallel_lives_doubles_tokens() {
     let mut state = state;
     let pl_id = find_by_name(&state, "Parallel Lives");
     let card_id = mtg_engine::CardId("parallel-lives".to_string());
-    let registry = state.card_registry.clone();
+    let registry = state.card_registry().clone();
     mtg_engine::rules::replacement::register_permanent_replacement_abilities(
         &mut state,
         pl_id,
@@ -1054,7 +1070,7 @@ fn test_parallel_lives_doubles_tokens() {
         },
     );
     let treasure_count = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Battlefield && o.characteristics.name == "Treasure")
         .count();

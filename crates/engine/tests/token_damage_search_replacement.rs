@@ -17,13 +17,13 @@ fn register_replacement_effects(state: &mut mtg_engine::state::GameState) {
     use mtg_engine::state::game_object::ObjectId;
     use mtg_engine::state::zone::ZoneId;
 
-    let registry = state.card_registry.clone();
+    let registry = state.card_registry().clone();
     let battlefield_objects: Vec<(
         ObjectId,
         PlayerId,
         Option<mtg_engine::state::player::CardId>,
     )> = state
-        .objects
+        .objects()
         .iter()
         .filter(|(_, obj)| matches!(obj.zone, ZoneId::Battlefield))
         .map(|(id, obj)| (*id, obj.controller, obj.card_id.clone()))
@@ -233,7 +233,7 @@ fn test_damage_doubling() {
     register_replacement_effects(&mut state);
 
     let source_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Damage Source")
         .map(|(id, _)| *id)
@@ -270,7 +270,7 @@ fn test_damage_doubling_no_effect_on_opponent_sources() {
     register_replacement_effects(&mut state);
 
     let source_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Opponent Source")
         .map(|(id, _)| *id)

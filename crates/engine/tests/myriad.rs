@@ -27,7 +27,7 @@ use mtg_engine::{
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -37,7 +37,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 /// Count permanents on the battlefield controlled by `player`.
 fn battlefield_count(state: &GameState, player: PlayerId) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.zone == ZoneId::Battlefield && obj.controller == player)
         .count()
@@ -46,7 +46,7 @@ fn battlefield_count(state: &GameState, player: PlayerId) -> usize {
 /// Count tokens on the battlefield controlled by `player`.
 fn token_count(state: &GameState, player: PlayerId) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.zone == ZoneId::Battlefield && obj.controller == player && obj.is_token)
         .count()
@@ -55,7 +55,7 @@ fn token_count(state: &GameState, player: PlayerId) -> usize {
 /// Count exile objects owned by any player.
 fn exile_count(state: &GameState) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|obj| matches!(obj.zone, ZoneId::Exile))
         .count()
@@ -76,18 +76,18 @@ fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent
 
 /// Advance through priority passes until the step changes (or turn number changes).
 fn pass_until_advance(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent>) {
-    let start_step = state.turn.step;
-    let start_turn = state.turn.turn_number;
+    let start_step = state.turn().step;
+    let start_turn = state.turn().turn_number;
     let mut all_events = Vec::new();
     let mut current = state;
     loop {
-        let holder = current.turn.priority_holder.expect("no priority holder");
+        let holder = current.turn().priority_holder.expect("no priority holder");
         // Find this holder in the players slice to know who goes next.
         // If holder is not in the slice, just pass all in order.
         let (new_state, ev) = process_command(current, Command::PassPriority { player: holder })
             .unwrap_or_else(|e| panic!("PassPriority by {:?} failed: {:?}", holder, e));
         let step_changed =
-            new_state.turn.step != start_step || new_state.turn.turn_number != start_turn;
+            new_state.turn().step != start_step || new_state.turn().turn_number != start_turn;
         all_events.extend(ev);
         current = new_state;
         if step_changed {
@@ -95,7 +95,7 @@ fn pass_until_advance(state: GameState, players: &[PlayerId]) -> (GameState, Vec
         }
         // Safety guard: if same holder got priority again and step hasn't changed,
         // break to avoid infinite loop.
-        if current.turn.priority_holder == Some(holder) {
+        if current.turn().priority_holder == Some(holder) {
             // Try passing once more for the other player.
             let other = players.iter().find(|&&p| p != holder).copied();
             if let Some(other_p) = other {
@@ -103,7 +103,7 @@ fn pass_until_advance(state: GameState, players: &[PlayerId]) -> (GameState, Vec
                     .unwrap_or_else(|e| panic!("PassPriority by {:?} failed: {:?}", other_p, e));
                 all_events.extend(ev);
                 current = ns;
-                if current.turn.step != start_step || current.turn.turn_number != start_turn {
+                if current.turn().step != start_step || current.turn().turn_number != start_turn {
                     return (current, all_events);
                 }
             }
@@ -163,7 +163,7 @@ fn test_myriad_basic_creates_token_copies_in_4_player() {
         "CR 702.116a: AbilityTriggered event expected from myriad"
     );
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.116a: myriad trigger should be on the stack"
     );
@@ -197,7 +197,7 @@ fn test_myriad_basic_creates_token_copies_in_4_player() {
 
     // Tokens are tapped (they entered tapped per CR 702.116a).
     let tapped_token_count = state
-        .objects
+        .objects()
         .values()
         .filter(|obj| {
             obj.zone == ZoneId::Battlefield
@@ -212,11 +212,17 @@ fn test_myriad_basic_creates_token_copies_in_4_player() {
     );
 
     // Tokens are registered as attackers in combat (attacking P3 and P4).
-    let combat = state.combat.as_ref().expect("combat state should exist");
+    let combat = state.combat().as_ref().expect("combat state should exist");
     let token_attackers: Vec<_> = combat
         .attackers
         .iter()
-        .filter(|(id, _)| state.objects.get(*id).map(|o| o.is_token).unwrap_or(false))
+        .filter(|(id, _)| {
+            state
+                .objects()
+                .get(*id)
+                .map(|o| o.is_token)
+                .unwrap_or(false)
+        })
         .collect();
     assert_eq!(
         token_attackers.len(),
@@ -289,7 +295,7 @@ fn test_myriad_2_player_no_tokens_created() {
 
     // Trigger is on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "myriad trigger should still be on the stack"
     );
@@ -367,7 +373,7 @@ fn test_myriad_tokens_exiled_at_end_of_combat() {
 
     // Verify token has myriad_exile_at_eoc flag.
     let token = state
-        .objects
+        .objects()
         .values()
         .find(|obj| obj.is_token && obj.controller == p1)
         .expect("token should exist");
@@ -414,7 +420,7 @@ fn test_myriad_tokens_exiled_at_end_of_combat() {
 
     // No myriad tokens should remain on the battlefield.
     let remaining_tokens: Vec<_> = state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.zone == ZoneId::Battlefield && obj.is_token && obj.myriad_exile_at_eoc)
         .collect();
@@ -468,7 +474,7 @@ fn test_myriad_token_has_correct_flags() {
 
     // Check token flags.
     let tokens: Vec<_> = state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.zone == ZoneId::Battlefield && obj.is_token && obj.controller == p1)
         .collect();
@@ -544,7 +550,7 @@ fn test_myriad_multiple_instances_trigger_separately() {
         "CR 702.116b: 2 triggers should fire (one per myriad instance)"
     );
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "CR 702.116b: 2 myriad triggers should be on the stack"
     );
@@ -616,11 +622,17 @@ fn test_myriad_multiplayer_correct_opponents_targeted() {
     let (state, _) = pass_all(state, &[p1, p2, p3, p4]);
 
     // Tokens should attack P2 and P4 (not P3 — the defending player, not P1 — the attacker).
-    let combat = state.combat.as_ref().expect("combat state should exist");
+    let combat = state.combat().as_ref().expect("combat state should exist");
     let token_targets: std::collections::HashSet<PlayerId> = combat
         .attackers
         .iter()
-        .filter(|(id, _)| state.objects.get(*id).map(|o| o.is_token).unwrap_or(false))
+        .filter(|(id, _)| {
+            state
+                .objects()
+                .get(*id)
+                .map(|o| o.is_token)
+                .unwrap_or(false)
+        })
         .filter_map(|(_, target)| {
             if let AttackTarget::Player(pid) = target {
                 Some(*pid)
@@ -696,7 +708,7 @@ fn test_myriad_original_attacker_unaffected() {
 
     // Original myriad creature should still be on battlefield.
     let original = state
-        .objects
+        .objects()
         .get(&attacker_id)
         .expect("original should still exist");
     assert_eq!(
@@ -711,7 +723,7 @@ fn test_myriad_original_attacker_unaffected() {
     assert!(!original.is_token, "Original creature is not a token");
 
     // Original attacker should still be attacking P2 in combat state.
-    let combat = state.combat.as_ref().expect("combat state should exist");
+    let combat = state.combat().as_ref().expect("combat state should exist");
     assert!(
         combat.attackers.contains_key(&attacker_id),
         "Original myriad creature should still be an attacker"
@@ -793,7 +805,7 @@ fn test_myriad_doubling_season_doubles_per_opponent() {
 
     let mut state = state;
     let doubler_id = find_object(&state, "Myriad Doubler Test");
-    let registry = state.card_registry.clone();
+    let registry = state.card_registry().clone();
     mtg_engine::rules::replacement::register_permanent_replacement_abilities(
         &mut state,
         doubler_id,

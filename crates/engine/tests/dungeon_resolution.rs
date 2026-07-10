@@ -8,6 +8,7 @@
 //! - Initiative: combat damage steal transfers initiative (CR 725.2)
 
 use mtg_engine::state::stack::StackObjectKind;
+use mtg_engine::state::test_util;
 use mtg_engine::{
     check_and_apply_sbas, process_command, AttackTarget, Command, DungeonId, DungeonState,
     GameEvent, GameStateBuilder, ObjectSpec, PlayerId, Step,
@@ -55,7 +56,7 @@ fn test_room_ability_resolves_scry() {
     assert!(ventured, "VenturedIntoDungeon event should be emitted");
 
     // A RoomAbility SOK for Cave Entrance (room 0) should be on the stack.
-    let room_ability_on_stack = state.stack_objects.iter().any(|so| {
+    let room_ability_on_stack = state.stack_objects().iter().any(|so| {
         matches!(
             &so.kind,
             StackObjectKind::RoomAbility { owner, dungeon, room }
@@ -91,13 +92,13 @@ fn test_room_ability_resolves_scry() {
 
     // The stack should now be empty (room ability resolved and left the stack).
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after room ability resolves"
     );
 
     // The venture marker should still be on room 0 (not advanced — Scry doesn't advance).
     let ds = state
-        .dungeon_state
+        .dungeon_state()
         .get(&p(1))
         .expect("player should still have dungeon state");
     assert_eq!(
@@ -119,7 +120,7 @@ fn test_room_ability_resolves_create_token() {
 
     // First venture to get to room 0 (Cave Entrance), then advance to room 1 (Goblin Lair).
     // We can set the dungeon state directly and push a RoomAbility for room 1.
-    state.dungeon_state.insert(
+    state.dungeon_state_mut().insert(
         p(1),
         DungeonState {
             dungeon: DungeonId::LostMineOfPhandelver,
@@ -148,7 +149,7 @@ fn test_room_ability_resolves_create_token() {
     );
 
     // Room 1 (Goblin Lair) ability should be on the stack.
-    let room_ability_on_stack = state.stack_objects.iter().any(|so| {
+    let room_ability_on_stack = state.stack_objects().iter().any(|so| {
         matches!(
             &so.kind,
             StackObjectKind::RoomAbility { owner, dungeon, room }
@@ -162,7 +163,7 @@ fn test_room_ability_resolves_create_token() {
 
     // Count tokens before resolution.
     let token_count_before = state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.is_token && obj.controller == p(1))
         .count();
@@ -179,7 +180,7 @@ fn test_room_ability_resolves_create_token() {
 
     // Count tokens after resolution.
     let token_count_after = state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.is_token && obj.controller == p(1))
         .count();
@@ -194,7 +195,7 @@ fn test_room_ability_resolves_create_token() {
 
     // Verify the token is a 1/1 red Goblin.
     let goblin_token = state
-        .objects
+        .objects()
         .values()
         .find(|obj| obj.is_token && obj.controller == p(1));
     let Some(goblin) = goblin_token else {
@@ -228,7 +229,7 @@ fn test_sba_704_5t_removes_completed_dungeon() {
     // Place player 1 at the bottommost room of Lost Mine of Phandelver (room 6).
     let dungeon_def = mtg_engine::get_dungeon(DungeonId::LostMineOfPhandelver);
     let bottommost = dungeon_def.bottommost_room;
-    state.dungeon_state.insert(
+    state.dungeon_state_mut().insert(
         p(1),
         DungeonState {
             dungeon: DungeonId::LostMineOfPhandelver,
@@ -237,7 +238,7 @@ fn test_sba_704_5t_removes_completed_dungeon() {
     );
 
     // Stack is empty — no room ability on it.
-    assert!(state.stack_objects.is_empty(), "stack should be empty");
+    assert!(state.stack_objects().is_empty(), "stack should be empty");
 
     // Run SBAs.
     let sba_events = check_and_apply_sbas(&mut state);
@@ -256,12 +257,12 @@ fn test_sba_704_5t_removes_completed_dungeon() {
 
     // Dungeon should be removed from player 1's state.
     assert!(
-        state.dungeon_state.get(&p(1)).is_none(),
+        state.dungeon_state().get(&p(1)).is_none(),
         "dungeon should be removed from command zone by SBA 704.5t"
     );
 
     // dungeons_completed should be incremented.
-    let completed_count = state.players.get(&p(1)).unwrap().dungeons_completed;
+    let completed_count = state.players().get(&p(1)).unwrap().dungeons_completed;
     assert_eq!(
         completed_count, 1,
         "dungeons_completed should be 1 after SBA removes the dungeon"
@@ -269,7 +270,7 @@ fn test_sba_704_5t_removes_completed_dungeon() {
 
     // DungeonId should be in dungeons_completed_set.
     let in_set = state
-        .players
+        .players()
         .get(&p(1))
         .unwrap()
         .dungeons_completed_set
@@ -294,7 +295,7 @@ fn test_sba_704_5t_waits_for_room_ability() {
     // Place player 1 at the bottommost room of Lost Mine (room 6).
     let dungeon_def = mtg_engine::get_dungeon(DungeonId::LostMineOfPhandelver);
     let bottommost = dungeon_def.bottommost_room;
-    state.dungeon_state.insert(
+    state.dungeon_state_mut().insert(
         p(1),
         DungeonState {
             dungeon: DungeonId::LostMineOfPhandelver,
@@ -304,7 +305,7 @@ fn test_sba_704_5t_waits_for_room_ability() {
 
     // Push a fake RoomAbility for this dungeon onto the stack.
     let room_so = StackObject {
-        id: state.next_object_id(),
+        id: test_util::next_object_id(&mut state),
         controller: p(1),
         kind: StackObjectKind::RoomAbility {
             owner: p(1),
@@ -354,7 +355,7 @@ fn test_sba_704_5t_waits_for_room_ability() {
         lki_counters: im::OrdMap::new(),
         lki_power: None,
     };
-    state.stack_objects.push_back(room_so);
+    state.stack_objects_mut().push_back(room_so);
 
     // Run SBAs — dungeon should NOT be removed because room ability is on the stack.
     let sba_events = check_and_apply_sbas(&mut state);
@@ -373,7 +374,7 @@ fn test_sba_704_5t_waits_for_room_ability() {
 
     // Dungeon should still be present.
     assert!(
-        state.dungeon_state.get(&p(1)).is_some(),
+        state.dungeon_state().get(&p(1)).is_some(),
         "dungeon should remain in command zone while room ability is on the stack"
     );
 }
@@ -399,7 +400,7 @@ fn test_initiative_upkeep_venture() {
         .expect("build failed");
 
     // Give p1 the initiative.
-    state.has_initiative = Some(p(1));
+    *state.has_initiative_mut() = Some(p(1));
 
     // At the start of upkeep, p1 should venture into the Undercity.
     // The upkeep actions are triggered when entering the Upkeep step.
@@ -425,7 +426,7 @@ fn test_initiative_upkeep_venture() {
 
     // Player 1 should now have a dungeon state in The Undercity.
     let ds = state
-        .dungeon_state
+        .dungeon_state()
         .get(&p(1))
         .expect("p1 should have dungeon state after upkeep venture");
     assert_eq!(
@@ -457,11 +458,11 @@ fn test_initiative_combat_damage_steal() {
         .expect("build failed");
 
     // Give p2 the initiative — p1's creature will deal damage to p2 (initiative holder).
-    state.has_initiative = Some(p2);
+    *state.has_initiative_mut() = Some(p2);
 
     // Find the attacker.
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1)
         .unwrap()
@@ -519,7 +520,7 @@ fn test_initiative_combat_damage_steal() {
 
     // Initiative should have transferred to p1 (p2 was the holder, p1's creature attacked).
     assert_eq!(
-        state.has_initiative,
+        state.has_initiative(),
         Some(p1),
         "initiative should transfer to p1 after their creature deals combat damage to p2 (the initiative holder)"
     );

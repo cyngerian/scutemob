@@ -37,7 +37,7 @@ fn cid(s: &str) -> CardId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -171,12 +171,12 @@ fn test_convoke_basic_tap_creatures_reduce_cost() {
 
     // Give p1 {G}{G} — pays the 2 colored green pips. The 5 generic are paid by 5 creatures.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Siege Wurm");
     let elf1 = find_object(&state, "Elf 1");
@@ -209,7 +209,7 @@ fn test_convoke_basic_tap_creatures_reduce_cost() {
 
     // Spell is on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.51a: spell should be on the stack after convoke cast"
     );
@@ -217,7 +217,7 @@ fn test_convoke_basic_tap_creatures_reduce_cost() {
     // All 5 creatures are tapped.
     for name in ["Elf 1", "Elf 2", "Elf 3", "Elf 4", "Elf 5"] {
         let obj = state
-            .objects
+            .objects()
             .values()
             .find(|o| o.characteristics.name == name)
             .unwrap_or_else(|| panic!("{} not found", name));
@@ -239,7 +239,7 @@ fn test_convoke_basic_tap_creatures_reduce_cost() {
     );
 
     // Mana pool is empty (both green pips consumed).
-    let pool = &state.players[&p1].mana_pool;
+    let pool = &state.players()[&p1].mana_pool;
     assert_eq!(
         pool.white + pool.blue + pool.black + pool.red + pool.green + pool.colorless,
         0,
@@ -274,12 +274,12 @@ fn test_convoke_colored_mana_match() {
 
     // Give p1 {2} colorless — pays the 2 generic pips. The 2 white pips paid by white creatures.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "White Spell");
     let elf1 = find_object(&state, "White Elf 1");
@@ -309,7 +309,7 @@ fn test_convoke_colored_mana_match() {
 
     // Spell is on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.51a: spell should be on the stack after white convoke"
     );
@@ -317,7 +317,7 @@ fn test_convoke_colored_mana_match() {
     // Both white creatures are tapped.
     for name in ["White Elf 1", "White Elf 2"] {
         let obj = state
-            .objects
+            .objects()
             .values()
             .find(|o| o.characteristics.name == name)
             .unwrap_or_else(|| panic!("{} not found", name));
@@ -329,7 +329,7 @@ fn test_convoke_colored_mana_match() {
     }
 
     // Mana pool is empty.
-    let pool = &state.players[&p1].mana_pool;
+    let pool = &state.players()[&p1].mana_pool;
     assert_eq!(
         pool.white + pool.blue + pool.black + pool.red + pool.green + pool.colorless,
         0,
@@ -366,12 +366,12 @@ fn test_convoke_generic_mana_any_creature() {
 
     // Pay {G} from pool (for the green pip). Red creatures pay the 3 generic pips.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Green Spell");
     let g1 = find_object(&state, "Red Goblin 1");
@@ -402,7 +402,7 @@ fn test_convoke_generic_mana_any_creature() {
 
     // Spell on stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.51a: spell should be on stack after generic convoke"
     );
@@ -410,7 +410,7 @@ fn test_convoke_generic_mana_any_creature() {
     // All red creatures tapped.
     for name in ["Red Goblin 1", "Red Goblin 2", "Red Goblin 3"] {
         let obj = state
-            .objects
+            .objects()
             .values()
             .find(|o| o.characteristics.name == name)
             .unwrap_or_else(|| panic!("{} not found", name));
@@ -446,12 +446,12 @@ fn test_convoke_reject_no_keyword() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Plain Sorcery");
     let elf_id = find_object(&state, "Green Elf");
@@ -510,7 +510,7 @@ fn test_convoke_reject_tapped_creature() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     // No mana in pool — creature should pay for the {1} but it's tapped.
 
     let spell_id = find_object(&state, "Convoke Spell");
@@ -570,7 +570,7 @@ fn test_convoke_reject_not_creature() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Convoke Spell");
     let artifact_id = find_object(&state, "Sol Ring");
@@ -630,7 +630,7 @@ fn test_convoke_reject_not_controlled() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Convoke Spell");
     let opp_elf_id = find_object(&state, "Opponent Elf");
@@ -697,7 +697,7 @@ fn test_convoke_reject_too_many_creatures() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     // No mana — trying to use 4 creatures for a 3-pip cost.
 
     let spell_id = find_object(&state, "Small Convoke");
@@ -784,7 +784,7 @@ fn test_convoke_with_commander_tax() {
     // Pre-set tax to 1 (cast once previously) — adds {2} to total cost.
     // Total cost = {3}{G}{G} + {2} tax = {5}{G}{G}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .commander_tax
@@ -792,18 +792,18 @@ fn test_convoke_with_commander_tax() {
 
     // Give p1 {G}{G} — to pay the 2 colored green pips. Creatures pay the {5} generic.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Register commander zone replacements (required for casting from command zone).
     mtg_engine::register_commander_zone_replacements(&mut state);
 
     let cmd_obj_id = state
-        .zones
+        .zones()
         .get(&ZoneId::Command(p1))
         .unwrap()
         .object_ids()
@@ -841,14 +841,14 @@ fn test_convoke_with_commander_tax() {
 
     // Spell is on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.51b + 903.8: commander convoke spell should be on the stack"
     );
 
     // Commander tax incremented to 2.
     assert_eq!(
-        state.players[&p1].commander_tax.get(&cmd_id).copied(),
+        state.players()[&p1].commander_tax.get(&cmd_id).copied(),
         Some(2),
         "CR 903.8: commander tax should increment to 2 after second cast"
     );
@@ -867,7 +867,7 @@ fn test_convoke_with_commander_tax() {
     );
 
     // Mana pool empty.
-    let pool = &state.players[&p1].mana_pool;
+    let pool = &state.players()[&p1].mana_pool;
     assert_eq!(
         pool.white + pool.blue + pool.black + pool.red + pool.green + pool.colorless,
         0,
@@ -902,7 +902,7 @@ fn test_convoke_no_summoning_sickness() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     // No mana — creature pays the {1} generic.
 
     let spell_id = find_object(&state, "Convoke Spell");
@@ -959,18 +959,18 @@ fn test_convoke_zero_creatures() {
 
     // Pay full cost from mana pool — no convoke.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Convoke Spell");
 
@@ -998,13 +998,13 @@ fn test_convoke_zero_creatures() {
 
     // Spell is on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.51a: spell with no convoke creatures should go on stack normally"
     );
 
     // Mana pool is empty (full cost paid).
-    let pool = &state.players[&p1].mana_pool;
+    let pool = &state.players()[&p1].mana_pool;
     assert_eq!(
         pool.white + pool.blue + pool.black + pool.red + pool.green + pool.colorless,
         0,
@@ -1039,18 +1039,18 @@ fn test_convoke_multicolored_creature_pays_colored() {
 
     // Selesnya creature pays {W} (first color match in WUBRG). Pay {1}{G} from pool.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Selesnya Spell");
     let token_id = find_object(&state, "Selesnya Token");
@@ -1079,14 +1079,14 @@ fn test_convoke_multicolored_creature_pays_colored() {
 
     // Spell on stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.51a: spell should be on stack after multicolored creature convoke"
     );
 
     // Selesnya token is tapped.
     let token = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Selesnya Token")
         .expect("Selesnya Token not found");
@@ -1096,7 +1096,7 @@ fn test_convoke_multicolored_creature_pays_colored() {
     );
 
     // Mana pool is empty.
-    let pool = &state.players[&p1].mana_pool;
+    let pool = &state.players()[&p1].mana_pool;
     assert_eq!(
         pool.white + pool.blue + pool.black + pool.red + pool.green + pool.colorless,
         0,

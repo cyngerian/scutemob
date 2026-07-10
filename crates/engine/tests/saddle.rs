@@ -18,6 +18,7 @@
 //! - Ruling: Summoning sickness does NOT prevent saddling (same as Crew).
 //! - CR 602.2: Player must hold priority.
 
+use mtg_engine::state::test_util;
 use mtg_engine::{
     process_command, Command, GameEvent, GameStateBuilder, KeywordAbility, ObjectId, ObjectSpec,
     PlayerId, Step, ZoneId,
@@ -31,7 +32,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -91,14 +92,14 @@ fn test_saddle_basic_mount_becomes_saddled() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let mount_id = find_object(&state, "Test Mount");
     let saddler_id = find_object(&state, "Test Rider");
 
     // Mount should not be saddled initially.
     assert!(
-        !state.objects[&mount_id]
+        !state.objects()[&mount_id]
             .designations
             .contains(mtg_engine::Designations::SADDLED),
         "mount should not be saddled initially"
@@ -123,13 +124,13 @@ fn test_saddle_basic_mount_becomes_saddled() {
 
     // Saddler should be tapped.
     assert!(
-        state.objects[&saddler_id].status.tapped,
+        state.objects()[&saddler_id].status.tapped,
         "saddling creature should be tapped"
     );
 
     // Mount is not yet saddled (ability is on the stack).
     assert!(
-        !state.objects[&mount_id]
+        !state.objects()[&mount_id]
             .designations
             .contains(mtg_engine::Designations::SADDLED),
         "mount should not be saddled until ability resolves"
@@ -140,7 +141,7 @@ fn test_saddle_basic_mount_becomes_saddled() {
 
     // Mount should now be saddled.
     assert!(
-        state.objects[&mount_id]
+        state.objects()[&mount_id]
             .designations
             .contains(mtg_engine::Designations::SADDLED),
         "mount should be saddled after ability resolves (CR 702.171a)"
@@ -169,7 +170,7 @@ fn test_saddle_insufficient_power_rejected() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let mount_id = find_object(&state, "Test Mount");
     let rider_id = find_object(&state, "Weak Rider");
@@ -221,7 +222,7 @@ fn test_saddle_multiple_creatures() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let mount_id = find_object(&state, "Test Mount");
     let id_a = find_object(&state, "Rider A");
@@ -240,22 +241,22 @@ fn test_saddle_multiple_creatures() {
 
     // All three should be tapped.
     assert!(
-        state.objects[&id_a].status.tapped,
+        state.objects()[&id_a].status.tapped,
         "Rider A should be tapped"
     );
     assert!(
-        state.objects[&id_b].status.tapped,
+        state.objects()[&id_b].status.tapped,
         "Rider B should be tapped"
     );
     assert!(
-        state.objects[&id_c].status.tapped,
+        state.objects()[&id_c].status.tapped,
         "Rider C should be tapped"
     );
 
     // Resolve and verify saddled.
     let (state, _) = pass_all(state, &[p1, p2]);
     assert!(
-        state.objects[&mount_id]
+        state.objects()[&mount_id]
             .designations
             .contains(mtg_engine::Designations::SADDLED),
         "mount should be saddled (CR 702.171a)"
@@ -281,7 +282,7 @@ fn test_saddle_mount_cannot_saddle_itself() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let mount_id = find_object(&state, "Test Mount");
 
@@ -328,7 +329,7 @@ fn test_saddle_summoning_sick_creature_can_saddle() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let mount_id = find_object(&state, "Test Mount");
     let rider_id = find_object(&state, "Sick Rider");
@@ -336,7 +337,7 @@ fn test_saddle_summoning_sick_creature_can_saddle() {
     // Manually set summoning sickness (builder places objects without sickness).
     // This simulates a creature that entered the battlefield this turn.
     state
-        .objects
+        .objects_mut()
         .get_mut(&rider_id)
         .unwrap()
         .has_summoning_sickness = true;
@@ -379,13 +380,18 @@ fn test_saddle_tapped_creature_rejected() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let mount_id = find_object(&state, "Test Mount");
     let rider_id = find_object(&state, "Tapped Rider");
 
     // Manually tap the rider.
-    state.objects.get_mut(&rider_id).unwrap().status.tapped = true;
+    state
+        .objects_mut()
+        .get_mut(&rider_id)
+        .unwrap()
+        .status
+        .tapped = true;
 
     let result = process_command(
         state,
@@ -428,7 +434,7 @@ fn test_saddle_not_a_creature_rejected() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let mount_id = find_object(&state, "Test Mount");
     let artifact_id = find_object(&state, "Shiny Artifact");
@@ -476,7 +482,7 @@ fn test_saddle_already_saddled_is_legal() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let mount_id = find_object(&state, "Test Mount");
     let id_a = find_object(&state, "Rider A");
@@ -496,14 +502,14 @@ fn test_saddle_already_saddled_is_legal() {
     // Resolve.
     let (mut state, _) = pass_all(state, &[p1, p2]);
     assert!(
-        state.objects[&mount_id]
+        state.objects()[&mount_id]
             .designations
             .contains(mtg_engine::Designations::SADDLED),
         "mount should be saddled after first activation"
     );
 
     // Second saddle activation on an already-saddled mount should succeed.
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let result = process_command(
         state,
         Command::SaddleMount {
@@ -541,7 +547,7 @@ fn test_saddle_expires_at_end_of_turn() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let mount_id = find_object(&state, "Test Mount");
     let rider_id = find_object(&state, "Test Rider");
@@ -560,7 +566,7 @@ fn test_saddle_expires_at_end_of_turn() {
     // Resolve.
     let (state, _) = pass_all(state, &[p1, p2]);
     assert!(
-        state.objects[&mount_id]
+        state.objects()[&mount_id]
             .designations
             .contains(mtg_engine::Designations::SADDLED),
         "mount should be saddled before cleanup"
@@ -576,7 +582,7 @@ fn test_saddle_expires_at_end_of_turn() {
     let mut current = state;
     for _ in 0..30 {
         if !current
-            .objects
+            .objects()
             .get(&mount_id)
             .map(|o| o.designations.contains(mtg_engine::Designations::SADDLED))
             .unwrap_or(false)
@@ -586,7 +592,7 @@ fn test_saddle_expires_at_end_of_turn() {
         match process_command(
             current.clone(),
             Command::PassPriority {
-                player: current.turn.priority_holder.unwrap_or(p1),
+                player: current.turn().priority_holder.unwrap_or(p1),
             },
         ) {
             Ok((next, _)) => current = next,
@@ -596,7 +602,7 @@ fn test_saddle_expires_at_end_of_turn() {
 
     assert!(
         !current
-            .objects
+            .objects()
             .get(&mount_id)
             .map(|o| o.designations.contains(mtg_engine::Designations::SADDLED))
             .unwrap_or(true),
@@ -624,7 +630,7 @@ fn test_saddle_sorcery_speed_only() {
         .build()
         .unwrap();
 
-    state_a.turn.priority_holder = Some(p1);
+    state_a.turn_mut().priority_holder = Some(p1);
 
     let mount_id_a = find_object(&state_a, "Test Mount");
     let rider_id_a = find_object(&state_a, "Test Rider");
@@ -653,7 +659,7 @@ fn test_saddle_sorcery_speed_only() {
         .build()
         .unwrap();
 
-    state_b.turn.priority_holder = Some(p1);
+    state_b.turn_mut().priority_holder = Some(p1);
 
     let mount_id_b = find_object(&state_b, "Test Mount B");
     let rider_id_b = find_object(&state_b, "Test Rider B");
@@ -699,7 +705,7 @@ fn test_saddle_requires_priority() {
         .unwrap();
 
     // p2 holds priority, not p1.
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let mount_id = find_object(&state, "Test Mount");
     let rider_id = find_object(&state, "Test Rider");
@@ -740,7 +746,7 @@ fn test_saddle_duplicate_creature_rejected() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let mount_id = find_object(&state, "Test Mount");
     let rider_id = find_object(&state, "Test Rider");
@@ -787,7 +793,7 @@ fn test_saddle_opponent_creature_rejected() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let mount_id = find_object(&state, "Test Mount");
     let opp_rider_id = find_object(&state, "Opponent Rider");
@@ -829,7 +835,7 @@ fn test_saddle_cleared_on_zone_change() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let mount_id = find_object(&state, "Test Mount");
     let rider_id = find_object(&state, "Test Rider");
@@ -847,7 +853,7 @@ fn test_saddle_cleared_on_zone_change() {
 
     let (state, _) = pass_all(state, &[p1, p2]);
     assert!(
-        state.objects[&mount_id]
+        state.objects()[&mount_id]
             .designations
             .contains(mtg_engine::Designations::SADDLED),
         "mount should be saddled"
@@ -857,11 +863,11 @@ fn test_saddle_cleared_on_zone_change() {
     // semantics: move_object_to_zone constructs a new GameObject with is_saddled: false.
     let mut state = state;
     let graveyard_zone = ZoneId::Graveyard(p1);
-    let _ = state.move_object_to_zone(mount_id, graveyard_zone);
+    let _ = test_util::move_object_to_zone(&mut state, mount_id, graveyard_zone);
 
     // Find the new object in the graveyard (different id after zone change).
     let new_mount = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| {
             obj.characteristics.name == "Test Mount" && obj.zone == ZoneId::Graveyard(p1)

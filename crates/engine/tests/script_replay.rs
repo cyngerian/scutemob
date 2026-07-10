@@ -8,7 +8,7 @@
 //
 // - Player names in scripts (e.g. `"p1"`, `"alice"`) are sorted alphabetically and
 //   mapped to `PlayerId(1)`, `PlayerId(2)`, … in that order.
-// - Card names are resolved to `ObjectId` by scanning `state.objects`.
+// - Card names are resolved to `ObjectId` by scanning `state.objects()`.
 // - Assertions use dot-notation paths into game state (see `check_assertions`).
 // - Unknown action types are skipped (future-proof — new variants ignored, not panicked).
 //
@@ -289,7 +289,7 @@ pub fn check_assertions(
             // players.<name>.life
             ["players", name, "life"] => {
                 if let Some(&pid) = players.get(*name) {
-                    let actual = state.players.get(&pid).map(|p| p.life_total).unwrap_or(0);
+                    let actual = state.players().get(&pid).map(|p| p.life_total).unwrap_or(0);
                     check_exact(path, expected, serde_json::json!(actual))
                 } else {
                     Some(AssertionMismatch {
@@ -304,7 +304,7 @@ pub fn check_assertions(
             ["players", name, "poison_counters"] => {
                 if let Some(&pid) = players.get(*name) {
                     let actual = state
-                        .players
+                        .players()
                         .get(&pid)
                         .map(|p| p.poison_counters)
                         .unwrap_or(0);
@@ -322,7 +322,7 @@ pub fn check_assertions(
             ["zones", "hand", player, "count"] => {
                 if let Some(&pid) = players.get(*player) {
                     let count = state
-                        .objects
+                        .objects()
                         .values()
                         .filter(|o| o.zone == ZoneId::Hand(pid))
                         .count();
@@ -338,7 +338,7 @@ pub fn check_assertions(
 
             // zones.stack.count
             ["zones", "stack", "count"] => {
-                let count = state.stack_objects.len();
+                let count = state.stack_objects().len();
                 check_exact(path, expected, serde_json::json!(count))
             }
 
@@ -349,7 +349,7 @@ pub fn check_assertions(
             ["zones", "graveyard", player] => {
                 if let Some(&pid) = players.get(*player) {
                     let names: Vec<String> = state
-                        .objects
+                        .objects()
                         .values()
                         .filter(|o| o.zone == ZoneId::Graveyard(pid))
                         .map(|o| o.characteristics.name.clone())
@@ -368,7 +368,7 @@ pub fn check_assertions(
             ["zones", "battlefield", player] => {
                 if let Some(&pid) = players.get(*player) {
                     let names: Vec<String> = state
-                        .objects
+                        .objects()
                         .values()
                         .filter(|o| o.zone == ZoneId::Battlefield && o.controller == pid)
                         .map(|o| o.characteristics.name.clone())
@@ -436,7 +436,7 @@ fn find_object_on_battlefield<'a>(
     name: &str,
 ) -> Option<&'a mtg_engine::state::GameObject> {
     state
-        .objects
+        .objects()
         .values()
         .find(|obj| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
 }
@@ -644,8 +644,8 @@ fn test_harness_build_state_two_players() {
     // p2 has 37 life (patched after initial 40 default).
     // NOTE: life patching in add_player_with_life is a no-op; default is 40.
     // This test just confirms the state was built successfully.
-    assert!(state.players.contains_key(&PlayerId(1)));
-    assert!(state.players.contains_key(&PlayerId(2)));
+    assert!(state.players().contains_key(&PlayerId(1)));
+    assert!(state.players().contains_key(&PlayerId(2)));
 }
 
 #[test]

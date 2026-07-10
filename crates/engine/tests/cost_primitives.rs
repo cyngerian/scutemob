@@ -17,7 +17,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_by_name(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == name)
         .map(|(&id, _)| id)
@@ -99,7 +99,7 @@ fn test_remove_counter_cost_basic() {
         "CounterRemoved event should be emitted (CR 602.2)"
     );
     // Permanent should now have 1 charge counter remaining.
-    let obj = state2.objects.get(&src_id).unwrap();
+    let obj = state2.objects().get(&src_id).unwrap();
     assert_eq!(
         obj.counters.get(&CounterType::Charge).copied().unwrap_or(0),
         1,
@@ -107,7 +107,7 @@ fn test_remove_counter_cost_basic() {
     );
     // Ability should be on the stack.
     assert_eq!(
-        state2.stack_objects.len(),
+        state2.stack_objects().len(),
         1,
         "ability should be on the stack"
     );
@@ -205,7 +205,7 @@ fn test_remove_counter_cost_exact_zero() {
     )
     .expect("activate should succeed when removing last counter");
 
-    let obj = state2.objects.get(&src_id).unwrap();
+    let obj = state2.objects().get(&src_id).unwrap();
     // Counter entry should be completely removed, not left as 0.
     assert!(
         !obj.counters.contains_key(&CounterType::Charge),
@@ -287,7 +287,7 @@ fn test_remove_counter_cost_in_sequence() {
         )),
         "CounterRemoved event should be emitted (CR 601.2h)"
     );
-    let obj = state2.objects.get(&src_id).unwrap();
+    let obj = state2.objects().get(&src_id).unwrap();
     assert_eq!(
         obj.counters
             .get(&CounterType::PlusOnePlusOne)
@@ -429,12 +429,12 @@ fn test_spell_sacrifice_cost_creature() {
         .build()
         .unwrap();
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let vr_id = find_by_name(&state, "Village Rites");
     let bear_id = find_by_name(&state, "Bear");
 
@@ -464,7 +464,7 @@ fn test_spell_sacrifice_cost_creature() {
     .expect("Village Rites with creature sacrifice should succeed (CR 118.8)");
 
     let bear_in_graveyard = state2
-        .objects
+        .objects()
         .values()
         .any(|obj| obj.zone == ZoneId::Graveyard(p1) && obj.characteristics.name == "Bear");
     assert!(
@@ -472,7 +472,7 @@ fn test_spell_sacrifice_cost_creature() {
         "Bear should be sacrificed at cast time (CR 118.8)"
     );
     assert_eq!(
-        state2.stack_objects.len(),
+        state2.stack_objects().len(),
         1,
         "Village Rites should be on the stack"
     );
@@ -508,12 +508,12 @@ fn test_spell_sacrifice_cost_missing() {
         .build()
         .unwrap();
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let vr_id = find_by_name(&state, "Village Rites");
 
     let result = process_command(
@@ -568,12 +568,12 @@ fn test_spell_sacrifice_cost_wrong_type() {
         .build()
         .unwrap();
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let vr_id = find_by_name(&state, "Village Rites");
     let artifact_id = find_by_name(&state, "Mox Pearl");
 

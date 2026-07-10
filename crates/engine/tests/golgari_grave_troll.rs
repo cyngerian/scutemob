@@ -42,7 +42,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_by_name(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -51,14 +51,14 @@ fn find_by_name(state: &GameState, name: &str) -> ObjectId {
 
 fn find_on_battlefield(state: &GameState, name: &str) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
         .map(|(id, _)| *id)
 }
 
 fn count_in_zone(state: &GameState, zone: ZoneId) -> usize {
-    state.objects.values().filter(|o| o.zone == zone).count()
+    state.objects().values().filter(|o| o.zone == zone).count()
 }
 
 fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent>) {
@@ -103,14 +103,14 @@ fn cast_creature(
     mana: &[(ManaColor, u32)],
 ) -> (GameState, Vec<GameEvent>) {
     {
-        let pool = &mut state.players.get_mut(&caster).unwrap().mana_pool;
+        let pool = &mut state.players_mut().get_mut(&caster).unwrap().mana_pool;
         for &(color, n) in mana {
             if n > 0 {
                 pool.add(color, n);
             }
         }
     }
-    state.turn.priority_holder = Some(caster);
+    state.turn_mut().priority_holder = Some(caster);
     process_command(
         state,
         Command::CastSpell {
@@ -196,7 +196,7 @@ fn test_golgari_grave_troll_enters_with_n_counters_for_n_creatures() {
         .expect("Golgari Grave-Troll must be on the battlefield after casting");
 
     let counter_count = state
-        .objects
+        .objects()
         .get(&bf_troll)
         .and_then(|o| o.counters.get(&CounterType::PlusOnePlusOne).copied())
         .unwrap_or(0);
@@ -264,7 +264,7 @@ fn test_golgari_grave_troll_filter_excludes_non_creature_cards() {
         .expect("Golgari Grave-Troll must be on the battlefield after casting");
 
     let counter_count = state
-        .objects
+        .objects()
         .get(&bf_troll)
         .and_then(|o| o.counters.get(&CounterType::PlusOnePlusOne).copied())
         .unwrap_or(0);
@@ -320,7 +320,7 @@ fn test_golgari_grave_troll_empty_graveyard_dies_to_sba() {
     );
 
     // The Troll is now in its owner's graveyard.
-    let troll_in_grave = state.objects.values().any(|o| {
+    let troll_in_grave = state.objects().values().any(|o| {
         o.characteristics.name == "Golgari Grave-Troll" && o.zone == ZoneId::Graveyard(p1)
     });
     assert!(
@@ -385,8 +385,8 @@ fn test_golgari_grave_troll_dredge_six_returns_to_hand() {
 
     let mut state = builder.build().unwrap();
     // CR 103.8: mark as NOT first turn so the draw step actually draws.
-    state.turn.is_first_turn_of_game = false;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().is_first_turn_of_game = false;
+    state.turn_mut().priority_holder = Some(p1);
 
     // Pass through Upkeep — both players pass priority — engine advances to
     // Draw and fires the draw turn-based action, which checks dredge first.
@@ -464,7 +464,7 @@ fn test_golgari_grave_troll_dredge_six_returns_to_hand() {
         "Hand must have +1 card (the dredged Troll)."
     );
     assert!(
-        state.objects.values().any(|o| {
+        state.objects().values().any(|o| {
             o.characteristics.name == "Golgari Grave-Troll" && o.zone == ZoneId::Hand(p1)
         }),
         "Golgari Grave-Troll must be in hand after dredging."

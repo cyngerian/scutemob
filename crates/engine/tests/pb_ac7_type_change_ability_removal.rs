@@ -41,7 +41,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == name)
         .map(|(&id, _)| id)
@@ -174,7 +174,7 @@ fn build_trigger_state(
 
 fn stack_has_trigger_for(state: &GameState, source_id: ObjectId) -> bool {
     state
-        .stack_objects
+        .stack_objects()
         .iter()
         .any(|so| matches!(&so.kind, mtg_engine::StackObjectKind::TriggeredAbility { source_object, .. } if *source_object == source_id))
 }
@@ -408,7 +408,7 @@ fn test_darksteel_mutation_keeps_indestructible() {
 
     // List removal BEFORE the indestructible grant (earlier timestamp) so the
     // later-timestamp grant survives the removal (CR 613.7).
-    state.continuous_effects.push_back(effect_at(
+    state.continuous_effects_mut().push_back(effect_at(
         1,
         Some(aura_source),
         10,
@@ -417,7 +417,7 @@ fn test_darksteel_mutation_keeps_indestructible() {
         EffectFilter::SingleObject(target_id),
         LayerModification::RemoveAllAbilities,
     ));
-    state.continuous_effects.push_back(effect_at(
+    state.continuous_effects_mut().push_back(effect_at(
         2,
         Some(aura_source),
         11,
@@ -426,7 +426,7 @@ fn test_darksteel_mutation_keeps_indestructible() {
         EffectFilter::SingleObject(target_id),
         LayerModification::AddKeyword(KeywordAbility::Indestructible),
     ));
-    state.continuous_effects.push_back(effect_at(
+    state.continuous_effects_mut().push_back(effect_at(
         3,
         Some(aura_source),
         12,
@@ -439,7 +439,7 @@ fn test_darksteel_mutation_keeps_indestructible() {
                 .collect(),
         ),
     ));
-    state.continuous_effects.push_back(effect_at(
+    state.continuous_effects_mut().push_back(effect_at(
         4,
         Some(aura_source),
         12,
@@ -448,7 +448,7 @@ fn test_darksteel_mutation_keeps_indestructible() {
         EffectFilter::SingleObject(target_id),
         LayerModification::SetCreatureTypes(OrdSet::unit(SubType("Insect".to_string()))),
     ));
-    state.continuous_effects.push_back(effect_at(
+    state.continuous_effects_mut().push_back(effect_at(
         5,
         Some(aura_source),
         13,
@@ -591,7 +591,7 @@ fn test_lose_abilities_vs_face_down_override() {
 
     let id = find_object(&state, "Face Down Thing");
     {
-        let obj = state.objects.get_mut(&id).unwrap();
+        let obj = state.objects_mut().get_mut(&id).unwrap();
         obj.status.face_down = true;
         obj.face_down_as = Some(FaceDownKind::Morph);
     }

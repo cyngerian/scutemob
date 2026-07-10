@@ -25,7 +25,7 @@ use mtg_engine::{
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -34,7 +34,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 fn find_object_opt(state: &GameState, name: &str) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -42,7 +42,7 @@ fn find_object_opt(state: &GameState, name: &str) -> Option<ObjectId> {
 
 fn hand_count(state: &GameState, player: PlayerId) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.zone == ZoneId::Hand(player))
         .count()
@@ -229,7 +229,7 @@ fn test_enrage_combat_damage_triggers() {
 
     // Enrage trigger should be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 207.2c: Enrage trigger should be on the stack"
     );
@@ -254,7 +254,7 @@ fn test_enrage_combat_damage_triggers() {
 
     // Stack is empty.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "Stack should be empty after Enrage trigger resolves"
     );
 }
@@ -322,12 +322,12 @@ fn test_enrage_noncombat_damage_triggers() {
 
     // Give P2 red mana and priority.
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let enrage_id = find_object(&state, "Raptor Target");
     let shock_id = find_object(&state, "Shock");
@@ -370,7 +370,7 @@ fn test_enrage_noncombat_damage_triggers() {
 
     // Enrage trigger should be on the stack after Shock resolves.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 207.2c: Enrage trigger should be on the stack after non-combat damage"
     );
@@ -492,7 +492,7 @@ fn test_enrage_zero_damage_no_trigger() {
 
     // Stack should be empty.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "CR 603.2g: Stack should be empty — no Enrage trigger queued for 0-damage"
     );
 }
@@ -601,7 +601,7 @@ fn test_enrage_multiple_blockers_triggers_once() {
 
     // Exactly 1 trigger on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "Ruling 2018-01-19: Only one Enrage trigger should be on the stack"
     );
@@ -723,7 +723,7 @@ fn test_enrage_lethal_damage_still_triggers() {
     assert!(
         find_object_opt(&state, "Doomed Raptor").is_none_or(|id| {
             state
-                .objects
+                .objects()
                 .get(&id)
                 .is_none_or(|obj| matches!(obj.zone, ZoneId::Graveyard(_)))
         }),
@@ -732,7 +732,7 @@ fn test_enrage_lethal_damage_still_triggers() {
 
     // Enrage trigger is on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "Ruling 2018-01-19: Enrage trigger should be on the stack even after lethal damage"
     );
@@ -740,7 +740,7 @@ fn test_enrage_lethal_damage_still_triggers() {
     // Verify the trigger controller is P1 (the Enrage creature's controller).
     // The trigger was queued before the creature died, capturing P1's controller.
     let trigger_controller = state
-        .stack_objects
+        .stack_objects()
         .front()
         .map(|so| so.controller)
         .expect("stack should have a trigger object");
@@ -755,7 +755,7 @@ fn test_enrage_lethal_damage_still_triggers() {
     // resolves and P1 draws a card.
     let (state, _) = pass_all(state, &[p2, p1]);
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "MR-B12-04: Enrage trigger should resolve off the stack"
     );
     assert_eq!(
@@ -886,7 +886,7 @@ fn test_enrage_prevention_reduces_to_zero_no_trigger() {
 
     // No Enrage trigger on the stack.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "CR 603.2g: Stack should be empty — no Enrage trigger queued for prevention-zeroed damage"
     );
 }

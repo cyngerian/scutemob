@@ -13,6 +13,7 @@
 
 use mtg_engine::cards::card_definition::{ContinuousEffectDef, EffectTarget};
 use mtg_engine::effects::{execute_effect, EffectContext};
+use mtg_engine::state::test_util;
 use mtg_engine::{
     all_cards, calculate_characteristics, enrich_spec_from_def, AbilityDefinition, AttackTarget,
     CardType, Color, CombatState, CounterType, Effect, EffectAmount, EffectDuration, EffectFilter,
@@ -26,7 +27,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == name)
         .map(|(&id, _)| id)
@@ -76,7 +77,7 @@ fn test_attacking_creature_count_basic() {
     let a_id = find_object(&state, "Attacker A");
     let b_id = find_object(&state, "Attacker B");
 
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = CombatState::new(p1);
         cs.attackers.insert(a_id, AttackTarget::Player(p2));
         cs.attackers.insert(b_id, AttackTarget::Player(p2));
@@ -84,7 +85,7 @@ fn test_attacking_creature_count_basic() {
     });
 
     let hand_before = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -100,7 +101,7 @@ fn test_attacking_creature_count_basic() {
     execute_effect(&mut state, &effect, &mut ctx);
 
     let hand_after = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -112,7 +113,7 @@ fn test_attacking_creature_count_basic() {
     );
 }
 
-/// CR 508.1 — outside combat (`state.combat == None`), `AttackingCreatureCount` resolves
+/// CR 508.1 — outside combat (`state.combat() == None`), `AttackingCreatureCount` resolves
 /// to 0 (negative case).
 #[test]
 fn test_attacking_creature_count_zero_outside_combat() {
@@ -125,7 +126,7 @@ fn test_attacking_creature_count_zero_outside_combat() {
         .object(ObjectSpec::creature(p1, "Idle Bear", 2, 2))
         .build()
         .unwrap();
-    assert!(state.combat.is_none());
+    assert!(state.combat().is_none());
 
     let source = find_object(&state, "Idle Bear");
     let effect = Effect::GainLife {
@@ -139,7 +140,7 @@ fn test_attacking_creature_count_zero_outside_combat() {
     execute_effect(&mut state, &effect, &mut ctx);
 
     assert_eq!(
-        state.players.get(&p1).unwrap().life_total,
+        state.players().get(&p1).unwrap().life_total,
         40,
         "no combat active -> AttackingCreatureCount resolves to 0 -> no life gained"
     );
@@ -162,7 +163,7 @@ fn test_attacking_creature_count_ignores_nonattacking() {
         .unwrap();
 
     let attacker_id = find_object(&state, "Attacker");
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -179,7 +180,7 @@ fn test_attacking_creature_count_ignores_nonattacking() {
     execute_effect(&mut state, &effect, &mut ctx);
 
     assert_eq!(
-        state.players.get(&p1).unwrap().life_total,
+        state.players().get(&p1).unwrap().life_total,
         41,
         "only the 1 declared attacker counts, not the 2 idle creatures"
     );
@@ -216,7 +217,7 @@ fn test_tapped_creature_count_basic() {
     execute_effect(&mut state, &effect, &mut ctx);
 
     assert_eq!(
-        state.players.get(&p2).unwrap().life_total,
+        state.players().get(&p2).unwrap().life_total,
         38,
         "2 tapped creatures -> opponent loses 2 life"
     );
@@ -250,7 +251,7 @@ fn test_tapped_creature_count_controller_scope() {
     execute_effect(&mut state, &effect, &mut ctx);
 
     assert_eq!(
-        state.players.get(&p2).unwrap().life_total,
+        state.players().get(&p2).unwrap().life_total,
         40,
         "p1 (the controller) has 0 tapped creatures, so no life should be lost \
          even though p2 has 2 tapped creatures"
@@ -273,7 +274,12 @@ fn test_tapped_creature_count_excludes_phased_out() {
         .unwrap();
 
     let phased_id = find_object(&state, "Tapped Phased Out");
-    state.objects.get_mut(&phased_id).unwrap().status.phased_out = true;
+    state
+        .objects_mut()
+        .get_mut(&phased_id)
+        .unwrap()
+        .status
+        .phased_out = true;
 
     let source = find_object(&state, "Tapped Present");
     let effect = Effect::LoseLife {
@@ -287,7 +293,7 @@ fn test_tapped_creature_count_excludes_phased_out() {
     execute_effect(&mut state, &effect, &mut ctx);
 
     assert_eq!(
-        state.players.get(&p2).unwrap().life_total,
+        state.players().get(&p2).unwrap().life_total,
         39,
         "only the 1 phased-in tapped creature counts; the phased-out one is excluded"
     );
@@ -315,7 +321,7 @@ fn test_hand_size_matches_card_count_hand() {
     let source = find_object(&state, "Source Bear");
 
     // Reset to a known baseline life total for a clean assertion.
-    state.players.get_mut(&p1).unwrap().life_total = 0;
+    state.players_mut().get_mut(&p1).unwrap().life_total = 0;
 
     let effect = Effect::GainLife {
         player: PlayerTarget::Controller,
@@ -327,7 +333,7 @@ fn test_hand_size_matches_card_count_hand() {
     execute_effect(&mut state, &effect, &mut ctx);
 
     assert_eq!(
-        state.players.get(&p1).unwrap().life_total,
+        state.players().get(&p1).unwrap().life_total,
         3,
         "HandSize should count the 3 cards in p1's hand, identically to CardCount{{Hand}}"
     );
@@ -377,14 +383,14 @@ fn test_set_both_dynamic_sets_base_pt() {
     // CR 608.2h: the stored effect must be a concrete SetPowerToughness(3, 3), not
     // the dynamic placeholder (locked in at resolution).
     let dynamic_in_effects = state
-        .continuous_effects
+        .continuous_effects()
         .iter()
         .any(|e| matches!(&e.modification, LayerModification::SetBothDynamic { .. }));
     assert!(
         !dynamic_in_effects,
         "CR 608.2h: SetBothDynamic must be substituted before storage"
     );
-    let has_set_3_3 = state.continuous_effects.iter().any(|e| {
+    let has_set_3_3 = state.continuous_effects().iter().any(|e| {
         matches!(
             &e.modification,
             LayerModification::SetPowerToughness {
@@ -455,9 +461,9 @@ fn test_set_both_dynamic_locked_at_resolution() {
 
     // A new creature enters the battlefield AFTER the ability already resolved (and
     // locked X=3). CR 400.7: moving zones assigns a fresh ObjectId.
-    let (new_id, _old) = state
-        .move_object_to_zone(late_arrival_hand_id, ZoneId::Battlefield)
-        .unwrap();
+    let (new_id, _old) =
+        test_util::move_object_to_zone(&mut state, late_arrival_hand_id, ZoneId::Battlefield)
+            .unwrap();
 
     let chars = calculate_characteristics(&state, new_id).unwrap();
     assert_eq!(
@@ -504,7 +510,7 @@ fn test_set_both_dynamic_then_counter_layer_order() {
 
     // CR 613.4c: a +1/+1 counter modifies on top of the Layer-7b set value.
     state
-        .objects
+        .objects_mut()
         .get_mut(&source)
         .unwrap()
         .counters
@@ -683,7 +689,7 @@ fn test_power_based_token_count() {
     execute_effect(&mut state, &effect, &mut ctx);
 
     let token_count = state
-        .objects
+        .objects()
         .values()
         .filter(|o| {
             o.characteristics.name == "Goblin Token" && o.zone == ZoneId::Battlefield && o.is_token
@@ -726,7 +732,7 @@ fn test_keep_watch_draws_per_attacker() {
     let a = find_object(&state, "Attacker A");
     let b = find_object(&state, "Attacker B");
     let c = find_object(&state, "Attacker C");
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = CombatState::new(p1);
         cs.attackers.insert(a, AttackTarget::Player(p2));
         cs.attackers.insert(b, AttackTarget::Player(p2));
@@ -735,14 +741,14 @@ fn test_keep_watch_draws_per_attacker() {
     });
 
     let hand_before = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
     let mut ctx = EffectContext::new(p1, a, vec![]);
     execute_effect(&mut state, &effect, &mut ctx);
     let hand_after = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -776,7 +782,7 @@ fn test_throne_end_step_drains_per_tapped_creature() {
     execute_effect(&mut state, &effect, &mut ctx);
 
     assert_eq!(
-        state.players.get(&p2).unwrap().life_total,
+        state.players().get(&p2).unwrap().life_total,
         37,
         "3 tapped creatures -> opponent loses 3 life"
     );
@@ -807,7 +813,7 @@ fn test_krenko_tokens_equal_power() {
     execute_effect(&mut state, &effect, &mut ctx);
 
     let goblin_count = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.characteristics.name == "Goblin" && o.zone == ZoneId::Battlefield)
         .count();
@@ -994,7 +1000,7 @@ fn test_ashaya_pt_equals_lands_you_control() {
 
     let ashaya = find_object(&state, "Ashaya, Soul of the Wild");
     // Builder bypasses the ETB path; register the CDA static effect manually.
-    let card_id = state.objects.get(&ashaya).and_then(|o| o.card_id.clone());
+    let card_id = state.objects().get(&ashaya).and_then(|o| o.card_id.clone());
     mtg_engine::rules::replacement::register_static_continuous_effects(
         &mut state,
         ashaya,
@@ -1049,7 +1055,10 @@ fn test_multani_pt_sums_lands_and_graveyard_lands() {
 
     let multani = find_object(&state, "Multani, Yavimaya's Avatar");
     // Builder bypasses the ETB path; register the CDA static effect manually.
-    let card_id = state.objects.get(&multani).and_then(|o| o.card_id.clone());
+    let card_id = state
+        .objects()
+        .get(&multani)
+        .and_then(|o| o.card_id.clone());
     mtg_engine::rules::replacement::register_static_continuous_effects(
         &mut state,
         multani,

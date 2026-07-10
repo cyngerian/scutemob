@@ -59,5 +59,16 @@ jobs:
       - name: Clippy
         run: cargo clippy --all-targets -- -D warnings
 
+      # SR-3 seal gate. GameState's fields are pub(crate); mutable access exists
+      # only behind the engine's `test-util` feature, which its own tests/benches
+      # enable via a self dev-dependency. Under --all-targets (clippy, and
+      # `cargo test --all` below) cargo unifies features across the workspace, so
+      # test-util is ON for every crate and those steps CANNOT catch a production
+      # consumer (tui, replay-viewer, simulator, network) reaching for an escape
+      # hatch. This step does not build dev-dependencies, so test-util is off and
+      # such a consumer fails to compile. Do not drop it.
+      - name: Build workspace (proves GameState stays sealed)
+        run: cargo build --workspace
+
       - name: Run tests
         run: cargo test --all

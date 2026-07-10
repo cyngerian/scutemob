@@ -40,7 +40,7 @@ pub fn check_all(state: &GameState, prev_turn: Option<u32>) -> Vec<InvariantViol
 fn check_zone_integrity(state: &GameState, violations: &mut Vec<InvariantViolation>) {
     let mut object_zones: HashMap<ObjectId, Vec<ZoneId>> = HashMap::new();
 
-    for (zone_id, zone) in state.zones.iter() {
+    for (zone_id, zone) in state.zones().iter() {
         for obj_id in zone.object_ids() {
             object_zones.entry(obj_id).or_default().push(*zone_id);
         }
@@ -57,18 +57,18 @@ fn check_zone_integrity(state: &GameState, violations: &mut Vec<InvariantViolati
                     zones.len(),
                     zones
                 ),
-                turn_number: state.turn.turn_number,
+                turn_number: state.turn().turn_number,
             });
         }
     }
 
     // Check for objects not in any zone
-    for (obj_id, _obj) in state.objects.iter() {
+    for (obj_id, _obj) in state.objects().iter() {
         if !object_zones.contains_key(obj_id) {
             violations.push(InvariantViolation {
                 check: "zone_integrity".into(),
                 description: format!("Object {:?} not found in any zone", obj_id),
-                turn_number: state.turn.turn_number,
+                turn_number: state.turn().turn_number,
             });
         }
     }
@@ -77,13 +77,13 @@ fn check_zone_integrity(state: &GameState, violations: &mut Vec<InvariantViolati
 /// 2. ID uniqueness: no duplicate ObjectIds across all zones
 fn check_id_uniqueness(state: &GameState, violations: &mut Vec<InvariantViolation>) {
     let mut seen: HashSet<ObjectId> = HashSet::new();
-    for (_zone_id, zone) in state.zones.iter() {
+    for (_zone_id, zone) in state.zones().iter() {
         for obj_id in zone.object_ids() {
             if !seen.insert(obj_id) {
                 violations.push(InvariantViolation {
                     check: "id_uniqueness".into(),
                     description: format!("Duplicate ObjectId {:?} across zones", obj_id),
-                    turn_number: state.turn.turn_number,
+                    turn_number: state.turn().turn_number,
                 });
             }
         }
@@ -104,14 +104,14 @@ fn check_stack_consistency(state: &GameState, violations: &mut Vec<InvariantViol
         HashSet::new()
     };
 
-    let stack_obj_ids: HashSet<ObjectId> = state.stack_objects.iter().map(|so| so.id).collect();
+    let stack_obj_ids: HashSet<ObjectId> = state.stack_objects().iter().map(|so| so.id).collect();
 
     for id in &stack_zone_ids {
         if !stack_obj_ids.contains(id) {
             violations.push(InvariantViolation {
                 check: "stack_consistency".into(),
                 description: format!("Object {:?} in Stack zone but not in stack_objects", id),
-                turn_number: state.turn.turn_number,
+                turn_number: state.turn().turn_number,
             });
         }
     }
@@ -121,7 +121,7 @@ fn check_stack_consistency(state: &GameState, violations: &mut Vec<InvariantViol
             violations.push(InvariantViolation {
                 check: "stack_consistency".into(),
                 description: format!("Object {:?} in stack_objects but not in Stack zone", id),
-                turn_number: state.turn.turn_number,
+                turn_number: state.turn().turn_number,
             });
         }
     }
@@ -129,24 +129,24 @@ fn check_stack_consistency(state: &GameState, violations: &mut Vec<InvariantViol
 
 /// 5. Player consistency: active player and priority holder are alive
 fn check_player_consistency(state: &GameState, violations: &mut Vec<InvariantViolation>) {
-    let active = state.turn.active_player;
+    let active = state.turn().active_player;
     if let Ok(p) = state.player(active) {
         if p.has_lost || p.has_conceded {
             violations.push(InvariantViolation {
                 check: "player_consistency".into(),
                 description: format!("Active player {:?} has lost or conceded", active),
-                turn_number: state.turn.turn_number,
+                turn_number: state.turn().turn_number,
             });
         }
     }
 
-    if let Some(priority) = state.turn.priority_holder {
+    if let Some(priority) = state.turn().priority_holder {
         if let Ok(p) = state.player(priority) {
             if p.has_lost || p.has_conceded {
                 violations.push(InvariantViolation {
                     check: "player_consistency".into(),
                     description: format!("Priority holder {:?} has lost or conceded", priority),
-                    turn_number: state.turn.turn_number,
+                    turn_number: state.turn().turn_number,
                 });
             }
         }
@@ -157,11 +157,11 @@ fn check_player_consistency(state: &GameState, violations: &mut Vec<InvariantVio
 fn check_turn_order(state: &GameState, violations: &mut Vec<InvariantViolation>) {
     let active_players = state.active_players();
     for p in &active_players {
-        if !state.turn.turn_order.contains(p) {
+        if !state.turn().turn_order.contains(p) {
             violations.push(InvariantViolation {
                 check: "turn_order".into(),
                 description: format!("Active player {:?} not in turn_order", p),
-                turn_number: state.turn.turn_number,
+                turn_number: state.turn().turn_number,
             });
         }
     }
@@ -169,7 +169,7 @@ fn check_turn_order(state: &GameState, violations: &mut Vec<InvariantViolation>)
 
 /// 7. Object-zone agreement: object's zone field matches containing zone
 fn check_object_zone_agreement(state: &GameState, violations: &mut Vec<InvariantViolation>) {
-    for (zone_id, zone) in state.zones.iter() {
+    for (zone_id, zone) in state.zones().iter() {
         for obj_id in zone.object_ids() {
             if let Ok(obj) = state.object(obj_id) {
                 if obj.zone != *zone_id {
@@ -179,7 +179,7 @@ fn check_object_zone_agreement(state: &GameState, violations: &mut Vec<Invariant
                             "Object {:?} has zone {:?} but found in zone {:?}",
                             obj_id, obj.zone, zone_id
                         ),
-                        turn_number: state.turn.turn_number,
+                        turn_number: state.turn().turn_number,
                     });
                 }
             }
@@ -198,7 +198,7 @@ fn check_attachment_validity(state: &GameState, violations: &mut Vec<InvariantVi
                         "Object {:?} attached to {:?} which doesn't exist",
                         obj.id, target_id
                     ),
-                    turn_number: state.turn.turn_number,
+                    turn_number: state.turn().turn_number,
                 });
             }
         }
@@ -211,14 +211,15 @@ fn check_game_progression(
     prev_turn: u32,
     violations: &mut Vec<InvariantViolation>,
 ) {
-    if state.turn.turn_number < prev_turn {
+    if state.turn().turn_number < prev_turn {
         violations.push(InvariantViolation {
             check: "game_progression".into(),
             description: format!(
                 "Turn number decreased from {} to {}",
-                prev_turn, state.turn.turn_number
+                prev_turn,
+                state.turn().turn_number
             ),
-            turn_number: state.turn.turn_number,
+            turn_number: state.turn().turn_number,
         });
     }
 }
@@ -227,7 +228,7 @@ fn check_game_progression(
 ///
 /// Tokens in graveyard/exile are cleaned up by SBAs — if they remain, something is wrong.
 fn check_no_orphaned_tokens(state: &GameState, violations: &mut Vec<InvariantViolation>) {
-    for (obj_id, obj) in state.objects.iter() {
+    for (obj_id, obj) in state.objects().iter() {
         if obj.is_token && obj.zone != ZoneId::Battlefield && obj.zone != ZoneId::Stack {
             // Tokens can briefly exist on the stack (e.g., copy of a spell).
             // But in graveyard/exile/hand they should be cleaned up by SBAs.
@@ -237,7 +238,7 @@ fn check_no_orphaned_tokens(state: &GameState, violations: &mut Vec<InvariantVio
                     "Token {:?} '{}' found in zone {:?}",
                     obj_id, obj.characteristics.name, obj.zone
                 ),
-                turn_number: state.turn.turn_number,
+                turn_number: state.turn().turn_number,
             });
         }
     }

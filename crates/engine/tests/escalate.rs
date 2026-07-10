@@ -30,7 +30,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -201,9 +201,9 @@ fn test_escalate_single_mode_no_extra_cost() {
     let registry = escalate_registry();
     let mut state = build_escalate_state(p1, p2, registry, 0);
 
-    let initial_life = state.players[&p1].life_total;
+    let initial_life = state.players()[&p1].life_total;
     let initial_hand_size = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count()
@@ -211,18 +211,18 @@ fn test_escalate_single_mode_no_extra_cost() {
 
     // Pay base cost {1}{R} = 2 mana, no escalate.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Escalate Test Spell");
 
@@ -249,9 +249,13 @@ fn test_escalate_single_mode_no_extra_cost() {
     )
     .unwrap_or_else(|e| panic!("cast with escalate_modes=0 failed: {:?}", e));
 
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
     assert_eq!(
-        state.stack_objects[0]
+        state.stack_objects().len(),
+        1,
+        "spell should be on the stack"
+    );
+    assert_eq!(
+        state.stack_objects()[0]
             .additional_costs
             .iter()
             .find_map(|c| match c {
@@ -268,12 +272,12 @@ fn test_escalate_single_mode_no_extra_cost() {
 
     // Only Mode 0 (GainLife 3) should have executed. Mode 1 (DrawCards) should NOT.
     assert_eq!(
-        state.players[&p1].life_total,
+        state.players()[&p1].life_total,
         initial_life + 3,
         "CR 702.120a: Mode 0 (GainLife 3) should have executed"
     );
     let new_hand_size = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -295,9 +299,9 @@ fn test_escalate_two_modes_one_extra_cost() {
     let registry = escalate_registry();
     let mut state = build_escalate_state(p1, p2, registry, 4);
 
-    let initial_life = state.players[&p1].life_total;
+    let initial_life = state.players()[&p1].life_total;
     let initial_hand_size = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count()
@@ -305,18 +309,18 @@ fn test_escalate_two_modes_one_extra_cost() {
 
     // Pay {1}{R} + escalate {1} = {2}{R} = 3 mana total.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Escalate Test Spell");
 
@@ -343,7 +347,7 @@ fn test_escalate_two_modes_one_extra_cost() {
     .unwrap_or_else(|e| panic!("cast with escalate_modes=1 failed: {:?}", e));
 
     assert_eq!(
-        state.stack_objects[0]
+        state.stack_objects()[0]
             .additional_costs
             .iter()
             .find_map(|c| match c {
@@ -359,12 +363,12 @@ fn test_escalate_two_modes_one_extra_cost() {
 
     // Mode 0 (GainLife 3) + Mode 1 (DrawCards 2) both executed.
     assert_eq!(
-        state.players[&p1].life_total,
+        state.players()[&p1].life_total,
         initial_life + 3,
         "CR 702.120a: Mode 0 (GainLife 3) should have executed"
     );
     let new_hand_size = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -387,9 +391,9 @@ fn test_escalate_all_three_modes() {
     let registry = escalate_registry();
     let mut state = build_escalate_state(p1, p2, registry, 4);
 
-    let initial_life = state.players[&p1].life_total;
+    let initial_life = state.players()[&p1].life_total;
     let initial_hand_size = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count()
@@ -397,18 +401,18 @@ fn test_escalate_all_three_modes() {
 
     // Pay {1}{R} + escalate×2 = {3}{R} = 4 mana total.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Escalate Test Spell");
 
@@ -435,7 +439,7 @@ fn test_escalate_all_three_modes() {
     .unwrap_or_else(|e| panic!("cast with escalate_modes=2 failed: {:?}", e));
 
     assert_eq!(
-        state.stack_objects[0]
+        state.stack_objects()[0]
             .additional_costs
             .iter()
             .find_map(|c| match c {
@@ -452,12 +456,12 @@ fn test_escalate_all_three_modes() {
     // Mode 0 (GainLife 3) + Mode 1 (DrawCards 2) + Mode 2 (DealDamage 2 to self).
     // Net life: +3 from Mode 0, -2 from Mode 2 = net +1.
     assert_eq!(
-        state.players[&p1].life_total,
+        state.players()[&p1].life_total,
         initial_life + 3 - 2,
         "CR 702.120a: Mode 0 (+3 life) and Mode 2 (-2 life) should both have executed"
     );
     let new_hand_size = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -502,18 +506,18 @@ fn test_escalate_insufficient_mana_rejected() {
     // Only provide {1}{R} + {1} (enough for 1 extra mode), but request escalate_modes=2
     // which needs {1}{R} + {1} + {1} = {3}{R} total.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2); // only enough for base + 1× escalate
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Escalate Test Spell");
 
@@ -571,12 +575,12 @@ fn test_escalate_no_keyword_rejected() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 5);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Plain Sorcery");
 
@@ -627,18 +631,18 @@ fn test_escalate_modes_paid_on_stack() {
 
     // Pay for escalate_modes=1: {1}{R} + {1} = {2}{R}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Escalate Test Spell");
 
@@ -665,12 +669,12 @@ fn test_escalate_modes_paid_on_stack() {
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
 
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "exactly one object should be on the stack"
     );
     assert_eq!(
-        state.stack_objects[0]
+        state.stack_objects()[0]
             .additional_costs
             .iter()
             .find_map(|c| match c {
@@ -682,7 +686,7 @@ fn test_escalate_modes_paid_on_stack() {
         "CR 702.120a: escalate_modes_paid must equal the escalate_modes requested during casting"
     );
     assert!(
-        !state.stack_objects[0]
+        !state.stack_objects()[0]
             .additional_costs
             .iter()
             .any(|c| matches!(c, AdditionalCost::Entwine)),
@@ -702,9 +706,9 @@ fn test_escalate_modes_exceed_available_clamped() {
     let registry = escalate_registry();
     let mut state = build_escalate_state(p1, p2, registry, 6);
 
-    let initial_life = state.players[&p1].life_total;
+    let initial_life = state.players()[&p1].life_total;
     let initial_hand_size = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count()
@@ -713,18 +717,18 @@ fn test_escalate_modes_exceed_available_clamped() {
     // Pay for 5 extra modes (more than the 3 available), but pay enough mana:
     // base {1}{R} + escalate×5 = {6}{R} = 7 mana.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 6);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Escalate Test Spell");
 
@@ -755,12 +759,12 @@ fn test_escalate_modes_exceed_available_clamped() {
 
     // Mode 0 (GainLife 3) + Mode 1 (DrawCards 2) + Mode 2 (DealDamage 2) all ran.
     assert_eq!(
-        state.players[&p1].life_total,
+        state.players()[&p1].life_total,
         initial_life + 3 - 2,
         "all 3 modes should run when escalate_modes exceeds available count"
     );
     let new_hand_size = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -784,9 +788,9 @@ fn test_escalate_modes_execute_in_printed_order() {
     let registry = escalate_registry();
     let mut state = build_escalate_state(p1, p2, registry, 6);
 
-    let initial_life = state.players[&p1].life_total;
+    let initial_life = state.players()[&p1].life_total;
     let initial_hand_size = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count()
@@ -794,18 +798,18 @@ fn test_escalate_modes_execute_in_printed_order() {
 
     // Pay {1}{R} + escalate×2 = {3}{R}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Escalate Test Spell");
 
@@ -836,12 +840,12 @@ fn test_escalate_modes_execute_in_printed_order() {
     // Mode 0: GainLife 3. Mode 1: DrawCards 2. Mode 2: DealDamage 2 to controller.
     // Net life: initial + 3 - 2 = initial + 1.
     assert_eq!(
-        state.players[&p1].life_total,
+        state.players()[&p1].life_total,
         initial_life + 1,
         "CR 702.120a: all 3 modes should apply in order: +3 life, draw 2, -2 life"
     );
     let new_hand_size = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -917,18 +921,18 @@ fn test_escalate_rejected_on_non_modal_spell() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3); // base {1} + escalate {1} extra
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Escalate No Modes");
 

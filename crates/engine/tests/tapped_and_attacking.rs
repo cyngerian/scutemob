@@ -59,20 +59,20 @@ fn test_token_enters_tapped_and_attacking() {
         .unwrap();
 
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Attacker")
         .unwrap()
         .id;
 
     // Set up combat: p(1) attacking p(2), Attacker is declared as attacking.
-    state.turn.phase = Phase::Combat;
-    state.turn.step = Step::DeclareAttackers;
+    state.turn_mut().phase = Phase::Combat;
+    state.turn_mut().step = Step::DeclareAttackers;
     let mut combat = CombatState::new(p(1));
     combat
         .attackers
         .insert(attacker_id, AttackTarget::Player(p(2)));
-    state.combat = Some(combat);
+    *state.combat_mut() = Some(combat);
 
     let effect = Effect::CreateToken {
         spec: human_token_spec_attacking(),
@@ -83,7 +83,7 @@ fn test_token_enters_tapped_and_attacking() {
 
     // Two tokens should have been created.
     let tokens: Vec<_> = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.characteristics.name == "Human" && o.is_token)
         .collect();
@@ -95,7 +95,7 @@ fn test_token_enters_tapped_and_attacking() {
     }
 
     // Both tokens should be registered as attacking p(2) in combat state.
-    let combat = state.combat.as_ref().unwrap();
+    let combat = state.combat().as_ref().unwrap();
     for token in &tokens {
         assert!(
             combat.attackers.contains_key(&token.id),
@@ -126,14 +126,14 @@ fn test_token_enters_attacking_no_combat() {
         .unwrap();
 
     let source_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Source")
         .unwrap()
         .id;
 
     // No combat active.
-    assert!(state.combat.is_none());
+    assert!(state.combat().is_none());
 
     let effect = Effect::CreateToken {
         spec: human_token_spec_attacking(),
@@ -144,7 +144,7 @@ fn test_token_enters_attacking_no_combat() {
 
     // Tokens are created (on battlefield, tapped).
     let tokens: Vec<_> = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.characteristics.name == "Human" && o.is_token)
         .collect();
@@ -157,7 +157,7 @@ fn test_token_enters_attacking_no_combat() {
     }
 
     // No combat state = no attacking registration.
-    assert!(state.combat.is_none());
+    assert!(state.combat().is_none());
 }
 
 #[test]
@@ -176,18 +176,18 @@ fn test_token_enters_attacking_source_not_attacking() {
         .unwrap();
 
     let source_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "NonAttacker")
         .unwrap()
         .id;
 
     // Combat is active but source is NOT in attackers.
-    state.turn.phase = Phase::Combat;
-    state.turn.step = Step::DeclareAttackers;
+    state.turn_mut().phase = Phase::Combat;
+    state.turn_mut().step = Step::DeclareAttackers;
     let combat = CombatState::new(p(1));
     // No attackers declared.
-    state.combat = Some(combat);
+    *state.combat_mut() = Some(combat);
 
     let effect = Effect::CreateToken {
         spec: human_token_spec_attacking(),
@@ -198,13 +198,13 @@ fn test_token_enters_attacking_source_not_attacking() {
 
     // Tokens created but not registered as attacking.
     let tokens: Vec<_> = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.characteristics.name == "Human" && o.is_token)
         .collect();
     assert_eq!(tokens.len(), 2);
 
-    let combat = state.combat.as_ref().unwrap();
+    let combat = state.combat().as_ref().unwrap();
     for token in &tokens {
         assert!(
             !combat.attackers.contains_key(&token.id),
@@ -228,19 +228,19 @@ fn test_token_enters_attacking_events_emitted() {
         .unwrap();
 
     let warrior_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Warrior")
         .unwrap()
         .id;
 
-    state.turn.phase = Phase::Combat;
-    state.turn.step = Step::DeclareAttackers;
+    state.turn_mut().phase = Phase::Combat;
+    state.turn_mut().step = Step::DeclareAttackers;
     let mut combat = CombatState::new(p(1));
     combat
         .attackers
         .insert(warrior_id, AttackTarget::Player(p(2)));
-    state.combat = Some(combat);
+    *state.combat_mut() = Some(combat);
 
     let effect = Effect::CreateToken {
         spec: TokenSpec {
@@ -287,7 +287,7 @@ fn test_last_created_permanent_after_create_token() {
         .unwrap();
 
     let equip_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Equipment")
         .unwrap()
@@ -317,14 +317,14 @@ fn test_last_created_permanent_after_create_token() {
 
     // The token should have been created.
     let germ = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Germ" && o.is_token);
     assert!(germ.is_some(), "Germ token should exist");
     let germ = germ.unwrap();
 
     // Equipment should be attached to the Germ.
-    let equip = state.objects.get(&equip_id).unwrap();
+    let equip = state.objects().get(&equip_id).unwrap();
     assert_eq!(
         equip.attached_to,
         Some(germ.id),
@@ -351,7 +351,7 @@ fn test_last_created_permanent_none() {
         .unwrap();
 
     let equip_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Equipment")
         .unwrap()
@@ -367,7 +367,7 @@ fn test_last_created_permanent_none() {
     let _events = execute_effect(&mut state, &effect, &mut ctx);
 
     // Equipment should NOT be attached (no target found).
-    let equip = state.objects.get(&equip_id).unwrap();
+    let equip = state.objects().get(&equip_id).unwrap();
     assert_eq!(
         equip.attached_to, None,
         "Equipment should not be attached when no LastCreatedPermanent"

@@ -36,7 +36,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -45,10 +45,10 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 /// Directly set the RING_BEARER designation on a creature to simulate ring-bearer assignment.
 fn set_ring_bearer(state: &mut GameState, id: ObjectId, player: PlayerId) {
-    if let Some(obj) = state.objects.get_mut(&id) {
+    if let Some(obj) = state.objects_mut().get_mut(&id) {
         obj.designations.insert(Designations::RING_BEARER);
     }
-    if let Some(ps) = state.players.get_mut(&player) {
+    if let Some(ps) = state.players_mut().get_mut(&player) {
         ps.ring_bearer_id = Some(id);
     }
 }
@@ -74,7 +74,7 @@ fn test_ring_tempts_you_basic_level_1() {
     let events = handle_ring_tempts_you(&mut state, p1).expect("ring tempts you should succeed");
 
     // Ring level should advance to 1.
-    let ps = state.players.get(&p1).unwrap();
+    let ps = state.players().get(&p1).unwrap();
     assert_eq!(
         ps.ring_level, 1,
         "ring level should be 1 after first temptation"
@@ -86,7 +86,7 @@ fn test_ring_tempts_you_basic_level_1() {
     );
 
     // RING_BEARER designation should be set.
-    let obj = state.objects.get(&creature_id).unwrap();
+    let obj = state.objects().get(&creature_id).unwrap();
     assert!(
         obj.designations.contains(Designations::RING_BEARER),
         "creature should have RING_BEARER designation"
@@ -126,7 +126,7 @@ fn test_ring_tempts_you_level_progression_capped_at_4() {
     // Tempt 4 times — levels 1, 2, 3, 4.
     for expected_level in 1u8..=4 {
         handle_ring_tempts_you(&mut state, p1).expect("ring tempts you should succeed");
-        let ps = state.players.get(&p1).unwrap();
+        let ps = state.players().get(&p1).unwrap();
         assert_eq!(
             ps.ring_level, expected_level,
             "ring level should be {}",
@@ -136,7 +136,7 @@ fn test_ring_tempts_you_level_progression_capped_at_4() {
 
     // 5th temptation — level stays at 4.
     let events = handle_ring_tempts_you(&mut state, p1).expect("ring tempts you should succeed");
-    let ps = state.players.get(&p1).unwrap();
+    let ps = state.players().get(&p1).unwrap();
     assert_eq!(
         ps.ring_level, 4,
         "ring level should be capped at 4 on 5th temptation"
@@ -164,7 +164,7 @@ fn test_ring_tempts_you_no_creatures() {
     let events = handle_ring_tempts_you(&mut state, p1).expect("ring tempts you should succeed");
 
     // Ring level should advance.
-    let ps = state.players.get(&p1).unwrap();
+    let ps = state.players().get(&p1).unwrap();
     assert_eq!(
         ps.ring_level, 1,
         "ring level should advance even with no creatures"
@@ -209,7 +209,7 @@ fn test_ring_tempts_you_rechoose_same_creature_emits_event() {
     handle_ring_tempts_you(&mut state, p1).expect("first temptation should succeed");
 
     let creature_id = find_object(&state, "Bearer");
-    let ps = state.players.get(&p1).unwrap();
+    let ps = state.players().get(&p1).unwrap();
     assert_eq!(ps.ring_bearer_id, Some(creature_id), "ring-bearer assigned");
 
     // Second temptation — same creature chosen again.
@@ -278,13 +278,13 @@ fn test_ring_bearer_blocking_restriction_greater_power() {
     let blocker_id = find_object(&state, "Big Blocker");
 
     // Set ring level and ring-bearer directly.
-    if let Some(ps) = state.players.get_mut(&p1) {
+    if let Some(ps) = state.players_mut().get_mut(&p1) {
         ps.ring_level = 1;
     }
     set_ring_bearer(&mut state, attacker_id, p1);
 
     // Set up combat with ring-bearer attacking.
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -324,12 +324,12 @@ fn test_ring_bearer_blocking_equal_power_allowed() {
     let attacker_id = find_object(&state, "Ring Bearer");
     let blocker_id = find_object(&state, "Equal Blocker");
 
-    if let Some(ps) = state.players.get_mut(&p1) {
+    if let Some(ps) = state.players_mut().get_mut(&p1) {
         ps.ring_level = 1;
     }
     set_ring_bearer(&mut state, attacker_id, p1);
 
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -369,12 +369,12 @@ fn test_ring_bearer_blocking_lesser_power_allowed() {
     let attacker_id = find_object(&state, "Ring Bearer");
     let blocker_id = find_object(&state, "Small Blocker");
 
-    if let Some(ps) = state.players.get_mut(&p1) {
+    if let Some(ps) = state.players_mut().get_mut(&p1) {
         ps.ring_level = 1;
     }
     set_ring_bearer(&mut state, attacker_id, p1);
 
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -412,7 +412,7 @@ fn test_ring_bearer_control_change_clears_designation() {
     let creature_id = find_object(&state, "Stolen Bearer");
 
     // Make p1 the ring-bearer controller.
-    if let Some(ps) = state.players.get_mut(&p1) {
+    if let Some(ps) = state.players_mut().get_mut(&p1) {
         ps.ring_level = 1;
     }
     set_ring_bearer(&mut state, creature_id, p1);
@@ -420,7 +420,7 @@ fn test_ring_bearer_control_change_clears_designation() {
     // Verify designation is set.
     assert!(
         state
-            .objects
+            .objects()
             .get(&creature_id)
             .unwrap()
             .designations
@@ -429,20 +429,20 @@ fn test_ring_bearer_control_change_clears_designation() {
     );
 
     // Simulate control change: change the creature's controller to p2.
-    if let Some(obj) = state.objects.get_mut(&creature_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&creature_id) {
         obj.controller = p2;
     }
 
     // SBA check should clear the ring-bearer.
     mtg_engine::check_and_apply_sbas(&mut state);
 
-    let ps = state.players.get(&p1).unwrap();
+    let ps = state.players().get(&p1).unwrap();
     assert_eq!(
         ps.ring_bearer_id, None,
         "ring_bearer_id should be cleared after control change"
     );
 
-    let obj = state.objects.get(&creature_id).unwrap();
+    let obj = state.objects().get(&creature_id).unwrap();
     assert!(
         !obj.designations.contains(Designations::RING_BEARER),
         "RING_BEARER designation should be cleared after control change"
@@ -464,14 +464,14 @@ fn test_ring_bearer_leaves_battlefield_clears_designation() {
 
     let creature_id = find_object(&state, "Dying Bearer");
 
-    if let Some(ps) = state.players.get_mut(&p1) {
+    if let Some(ps) = state.players_mut().get_mut(&p1) {
         ps.ring_level = 1;
     }
     set_ring_bearer(&mut state, creature_id, p1);
 
     assert!(
         state
-            .objects
+            .objects()
             .get(&creature_id)
             .unwrap()
             .designations
@@ -480,14 +480,14 @@ fn test_ring_bearer_leaves_battlefield_clears_designation() {
     );
 
     // Move the creature to the graveyard to simulate death.
-    if let Some(obj) = state.objects.get_mut(&creature_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&creature_id) {
         obj.zone = ZoneId::Graveyard(p1);
     }
 
     // SBA check should clear the ring-bearer (not on battlefield).
     mtg_engine::check_and_apply_sbas(&mut state);
 
-    let ps = state.players.get(&p1).unwrap();
+    let ps = state.players().get(&p1).unwrap();
     assert_eq!(
         ps.ring_bearer_id, None,
         "ring_bearer_id should be None after creature leaves battlefield"
@@ -517,24 +517,24 @@ fn test_ring_tempts_you_multiplayer_independence() {
 
     // p1 should be at level 1.
     assert_eq!(
-        state.players.get(&p1).unwrap().ring_level,
+        state.players().get(&p1).unwrap().ring_level,
         1,
         "p1 ring_level"
     );
     // p2 should be at level 2.
     assert_eq!(
-        state.players.get(&p2).unwrap().ring_level,
+        state.players().get(&p2).unwrap().ring_level,
         2,
         "p2 ring_level"
     );
     // p3 and p4 should be at level 0 (untouched).
     assert_eq!(
-        state.players.get(&p3).unwrap().ring_level,
+        state.players().get(&p3).unwrap().ring_level,
         0,
         "p3 ring_level should be 0"
     );
     assert_eq!(
-        state.players.get(&p4).unwrap().ring_level,
+        state.players().get(&p4).unwrap().ring_level,
         0,
         "p4 ring_level should be 0"
     );
@@ -543,15 +543,15 @@ fn test_ring_tempts_you_multiplayer_independence() {
     let p1_bearer = find_object(&state, "P1 Bearer");
     let p2_bearer = find_object(&state, "P2 Bearer");
     assert_eq!(
-        state.players.get(&p1).unwrap().ring_bearer_id,
+        state.players().get(&p1).unwrap().ring_bearer_id,
         Some(p1_bearer)
     );
     assert_eq!(
-        state.players.get(&p2).unwrap().ring_bearer_id,
+        state.players().get(&p2).unwrap().ring_bearer_id,
         Some(p2_bearer)
     );
-    assert_eq!(state.players.get(&p3).unwrap().ring_bearer_id, None);
-    assert_eq!(state.players.get(&p4).unwrap().ring_bearer_id, None);
+    assert_eq!(state.players().get(&p3).unwrap().ring_bearer_id, None);
+    assert_eq!(state.players().get(&p4).unwrap().ring_bearer_id, None);
 }
 
 /// CR 701.54c level 2: When ring_level >= 2 and the ring-bearer attacks,
@@ -574,7 +574,7 @@ fn test_ring_level_2_loot_trigger_fires_on_attack() {
     let attacker_id = find_object(&state, "Ring Bearer");
 
     // Set ring level to 2 and assign ring-bearer.
-    if let Some(ps) = state.players.get_mut(&p1) {
+    if let Some(ps) = state.players_mut().get_mut(&p1) {
         ps.ring_level = 2;
     }
     set_ring_bearer(&mut state, attacker_id, p1);
@@ -596,7 +596,7 @@ fn test_ring_level_2_loot_trigger_fires_on_attack() {
         .iter()
         .any(|e| matches!(e, GameEvent::AbilityTriggered { controller, .. } if *controller == p1));
     assert!(
-        has_ring_trigger || new_state.stack_objects.iter().any(|so| {
+        has_ring_trigger || new_state.stack_objects().iter().any(|so| {
             matches!(so.kind, mtg_engine::StackObjectKind::RingAbility { controller, .. } if controller == p1)
         }),
         "RingAbility trigger should be queued when ring-bearer (level 2+) attacks"
@@ -624,12 +624,12 @@ fn test_non_ring_bearer_no_blocking_restriction() {
     let blocker_id = find_object(&state, "Big Blocker");
 
     // p1 has ring level 1 but NO ring-bearer set — no restriction applies.
-    if let Some(ps) = state.players.get_mut(&p1) {
+    if let Some(ps) = state.players_mut().get_mut(&p1) {
         ps.ring_level = 1;
     }
     // NOTE: deliberately NOT calling set_ring_bearer.
 
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -653,7 +653,7 @@ fn test_non_ring_bearer_no_blocking_restriction() {
 
 fn is_on_battlefield(state: &GameState, name: &str) -> bool {
     state
-        .objects
+        .objects()
         .values()
         .any(|obj| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
 }
@@ -690,13 +690,13 @@ fn test_ring_level3_sacrifice_at_eoc() {
     let bystander_id = find_object(&state, "Innocent Bystander");
 
     // Set ring level 3 and assign ring-bearer.
-    if let Some(ps) = state.players.get_mut(&p1) {
+    if let Some(ps) = state.players_mut().get_mut(&p1) {
         ps.ring_level = 3;
     }
     set_ring_bearer(&mut state, bearer_id, p1);
 
     // Set up combat with ring-bearer attacking.
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = CombatState::new(p1);
         cs.attackers.insert(bearer_id, AttackTarget::Player(p2));
         cs
@@ -722,7 +722,7 @@ fn test_ring_level3_sacrifice_at_eoc() {
 
     // The ring_block_sacrifice_at_eoc flag should be set on the SPECIFIC blocker.
     let blocker_obj = state
-        .objects
+        .objects()
         .get(&blocker_id)
         .expect("Blocker should still exist on battlefield");
     assert!(
@@ -732,7 +732,7 @@ fn test_ring_level3_sacrifice_at_eoc() {
 
     // The innocent bystander's flag should NOT be set — only the blocker is tagged.
     let bystander_obj = state
-        .objects
+        .objects()
         .get(&bystander_id)
         .expect("Innocent Bystander should still exist");
     assert!(
@@ -742,7 +742,7 @@ fn test_ring_level3_sacrifice_at_eoc() {
 
     // The ring-bearer (attacker) flag should also NOT be set.
     let bearer_obj = state
-        .objects
+        .objects()
         .get(&bearer_id)
         .expect("Ring Bearer should still exist");
     assert!(
@@ -782,13 +782,13 @@ fn test_ring_level4_combat_damage_trigger_fires() {
     let bearer_id = find_object(&state, "Ring Bearer");
 
     // Set ring level 4 and assign ring-bearer.
-    if let Some(ps) = state.players.get_mut(&p1) {
+    if let Some(ps) = state.players_mut().get_mut(&p1) {
         ps.ring_level = 4;
     }
     set_ring_bearer(&mut state, bearer_id, p1);
 
     // Set up combat state with ring-bearer attacking P2 (no blockers).
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = CombatState::new(p1);
         cs.attackers.insert(bearer_id, AttackTarget::Player(p2));
         cs

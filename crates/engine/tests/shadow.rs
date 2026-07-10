@@ -22,7 +22,7 @@ use mtg_engine::{
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -53,7 +53,7 @@ fn test_702_28_shadow_creature_cannot_be_blocked_by_non_shadow() {
     let blocker_id = find_object(&state, "Normal Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -97,7 +97,7 @@ fn test_702_28_shadow_creature_can_be_blocked_by_shadow() {
     let blocker_id = find_object(&state, "Shadow Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -142,7 +142,7 @@ fn test_702_28_non_shadow_creature_cannot_be_blocked_by_shadow() {
     let blocker_id = find_object(&state, "Shadow Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -182,7 +182,7 @@ fn test_702_28_non_shadow_can_block_non_shadow() {
     let blocker_id = find_object(&state, "Normal Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -233,7 +233,7 @@ fn test_702_28_shadow_plus_flying_both_must_be_satisfied() {
     let blocker_id = find_object(&state, "Shadow Ground Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -283,7 +283,7 @@ fn test_702_28_shadow_plus_flying_satisfied_by_shadow_flying() {
     let blocker_id = find_object(&state, "Shadow Flying Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -334,7 +334,7 @@ fn test_702_28_shadow_plus_flying_satisfied_by_shadow_reach() {
     let blocker_id = find_object(&state, "Shadow Reach Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs

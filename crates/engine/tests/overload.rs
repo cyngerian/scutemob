@@ -32,7 +32,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -45,7 +45,7 @@ fn find_object_in_zone(
     zone: ZoneId,
 ) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -193,12 +193,12 @@ fn test_702_96_normal_cast_targets_single() {
 
     // Give p1 {R} for normal cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Mock Vandalblast");
     let sol_ring_id = find_object(&state, "Sol Ring");
@@ -228,7 +228,7 @@ fn test_702_96_normal_cast_targets_single() {
 
     // Spell on stack — NOT overloaded.
     assert!(
-        !state.stack_objects[0].was_overloaded,
+        !state.stack_objects()[0].was_overloaded,
         "CR 702.96a: normal cast should not set was_overloaded"
     );
 
@@ -304,10 +304,10 @@ fn test_702_96_overloaded_cast_destroys_all_matching() {
         .unwrap();
 
     // Give p1 {4}{R} for overload cost.
-    let pool = &mut state.players.get_mut(&p1).unwrap().mana_pool;
+    let pool = &mut state.players_mut().get_mut(&p1).unwrap().mana_pool;
     pool.add(ManaColor::Red, 1);
     pool.add(ManaColor::Colorless, 4);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Mock Vandalblast");
 
@@ -336,16 +336,16 @@ fn test_702_96_overloaded_cast_destroys_all_matching() {
 
     // Stack object: was_overloaded = true, targets empty.
     assert!(
-        state.stack_objects[0].was_overloaded,
+        state.stack_objects()[0].was_overloaded,
         "CR 702.96a: was_overloaded should be true on stack object"
     );
     assert!(
-        state.stack_objects[0].targets.is_empty(),
+        state.stack_objects()[0].targets.is_empty(),
         "CR 702.96b: overloaded spell should have no targets"
     );
 
     // Verify mana consumed: {4}{R} = 5 total.
-    let pool = &state.players[&p1].mana_pool;
+    let pool = &state.players()[&p1].mana_pool;
     assert_eq!(
         pool.white + pool.blue + pool.black + pool.red + pool.green + pool.colorless,
         0,
@@ -406,10 +406,10 @@ fn test_702_96_overloaded_no_targets_cannot_fizzle() {
         .unwrap();
 
     // Give p1 {4}{R} for overload cost. No artifacts on battlefield.
-    let pool = &mut state.players.get_mut(&p1).unwrap().mana_pool;
+    let pool = &mut state.players_mut().get_mut(&p1).unwrap().mana_pool;
     pool.add(ManaColor::Red, 1);
     pool.add(ManaColor::Colorless, 4);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Mock Vandalblast");
 
@@ -494,10 +494,10 @@ fn test_702_96_overloaded_bypasses_hexproof() {
         .unwrap();
 
     // Give p1 {4}{R} for overload cost.
-    let pool = &mut state.players.get_mut(&p1).unwrap().mana_pool;
+    let pool = &mut state.players_mut().get_mut(&p1).unwrap().mana_pool;
     pool.add(ManaColor::Red, 1);
     pool.add(ManaColor::Colorless, 4);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Mock Vandalblast");
 
@@ -595,7 +595,7 @@ fn test_702_96_alternative_cost_exclusivity_with_evoke() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let card_id = find_object(&state, "Weird Card");
 
     // Attempt to cast with both evoke AND overload — must fail.
@@ -654,12 +654,12 @@ fn test_702_96_pays_overload_cost() {
 
     // Only give p1 {R} (normal cost), not {4}{R} (overload cost).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Mock Vandalblast");
 
@@ -723,10 +723,10 @@ fn test_702_96_no_targets_allowed_when_overloaded() {
         .build()
         .unwrap();
 
-    let pool = &mut state.players.get_mut(&p1).unwrap().mana_pool;
+    let pool = &mut state.players_mut().get_mut(&p1).unwrap().mana_pool;
     pool.add(ManaColor::Red, 1);
     pool.add(ManaColor::Colorless, 4);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Mock Vandalblast");
     let artifact_id = find_object(&state, "Sol Ring");
@@ -803,12 +803,12 @@ fn test_702_96_condition_was_overloaded_false_when_not_overloaded() {
 
     // Give p1 only {R} (normal cost).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Mock Vandalblast");
     let sol_ring_id = find_object(&state, "Sol Ring");
@@ -838,7 +838,7 @@ fn test_702_96_condition_was_overloaded_false_when_not_overloaded() {
 
     // was_overloaded is false.
     assert!(
-        !state.stack_objects[0].was_overloaded,
+        !state.stack_objects()[0].was_overloaded,
         "CR 702.96a: normal cast should have was_overloaded = false"
     );
 
@@ -959,15 +959,15 @@ fn test_702_96_commander_tax_applies_to_overload_cost() {
 
     // Pre-set commander tax to 1 (cast once previously → next cast adds +{2}).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .commander_tax
         .insert(cmd_id.clone(), 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_obj_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Command(p1))
         .unwrap()
         .object_ids()
@@ -1018,18 +1018,18 @@ fn test_702_96_commander_tax_applies_to_overload_cost() {
 
     // Verify spell is on stack with was_overloaded = true.
     assert!(
-        new_state.stack_objects[0].was_overloaded,
+        new_state.stack_objects()[0].was_overloaded,
         "CR 702.96a: stack object should have was_overloaded = true"
     );
 
     // Verify all 7 mana was consumed ({4}{R} overload + {2} tax = {6}{R}).
     assert!(
-        new_state.players[&p1].mana_pool.is_empty(),
+        new_state.players()[&p1].mana_pool.is_empty(),
         "CR 118.9d: all mana ({{4}}{{R}} overload + {{2}} commander tax = {{6}}{{R}}) should be consumed"
     );
 
     // Verify commander tax incremented to 2.
-    let tax_after = new_state.players[&p1]
+    let tax_after = new_state.players()[&p1]
         .commander_tax
         .get(&cmd_id)
         .copied()
@@ -1128,15 +1128,15 @@ fn test_702_96_commander_tax_overload_insufficient_mana_rejected() {
 
     // Pre-set commander tax to 1 (one prior cast → +{2} on next cast).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .commander_tax
         .insert(cmd_id.clone(), 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_obj_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Command(p1))
         .unwrap()
         .object_ids()
@@ -1247,10 +1247,10 @@ fn test_702_96_overloaded_hits_all_opponents_multiplayer() {
         .unwrap();
 
     // Give p1 {4}{R} for overload cost.
-    let pool = &mut state.players.get_mut(&p1).unwrap().mana_pool;
+    let pool = &mut state.players_mut().get_mut(&p1).unwrap().mana_pool;
     pool.add(ManaColor::Red, 1);
     pool.add(ManaColor::Colorless, 4);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Mock Vandalblast");
 
@@ -1278,7 +1278,7 @@ fn test_702_96_overloaded_hits_all_opponents_multiplayer() {
     .unwrap_or_else(|e| panic!("4-player overloaded CastSpell failed: {:?}", e));
 
     assert!(
-        state.stack_objects[0].was_overloaded,
+        state.stack_objects()[0].was_overloaded,
         "CR 702.96a: was_overloaded should be true in 4-player game"
     );
 

@@ -32,7 +32,7 @@ fn p(n: u64) -> PlayerId {
 /// Count battlefield permanents controlled by the given player with the given name.
 fn count_on_battlefield(state: &mtg_engine::GameState, player: PlayerId, name: &str) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|o| {
             o.zone == ZoneId::Battlefield
@@ -45,7 +45,7 @@ fn count_on_battlefield(state: &mtg_engine::GameState, player: PlayerId, name: &
 /// Count tokens on the battlefield controlled by the given player.
 fn count_tokens_on_battlefield(state: &mtg_engine::GameState, player: PlayerId) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Battlefield && o.controller == player && o.is_token)
         .count()
@@ -54,7 +54,7 @@ fn count_tokens_on_battlefield(state: &mtg_engine::GameState, player: PlayerId) 
 /// Count cards in the given player's hand.
 fn hand_count(state: &mtg_engine::GameState, player: PlayerId) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(player))
         .count()
@@ -259,14 +259,14 @@ fn setup_gift_card_state() -> (
 
     let mut state = state;
     {
-        let ps = state.players.get_mut(&p1).unwrap();
+        let ps = state.players_mut().get_mut(&p1).unwrap();
         ps.mana_pool.add(ManaColor::Colorless, 1);
         ps.mana_pool.add(ManaColor::Blue, 1);
     }
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Gift Card Instant")
         .map(|(id, _)| *id)
@@ -313,14 +313,14 @@ fn setup_gift_creature_state() -> (
 
     let mut state = state;
     {
-        let ps = state.players.get_mut(&p1).unwrap();
+        let ps = state.players_mut().get_mut(&p1).unwrap();
         ps.mana_pool.add(ManaColor::Colorless, 2);
         ps.mana_pool.add(ManaColor::Green, 1);
     }
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Gift Creature")
         .map(|(id, _)| *id)
@@ -369,17 +369,17 @@ fn cast_spell_with_gift(
 #[test]
 fn test_gift_not_paid_instant() {
     let (state, p1, p2, card_id) = setup_gift_card_state();
-    let initial_p1_life = state.players[&p1].life_total;
+    let initial_p1_life = state.players()[&p1].life_total;
     let initial_p2_hand = hand_count(&state, p2);
 
     // Cast without paying gift (gift_opponent = None).
     let (state, _) = cast_spell_with_gift(state, p1, card_id, None).unwrap();
 
     // Spell is on the stack.
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on stack");
+    assert_eq!(state.stack_objects().len(), 1, "spell should be on stack");
 
     // gift_was_given should be false on the StackObject.
-    let stack_obj = &state.stack_objects[0];
+    let stack_obj = &state.stack_objects()[0];
     assert!(
         !stack_obj
             .additional_costs
@@ -393,7 +393,7 @@ fn test_gift_not_paid_instant() {
 
     // Stack empty.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after resolution"
     );
 
@@ -406,7 +406,7 @@ fn test_gift_not_paid_instant() {
 
     // Condition::GiftWasGiven = false → controller gains 1 life (else branch).
     assert_eq!(
-        state.players[&p1].life_total,
+        state.players()[&p1].life_total,
         initial_p1_life + 1,
         "CR 702.174b: Condition::GiftWasGiven=false → controller gains 1 life (else branch)"
     );
@@ -417,15 +417,15 @@ fn test_gift_not_paid_instant() {
 #[test]
 fn test_gift_basic_instant_card_draw() {
     let (state, p1, p2, card_id) = setup_gift_card_state();
-    let initial_p1_life = state.players[&p1].life_total;
+    let initial_p1_life = state.players()[&p1].life_total;
     let initial_p2_hand = hand_count(&state, p2);
 
     // Cast choosing p2 as the gift recipient.
     let (state, _) = cast_spell_with_gift(state, p1, card_id, Some(p2)).unwrap();
 
     // Spell is on the stack with gift_was_given=true.
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on stack");
-    let stack_obj = &state.stack_objects[0];
+    assert_eq!(state.stack_objects().len(), 1, "spell should be on stack");
+    let stack_obj = &state.stack_objects()[0];
     assert!(
         stack_obj
             .additional_costs
@@ -458,7 +458,7 @@ fn test_gift_basic_instant_card_draw() {
 
     // Stack empty.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after resolution"
     );
 
@@ -471,7 +471,7 @@ fn test_gift_basic_instant_card_draw() {
 
     // Condition::GiftWasGiven = true → controller gains 2 life (if_true branch).
     assert_eq!(
-        state.players[&p1].life_total,
+        state.players()[&p1].life_total,
         initial_p1_life + 2,
         "CR 702.174b + Condition::GiftWasGiven=true → controller gains 2 life (if_true branch)"
     );
@@ -488,7 +488,7 @@ fn test_gift_permanent_etb_trigger() {
 
     // Spell is on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "spell should be on stack after cast"
     );
@@ -505,7 +505,7 @@ fn test_gift_permanent_etb_trigger() {
 
     // GiftETBTrigger should now be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.174b: GiftETBTrigger should be on stack after creature enters"
     );
@@ -515,7 +515,7 @@ fn test_gift_permanent_etb_trigger() {
 
     // Stack empty.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after trigger resolves"
     );
 
@@ -548,7 +548,7 @@ fn test_gift_permanent_not_paid() {
 
     // No GiftETBTrigger should be on the stack.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "CR 702.174b: no GiftETBTrigger when gift cost was not paid"
     );
 
@@ -601,15 +601,15 @@ fn test_gift_rejected_without_keyword() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Plain Instant Gift")
         .map(|(id, _)| *id)
@@ -655,15 +655,15 @@ fn test_gift_multiplayer_choose_specific_opponent() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Gift Treasure Instant")
         .map(|(id, _)| *id)
@@ -757,12 +757,12 @@ fn test_gift_treasure_doubled_when_recipient_controls_doubler() {
 
     let mut state = state;
     let doubler_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Gift Doubler Test recipient")
         .map(|(id, _)| *id)
         .expect("doubler should be on battlefield");
-    let registry = state.card_registry.clone();
+    let registry = state.card_registry().clone();
     mtg_engine::rules::replacement::register_permanent_replacement_abilities(
         &mut state,
         doubler_id,
@@ -771,15 +771,15 @@ fn test_gift_treasure_doubled_when_recipient_controls_doubler() {
         &registry,
     );
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Gift Treasure Instant")
         .map(|(id, _)| *id)
@@ -835,12 +835,12 @@ fn test_gift_treasure_not_doubled_when_giver_controls_doubler() {
 
     let mut state = state;
     let doubler_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Gift Doubler Test giver")
         .map(|(id, _)| *id)
         .expect("doubler should be on battlefield");
-    let registry = state.card_registry.clone();
+    let registry = state.card_registry().clone();
     mtg_engine::rules::replacement::register_permanent_replacement_abilities(
         &mut state,
         doubler_id,
@@ -849,15 +849,15 @@ fn test_gift_treasure_not_doubled_when_giver_controls_doubler() {
         &registry,
     );
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Gift Treasure Instant")
         .map(|(id, _)| *id)
@@ -882,7 +882,7 @@ fn test_gift_treasure_not_doubled_when_giver_controls_doubler() {
 #[test]
 fn test_gift_instant_both_effects_resolve() {
     let (state, p1, p2, card_id) = setup_gift_card_state();
-    let initial_p1_life = state.players[&p1].life_total;
+    let initial_p1_life = state.players()[&p1].life_total;
     let initial_p2_hand = hand_count(&state, p2);
 
     // Cast with gift paid.
@@ -900,7 +900,7 @@ fn test_gift_instant_both_effects_resolve() {
     );
     // Condition::GiftWasGiven=true → p1 gains 2 life (main spell effect).
     assert_eq!(
-        state.players[&p1].life_total,
+        state.players()[&p1].life_total,
         initial_p1_life + 2,
         "CR 702.174j: after resolution, controller should have gained 2 life (main effect)"
     );

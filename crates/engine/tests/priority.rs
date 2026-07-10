@@ -16,7 +16,7 @@ fn test_priority_active_player_gets_priority_first() {
         .build()
         .unwrap();
 
-    assert_eq!(state.turn.priority_holder, Some(PlayerId(2)));
+    assert_eq!(state.turn().priority_holder, Some(PlayerId(2)));
 }
 
 #[test]
@@ -28,22 +28,22 @@ fn test_priority_apnap_order() {
         .unwrap();
 
     // Player 1 (active) has priority
-    assert_eq!(state.turn.priority_holder, Some(PlayerId(1)));
+    assert_eq!(state.turn().priority_holder, Some(PlayerId(1)));
 
     // Player 1 passes → player 2 gets priority
     let (state, events) = pass(state, PlayerId(1)).unwrap();
     assert!(events
         .iter()
         .any(|e| matches!(e, GameEvent::PriorityPassed { player } if *player == PlayerId(1))));
-    assert_eq!(state.turn.priority_holder, Some(PlayerId(2)));
+    assert_eq!(state.turn().priority_holder, Some(PlayerId(2)));
 
     // Player 2 passes → player 3 gets priority
     let (state, _) = pass(state, PlayerId(2)).unwrap();
-    assert_eq!(state.turn.priority_holder, Some(PlayerId(3)));
+    assert_eq!(state.turn().priority_holder, Some(PlayerId(3)));
 
     // Player 3 passes → player 4 gets priority
     let (state, _) = pass(state, PlayerId(3)).unwrap();
-    assert_eq!(state.turn.priority_holder, Some(PlayerId(4)));
+    assert_eq!(state.turn().priority_holder, Some(PlayerId(4)));
 }
 
 #[test]
@@ -65,7 +65,7 @@ fn test_priority_all_pass_step_advances() {
         .any(|e| matches!(e, GameEvent::AllPlayersPassed)));
 
     // Should have advanced to the next step
-    assert_ne!(state.turn.step, Step::PreCombatMain);
+    assert_ne!(state.turn().step, Step::PreCombatMain);
 }
 
 #[test]
@@ -108,12 +108,12 @@ fn test_priority_eliminated_player_skipped() {
     // Player 1 passes → should skip player 2 → player 3
     // Need to get to a state where player 1 has priority
     // After concede, if player 1 still has priority:
-    let holder = state.turn.priority_holder.unwrap();
+    let holder = state.turn().priority_holder.unwrap();
     assert_eq!(holder, PlayerId(1)); // Player 1 should still have priority
 
     let (state, _) = pass(state, PlayerId(1)).unwrap();
     // Should skip player 2 (conceded) → player 3
-    assert_eq!(state.turn.priority_holder, Some(PlayerId(3)));
+    assert_eq!(state.turn().priority_holder, Some(PlayerId(3)));
 }
 
 #[test]
@@ -125,8 +125,8 @@ fn test_priority_no_priority_during_untap() {
     let (state, events) = mtg_engine::rules::engine::start_game(state).unwrap();
 
     // Should have advanced past Untap
-    assert_ne!(state.turn.step, Step::Untap);
-    assert_eq!(state.turn.step, Step::Upkeep);
+    assert_ne!(state.turn().step, Step::Untap);
+    assert_eq!(state.turn().step, Step::Upkeep);
 
     // Upkeep step change should appear in events
     assert!(events.iter().any(|e| matches!(
@@ -153,7 +153,7 @@ fn test_priority_no_priority_during_cleanup() {
     let (state, _) = pass(state, PlayerId(4)).unwrap();
 
     // Should have auto-advanced past Cleanup to the next turn's Upkeep
-    assert_ne!(state.turn.step, Step::Cleanup);
+    assert_ne!(state.turn().step, Step::Cleanup);
     // Next turn starts
-    assert_eq!(state.turn.turn_number, 2);
+    assert_eq!(state.turn().turn_number, 2);
 }

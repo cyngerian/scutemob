@@ -22,7 +22,7 @@ use mtg_engine::{
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -208,12 +208,12 @@ fn test_prowess_basic_noncreature_spell_gives_plus_one() {
 
     // Give p1 red mana and priority.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let creature_id = find_object(&state, "Swiftspear");
     let spell_id = find_object(&state, "Lightning Bolt");
@@ -261,7 +261,7 @@ fn test_prowess_basic_noncreature_spell_gives_plus_one() {
 
     // Stack has 2 items: the spell + prowess trigger.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "CR 702.108a: stack should have spell + prowess trigger"
     );
@@ -320,18 +320,18 @@ fn test_prowess_does_not_trigger_on_creature_spell() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Grizzly Bears");
 
@@ -359,7 +359,7 @@ fn test_prowess_does_not_trigger_on_creature_spell() {
 
     // Only 1 item on stack (the creature spell — no prowess trigger).
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.108a: creature spell should not trigger prowess"
     );
@@ -409,12 +409,12 @@ fn test_prowess_does_not_trigger_on_artifact_creature_spell() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 4);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Copper Gnomes");
 
@@ -442,7 +442,7 @@ fn test_prowess_does_not_trigger_on_artifact_creature_spell() {
 
     // Only 1 item on stack — no prowess trigger.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.108a: artifact creature should not trigger prowess"
     );
@@ -490,12 +490,12 @@ fn test_prowess_does_not_trigger_on_opponent_spell() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let spell_id = find_object(&state, "Lightning Bolt");
 
@@ -523,7 +523,7 @@ fn test_prowess_does_not_trigger_on_opponent_spell() {
 
     // Only p2's spell on the stack — p1's prowess creature should NOT trigger.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.108a: opponent spell should not trigger p1's prowess creature"
     );
@@ -570,12 +570,12 @@ fn test_prowess_resolves_independently_of_triggering_spell() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let creature_id = find_object(&state, "Swiftspear");
     let spell_id = find_object(&state, "Lightning Bolt");
@@ -604,7 +604,7 @@ fn test_prowess_resolves_independently_of_triggering_spell() {
     .unwrap();
 
     // Stack: Lightning Bolt (bottom) + Prowess trigger (top).
-    assert_eq!(state.stack_objects.len(), 2);
+    assert_eq!(state.stack_objects().len(), 2);
 
     // Both pass — prowess trigger resolves first.
     let (state, _) = pass_all(state, &[p1, p2]);
@@ -624,7 +624,7 @@ fn test_prowess_resolves_independently_of_triggering_spell() {
 
     // Lightning Bolt is still on the stack (not yet resolved).
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.108a: Lightning Bolt should still be on stack after prowess resolves"
     );
@@ -665,12 +665,12 @@ fn test_prowess_until_end_of_turn_expires() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let creature_id = find_object(&state, "Swiftspear");
     let spell_id = find_object(&state, "Lightning Bolt");
@@ -774,12 +774,12 @@ fn test_prowess_multiple_spells_stack() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let creature_id = find_object(&state, "Swiftspear");
     let bolt_id = find_object(&state, "Lightning Bolt");
@@ -808,7 +808,7 @@ fn test_prowess_multiple_spells_stack() {
     .unwrap();
 
     // Stack has 2 items: Lightning Bolt + prowess trigger.
-    assert_eq!(state.stack_objects.len(), 2);
+    assert_eq!(state.stack_objects().len(), 2);
 
     // Both pass — prowess trigger 1 resolves first, giving +1/+1.
     let (state, _) = pass_all(state, &[p1, p2]);
@@ -818,7 +818,7 @@ fn test_prowess_multiple_spells_stack() {
     assert_eq!(chars.power, Some(2), "after first prowess: 1+1=2");
     assert_eq!(chars.toughness, Some(3), "after first prowess: 2+1=3");
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "Lightning Bolt still on stack"
     );
@@ -848,7 +848,7 @@ fn test_prowess_multiple_spells_stack() {
     .unwrap();
 
     // Stack: Lightning Bolt + Shock + prowess trigger 2 = 3 items.
-    assert_eq!(state.stack_objects.len(), 3);
+    assert_eq!(state.stack_objects().len(), 3);
 
     // Both pass — prowess trigger 2 resolves, giving another +1/+1.
     let (state, _) = pass_all(state, &[p1, p2]);
@@ -913,12 +913,12 @@ fn test_prowess_multiplayer_only_controllers_creatures_trigger() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let p1_creature_id = find_object(&state, "P1 Swiftspear");
     let spell_id = find_object(&state, "Lightning Bolt");
@@ -948,7 +948,7 @@ fn test_prowess_multiplayer_only_controllers_creatures_trigger() {
     // Only 2 items on stack: spell + p1's prowess trigger.
     // p3's prowess creature should NOT trigger (different controller).
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "CR 702.108a: only p1's prowess should trigger (spell + 1 trigger)"
     );

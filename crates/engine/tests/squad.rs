@@ -33,7 +33,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_objects_on_battlefield(state: &mtg_engine::GameState, name: &str) -> Vec<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .filter(|(_, obj)| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
         .map(|(id, _)| *id)
@@ -169,17 +169,17 @@ fn setup_squad_state(extra_generic: u32) -> (mtg_engine::GameState, PlayerId, Pl
         .unwrap();
 
     let mut state = state;
-    let ps = state.players.get_mut(&p1).unwrap();
+    let ps = state.players_mut().get_mut(&p1).unwrap();
     // Base cost: {3}{W}
     ps.mana_pool.add(ManaColor::Colorless, 3);
     ps.mana_pool.add(ManaColor::White, 1);
     // Extra colorless for squad payments
     ps.mana_pool.add(ManaColor::Colorless, extra_generic);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // The GameStateBuilder creates the object; we need to find it by name
     let card_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Squad Warrior")
         .map(|(id, _)| *id)
@@ -235,7 +235,7 @@ fn test_squad_zero_payments() {
 
     // Only the spell should be on the stack — no trigger.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.157a intervening-if: no SquadTrigger when squad cost was not paid"
     );
@@ -252,7 +252,7 @@ fn test_squad_zero_payments() {
 
     // No SquadTrigger on the stack.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "CR 702.157a: no SquadTrigger should be on stack when squad_count=0"
     );
 }
@@ -269,7 +269,7 @@ fn test_squad_basic_one_payment() {
 
     // Only the spell is on the stack immediately after casting (no on-cast trigger).
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "only the spell should be on the stack immediately after casting"
     );
@@ -284,7 +284,7 @@ fn test_squad_basic_one_payment() {
         "original creature should be on battlefield after spell resolves"
     );
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.157a: SquadTrigger should be on stack after spell resolves with squad_count=1"
     );
@@ -299,7 +299,7 @@ fn test_squad_basic_one_payment() {
         "CR 702.157a: original + 1 token copy should be on battlefield (squad_count=1)"
     );
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after SquadTrigger resolves"
     );
 }
@@ -323,7 +323,7 @@ fn test_squad_multiple_payments() {
 
     // SquadTrigger should be on stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.157a: SquadTrigger should be on stack with squad_count=3"
     );
@@ -381,7 +381,7 @@ fn test_squad_tokens_are_copies() {
     // Exactly one token (is_token == true).
     let tokens: Vec<_> = copies
         .iter()
-        .filter(|id| state.objects.get(id).map(|o| o.is_token).unwrap_or(false))
+        .filter(|id| state.objects().get(id).map(|o| o.is_token).unwrap_or(false))
         .collect();
     assert_eq!(
         tokens.len(),
@@ -410,14 +410,14 @@ fn test_squad_rejected_without_keyword() {
         .unwrap();
 
     let mut state = state;
-    let ps = state.players.get_mut(&p1).unwrap();
+    let ps = state.players_mut().get_mut(&p1).unwrap();
     ps.mana_pool.add(ManaColor::Colorless, 1);
     ps.mana_pool.add(ManaColor::White, 1);
     ps.mana_pool.add(ManaColor::Colorless, 2); // extra for bogus squad payment
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Plain Soldier")
         .map(|(id, _)| *id)
@@ -458,13 +458,13 @@ fn test_squad_tokens_not_cast() {
     let (state, p1, p2, card_id) = setup_squad_state(2);
 
     // Record spells_cast_this_turn before casting.
-    let spells_before = state.players[&p1].spells_cast_this_turn;
+    let spells_before = state.players()[&p1].spells_cast_this_turn;
 
     // Cast the Squad creature.
     let (state, _) = cast_squad(state, p1, card_id, 1);
 
     // spells_cast_this_turn should have increased by 1 (the spell itself).
-    let spells_after_cast = state.players[&p1].spells_cast_this_turn;
+    let spells_after_cast = state.players()[&p1].spells_cast_this_turn;
     assert_eq!(
         spells_after_cast,
         spells_before + 1,
@@ -478,7 +478,7 @@ fn test_squad_tokens_not_cast() {
 
     // spells_cast_this_turn should STILL be spells_before + 1 — token not cast.
     assert_eq!(
-        state.players[&p1].spells_cast_this_turn,
+        state.players()[&p1].spells_cast_this_turn,
         spells_before + 1,
         "ruling 2022-10-07: token copies created by Squad are not cast; spells_cast_this_turn should not increase"
     );
@@ -555,12 +555,12 @@ fn test_squad_doubling_season_doubles_token_batch() {
     // automatically for pre-placed battlefield permanents — mirrors
     // counter_replacement.rs's `register_replacement_effects` helper).
     let doubler_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Squad Doubler Test")
         .map(|(id, _)| *id)
         .expect("doubler should be on battlefield");
-    let registry = state.card_registry.clone();
+    let registry = state.card_registry().clone();
     mtg_engine::rules::replacement::register_permanent_replacement_abilities(
         &mut state,
         doubler_id,
@@ -570,13 +570,13 @@ fn test_squad_doubling_season_doubles_token_batch() {
     );
 
     // {3}{W} base + {4} for two squad payments ({2} × 2).
-    let ps = state.players.get_mut(&p1).unwrap();
+    let ps = state.players_mut().get_mut(&p1).unwrap();
     ps.mana_pool.add(ManaColor::Colorless, 3 + 4);
     ps.mana_pool.add(ManaColor::White, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Squad Warrior")
         .map(|(id, _)| *id)

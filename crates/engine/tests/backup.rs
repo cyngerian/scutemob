@@ -14,6 +14,7 @@
 //! - If target leaves battlefield before resolution, trigger fizzles (CR 608.2b).
 //! - Multiple Backup instances on one card each trigger separately.
 
+use mtg_engine::state::test_util;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
     CounterType, EffectDuration, EffectFilter, EffectLayer, GameEvent, GameState, GameStateBuilder,
@@ -29,7 +30,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -38,7 +39,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 fn find_object_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -238,25 +239,25 @@ fn test_backup_etb_generates_trigger() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Cast and resolve Backup Valkyrie (both players pass once to let it land).
     let (state, _) = cast_and_resolve(state.clone(), p1, "Backup Valkyrie", p2);
 
     // BackupTrigger should be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.165a: BackupTrigger should be on stack after creature ETB"
     );
     assert!(
         matches!(
-            state.stack_objects.back().map(|s| &s.kind),
+            state.stack_objects().back().map(|s| &s.kind),
             Some(StackObjectKind::KeywordTrigger {
                 keyword: KeywordAbility::Backup(_),
                 ..
@@ -300,12 +301,12 @@ fn test_backup_self_target_gets_counters_only() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Cast and resolve (trigger lands on stack).
     let (state, _) = cast_and_resolve(state.clone(), p1, "Backup Valkyrie", p2);
@@ -317,7 +318,7 @@ fn test_backup_self_target_gets_counters_only() {
     let valkyrie_id = find_object_in_zone(&state, "Backup Valkyrie", ZoneId::Battlefield)
         .expect("Backup Valkyrie should be on battlefield");
 
-    let obj = state.objects.get(&valkyrie_id).unwrap();
+    let obj = state.objects().get(&valkyrie_id).unwrap();
     let counters = obj
         .counters
         .get(&CounterType::PlusOnePlusOne)
@@ -330,7 +331,7 @@ fn test_backup_self_target_gets_counters_only() {
 
     // Self-targeting should NOT create any ability-granting continuous effect.
     let ability_ces: Vec<_> = state
-        .continuous_effects
+        .continuous_effects()
         .iter()
         .filter(|ce| matches!(&ce.filter, EffectFilter::SingleObject(id) if *id == valkyrie_id))
         .collect();
@@ -421,18 +422,18 @@ fn test_backup_multiple_instances_trigger_separately() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 4);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let (state, _) = cast_and_resolve(state.clone(), p1, "Double Backup Goblin", p2);
 
     // Two Backup instances → two BackupTriggers on stack.
     let backup_triggers: Vec<_> = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .filter(|s| {
             matches!(
@@ -550,12 +551,12 @@ fn test_backup_no_abilities_below_only_grants_counters() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Cast and resolve (trigger fires, self-targets by default).
     let (state, _) = cast_and_resolve(state.clone(), p1, "Bare Backup Creature", p2);
@@ -567,7 +568,7 @@ fn test_backup_no_abilities_below_only_grants_counters() {
         .expect("Bare Backup Creature should be on battlefield");
 
     // Should have 1 +1/+1 counter (self-targeting always grants counter).
-    let obj = state.objects.get(&creature_id).unwrap();
+    let obj = state.objects().get(&creature_id).unwrap();
     let counters = obj
         .counters
         .get(&CounterType::PlusOnePlusOne)
@@ -580,7 +581,7 @@ fn test_backup_no_abilities_below_only_grants_counters() {
 
     // No ability CEs created (empty abilities_to_grant and self-target).
     let ability_ces: Vec<_> = state
-        .continuous_effects
+        .continuous_effects()
         .iter()
         .filter(|ce| matches!(&ce.filter, EffectFilter::SingleObject(id) if *id == creature_id))
         .collect();
@@ -625,12 +626,12 @@ fn test_backup_n_counters_quantity() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 5);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Cast and resolve, then resolve the self-targeting trigger.
     let (state, _) = cast_and_resolve(state.clone(), p1, "Backup Wurm", p2);
@@ -639,7 +640,7 @@ fn test_backup_n_counters_quantity() {
     let wurm_id = find_object_in_zone(&state, "Backup Wurm", ZoneId::Battlefield)
         .expect("Backup Wurm should be on battlefield");
 
-    let obj = state.objects.get(&wurm_id).unwrap();
+    let obj = state.objects().get(&wurm_id).unwrap();
     let counters = obj
         .counters
         .get(&CounterType::PlusOnePlusOne)
@@ -685,18 +686,18 @@ fn test_backup_trigger_stack_object_structure() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let (state, _) = cast_and_resolve(state.clone(), p1, "Backup Valkyrie", p2);
 
     // Find the BackupTrigger on the stack and inspect its structure.
     let trigger = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .find(|s| {
             matches!(
@@ -837,7 +838,7 @@ fn test_backup_another_creature_gets_counters_and_abilities() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let source_id = find_object(&state, "Backup Valkyrie");
     let bear_id = find_object(&state, "Runeclaw Bear");
@@ -845,7 +846,7 @@ fn test_backup_another_creature_gets_counters_and_abilities() {
     // Manually push a BackupTrigger targeting the OTHER creature (bear_id).
     // abilities_to_grant matches what check_triggers would compute for Backup Valkyrie:
     // abilities at index 1+ excluding Backup itself → [Flying, FirstStrike].
-    let trigger_id = state.next_object_id();
+    let trigger_id = test_util::next_object_id(&mut state);
     let backup_trigger = StackObject {
         id: trigger_id,
         controller: p1,
@@ -901,14 +902,14 @@ fn test_backup_another_creature_gets_counters_and_abilities() {
         lki_counters: im::OrdMap::new(),
         lki_power: None,
     };
-    state.stack_objects.push_back(backup_trigger);
+    state.stack_objects_mut().push_back(backup_trigger);
 
     // Both players pass priority to resolve the BackupTrigger.
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // (a) Target bear should have 1 +1/+1 counter.
     let bear_obj = state
-        .objects
+        .objects()
         .get(&bear_id)
         .expect("bear still on battlefield");
     let bear_counters = bear_obj
@@ -924,7 +925,7 @@ fn test_backup_another_creature_gets_counters_and_abilities() {
     // (b) A Layer 6 UntilEndOfTurn CE granting Flying+FirstStrike should exist,
     //     filtered to the bear (not the source).
     let ability_ces: Vec<_> = state
-        .continuous_effects
+        .continuous_effects()
         .iter()
         .filter(|ce| {
             matches!(&ce.filter, EffectFilter::SingleObject(id) if *id == bear_id)
@@ -954,7 +955,7 @@ fn test_backup_another_creature_gets_counters_and_abilities() {
 
     // (c) Source (Backup Valkyrie) should have 0 +1/+1 counters from this trigger.
     let source_obj = state
-        .objects
+        .objects()
         .get(&source_id)
         .expect("source still on battlefield");
     let source_counters = source_obj
