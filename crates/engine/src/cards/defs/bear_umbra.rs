@@ -43,6 +43,7 @@ pub fn card() -> CardDefinition {
             // controller: You, .. } }`.
             AbilityDefinition::Keyword(KeywordAbility::UmbraArmor),
         ],
+        completeness: Completeness::partial("'Whenever this creature attacks, untap all lands you control' is a triggered ability GRANTED to the enchanted creature..."),
         ..Default::default()
     }
 }

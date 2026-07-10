@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("delayed trigger adding {C} equal to mana value at next main phase — requires delayed triggers + mana-value tracking"),
         ..Default::default()
     }
 }

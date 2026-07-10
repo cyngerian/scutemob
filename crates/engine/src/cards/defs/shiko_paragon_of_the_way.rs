@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
             // benefit), so the full triggered ability is left as a TODO.
             // DSL gap: Effect::CopyAndCastFromExile or PlayExiledCard with copy semantics.
         ],
+        completeness: Completeness::partial("Copy-and-cast-from-exile pattern not in DSL. Exile-only would produce wrong game state (removes card from graveyard..."),
         ..Default::default()
     }
 }

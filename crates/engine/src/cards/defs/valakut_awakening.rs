@@ -9,6 +9,7 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Instant]),
         oracle_text: "Put any number of cards from your hand on the bottom of your library, then draw that many cards plus one.".to_string(),
         abilities: vec![],
+        completeness: Completeness::inert("no abilities implemented"),
         ..Default::default()
     }
 }

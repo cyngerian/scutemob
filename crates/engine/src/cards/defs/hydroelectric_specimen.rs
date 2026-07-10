@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             // TODO: ETB trigger — redirect target of an instant/sorcery spell.
             // DSL gap: target redirection effect not expressible.
         ],
+        completeness: Completeness::partial("ETB trigger — redirect target of an instant/sorcery spell. DSL gap: target redirection effect not expressible"),
         ..Default::default()
     }
 }

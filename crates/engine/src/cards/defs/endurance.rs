@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
             // TODO: ETB trigger targeting a player to shuffle their graveyard to the bottom
             // of their library — targeted_trigger with graveyard manipulation effect not in DSL.
         ],
+        completeness: Completeness::partial("ETB targeted graveyard-to-library effect requires targeted_trigger gap"),
         ..Default::default()
     }
 }

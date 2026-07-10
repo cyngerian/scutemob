@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             // without the condition would create a token even without another Elf,
             // which is wrong behavior. Using TODO per W5 policy.
         ],
+        completeness: Completeness::partial("'If you control another Elf' intervening-if — Condition lacks 'you control a permanent with subtype X' variant...."),
         ..Default::default()
     }
 }

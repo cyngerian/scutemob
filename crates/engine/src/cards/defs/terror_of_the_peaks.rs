@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             // equal to that creature's power to any target.
             // DSL gap: no "entering creature's power" dynamic damage amount; requires targeted_trigger.
         ],
+        completeness: Completeness::partial("Static ability — spells opponents cast that target this creature cost 3 additional life. DSL gap: no..."),
         ..Default::default()
     }
 }

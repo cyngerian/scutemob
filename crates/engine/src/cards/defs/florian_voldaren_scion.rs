@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
             // this turn, plus a look-top-X / exile-one / impulse-play effect.
             // (AtBeginningOfPostcombatMain now exists — PB-AC6.)
         ],
+        completeness: Completeness::partial("no EffectAmount tracks life lost by all opponents this turn, and there is no 'look at top X, exile one, you may play it..."),
         ..Default::default()
     }
 }

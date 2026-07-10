@@ -57,6 +57,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("'If you control creature with power 4+' intervening-if on ETB"),
         ..Default::default()
     }
 }

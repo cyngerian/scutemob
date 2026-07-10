@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
             // trigger with subtype + nontoken filter not in DSL. WhenAttacks fires for self only,
             // not for other Vampires. Empty to avoid wrong game state.
         ],
+        completeness: Completeness::partial("'Whenever one or more nontoken Vampires you control attack' — batch attack trigger with subtype + nontoken filter not..."),
         ..Default::default()
     }
 }

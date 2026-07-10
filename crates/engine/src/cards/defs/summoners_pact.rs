@@ -36,6 +36,7 @@ pub fn card() -> CardDefinition {
             // TODO: Pact upkeep trigger — "At the beginning of your next upkeep, pay {2}{G}{G}
             //   or you lose the game." DSL gap: no DelayedTrigger variant, no Effect::LoseGameUnlessPay.
         ],
+        completeness: Completeness::partial("'At the beginning of your next upkeep, pay {2}{G}{G} or lose the game' — delayed trigger with a pact payment..."),
         ..Default::default()
     }
 }

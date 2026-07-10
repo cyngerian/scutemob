@@ -34,6 +34,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("'Lander token' is a new named token type not present in the DSL. The CreateToken effect requires a TokenSpec, and no..."),
         ..Default::default()
     }
 }

@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
             "Search your library for a card, put that card into your hand, discard a card at random, then shuffle."
                 .to_string(),
         abilities: vec![],
+        completeness: Completeness::inert("Effect::DiscardAtRandom does not exist in the DSL. The 'discard a card at random' effect cannot be distinguished from a..."),
         ..Default::default()
     }
 }

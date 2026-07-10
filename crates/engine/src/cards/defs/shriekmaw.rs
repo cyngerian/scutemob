@@ -38,6 +38,7 @@ pub fn card() -> CardDefinition {
                 cost: ManaCost { generic: 1, black: 1, ..Default::default() },
             },
         ],
+        completeness: Completeness::partial("no non_artifact filter on TargetFilter — this targets any nonblack creature including artifact creatures. When..."),
         ..Default::default()
     }
 }

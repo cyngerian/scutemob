@@ -32,6 +32,7 @@ pub fn card() -> CardDefinition {
             // a single DeclaredTarget list but has no "up to two other" pattern for triggered
             // abilities. Omitted per W5 policy.
         ],
+        completeness: Completeness::partial("'Whenever Drakuseth attacks, it deals 4 damage to any target and 3 damage to each of up to two other targets.'..."),
         ..Default::default()
     }
 }

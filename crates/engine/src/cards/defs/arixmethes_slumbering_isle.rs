@@ -85,6 +85,7 @@ pub fn card() -> CardDefinition {
         ],
         power: Some(12),
         toughness: Some(12),
+        completeness: Completeness::partial("'Whenever you cast a spell, you may remove a slumber counter from Arixmethes.' DSL gap: no WheneverYouCastASpell..."),
         ..Default::default()
     }
 }

@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::partial("Targets 'target player' — no TargetRequirement::TargetPlayer. Approximated as affecting all creatures via ForEach or as..."),
         ..Default::default()
     }
 }

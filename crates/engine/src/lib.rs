@@ -7,12 +7,12 @@ pub use cards::defs::all_cards;
 pub use cards::{
     army_token_spec, blood_token_spec, clue_token_spec, food_token_spec, treasure_token_spec,
     zombie_decayed_token_spec, AbilityDefinition, AltCastDetails, CardDefinition, CardFace,
-    CardRegistry, Condition, ContinuousEffectDef as CardContinuousEffectDef, Cost,
+    CardRegistry, Completeness, Condition, ContinuousEffectDef as CardContinuousEffectDef, Cost,
     CostModifierScope, CraftMaterials, Effect, EffectAmount, EffectTarget as CardEffectTarget,
     ForEachTarget, LibraryPosition, LoyaltyCost, MeldPair, ModeSelection, PlayerTarget,
-    SelfActivatedCostReduction, SelfCostReduction, SoulbondGrant, SpellAdditionalCost,
-    SpellCostFilter, SpellCostModifier, TargetController, TargetFilter, TargetRequirement,
-    TimingRestriction, TokenSpec, TriggerCondition, TypeLine, ZoneTarget,
+    RegistryError, SelfActivatedCostReduction, SelfCostReduction, SoulbondGrant,
+    SpellAdditionalCost, SpellCostFilter, SpellCostModifier, TargetController, TargetFilter,
+    TargetRequirement, TimingRestriction, TokenSpec, TriggerCondition, TypeLine, ZoneTarget,
 };
 // Convenience re-exports of primary types
 pub use rules::commander::{

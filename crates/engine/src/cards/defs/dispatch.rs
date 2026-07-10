@@ -42,6 +42,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::partial("Metalcraft conditional — if 3+ artifacts, exile the same target creature instead of just tapping. The..."),
         ..Default::default()
     }
 }

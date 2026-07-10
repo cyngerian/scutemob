@@ -34,6 +34,7 @@ pub fn card() -> CardDefinition {
             // ENGINE-BLOCKED: see module comment -- ETB optional-sacrifice-for-Treasure
             // and the activated variable-X ability are both blocked on real DSL gaps.
         ],
+        completeness: Completeness::partial("(ETB): 'you may sacrifice another creature you control. If you do, create a number of Treasure tokens equal to that..."),
         ..Default::default()
     }
 }

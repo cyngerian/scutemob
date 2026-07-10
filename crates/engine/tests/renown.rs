@@ -19,8 +19,8 @@
 
 use mtg_engine::{
     process_command, AbilityDefinition, AttackTarget, CardDefinition, CardId, CardRegistry,
-    CardType, Command, CounterType, GameEvent, GameStateBuilder, KeywordAbility, ObjectSpec,
-    PlayerId, Step, TypeLine, ZoneId,
+    CardType, Command, Completeness, CounterType, GameEvent, GameStateBuilder, KeywordAbility,
+    ObjectSpec, PlayerId, Step, TypeLine, ZoneId,
 };
 
 // ── Helper: find object ID by name ───────────────────────────────────────────
@@ -494,6 +494,7 @@ fn test_702_112c_renown_multiple_instances_first_resolves() {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+        completeness: Completeness::Complete,
     };
 
     let registry = CardRegistry::new(vec![double_renown_def]);

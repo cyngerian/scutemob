@@ -67,6 +67,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
+        completeness: Completeness::partial("'Add one mana of any color' — player choice not in DSL. Defaults to green; actual color should be player's choice"),
         ..Default::default()
     }
 }

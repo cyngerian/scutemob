@@ -37,6 +37,7 @@ pub fn card() -> CardDefinition {
                 details: None,
             },
         ],
+        completeness: Completeness::partial("Exile top card + impulse draw not expressible"),
         ..Default::default()
     }
 }

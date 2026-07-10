@@ -47,6 +47,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("'Creatures without flying can't block this turn' — mass blocking restriction not expressible as spell effect"),
         ..Default::default()
     }
 }

@@ -42,6 +42,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("DSL gap — no 'rearrange top N' effect. Scry 3 is wrong (allows bottoming). Need Effect::RearrangeTopN or similar. Using..."),
         ..Default::default()
     }
 }

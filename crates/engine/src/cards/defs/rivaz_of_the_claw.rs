@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — restricted mana ability (Dragon spells only) + graveyard
             // casting permission + death-exile replacement grant. Multiple DSL gaps.
         ],
+        completeness: Completeness::partial("DSL gap — restricted mana ability (Dragon spells only) + graveyard casting permission + death-exile replacement grant...."),
         ..Default::default()
     }
 }

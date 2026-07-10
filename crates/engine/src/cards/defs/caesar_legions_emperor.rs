@@ -51,6 +51,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("'may sacrifice + choose two modal' — complex reflexive trigger not expressible. Partial: create Soldiers on attack as..."),
         ..Default::default()
     }
 }

@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
             // chosen nonland card — targeted discard with card-type filter (non-land) not
             // in DSL (targeted_trigger gap).
         ],
+        completeness: Completeness::partial("ETB targeted discard (choose nonland from opponent's revealed hand) not in DSL"),
         ..Default::default()
     }
 }

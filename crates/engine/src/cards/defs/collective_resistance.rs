@@ -89,6 +89,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::partial("this card has Escalate, and the engine HARD-REJECTS casting a spell that pays Escalate for 2+ modes when its..."),
         ..Default::default()
     }
 }

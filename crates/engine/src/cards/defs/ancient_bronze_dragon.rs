@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — combat damage trigger with d20 roll + reflexive trigger
             // putting X counters on up to 2 targets.
         ],
+        completeness: Completeness::partial("DSL gap — combat damage trigger with d20 roll + reflexive trigger putting X counters on up to 2 targets"),
         ..Default::default()
     }
 }

@@ -33,6 +33,7 @@ pub fn card() -> CardDefinition {
                 cost: ManaCost { generic: 2, ..Default::default() },
             },
         ],
+        completeness: Completeness::partial("TargetCardInYourGraveyard lacks mana value filter (<=3). Using unfiltered graveyard targeting as approximation"),
         ..Default::default()
     }
 }

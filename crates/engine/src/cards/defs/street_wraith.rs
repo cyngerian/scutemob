@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
             // TODO: Cycling with life cost (pay 2 life) — Cycling DSL only accepts ManaCost.
             //   Needs LifeCycling DSL extension. Stripped to avoid free cycling.
         ],
+        completeness: Completeness::partial("Cycling with life cost (pay 2 life) — Cycling DSL only accepts ManaCost. Needs LifeCycling DSL extension. Stripped to..."),
         ..Default::default()
     }
 }

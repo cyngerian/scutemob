@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Changeling),
         ],
+        completeness: Completeness::partial("DSL gap — 'Tap an untapped creature you control' as an activated ability cost has no Cost variant. The flying-granting..."),
         ..Default::default()
     }
 }

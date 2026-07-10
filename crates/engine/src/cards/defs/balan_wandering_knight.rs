@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
             // TODO: Conditional double strike (2+ Equipment attached) — count threshold static
             // TODO: {1}{W} activated — attach all Equipment you control to Balan
         ],
+        completeness: Completeness::partial("DSL gap — conditional double strike requiring count of attached Equipment (2+) needs a..."),
         ..Default::default()
     }
 }

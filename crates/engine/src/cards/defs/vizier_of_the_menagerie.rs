@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
             // Requires ManaRestriction relaxation DSL support (separate gap, mana spending rules).
             // Deferred — the play-from-top ability above is the primary implementation.
         ],
+        completeness: Completeness::partial("'You can spend mana as though it were mana of any type to cast creature spells.' Requires ManaRestriction relaxation..."),
         ..Default::default()
     }
 }

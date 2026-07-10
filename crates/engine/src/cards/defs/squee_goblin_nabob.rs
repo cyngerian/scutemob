@@ -32,6 +32,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: Some(TriggerZone::Graveyard),
             },
         ],
+        completeness: Completeness::partial("Oracle says 'you may' — currently non-optional (bot always returns)"),
         ..Default::default()
     }
 }

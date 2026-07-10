@@ -47,6 +47,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("DSL gap — 'Whenever one or more Goblins you control attack' fires ONCE per combat if at least one Goblin attacked...."),
         ..Default::default()
     }
 }

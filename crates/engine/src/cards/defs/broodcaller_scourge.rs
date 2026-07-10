@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
         ],
+        completeness: Completeness::partial("DSL gap — the triggered ability requires: 1. A trigger that fires when one or more Dragons you control deal combat..."),
         ..Default::default()
     }
 }

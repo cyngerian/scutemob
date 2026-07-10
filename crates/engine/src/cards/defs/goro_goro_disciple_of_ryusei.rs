@@ -36,6 +36,7 @@ pub fn card() -> CardDefinition {
             // an attacking modified creature." Blocked: activation condition "control
             // attacking modified creature" not in DSL (modified = equipment/aura/counters).
         ],
+        completeness: Completeness::partial("'{3}{R}{R}: Create Dragon Spirit token. Activate only if you control an attacking modified creature.' Blocked:..."),
         ..Default::default()
     }
 }

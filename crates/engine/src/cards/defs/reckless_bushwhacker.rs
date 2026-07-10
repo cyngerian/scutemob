@@ -35,5 +35,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+    completeness: Completeness::partial("ETB trigger — 'if surge cost was paid, other creatures get +1/+0 and haste until end of turn' — requires..."),
     }
 }

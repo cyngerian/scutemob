@@ -30,6 +30,7 @@ pub fn card() -> CardDefinition {
             // 3. Damage amount = sacrificed creature's power (dynamic LKI value) not
             //    expressible — no EffectAmount::SacrificedCreaturePower variant.
         ],
+        completeness: Completeness::partial("'At the beginning of your end step, you may sacrifice another creature. When you do, deal damage equal to that..."),
         ..Default::default()
     }
 }

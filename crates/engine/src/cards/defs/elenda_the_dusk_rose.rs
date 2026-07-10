@@ -67,6 +67,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("'When dies, create X tokens where X = power' — EffectAmount lacks power-based count. Using fixed 3 as approximation"),
         ..Default::default()
     }
 }

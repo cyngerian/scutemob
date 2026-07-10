@@ -40,6 +40,7 @@ pub fn card() -> CardDefinition {
         // a Throne with a chosen color but no functioning {T} ability is also
         // wrong game state (its other abilities would be missing).
         abilities: vec![],
+        completeness: Completeness::inert("no abilities implemented"),
         ..Default::default()
     }
 }

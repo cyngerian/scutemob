@@ -32,6 +32,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::partial("Oracle text says 'tap target artifact, creature, or land' — this is a tap, not a choice between tap/untap...."),
         ..Default::default()
     }
 }

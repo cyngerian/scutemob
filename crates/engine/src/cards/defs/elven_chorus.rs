@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Creatures you control have '{T}: Add one mana of any color.'"
             // Requires GrantActivatedAbility DSL support (separate gap). Deferred.
         ],
+        completeness: Completeness::partial("'Creatures you control have '{T}: Add one mana of any color.'' Requires GrantActivatedAbility DSL support (separate..."),
         ..Default::default()
     }
 }

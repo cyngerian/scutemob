@@ -14,6 +14,7 @@ pub fn card() -> CardDefinition {
         oracle_text: "If you would draw a card except the first one you draw in each of your draw steps, draw two cards instead.".to_string(),
         // TODO: Draw replacement effect not expressible.
         abilities: vec![],
+        completeness: Completeness::inert("Draw replacement effect with draw-step exception too complex for DSL"),
         ..Default::default()
     }
 }

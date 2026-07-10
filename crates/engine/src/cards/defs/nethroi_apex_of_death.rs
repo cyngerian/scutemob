@@ -65,5 +65,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+    completeness: Completeness::partial("The 'total power 10 or less' multi-target graveyard constraint is a DSL gap. Effect::ReturnFromGraveyard does not..."),
     }
 }

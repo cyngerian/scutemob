@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
         power: Some(1),
         toughness: Some(1),
         abilities: vec![],
+        completeness: Completeness::inert("'that player' — effect should target the entering creature's controller specifically, not all opponents. PlayerTarget..."),
         ..Default::default()
     }
 }

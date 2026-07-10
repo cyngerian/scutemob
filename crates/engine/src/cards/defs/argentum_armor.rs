@@ -45,6 +45,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("'Whenever equipped creature attacks, destroy target permanent.' DSL gap: TriggerCondition::WhenAttacks is..."),
         ..Default::default()
     }
 }

@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             // WheneverPlayerCastsNthSpellThisTurn. Proliferate effect works but
             // trigger condition is blocked.
         ],
+        completeness: Completeness::partial("'second spell each turn' trigger — no TriggerCondition for WheneverPlayerCastsNthSpellThisTurn. Proliferate effect..."),
         ..Default::default()
     }
 }

@@ -70,6 +70,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("max_cmc should be dynamic (XValue) — TargetFilter.max_cmc is Option<u32>, not EffectAmount. Dynamic MV filter deferred..."),
         ..Default::default()
     }
 }

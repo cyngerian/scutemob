@@ -65,6 +65,7 @@ pub fn card() -> CardDefinition {
                 details: Some(AltCastDetails::Escape { exile_count: 4 }),
             },
         ],
+        completeness: Completeness::partial("'This creature escapes with two +1/+1 counters' — needs Escape ETB counter replacement effect (the counters are only..."),
         ..Default::default()
     }
 }

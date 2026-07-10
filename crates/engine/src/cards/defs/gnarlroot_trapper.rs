@@ -30,6 +30,7 @@ pub fn card() -> CardDefinition {
             // TODO: {T}: Target attacking Elf you control gains deathtouch until end of turn.
             // DSL gap: EffectTarget has no AttackingCreatureWithSubtype variant.
         ],
+        completeness: Completeness::partial("{T}: Target attacking Elf you control gains deathtouch until end of turn. DSL gap: EffectTarget has no..."),
         ..Default::default()
     }
 }

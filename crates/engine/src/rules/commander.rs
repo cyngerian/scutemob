@@ -41,6 +41,62 @@ pub enum DeckViolation {
     /// A card_id present in the deck has no corresponding definition. This is
     /// always an error — unknown cards silently pass all other validation checks.
     UnknownCard { card_id: String },
+    /// Architecture Invariant 9: every card's CardDefinition must be complete.
+    ///
+    /// The definition exists but is marked `Inert`, `Partial`, or `KnownWrong`
+    /// (see `cards::Completeness`). Such a card would take actions the rules
+    /// engine never emits, or emit actions the card does not have, producing a
+    /// state history that cannot be correctly rewound. Surfaced here, at deck
+    /// build, rather than silently misbehaving on turn 6.
+    IncompleteCard {
+        name: String,
+        card_id: String,
+        /// `inert`, `partial`, or `known-wrong`.
+        kind: &'static str,
+        /// The author's note explaining what is missing or wrong.
+        note: String,
+    },
+}
+impl std::fmt::Display for DeckViolation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DeckViolation::WrongDeckSize { actual, expected } => {
+                write!(f, "deck has {actual} cards; a Commander deck must have exactly {expected} (CR 903.5a)")
+            }
+            DeckViolation::DuplicateCard { name, count } => write!(
+                f,
+                "{name} appears {count} times; only basic lands may be duplicated (CR 903.5b)"
+            ),
+            DeckViolation::ColorIdentityViolation {
+                card,
+                card_colors,
+                commander_colors,
+            } => write!(
+                f,
+                "{card} has color identity {card_colors:?}, outside the commander's {commander_colors:?} (CR 903.5c)"
+            ),
+            DeckViolation::BannedCard { name } => {
+                write!(f, "{name} is banned in Commander")
+            }
+            DeckViolation::InvalidCommander { name, reason } => {
+                write!(f, "{name} cannot be your commander: {reason}")
+            }
+            DeckViolation::UnknownCard { card_id } => write!(
+                f,
+                "{card_id} has no CardDefinition — it cannot be played (Architecture Invariant 9)"
+            ),
+            DeckViolation::IncompleteCard {
+                name,
+                card_id,
+                kind,
+                note,
+            } => write!(
+                f,
+                "{name} ({card_id}) is {kind} and cannot be played: {note} \
+                 (Architecture Invariant 9 — implement the card, or remove it from the deck)"
+            ),
+        }
+    }
 }
 /// Validate a Commander deck against the format rules.
 ///
@@ -155,6 +211,10 @@ pub fn validate_deck(
     // im-rs policy (Architecture Invariant 2) and, because it iterates in sorted
     // key order, produces deterministic DuplicateCard violation ordering.
     let mut name_counts: im::OrdMap<String, usize> = im::OrdMap::new();
+    // Architecture Invariant 9: one IncompleteCard violation per distinct card, even
+    // though basic lands legitimately occupy many deck slots.
+    let mut reported_incomplete: std::collections::HashSet<&CardId> =
+        std::collections::HashSet::new();
     for card_id in deck_card_ids {
         let def = match registry.get(card_id.clone()) {
             Some(d) => d,
@@ -167,6 +227,16 @@ pub fn validate_deck(
                 continue;
             }
         };
+        // Architecture Invariant 9: the definition must also be a *faithful* one.
+        // An inert, partial, or knowingly-wrong def corrupts the replay history.
+        if !def.completeness.is_complete() && reported_incomplete.insert(card_id) {
+            violations.push(DeckViolation::IncompleteCard {
+                name: def.name.clone(),
+                card_id: card_id.0.clone(),
+                kind: def.completeness.kind(),
+                note: def.completeness.note().to_string(),
+            });
+        }
         // CR 903.5b: singleton rule — basic lands are exempt
         let is_basic_land = def.types.supertypes.contains(&SuperType::Basic)
             && def.types.card_types.contains(&CardType::Land);

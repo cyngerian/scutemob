@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
             // it deals that much damage to the chosen player" requires a combat damage trigger
             // keyed on a previously chosen player target. No such trigger condition exists.
         ],
+        completeness: Completeness::partial("DSL gap — 'As ~ enters, choose a player' is a replacement/choice effect on ETB with persistent state (the chosen..."),
         ..Default::default()
     }
 }

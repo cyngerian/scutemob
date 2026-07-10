@@ -49,6 +49,7 @@ pub fn card() -> CardDefinition {
             // comment for the exclude-self sacrifice-cost gap and vampire_gourmand.rs
             // precedent.
         ],
+        completeness: Completeness::partial("'Sacrifice another creature' cost requires exclude-self semantics that don't exist on Cost::Sacrifice(TargetFilter) (it..."),
         ..Default::default()
     }
 }

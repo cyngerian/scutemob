@@ -58,6 +58,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("'Whenever one or more +1/+1 counters are put on a creature you control, put that many growth counters on this..."),
         ..Default::default()
     }
 }

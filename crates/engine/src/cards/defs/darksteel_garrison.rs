@@ -45,6 +45,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("TriggerCondition::WhenFortifiedLandBecomesTapped does not exist yet. 'Whenever fortified land becomes tapped, target..."),
         ..Default::default()
     }
 }

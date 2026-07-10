@@ -37,6 +37,7 @@ pub fn card() -> CardDefinition {
             // be sequenced correctly without the controlled-turn infrastructure.
         ],
         self_cost_reduction: Some(SelfCostReduction::CardTypesInGraveyard),
+        completeness: Completeness::partial("Protection from instants — Protection(filter) for instant card type not in DSL"),
         ..Default::default()
     }
 }

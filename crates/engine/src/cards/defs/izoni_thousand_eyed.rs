@@ -65,6 +65,7 @@ pub fn card() -> CardDefinition {
             //   Blocked on ActivationCost variant for "sacrifice another creature"
             //   (sacrifice-other, distinct from sacrifice_self which sacrifices the source).
         ],
+        completeness: Completeness::partial("(PB-TS OOS seed): The second activated ability '{B}{G}, Sacrifice another creature: You gain 1 life and draw a card'..."),
         ..Default::default()
     }
 }

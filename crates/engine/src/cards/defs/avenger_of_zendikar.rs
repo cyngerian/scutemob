@@ -48,6 +48,7 @@ pub fn card() -> CardDefinition {
             // Landfall: +1/+1 counter on each Plant
             // TODO: "Each Plant you control" counter distribution not in DSL.
         ],
+        completeness: Completeness::partial("EffectAmount lacks 'count of lands you control' variant. Using fixed 5 as approximation"),
         ..Default::default()
     }
 }

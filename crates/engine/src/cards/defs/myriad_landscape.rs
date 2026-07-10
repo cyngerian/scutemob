@@ -45,6 +45,7 @@ pub fn card() -> CardDefinition {
             // does not support. Two sequential SearchLibrary calls with basic_land_filter()
             // would not enforce the shared-type constraint.
         ],
+        completeness: Completeness::partial("The search ability requires a filter constraint 'share a land type' — i.e., both found basic lands must have the same..."),
         ..Default::default()
     }
 }

@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::partial("Land-conditional life-payment alt cost not in DSL"),
         ..Default::default()
     }
 }

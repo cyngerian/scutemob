@@ -75,6 +75,7 @@ pub fn card() -> CardDefinition {
                 controller: PlayerTarget::Controller,
             },
         )],
+        completeness: Completeness::partial("Strictly, haste should be a temporary UntilEndOfTurn effect, not a permanent keyword on the token. This matters if an..."),
         ..Default::default()
     }
 }

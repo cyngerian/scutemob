@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("Mode 1 needs mana-scaled-by-opponent-hand-count"),
         ..Default::default()
     }
 }

@@ -32,6 +32,7 @@ pub fn card() -> CardDefinition {
             // TODO: Upkeep trigger conditioned on city's blessing, with drain-life based on
             // revealed card's mana value — requires EffectAmount::ManaValueOfRevealed or similar.
         ],
+        completeness: Completeness::partial("Upkeep trigger conditioned on HasCitysBlessing requires: 1. TriggerCondition::AtBeginningOfYourUpkeep — EXISTS in DSL..."),
         ..Default::default()
     }
 }

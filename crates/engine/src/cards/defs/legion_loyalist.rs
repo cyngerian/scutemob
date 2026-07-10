@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Haste),
         ],
+        completeness: Completeness::partial("DSL gap — Battalion trigger requires checking that THIS creature is attacking plus at least two others...."),
         ..Default::default()
     }
 }

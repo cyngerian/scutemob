@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
             // TODO: trigger on opponent's artifact/creature entering untapped with
             //   opponent choice branch — not in DSL.
         ],
+        completeness: Completeness::partial("'Whenever an artifact or creature an opponent controls enters untapped' — no TriggerCondition for opponent's permanents..."),
         ..Default::default()
     }
 }

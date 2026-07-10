@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             // Additionally, the "may pay {B}" optional cost at trigger resolution is not
             // expressible. Empty per W5 policy.
         ],
+        completeness: Completeness::partial("'Whenever you commit a crime' — TriggerCondition::WheneverYouCommitACrime does not exist in the DSL. The crime mechanic..."),
         ..Default::default()
     }
 }

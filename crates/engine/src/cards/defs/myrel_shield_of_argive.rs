@@ -52,6 +52,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("'Opponents can't cast/activate during your turn' stax restriction not in DSL. Attack: create Soldier tokens equal to..."),
         ..Default::default()
     }
 }

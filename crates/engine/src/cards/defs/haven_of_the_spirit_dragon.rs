@@ -71,6 +71,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("'or Ugin planeswalker card' part of the target filter (name + type union) is not expressible. Currently only targets..."),
         ..Default::default()
     }
 }

@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Whenever you cast a spell with mana value 5 or greater" — WheneverYouCastSpell
             //   lacks mana value filter. Overbroad trigger removed to avoid wrong game state.
         ],
+        completeness: Completeness::partial("'Whenever you cast a spell with mana value 5 or greater' — WheneverYouCastSpell lacks mana value filter. Overbroad..."),
         ..Default::default()
     }
 }

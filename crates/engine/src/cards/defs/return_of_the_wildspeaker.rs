@@ -42,6 +42,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::partial("DSL gap — EffectAmount::GreatestPowerAmong(filter) does not exist"),
         ..Default::default()
     }
 }

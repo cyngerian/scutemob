@@ -35,6 +35,7 @@ pub fn card() -> CardDefinition {
             // TODO: "{1}{R}, Discard a card: Draw a card. Activate only if attacking."
             // Requires activation condition (is_attacking) + discard as cost.
         ],
+        completeness: Completeness::partial("'{1}{R}, Discard a card: Draw a card. Activate only if attacking.' Requires activation condition (is_attacking) +..."),
         ..Default::default()
     }
 }

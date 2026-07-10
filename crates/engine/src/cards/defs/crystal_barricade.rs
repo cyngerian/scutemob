@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
             // card_definition.rs AbilityDefinition::Replacement yet for blanket prevention.
             // Deferred until damage prevention replacement effects are added to the DSL.
         ],
+        completeness: Completeness::partial("blanket noncombat damage prevention for other creatures not expressible"),
         ..Default::default()
     }
 }

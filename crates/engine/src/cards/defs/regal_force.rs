@@ -35,6 +35,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("'green creature' filter — PermanentCount with color filter. Using all creatures as approximation"),
         ..Default::default()
     }
 }

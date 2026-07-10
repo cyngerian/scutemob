@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("Second part — 'Each opponent sacrifices a creature with the greatest power' requires per-opponent greatest-power..."),
         ..Default::default()
     }
 }

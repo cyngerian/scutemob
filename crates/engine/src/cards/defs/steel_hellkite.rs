@@ -58,6 +58,7 @@ pub fn card() -> CardDefinition {
                 once_per_turn: true,
             },
         ],
+        completeness: Completeness::partial("{X} ability main effect — needs 'mana value equals X' filter in DestroyAll and 'controllers dealt combat damage by this..."),
         ..Default::default()
     }
 }

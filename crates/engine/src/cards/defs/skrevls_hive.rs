@@ -62,6 +62,7 @@ pub fn card() -> CardDefinition {
             // expressible — EffectFilter::CreaturesYouControl lacks a keyword filter.
             // Additionally, Corrupted keyword marker is not in KeywordAbility enum.
         ],
+        completeness: Completeness::partial("Corrupted — 'As long as an opponent has three or more poison counters, creatures you control with toxic have lifelink.'..."),
         ..Default::default()
     }
 }

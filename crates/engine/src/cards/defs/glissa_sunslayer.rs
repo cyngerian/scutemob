@@ -74,6 +74,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("DSL gap — mode 2 'remove up to three counters from target permanent' cannot be fully implemented. Effect::RemoveCounter..."),
         ..Default::default()
     }
 }

@@ -122,6 +122,7 @@ pub fn card() -> CardDefinition {
             // Needs EffectAmount::PoisonDifference or similar (OOS-AC7-1). Genuine
             // remaining gap — not addressed by PB-AC7.
         ],
+        completeness: Completeness::partial("No 'poison counters equal to difference' EffectAmount variant. Needs EffectAmount::PoisonDifference or similar..."),
         ..Default::default()
     }
 }

@@ -32,6 +32,7 @@ pub fn card() -> CardDefinition {
             // TODO: ENGINE-BLOCKED — any-source noncombat-damage trigger with variable
             // draw amount gap (see header).
         ],
+        completeness: Completeness::partial("ENGINE-BLOCKED — 'whenever a source you control deals noncombat damage to an opponent, draw that many cards' requires a..."),
         ..Default::default()
     }
 }

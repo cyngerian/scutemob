@@ -29,6 +29,7 @@ pub fn card() -> CardDefinition {
             // TODO: "When a Dragon you control enters, return this to hand" —
             //   Dragon-ETB self-bounce trigger not expressible.
         ],
+        completeness: Completeness::partial("'then discard a card' — forced discard not easily expressible"),
         ..Default::default()
     }
 }

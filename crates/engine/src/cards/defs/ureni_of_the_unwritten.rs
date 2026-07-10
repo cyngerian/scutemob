@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
             // TODO: Attack trigger ("whenever Ureni attacks") has the same pattern.
             // Both triggers omitted per W5 policy.
         ],
+        completeness: Completeness::partial("'look at top 8, you may put a Dragon creature card onto the battlefield, rest on bottom in random order'..."),
         ..Default::default()
     }
 }

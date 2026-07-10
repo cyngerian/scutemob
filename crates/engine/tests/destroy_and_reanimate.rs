@@ -23,10 +23,10 @@ use mtg_engine::state::replacement_effect::{
     ObjectFilter, ReplacementEffect, ReplacementModification, ReplacementTrigger,
 };
 use mtg_engine::{
-    AbilityDefinition, CardDefinition, CardEffectTarget, CardId, CardRegistry, CardType, Effect,
-    EffectAmount, EffectDuration, GameEvent, GameState, GameStateBuilder, KeywordAbility, ManaCost,
-    ObjectId, ObjectSpec, PlayerId, PlayerTarget, ReplacementId, SpellTarget, Step, Target,
-    TriggerCondition, TypeLine, ZoneId, ZoneType,
+    AbilityDefinition, CardDefinition, CardEffectTarget, CardId, CardRegistry, CardType,
+    Completeness, Effect, EffectAmount, EffectDuration, GameEvent, GameState, GameStateBuilder,
+    KeywordAbility, ManaCost, ObjectId, ObjectSpec, PlayerId, PlayerTarget, ReplacementId,
+    SpellTarget, Step, Target, TriggerCondition, TypeLine, ZoneId, ZoneType,
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -507,6 +507,7 @@ fn test_l02_destroy_and_reanimate_runs_etb() {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+        completeness: Completeness::Complete,
     };
     let registry = CardRegistry::new(vec![etb_def]);
 

@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             // TODO: TriggerCondition::WhenBecomesBlocked not in DSL.
             //   Need a trigger that fires when a creature you control is blocked during combat.
         ],
+        completeness: Completeness::partial("TriggerCondition::WhenBecomesBlocked does not exist in DSL. 'Whenever a creature you control becomes blocked' fires..."),
         ..Default::default()
     }
 }

@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("'that creature's controller' — needs ControllerOf(dying creature) as PlayerTarget. WheneverCreatureDies gives..."),
         ..Default::default()
     }
 }

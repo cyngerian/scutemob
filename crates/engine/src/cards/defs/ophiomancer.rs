@@ -44,6 +44,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("'If you control no Snakes' intervening-if — Condition lacks 'you control no permanents with subtype X' variant"),
         ..Default::default()
     }
 }

@@ -73,6 +73,7 @@ pub fn card() -> CardDefinition {
             },
             // −12: Complex bounce + shuffle — too complex for DSL.
         ],
+        completeness: Completeness::partial("Token with 'whenever you draw a card, put +1/+1 counter' — token triggered abilities not expressible in TokenSpec"),
         ..Default::default()
     }
 }

@@ -35,6 +35,7 @@ pub fn card() -> CardDefinition {
             // filter (Zombie) and power threshold (≥6) + grant Lifelink until EOT effect.
             // No DSL support for this pattern yet.
         ],
+        completeness: Completeness::partial("'Whenever a Zombie token you control with power 6 or greater attacks, it gains lifelink until end of turn.' — needs..."),
         ..Default::default()
     }
 }

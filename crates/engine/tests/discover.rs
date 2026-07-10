@@ -24,8 +24,9 @@
 
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
-    Effect, EffectAmount, GameEvent, GameState, GameStateBuilder, KeywordAbility, ManaCost,
-    ObjectSpec, PlayerId, PlayerTarget, StackObjectKind, Step, TriggerCondition, TypeLine, ZoneId,
+    Completeness, Effect, EffectAmount, GameEvent, GameState, GameStateBuilder, KeywordAbility,
+    ManaCost, ObjectSpec, PlayerId, PlayerTarget, StackObjectKind, Step, TriggerCondition,
+    TypeLine, ZoneId,
 };
 
 fn p1() -> PlayerId {
@@ -95,6 +96,7 @@ fn discover_creature(id: &str, name: &str, mv: u32, discover_n: u32) -> CardDefi
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+        completeness: Completeness::Complete,
     }
 }
 
@@ -135,6 +137,7 @@ fn plain_sorcery(id: &str, name: &str, mv: u32) -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+        completeness: Completeness::Complete,
     }
 }
 
@@ -164,6 +167,7 @@ fn basic_land(id: &str, name: &str) -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+        completeness: Completeness::Complete,
     }
 }
 

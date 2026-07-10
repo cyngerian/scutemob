@@ -38,5 +38,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+    completeness: Completeness::partial("DSL gap — 'mana tracking' (conditional uncounterability based on mana source) is not expressible. Modeled as a plain..."),
     }
 }

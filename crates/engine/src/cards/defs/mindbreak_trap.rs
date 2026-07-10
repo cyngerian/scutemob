@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             // one target, so a hardcast Mindbreak Trap could not exile the multi-spell storm
             // turn it exists to answer, nor choose zero targets. Omitted, not approximated.
         ],
+        completeness: Completeness::partial("(1) Trap alternative cost — no AltCostKind::Trap, so the 'if an opponent cast three or more spells this turn, you may..."),
         ..Default::default()
     }
 }

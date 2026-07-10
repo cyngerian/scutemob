@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::partial("Interactive 'choose 2 of 7' — M10 player choice. Approximated as DrawCards(2)"),
         ..Default::default()
     }
 }

@@ -33,6 +33,7 @@ pub fn card() -> CardDefinition {
             },
             // TODO: mana-spend exile trigger + cast-from-exile activated ability
         ],
+        completeness: Completeness::partial("Both abilities are complex DSL gaps: (1) Mana-spend trigger with exile replacement (2) Cast-from-exile activated..."),
         ..Default::default()
     }
 }

@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
                 cost: ManaCost { generic: 2, ..Default::default() },
             },
         ],
+        completeness: Completeness::partial("'Grant cycling to cards in hand' — static ability grant to cards in hand not in DSL"),
         ..Default::default()
     }
 }

@@ -11,6 +11,7 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Artifact]),
         oracle_text: "Imprint — When this artifact enters, you may exile a nonartifact, nonland card from your hand.\n{T}: Add one mana of any of the exiled card's colors.".to_string(),
         abilities: vec![],
+        completeness: Completeness::inert("ETB optional exile from hand (Imprint) and 'add mana of exiled card's colors' are both DSL gaps (no..."),
         ..Default::default()
     }
 }

@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             // for now; BecomeCopyOf infrastructure exists but ETB-replacement clone choice
             // is not expressible in the DSL.
         ],
+        completeness: Completeness::partial("'enter as a copy of any creature, except it's also a Ninja' — needs ETB replacement effect with BecomeCopyOf +..."),
         ..Default::default()
     }
 }

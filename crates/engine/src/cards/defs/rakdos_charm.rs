@@ -51,6 +51,7 @@ pub fn card() -> CardDefinition {
             }),
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("no Effect variant exiles an entire graveyard zone (only single-object ExileObject exists). Unrelated to AC4's..."),
         ..Default::default()
     }
 }

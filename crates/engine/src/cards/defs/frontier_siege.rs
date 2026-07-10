@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             //   Effect::Fight is now available (PB-21), but the modal ETB choice and the
             //   "whenever creature with flying ETB" conditional trigger pattern remain blocking gaps.
         ],
+        completeness: Completeness::partial("Modal ETB choice (Khans vs Dragons), phase-specific mana trigger, and 'whenever creature with flying ETB, fight'..."),
         ..Default::default()
     }
 }

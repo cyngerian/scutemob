@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Lifelink),
             // TODO: Both draw triggers need opponent-action tracking.
         ],
+        completeness: Completeness::partial("Both triggers require opponent-action tracking not in DSL"),
         ..Default::default()
     }
 }

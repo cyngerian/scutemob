@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             // based on equipped creature's subtype is not in DSL.
             AbilityDefinition::Keyword(KeywordAbility::Equip),
         ],
+        completeness: Completeness::partial("DSL gap — 'Whenever a creature dies, put +1/+1 counter on equipped creature (2 if Vampire).' WheneverCreatureDies..."),
         ..Default::default()
     }
 }

@@ -31,6 +31,7 @@ pub fn card() -> CardDefinition {
             // TODO: Tap an untapped legendary permanent you control: Untap this artifact.
             //   (Cost enum lacks TapAnotherPermanentWithSupertype(SuperType::Legendary) variant)
         ],
+        completeness: Completeness::partial("Tap an untapped legendary permanent you control: Untap this artifact. (Cost enum lacks..."),
         ..Default::default()
     }
 }

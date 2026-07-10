@@ -44,6 +44,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::partial("'up to two' search — SearchLibrary finds one card"),
         ..Default::default()
     }
 }

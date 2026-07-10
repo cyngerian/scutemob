@@ -40,6 +40,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("'Equipped creature has 'Whenever this creature attacks, create a Treasure token'' — granting a triggered ability to the..."),
         ..Default::default()
     }
 }

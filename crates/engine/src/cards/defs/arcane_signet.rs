@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
                 activation_zone: None,
         once_per_turn: false,
 }],
+        completeness: Completeness::known_wrong("adds any color, not only colors in the commander's color identity"),
         ..Default::default()
     }
 }

@@ -37,6 +37,7 @@ pub fn card() -> CardDefinition {
             // ENGINE-BLOCKED: see file header — Raid end-step discard needs
             // TargetRequirement::TargetOpponent, which does not exist.
         ],
+        completeness: Completeness::partial("the Raid half needs 'target OPPONENT discards a card'. PB-AC6 supplies the intervening-if..."),
         ..Default::default()
     }
 }

@@ -31,6 +31,7 @@ pub fn card() -> CardDefinition {
             // temptation, not on choosing a Ring-bearer). Genuine remaining gap, out of
             // PB-AC2 scope.
         ],
+        completeness: Completeness::partial("'Whenever you choose a creature as your Ring-bearer, you may pay 2 life. If you do, draw a card.' PB-AC2's..."),
         ..Default::default()
     }
 }

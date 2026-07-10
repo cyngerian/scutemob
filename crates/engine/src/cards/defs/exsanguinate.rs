@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             //   Effect::DrainLife { amount: EffectAmount::XValue }
             // W5: a Fixed(0) placeholder would produce wrong game state — omitted.
         ],
+        completeness: Completeness::partial("{X} mana cost — EffectAmount::XValue not wired for DrainLife; using Fixed(0) would be wrong (W5). Abilities left empty..."),
         ..Default::default()
     }
 }

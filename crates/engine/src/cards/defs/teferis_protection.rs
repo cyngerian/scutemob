@@ -35,6 +35,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::partial("'your life total can't change' — needs a continuous prevention effect until next turn"),
         ..Default::default()
     }
 }

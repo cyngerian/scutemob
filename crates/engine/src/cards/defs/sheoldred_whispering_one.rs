@@ -50,6 +50,7 @@ pub fn card() -> CardDefinition {
             // not exist. The ability is omitted rather than using AtBeginningOfEachUpkeep which
             // would incorrectly fire on your own upkeep too and lacks a "that player" effect target.
         ],
+        completeness: Completeness::partial("(DSL GAP): 'At the beginning of each opponent's upkeep, that player sacrifices a creature' requires..."),
         ..Default::default()
     }
 }

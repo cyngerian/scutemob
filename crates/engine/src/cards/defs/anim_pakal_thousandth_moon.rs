@@ -35,6 +35,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("'with non-Gnome creatures' condition and counter-based token count not in DSL"),
         ..Default::default()
     }
 }

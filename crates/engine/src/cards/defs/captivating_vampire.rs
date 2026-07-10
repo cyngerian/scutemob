@@ -29,6 +29,7 @@ pub fn card() -> CardDefinition {
             // Cost::TapNCreaturesWithSubtype(5, SubType) does not exist.
             // Also needs: gain control (SetController) + add subtype (AddSubtype).
         ],
+        completeness: Completeness::partial("DSL gap — 'Tap five untapped Vampires you control: Gain control of target creature. It becomes a Vampire in addition to..."),
         ..Default::default()
     }
 }

@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — end step trigger with tapped creature count condition +
             // mass counter placement excluding self. Multiple DSL gaps.
         ],
+        completeness: Completeness::partial("DSL gap — end step trigger with tapped creature count condition + mass counter placement excluding self. Multiple DSL..."),
         ..Default::default()
     }
 }

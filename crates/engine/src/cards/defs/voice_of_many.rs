@@ -30,6 +30,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("'Each opponent with fewer creatures' count not expressible"),
         ..Default::default()
     }
 }

@@ -30,6 +30,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("'mana value X or less' — max_cmc should be XValue, not fixed"),
         ..Default::default()
     }
 }

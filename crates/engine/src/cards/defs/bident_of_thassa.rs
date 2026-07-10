@@ -39,6 +39,7 @@ pub fn card() -> CardDefinition {
             // TODO: "{1}{U}, {T}: Creatures your opponents control attack this turn if able."
             // Forced attack effect not expressible in current DSL.
         ],
+        completeness: Completeness::partial("'Whenever a creature you control deals combat damage to a player' — this is a per-creature trigger, not..."),
         ..Default::default()
     }
 }

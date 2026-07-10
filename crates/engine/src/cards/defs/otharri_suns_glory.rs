@@ -30,6 +30,7 @@ pub fn card() -> CardDefinition {
             // Tap-a-Rebel cost not expressible (Cost::TapPermanentWithSubtype not in DSL).
             // Also no ReturnFromGraveyardToBattlefield effect with tapped modifier.
         ],
+        completeness: Completeness::partial("'Whenever Otharri attacks, you get an experience counter. Then create a 2/2 red Rebel token that's tapped and attacking..."),
         ..Default::default()
     }
 }

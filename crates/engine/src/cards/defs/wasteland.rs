@@ -38,6 +38,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("Target should be 'nonbasic land' — TargetFilter lacks non_basic exclusion field. Using TargetLand as approximation..."),
         ..Default::default()
     }
 }

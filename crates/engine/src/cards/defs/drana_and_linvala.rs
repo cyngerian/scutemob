@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
             // TODO: Static — this has all activated abilities of opponents' creatures.
             // DSL gap: no ability-copying LayerModification in DSL. Deferred.
         ],
+        completeness: Completeness::partial("Both static abilities (ability suppression + ability copying from opponents' creatures) are not expressible in the DSL...."),
         ..Default::default()
     }
 }

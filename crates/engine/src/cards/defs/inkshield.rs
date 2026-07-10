@@ -13,6 +13,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // TODO: Prevention effect + variable token count based on damage prevented not in DSL
         ],
+        completeness: Completeness::partial("Prevention effect + variable token count based on damage prevented not in DSL"),
         ..Default::default()
     }
 }

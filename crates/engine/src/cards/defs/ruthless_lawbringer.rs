@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             // the sacrifice is a choice that conditionally fires a second trigger. No DSL
             // support for optional-sacrifice ETB with conditional chained trigger.
         ],
+        completeness: Completeness::partial("DSL gap — 'when you do' reflexive trigger: the ETB trigger allows sacrificing another creature, and only when that..."),
         ..Default::default()
     }
 }

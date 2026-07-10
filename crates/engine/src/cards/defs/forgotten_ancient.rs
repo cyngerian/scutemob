@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — "move any number of +1/+1 counters" requires counter
             // movement with player choice (M10 player choice).
         ],
+        completeness: Completeness::partial("DSL gap — 'Whenever a player casts a spell' trigger condition. WheneverASpellIsCast exists but may not match 'a player'..."),
         ..Default::default()
     }
 }

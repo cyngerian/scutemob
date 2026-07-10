@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Sacrifice another creature: Prossh gets +1/+0 until end of turn"
             // — pump effect (Effect for +N/+M until EOT) not in DSL
         ],
+        completeness: Completeness::partial("'When you cast this spell' cast trigger creating X tokens where X = mana spent — cast triggers with X-equals-mana-spent..."),
         ..Default::default()
     }
 }

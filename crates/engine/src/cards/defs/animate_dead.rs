@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
         types: types_sub(&[CardType::Enchantment], &["Aura"]),
         oracle_text: "Enchant creature card in a graveyard\nWhen Animate Dead enters, if it's on the battlefield, it loses \"enchant creature card in a graveyard\" and gains \"enchant creature put onto the battlefield with Animate Dead.\" Return enchanted creature card to the battlefield under your control and attach Animate Dead to it. When Animate Dead leaves the battlefield, that creature's controller sacrifices it.\nEnchanted creature gets -1/-0.".to_string(),
         abilities: vec![],
+        completeness: Completeness::inert("Complex reanimation Aura — enchants graveyard card (no EnchantTarget variant for graveyard), changes enchant target on..."),
         ..Default::default()
     }
 }

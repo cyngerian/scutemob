@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("X = greatest number of creatures sharing a creature type. No EffectAmount variant for this. Using Fixed(0) stub"),
         ..Default::default()
     }
 }

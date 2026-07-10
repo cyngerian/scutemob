@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::DoubleStrike),
         ],
+        completeness: Completeness::partial("DSL gap — triggered ability 'Whenever this creature deals damage to an opponent, you may put a Goblin creature card..."),
         ..Default::default()
     }
 }

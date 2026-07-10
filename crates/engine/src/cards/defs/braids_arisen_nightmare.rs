@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
         // TODO: Full ability requires sacrifice-choice, type-matching, per-opponent
         //   decision, conditional life loss + draw. Not expressible in current DSL.
         abilities: vec![],
+        completeness: Completeness::inert("Complex end-step trigger with sacrifice choice, type-matching opponent sacrifice, and conditional draw per opponent who..."),
         ..Default::default()
     }
 }

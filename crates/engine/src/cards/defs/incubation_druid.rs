@@ -49,6 +49,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("First ability — two DSL gaps: (1) 'mana of any type that a land you control could produce' requires querying which..."),
         ..Default::default()
     }
 }

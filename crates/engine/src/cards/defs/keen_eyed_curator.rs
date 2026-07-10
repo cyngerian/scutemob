@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![],
         // TODO: conditional +4/+4 and trample when 4+ card types exiled with this creature
         // TODO: {1}: exile target card from a graveyard
+        completeness: Completeness::inert("DSL gap — conditional static buff based on counting distinct card types among exiled cards attached to this permanent..."),
         ..Default::default()
     }
 }

@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Enchant(EnchantTarget::Land)),
         ],
+        completeness: Completeness::partial("Mana trigger on enchanted land + count-based mana (Elves on battlefield). Not expressible — same gap as Wild Growth..."),
         ..Default::default()
     }
 }

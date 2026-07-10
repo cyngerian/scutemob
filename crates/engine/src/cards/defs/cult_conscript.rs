@@ -47,6 +47,7 @@ pub fn card() -> CardDefinition {
         ],
         power: Some(2),
         toughness: Some(1),
+        completeness: Completeness::partial("'Activate only if a non-Skeleton creature died under your control this turn' condition requires a..."),
         ..Default::default()
     }
 }

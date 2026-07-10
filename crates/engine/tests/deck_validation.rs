@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use mtg_engine::cards::{CardDefinition, CardRegistry, TypeLine};
+use mtg_engine::cards::{CardDefinition, CardRegistry, Completeness, TypeLine};
 use mtg_engine::state::{CardId, CardType, Color, ManaCost, SubType, SuperType};
 use mtg_engine::{compute_color_identity, validate_deck, DeckViolation};
 
@@ -618,4 +618,189 @@ fn test_compute_color_identity_multicolor() {
     let mut identity = compute_color_identity(def);
     identity.sort();
     assert_eq!(identity, vec![Color::Blue, Color::Black, Color::Red]);
+}
+
+// ── Architecture Invariant 9: completeness gate ───────────────────────────────
+
+/// Swap one filler artifact in the valid registry for a def with the given marker.
+fn registry_with_marked_filler(completeness: Completeness) -> Arc<CardRegistry> {
+    let mut defs = Vec::new();
+    defs.push(legendary_creature(
+        "test-commander",
+        "Test Commander",
+        ManaCost {
+            generic: 2,
+            white: 1,
+            ..Default::default()
+        },
+    ));
+    for i in 1..=39 {
+        let mut def = artifact(
+            &format!("filler-{i}"),
+            &format!("Filler Artifact {i}"),
+            ManaCost {
+                generic: 1,
+                ..Default::default()
+            },
+        );
+        if i == 7 {
+            def.completeness = completeness.clone();
+        }
+        defs.push(def);
+    }
+    defs.push(basic_land("plains", "Plains", "Plains"));
+    CardRegistry::new(defs)
+}
+
+#[test]
+/// Architecture Invariant 9 — an inert def (registers with no abilities) is illegal.
+fn test_deck_validation_rejects_inert_card() {
+    let registry = registry_with_marked_filler(Completeness::inert("no abilities implemented"));
+    let result = validate_deck(&[cid("test-commander")], &valid_deck_ids(), &registry, &[]);
+
+    assert!(
+        !result.valid,
+        "a deck containing an inert card must be invalid"
+    );
+    let violation = result
+        .violations
+        .iter()
+        .find(|v| matches!(v, DeckViolation::IncompleteCard { .. }))
+        .expect("expected an IncompleteCard violation");
+    let DeckViolation::IncompleteCard {
+        name,
+        card_id,
+        kind,
+        note,
+    } = violation
+    else {
+        unreachable!()
+    };
+    assert_eq!(name, "Filler Artifact 7");
+    assert_eq!(card_id, "filler-7");
+    assert_eq!(*kind, "inert");
+    assert_eq!(note, "no abilities implemented");
+
+    // The message must name the card and say what is wrong — this is what the deck
+    // builder shows the player, per Architecture Invariant 9.
+    let rendered = violation.to_string();
+    assert!(rendered.contains("Filler Artifact 7"), "{rendered}");
+    assert!(rendered.contains("inert"), "{rendered}");
+    assert!(rendered.contains("no abilities implemented"), "{rendered}");
+}
+
+#[test]
+/// Architecture Invariant 9 — a partial def (some clauses unimplemented) is illegal.
+fn test_deck_validation_rejects_partial_card() {
+    let registry = registry_with_marked_filler(Completeness::partial("second ability is a TODO"));
+    let result = validate_deck(&[cid("test-commander")], &valid_deck_ids(), &registry, &[]);
+
+    assert!(!result.valid);
+    assert!(result.violations.iter().any(|v| matches!(
+        v,
+        DeckViolation::IncompleteCard {
+            kind: "partial",
+            ..
+        }
+    )));
+}
+
+#[test]
+/// Architecture Invariant 9 — a knowingly-wrong def is illegal even though every
+/// clause is implemented: the implemented behavior deviates from the oracle text.
+fn test_deck_validation_rejects_known_wrong_card() {
+    let registry = registry_with_marked_filler(Completeness::known_wrong("adds any color"));
+    let result = validate_deck(&[cid("test-commander")], &valid_deck_ids(), &registry, &[]);
+
+    assert!(!result.valid);
+    assert!(result.violations.iter().any(|v| matches!(
+        v,
+        DeckViolation::IncompleteCard {
+            kind: "known-wrong",
+            ..
+        }
+    )));
+}
+
+#[test]
+/// A deck of Complete defs produces no IncompleteCard violation — the gate does not
+/// fire on the happy path.
+fn test_deck_validation_accepts_complete_cards() {
+    let registry = build_valid_deck_registry();
+    let result = validate_deck(&[cid("test-commander")], &valid_deck_ids(), &registry, &[]);
+
+    assert!(result.valid, "violations: {:?}", result.violations);
+}
+
+#[test]
+/// One violation per distinct card, not one per deck slot. A basic land occupies 60
+/// slots; an incomplete one must not produce 60 identical violations.
+fn test_deck_validation_incomplete_basic_land_reported_once() {
+    let mut defs = Vec::new();
+    defs.push(legendary_creature(
+        "test-commander",
+        "Test Commander",
+        ManaCost {
+            generic: 2,
+            white: 1,
+            ..Default::default()
+        },
+    ));
+    for i in 1..=39 {
+        defs.push(artifact(
+            &format!("filler-{i}"),
+            &format!("Filler Artifact {i}"),
+            ManaCost {
+                generic: 1,
+                ..Default::default()
+            },
+        ));
+    }
+    let mut plains = basic_land("plains", "Plains", "Plains");
+    plains.completeness = Completeness::inert("mana ability missing");
+    defs.push(plains);
+    let registry = CardRegistry::new(defs);
+
+    let result = validate_deck(&[cid("test-commander")], &valid_deck_ids(), &registry, &[]);
+    let count = result
+        .violations
+        .iter()
+        .filter(|v| matches!(v, DeckViolation::IncompleteCard { .. }))
+        .count();
+    assert_eq!(count, 1, "violations: {:?}", result.violations);
+}
+
+#[test]
+/// The gate covers the commander itself — it is one of the 100 deck cards.
+fn test_deck_validation_rejects_incomplete_commander() {
+    let mut defs = Vec::new();
+    let mut commander = legendary_creature(
+        "test-commander",
+        "Test Commander",
+        ManaCost {
+            generic: 2,
+            white: 1,
+            ..Default::default()
+        },
+    );
+    commander.completeness = Completeness::partial("attack trigger is a TODO");
+    defs.push(commander);
+    for i in 1..=39 {
+        defs.push(artifact(
+            &format!("filler-{i}"),
+            &format!("Filler Artifact {i}"),
+            ManaCost {
+                generic: 1,
+                ..Default::default()
+            },
+        ));
+    }
+    defs.push(basic_land("plains", "Plains", "Plains"));
+    let registry = CardRegistry::new(defs);
+
+    let result = validate_deck(&[cid("test-commander")], &valid_deck_ids(), &registry, &[]);
+    assert!(result.violations.iter().any(|v| matches!(
+        v,
+        DeckViolation::IncompleteCard { card_id, .. } if card_id == "test-commander"
+    )));
 }

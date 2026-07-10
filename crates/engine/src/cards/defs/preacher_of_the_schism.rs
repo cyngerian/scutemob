@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Attacks while you have most life" conditional attack trigger not in DSL.
             //   Unconditional draw-on-attack would be wrong game state; removed.
         ],
+        completeness: Completeness::partial("'Attacks the player with most life' conditional attack trigger not in DSL"),
         ..Default::default()
     }
 }

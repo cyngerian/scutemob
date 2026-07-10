@@ -30,6 +30,7 @@ pub fn card() -> CardDefinition {
             },
             // TODO: Activated — {T}: Put a +1/+1 counter on each green creature that entered this turn.
         ],
+        completeness: Completeness::partial("Activated — {T}: Put a +1/+1 counter on each green creature that entered this turn"),
         ..Default::default()
     }
 }

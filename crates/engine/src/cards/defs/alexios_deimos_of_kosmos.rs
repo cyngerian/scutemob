@@ -34,6 +34,7 @@ pub fn card() -> CardDefinition {
             // TODO: Upkeep trigger (each player's upkeep): GainControl + untap + AddCounters + haste
             // — genuine DSL gap, no ForEachPlayer/ambient upkeep trigger scope exists.
         ],
+        completeness: Completeness::partial("'can't be sacrificed' / 'can't attack its owner' — primitives now exist (GameRestriction::CantBeSacrificed /..."),
         ..Default::default()
     }
 }

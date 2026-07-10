@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::partial("'each other creature becomes a copy' — needs ForEach over all creatures + BecomeCopyOf(target) + except-not-legendary...."),
         ..Default::default()
     }
 }

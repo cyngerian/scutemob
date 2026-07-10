@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::partial("Color-scoped counter protection + hexproof from color sources. Neither 'can't be countered by [color] spells' nor..."),
         ..Default::default()
     }
 }

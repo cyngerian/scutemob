@@ -47,6 +47,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("'nontoken' and 'mana value 4 or less' filters not in TargetFilter"),
         ..Default::default()
     }
 }

@@ -55,6 +55,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("'each opponent loses life equal to that card's mana value' requires EffectAmount::ManaValueOf pointing at the..."),
         ..Default::default()
     }
 }

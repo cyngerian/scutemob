@@ -10,10 +10,10 @@ use std::collections::HashSet;
 use mtg_engine::rules::replacement::{self, ReplacementResult};
 use mtg_engine::{
     AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, CombatDamageTarget, Command,
-    Condition, CounterType, DamageTargetFilter, EffectAmount, EffectDuration, GameEvent,
-    GameStateBuilder, ManaCost, ObjectFilter, ObjectId, ObjectSpec, PlayerFilter, PlayerId,
-    ReplacementEffect, ReplacementId, ReplacementModification, ReplacementTrigger, SubType,
-    SuperType, TypeLine, ZoneId, ZoneType,
+    Completeness, Condition, CounterType, DamageTargetFilter, EffectAmount, EffectDuration,
+    GameEvent, GameStateBuilder, ManaCost, ObjectFilter, ObjectId, ObjectSpec, PlayerFilter,
+    PlayerId, ReplacementEffect, ReplacementId, ReplacementModification, ReplacementTrigger,
+    SubType, SuperType, TypeLine, ZoneId, ZoneType,
 };
 
 /// Helper: create a simple zone-change replacement effect for testing.
@@ -3228,6 +3228,7 @@ fn test_etb_self_and_global_replacement_both_apply() {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+        completeness: Completeness::Complete,
     };
 
     let registry = CardRegistry::new(vec![def]);

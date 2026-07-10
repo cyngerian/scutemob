@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Whenever you draw your fifth card each turn" — same DSL gap.
             //   Also requires X = hand size dynamic buff. W5 policy: no approximation.
         ],
+        completeness: Completeness::partial("'Whenever you draw your second card each turn' — requires a per-turn draw-count trigger (fire on Nth draw)...."),
         ..Default::default()
     }
 }

@@ -35,6 +35,7 @@ pub fn card() -> CardDefinition {
                 },
             },
         ],
+        completeness: Completeness::partial("DSL gap — 'Ninjutsu abilities you activate cost {1} less to activate.' Ability cost reduction (not spell cost..."),
         ..Default::default()
     }
 }

@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
                 cost: ManaCost { generic: 2, ..Default::default() },
             },
         ],
+        completeness: Completeness::partial("'Untap up to two lands' — multi-target untap with land filter not expressible"),
         ..Default::default()
     }
 }

@@ -29,6 +29,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("The 'each player loses life equal to creatures they controlled' requires per-player tracking of how many creatures each..."),
         ..Default::default()
     }
 }

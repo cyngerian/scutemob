@@ -35,6 +35,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("'any target' — using each opponent as approximation"),
         ..Default::default()
     }
 }

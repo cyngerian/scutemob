@@ -46,6 +46,7 @@ pub fn card() -> CardDefinition {
             }),
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("Resolution-time color check not implemented in DSL — the color filter should be applied when the effect resolves, not..."),
         ..Default::default()
     }
 }

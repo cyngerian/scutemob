@@ -41,6 +41,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("DSL gap — '{1}{R}: deal 1 damage + add Vampire subtype + +1/+1 counter on self' Needs: DealDamage to target +..."),
         ..Default::default()
     }
 }

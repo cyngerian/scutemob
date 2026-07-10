@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
             // TriggerCondition::AtBeginningOfYourEndStep not available for CardDef
             // triggered abilities.
         ],
+        completeness: Completeness::partial("DSL gap — end step trigger (AtBeginningOfYourEndStep) with mass counter placement on creatures + loyalty counters on..."),
         ..Default::default()
     }
 }

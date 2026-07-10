@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
             // EffectAmount variant not in DSL. Basic sacrifice also deferred to avoid
             // producing incorrect game state when city's blessing is active. W5.
         ],
+        completeness: Completeness::partial("Needs Condition::HasCitysBlessing + EffectAmount::HalfCreatureCount(rounded_up)"),
         ..Default::default()
     }
 }

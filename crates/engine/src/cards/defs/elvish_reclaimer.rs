@@ -55,6 +55,7 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("'gets +2/+2 as long as there are three or more land cards in your graveyard' Needs Condition/EffectFilter checking..."),
         ..Default::default()
     }
 }

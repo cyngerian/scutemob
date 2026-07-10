@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::partial("'loses half life rounded up' needs EffectAmount::HalfLife"),
         ..Default::default()
     }
 }

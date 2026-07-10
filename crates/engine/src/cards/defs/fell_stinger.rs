@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
             // targeting a player for the draw/drain effect which is not in DSL
             // (targeted_trigger gap).
         ],
+        completeness: Completeness::partial("exploit trigger draw/lose effect with target player requires targeted_trigger"),
         ..Default::default()
     }
 }

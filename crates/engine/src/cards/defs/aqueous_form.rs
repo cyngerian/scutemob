@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
                 },
             },
         ],
+        completeness: Completeness::partial("'Whenever enchanted creature attacks, scry 1' — needs a trigger condition for 'enchanted creature attacks'..."),
         ..Default::default()
     }
 }

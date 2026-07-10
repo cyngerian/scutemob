@@ -31,6 +31,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("'Each opponent gets a poison counter' — EffectTarget::AllOpponents doesn't exist. Need ForEach::EachOpponent or..."),
         ..Default::default()
     }
 }

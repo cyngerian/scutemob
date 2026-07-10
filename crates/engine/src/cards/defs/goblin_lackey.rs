@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("'put a Goblin from hand onto battlefield' — needs MoveZone from hand with subtype filter. Using Nothing stub"),
         ..Default::default()
     }
 }

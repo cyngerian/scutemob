@@ -42,6 +42,7 @@ pub fn card() -> CardDefinition {
             // TODO: triggered — combat damage to player → look at top 3, put 1 in hand, rest on bottom.
             // DSL gap: no Effect::LookAtTopCards with put-to-hand/bottom choice.
         ],
+        completeness: Completeness::partial("'Whenever Dragonlord Ojutai deals combat damage to a player, look at the top three cards of your library. Put one of..."),
         ..Default::default()
     }
 }

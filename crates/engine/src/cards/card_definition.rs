@@ -159,6 +159,73 @@ pub struct CardDefinition {
     /// False for copies (`is_copy: true`) — copies have no physical card to move.
     #[serde(default)]
     pub self_shuffle_on_resolution: bool,
+    /// Architecture Invariant 9: how faithfully this definition implements the card.
+    ///
+    /// Defaults to `Complete`. Any other value makes the card illegal at deck-build
+    /// time (see `rules::commander::validate_deck` →
+    /// `DeckViolation::IncompleteCard`). A card that is inert, partial, or knowingly
+    /// wrong produces a state history that cannot be correctly rewound, so it must be
+    /// surfaced before turn 1 rather than silently misbehaving during play.
+    #[serde(default)]
+    pub completeness: Completeness,
+}
+/// How faithfully a `CardDefinition` implements its printed card (Architecture Invariant 9).
+///
+/// This is the machine-readable form of the markers `tools/authoring-report.py` reads.
+/// The report derives its `empty` / `todo` / `clean` buckets from this field, so the
+/// deck-build gate and the authoring report share one source of truth.
+///
+/// Everything except `Complete` is a deck-build error. There is no "mostly fine"
+/// tier on purpose: a card whose abilities silently never fire corrupts the replay
+/// history exactly as badly as a card with no abilities at all.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Completeness {
+    /// Every clause of the printed card is implemented. Legal in a deck.
+    #[default]
+    Complete,
+    /// The card registers with no abilities at all — it is a blank permanent that
+    /// happens to have the right name, types, and mana cost. Deck-build error.
+    Inert(String),
+    /// Some clauses are implemented and at least one is not (the `// TODO` and
+    /// `// ENGINE-BLOCKED` comments in the def name which). Deck-build error.
+    Partial(String),
+    /// Every clause is implemented, but at least one deliberately deviates from the
+    /// oracle text (the "Simplified" notes in the def). Deck-build error.
+    KnownWrong(String),
+}
+impl Completeness {
+    /// Construct an `Inert` marker. `note` says what is missing.
+    pub fn inert(note: impl Into<String>) -> Self {
+        Completeness::Inert(note.into())
+    }
+    /// Construct a `Partial` marker. `note` says which clause is unimplemented.
+    pub fn partial(note: impl Into<String>) -> Self {
+        Completeness::Partial(note.into())
+    }
+    /// Construct a `KnownWrong` marker. `note` says how the behavior deviates.
+    pub fn known_wrong(note: impl Into<String>) -> Self {
+        Completeness::KnownWrong(note.into())
+    }
+    /// True only for `Complete` — i.e. this card may legally appear in a deck.
+    pub fn is_complete(&self) -> bool {
+        matches!(self, Completeness::Complete)
+    }
+    /// Short kind name for messages and reports: `inert`, `partial`, `known-wrong`.
+    pub fn kind(&self) -> &'static str {
+        match self {
+            Completeness::Complete => "complete",
+            Completeness::Inert(_) => "inert",
+            Completeness::Partial(_) => "partial",
+            Completeness::KnownWrong(_) => "known-wrong",
+        }
+    }
+    /// The authored explanation, or `""` for `Complete`.
+    pub fn note(&self) -> &str {
+        match self {
+            Completeness::Complete => "",
+            Completeness::Inert(n) | Completeness::Partial(n) | Completeness::KnownWrong(n) => n,
+        }
+    }
 }
 impl Default for CardDefinition {
     fn default() -> Self {
@@ -183,6 +250,7 @@ impl Default for CardDefinition {
             cant_be_countered: false,
             self_exile_on_resolution: false,
             self_shuffle_on_resolution: false,
+            completeness: Completeness::Complete,
         }
     }
 }

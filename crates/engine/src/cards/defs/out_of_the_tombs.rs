@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
         oracle_text: "At the beginning of your upkeep, put two eon counters on this enchantment, then mill cards equal to the number of eon counters on it.\nIf you would draw a card while your library has no cards in it, instead return a creature card from your graveyard to the battlefield. If you can't, you lose the game.".to_string(),
         // TODO: Both abilities too complex for DSL.
         abilities: vec![],
+        completeness: Completeness::inert("Upkeep counter + mill scaling with counter count not expressible"),
         ..Default::default()
     }
 }

@@ -91,6 +91,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::partial("(two independent reasons, either alone would block this): 1. This card has Escalate, and the engine HARD-REJECTS..."),
         ..Default::default()
     }
 }

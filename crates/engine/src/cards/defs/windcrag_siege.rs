@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             // TODO: Mardu — attack trigger doubling not expressible.
             // TODO: Jeskai — upkeep Goblin token with lifelink+haste.
         ],
+        completeness: Completeness::partial("ETB mode choice (Mardu/Jeskai) not in DSL"),
         ..Default::default()
     }
 }

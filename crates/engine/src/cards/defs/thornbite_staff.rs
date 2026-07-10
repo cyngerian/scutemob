@@ -37,6 +37,7 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("(granted abilities): 'Equipped creature has [activated ability] and [triggered ability]' requires granting arbitrary..."),
         ..Default::default()
     }
 }

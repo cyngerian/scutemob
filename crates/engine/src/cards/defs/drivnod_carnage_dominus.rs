@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
             // put an indestructible counter on this.
             // DSL gap: exile-from-graveyard activated cost + AddCounters self-target not yet supported.
         ],
+        completeness: Completeness::partial("Activated ability — {B/P}{B/P}, exile three creature cards from your graveyard: put an indestructible counter on this...."),
         ..Default::default()
     }
 }

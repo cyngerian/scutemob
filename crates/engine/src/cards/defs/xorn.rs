@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
             //   not expressible in DSL. Would need ReplacementModification::AddExtraToken or
             //   similar variant. W5 policy: no implementation produces wrong game state.
         ],
+        completeness: Completeness::partial("Replacement effect for token creation quantity ('create one more Treasure') not expressible in DSL. Would need..."),
         ..Default::default()
     }
 }

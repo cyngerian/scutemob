@@ -54,6 +54,7 @@ pub fn card() -> CardDefinition {
             },
             // "Can be your commander" — inherent, no ability definition needed.
         ],
+        completeness: Completeness::partial("RevealAndRoute reveals all; 'look' is private. Using RevealAndRoute with count=2 and any-card filter as approximation"),
         ..Default::default()
     }
 }

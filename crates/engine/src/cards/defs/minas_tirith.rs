@@ -32,6 +32,7 @@ pub fn card() -> CardDefinition {
             // (Condition::AttackedWithNCreatures(2)). PB-AC6's Condition::YouAttackedThisTurn is
             // a bool and is insufficient — it cannot distinguish one attacker from two.
         ],
+        completeness: Completeness::partial("'{1}{W}, {T}: Draw a card. Activate only if you attacked with two or more creatures this turn.' Needs a count-based..."),
         ..Default::default()
     }
 }

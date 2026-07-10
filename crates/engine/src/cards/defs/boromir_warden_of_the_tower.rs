@@ -31,6 +31,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Vigilance),
         ],
+        completeness: Completeness::partial("DSL gap — 'Whenever an opponent casts a spell, if no mana was spent to cast it, counter that spell' requires..."),
         ..Default::default()
     }
 }

@@ -34,6 +34,7 @@ pub fn card() -> CardDefinition {
             // artifacts/creatures/planeswalkers you control: put an indestructible counter on this.
             // DSL gap: remove-counters-from-others cost not yet expressible.
         ],
+        completeness: Completeness::partial("Activated ability — {1}{U/P}{U/P}, remove three counters from among other artifacts/creatures/planeswalkers you..."),
         ..Default::default()
     }
 }

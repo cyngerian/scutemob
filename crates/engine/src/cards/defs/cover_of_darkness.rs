@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
             // effect or chosen_subtype field on GameObject. The static grant of Fear
             // depends on the chosen type (Layer 6).
         ],
+        completeness: Completeness::partial("'As this enters, choose a creature type' — no ChooseCreatureType effect or chosen_subtype field on GameObject. The..."),
         ..Default::default()
     }
 }

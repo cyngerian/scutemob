@@ -33,6 +33,7 @@ pub fn card() -> CardDefinition {
             // CR 509.1b: "Skrelv can't block."
             AbilityDefinition::Keyword(KeywordAbility::CantBlock),
         ],
+        completeness: Completeness::partial("DSL gap — the activated ability requires: 1. Phyrexian mana cost ({W/P}) — NOW representable via ManaCost.phyrexian..."),
         ..Default::default()
     }
 }

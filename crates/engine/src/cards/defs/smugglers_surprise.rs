@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
             // TODO: Spree mode 3 — creatures you control with power 4+ gain hexproof and indestructible until end of turn.
             // DSL gap: Spree modes not yet wired to Effect enum; power-filter for keyword grants.
         ],
+        completeness: Completeness::partial("Spree mode 1 — mill 4, put up to two creature/land cards milled into hand"),
         ..Default::default()
     }
 }

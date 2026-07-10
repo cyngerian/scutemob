@@ -24,8 +24,8 @@
 
 use mtg_engine::{
     process_command, AbilityDefinition, AttackTarget, CardDefinition, CardId, CardRegistry,
-    CardType, Command, GameEvent, GameStateBuilder, KeywordAbility, LossReason, ObjectSpec,
-    PlayerId, Step, TypeLine,
+    CardType, Command, Completeness, GameEvent, GameStateBuilder, KeywordAbility, LossReason,
+    ObjectSpec, PlayerId, Step, TypeLine,
 };
 
 // ── Helper: find object ID by name ───────────────────────────────────────────
@@ -299,6 +299,7 @@ fn test_702_164_toxic_multiple_instances_cumulative() {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+        completeness: Completeness::Complete,
     };
 
     let registry = CardRegistry::new(vec![double_toxic_def]);

@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
             // TODO: Saga chapter III — +1/+1 counters on all creatures you control plus vigilance,
             //   trample, indestructible until EOT. Blocked on Saga chapter framework.
         ],
+        completeness: Completeness::partial("Saga chapter I/II — grant `{T}: Add one mana of any color` to creatures you control until your next turn. Effect..."),
         ..Default::default()
     }
 }

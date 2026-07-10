@@ -34,6 +34,7 @@ pub fn card() -> CardDefinition {
             },
             AbilityDefinition::Keyword(KeywordAbility::Crew(3)),
         ],
+        completeness: Completeness::partial("'Cast from graveyard if 3+ tapped Pirates/Vehicles' not expressible"),
         ..Default::default()
     }
 }

@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
         // game state (KI-2). Stripped per W6 policy.
         // When fixed, also add: Draw a card.
         abilities: vec![],
+        completeness: Completeness::inert("'Counter target spell that targets a permanent you control' — requires spell-target-filter (must target your..."),
         ..Default::default()
     }
 }

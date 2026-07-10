@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("Targets a spell or nonland permanent an opponent controls — dual zone targeting (stack + battlefield). Bounce + free..."),
         ..Default::default()
     }
 }

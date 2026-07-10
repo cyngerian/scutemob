@@ -31,6 +31,7 @@ pub fn card() -> CardDefinition {
             // flashback cost requires a new Cost variant in AltCastAbility. The flashback
             // ability is omitted — card can only be cast from hand (no flashback from graveyard).
         ],
+        completeness: Completeness::partial("Flashback cost is 'Sacrifice three creatures' — not a mana cost. The AltCastAbility DSL only accepts ManaCost for..."),
         ..Default::default()
     }
 }

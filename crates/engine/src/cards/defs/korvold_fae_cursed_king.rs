@@ -48,6 +48,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("'Sacrifice another permanent' on ETB/attack — forced sacrifice not expressible"),
         ..Default::default()
     }
 }

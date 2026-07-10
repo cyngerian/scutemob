@@ -38,6 +38,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("TargetFilter lacks non_legendary — this searches any green creature with MV 3 or less. When non_legendary is added, set..."),
         ..Default::default()
     }
 }

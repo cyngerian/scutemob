@@ -57,6 +57,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("DestroyAll currently hits ALL creatures including the Soldier tokens created by the preceding Repeat effect. Oracle..."),
         ..Default::default()
     }
 }

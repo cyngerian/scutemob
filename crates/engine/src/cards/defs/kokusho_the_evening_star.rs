@@ -33,6 +33,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::known_wrong("drains 5 from each opponent instead of gaining life equal to the life lost this way"),
         ..Default::default()
     }
 }

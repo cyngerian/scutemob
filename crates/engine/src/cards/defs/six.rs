@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — "nonland permanent cards in your graveyard have retrace" is a
             // static ability granting retrace conditionally during your turn; no DSL support.
         ],
+        completeness: Completeness::partial("DSL gap — the WhenAttacks trigger mills 3 then routes a land card to hand. Effect::RevealAndRoute or Effect::Mill..."),
         ..Default::default()
     }
 }

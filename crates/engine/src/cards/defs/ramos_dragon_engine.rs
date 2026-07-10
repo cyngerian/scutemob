@@ -48,6 +48,7 @@ pub fn card() -> CardDefinition {
                 once_per_turn: true,
             },
         ],
+        completeness: Completeness::partial("'Whenever you cast a spell' trigger — needs WheneverYouCastASpell trigger + EffectAmount::SpellColorCount to count a..."),
         ..Default::default()
     }
 }

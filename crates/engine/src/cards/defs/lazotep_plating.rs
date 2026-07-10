@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
             },
             // TODO: grant hexproof to controller + all permanents until EOT
         ],
+        completeness: Completeness::partial("'You and permanents you control gain hexproof until end of turn' — grant hexproof to controller AND all permanents they..."),
         ..Default::default()
     }
 }

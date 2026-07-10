@@ -35,6 +35,7 @@ pub fn card() -> CardDefinition {
             // TODO: Activated — {W}{W}{U}{U}{B}{B}{R}{R}{G}{G}, {T}, Sacrifice: search library for
             // any number of God cards. DSL gap: multi-card search with type filter.
         ],
+        completeness: Completeness::partial("Static — As long as you control six or more lands, lands you control have '{T}: Add one mana of any color.' DSL gap:..."),
         ..Default::default()
     }
 }

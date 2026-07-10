@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
             // TODO: Static ability — grant flying to creatures you control while this is in graveyard
             // and you control an Island. DSL gap: no graveyard-zone static effect with land-type condition.
         ],
+        completeness: Completeness::partial("Static ability — grant flying to creatures you control while this is in graveyard and you control an Island. DSL gap:..."),
         ..Default::default()
     }
 }

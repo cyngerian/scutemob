@@ -37,6 +37,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("token-only filter on sacrifice (is_token field not in TargetFilter)"),
         ..Default::default()
     }
 }

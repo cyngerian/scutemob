@@ -54,6 +54,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("Sacrifice self from triggered ability — reflexive trigger pattern ('When you do, search...') not yet expressible...."),
         ..Default::default()
     }
 }

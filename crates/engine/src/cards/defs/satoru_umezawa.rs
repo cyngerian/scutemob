@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
             // TODO: look-at-top-3-put-1-in-hand — DSL gap (no SelectFromTopN effect).
             // TODO: static grant ninjutsu to cards in hand — DSL gap (EffectFilter::InHand not supported).
         ],
+        completeness: Completeness::partial("TriggerCondition::WheneverYouActivateNinjutsu does not exist in DSL. The ninjutsu activation trigger cannot be..."),
         ..Default::default()
     }
 }

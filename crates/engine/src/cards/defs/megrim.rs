@@ -30,6 +30,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("Requires TriggerCondition::WheneverOpponentDiscards which does not exist in the DSL. The damage target 'that player'..."),
         ..Default::default()
     }
 }

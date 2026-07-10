@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("'Different mana values' count not expressible. Using Fixed(3) placeholder"),
         ..Default::default()
     }
 }

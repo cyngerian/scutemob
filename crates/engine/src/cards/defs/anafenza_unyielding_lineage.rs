@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             // nontoken + controller filter not in DSL. Endure keyword (put counters OR create
             // token) also not in DSL.
         ],
+        completeness: Completeness::partial("'Whenever another nontoken creature you control dies' — WhenDies with nontoken + controller filter not in DSL. Endure..."),
         ..Default::default()
     }
 }

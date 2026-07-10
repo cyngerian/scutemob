@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             // TODO: whenever you cast a spell, bounce opponent's nonland permanent with MV ≤ spell's MV
         ],
+        completeness: Completeness::partial("DSL gap — targeted trigger with a dynamic MV comparison filter (≤ spell's MV) is not expressible; TargetFilter has no..."),
         ..Default::default()
     }
 }

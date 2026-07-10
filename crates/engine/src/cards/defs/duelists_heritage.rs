@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Enchantment]),
         oracle_text: "Whenever one or more creatures attack, you may have target attacking creature gain double strike until end of turn.".to_string(),
         abilities: vec![],
+        completeness: Completeness::inert("DSL gap — triggered ability 'Whenever one or more creatures attack, you may have target attacking creature gain double..."),
         ..Default::default()
     }
 }

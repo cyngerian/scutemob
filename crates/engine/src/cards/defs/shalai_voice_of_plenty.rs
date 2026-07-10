@@ -49,6 +49,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("DSL gap — 'You have hexproof' (player hexproof) not in layer system"),
         ..Default::default()
     }
 }

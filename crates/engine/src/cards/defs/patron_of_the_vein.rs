@@ -44,6 +44,7 @@ pub fn card() -> CardDefinition {
             //    information, now in the graveyard). ExileObject with a dying-creature
             //    reference is not in the DSL.
         ],
+        completeness: Completeness::partial("'Whenever a creature an opponent controls dies, exile it and put a +1/+1 counter on each Vampire you control.' DSL..."),
         ..Default::default()
     }
 }

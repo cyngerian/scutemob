@@ -56,6 +56,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("DSL gap — 'Whenever you gain life, target opponent loses that much life.' requires TriggerCondition::WhenYouGainLife..."),
         ..Default::default()
     }
 }

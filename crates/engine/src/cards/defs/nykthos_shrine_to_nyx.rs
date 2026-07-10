@@ -32,6 +32,7 @@ pub fn card() -> CardDefinition {
             // DevotionTo(color) is implemented but "choose a color" interactive selection
             // requires M10 (Command::ChooseColor). Deferred.
         ],
+        completeness: Completeness::partial("{2},{T}: Choose a color, add mana equal to devotion to that color. DevotionTo(color) is implemented but 'choose a..."),
         ..Default::default()
     }
 }

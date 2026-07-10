@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — multi-type target filter (artifact/creature/planeswalker)
             // and "its controller" token creation not expressible.
         ],
+        completeness: Completeness::partial("DSL gap — CounterSpell targets any spell; TargetRequirement lacks a multi-type filter (artifact OR creature OR..."),
         ..Default::default()
     }
 }

@@ -48,6 +48,7 @@ pub fn card() -> CardDefinition {
             // ENGINE-BLOCKED: "Whenever you proliferate, draw a card." — see module
             // comment. No TriggerCondition variant reaches TriggerEvent::ControllerProliferates.
         ],
+        completeness: Completeness::partial("(2nd ability only): 'Whenever you proliferate, draw a card.' The runtime fires an internal..."),
         ..Default::default()
     }
 }

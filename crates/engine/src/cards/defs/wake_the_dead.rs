@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             //    triggered sacrifice is not expressible in the DSL.
             // Empty per W5 policy.
         ],
+        completeness: Completeness::partial("This card has multiple DSL gaps: 1. {X} in mana cost: ManaCost has no X field; X-value effects require..."),
         ..Default::default()
     }
 }

@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
         ),
         oracle_text: "Equipped creature gets +1/+1 and has haste.\nAt the beginning of each combat, untap equipped creature.\nEquipped creature has first strike as long as it's blocking or blocked by a Goblin or Orc.\nEquip {2}".to_string(),
         abilities: vec![],
+        completeness: Completeness::inert("DSL gap — static 'Equipped creature gets +1/+1 and has haste.' (equipment continuous effects require..."),
         ..Default::default()
     }
 }

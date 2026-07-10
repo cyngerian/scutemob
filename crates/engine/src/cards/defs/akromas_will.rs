@@ -13,6 +13,7 @@ pub fn card() -> CardDefinition {
         oracle_text: "Choose one. If you control a commander as you cast this spell, you may choose both instead.\n\u{2022} Creatures you control gain flying, vigilance, and double strike until end of turn.\n\u{2022} Creatures you control gain lifelink, indestructible, and protection from each color until end of turn.".to_string(),
         abilities: vec![],
         // TODO: conditional modal bonus; mass keyword grants; protection from each color
+        completeness: Completeness::inert("DSL gap — conditional modal choice ('if you control a commander, may choose both'), mass flying/vigilance/double strike..."),
         ..Default::default()
     }
 }

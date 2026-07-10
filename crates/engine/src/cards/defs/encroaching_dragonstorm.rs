@@ -51,6 +51,7 @@ pub fn card() -> CardDefinition {
             //     controller: TargetController::You, ..Default::default() }) }
             // → Effect::ReturnToHand { target: EffectTarget::Source }
         ],
+        completeness: Completeness::partial("(second trigger): Effect::ReturnToHand does not exist as a DSL variant. When a Dragon you control enters, return this..."),
         ..Default::default()
     }
 }

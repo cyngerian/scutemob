@@ -78,6 +78,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("'then discard' — forced discard after draw not expressible"),
         ..Default::default()
     }
 }

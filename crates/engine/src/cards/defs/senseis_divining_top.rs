@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
             // TODO: {1}: Look at top 3 and rearrange — no rearrange-top-of-library effect in DSL.
             // TODO: {T}: Draw a card then put self on top of library — no PutSelfOnTopOfLibrary effect.
         ],
+        completeness: Completeness::partial("{1} ability — 'look at top 3, put back in any order' requires a rearrange/order top-of-library effect that does not..."),
         ..Default::default()
     }
 }

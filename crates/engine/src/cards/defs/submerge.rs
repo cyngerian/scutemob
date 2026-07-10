@@ -29,6 +29,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::partial("Conditional free-cast 'if opponent controls a Forest and you control an Island' — no AltCostKind for land-conditional..."),
         ..Default::default()
     }
 }

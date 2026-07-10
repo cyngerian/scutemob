@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             //   Blocked on {Q} (untap symbol) — ActivationCost needs requires_untap_self.
             AbilityDefinition::Keyword(KeywordAbility::Equip),
         ],
+        completeness: Completeness::partial("grant '3, {Q}: gets +2/+2 until EOT' to equipped creature via LayerModification::AddActivatedAbility +..."),
         ..Default::default()
     }
 }

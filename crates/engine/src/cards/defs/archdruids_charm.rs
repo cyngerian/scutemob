@@ -78,6 +78,7 @@ pub fn card() -> CardDefinition {
             }),
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("'creature or land' search with conditional destination (battlefield tapped if land, hand if creature) — SearchLibrary..."),
         ..Default::default()
     }
 }

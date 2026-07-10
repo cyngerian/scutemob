@@ -48,6 +48,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("DSL gap — 'you may' optional trigger not expressible. Currently mandatory if valid target exists"),
         ..Default::default()
     }
 }

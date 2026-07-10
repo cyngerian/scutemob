@@ -41,6 +41,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("Target should be 'legendary permanent' — TargetFilter lacks supertype constraint"),
         ..Default::default()
     }
 }

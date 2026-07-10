@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
             // WheneverCreatureDies with controller filter + keyword exclusion filter +
             // return from GY + flying counter. Multiple DSL gaps.
         ],
+        completeness: Completeness::partial("DSL gap — 'Whenever a creature you control without flying dies' needs WheneverCreatureDies with controller filter +..."),
         ..Default::default()
     }
 }

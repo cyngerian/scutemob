@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Instant]),
         oracle_text: "Exile target nonland permanent. Its controller incubates X, where X is its mana value. (They create an Incubator token with X +1/+1 counters on it and \"{2}: Transform this token.\" It transforms into a 0/0 Phyrexian artifact creature.)".to_string(),
         abilities: vec![],
+        completeness: Completeness::inert("The 'incubates X where X is its mana value' clause requires: 1. Effect::Incubate (not yet in DSL) — creates an..."),
         ..Default::default()
     }
 }

@@ -67,6 +67,7 @@ pub fn card() -> CardDefinition {
                 abilities: vec![],
             },
         ],
+        completeness: Completeness::partial("Level 3 needs land-animation continuous effect + ETB trigger on level-up"),
         ..Default::default()
     }
 }

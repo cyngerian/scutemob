@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             // TODO: Triggered ability — whenever an opponent loses life, you gain that much life.
             // DSL gap: no "whenever opponent loses life" trigger with life-amount mirror gain.
         ],
+        completeness: Completeness::partial("Triggered ability — whenever an opponent loses life, you gain that much life. DSL gap: no 'whenever opponent loses..."),
         ..Default::default()
     }
 }

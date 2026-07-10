@@ -34,6 +34,7 @@ pub fn card() -> CardDefinition {
             },
             // TODO: "Sacrifice a Treasure: Exile the top card of your library. You may play that card this turn." — impulse draw not expressible.
         ],
+        completeness: Completeness::partial("'Sacrifice a Treasure: exile top card + impulse draw' not expressible"),
         ..Default::default()
     }
 }

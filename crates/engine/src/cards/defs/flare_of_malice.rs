@@ -31,6 +31,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::partial("Sacrifice-creature alt cost not in DSL"),
         ..Default::default()
     }
 }

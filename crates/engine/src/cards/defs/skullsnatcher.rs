@@ -59,6 +59,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("(residual, documented — NOT fixed by this migration): this is a *triggered* ability. `abilities.rs`'s trigger..."),
         ..Default::default()
     }
 }

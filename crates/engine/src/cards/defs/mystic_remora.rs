@@ -40,6 +40,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("'may draw unless that player pays {4}' — MayPayOrElse still a gap"),
         ..Default::default()
     }
 }

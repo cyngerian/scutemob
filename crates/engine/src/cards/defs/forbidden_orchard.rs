@@ -62,6 +62,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("token-for-target-opponent DSL gap. CreateToken creates tokens for the controller; there is no DSL for 'target player..."),
         ..Default::default()
     }
 }

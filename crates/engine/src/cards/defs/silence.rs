@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::partial("'Your opponents can't cast spells this turn' — needs a one-shot effect that registers a turn-scoped restriction (not a..."),
         ..Default::default()
     }
 }

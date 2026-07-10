@@ -47,6 +47,7 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("'target creature from that player's graveyard' — needs TargetCardInOpponentGraveyard + 'under your control' zone move"),
         ..Default::default()
     }
 }

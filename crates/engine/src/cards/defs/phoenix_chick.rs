@@ -29,6 +29,7 @@ pub fn card() -> CardDefinition {
             // CR 509.1b: "This creature can't block."
             AbilityDefinition::Keyword(KeywordAbility::CantBlock),
         ],
+        completeness: Completeness::partial("DSL gap — the triggered ability requires: 1. A trigger that fires when you attack with three or more creatures. 2. An..."),
         ..Default::default()
     }
 }

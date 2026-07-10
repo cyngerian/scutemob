@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
         ],
+        completeness: Completeness::partial("Blocker — EffectDuration::WhileYouControlSource variant for 'for as long as you control this creature' on a..."),
         ..Default::default()
     }
 }

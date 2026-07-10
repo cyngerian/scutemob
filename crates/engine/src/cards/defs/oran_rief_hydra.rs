@@ -41,6 +41,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — "If that land is a Forest, put two counters instead."
             // Conditional based on entering permanent's subtype not in DSL.
         ],
+        completeness: Completeness::partial("DSL gap — 'If that land is a Forest, put two counters instead.' Conditional based on entering permanent's subtype not..."),
         ..Default::default()
     }
 }

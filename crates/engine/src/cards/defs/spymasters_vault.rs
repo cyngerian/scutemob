@@ -33,6 +33,7 @@ pub fn card() -> CardDefinition {
             },
             // TODO: Activated — {B}, {T}: Target creature connives X (where X = creatures died this turn).
         ],
+        completeness: Completeness::partial("Activated — {B}, {T}: Target creature connives X (where X = creatures died this turn)"),
         ..Default::default()
     }
 }

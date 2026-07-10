@@ -40,6 +40,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("Static evasion — 'Creatures with power less than this creature's power can't block it.' Needs..."),
         ..Default::default()
     }
 }

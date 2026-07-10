@@ -34,6 +34,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
+        completeness: Completeness::partial("'opponents can't draw more than 1 card each turn' — needs GameRestriction::MaxCardsDrawnPerTurn. Not in DSL"),
         ..Default::default()
     }
 }

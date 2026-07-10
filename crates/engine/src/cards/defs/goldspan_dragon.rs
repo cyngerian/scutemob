@@ -52,6 +52,7 @@ pub fn card() -> CardDefinition {
             // own printed mana ability. No static grant to a filtered set of permanents that
             // can override an existing activated ability's mana output.
         ],
+        completeness: Completeness::partial("'Treasures you control have '{T}, Sacrifice: Add two mana of any one color.'' — a static ability-granting override that..."),
         ..Default::default()
     }
 }

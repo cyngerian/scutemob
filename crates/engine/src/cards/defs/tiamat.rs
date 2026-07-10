@@ -39,6 +39,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
         ],
+        completeness: Completeness::partial("DSL gap — the ETB triggered ability requires SearchLibrary with: 1. 'up to five' (variable count) cards matching a..."),
         ..Default::default()
     }
 }

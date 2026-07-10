@@ -29,6 +29,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("Requires TriggerCondition::WheneverOpponentDiscards which does not exist in the DSL. The life-loss target 'that player'..."),
         ..Default::default()
     }
 }

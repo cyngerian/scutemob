@@ -30,6 +30,7 @@ pub fn card() -> CardDefinition {
             // Requires a Cost variant for "sacrifice N permanents with filter" — DSL gap.
             // The sacrifice-10-nonland-permanents cost cannot be expressed yet. Deferred.
         ],
+        completeness: Completeness::partial("'{T}, Sacrifice ten nonland permanents: Each opponent loses 10 life.' Requires a Cost variant for 'sacrifice N..."),
         ..Default::default()
     }
 }

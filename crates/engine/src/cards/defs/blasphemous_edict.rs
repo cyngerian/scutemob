@@ -31,6 +31,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::partial("Conditional cost reduction '{B}{B} less if 13+ creatures on the battlefield' is not expressible in the current DSL...."),
         ..Default::default()
     }
 }

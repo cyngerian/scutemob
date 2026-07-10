@@ -31,6 +31,7 @@ pub fn card() -> CardDefinition {
             // 3. "Exile top card; you may play it this turn" requires PlayExiledCard which
             //    needs DSL support for play-from-exile with end-of-turn expiry.
         ],
+        completeness: Completeness::partial("'Whenever one or more Dragons you control deal combat damage to an opponent, choose one that hasn't been chosen this..."),
         ..Default::default()
     }
 }

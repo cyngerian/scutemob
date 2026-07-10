@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Whenever Edgar attacks" — AddCounters to each Vampire you control.
             // EffectTarget::AllCreaturesYouControlWithSubtype not in DSL.
         ],
+        completeness: Completeness::partial("Eminence — triggers from command zone. WheneverYouCastSpell with subtype filter (Vampire only) + command-zone condition..."),
         ..Default::default()
     }
 }

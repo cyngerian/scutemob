@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             AbilityDefinition::Keyword(KeywordAbility::Toxic(1)),
         ],
+        completeness: Completeness::partial("DSL gap — 'When you proliferate, return this card from your graveyard to your hand.' No TriggerCondition for..."),
         ..Default::default()
     }
 }

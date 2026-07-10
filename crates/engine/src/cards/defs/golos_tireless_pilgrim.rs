@@ -40,6 +40,7 @@ pub fn card() -> CardDefinition {
             // TODO: {2}{W}{U}{B}{R}{G}: Exile top 3 cards, you may play them this turn without paying mana costs
             //   (no Effect::ExileTopCards + free-play-until-end-of-turn combination in DSL)
         ],
+        completeness: Completeness::partial("{2}{W}{U}{B}{R}{G}: Exile top 3 cards, you may play them this turn without paying mana costs (no Effect::ExileTopCards..."),
         ..Default::default()
     }
 }

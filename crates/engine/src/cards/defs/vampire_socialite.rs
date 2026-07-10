@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — replacement effect for "enters with an additional +1/+1 counter"
             // conditional on opponent life loss. Needs conditional ETB replacement.
         ],
+        completeness: Completeness::partial("DSL gap — intervening-if 'if an opponent lost life this turn' (Condition::OpponentLostLifeThisTurn) does not exist"),
         ..Default::default()
     }
 }

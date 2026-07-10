@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             // TODO: Soulbond grant of "deals damage to opponent → draw" not in DSL.
             //   SoulbondGrant struct lacks triggered ability grants.
         ],
+        completeness: Completeness::partial("Soulbond grant of 'deals damage to opponent → draw' not in DSL. SoulbondGrant struct lacks triggered ability grants"),
         ..Default::default()
     }
 }

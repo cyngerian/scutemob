@@ -90,6 +90,7 @@ pub fn card() -> CardDefinition {
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
         cant_be_countered: false,
+        completeness: Completeness::partial("Compleated keyword — 2 fewer loyalty if Phyrexian life was paid"),
         ..Default::default()
     }
 }

@@ -34,6 +34,7 @@ pub fn card() -> CardDefinition {
             // TODO: "When dies, create X Vampires where X = power" — power-based token count
             // not in DSL
         ],
+        completeness: Completeness::partial("'When dies, create X Vampires where X = power' — power-based token count not in DSL"),
         ..Default::default()
     }
 }

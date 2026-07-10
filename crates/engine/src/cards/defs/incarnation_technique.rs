@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             // Empty per W5 policy — wrong implementation would miss demonstrate trigger and
             // the non-targeted graveyard choice.
         ],
+        completeness: Completeness::partial("Demonstrate is a keyword that triggers when the spell is cast and lets you copy it (with an opponent also getting a..."),
         ..Default::default()
     }
 }

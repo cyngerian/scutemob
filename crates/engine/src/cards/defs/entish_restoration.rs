@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Instant]),
         oracle_text: "Sacrifice a land. Search your library for up to two basic land cards, put them onto the battlefield tapped, then shuffle. If you control a creature with power 4 or greater, instead search your library for up to three basic land cards, put them onto the battlefield tapped, then shuffle.".to_string(),
         abilities: vec![],
+        completeness: Completeness::inert("Two DSL gaps prevent faithful implementation: 1. SacrificePermanents has no type filter — sacrificing specifically a..."),
         ..Default::default()
     }
 }

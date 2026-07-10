@@ -40,6 +40,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("Add SpellAdditionalCost::SacrificeColorCreature(Color) for precision"),
         ..Default::default()
     }
 }

@@ -45,6 +45,7 @@ pub fn card() -> CardDefinition {
             // Blocked by: (1) no TargetFilter::non_basic field; (2) "that land's controller"
             // requires PlayerTarget::ControllerOf a destroyed permanent (post-destruction LKI).
         ],
+        completeness: Completeness::partial("{2}, {T}, Sacrifice this land: Destroy target nonbasic land an opponent controls. That land's controller may search..."),
         ..Default::default()
     }
 }

@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
         //   "drawn this turn" tracking, and player choice to pay/put-back.
         //   No abilities implemented — too complex for current DSL.
         abilities: vec![],
+        completeness: Completeness::inert("Complex replacement/draw-step ability — 'draw two additional cards' then choose two to pay 4 life or put back. Requires..."),
         ..Default::default()
     }
 }

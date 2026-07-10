@@ -68,6 +68,7 @@ pub fn card() -> CardDefinition {
             }),
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("'one or two target creatures' requires variable target count (1-2 targets), which is not expressible in the current..."),
         ..Default::default()
     }
 }

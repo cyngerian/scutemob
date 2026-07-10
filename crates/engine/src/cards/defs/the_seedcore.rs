@@ -74,6 +74,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("Target should be '1/1 creature' — TargetFilter lacks exact P/T constraint"),
         ..Default::default()
     }
 }

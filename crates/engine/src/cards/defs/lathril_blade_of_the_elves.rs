@@ -55,6 +55,7 @@ pub fn card() -> CardDefinition {
             // TODO: "{T}, Tap ten untapped Elves you control" — cost requiring tap of N other
             //   specific-type permanents not expressible in DSL.
         ],
+        completeness: Completeness::partial("'{T}, Tap ten untapped Elves you control' — cost requiring tap of N other specific-type permanents not expressible in..."),
         ..Default::default()
     }
 }

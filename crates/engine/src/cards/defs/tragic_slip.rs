@@ -14,6 +14,7 @@ pub fn card() -> CardDefinition {
         // Requires Condition::CreatureDiedThisTurn. Partial -1/-1 is wrong game state
         // (KI-2) because it under-kills. Stripped per W6 policy.
         abilities: vec![],
+        completeness: Completeness::inert("Morbid — 'if a creature died this turn' → -13/-13, else -1/-1. Requires Condition::CreatureDiedThisTurn. Partial -1/-1..."),
         ..Default::default()
     }
 }

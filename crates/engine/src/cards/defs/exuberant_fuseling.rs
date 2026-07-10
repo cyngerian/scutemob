@@ -53,6 +53,7 @@ pub fn card() -> CardDefinition {
             // Blocked by: WheneverCreatureOrArtifactDies trigger condition (multi-blocker).
             // Out of PB-CC-C scope per memory/primitives/pb-retriage-CC.md.
         ],
+        completeness: Completeness::partial("'whenever another creature or artifact you control is put into a graveyard from the battlefield, put an oil counter on..."),
         ..Default::default()
     }
 }

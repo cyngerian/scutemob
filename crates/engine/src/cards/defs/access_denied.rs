@@ -14,6 +14,7 @@ pub fn card() -> CardDefinition {
         // Counter without tokens removes the card's primary payoff (KI-2).
         // Stripped per W6 policy until MV-tracking + variable token count is in DSL.
         abilities: vec![],
+        completeness: Completeness::inert("Counter target spell + create X 1/1 Thopter tokens where X = MV. Counter without tokens removes the card's primary..."),
         ..Default::default()
     }
 }

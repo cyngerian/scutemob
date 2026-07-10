@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             // TODO: "{1}{U}: Return target Ninja you control to its owner's hand" — requires
             // subtype-filtered targeting (Ninja) + MoveZone to hand + "activate only during your turn".
         ],
+        completeness: Completeness::partial("'look at that player's hand' — hidden information reveal, no DSL support"),
         ..Default::default()
     }
 }

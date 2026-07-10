@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("Multi-target graveyard-to-library not expressible. Draw only"),
         ..Default::default()
     }
 }

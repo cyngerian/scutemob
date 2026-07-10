@@ -52,6 +52,7 @@ pub fn card() -> CardDefinition {
             }),
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("'exile all graveyards' — ExileAll only targets battlefield permanents. Needs a zone-scoped ExileAll or separate effect"),
         ..Default::default()
     }
 }

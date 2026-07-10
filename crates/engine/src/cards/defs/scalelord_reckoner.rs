@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
             // WhenBecomesTarget, but "destroy target nonland permanent THAT PLAYER controls"
             // cannot scope its target to the triggering spell/ability's controller.
         ],
+        completeness: Completeness::partial("the effect ('destroy target nonland permanent that player controls') must restrict its target to permanents controlled..."),
         ..Default::default()
     }
 }

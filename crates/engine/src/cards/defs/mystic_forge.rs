@@ -29,6 +29,7 @@ pub fn card() -> CardDefinition {
             // Requires ExileTopOfLibrary effect variant — DSL gap. Deferred.
             // The play-from-top ability above is the primary implementation.
         ],
+        completeness: Completeness::partial("'{T}, Pay 1 life: Exile the top card of your library.' Requires ExileTopOfLibrary effect variant — DSL gap. Deferred...."),
         ..Default::default()
     }
 }

@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Instant]),
         oracle_text: "Untap all creatures. Until end of turn, whenever a creature an opponent controls blocks, draw a card.\nDraw a card.".to_string(),
         abilities: vec![],
+        completeness: Completeness::inert("this is a SINGLE spell ability whose resolution is a sequence of three parts — 'Untap all creatures' (now expressible..."),
         ..Default::default()
     }
 }

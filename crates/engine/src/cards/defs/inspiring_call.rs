@@ -31,6 +31,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("'Draw for each creature with +1/+1 counter' — EffectAmount lacks PermanentCountWithCounter variant. Using..."),
         ..Default::default()
     }
 }

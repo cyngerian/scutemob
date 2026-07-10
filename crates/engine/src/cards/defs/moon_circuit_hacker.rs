@@ -33,6 +33,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::known_wrong("the combat-damage draw always happens; the conditional discard clause is not modelled"),
         ..Default::default()
     }
 }

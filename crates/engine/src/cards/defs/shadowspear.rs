@@ -57,6 +57,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("DSL gap — the {1} activated ability removes hexproof and indestructible from all permanents opponents control. There is..."),
         ..Default::default()
     }
 }

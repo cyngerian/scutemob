@@ -36,6 +36,7 @@ pub fn card() -> CardDefinition {
             // counter" effect has no DSL representation (no player-targeting poison-counter
             // Effect variant exists). Omitted rather than approximated.
         ],
+        completeness: Completeness::partial("the trigger's EFFECT is still not expressible. Oracle text is 'target opponent gets a poison counter' — this requires..."),
         ..Default::default()
     }
 }

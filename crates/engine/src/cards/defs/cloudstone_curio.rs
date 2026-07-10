@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
             //   Also requires "shares a permanent type with" filter for the return target.
             //   DSL gap: both trigger condition and shared-type filter missing. Omitted per W5 policy.
         ],
+        completeness: Completeness::partial("'Whenever a nonartifact permanent you control enters' — no TriggerCondition that fires on any nonartifact permanent..."),
         ..Default::default()
     }
 }

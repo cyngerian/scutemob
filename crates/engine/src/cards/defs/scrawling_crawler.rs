@@ -49,6 +49,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("'Whenever an opponent draws a card, that player loses 1 life' — needs opponent-only draw trigger + 'that player' target..."),
         ..Default::default()
     }
 }

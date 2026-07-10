@@ -39,6 +39,7 @@ pub fn card() -> CardDefinition {
             // TODO: "whenever an opponent draws a card except the first one they draw in
             // each of their draw steps" — no draw-tracking trigger in DSL.
         ],
+        completeness: Completeness::partial("'whenever an opponent draws a card except the first one they draw in each of their draw steps' — no draw-tracking..."),
         ..Default::default()
     }
 }

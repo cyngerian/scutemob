@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — death trigger with controller filter (creature or artifact
             // you control) + Warp keyword (not in DSL).
         ],
+        completeness: Completeness::partial("DSL gap — death trigger with controller filter (creature or artifact you control) + Warp keyword (not in DSL)"),
         ..Default::default()
     }
 }

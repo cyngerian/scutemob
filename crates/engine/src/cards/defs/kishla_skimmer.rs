@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             // ENGINE-BLOCKED: see header — no "leaves graveyard" TriggerCondition in the DSL.
         ],
+        completeness: Completeness::partial("'Whenever a card leaves your graveyard during your turn, draw a card.' PB-AC1 shipped the `once_per_turn` limiter, but..."),
         ..Default::default()
     }
 }

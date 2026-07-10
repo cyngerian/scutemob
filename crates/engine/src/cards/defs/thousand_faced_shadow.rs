@@ -56,6 +56,7 @@ pub fn card() -> CardDefinition {
         ],
         power: Some(1),
         toughness: Some(1),
+        completeness: Completeness::partial("'enters from your hand, if it's attacking' — intervening-if condition on ETB trigger not fully expressible. Currently..."),
         ..Default::default()
     }
 }

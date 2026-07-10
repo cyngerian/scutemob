@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
         toughness: Some(2),
         // TODO: Draw replacement → win not expressible.
         abilities: vec![],
+        completeness: Completeness::inert("Draw replacement effect (empty library → win) not expressible"),
         ..Default::default()
     }
 }

@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
             // (round up)." — requires CreateTokenCopy with per-stat halving modification.
             // DSL gap: no halved-stat copy token variant exists.
         }],
+        completeness: Completeness::partial("DSL gap — creating two copy-tokens with halved stats requires CreateTokenCopy with stat modifications; the DSL does not..."),
         ..Default::default()
     }
 }

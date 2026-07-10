@@ -36,6 +36,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("'nontoken' filter — TargetFilter lacks non_token field"),
         ..Default::default()
     }
 }

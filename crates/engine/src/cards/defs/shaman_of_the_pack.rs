@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             // you control." Needs EffectAmount::SubtypeCount("Elf", You) — not in DSL.
             // W5: omitted to avoid wrong game state.
         ],
+        completeness: Completeness::partial("'loses life equal to the number of Elves you control' — EffectAmount::PermanentCountWithSubtype(SubType('Elf')..."),
         ..Default::default()
     }
 }

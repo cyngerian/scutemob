@@ -16,8 +16,8 @@
 
 use mtg_engine::{
     process_command, AbilityDefinition, AttackTarget, CardDefinition, CardId, CardRegistry,
-    CardType, Command, GameEvent, GameStateBuilder, KeywordAbility, ObjectSpec, PlayerId, Step,
-    TypeLine,
+    CardType, Command, Completeness, GameEvent, GameStateBuilder, KeywordAbility, ObjectSpec,
+    PlayerId, Step, TypeLine,
 };
 
 // ── Helper: find object ID by name ───────────────────────────────────────────
@@ -400,6 +400,7 @@ fn test_702_70b_poisonous_multiple_instances_trigger_separately() {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+        completeness: Completeness::Complete,
     };
 
     let registry = CardRegistry::new(vec![double_poison_def]);

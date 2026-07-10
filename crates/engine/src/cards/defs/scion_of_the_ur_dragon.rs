@@ -60,6 +60,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("'becomes a copy of that card until end of turn' — needs EffectTarget::LastSearchResult to reference the card found by..."),
         ..Default::default()
     }
 }

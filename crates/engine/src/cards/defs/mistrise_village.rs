@@ -32,6 +32,7 @@ pub fn card() -> CardDefinition {
             },
             // TODO: Activated — {U}, {T}: The next spell you cast this turn can't be countered.
         ],
+        completeness: Completeness::partial("Activated — {U}, {T}: The next spell you cast this turn can't be countered"),
         ..Default::default()
     }
 }

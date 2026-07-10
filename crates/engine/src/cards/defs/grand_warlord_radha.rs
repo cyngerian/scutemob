@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             // (dynamic count), and mana persists through phase changes (special mana
             // restriction), neither of which is expressible in the current DSL.
         ],
+        completeness: Completeness::partial("DSL gap — 'Whenever one or more creatures you control attack' requires WhenYouDeclareAttackers trigger condition which..."),
         ..Default::default()
     }
 }

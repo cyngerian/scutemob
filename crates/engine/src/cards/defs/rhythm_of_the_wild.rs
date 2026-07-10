@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Enchantment]),
         oracle_text: "Creature spells you control can't be countered.\nNontoken creatures you control have riot. (They enter with your choice of a +1/+1 counter or haste.)".to_string(),
         abilities: vec![],
+        completeness: Completeness::inert("DSL gap — 'creature spells you control can't be countered' requires a continuous effect granting uncounterability to..."),
         ..Default::default()
     }
 }

@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             // TODO: untap all permanents you control during each other player's untap step
             //   (no TriggerCondition for "during opponent's untap step" + Effect::UntapAllYouControl)
         ],
+        completeness: Completeness::partial("untap all permanents you control during each other player's untap step (no TriggerCondition for 'during opponent's..."),
         ..Default::default()
     }
 }

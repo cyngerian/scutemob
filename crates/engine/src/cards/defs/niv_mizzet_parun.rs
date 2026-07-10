@@ -46,6 +46,7 @@ pub fn card() -> CardDefinition {
         ],
         // CR 101.6: "This spell can't be countered" — CardDefinition.cant_be_countered = true.
         cant_be_countered: true,
+        completeness: Completeness::partial("'Whenever a player casts an instant or sorcery spell, you draw a card' — requires..."),
         ..Default::default()
     }
 }

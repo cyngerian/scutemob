@@ -74,6 +74,7 @@ pub fn card() -> CardDefinition {
             // and sacrifices the rest. Requires "choose one of each type" selection rule
             // not yet expressible in DSL.
         ],
+        completeness: Completeness::partial("−9: Each opponent chooses a permanent they control of each permanent type and sacrifices the rest. Requires 'choose one..."),
         ..Default::default()
     }
 }

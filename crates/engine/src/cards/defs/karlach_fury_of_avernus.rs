@@ -64,6 +64,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::known_wrong("'whenever you attack' modelled as WhenAttacks on Karlach — she must attack personally"),
         ..Default::default()
     }
 }

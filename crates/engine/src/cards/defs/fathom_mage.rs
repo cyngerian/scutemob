@@ -40,6 +40,7 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("(optional-draw): oracle says 'you MAY draw' — the DSL has no optional-effect wrapper, so this is authored as a..."),
         ..Default::default()
     }
 }

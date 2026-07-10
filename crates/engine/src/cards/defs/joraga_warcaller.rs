@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — "Other Elf creatures you control get +1/+1 for each +1/+1
             // counter on this creature." Needs dynamic ModifyBoth based on source counter count.
         ],
+        completeness: Completeness::partial("DSL gap — 'enters with a +1/+1 counter for each time it was kicked' Needs ETB replacement with count = kicker_times_paid"),
         ..Default::default()
     }
 }

@@ -33,6 +33,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("Triggered — When this land enters, exile target player's graveyard. DSL gap: targeted_trigger (ETB trigger cannot..."),
         ..Default::default()
     }
 }

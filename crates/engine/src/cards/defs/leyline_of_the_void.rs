@@ -38,6 +38,7 @@ pub fn card() -> CardDefinition {
                 unless_condition: None,
             },
         ],
+        completeness: Completeness::known_wrong("the 'begin the game on the battlefield' opening-hand rule is not modelled"),
         ..Default::default()
     }
 }

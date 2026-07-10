@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
             // — subtype-conditional effect branch not in DSL
             AbilityDefinition::Keyword(KeywordAbility::Foretell),
         ],
+        completeness: Completeness::partial("Return creature from graveyard + conditional Elf check for token creation — subtype-conditional effect branch not in DSL"),
         ..Default::default()
     }
 }

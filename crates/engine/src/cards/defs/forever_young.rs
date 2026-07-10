@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("'Put creature cards from graveyard on top of library' — multi-target graveyard-to-library move. Implementing draw only"),
         ..Default::default()
     }
 }

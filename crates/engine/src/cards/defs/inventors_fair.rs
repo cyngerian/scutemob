@@ -64,6 +64,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("Upkeep life gain trigger with intervening-if 'control 3+ artifacts' (count_threshold gap)"),
         ..Default::default()
     }
 }

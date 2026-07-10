@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("'Create tokens equal to excess damage' — requires tracking damage dealt minus toughness of the target. The DSL has no..."),
         ..Default::default()
     }
 }

@@ -46,6 +46,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("Lieutenant — 'At the beginning of combat on your turn, if you control your commander, create two 1/1 red Goblin..."),
         ..Default::default()
     }
 }

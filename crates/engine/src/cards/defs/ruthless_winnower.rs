@@ -34,6 +34,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("'non-Elf creature' filter — SacrificePermanents has no subtype exclusion"),
         ..Default::default()
     }
 }

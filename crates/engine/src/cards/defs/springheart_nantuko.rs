@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             //   3. Conditional copy-or-Insect-fallback branch within a single triggered effect
             //      (pay {1}{G} if attached → copy token, else 1/1 Insect fallback).
         ],
+        completeness: Completeness::partial("Blockers (NOT Landfall — that trigger exists via TriggerCondition::WheneverPermanentEntersBattlefield + Land + You..."),
         ..Default::default()
     }
 }

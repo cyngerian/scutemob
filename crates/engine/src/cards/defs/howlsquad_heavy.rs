@@ -57,6 +57,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("Multiple DSL gaps: (1) 'Start your engines!' — vehicle/speed mechanic not in DSL (2) 'At the beginning of combat..."),
         ..Default::default()
     }
 }

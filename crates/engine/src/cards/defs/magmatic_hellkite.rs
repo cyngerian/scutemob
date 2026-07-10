@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             // TODO: ETB — destroy target nonbasic land an opponent controls, then its controller
             // searches for a basic land and puts it into play tapped with a stun counter
         ],
+        completeness: Completeness::partial("DSL gap — ETB trigger targeting a nonbasic land (non_land filter won't work — need nonbasic land specifically)..."),
         ..Default::default()
     }
 }

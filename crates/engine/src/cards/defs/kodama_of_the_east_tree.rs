@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
             // DSL gap: no mana-value comparison filter for hand-to-battlefield effect; no self-exclusion
             // for the "wasn't put with this ability" condition.
         ],
+        completeness: Completeness::partial("Triggered ability — whenever another permanent you control enters, put a permanent card from hand with equal or lesser..."),
         ..Default::default()
     }
 }

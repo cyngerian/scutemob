@@ -37,6 +37,7 @@ pub fn card() -> CardDefinition {
             // opponent controlled was dealt excess damage this turn, create a 4/4 Dragon token."
             // Blocked: "excess damage this turn" intervening-if condition not in DSL.
         ],
+        completeness: Completeness::partial("'At the beginning of your end step, if a creature or planeswalker an opponent controlled was dealt excess damage this..."),
         ..Default::default()
     }
 }

@@ -30,6 +30,7 @@ pub fn card() -> CardDefinition {
             // TODO: Each player's upkeep trigger creating Tombspawn tokens per graveyard creature count
             // TODO: End step + LTB trigger destroying Tombspawn tokens
         ],
+        completeness: Completeness::partial("DSL gap — 'each player's upkeep' trigger (not just controller's)"),
         ..Default::default()
     }
 }

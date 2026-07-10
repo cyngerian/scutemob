@@ -9,6 +9,7 @@ pub fn card() -> CardDefinition {
         types: types_sub(&[CardType::Enchantment], &["Room"]),
         oracle_text: "You may play lands from your graveyard.\n(You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)".to_string(),
         abilities: vec![],
+        completeness: Completeness::inert("no abilities implemented"),
         ..Default::default()
     }
 }

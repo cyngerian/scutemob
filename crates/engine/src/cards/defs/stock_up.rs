@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("DSL gap — 'look at top N, choose M to put in hand, rest on bottom' requires interactive player choice (select from..."),
         ..Default::default()
     }
 }

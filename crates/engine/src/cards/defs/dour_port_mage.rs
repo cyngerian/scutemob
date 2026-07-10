@@ -44,6 +44,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("'Leave without dying' trigger not in DSL"),
         ..Default::default()
     }
 }

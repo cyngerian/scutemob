@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Vigilance),
         ],
+        completeness: Completeness::partial("DSL gap — 'gets +1/+1 for each color among permanents you control' is a static continuous effect whose value depends on..."),
         ..Default::default()
     }
 }

@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
         // Hard counter in red without compensation is color-pie violation (KI-2).
         // Stripped per W6 policy until the full effect chain is expressible.
         abilities: vec![],
+        completeness: Completeness::inert("Counter target spell + random mill + exile-until-nonland + free cast for opponent. Hard counter in red without..."),
         ..Default::default()
     }
 }

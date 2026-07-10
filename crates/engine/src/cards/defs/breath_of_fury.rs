@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
             // 4. If successful: add an additional combat phase.
             // DSL gaps: Aura re-attachment effect; sacrifice-enchanted-creature cost.
         ],
+        completeness: Completeness::partial("Triggered ability -- when enchanted creature deals combat damage to a player: 1. Sacrifice the enchanted creature. 2...."),
         ..Default::default()
     }
 }

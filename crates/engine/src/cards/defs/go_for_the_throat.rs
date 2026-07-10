@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("'nonartifact creature' — no exclude_card_types on TargetFilter. This targets any creature including artifact creatures"),
         ..Default::default()
     }
 }

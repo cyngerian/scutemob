@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
             // — requires a new LoyaltyCostModifier static effect. No equivalent in DSL.
             // Static ability omitted per W5 policy.
         ],
+        completeness: Completeness::partial("ETB trigger — 'look at the top seven cards, may put a planeswalker card into hand, rest on bottom in random order'..."),
         ..Default::default()
     }
 }

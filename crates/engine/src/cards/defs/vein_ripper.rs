@@ -30,6 +30,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("DSL gap — 'Ward—Sacrifice a creature.' Ward with non-mana cost (sacrifice) not in KeywordAbility::Ward variant...."),
         ..Default::default()
     }
 }

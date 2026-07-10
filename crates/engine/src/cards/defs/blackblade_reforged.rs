@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — "Equip legendary creature {3}" variant equip cost.
             AbilityDefinition::Keyword(KeywordAbility::Equip),
         ],
+        completeness: Completeness::partial("DSL gap — dynamic +1/+1 per land you control. LayerModification needs EffectAmount, not fixed i32"),
         ..Default::default()
     }
 }

@@ -59,6 +59,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
+        completeness: Completeness::partial("'Discard all cards then draw that many plus one' — EffectAmount::HandSize not in DSL"),
         ..Default::default()
     }
 }
