@@ -29,6 +29,35 @@
 //! Every divergence this file found was in fact a harness bug — see the
 //! "Divergences found" ledger below.
 //!
+//! # What this proves, and what it does not
+//!
+//! **Both regimes call `enrich_spec_from_def`** — the direct regime already
+//! imports it (`cost_primitives.rs`, `combat_harness.rs`, `golgari_grave_troll.rs`
+//! all do), because `ObjectSpec::card` alone makes a naked object. So the
+//! initial-state half of the comparison does **not** independently pin enrich's
+//! *inference*: a bug inside it is applied to both sides and cancels. There is no
+//! second source of truth for that short of re-implementing the function, which
+//! would be a re-implementation gate and would rot.
+//!
+//! What the initial-state comparison does pin is everything wrapped around
+//! enrich: `ObjectId` assignment order, `PlayerId` assignment from sorted names,
+//! the turn number, the `phase`→`Step` parse, and the post-build patching of
+//! life / mana pool / land plays. What the *per-step* comparison pins — the sharp
+//! end — is that `translate_player_action` builds the same `Command` a hand-written
+//! test would. `Command` derives `PartialEq`, so command inequality is asserted
+//! directly and is the diagnostic you actually want; the hash is the backstop.
+//!
+//! **Coverage is thin and should grow.** Six of `translate_player_action`'s 60+
+//! `Command` shapes are driven here: `pass_priority`, `play_land`, `tap_for_mana`,
+//! `cast_spell` (single target), `activate_ability`, `declare_attackers`. None of
+//! the alternative- and additional-cost translations that give the function its
+//! 40+ parameters — convoke, improvise, delve, escape, kicker, bargain, emerge,
+//! casualty, assist, replicate, splice, escalate, modal, squad, mutate, ninjutsu —
+//! is cross-validated. A mis-populated field in any of those is invisible to this
+//! file. The thesis ("a `Command` field the translator forgets makes every script
+//! green") is *demonstrated* on the slice it drives, not discharged for the rest.
+//! Adding a scenario is cheap: a JSON blob, a `direct` fn, a `Move` variant.
+//!
 //! # What "same state" means here
 //!
 //! [`GameState::public_state_hash`] deliberately omits hand and library
@@ -66,6 +95,13 @@
 //!    the card is card-authoring work, so the hole is pinned as a shrinking
 //!    allowlist by [`scripts_only_name_cards_that_have_definitions`] and handed
 //!    to SR-9c. One approved script is affected today.
+//! 4. **`resolve_targets` silently dropped targets it could not resolve.** It
+//!    used `filter_map`, so a `cast_spell` naming one permanent that is not on
+//!    the battlefield produced a `CastSpell` with an *empty* `targets` vec — a
+//!    targeted spell cast with no target (CR 601.2c) — and the script passed.
+//!    Now returns `None` if any target fails, so the action does not translate.
+//!    All 95 approved scripts stayed green, so nothing was leaning on it. Pinned
+//!    by [`equivalence_unresolvable_target`].
 //!
 //! # Still-unread `initial_state` fields (documented, not fixed)
 //!
@@ -101,16 +137,26 @@
 //! | drop the `turn_number()` call | `initial_state_turn_number_is_honored`, all three `equivalence_*` |
 //! | `tap_for_mana` translates to `ability_index: 1` | `equivalence_bolt`, `scenarios_are_not_vacuous` |
 //! | `pass_priority` always passes for `PlayerId(1)` | all three `equivalence_*`, `scenarios_are_not_vacuous` |
-//! | `play_land` falls back to the battlefield | **only** the property test |
+//! | `play_land` falls back to the battlefield | the property test, and `equivalence_repeated_play_land` |
 //! | an approved script names an undefined card | `scripts_only_name_cards_that_have_definitions` |
+//! | `resolve_targets` drops an unresolvable target | `equivalence_unresolvable_target` |
+//! | revert `sorted_zone_entries` on hand/graveyard/library | `build_initial_state_is_deterministic` |
+//! | an approved script names an undefined *commander* | `scripts_only_name_cards_that_have_definitions` |
 //!
-//! Two of those rows carry the file's real argument. The `play_land` fallback is
+//! Two rows carry the file's real argument. The `play_land` fallback was
 //! invisible to every fixed scenario — it needs the *sequence* `[PlayLand Forest,
-//! PlayLand Forest]` before the harness and a direct test disagree, and that is
-//! what the property test generates. And `equivalence_equip` survives the
-//! `sorted_zone_entries` revert, because only one player has permanents in it, so
-//! map order cannot matter: a scenario proves nothing about the bug it cannot
-//! express.
+//! PlayLand Forest]` before the regimes disagree, and only the property test
+//! generated one. And `equivalence_equip` survives the `sorted_zone_entries`
+//! revert, because only one player has permanents in it, so map order cannot
+//! matter: a scenario proves nothing about a bug it cannot express.
+//!
+//! The last three rows are review findings — each was a perturbation that
+//! *survived* the gate as first written. The determinism gate was pointed only at
+//! the battlefield map (the scenarios have one-owner hands and no graveyards or
+//! libraries at all), and `card_names` never read the commander block, which is
+//! the canonical place a commander is named. Both holes are the same shape as the
+//! seven SR tasks before this one: the author checks that the gate fires on the
+//! thing he was thinking about, and never enumerates what it is not pointed at.
 
 use std::collections::HashMap;
 
@@ -456,14 +502,13 @@ fn any_battlefield(state: &GameState, name: &str) -> Option<ObjectId> {
         .map(|(&id, _)| id)
 }
 
-/// `None` if *any* target fails to resolve — mirrors `translate_player_action`'s
-/// behaviour of producing a `Command` only when every name maps to something.
+/// `None` if *any* target fails to resolve — what a hand-written test does, since
+/// it has no way to name a permanent that isn't there.
 ///
-/// Note the asymmetry this test pins: `resolve_targets` in the harness uses
-/// `filter_map`, so an unresolvable target is silently *dropped* rather than
-/// failing the action. Here an unresolvable target aborts the move. The
-/// scenarios below never exercise that difference; if a future scenario does,
-/// the equivalence check will fail and the harness's `filter_map` is the bug.
+/// The harness's `resolve_targets` used to `filter_map` here, silently dropping
+/// an unresolvable target and casting the spell with a shorter list. That
+/// asymmetry is divergence #4; [`equivalence_unresolvable_target`] exercises it.
+/// If this ever diverges again, the harness's target resolution is the bug.
 fn resolve(
     targets: &[Tgt],
     state: &GameState,
@@ -798,18 +843,71 @@ fn scenario(name: &str) -> &'static Scenario {
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
+/// A script whose every zone map has **two owners**, so that dropping the sort
+/// on *any* of the four zone loops changes `ObjectId` assignment.
+///
+/// The three `SCENARIOS` cannot do this job: their hands have a single owner and
+/// none of them populates a graveyard or library at all. Reverting
+/// `sorted_zone_entries` on the hand, graveyard and library loops therefore left
+/// the whole scripts suite green — the determinism gate was pointed only at the
+/// battlefield. (Found in review; the perturbation is now caught.)
+///
+/// Every card here must have a `CardDefinition`, or the objects come out
+/// typeless and the fixture stops distinguishing anything.
+const MULTI_OWNER_ZONES_JSON: &str = r#"{
+  "format": "commander",
+  "turn_number": 2,
+  "active_player": "p1",
+  "phase": "precombat_main",
+  "priority": "p1",
+  "players": {
+    "p1": { "life": 40, "land_plays_remaining": 1 },
+    "p2": { "life": 40, "land_plays_remaining": 1 }
+  },
+  "zones": {
+    "battlefield": {
+      "p1": [{ "card": "Mountain" }],
+      "p2": [{ "card": "Llanowar Elves" }]
+    },
+    "hand": {
+      "p1": [{ "card": "Lightning Bolt" }],
+      "p2": [{ "card": "Forest" }]
+    },
+    "graveyard": {
+      "p1": [{ "card": "Island" }],
+      "p2": [{ "card": "Swamp" }]
+    },
+    "library": {
+      "p1": [{ "card": "Plains" }, { "card": "Sol Ring" }],
+      "p2": [{ "card": "Lightning Greaves" }]
+    }
+  }
+}"#;
+
 /// Divergence #1's regression gate.
 ///
 /// Deserialize the same JSON 32 times — each parse allocates fresh `HashMap`s
 /// with fresh `RandomState` seeds — and require one distinct fingerprint. Before
 /// `sorted_zone_entries`, this produced 2+ and the whole rest of this file was
 /// untestable, since nothing can be compared to a hash that changes on its own.
+///
+/// Uses `Fingerprint`, not `public_state_hash`: library order and hand contents
+/// are exactly what an unsorted library/hand loop scrambles, and the public hash
+/// records only their *sizes*.
 #[test]
 fn build_initial_state_is_deterministic() {
-    for s in SCENARIOS {
+    let fixtures = SCENARIOS
+        .iter()
+        .map(|s| (s.name, s.script_json))
+        .chain(std::iter::once((
+            "multi_owner_zones",
+            MULTI_OWNER_ZONES_JSON,
+        )));
+
+    for (name, json) in fixtures {
         let mut seen: Vec<Fingerprint> = Vec::new();
         for _ in 0..32 {
-            let init: InitialState = serde_json::from_str(s.script_json).unwrap();
+            let init: InitialState = serde_json::from_str(json).unwrap();
             let (state, _) = build_initial_state(&init);
             let fp = fingerprint(&state);
             if !seen.contains(&fp) {
@@ -819,14 +917,38 @@ fn build_initial_state_is_deterministic() {
         assert_eq!(
             seen.len(),
             1,
-            "scenario `{}`: build_initial_state produced {} distinct states from one \
+            "scenario `{name}`: build_initial_state produced {} distinct states from one \
              script — a script-supplied HashMap is being iterated unsorted, so ObjectIds \
              are assigned in random order. Fingerprints: {:?}",
-            s.name,
             seen.len(),
             seen
         );
     }
+}
+
+/// The determinism gate is only as good as its fixture. If `MULTI_OWNER_ZONES_JSON`
+/// ever stops having two owners in every zone map, dropping a sort on the
+/// one-owner zone becomes undetectable — silently, because a one-owner `HashMap`
+/// has exactly one iteration order.
+#[test]
+fn determinism_fixture_has_two_owners_in_every_zone_map() {
+    let init: InitialState = serde_json::from_str(MULTI_OWNER_ZONES_JSON).unwrap();
+    for (zone, len) in [
+        ("battlefield", init.zones.battlefield.len()),
+        ("hand", init.zones.hand.len()),
+        ("graveyard", init.zones.graveyard.len()),
+        ("library", init.zones.library.len()),
+    ] {
+        assert!(
+            len >= 2,
+            "MULTI_OWNER_ZONES_JSON's `{zone}` map has {len} owner(s); with fewer than 2 \
+             the sort on that loop cannot be observed and its regression gate is a no-op"
+        );
+    }
+    assert!(
+        init.players.len() >= 2,
+        "the players map needs two keys for the same reason"
+    );
 }
 
 /// Divergence #2's regression gate: `initial_state.turn_number` reaches the state.
@@ -998,7 +1120,14 @@ fn scripts_only_name_cards_that_have_definitions() {
     );
 }
 
-/// Every card name an `InitialState` places in any zone.
+/// Every card name an `InitialState` mentions anywhere.
+///
+/// Not just the zone maps: `players.<p>.commander` and `.partner_commander` name
+/// a card outside every zone, and are the *canonical* place a commander is named
+/// — `build_initial_state` reads them to populate `commander_ids`. Omitting them
+/// left the gate blind to exactly the card most likely to be missing a
+/// definition. (Found in review; no approved script exploits it today, because
+/// all nine commander-bearing scripts also list the commander in a zone.)
 fn card_names(init: &InitialState) -> Vec<String> {
     let mut out = Vec::new();
     for perms in init.zones.battlefield.values() {
@@ -1015,7 +1144,67 @@ fn card_names(init: &InitialState) -> Vec<String> {
         }
     }
     out.extend(init.zones.exile.iter().map(|c| c.card.clone()));
+    for pstate in init.players.values() {
+        for cmdr in [&pstate.commander, &pstate.partner_commander]
+            .into_iter()
+            .flatten()
+        {
+            out.push(cmdr.card.clone());
+        }
+    }
     out
+}
+
+// ── Directed sequences ────────────────────────────────────────────────────────
+
+/// Sequences that no single-shot scenario expresses, pinned as fixed cases.
+///
+/// The property test below reaches these too, but only by sampling: measured at
+/// 96 cases, 6 draws contained two accepted `PlayLand Forest` moves, and the
+/// `play_land`-falls-back-to-the-battlefield perturbation was caught 12/12 runs.
+/// "Empirically always" is not "always" — lowering `PROPTEST_CASES` would quietly
+/// stop catching it. So the sequence that carries the argument is also a fixed
+/// test. (Found in review.)
+#[test]
+fn equivalence_repeated_play_land() {
+    // The second PlayLand must not resolve: the Forest has left the hand. A
+    // harness that fell back to `find_on_battlefield` would translate it, the
+    // engine would reject it, and a direct test would never have built it at all.
+    const MOVES: &[Move] = &[
+        Move::PlayLand {
+            player: "p1",
+            card: "Forest",
+        },
+        Move::PlayLand {
+            player: "p1",
+            card: "Forest",
+        },
+    ];
+    assert_equivalent(scenario("bolt"), MOVES);
+}
+
+/// A cast whose target list is partly unresolvable.
+///
+/// The harness's `resolve_targets` uses `filter_map`, so it *drops* a target it
+/// cannot resolve and casts the spell with the targets that survived. The direct
+/// regime aborts the move. Pinned so that the asymmetry — documented on
+/// [`resolve`] — is exercised rather than merely described. If this test ever
+/// fails, the harness's `filter_map` is the bug.
+#[test]
+fn equivalence_unresolvable_target() {
+    const MOVES: &[Move] = &[
+        Move::TapForMana {
+            player: "p1",
+            land: "Mountain",
+        },
+        Move::CastSpell {
+            player: "p1",
+            card: "Lightning Bolt",
+            // No such permanent is on the battlefield in the `bolt` scenario.
+            targets: &[Tgt::Permanent("Nonexistent Permanent")],
+        },
+    ];
+    assert_equivalent(scenario("bolt"), MOVES);
 }
 
 // ── Property test ─────────────────────────────────────────────────────────────
