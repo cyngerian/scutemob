@@ -602,6 +602,60 @@ fn test_no_max_hand_size_permanent_hash_mutation() {
     );
 }
 
+/// PB-AC9 review finding **E2** (LOW) — the mutation test above covers the new
+/// `PlayerState` field, but nothing pinned the `WheelDisposal` / `WheelDraw`
+/// payload hashes. Two `Effect::WheelHand` values that differ only in their
+/// disposal (or only in their draw) must hash differently, or a replay could
+/// silently accept a divergent script.
+#[test]
+fn test_hash_distinguishes_wheel_hand_payloads() {
+    use blake3::Hasher;
+    use mtg_engine::state::hash::HashInto;
+
+    let hash_of = |e: &Effect| -> [u8; 32] {
+        let mut h = Hasher::new();
+        e.hash_into(&mut h);
+        *h.finalize().as_bytes()
+    };
+
+    let wheel = |disposal: WheelDisposal, draw: WheelDraw| Effect::WheelHand {
+        player: PlayerTarget::EachPlayer,
+        disposal,
+        draw,
+    };
+
+    // Disposal discriminates: Discard vs ShuffleIntoLibrary.
+    assert_ne!(
+        hash_of(&wheel(WheelDisposal::Discard, WheelDraw::ThatMany)),
+        hash_of(&wheel(
+            WheelDisposal::ShuffleHandIntoLibrary,
+            WheelDraw::ThatMany
+        )),
+        "WheelDisposal variants must hash differently"
+    );
+
+    // Draw discriminates: ThatMany vs Fixed(7).
+    assert_ne!(
+        hash_of(&wheel(WheelDisposal::Discard, WheelDraw::ThatMany)),
+        hash_of(&wheel(WheelDisposal::Discard, WheelDraw::Fixed(7))),
+        "WheelDraw variants must hash differently"
+    );
+
+    // Fixed payload discriminates: Fixed(7) vs Fixed(3).
+    assert_ne!(
+        hash_of(&wheel(WheelDisposal::Discard, WheelDraw::Fixed(7))),
+        hash_of(&wheel(WheelDisposal::Discard, WheelDraw::Fixed(3))),
+        "WheelDraw::Fixed payload must be hashed, not just the discriminant"
+    );
+
+    // Sanity: identical effects hash identically (the assertions above are not vacuous).
+    assert_eq!(
+        hash_of(&wheel(WheelDisposal::Discard, WheelDraw::Fixed(7))),
+        hash_of(&wheel(WheelDisposal::Discard, WheelDraw::Fixed(7))),
+        "identical WheelHand effects must hash identically"
+    );
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Card-integration tests (RollDice + WheelHand + SetNoMaximumHandSize card defs)
 // ═══════════════════════════════════════════════════════════════════════════

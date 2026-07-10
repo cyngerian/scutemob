@@ -2541,20 +2541,41 @@ fn execute_effect_inner(
                 chosen
             };
             // Step 3: Place N +1/+1 counters on the chosen Army (if N > 0).
+            //
+            // CR 701.47a + CR 614.1 (PB-AC9 review E1): the counter placement is a
+            // replaceable event, exactly like every other counter placement. Route it
+            // through `apply_counter_replacement` rather than writing `counters` directly,
+            // so Doubling Season / Corpsejack Menace / Vorinclex / Hardened Scales see it.
+            // Note the amassed Army receives the counters as a *single* placement on one
+            // chosen Army (CR 701.47a: "Put N +1/+1 counters on that creature"), so the
+            // doubling applies once to N, not per-token.
             if n > 0 {
-                if let Some(obj) = state.objects.get_mut(&army_id) {
-                    let cur = obj
-                        .counters
-                        .get(&crate::state::types::CounterType::PlusOnePlusOne)
-                        .copied()
-                        .unwrap_or(0);
-                    obj.counters
-                        .insert(crate::state::types::CounterType::PlusOnePlusOne, cur + n);
-                    events.push(GameEvent::CounterAdded {
-                        object_id: army_id,
-                        counter: crate::state::types::CounterType::PlusOnePlusOne,
-                        count: n,
-                    });
+                let (modified_count, repl_events) =
+                    crate::rules::replacement::apply_counter_replacement(
+                        state,
+                        controller,
+                        army_id,
+                        &crate::state::types::CounterType::PlusOnePlusOne,
+                        n,
+                    );
+                events.extend(repl_events);
+                if modified_count > 0 {
+                    if let Some(obj) = state.objects.get_mut(&army_id) {
+                        let cur = obj
+                            .counters
+                            .get(&crate::state::types::CounterType::PlusOnePlusOne)
+                            .copied()
+                            .unwrap_or(0);
+                        obj.counters.insert(
+                            crate::state::types::CounterType::PlusOnePlusOne,
+                            cur + modified_count,
+                        );
+                        events.push(GameEvent::CounterAdded {
+                            object_id: army_id,
+                            counter: crate::state::types::CounterType::PlusOnePlusOne,
+                            count: modified_count,
+                        });
+                    }
                 }
             }
             // Step 4: If the chosen Army isn't a [subtype], add the subtype (CR 701.47a).

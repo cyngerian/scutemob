@@ -713,3 +713,103 @@ fn test_amass_doubling_season_doubles_army_token() {
         "the 3 amass counters should land on exactly one of the two Army tokens"
     );
 }
+
+/// PB-AC9 review finding **E1** (MEDIUM) — CR 701.47a + CR 614.1.
+///
+/// Amass placed its +1/+1 counters by writing `obj.counters` directly, bypassing
+/// `apply_counter_replacement`. A Corpsejack Menace / Doubling Season / Vorinclex
+/// counter-doubler therefore never saw the placement, so `amass 3` put 3 counters
+/// where it should put 6. Reachable in real play via Dreadhorde Invasion + Doubling
+/// Season. This test pins the replacement wiring.
+fn counter_doubler_def() -> CardDefinition {
+    CardDefinition {
+        card_id: CardId("amass-counter-doubler-test".to_string()),
+        name: "Amass Counter Doubler Test".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            ..Default::default()
+        }),
+        types: TypeLine {
+            card_types: [CardType::Enchantment].into_iter().collect(),
+            ..Default::default()
+        },
+        oracle_text: "If one or more +1/+1 counters would be put on a creature you control, twice that many are put on it instead.".to_string(),
+        abilities: vec![AbilityDefinition::Replacement {
+            trigger: ReplacementTrigger::WouldPlaceCounters {
+                placer_filter: PlayerFilter::Any,
+                receiver_filter:
+                    mtg_engine::state::replacement_effect::ObjectFilter::CreatureControlledBy(
+                        PlayerId(0),
+                    ),
+                counter_filter: Some(CounterType::PlusOnePlusOne),
+            },
+            modification: ReplacementModification::DoubleCounters,
+            is_self: false,
+            unless_condition: None,
+        }],
+        ..Default::default()
+    }
+}
+
+#[test]
+fn test_amass_counters_are_doubled_by_counter_replacement() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let registry = CardRegistry::new(vec![counter_doubler_def()]);
+    let mut doubler_spec =
+        ObjectSpec::artifact(p1, "Amass Counter Doubler Test").in_zone(ZoneId::Battlefield);
+    doubler_spec.card_id = Some(CardId("amass-counter-doubler-test".to_string()));
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(doubler_spec)
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let doubler_id = find_by_name(&state, "Amass Counter Doubler Test");
+    let registry = state.card_registry.clone();
+    mtg_engine::rules::replacement::register_permanent_replacement_abilities(
+        &mut state,
+        doubler_id,
+        p1,
+        Some(&CardId("amass-counter-doubler-test".to_string())),
+        &registry,
+    );
+
+    // Only the counter half is doubled here (no DoubleTokens), so exactly one Army.
+    let (state, _events) = run_amass(state, p1, "Zombie", 3);
+
+    assert_eq!(
+        count_army_tokens(&state, p1),
+        1,
+        "no token doubler registered — amass creates exactly one Army"
+    );
+
+    let total_counters: u32 = state
+        .objects
+        .values()
+        .filter(|o| {
+            o.zone == ZoneId::Battlefield
+                && o.controller == p1
+                && o.characteristics
+                    .subtypes
+                    .contains(&SubType("Army".to_string()))
+        })
+        .map(|o| {
+            o.counters
+                .get(&CounterType::PlusOnePlusOne)
+                .copied()
+                .unwrap_or(0)
+        })
+        .sum();
+    assert_eq!(
+        total_counters, 6,
+        "CR 701.47a + 614.1: amass 3 under a +1/+1 counter doubler must place 6 \
+         counters, not 3 (PB-AC9 review E1)"
+    );
+}
