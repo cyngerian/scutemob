@@ -324,7 +324,11 @@ _One entry per session, newest first. Format:_
   parser was returning zero variants, because empty == empty for all 166 keywords.
   (d) `hash.rs` and the replay viewer's `view_model.rs` were already exhaustive, so
   "new variant → compile error" was true before this task; it just wasn't a *useful*
-  error.
+  error. (e) **`/review` found the one escape I left open** — `Handled { sites: &[] }`
+  on a keyword nothing reads compares `{} == {}` against the source scan and passes.
+  One assertion closed it. Third SR task running where the review caught the gap in the
+  gate rather than a bug in the code; the pattern is that the author checks whether the
+  gate fires, not whether it can be satisfied *without* firing.
   **Deliberately not closed:** `scutemob-67` (SR-15) — the ~117 catch-alls really do
   exist, on `AbilityDefinition` (20), `ZoneId` (19), `ZoneChangeAction` (17) and
   others. `AbilityDefinition` is a real dispatch table with the exact hazard SR-5 was
