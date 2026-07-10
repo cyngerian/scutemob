@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-09 23:13 UTC  
-**Git:** `9d98a2b8` on `feat/pb-ac7-type-changing-ability-removal`  
+**Generated:** 2026-07-10 02:40 UTC  
+**Git:** `91885e98` on `feat/pb-ac8-static-restrictions-win-cons-no-max-hand`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,19 +25,19 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 194 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **108%** (1,763 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 55.5% | 970 | +5 |
-| With TODO markers | 597 | -4 |
-| Empty `abilities: vec![]` placeholders | 181 | -1 |
-| Total TODO lines across all defs | 1,061 | -11 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 55.7% | 973 | +3 |
+| With TODO markers | 594 | -3 |
+| Empty `abilities: vec![]` placeholders | 181 | · |
+| Total TODO lines across all defs | 1,053 | -8 |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 555 |
-| last 30 days | 0 | 555 |
-| last 90 days | 13 | 640 |
-| last 1 year | 1,773 | 1,283 |
+| last 7 days | 0 | 561 |
+| last 30 days | 0 | 561 |
+| last 90 days | 13 | 646 |
+| last 1 year | 1,773 | 1,287 |
 
 ## Bonus defs outside the plan
 
@@ -67,7 +67,7 @@ are blocked on engine primitives.
 | Group | Auth / Total | % | Clean | TODO | Empty |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | `combat-keyword` | 187 / 187 | 100% | 79 | 99 | 9 |
-| `draw` | 163 / 169 | 96% | 70 | 68 | 25 |
+| `draw` | 163 / 169 | 96% | 72 | 66 | 25 |
 | `token-create` | 145 / 155 | 94% | 20 | 59 | 66 |
 | `land-etb-tapped` | 138 / 138 | 100% | 116 | 20 | 2 |
 | `other` | 108 / 131 | 82% | 65 | 43 | 0 |
@@ -169,8 +169,8 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 637 | -9 |
-| DSL gap (unspecified) | 133 | -1 |
+| OTHER (unclassified) | 634 | -3 |
+| DSL gap (unspecified) | 133 | · |
 | attack trigger (self / generic) | 27 | · |
 | replacement effect missing | 18 | · |
 | TriggerCondition::* missing variant | 17 | · |
@@ -181,25 +181,25 @@ the next thing to triage when the classifier table is grown.
 | TargetFilter missing field | 12 | · |
 | combat-damage-to-player trigger | 10 | · |
 | interactive / hidden-info choice | 10 | · |
-| can't / must block-attack | 8 | · |
 | opponent-action trigger | 8 | · |
+| can't / must block-attack | 7 | -1 |
 | can't be countered | 7 | · |
-| no-maximum-hand-size | 7 | · |
 | per-player effect dispatch | 6 | · |
 | per-opponent upkeep | 6 | · |
 | X-scaled tokens | 5 | · |
 | devotion | 5 | · |
-| count-threshold static | 5 | · |
 | conditional static / grant | 5 | · |
 | equipment grants ability | 5 | · |
+| count-threshold static | 4 | -1 |
 | delayed triggers | 4 | · |
 | untap-all / untap trigger | 4 | · |
+| noncombat-damage prevent | 4 | +1 |
 
 _…and 30 more buckets totaling 57 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 637 
+Showing 12 of 634 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
@@ -207,21 +207,24 @@ deterministic (sorted by slug).
 ```
 abstergo_entertainment: // TODO: {3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card
 bojuka_bog: // TODO: Triggered — When this land enters, exile target player's graveyard.
-deep_gnome_terramancer: // TODO: "lands enter under opponent's control without being played" trigger condition
+delney_streetwise_lookout: // TODO: Power-conditional blocking restriction — "can't be blocked by
 esper_sentinel: // TODO: Opponent-cast trigger with noncreature filter, once-per-turn,
-gnarlroot_trapper: // TODO: {T}: Target attacking Elf you control gains deathtouch until end of turn.
-jagged_scar_archers: // TODO: activated — {T}: deal damage equal to power to target creature with flying.
-marisi_breaker_of_the_coil: // TODO: "Your opponents can't cast spells during combat" — phase-scoped CantCast not in DSL.
+go_for_the_throat: // TODO: "nonartifact creature" — no exclude_card_types on TargetFilter.
+jeskas_will: // TODO: Mode 1 needs mana-scaled-by-opponent-hand-count.
+marisi_breaker_of_the_coil: // TODO: "goad each creature that player controls" — ForEach over DamagedPlayer's creatures
 otharri_suns_glory: // TODO: "{2}{R}{W}, Tap an untapped Rebel you control: Return this card from your
 roiling_dragonstorm: // TODO: "When a Dragon you control enters, return this to hand" —
-smugglers_surprise: // TODO: Spree mode 1 — mill 4, put up to two creature/land cards milled into hand.
-teferi_master_of_time: // TODO: Effect::PhaseOut not yet implemented. Placeholder preserves oracle index order.
-tyvar_jubilant_brawler: // TODO: static — creatures you control can activate abilities as though they had haste
+smugglers_surprise: // TODO: Spree mode 2 — put up to two creature cards from hand onto battlefield.
+teferi_temporal_archmage: // TODO: RevealAndRoute reveals all; "look" is private. Using RevealAndRoute
+tyvar_jubilant_brawler: // TODO: Mill effect + conditional graveyard return with MV filter.
 ```
 
 ## Recent card-touching commits
 
 ```
+91885e98 W6-prim: PB-AC8 review fixes — 2 MEDIUM + 2 LOW closed
+12981e69 W6-cards: PB-AC8 backfill + card-review fixes
+79135e64 W6-prim: PB-AC7 — /review LOW doc nits (SetCardTypes doc drift, CR 205.1b->205.1a)
 cbcc02d8 W6-cards: PB-AC7 backfill — 5 clean cards + 2 partial-clause improvements
 1caa8cc1 W6-prim: PB-AC7 engine — SetCreatureTypes/SetCardTypes + spell_subtype_filter
 56602d5b W6-cards: PB-AC6 — /review polish (2 non-blocking observations)
@@ -244,9 +247,6 @@ d771b795 W6-prim: PB-AC3 card-review fixes — 4 HIGH wrong-game-state resolutio
 a1ed95a6 W5-cards: scutemob-42 — address 3 LOW review findings (batch 2)
 2e9af171 W5-cards: scutemob-42 — re-author 12 stale-TODO cards (W-NOW-1 batch 2)
 1f27f39c W6-prim: PB-AC0 — ETBTriggerFilter subtype/nontoken forwarding on creature-ETB path
-c68695ea W5-cards: scutemob-40 — re-author 12 verified-stale-TODO cards
-83695e65 scutemob-38: author Insatiable Avarice + Spree base-cost tests — LS-8
-c3b0e399 scutemob-36: LS-6 review fixes — ETB test, CR 701.8 citations, test headers
 ```
 
 ## Missing card-defs sidecar

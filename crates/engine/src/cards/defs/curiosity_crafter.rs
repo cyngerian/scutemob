@@ -3,8 +3,10 @@
 // You have no maximum hand size.
 // Whenever a creature token you control deals combat damage to a player, draw a card.
 //
-// TODO: "No maximum hand size" static not in DSL.
-// TODO: "Creature token deals combat damage" trigger not in DSL.
+// "No maximum hand size" expressed via KeywordAbility::NoMaxHandSize (PB-AC8).
+// The token-only combat-damage trigger uses TargetFilter::is_token, which is checked
+// on the combat_damage_filter path (abilities.rs, CR 510.3a / CR 603.2c). Controller
+// scoping is applied by that same path, so the filter carries only the token predicate.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -18,7 +20,24 @@ pub fn card() -> CardDefinition {
         toughness: Some(3),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: No max hand size + token combat damage trigger not in DSL.
+            AbilityDefinition::Keyword(KeywordAbility::NoMaxHandSize),
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer {
+                    filter: Some(TargetFilter {
+                        is_token: true,
+                        ..Default::default()
+                    }),
+                },
+                effect: Effect::DrawCards {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(1),
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         ..Default::default()
     }

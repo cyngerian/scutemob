@@ -44,6 +44,11 @@ pub enum LossReason {
     CommanderDamage,
     /// CR 104.3a: player conceded
     Conceded,
+    /// CR 104.1: an opponent won the game (the game ends immediately, and every
+    /// other player still in the game loses). Commander does not use the
+    /// limited-range-of-influence option (CR 801), so this is a straight
+    /// "opponent won" loss, not the 104.3h/801.14 range-limited variant. PB-AC8.
+    OpponentWonGame,
 }
 /// A game event describing a state change.
 ///

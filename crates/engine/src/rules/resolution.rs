@@ -1196,7 +1196,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         // state may have changed since cast time (CR 608.3b).
                         for sac_id in &devour_sacrifice_ids {
                             let sac_id = *sac_id;
-                            // Validate: still on battlefield, still controlled by caster, still creature.
+                            // Validate: still on battlefield, still controlled by caster, still creature,
+                            // and still a legal sacrifice (CR 701.21a — cast-time already checked this,
+                            // but re-validate here per CR 608.3b in case state changed).
                             let still_valid = state
                                 .objects
                                 .get(&sac_id)
@@ -1208,7 +1210,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                             .card_types
                                             .contains(&CardType::Creature)
                                 })
-                                .unwrap_or(false);
+                                .unwrap_or(false)
+                                && !crate::effects::object_cant_be_sacrificed(state, sac_id);
                             if !still_valid {
                                 continue;
                             }
@@ -2944,8 +2947,14 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         } => {
             let controller = stack_obj.controller;
             // Check if the source is still on the battlefield (CR 400.7).
+            // PB-AC8 / CR 701.21a: a "can't be sacrificed" permanent evoked is not
+            // actually sacrificed -- it stays on the battlefield (edge case; no
+            // known card combines Evoke with a can't-be-sacrificed grant, wired
+            // for dispatch-chain completeness).
             let source_info = state.objects.get(&source_object).and_then(|obj| {
-                if obj.zone == ZoneId::Battlefield {
+                if obj.zone == ZoneId::Battlefield
+                    && !crate::effects::object_cant_be_sacrificed(state, source_object)
+                {
                     let pre_chars =
                         crate::rules::layers::calculate_characteristics(state, source_object);
                     let lki_power = pre_chars
@@ -3306,8 +3315,13 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         } => {
             let controller = stack_obj.controller;
             // Check if the source is still on the battlefield (CR 400.7).
+            // PB-AC8 review E1 / CR 701.21a: a "can't be sacrificed" permanent
+            // whose Blitz delayed trigger fires is NOT sacrificed -- it stays on
+            // the battlefield (mirrors the Evoke guard above).
             let source_info = state.objects.get(&source_object).and_then(|obj| {
-                if obj.zone == ZoneId::Battlefield {
+                if obj.zone == ZoneId::Battlefield
+                    && !crate::effects::object_cant_be_sacrificed(state, source_object)
+                {
                     let pre_chars =
                         crate::rules::layers::calculate_characteristics(state, source_object);
                     let lki_power = pre_chars
@@ -4234,8 +4248,14 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     }
                 } else {
                     // No qualifying target: sacrifice the champion (CR 702.72a).
+                    // CR 701.21a: a champion that can't be sacrificed is not sacrificed --
+                    // it stays on the battlefield (mirrors the Evoke/Blitz guards above).
+                    // Unreachable today (CantBeSacrificed is self-referential and no known
+                    // card combines Champion with it), wired for dispatch-chain completeness.
                     let source_info = state.objects.get(&source_object).and_then(|obj| {
-                        if obj.zone == ZoneId::Battlefield {
+                        if obj.zone == ZoneId::Battlefield
+                            && !crate::effects::object_cant_be_sacrificed(state, source_object)
+                        {
                             let pre_chars = crate::rules::layers::calculate_characteristics(
                                 state,
                                 source_object,
@@ -6812,10 +6832,16 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         } => {
             let controller = stack_obj.controller;
             // Check if the token is still on the battlefield (CR 400.7).
+            // PB-AC8 review E1 / CR 701.21a: a "can't be sacrificed" token is NOT
+            // sacrificed by its Encore delayed trigger -- it stays on the
+            // battlefield (mirrors the Evoke guard above).
             let token_info = state
                 .objects
                 .get(&source_object)
-                .filter(|obj| obj.zone == ZoneId::Battlefield)
+                .filter(|obj| {
+                    obj.zone == ZoneId::Battlefield
+                        && !crate::effects::object_cant_be_sacrificed(state, source_object)
+                })
                 .map(|obj| (obj.owner, obj.controller));
             if let Some((owner, current_controller)) = token_info {
                 // Ruling 2020-11-10: "If one of the tokens is under another player's
@@ -7517,11 +7543,20 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 }
                 DelayedTriggerAction::SacrificeObject => {
                     // Sacrifice the target (must still be on the battlefield).
+                    // PB-AC8 review E1 / CR 701.21a: a "can't be sacrificed"
+                    // permanent (e.g. Mobilize's `sacrifice_at_end_step` flag)
+                    // is NOT sacrificed here -- it stays on the battlefield
+                    // (mirrors the Evoke/Blitz/Encore guards above). This is
+                    // the single dispatch site for every `SacrificeObject`
+                    // delayed trigger (Mobilize, Kiki-Jiki, The Fire Crystal).
                     // Capture pre-death info before zone move.
                     let pre_death_info = state
                         .objects
                         .get(&target)
-                        .filter(|o| o.zone == ZoneId::Battlefield)
+                        .filter(|o| {
+                            o.zone == ZoneId::Battlefield
+                                && !crate::effects::object_cant_be_sacrificed(state, target)
+                        })
                         .map(|o| {
                             let pre_chars =
                                 crate::rules::layers::calculate_characteristics(state, target);

@@ -1894,6 +1894,12 @@ pub fn handle_cast_spell(
                         .into(),
                 ));
             }
+            // PB-AC8 / CR 701.21a: a "can't be sacrificed" creature can't pay Emerge.
+            if crate::effects::object_cant_be_sacrificed(state, sac_id) {
+                return Err(GameStateError::InvalidCommand(
+                    "emerge: sacrifice target can't be sacrificed (CR 701.21a)".into(),
+                ));
+            }
             // Must be a creature (by layer-resolved characteristics).
             let sac_chars = calculate_characteristics(state, sac_id)
                 .or_else(|| {
@@ -3214,6 +3220,12 @@ pub fn handle_cast_spell(
                         .into(),
                 ));
             }
+            // PB-AC8 / CR 701.21a: a "can't be sacrificed" permanent can't pay Bargain.
+            if crate::effects::object_cant_be_sacrificed(state, sac_id) {
+                return Err(GameStateError::InvalidCommand(
+                    "bargain: sacrifice target can't be sacrificed (CR 701.21a)".into(),
+                ));
+            }
             // Must be an artifact, enchantment, or token.
             let sac_chars = calculate_characteristics(state, sac_id)
                 .or_else(|| {
@@ -3265,6 +3277,12 @@ pub fn handle_cast_spell(
                 return Err(GameStateError::InvalidCommand(
                     "casualty: sacrifice target must be controlled by the caster (CR 702.153a)"
                         .into(),
+                ));
+            }
+            // PB-AC8 / CR 701.21a: a "can't be sacrificed" creature can't pay Casualty.
+            if crate::effects::object_cant_be_sacrificed(state, sac_id) {
+                return Err(GameStateError::InvalidCommand(
+                    "casualty: sacrifice target can't be sacrificed (CR 701.21a)".into(),
                 ));
             }
             // Must be a creature (by layer-resolved characteristics).
@@ -3329,6 +3347,14 @@ pub fn handle_cast_spell(
                 if sac_obj.controller != player {
                     return Err(GameStateError::InvalidCommand(
                         "spell additional cost: you must control the sacrificed permanent (CR 118.8)".into(),
+                    ));
+                }
+                // PB-AC8 / CR 701.21a: a "can't be sacrificed" permanent can't pay a
+                // mandatory spell-additional sacrifice cost.
+                if crate::effects::object_cant_be_sacrificed(state, sac_id) {
+                    return Err(GameStateError::InvalidCommand(
+                        "spell additional cost: sacrifice target can't be sacrificed (CR 701.21a)"
+                            .into(),
                     ));
                 }
                 // Validate the permanent matches the required filter using layer-resolved chars.
@@ -4441,6 +4467,12 @@ pub fn handle_cast_spell(
             if sac_obj.controller != player {
                 return Err(GameStateError::InvalidCommand(format!(
                     "devour sacrifice target {sac_id:?} is not controlled by the caster (CR 702.82a)"
+                )));
+            }
+            // PB-AC8 / CR 701.21a: a "can't be sacrificed" creature can't be devoured.
+            if crate::effects::object_cant_be_sacrificed(state, sac_id) {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "devour sacrifice target {sac_id:?} can't be sacrificed (CR 701.21a)"
                 )));
             }
             // Must be a creature.
@@ -6641,9 +6673,12 @@ fn check_cast_restrictions(
                     }
                 }
             }
-            // Attack tax and artifact ability restrictions don't affect casting.
+            // Attack tax, artifact ability, attack-restriction, and sacrifice-restriction
+            // effects don't affect casting.
             GameRestriction::CantAttackYouUnlessPay { .. }
-            | GameRestriction::ArtifactAbilitiesCantBeActivated => {}
+            | GameRestriction::ArtifactAbilitiesCantBeActivated
+            | GameRestriction::CantAttackOwner
+            | GameRestriction::CantBeSacrificed => {}
         }
     }
     Ok(())

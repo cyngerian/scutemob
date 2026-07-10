@@ -16,12 +16,13 @@ pub fn card() -> CardDefinition {
             &[CardType::Creature],
             &["Elder", "Dinosaur"],
         ),
-        oracle_text: "This spell can't be countered.\nYou have no maximum hand size.\nWhenever an opponent casts a noncreature spell, draw a card.\nDiscard three cards: Exile Nezahal, Primal Tide. Return it to the battlefield tapped under its owner's control at the beginning of the next end step.".to_string(),
+        oracle_text: "This spell can't be countered.\nYou have no maximum hand size.\nWhenever an opponent casts a noncreature spell, draw a card.\nDiscard three cards: Exile Nezahal. Return it to the battlefield tapped under its owner's control at the beginning of the next end step.".to_string(),
         power: Some(7),
         toughness: Some(7),
         cant_be_countered: true,
         abilities: vec![
-            // TODO: "No maximum hand size" static not in DSL.
+            // You have no maximum hand size.
+            AbilityDefinition::Keyword(KeywordAbility::NoMaxHandSize),
             // Whenever an opponent casts a noncreature spell, draw a card
             // Noncreature filter applied.
             AbilityDefinition::Triggered {

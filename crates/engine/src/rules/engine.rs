@@ -1570,6 +1570,14 @@ fn handle_all_passed(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateE
         // CR 608.1: Stack is non-empty — resolve the top object.
         let resolve_events = resolution::resolve_top_of_stack(state)?;
         events.extend(resolve_events);
+        // CR 104.1 / PB-AC8: a resolving effect (e.g. Effect::WinGame) may end the
+        // game immediately, independent of any SBA (CR 704.5: winning-by-effect is
+        // NOT a state-based action -- this is not an SBA check, it's the same
+        // finalize-if-decided poll used elsewhere in this file after SBAs run).
+        if is_game_over(state) {
+            events.extend(check_game_over(state));
+            return Ok(events);
+        }
     } else {
         // Stack is empty — advance step or turn.
         // Empty mana pools at step transition (CR 500.4)

@@ -3093,6 +3093,47 @@ fn execute_effect_inner(
                 sacrifice_permanents_for_player(state, pid, n, filter, events);
             }
         }
+        // CR 104.2b / CR 104.1: the controller wins the game.
+        //
+        // CR 104.1: the game ends immediately when a player wins -- Commander does
+        // not use the limited-range-of-influence option, so this simply eliminates
+        // every other still-active player rather than only "opponents in range"
+        // (CR 104.3h/801.14, which do not apply here).
+        //
+        // CR 104.3f: a player who would win and lose simultaneously loses -- no-op
+        // if the controller has already lost.
+        //
+        // CR 704.5: winning-by-effect is NOT a state-based action. This just marks
+        // opponents `has_lost`; the existing post-resolution game-over poll
+        // (engine.rs `handle_all_passed` / `enter_step`) finalizes with
+        // `GameEvent::GameOver { winner }`. Does NOT remove players from
+        // `state.players` and does NOT set a `has_won` flag (see PB-AC8 design note
+        // -- `active_players()` filters on `has_lost`/`has_conceded` only).
+        Effect::WinGame => {
+            let winner = ctx.controller;
+            let winner_already_lost = state
+                .players
+                .get(&winner)
+                .map(|p| p.has_lost)
+                .unwrap_or(true);
+            if !winner_already_lost {
+                let opponent_ids: Vec<PlayerId> = state
+                    .players
+                    .iter()
+                    .filter(|(pid, p)| **pid != winner && !p.has_lost && !p.has_conceded)
+                    .map(|(pid, _)| *pid)
+                    .collect();
+                for pid in opponent_ids {
+                    if let Some(p) = state.players.get_mut(&pid) {
+                        p.has_lost = true;
+                    }
+                    events.push(GameEvent::PlayerLost {
+                        player: pid,
+                        reason: crate::rules::events::LossReason::OpponentWonGame,
+                    });
+                }
+            }
+        }
         // CR 701.15a: Goad — mark the target creature as goaded until the start of
         // the goaded creature controller's next turn. The goaded creature must attack
         // each combat if able (CR 701.15b) and must attack a player other than the
@@ -5485,10 +5526,13 @@ fn execute_effect_inner(
                 let mut ids: Vec<ObjectId> = state
                     .objects
                     .iter()
-                    .filter(|(_, obj)| {
+                    .filter(|(id, obj)| {
                         obj.zone == ZoneId::Battlefield
                             && obj.is_phased_in()
                             && obj.characteristics.card_types.contains(&CardType::Creature)
+                            // PB-AC8 / CR 701.21a: "can't be sacrificed" creatures survive
+                            // Living Death's step 2 (sacrifice all creatures).
+                            && !object_cant_be_sacrificed(state, **id)
                     })
                     .map(|(id, _)| *id)
                     .collect();
@@ -7056,6 +7100,43 @@ pub fn make_token(
     }
 }
 // ── Sacrifice-as-cost helpers (CR 701.21a / PB-SFT / PB-AC2) ───────────────────
+/// CR 701.21a / PB-AC8: single choke-point check for the "can't be sacrificed"
+/// restriction (Alexios, Deimos of Kosmos).
+///
+/// True iff an `ActiveRestriction { source: obj_id, restriction: CantBeSacrificed }`
+/// is registered and its source is still on the battlefield (self-referential
+/// restriction: the affected object IS the restriction's source). This is NOT
+/// indestructible -- it only makes the object an illegal choice for sacrifice
+/// (an effect telling the controller to sacrifice it does nothing for this
+/// permanent; a cost payable only by sacrificing it can't be paid).
+///
+/// Callers, as of PB-AC8 fix phase (verified exhaustively, `feedback_verify_full_chain`):
+/// effect-driven sacrifice (`Effect::SacrificePermanents` via `eligible_sacrifice_targets`),
+/// board-wipe "sacrifice all creatures" (`effects/mod.rs`), activated-ability cost
+/// payment -- self and filtered (`abilities.rs`), Forage (`abilities.rs`), cast-time
+/// additional costs -- Emerge/Bargain/Casualty/SpellAdditionalCost/Devour (`casting.rs`),
+/// Devour's resolution-time re-validation and Champion's "no qualifying target"
+/// self-sacrifice (`resolution.rs`), and the delayed self-sacrifice sites -- Evoke,
+/// Blitz, Encore, decayed end-of-combat, and the shared
+/// `DelayedTriggerAction::SacrificeObject` dispatch used by Mobilize,
+/// Kiki-Jiki, and The Fire Crystal (`resolution.rs` / `turn_actions.rs`). Exploit's
+/// "you may sacrifice" is N/A: the engine unconditionally declines that choice today,
+/// so there is no sacrifice dispatch to guard there. Any NEW sacrifice dispatch site
+/// added to the engine must call this helper (or a function that already does).
+pub(crate) fn object_cant_be_sacrificed(state: &GameState, obj_id: ObjectId) -> bool {
+    state.restrictions.iter().any(|r| {
+        r.source == obj_id
+            && matches!(
+                r.restriction,
+                crate::state::stubs::GameRestriction::CantBeSacrificed
+            )
+            && state
+                .objects
+                .get(&r.source)
+                .map(|o| o.zone == ZoneId::Battlefield)
+                .unwrap_or(false)
+    })
+}
 /// Collect the battlefield permanents `pid` controls that are eligible to be
 /// sacrificed, optionally restricted by `filter` (layer-resolved characteristics,
 /// CR 613.1d, plus runtime `GameObject` fields not present on `Characteristics`).
@@ -7074,6 +7155,11 @@ fn eligible_sacrifice_targets(
         .iter()
         .filter(|(id, obj)| {
             if obj.zone != ZoneId::Battlefield || !obj.is_phased_in() || obj.controller != pid {
+                return false;
+            }
+            // PB-AC8 / CR 701.21a: "can't be sacrificed" excludes this permanent
+            // from every sacrifice choice, whether effect-driven or cost payment.
+            if object_cant_be_sacrificed(state, **id) {
                 return false;
             }
             if let Some(tf) = filter {
