@@ -661,6 +661,64 @@ fn test_incendiary_command_mode3_wheels_all_players() {
     }
 }
 
+/// CR 702.94a — Reforge the Soul carries BOTH miracle ability definitions, and its
+/// spell body is the real wheel (not the old `Fixed(7)` discard approximation).
+///
+/// Regression guard for a *stale marker*: the def previously carried
+/// `// TODO: Miracle {1}{R} — KeywordAbility::Miracle not yet implemented`, but
+/// Miracle has long been implemented (`rules/miracle.rs`, `Command::ChooseMiracle`)
+/// and is used by `terminus.rs` / `temporal_mastery.rs`. The marker, not the engine,
+/// was what kept this card incomplete. See `memory/card-authoring/review-pb-ac9-backfill.md`.
+#[test]
+fn test_reforge_the_soul_has_miracle_and_wheel_body() {
+    let card = mtg_engine::cards::defs::reforge_the_soul::card();
+
+    assert!(
+        card.abilities
+            .iter()
+            .any(|a| matches!(a, AbilityDefinition::Keyword(KeywordAbility::Miracle))),
+        "Reforge the Soul must carry the Miracle keyword marker (CR 702.94a)"
+    );
+
+    let miracle_cost = card
+        .abilities
+        .iter()
+        .find_map(|a| match a {
+            AbilityDefinition::Miracle { cost } => Some(cost.clone()),
+            _ => None,
+        })
+        .expect("Reforge the Soul must carry AbilityDefinition::Miracle { cost }");
+    assert_eq!(miracle_cost.generic, 1, "miracle cost is {{1}}{{R}}");
+    assert_eq!(miracle_cost.red, 1, "miracle cost is {{1}}{{R}}");
+
+    let spell = card
+        .abilities
+        .iter()
+        .find_map(|a| match a {
+            AbilityDefinition::Spell { effect, .. } => Some(effect.clone()),
+            _ => None,
+        })
+        .expect("Reforge the Soul must have a spell body");
+    assert!(
+        matches!(
+            spell,
+            Effect::WheelHand {
+                player: PlayerTarget::EachPlayer,
+                disposal: WheelDisposal::Discard,
+                draw: WheelDraw::Fixed(7),
+            }
+        ),
+        "oracle: 'Each player discards their hand, then draws seven cards.'"
+    );
+
+    // No stale marker may remain in the source.
+    let src = include_str!("../src/cards/defs/reforge_the_soul.rs");
+    assert!(
+        !src.contains("TODO") && !src.contains("ENGINE-BLOCKED"),
+        "Reforge the Soul is fully authored; no TODO/ENGINE-BLOCKED marker may remain"
+    );
+}
+
 /// CR 706 + 614.1 — Ancient Copper Dragon: force a d20 roll and assert that many
 /// Treasure tokens are created.
 #[test]
