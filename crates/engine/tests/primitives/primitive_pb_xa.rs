@@ -90,7 +90,7 @@ fn combat_with_attacker(attacking_player: PlayerId, attacker_id: ObjectId) -> Co
 #[test]
 fn test_pb_hash_schema_version_live_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 38u8,
+        HASH_SCHEMA_VERSION, 39u8,
         "BASELINE-LKI-01 bumped HASH_SCHEMA_VERSION 26→27 (GameEvent::CreatureDied.pre_death_characteristics: Option<Characteristics>, CR 603.10a / CR 613.1d LKI snapshot for filtered death triggers). If you bumped again, update this test and state/hash.rs history."
     );
 }

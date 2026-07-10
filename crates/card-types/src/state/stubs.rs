@@ -59,7 +59,12 @@ pub enum DelayedTriggerTiming {
 
 // ReplacementEffect has moved to `state/replacement_effect.rs` (M8).
 /// Discriminant for PendingTrigger — replaces per-trigger boolean fields.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+///
+/// SR-16 (2026-07-10): now derives `Serialize`/`Deserialize` so that
+/// `PendingTrigger.kind` can round-trip through serde intact (see the field docs
+/// on `PendingTrigger` for the full decision). Every variant reaches only
+/// already-serializable data (`KeywordAbility`, `TriggerData`).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PendingTriggerKind {
     /// Normal triggered ability — dispatched by ability_index on the source.
     Normal,
@@ -241,6 +246,26 @@ pub enum PendingTriggerKind {
 ///
 /// Collected after each event in `GameState::pending_triggers`; placed on
 /// the stack in APNAP order the next time a player would receive priority.
+///
+/// # Serde guarantee (SR-16, 2026-07-10)
+///
+/// **A `PendingTrigger` round-trips through serde with full fidelity** — every
+/// field, including `kind`, `data` and `embedded_effect`, survives
+/// `serialize -> deserialize` unchanged. This is option (a) of `scutemob-68`:
+/// the three identity/payload fields were `#[serde(skip)]`, which silently
+/// coerced every deserialized trigger to an anonymous `Normal` with `None`
+/// payload. Options (b) "assert `pending_triggers.is_empty()` at the serde
+/// boundary" and (c) "only serialize at a priority boundary" were rejected —
+/// both encode a *process* constraint (a `GameState` may only be serialized
+/// when no trigger is pending) that nothing can enforce once `GameState`
+/// derives `Serialize`, and both would make M10 mid-turn state sync and
+/// rewind/replay snapshots lossy exactly where they must not be. The guarantee
+/// is machine-checked by `pending_trigger_serde_roundtrip` in
+/// `crates/engine/tests/core/pending_trigger_shape.rs`. Because `PendingTrigger`
+/// lives inside `GameState` (never on the `Command`/`GameEvent` wire — see
+/// `CLOSURE_MUST_NOT_CONTAIN` in `tests/core/protocol_schema.rs`), this changes
+/// the serialized `GameState` shape and bumps `HASH_SCHEMA_VERSION`, not
+/// `PROTOCOL_VERSION`.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PendingTrigger {
     /// The source object of the triggered ability.
@@ -254,7 +279,14 @@ pub struct PendingTrigger {
     /// For normal triggered abilities use `PendingTriggerKind::Normal`.
     /// For special trigger kinds, use the appropriate variant; `ability_index` is
     /// unused in those cases.
-    #[serde(skip, default = "PendingTriggerKind::normal_default")]
+    ///
+    /// SR-16 (2026-07-10): serialized. It used to be `#[serde(skip)]`, which
+    /// silently coerced every deserialized trigger to `Normal` — see the
+    /// `data`/`embedded_effect` field docs and `pending_trigger_serde_roundtrip`
+    /// in `crates/engine/tests/core/pending_trigger_shape.rs` for the decision.
+    /// `default` still applies so a payload written before this field existed
+    /// deserializes as `Normal` rather than erroring.
+    #[serde(default = "PendingTriggerKind::normal_default")]
     pub kind: PendingTriggerKind,
     /// The game event that caused this trigger to fire.
     ///
@@ -339,8 +371,11 @@ pub struct PendingTrigger {
     /// pending_trigger_shape.rs::replacement_trigger_data_variants_are_still_consumed`
     /// pins each variant to a live consumer in both of those files.
     ///
-    /// Not serialized (same as `kind`) — triggers are transient within a turn.
-    #[serde(skip)]
+    /// SR-16 (2026-07-10): serialized. `#[serde(skip)]` here previously threw the
+    /// per-kind payload away on deserialize, so a round-tripped keyword trigger
+    /// came back as an anonymous `Normal` with no data. `TriggerData` is already
+    /// `Serialize`/`Deserialize`.
+    #[serde(default)]
     pub data: Option<TriggerData>,
     /// MR-B12-04: The triggered ability's effect, captured when the trigger was
     /// queued (while the source was still in its triggering zone).
@@ -356,8 +391,11 @@ pub struct PendingTrigger {
     /// `collect_triggers_for_event`; `None` for trigger kinds that resolve via
     /// other paths (card-registry lookup, keyword dispatch, etc.).
     ///
-    /// Not serialized (same as `data`/`kind`) — triggers are transient within a turn.
-    #[serde(skip)]
+    /// SR-16 (2026-07-10): serialized. This is the one field the runtime state
+    /// hash does *not* cover (it is not fed to `HashInto`), so `#[serde(skip)]`
+    /// here dropped a captured Enrage/dies effect on round-trip with nothing to
+    /// catch it. `Effect` is already `Serialize`/`Deserialize`.
+    #[serde(default)]
     pub embedded_effect: Option<crate::cards::card_definition::Effect>,
     /// CR 603.10a / CR 113.7a: LKI counter snapshot for WhenDies / WhenLeavesBattlefield triggers.
     /// Captured at trigger queueing time (abilities.rs CreatureDied arm)

@@ -29,7 +29,7 @@
   --workspace` is the only gate that proves the seal** — `test --all` and `clippy
   --all-targets` enable `test-util` workspace-wide via feature unification. It is a CI step.
 - **Tests**: **3185 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
-- **CI**: **LIVE and green** since 2026-07-10 (SR-1, merge `e9742dc2`) — single Ubuntu job (fmt + clippy + `build --workspace` + full tests) on push/PR to main + workflow_dispatch; rust-cache@v2, 45m timeout. **Toolchain pinned (SR-11, `scutemob-63`)**: `rust-toolchain.toml` pins exact stable `1.95.0` and CI reads that `channel` from the file (no more floating to latest stable), so local `clippy -D warnings` is an authoritative CI preview. SR remediation track ACTIVE: `docs/sr-remediation-plan.md` (tasks `scutemob-53..64`, SR-1/SR-2/SR-3 done).
+- **CI**: **LIVE and green** since 2026-07-10 (SR-1, merge `e9742dc2`) — single Ubuntu job (fmt + clippy + `build --workspace` + full tests) on push/PR to main + workflow_dispatch; rust-cache@v2, 45m timeout. **Toolchain pinned (SR-11, `scutemob-63`)**: `rust-toolchain.toml` pins exact stable `1.95.0` and CI reads that `channel` from the file (no more floating to latest stable), so local `clippy -D warnings` is an authoritative CI preview. SR remediation track **COMPLETE** (SR-1..16 all DONE 2026-07-10, final task `scutemob-68`/SR-16): `docs/sr-remediation-plan.md`.
 - **Abilities**: ~199 validated; 42/42 P1; 17/17 P2; 40/40 P3; 95/95 P4 implemented (9 permanent-n/a; 1 deferred: Banding)
 - **Primitives**: PB-0..PB-37 + named-letter chain (PB-A/B/E/J/M/S/X/Q/Q4/N/D/P/L/T/SFT/CC-{W,B,C,A}/TS/LKI-CC/CD/LKI-Power/EWC/XS/XS-E/XA/EAT/XA2/EWC-D) all DONE. PB-Q2/Q3/Q5 reserved.
 - **Last shipped**: **PB-AC9** (`scutemob-52`, merge `a4750cdb`) — **closes the AC chain**. Recon: 3/5 briefed primitives already existed (`Effect::RollDice` d20+results CR 706, `ReplacementModification::DoubleTokens` CR 614.1, `Effect::AddManaFilterChoice`); SearchLibrary multi-name 0-yield → OOS seed. Built: `Effect::WheelHand` + `Effect::SetNoMaximumHandSize` (unbriefed co-blocker — flag was recomputed each cleanup, "rest of the game" inexpressible). **Token doubling rewired 2→13/13 creation sites** (Squad, Offspring, Myriad, Embalm, Eternalize, Encore, Living Weapon, Gift keyed to recipient, Investigate, Amass — doublers were silently failing, invisible to any marker/roster). Review 0 HIGH / 1 MEDIUM fixed (Amass bypassed `apply_counter_replacement` — CR 701.47a; fix proven non-vacuous). Backfill: 11 clean incl. token doublers (Parallel Lives, Anointed Procession, Doubling Season), wheels (Echo of Eons, Winds of Change), d20 Ancient dragons; 1 backfill HIGH (Reforge the Soul stale Miracle marker — 2nd consecutive stale-marker HIGH; AC8+AC9 workers both recommend a campaign-wide marker sweep next). New gotcha logged: `timestamp_counter` IS the object-id counter — rewinding it aliases ObjectIds (`3d7e216c`). Prior: PB-AC8..AC1 (`scutemob-51..43`). Next per campaign plan: **W-PB2** (author ~55 cards unblocked by AC4..AC6), W-EMPTY/W-MISS derisking batches. Registry-gate debt **CLOSED** by SR-2 (`scutemob-54`); follow-up `scutemob-64` (SR-12).
@@ -202,9 +202,14 @@
   always-`None`, never-read per-keyword fields deleted (29 fields → 16), 32 hand-rolled
   literals collapsed onto `blank()` (−850 lines in `rules/`), `HASH_SCHEMA_VERSION` 36 → 37
   and 28 sentinel tests bumped; zero behavior change. New `tests/pending_trigger_shape.rs`
-  stops the migration un-finishing. Follow-up `scutemob-68` (SR-16): `kind`/`data`/
-  `embedded_effect` are `#[serde(skip)]`, so a serialized pending trigger silently
-  deserializes as an anonymous `Normal` one. Earlier same day: SR-6 — card defs extracted to `mtg-card-defs` + DSL to
+  stops the migration un-finishing. Follow-up **`scutemob-68` (SR-16) — DONE 2026-07-10**: those
+  `kind`/`data`/`embedded_effect` `#[serde(skip)]` fields are now serialized (option (a);
+  `PendingTriggerKind` gained the derive), so a round-tripped keyword trigger keeps its identity and
+  payload instead of coercing to anonymous `Normal`. `HASH_SCHEMA_VERSION` 38 → 39 (serde shape
+  change; hash stream unchanged, so states hash identically); no `PROTOCOL_VERSION` bump
+  (`PendingTrigger` is inside `GameState`, off the SR-8 wire). Gate:
+  `pending_trigger_serde_roundtrip`. **This closes the SR remediation track (SR-1..16).**
+  Earlier same day: SR-6 — card defs extracted to `mtg-card-defs` + DSL to
   `mtg-card-types`; engine-internal edits no longer re-typecheck the 1,749 defs
   (`CARGO_INCREMENTAL=0` check 7s → 2–3s; defs report `Fresh`). All 1,749 def files moved with
   **zero content edits** via a two-module re-export in `card-defs`. Earlier same day: SR-5 —

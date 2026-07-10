@@ -745,9 +745,12 @@ fn fingerprint_of_empty_closure_is_not_the_pinned_value() {
 
 /// Attributes are part of the wire, so they must be part of the digest.
 ///
-/// This is not hypothetical: `#[serde(skip)]` on three `PendingTrigger` fields is
-/// an open bug (`scutemob-68` / SR-16). A digest that ignored attributes would
-/// have called that change wire-compatible.
+/// This is not hypothetical: three `PendingTrigger` fields were `#[serde(skip)]`
+/// (`scutemob-68` / SR-16, since removed). A digest that ignored attributes would
+/// have called adding or removing that skip wire-compatible when it is not.
+/// (`PendingTrigger` itself is inside `GameState`, so it never reaches *this*
+/// closure — see `CLOSURE_MUST_NOT_CONTAIN` — but the same reasoning holds for any
+/// `#[serde(skip)]` on a type that does.)
 #[test]
 fn serde_attributes_are_inside_the_digest() {
     let ScanResult { index, .. } = index_declarations();

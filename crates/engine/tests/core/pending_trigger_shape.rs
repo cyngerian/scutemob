@@ -515,3 +515,107 @@ fn replacement_trigger_data_variants_are_still_consumed() {
         );
     }
 }
+
+// ── SR-16: serde round-trip fidelity ─────────────────────────────────────────
+
+/// SR-16 (`scutemob-68`): a `PendingTrigger` must survive `serialize -> deserialize`
+/// with its `kind`, `data` and `embedded_effect` intact.
+///
+/// These three fields were `#[serde(skip)]`, so a serialized-then-deserialized
+/// `GameState` coerced every pending keyword trigger into an anonymous
+/// `PendingTriggerKind::Normal` with `ability_index: 0` and no payload — silently,
+/// with no error. Harmless while triggers are always flushed before priority, but
+/// load-bearing for M10 whole-state sync and for the rewind/replay history that
+/// invariant #9 depends on. Option (a) — serialize the fields — is the guarantee the
+/// engine now makes; this test is what enforces it (see the struct docs on
+/// `PendingTrigger` in `crates/card-types/src/state/stubs.rs`).
+///
+/// The assertions are adversarial, not existential: re-applying `#[serde(skip)]` to
+/// any of the three fields fails a *specific* assertion here (the JSON no longer
+/// carries the field, or the decoded value reverts to the `Normal`/`None` default),
+/// rather than passing vacuously.
+#[test]
+fn pending_trigger_serde_roundtrip() {
+    use mtg_engine::state::stubs::{PendingTrigger, PendingTriggerKind};
+    use mtg_engine::state::TriggerData;
+    use mtg_engine::{Effect, EffectAmount, KeywordAbility, ObjectId, PlayerId, PlayerTarget};
+
+    let source = ObjectId(7);
+    let controller = PlayerId(2);
+    let payload = TriggerData::CombatPoisonous {
+        target_player: PlayerId(3),
+        n: 4,
+    };
+    let embedded = Effect::DrawCards {
+        player: PlayerTarget::Controller,
+        count: EffectAmount::Fixed(1),
+    };
+
+    // A keyword trigger with a real per-kind payload, a captured embedded effect,
+    // and a non-default generic context field — the shape a `#[serde(skip)]` would
+    // have flattened to `Normal { data: None, embedded_effect: None }`.
+    let original = PendingTrigger {
+        ability_index: 9,
+        triggering_player: Some(PlayerId(3)),
+        data: Some(payload.clone()),
+        embedded_effect: Some(embedded.clone()),
+        ..PendingTrigger::blank(
+            source,
+            controller,
+            PendingTriggerKind::KeywordTrigger {
+                keyword: KeywordAbility::Poisonous(4),
+                data: payload.clone(),
+            },
+        )
+    };
+
+    let json = serde_json::to_string(&original).expect("serialize PendingTrigger");
+
+    // Non-vacuity: the payload-bearing fields are actually on the wire. If any of the
+    // three regresses to `#[serde(skip)]`, exactly one of these fails first, naming it.
+    assert!(
+        json.contains("KeywordTrigger") && json.contains("Poisonous"),
+        "`kind` is not serialized — a keyword trigger will deserialize as `Normal`.\nJSON: {json}"
+    );
+    assert!(
+        json.contains("CombatPoisonous"),
+        "`data` is not serialized — the per-kind payload is lost on deserialize.\nJSON: {json}"
+    );
+    assert!(
+        json.contains("DrawCards"),
+        "`embedded_effect` is not serialized — a captured dies/Enrage effect is lost.\nJSON: {json}"
+    );
+
+    let decoded: PendingTrigger = serde_json::from_str(&json).expect("deserialize PendingTrigger");
+
+    // Identity + payload survive verbatim.
+    assert_eq!(
+        decoded.kind,
+        PendingTriggerKind::KeywordTrigger {
+            keyword: KeywordAbility::Poisonous(4),
+            data: payload.clone(),
+        },
+        "kind must round-trip (it used to coerce to Normal)"
+    );
+    assert_ne!(
+        decoded.kind,
+        PendingTriggerKind::Normal,
+        "a keyword trigger must never deserialize back to an anonymous Normal trigger"
+    );
+    assert_eq!(
+        decoded.data,
+        Some(payload),
+        "data (the sole per-kind payload since SR-7) must round-trip"
+    );
+    assert_eq!(
+        decoded.embedded_effect,
+        Some(embedded),
+        "embedded_effect (CR 400.7 source-gone effect capture) must round-trip"
+    );
+
+    // The generic context and identity fields carry through too.
+    assert_eq!(decoded.source, source);
+    assert_eq!(decoded.controller, controller);
+    assert_eq!(decoded.ability_index, 9);
+    assert_eq!(decoded.triggering_player, Some(PlayerId(3)));
+}
