@@ -1,0 +1,11 @@
+[package]
+name = "mtg-card-defs"
+version = "0.1.0"
+edition.workspace = true
+build = "build.rs"
+
+[dependencies]
+# Def files name `im::` types inline (e.g. `im::OrdSet::new()`), so it is a
+# direct dependency here, not just a transitive one through the DSL types.
+im = { version = "15", features = ["serde"] }
+mtg-card-types = { path = "../card-types" }

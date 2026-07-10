@@ -9,9 +9,16 @@
 //! the actual engine source, in both directions:
 //!
 //! * [`KeywordHandling::Handled`] — engine code branches on this exact variant. The
-//!   declared `sites` must equal the set of engine source files that mention
+//!   declared `sites` must equal the set of scanned source files that mention
 //!   `KeywordAbility::<Variant>` outside a comment. Deleting the last read of a
 //!   keyword fails the test; adding a read in a new file fails the test.
+//!
+//! Sites are **workspace-relative** paths. Since SR-6 the scanned tree spans two
+//! crates — `crates/engine/` (dispatch) and `crates/card-types/` (the data types
+//! a couple of keywords are read from) — so a crate-relative path such as
+//! `src/state/dungeon.rs` would no longer name a unique file. `crates/card-defs/`
+//! is deliberately *not* scanned: a def naming a keyword is card data, not engine
+//! behavior.
 //!
 //! * [`KeywordHandling::Marker`] — the variant is a *presence marker* carrying no
 //!   dispatch of its own; the rules text it names is implemented by the `carrier`
@@ -32,9 +39,8 @@ use super::types::{
 /// Where a keyword's behavior lives. See the module docs.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum KeywordHandling {
-    /// Engine code reads this exact variant. `sites` are crate-relative paths
-    /// (relative to `crates/engine/`) and are checked for exact set equality
-    /// against the source tree.
+    /// Engine code reads this exact variant. `sites` are workspace-relative paths
+    /// and are checked for exact set equality against the scanned source tree.
     Handled { sites: &'static [&'static str] },
     /// The variant exists only so `keywords.contains(..)` can answer "does this
     /// object have <keyword>?". No engine code branches on it; `carrier` names
@@ -53,23 +59,23 @@ pub fn handling(keyword: &KeywordAbility) -> KeywordHandling {
     match keyword {
         K::Deathtouch => KeywordHandling::Handled {
             sites: &[
-                "src/effects/mod.rs",
-                "src/rules/combat.rs",
-                "src/state/dungeon.rs",
+                "crates/engine/src/effects/mod.rs",
+                "crates/engine/src/rules/combat.rs",
+                "crates/card-types/src/state/dungeon.rs",
             ],
         },
-        K::Defender => KeywordHandling::Handled { sites: &["src/rules/combat.rs"] },
+        K::Defender => KeywordHandling::Handled { sites: &["crates/engine/src/rules/combat.rs"] },
         K::DoubleStrike => KeywordHandling::Handled {
             sites: &[
-                "src/rules/combat.rs",
-                "src/rules/turn_actions.rs",
+                "crates/engine/src/rules/combat.rs",
+                "crates/engine/src/rules/turn_actions.rs",
             ],
         },
         K::Enchant(..) => KeywordHandling::Handled {
             sites: &[
-                "src/rules/casting.rs",
-                "src/rules/resolution.rs",
-                "src/rules/sba.rs",
+                "crates/engine/src/rules/casting.rs",
+                "crates/engine/src/rules/resolution.rs",
+                "crates/engine/src/rules/sba.rs",
             ],
         },
         K::Equip => KeywordHandling::Marker {
@@ -78,181 +84,181 @@ pub fn handling(keyword: &KeywordAbility) -> KeywordHandling {
         },
         K::FirstStrike => KeywordHandling::Handled {
             sites: &[
-                "src/rules/combat.rs",
-                "src/rules/turn_actions.rs",
+                "crates/engine/src/rules/combat.rs",
+                "crates/engine/src/rules/turn_actions.rs",
             ],
         },
         K::Flash => KeywordHandling::Handled {
             sites: &[
-                "src/rules/casting.rs",
-                "src/rules/suspend.rs",
+                "crates/engine/src/rules/casting.rs",
+                "crates/engine/src/rules/suspend.rs",
             ],
         },
         K::Flying => KeywordHandling::Handled {
             sites: &[
-                "src/rules/combat.rs",
-                "src/state/builder.rs",
+                "crates/engine/src/rules/combat.rs",
+                "crates/engine/src/state/builder.rs",
             ],
         },
         K::Haste => KeywordHandling::Handled {
             sites: &[
-                "src/effects/mod.rs",
-                "src/rules/abilities.rs",
-                "src/rules/combat.rs",
-                "src/rules/mana.rs",
-                "src/rules/resolution.rs",
+                "crates/engine/src/effects/mod.rs",
+                "crates/engine/src/rules/abilities.rs",
+                "crates/engine/src/rules/combat.rs",
+                "crates/engine/src/rules/mana.rs",
+                "crates/engine/src/rules/resolution.rs",
             ],
         },
         K::Hexproof => KeywordHandling::Handled {
             sites: &[
-                "src/rules/mod.rs",
-                "src/rules/protection.rs",
+                "crates/engine/src/rules/mod.rs",
+                "crates/engine/src/rules/protection.rs",
             ],
         },
         K::Indestructible => KeywordHandling::Handled {
             sites: &[
-                "src/effects/mod.rs",
-                "src/rules/sba.rs",
+                "crates/engine/src/effects/mod.rs",
+                "crates/engine/src/rules/sba.rs",
             ],
         },
-        K::Intimidate => KeywordHandling::Handled { sites: &["src/rules/combat.rs"] },
-        K::Landwalk(..) => KeywordHandling::Handled { sites: &["src/rules/combat.rs"] },
+        K::Intimidate => KeywordHandling::Handled { sites: &["crates/engine/src/rules/combat.rs"] },
+        K::Landwalk(..) => KeywordHandling::Handled { sites: &["crates/engine/src/rules/combat.rs"] },
         K::Lifelink => KeywordHandling::Handled {
             sites: &[
-                "src/effects/mod.rs",
-                "src/rules/combat.rs",
+                "crates/engine/src/effects/mod.rs",
+                "crates/engine/src/rules/combat.rs",
             ],
         },
         K::Menace => KeywordHandling::Handled {
             sites: &[
-                "src/rules/combat.rs",
-                "src/rules/layers.rs",
-                "src/state/dungeon.rs",
+                "crates/engine/src/rules/combat.rs",
+                "crates/engine/src/rules/layers.rs",
+                "crates/card-types/src/state/dungeon.rs",
             ],
         },
-        K::ProtectionFrom(..) => KeywordHandling::Handled { sites: &["src/rules/protection.rs"] },
-        K::Prowess => KeywordHandling::Handled { sites: &["src/state/builder.rs"] },
-        K::Reach => KeywordHandling::Handled { sites: &["src/rules/combat.rs"] },
+        K::ProtectionFrom(..) => KeywordHandling::Handled { sites: &["crates/engine/src/rules/protection.rs"] },
+        K::Prowess => KeywordHandling::Handled { sites: &["crates/engine/src/state/builder.rs"] },
+        K::Reach => KeywordHandling::Handled { sites: &["crates/engine/src/rules/combat.rs"] },
         K::Shroud => KeywordHandling::Handled {
             sites: &[
-                "src/rules/mod.rs",
-                "src/rules/protection.rs",
+                "crates/engine/src/rules/mod.rs",
+                "crates/engine/src/rules/protection.rs",
             ],
         },
-        K::Trample => KeywordHandling::Handled { sites: &["src/rules/combat.rs"] },
-        K::Vigilance => KeywordHandling::Handled { sites: &["src/rules/combat.rs"] },
+        K::Trample => KeywordHandling::Handled { sites: &["crates/engine/src/rules/combat.rs"] },
+        K::Vigilance => KeywordHandling::Handled { sites: &["crates/engine/src/rules/combat.rs"] },
         K::Ward(..) => KeywordHandling::Handled {
             sites: &[
-                "src/rules/layers.rs",
-                "src/state/builder.rs",
+                "crates/engine/src/rules/layers.rs",
+                "crates/engine/src/state/builder.rs",
             ],
         },
-        K::Partner => KeywordHandling::Handled { sites: &["src/rules/commander.rs"] },
+        K::Partner => KeywordHandling::Handled { sites: &["crates/engine/src/rules/commander.rs"] },
         K::PartnerWith(..) => KeywordHandling::Handled {
             sites: &[
-                "src/rules/abilities.rs",
-                "src/rules/commander.rs",
-                "src/rules/resolution.rs",
+                "crates/engine/src/rules/abilities.rs",
+                "crates/engine/src/rules/commander.rs",
+                "crates/engine/src/rules/resolution.rs",
             ],
         },
-        K::FriendsForever => KeywordHandling::Handled { sites: &["src/rules/commander.rs"] },
-        K::ChooseABackground => KeywordHandling::Handled { sites: &["src/rules/commander.rs"] },
-        K::DoctorsCompanion => KeywordHandling::Handled { sites: &["src/rules/commander.rs"] },
-        K::NoMaxHandSize => KeywordHandling::Handled { sites: &["src/rules/turn_actions.rs"] },
-        K::CantBeBlocked => KeywordHandling::Handled { sites: &["src/rules/combat.rs"] },
+        K::FriendsForever => KeywordHandling::Handled { sites: &["crates/engine/src/rules/commander.rs"] },
+        K::ChooseABackground => KeywordHandling::Handled { sites: &["crates/engine/src/rules/commander.rs"] },
+        K::DoctorsCompanion => KeywordHandling::Handled { sites: &["crates/engine/src/rules/commander.rs"] },
+        K::NoMaxHandSize => KeywordHandling::Handled { sites: &["crates/engine/src/rules/turn_actions.rs"] },
+        K::CantBeBlocked => KeywordHandling::Handled { sites: &["crates/engine/src/rules/combat.rs"] },
         K::Storm => KeywordHandling::Handled {
             sites: &[
-                "src/rules/casting.rs",
-                "src/rules/resolution.rs",
+                "crates/engine/src/rules/casting.rs",
+                "crates/engine/src/rules/resolution.rs",
             ],
         },
         K::Cascade => KeywordHandling::Handled {
             sites: &[
-                "src/rules/casting.rs",
-                "src/rules/resolution.rs",
+                "crates/engine/src/rules/casting.rs",
+                "crates/engine/src/rules/resolution.rs",
             ],
         },
-        K::Flashback => KeywordHandling::Handled { sites: &["src/rules/casting.rs"] },
-        K::Cycling => KeywordHandling::Handled { sites: &["src/rules/abilities.rs"] },
-        K::Dredge(..) => KeywordHandling::Handled { sites: &["src/rules/replacement.rs"] },
-        K::Convoke => KeywordHandling::Handled { sites: &["src/rules/casting.rs"] },
-        K::Delve => KeywordHandling::Handled { sites: &["src/rules/casting.rs"] },
+        K::Flashback => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
+        K::Cycling => KeywordHandling::Handled { sites: &["crates/engine/src/rules/abilities.rs"] },
+        K::Dredge(..) => KeywordHandling::Handled { sites: &["crates/engine/src/rules/replacement.rs"] },
+        K::Convoke => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
+        K::Delve => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
         K::Kicker => KeywordHandling::Marker {
             carrier: "AbilityDefinition::Kicker { cost, is_multikicker }",
             cr: "702.33a",
         },
-        K::SplitSecond => KeywordHandling::Handled { sites: &["src/rules/casting.rs"] },
-        K::Exalted => KeywordHandling::Handled { sites: &["src/state/builder.rs"] },
-        K::Annihilator(..) => KeywordHandling::Handled { sites: &["src/state/builder.rs"] },
-        K::Persist => KeywordHandling::Handled { sites: &["src/state/builder.rs"] },
-        K::Undying => KeywordHandling::Handled { sites: &["src/state/builder.rs"] },
-        K::Changeling => KeywordHandling::Handled { sites: &["src/rules/layers.rs"] },
+        K::SplitSecond => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
+        K::Exalted => KeywordHandling::Handled { sites: &["crates/engine/src/state/builder.rs"] },
+        K::Annihilator(..) => KeywordHandling::Handled { sites: &["crates/engine/src/state/builder.rs"] },
+        K::Persist => KeywordHandling::Handled { sites: &["crates/engine/src/state/builder.rs"] },
+        K::Undying => KeywordHandling::Handled { sites: &["crates/engine/src/state/builder.rs"] },
+        K::Changeling => KeywordHandling::Handled { sites: &["crates/engine/src/rules/layers.rs"] },
         K::Evoke => KeywordHandling::Handled {
             sites: &[
-                "src/rules/abilities.rs",
-                "src/rules/resolution.rs",
+                "crates/engine/src/rules/abilities.rs",
+                "crates/engine/src/rules/resolution.rs",
             ],
         },
-        K::Crew(..) => KeywordHandling::Handled { sites: &["src/rules/abilities.rs"] },
-        K::BattleCry => KeywordHandling::Handled { sites: &["src/state/builder.rs"] },
-        K::Afterlife(..) => KeywordHandling::Handled { sites: &["src/state/builder.rs"] },
-        K::Extort => KeywordHandling::Handled { sites: &["src/state/builder.rs"] },
-        K::Improvise => KeywordHandling::Handled { sites: &["src/rules/casting.rs"] },
-        K::Affinity(..) => KeywordHandling::Handled { sites: &["src/rules/casting.rs"] },
-        K::Undaunted => KeywordHandling::Handled { sites: &["src/rules/casting.rs"] },
-        K::Dethrone => KeywordHandling::Handled { sites: &["src/state/builder.rs"] },
+        K::Crew(..) => KeywordHandling::Handled { sites: &["crates/engine/src/rules/abilities.rs"] },
+        K::BattleCry => KeywordHandling::Handled { sites: &["crates/engine/src/state/builder.rs"] },
+        K::Afterlife(..) => KeywordHandling::Handled { sites: &["crates/engine/src/state/builder.rs"] },
+        K::Extort => KeywordHandling::Handled { sites: &["crates/engine/src/state/builder.rs"] },
+        K::Improvise => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
+        K::Affinity(..) => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
+        K::Undaunted => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
+        K::Dethrone => KeywordHandling::Handled { sites: &["crates/engine/src/state/builder.rs"] },
         K::Bestow => KeywordHandling::Marker {
             carrier: "AbilityDefinition::Bestow { cost } + AltCostKind::Bestow",
             cr: "702.103a",
         },
-        K::Fear => KeywordHandling::Handled { sites: &["src/rules/combat.rs"] },
-        K::LivingWeapon => KeywordHandling::Handled { sites: &["src/state/builder.rs"] },
+        K::Fear => KeywordHandling::Handled { sites: &["crates/engine/src/rules/combat.rs"] },
+        K::LivingWeapon => KeywordHandling::Handled { sites: &["crates/engine/src/state/builder.rs"] },
         K::Madness => KeywordHandling::Handled {
             sites: &[
-                "src/effects/mod.rs",
-                "src/rules/abilities.rs",
-                "src/rules/casting.rs",
-                "src/rules/turn_actions.rs",
+                "crates/engine/src/effects/mod.rs",
+                "crates/engine/src/rules/abilities.rs",
+                "crates/engine/src/rules/casting.rs",
+                "crates/engine/src/rules/turn_actions.rs",
             ],
         },
         K::Miracle => KeywordHandling::Handled {
             sites: &[
-                "src/rules/casting.rs",
-                "src/rules/miracle.rs",
+                "crates/engine/src/rules/casting.rs",
+                "crates/engine/src/rules/miracle.rs",
             ],
         },
-        K::Escape => KeywordHandling::Handled { sites: &["src/rules/casting.rs"] },
-        K::Foretell => KeywordHandling::Handled { sites: &["src/rules/foretell.rs"] },
+        K::Escape => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
+        K::Foretell => KeywordHandling::Handled { sites: &["crates/engine/src/rules/foretell.rs"] },
         K::Unearth => KeywordHandling::Handled {
             sites: &[
-                "src/rules/abilities.rs",
-                "src/rules/resolution.rs",
+                "crates/engine/src/rules/abilities.rs",
+                "crates/engine/src/rules/resolution.rs",
             ],
         },
-        K::Riot => KeywordHandling::Handled { sites: &["src/rules/resolution.rs"] },
+        K::Riot => KeywordHandling::Handled { sites: &["crates/engine/src/rules/resolution.rs"] },
         K::Exploit => KeywordHandling::Handled {
             sites: &[
-                "src/rules/abilities.rs",
-                "src/rules/resolution.rs",
+                "crates/engine/src/rules/abilities.rs",
+                "crates/engine/src/rules/resolution.rs",
             ],
         },
         K::Wither => KeywordHandling::Handled {
             sites: &[
-                "src/effects/mod.rs",
-                "src/rules/combat.rs",
+                "crates/engine/src/effects/mod.rs",
+                "crates/engine/src/rules/combat.rs",
             ],
         },
         K::Modular(..) => KeywordHandling::Handled {
             sites: &[
-                "src/rules/abilities.rs",
-                "src/rules/resolution.rs",
-                "src/state/builder.rs",
+                "crates/engine/src/rules/abilities.rs",
+                "crates/engine/src/rules/resolution.rs",
+                "crates/engine/src/state/builder.rs",
             ],
         },
         K::Evolve => KeywordHandling::Handled {
             sites: &[
-                "src/rules/abilities.rs",
-                "src/rules/resolution.rs",
+                "crates/engine/src/rules/abilities.rs",
+                "crates/engine/src/rules/resolution.rs",
             ],
         },
         K::Buyback => KeywordHandling::Marker {
@@ -261,273 +267,273 @@ pub fn handling(keyword: &KeywordAbility) -> KeywordHandling {
         },
         K::Ascend => KeywordHandling::Handled {
             sites: &[
-                "src/rules/resolution.rs",
-                "src/rules/sba.rs",
+                "crates/engine/src/rules/resolution.rs",
+                "crates/engine/src/rules/sba.rs",
             ],
         },
         K::Infect => KeywordHandling::Handled {
             sites: &[
-                "src/effects/mod.rs",
-                "src/rules/combat.rs",
+                "crates/engine/src/effects/mod.rs",
+                "crates/engine/src/rules/combat.rs",
             ],
         },
         K::Myriad => KeywordHandling::Handled {
             sites: &[
-                "src/rules/abilities.rs",
-                "src/rules/resolution.rs",
-                "src/state/builder.rs",
+                "crates/engine/src/rules/abilities.rs",
+                "crates/engine/src/rules/resolution.rs",
+                "crates/engine/src/state/builder.rs",
             ],
         },
-        K::Suspend => KeywordHandling::Handled { sites: &["src/rules/suspend.rs"] },
+        K::Suspend => KeywordHandling::Handled { sites: &["crates/engine/src/rules/suspend.rs"] },
         K::Hideaway(..) => KeywordHandling::Handled {
             sites: &[
-                "src/rules/abilities.rs",
-                "src/rules/resolution.rs",
+                "crates/engine/src/rules/abilities.rs",
+                "crates/engine/src/rules/resolution.rs",
             ],
         },
         K::Adapt(..) => KeywordHandling::Marker {
             carrier: "AbilityDefinition::Activated with Effect::Conditional(SourceHasNoCountersOfType) -> Effect::AddCounter",
             cr: "701.46a",
         },
-        K::Shadow => KeywordHandling::Handled { sites: &["src/rules/combat.rs"] },
+        K::Shadow => KeywordHandling::Handled { sites: &["crates/engine/src/rules/combat.rs"] },
         K::Overload => KeywordHandling::Marker {
             carrier: "AbilityDefinition::Overload { cost } + AltCostKind::Overload",
             cr: "702.96a",
         },
-        K::Horsemanship => KeywordHandling::Handled { sites: &["src/rules/combat.rs"] },
-        K::Skulk => KeywordHandling::Handled { sites: &["src/rules/combat.rs"] },
-        K::Devoid => KeywordHandling::Handled { sites: &["src/rules/layers.rs"] },
+        K::Horsemanship => KeywordHandling::Handled { sites: &["crates/engine/src/rules/combat.rs"] },
+        K::Skulk => KeywordHandling::Handled { sites: &["crates/engine/src/rules/combat.rs"] },
+        K::Devoid => KeywordHandling::Handled { sites: &["crates/engine/src/rules/layers.rs"] },
         K::Decayed => KeywordHandling::Handled {
             sites: &[
-                "src/cards/card_definition.rs",
-                "src/rules/combat.rs",
+                "crates/card-types/src/cards/card_definition.rs",
+                "crates/engine/src/rules/combat.rs",
             ],
         },
         K::Ingest => KeywordHandling::Handled {
             sites: &[
-                "src/rules/abilities.rs",
-                "src/rules/resolution.rs",
+                "crates/engine/src/rules/abilities.rs",
+                "crates/engine/src/rules/resolution.rs",
             ],
         },
         K::Flanking => KeywordHandling::Handled {
             sites: &[
-                "src/rules/abilities.rs",
-                "src/rules/resolution.rs",
+                "crates/engine/src/rules/abilities.rs",
+                "crates/engine/src/rules/resolution.rs",
             ],
         },
-        K::Bushido(..) => KeywordHandling::Handled { sites: &["src/state/builder.rs"] },
+        K::Bushido(..) => KeywordHandling::Handled { sites: &["crates/engine/src/state/builder.rs"] },
         K::Rampage(..) => KeywordHandling::Handled {
             sites: &[
-                "src/rules/abilities.rs",
-                "src/rules/resolution.rs",
-                "src/state/builder.rs",
+                "crates/engine/src/rules/abilities.rs",
+                "crates/engine/src/rules/resolution.rs",
+                "crates/engine/src/state/builder.rs",
             ],
         },
         K::Provoke => KeywordHandling::Handled {
             sites: &[
-                "src/rules/abilities.rs",
-                "src/rules/resolution.rs",
-                "src/state/builder.rs",
+                "crates/engine/src/rules/abilities.rs",
+                "crates/engine/src/rules/resolution.rs",
+                "crates/engine/src/state/builder.rs",
             ],
         },
-        K::Afflict(..) => KeywordHandling::Handled { sites: &["src/state/builder.rs"] },
+        K::Afflict(..) => KeywordHandling::Handled { sites: &["crates/engine/src/state/builder.rs"] },
         K::Renown(..) => KeywordHandling::Handled {
             sites: &[
-                "src/rules/abilities.rs",
-                "src/rules/resolution.rs",
+                "crates/engine/src/rules/abilities.rs",
+                "crates/engine/src/rules/resolution.rs",
             ],
         },
-        K::Training => KeywordHandling::Handled { sites: &["src/state/builder.rs"] },
+        K::Training => KeywordHandling::Handled { sites: &["crates/engine/src/state/builder.rs"] },
         K::Melee => KeywordHandling::Handled {
             sites: &[
-                "src/rules/abilities.rs",
-                "src/rules/resolution.rs",
-                "src/state/builder.rs",
+                "crates/engine/src/rules/abilities.rs",
+                "crates/engine/src/rules/resolution.rs",
+                "crates/engine/src/state/builder.rs",
             ],
         },
         K::Poisonous(..) => KeywordHandling::Handled {
             sites: &[
-                "src/rules/abilities.rs",
-                "src/rules/resolution.rs",
+                "crates/engine/src/rules/abilities.rs",
+                "crates/engine/src/rules/resolution.rs",
             ],
         },
-        K::Toxic(..) => KeywordHandling::Handled { sites: &["src/rules/combat.rs"] },
+        K::Toxic(..) => KeywordHandling::Handled { sites: &["crates/engine/src/rules/combat.rs"] },
         K::Enlist => KeywordHandling::Handled {
             sites: &[
-                "src/rules/abilities.rs",
-                "src/rules/combat.rs",
-                "src/rules/resolution.rs",
-                "src/state/builder.rs",
+                "crates/engine/src/rules/abilities.rs",
+                "crates/engine/src/rules/combat.rs",
+                "crates/engine/src/rules/resolution.rs",
+                "crates/engine/src/state/builder.rs",
             ],
         },
-        K::Ninjutsu => KeywordHandling::Handled { sites: &["src/rules/abilities.rs"] },
-        K::CommanderNinjutsu => KeywordHandling::Handled { sites: &["src/rules/abilities.rs"] },
-        K::Retrace => KeywordHandling::Handled { sites: &["src/rules/casting.rs"] },
-        K::JumpStart => KeywordHandling::Handled { sites: &["src/rules/casting.rs"] },
-        K::Aftermath => KeywordHandling::Handled { sites: &["src/rules/casting.rs"] },
-        K::Embalm => KeywordHandling::Handled { sites: &["src/rules/abilities.rs"] },
-        K::Eternalize => KeywordHandling::Handled { sites: &["src/rules/abilities.rs"] },
+        K::Ninjutsu => KeywordHandling::Handled { sites: &["crates/engine/src/rules/abilities.rs"] },
+        K::CommanderNinjutsu => KeywordHandling::Handled { sites: &["crates/engine/src/rules/abilities.rs"] },
+        K::Retrace => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
+        K::JumpStart => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
+        K::Aftermath => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
+        K::Embalm => KeywordHandling::Handled { sites: &["crates/engine/src/rules/abilities.rs"] },
+        K::Eternalize => KeywordHandling::Handled { sites: &["crates/engine/src/rules/abilities.rs"] },
         K::Encore => KeywordHandling::Handled {
             sites: &[
-                "src/rules/abilities.rs",
-                "src/rules/resolution.rs",
+                "crates/engine/src/rules/abilities.rs",
+                "crates/engine/src/rules/resolution.rs",
             ],
         },
         K::Dash => KeywordHandling::Handled {
             sites: &[
-                "src/rules/abilities.rs",
-                "src/rules/resolution.rs",
+                "crates/engine/src/rules/abilities.rs",
+                "crates/engine/src/rules/resolution.rs",
             ],
         },
         K::Blitz => KeywordHandling::Handled {
             sites: &[
-                "src/rules/abilities.rs",
-                "src/rules/resolution.rs",
+                "crates/engine/src/rules/abilities.rs",
+                "crates/engine/src/rules/resolution.rs",
             ],
         },
-        K::Plot => KeywordHandling::Handled { sites: &["src/rules/plot.rs"] },
+        K::Plot => KeywordHandling::Handled { sites: &["crates/engine/src/rules/plot.rs"] },
         K::Prototype => KeywordHandling::Marker {
             carrier: "AbilityDefinition::Prototype + AltCostKind::Prototype",
             cr: "702.160a",
         },
         K::Impending => KeywordHandling::Handled {
             sites: &[
-                "src/rules/resolution.rs",
-                "src/rules/turn_actions.rs",
+                "crates/engine/src/rules/resolution.rs",
+                "crates/engine/src/rules/turn_actions.rs",
             ],
         },
-        K::Bargain => KeywordHandling::Handled { sites: &["src/rules/casting.rs"] },
+        K::Bargain => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
         K::Emerge => KeywordHandling::Marker {
             carrier: "AbilityDefinition::Emerge { cost } + AltCostKind::Emerge",
             cr: "702.119a",
         },
-        K::Spectacle => KeywordHandling::Handled { sites: &["src/rules/casting.rs"] },
-        K::Surge => KeywordHandling::Handled { sites: &["src/rules/casting.rs"] },
+        K::Spectacle => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
+        K::Surge => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
         K::Casualty(..) => KeywordHandling::Handled {
             sites: &[
-                "src/rules/casting.rs",
-                "src/rules/resolution.rs",
+                "crates/engine/src/rules/casting.rs",
+                "crates/engine/src/rules/resolution.rs",
             ],
         },
-        K::Assist => KeywordHandling::Handled { sites: &["src/rules/casting.rs"] },
+        K::Assist => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
         K::Replicate => KeywordHandling::Handled {
             sites: &[
-                "src/rules/casting.rs",
-                "src/rules/resolution.rs",
+                "crates/engine/src/rules/casting.rs",
+                "crates/engine/src/rules/resolution.rs",
             ],
         },
         K::Gravestorm => KeywordHandling::Handled {
             sites: &[
-                "src/rules/casting.rs",
-                "src/rules/resolution.rs",
+                "crates/engine/src/rules/casting.rs",
+                "crates/engine/src/rules/resolution.rs",
             ],
         },
         K::Cleave => KeywordHandling::Marker {
             carrier: "AbilityDefinition::Cleave { cost } + AltCostKind::Cleave",
             cr: "702.148a",
         },
-        K::Splice => KeywordHandling::Handled { sites: &["src/rules/casting.rs"] },
-        K::Entwine => KeywordHandling::Handled { sites: &["src/rules/casting.rs"] },
-        K::Escalate => KeywordHandling::Handled { sites: &["src/rules/casting.rs"] },
+        K::Splice => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
+        K::Entwine => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
+        K::Escalate => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
         K::Recover => KeywordHandling::Handled {
             sites: &[
-                "src/rules/abilities.rs",
-                "src/rules/resolution.rs",
+                "crates/engine/src/rules/abilities.rs",
+                "crates/engine/src/rules/resolution.rs",
             ],
         },
         K::Vanishing(..) => KeywordHandling::Handled {
             sites: &[
-                "src/rules/lands.rs",
-                "src/rules/resolution.rs",
-                "src/rules/turn_actions.rs",
+                "crates/engine/src/rules/lands.rs",
+                "crates/engine/src/rules/resolution.rs",
+                "crates/engine/src/rules/turn_actions.rs",
             ],
         },
         K::Fading(..) => KeywordHandling::Handled {
             sites: &[
-                "src/rules/lands.rs",
-                "src/rules/resolution.rs",
-                "src/rules/turn_actions.rs",
+                "crates/engine/src/rules/lands.rs",
+                "crates/engine/src/rules/resolution.rs",
+                "crates/engine/src/rules/turn_actions.rs",
             ],
         },
         K::Echo(..) => KeywordHandling::Handled {
             sites: &[
-                "src/rules/lands.rs",
-                "src/rules/resolution.rs",
-                "src/rules/turn_actions.rs",
+                "crates/engine/src/rules/lands.rs",
+                "crates/engine/src/rules/resolution.rs",
+                "crates/engine/src/rules/turn_actions.rs",
             ],
         },
         K::CumulativeUpkeep(..) => KeywordHandling::Handled {
             sites: &[
-                "src/rules/resolution.rs",
-                "src/rules/turn_actions.rs",
+                "crates/engine/src/rules/resolution.rs",
+                "crates/engine/src/rules/turn_actions.rs",
             ],
         },
-        K::Forecast => KeywordHandling::Handled { sites: &["src/rules/abilities.rs"] },
-        K::Phasing => KeywordHandling::Handled { sites: &["src/rules/turn_actions.rs"] },
+        K::Forecast => KeywordHandling::Handled { sites: &["crates/engine/src/rules/abilities.rs"] },
+        K::Phasing => KeywordHandling::Handled { sites: &["crates/engine/src/rules/turn_actions.rs"] },
         K::Graft(..) => KeywordHandling::Handled {
             sites: &[
-                "src/rules/abilities.rs",
-                "src/rules/lands.rs",
-                "src/rules/resolution.rs",
+                "crates/engine/src/rules/abilities.rs",
+                "crates/engine/src/rules/lands.rs",
+                "crates/engine/src/rules/resolution.rs",
             ],
         },
-        K::Scavenge => KeywordHandling::Handled { sites: &["src/rules/abilities.rs"] },
+        K::Scavenge => KeywordHandling::Handled { sites: &["crates/engine/src/rules/abilities.rs"] },
         K::Outlast => KeywordHandling::Marker {
             carrier: "AbilityDefinition::Outlast { cost }",
             cr: "702.107a",
         },
         K::Amplify(..) => KeywordHandling::Handled {
             sites: &[
-                "src/rules/lands.rs",
-                "src/rules/resolution.rs",
+                "crates/engine/src/rules/lands.rs",
+                "crates/engine/src/rules/resolution.rs",
             ],
         },
         K::Bloodthirst(..) => KeywordHandling::Handled {
             sites: &[
-                "src/rules/lands.rs",
-                "src/rules/resolution.rs",
+                "crates/engine/src/rules/lands.rs",
+                "crates/engine/src/rules/resolution.rs",
             ],
         },
         K::Devour(..) => KeywordHandling::Handled {
             sites: &[
-                "src/rules/casting.rs",
-                "src/rules/resolution.rs",
+                "crates/engine/src/rules/casting.rs",
+                "crates/engine/src/rules/resolution.rs",
             ],
         },
         K::Backup(..) => KeywordHandling::Handled {
             sites: &[
-                "src/rules/abilities.rs",
-                "src/rules/resolution.rs",
+                "crates/engine/src/rules/abilities.rs",
+                "crates/engine/src/rules/resolution.rs",
             ],
         },
         K::Champion => KeywordHandling::Handled {
             sites: &[
-                "src/rules/abilities.rs",
-                "src/rules/resolution.rs",
-                "src/testing/replay_harness.rs",
+                "crates/engine/src/rules/abilities.rs",
+                "crates/engine/src/rules/resolution.rs",
+                "crates/engine/src/testing/replay_harness.rs",
             ],
         },
-        K::UmbraArmor => KeywordHandling::Handled { sites: &["src/rules/replacement.rs"] },
-        K::LivingMetal => KeywordHandling::Handled { sites: &["src/rules/layers.rs"] },
+        K::UmbraArmor => KeywordHandling::Handled { sites: &["crates/engine/src/rules/replacement.rs"] },
+        K::LivingMetal => KeywordHandling::Handled { sites: &["crates/engine/src/rules/layers.rs"] },
         K::Soulbond => KeywordHandling::Handled {
             sites: &[
-                "src/rules/abilities.rs",
-                "src/rules/resolution.rs",
-                "src/testing/replay_harness.rs",
+                "crates/engine/src/rules/abilities.rs",
+                "crates/engine/src/rules/resolution.rs",
+                "crates/engine/src/testing/replay_harness.rs",
             ],
         },
         K::Fortify => KeywordHandling::Marker {
             carrier: "Effect::AttachFortification",
             cr: "702.67a",
         },
-        K::Tribute(..) => KeywordHandling::Handled { sites: &["src/rules/resolution.rs"] },
-        K::Fabricate(..) => KeywordHandling::Handled { sites: &["src/rules/replacement.rs"] },
-        K::Fuse => KeywordHandling::Handled { sites: &["src/rules/casting.rs"] },
-        K::Spree => KeywordHandling::Handled { sites: &["src/rules/casting.rs"] },
+        K::Tribute(..) => KeywordHandling::Handled { sites: &["crates/engine/src/rules/resolution.rs"] },
+        K::Fabricate(..) => KeywordHandling::Handled { sites: &["crates/engine/src/rules/replacement.rs"] },
+        K::Fuse => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
+        K::Spree => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
         K::Ravenous => KeywordHandling::Handled {
             sites: &[
-                "src/rules/abilities.rs",
-                "src/rules/resolution.rs",
+                "crates/engine/src/rules/abilities.rs",
+                "crates/engine/src/rules/resolution.rs",
             ],
         },
         K::Discover => KeywordHandling::Marker {
@@ -536,63 +542,63 @@ pub fn handling(keyword: &KeywordAbility) -> KeywordHandling {
         },
         K::Squad => KeywordHandling::Handled {
             sites: &[
-                "src/rules/abilities.rs",
-                "src/rules/casting.rs",
-                "src/rules/resolution.rs",
+                "crates/engine/src/rules/abilities.rs",
+                "crates/engine/src/rules/casting.rs",
+                "crates/engine/src/rules/resolution.rs",
             ],
         },
         K::Offspring => KeywordHandling::Handled {
             sites: &[
-                "src/rules/abilities.rs",
-                "src/rules/casting.rs",
-                "src/rules/resolution.rs",
+                "crates/engine/src/rules/abilities.rs",
+                "crates/engine/src/rules/casting.rs",
+                "crates/engine/src/rules/resolution.rs",
             ],
         },
         K::Gift => KeywordHandling::Handled {
             sites: &[
-                "src/rules/abilities.rs",
-                "src/rules/casting.rs",
-                "src/rules/resolution.rs",
-                "src/testing/replay_harness.rs",
+                "crates/engine/src/rules/abilities.rs",
+                "crates/engine/src/rules/casting.rs",
+                "crates/engine/src/rules/resolution.rs",
+                "crates/engine/src/testing/replay_harness.rs",
             ],
         },
-        K::Saddle(..) => KeywordHandling::Handled { sites: &["src/rules/abilities.rs"] },
+        K::Saddle(..) => KeywordHandling::Handled { sites: &["crates/engine/src/rules/abilities.rs"] },
         K::Cipher => KeywordHandling::Handled {
             sites: &[
-                "src/rules/abilities.rs",
-                "src/rules/resolution.rs",
-                "src/testing/replay_harness.rs",
+                "crates/engine/src/rules/abilities.rs",
+                "crates/engine/src/rules/resolution.rs",
+                "crates/engine/src/testing/replay_harness.rs",
             ],
         },
         K::Haunt => KeywordHandling::Handled {
             sites: &[
-                "src/rules/abilities.rs",
-                "src/rules/resolution.rs",
+                "crates/engine/src/rules/abilities.rs",
+                "crates/engine/src/rules/resolution.rs",
             ],
         },
         K::Reconfigure => KeywordHandling::Handled {
             sites: &[
-                "src/effects/mod.rs",
-                "src/testing/replay_harness.rs",
+                "crates/engine/src/effects/mod.rs",
+                "crates/engine/src/testing/replay_harness.rs",
             ],
         },
-        K::Mutate => KeywordHandling::Handled { sites: &["src/rules/casting.rs"] },
+        K::Mutate => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
         K::Transform => KeywordHandling::Marker {
             carrier: "Command::Transform + Effect::TransformPermanent",
             cr: "701.27a",
         },
         K::Daybound => KeywordHandling::Handled {
             sites: &[
-                "src/rules/engine.rs",
-                "src/rules/resolution.rs",
-                "src/rules/turn_actions.rs",
+                "crates/engine/src/rules/engine.rs",
+                "crates/engine/src/rules/resolution.rs",
+                "crates/engine/src/rules/turn_actions.rs",
             ],
         },
         K::Nightbound => KeywordHandling::Handled {
             sites: &[
-                "src/rules/engine.rs",
-                "src/rules/resolution.rs",
-                "src/rules/turn_actions.rs",
+                "crates/engine/src/rules/engine.rs",
+                "crates/engine/src/rules/resolution.rs",
+                "crates/engine/src/rules/turn_actions.rs",
             ],
         },
         K::Disturb => KeywordHandling::Marker {
@@ -603,9 +609,9 @@ pub fn handling(keyword: &KeywordAbility) -> KeywordHandling {
             carrier: "AbilityDefinition::Craft + Command::ActivateCraft",
             cr: "702.167a",
         },
-        K::Morph => KeywordHandling::Handled { sites: &["src/rules/casting.rs"] },
-        K::Megamorph => KeywordHandling::Handled { sites: &["src/rules/casting.rs"] },
-        K::Disguise => KeywordHandling::Handled { sites: &["src/rules/casting.rs"] },
+        K::Morph => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
+        K::Megamorph => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
+        K::Disguise => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
         K::Manifest => KeywordHandling::Marker {
             carrier: "Effect::Manifest { player }",
             cr: "701.40a",
@@ -614,27 +620,27 @@ pub fn handling(keyword: &KeywordAbility) -> KeywordHandling {
             carrier: "Effect::Cloak { player }",
             cr: "701.58a",
         },
-        K::MustAttackEachCombat => KeywordHandling::Handled { sites: &["src/rules/combat.rs"] },
+        K::MustAttackEachCombat => KeywordHandling::Handled { sites: &["crates/engine/src/rules/combat.rs"] },
         K::HexproofPlayer => KeywordHandling::Handled {
             sites: &[
-                "src/rules/abilities.rs",
-                "src/rules/casting.rs",
+                "crates/engine/src/rules/abilities.rs",
+                "crates/engine/src/rules/casting.rs",
             ],
         },
-        K::CantBlock => KeywordHandling::Handled { sites: &["src/rules/combat.rs"] },
-        K::CantBeBlockedExceptBy(..) => KeywordHandling::Handled { sites: &["src/rules/combat.rs"] },
-        K::DoesNotUntap => KeywordHandling::Handled { sites: &["src/rules/turn_actions.rs"] },
+        K::CantBlock => KeywordHandling::Handled { sites: &["crates/engine/src/rules/combat.rs"] },
+        K::CantBeBlockedExceptBy(..) => KeywordHandling::Handled { sites: &["crates/engine/src/rules/combat.rs"] },
+        K::DoesNotUntap => KeywordHandling::Handled { sites: &["crates/engine/src/rules/turn_actions.rs"] },
         K::Warp => KeywordHandling::Handled {
             sites: &[
-                "src/rules/resolution.rs",
-                "src/rules/turn_actions.rs",
+                "crates/engine/src/rules/resolution.rs",
+                "crates/engine/src/rules/turn_actions.rs",
             ],
         },
         K::Transmute => KeywordHandling::Marker {
             carrier: "AbilityDefinition::Activated (Cost::DiscardSelf + Effect::SearchLibrary)",
             cr: "702.53a",
         },
-        K::Exert => KeywordHandling::Handled { sites: &["src/rules/combat.rs"] },
+        K::Exert => KeywordHandling::Handled { sites: &["crates/engine/src/rules/combat.rs"] },
     }
 }
 

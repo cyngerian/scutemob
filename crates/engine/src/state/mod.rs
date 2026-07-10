@@ -3,66 +3,55 @@
 //! All state uses `im` persistent data structures for structural sharing,
 //! enabling cheap snapshots and deterministic replay.
 pub mod builder;
-pub mod combat;
-pub mod continuous_effect;
 pub mod diagnostics;
-pub mod dungeon;
 pub mod error;
-pub mod game_object;
 pub mod hash;
 pub mod keyword_registry;
-pub mod player;
-pub mod replacement_effect;
-pub mod stack;
-pub mod stubs;
-pub mod targeting;
 /// Escape hatches for tests — see the module docs. Not compiled in production builds.
 #[cfg(any(test, feature = "test-util"))]
 pub mod test_util;
 pub mod turn;
-pub mod types;
-pub mod zone;
+
+// The pure-data half of the state model lives in `mtg-card-types`, below this
+// crate, so that card definitions can be built without a running game. These
+// module re-exports keep every `crate::state::game_object::…` path in the
+// engine resolving exactly as it did when the files were here. Anything that
+// reads or mutates a live `GameState` stays in this crate.
+pub use mtg_card_types::state::{
+    combat, continuous_effect, dungeon, game_object, player, replacement_effect, stack, stubs,
+    targeting, types, zone,
+};
+
 // Re-export primary types for convenient access via `use mtg_engine::state::*`
 use crate::cards::CardRegistry;
 use crate::rules::events::GameEvent;
 pub use builder::{
     register_commander_zone_replacements, GameStateBuilder, ObjectSpec, PlayerBuilder,
 };
-pub use combat::{AttackTarget, CombatState};
-pub use continuous_effect::{
-    ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
-};
-pub use dungeon::{get_dungeon, DungeonDef, DungeonId, DungeonState, RoomDef, RoomIndex};
 pub use error::GameStateError;
-pub use game_object::{
-    AbilityInstance, ActivatedAbility, ActivationCost, Characteristics, DeathTriggerFilter,
-    Designations, ETBTriggerFilter, GameObject, HybridMana, HybridManaPayment, InterveningIf,
-    ManaAbility, ManaCost, MergedComponent, ObjectId, ObjectStatus, PhyrexianMana, SacrificeFilter,
-    TriggerEvent, TriggeredAbilityDef,
-};
 use im::{OrdMap, Vector};
-pub use player::{CardId, ManaPool, PlayerId, PlayerState};
-pub use replacement_effect::{
-    DamageTargetFilter, ObjectFilter, PendingZoneChange, PlayerFilter, ReplacementEffect,
-    ReplacementId, ReplacementModification, ReplacementTrigger,
+pub use mtg_card_types::state::dungeon::get_dungeon;
+pub use mtg_card_types::state::{
+    AbilityInstance, ActivatedAbility, ActivationCost, ActiveRestriction, AdditionalCost,
+    AdditionalLandPlaySource, AffinityTarget, AltCostKind, AttackTarget, BlockingExceptionFilter,
+    CardId, CardType, ChampionFilter, Characteristics, Color, CombatState, ContinuousEffect,
+    CounterType, CumulativeUpkeepCost, DamageTargetFilter, DayNight, DeathTriggerFilter,
+    DelayedTrigger, Designations, DungeonDef, DungeonId, DungeonState, ETBSuppressFilter,
+    ETBSuppressor, ETBTriggerFilter, EffectDuration, EffectFilter, EffectId, EffectLayer,
+    EnchantControllerConstraint, EnchantFilter, EnchantTarget, FaceDownKind, FlashGrant,
+    FlashGrantFilter, GameObject, GameRestriction, HybridMana, HybridManaPayment, InterveningIf,
+    KeywordAbility, LandwalkType, LayerModification, ManaAbility, ManaColor, ManaCost, ManaPool,
+    MergedComponent, ObjectFilter, ObjectId, ObjectStatus, PendingTrigger, PendingZoneChange,
+    PhyrexianMana, PlayFromGraveyardPermission, PlayFromTopFilter, PlayFromTopPermission,
+    PlayerFilter, PlayerId, PlayerState, ProtectionQuality, ReplacementEffect, ReplacementId,
+    ReplacementModification, ReplacementTrigger, RoomDef, RoomIndex, SacrificeFilter, SpellTarget,
+    StackObject, StackObjectKind, SubType, SuperType, Target, TriggerData, TriggerDoubler,
+    TriggerDoublerFilter, TriggerEvent, TriggeredAbilityDef, TurnFaceUpMethod, UpkeepCostKind,
+    Zone, ZoneId, ZoneType,
 };
 use serde::{Deserialize, Serialize};
-pub use stack::{StackObject, StackObjectKind, TriggerData, UpkeepCostKind};
 use std::sync::Arc;
-pub use stubs::{
-    ActiveRestriction, AdditionalLandPlaySource, DelayedTrigger, ETBSuppressFilter, ETBSuppressor,
-    FlashGrant, FlashGrantFilter, GameRestriction, PendingTrigger, PlayFromGraveyardPermission,
-    PlayFromTopFilter, PlayFromTopPermission, TriggerDoubler, TriggerDoublerFilter,
-};
-pub use targeting::{SpellTarget, Target};
 pub use turn::{Phase, Step, TurnState};
-pub use types::{
-    AdditionalCost, AffinityTarget, AltCostKind, BlockingExceptionFilter, CardType, ChampionFilter,
-    Color, CounterType, CumulativeUpkeepCost, DayNight, EnchantControllerConstraint, EnchantFilter,
-    EnchantTarget, FaceDownKind, KeywordAbility, LandwalkType, ManaColor, ProtectionQuality,
-    SubType, SuperType, TurnFaceUpMethod,
-};
-pub use zone::{Zone, ZoneId, ZoneType};
 /// The complete state of an MTG game at a point in time.
 ///
 /// Uses `im` persistent data structures for O(1) cloning via structural sharing.

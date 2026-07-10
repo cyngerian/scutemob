@@ -774,7 +774,7 @@ fn test_reforge_the_soul_has_miracle_and_wheel_body() {
     );
 
     // No stale marker may remain in the source.
-    let src = include_str!("../src/cards/defs/reforge_the_soul.rs");
+    let src = include_str!("../../card-defs/src/defs/reforge_the_soul.rs");
     assert!(
         !src.contains("TODO") && !src.contains("ENGINE-BLOCKED"),
         "Reforge the Soul is fully authored; no TODO/ENGINE-BLOCKED marker may remain"

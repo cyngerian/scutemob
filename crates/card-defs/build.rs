@@ -5,10 +5,10 @@ use std::path::Path;
 
 fn main() {
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
-    let defs_dir = Path::new(&manifest_dir).join("src/cards/defs");
+    let defs_dir = Path::new(&manifest_dir).join("src/defs");
 
     // Rerun if any file in defs/ changes or is added/removed.
-    println!("cargo::rerun-if-changed=src/cards/defs");
+    println!("cargo::rerun-if-changed=src/defs");
 
     let out_dir = env::var("OUT_DIR").unwrap();
     let out_path = Path::new(&out_dir).join("card_defs_generated.rs");
@@ -47,7 +47,7 @@ fn main() {
     // Collector function
     writeln!(
         out,
-        "pub fn all_cards() -> Vec<crate::cards::card_definition::CardDefinition> {{"
+        "pub fn all_cards() -> Vec<mtg_card_types::cards::card_definition::CardDefinition> {{"
     )
     .unwrap();
     writeln!(out, "    vec![").unwrap();

@@ -3,7 +3,7 @@
 
 Parses the monolithic definitions.rs using brace-depth tracking,
 extracts each CardDefinition block, and writes individual .rs files
-into crates/engine/src/cards/defs/.
+into crates/card-defs/src/defs/.
 
 Usage:
     python3 tools/split_definitions.py [--dry-run]
@@ -13,8 +13,8 @@ import os
 import re
 import sys
 
-DEFS_FILE = "crates/engine/src/cards/definitions.rs"
-OUTPUT_DIR = "crates/engine/src/cards/defs"
+DEFS_FILE = "crates/card-defs/src/definitions.rs"
+OUTPUT_DIR = "crates/card-defs/src/defs"
 
 # Prefixes used in definitions.rs that become bare names via helpers::*
 # (super::card_definition:: is replaced by nothing since helpers re-exports them)

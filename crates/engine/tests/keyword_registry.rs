@@ -14,23 +14,36 @@ use std::path::{Path, PathBuf};
 use mtg_engine::state::keyword_registry::{all_keywords, handling, KeywordHandling};
 use mtg_engine::state::types::KeywordAbility;
 
+/// Crate source trees the site scan walks, workspace-relative.
+///
+/// `crates/card-defs/` is *not* scanned: a card definition naming a keyword is
+/// card data, not engine behavior. Before SR-6 the defs lived under
+/// `crates/engine/src/cards/defs/` and were skipped by a path filter; now they
+/// are simply outside every scan root, which is a stronger form of the same
+/// exclusion. `site_scan_is_not_vacuous` asserts they never reappear.
+const SCAN_ROOTS: &[&str] = &["crates/engine/src", "crates/card-types/src"];
+
 /// Files that mention `KeywordAbility::<V>` without dispatching on it, and so are
 /// excluded from the site scan:
 ///
-/// * `state/types.rs` — the declaration itself.
-/// * `state/hash.rs` — a mechanical discriminant table (CR-agnostic; it assigns
-///   every variant a byte for state hashing). It is exhaustive, so it is a second
-///   compile gate, but naming a keyword there is not handling it.
-/// * `state/keyword_registry.rs` — this registry.
-/// * `cards/defs/` — card data, not engine behavior.
+/// * `card-types/src/state/types.rs` — the declaration itself.
+/// * `engine/src/state/hash.rs` — a mechanical discriminant table (CR-agnostic; it
+///   assigns every variant a byte for state hashing). It is exhaustive, so it is a
+///   second compile gate, but naming a keyword there is not handling it.
+/// * `engine/src/state/keyword_registry.rs` — this registry.
 const EXCLUDED: &[&str] = &[
-    "src/state/types.rs",
-    "src/state/hash.rs",
-    "src/state/keyword_registry.rs",
+    "crates/card-types/src/state/types.rs",
+    "crates/engine/src/state/hash.rs",
+    "crates/engine/src/state/keyword_registry.rs",
 ];
 
-fn engine_root() -> PathBuf {
+/// The workspace root: `crates/engine/` is two levels down from it.
+fn workspace_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(Path::parent)
+        .expect("engine manifest dir is <workspace>/crates/engine")
+        .to_path_buf()
 }
 
 /// Blank out comments, string literals, and char literals so that a later `contains`
@@ -143,8 +156,8 @@ fn strip_comments_and_literals(src: &str) -> String {
     out.into_iter().collect()
 }
 
-/// Every `.rs` file under `crates/engine/src/`, excluding `cards/defs/` and
-/// `EXCLUDED`, as crate-relative paths.
+/// Every `.rs` file under `SCAN_ROOTS`, excluding `EXCLUDED`, as workspace-relative
+/// paths.
 fn scanned_files() -> Vec<String> {
     fn walk(dir: &Path, acc: &mut Vec<PathBuf>) {
         for entry in std::fs::read_dir(dir).expect("readable dir") {
@@ -156,26 +169,28 @@ fn scanned_files() -> Vec<String> {
             }
         }
     }
-    let root = engine_root();
+    let root = workspace_root();
     let mut acc = Vec::new();
-    walk(&root.join("src"), &mut acc);
+    for scan_root in SCAN_ROOTS {
+        walk(&root.join(scan_root), &mut acc);
+    }
     let mut files: Vec<String> = acc
         .into_iter()
         .map(|p| {
             p.strip_prefix(&root)
-                .expect("under engine root")
+                .expect("under workspace root")
                 .to_string_lossy()
                 .replace('\\', "/")
         })
-        .filter(|p| !p.starts_with("src/cards/defs/") && !EXCLUDED.contains(&p.as_str()))
+        .filter(|p| !EXCLUDED.contains(&p.as_str()))
         .collect();
     files.sort();
     files
 }
 
-/// `variant name -> set of crate-relative files whose *code* names it`.
+/// `variant name -> set of workspace-relative files whose *code* names it`.
 fn actual_sites() -> BTreeMap<String, BTreeSet<String>> {
-    let root = engine_root();
+    let root = workspace_root();
     let names: Vec<String> = all_keywords().iter().map(variant_name).collect();
     let mut map: BTreeMap<String, BTreeSet<String>> =
         names.iter().map(|n| (n.clone(), BTreeSet::new())).collect();
@@ -222,7 +237,7 @@ fn variant_name(kw: &KeywordAbility) -> String {
 /// Rust cannot enumerate an enum's variants, so `all_keywords()` is hand-written
 /// and could silently drift. This re-derives the truth from the declaration.
 fn declared_variants() -> BTreeSet<String> {
-    const TYPES_RS: &str = include_str!("../src/state/types.rs");
+    const TYPES_RS: &str = include_str!("../../card-types/src/state/types.rs");
     let code = strip_comments_and_literals(TYPES_RS);
     let start = code
         .find("pub enum KeywordAbility {")
@@ -329,7 +344,7 @@ fn declared_variants_parser_is_not_vacuous() {
         );
     }
     // The parser assumes no `#[..]` attributes sit between variants.
-    const TYPES_RS: &str = include_str!("../src/state/types.rs");
+    const TYPES_RS: &str = include_str!("../../card-types/src/state/types.rs");
     let code = strip_comments_and_literals(TYPES_RS);
     let start = code.find("pub enum KeywordAbility {").expect("declaration");
     let open = start + code[start..].find('{').expect("open brace");
@@ -434,20 +449,36 @@ fn registry_sites_match_the_source_tree() {
 /// path, a moved crate root), `registry_sites_match_the_source_tree` would demand
 /// that every keyword be a Marker — and would have failed loudly. This asserts the
 /// scan's denominator directly anyway.
+///
+/// Since SR-6 the denominator spans two crates, so it is asserted per-root: a typo
+/// in either `SCAN_ROOTS` entry that still named an existing directory would
+/// otherwise shrink the scan silently.
 #[test]
 fn site_scan_is_not_vacuous() {
     let files = scanned_files();
     assert!(
         files.len() > 40,
-        "site scan found only {} engine source files",
+        "site scan found only {} source files",
         files.len()
     );
-    assert!(files.contains(&"src/rules/combat.rs".to_string()));
-    assert!(!files.iter().any(|f| f.starts_with("src/cards/defs/")));
+
+    // Each scan root must actually contribute. `crates/card-types/` earns its place
+    // in the scan because `state/dungeon.rs` dispatches on keywords.
+    assert!(files.contains(&"crates/engine/src/rules/combat.rs".to_string()));
+    assert!(files.contains(&"crates/card-types/src/state/dungeon.rs".to_string()));
+    for scan_root in SCAN_ROOTS {
+        assert!(
+            files.iter().any(|f| f.starts_with(scan_root)),
+            "scan root {scan_root} contributed no files"
+        );
+    }
+
+    // Card definitions are data, not dispatch. They must never enter the scan.
+    assert!(!files.iter().any(|f| f.starts_with("crates/card-defs/")));
 
     let actual = actual_sites();
     assert!(
-        actual["Flying"].contains("src/rules/combat.rs"),
+        actual["Flying"].contains("crates/engine/src/rules/combat.rs"),
         "Flying should dispatch in combat.rs; the scan found {:?}",
         actual["Flying"]
     );

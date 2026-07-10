@@ -28,7 +28,7 @@ import re
 import sqlite3
 import sys
 
-DEFS_DIR = "crates/engine/src/cards/defs"
+DEFS_DIR = "crates/card-defs/src/defs"
 DECKS_DIR = "test-data/test-decks"
 SQLITE_DB = "cards.sqlite"
 

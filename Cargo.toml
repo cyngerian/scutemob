@@ -1,6 +1,8 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/card-types",
+    "crates/card-defs",
     "crates/engine",
     "crates/network",
     "crates/card-db",

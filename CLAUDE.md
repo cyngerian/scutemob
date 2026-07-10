@@ -54,7 +54,23 @@
   scan, so a keyword that loses its last dispatch site — or a `Marker` that gains one —
   fails the suite. Audit: `docs/sr-5-keyword-catchall-audit.md`. The same hazard on
   `AbilityDefinition` / `ZoneChangeAction` is not yet gated (`scutemob-67`).
-- **Last Updated**: 2026-07-10 (SR-5 — `state::keyword_registry` gates new KeywordAbility variants; the task's "117 KeywordAbility catch-alls" premise was a misattribution — only 2 of them are on that enum, the rest sit on `AbilityDefinition`/`ZoneId`/`ZoneChangeAction`, filed as `scutemob-67`; 3129 tests. Earlier same day: SR-4 — 398 swallow-sites in effects/resolution classified LKI-vs-bug; `state::diagnostics` vocabulary. SR-3 — invariant #3 machine-enforced: GameState sealed, 287 files migrated, `cargo build --workspace` added to CI as the seal gate. SR-2 — invariant #9 registry gate; clean coverage 57.6%. The prior 56.2% was an undercount: the authoring report's `abilities: vec![]` regex also matched nested `mana_abilities: vec![]`. SR-1 — CI live.)
+- **Card defs compile in isolation from the engine (SR-6).** The workspace bottom is
+  `crates/card-types` (`mtg-card-types`: the DSL — `cards/{card_definition,helpers,registry}.rs`
+  — plus the 11 pure-data `state/` modules it needs). `crates/card-defs` (`mtg-card-defs`:
+  1,749 def files + `build.rs` discovery) depends on **card-types only, never on the engine**;
+  `crates/engine` depends on both and re-exports them, so every `crate::state::…` and
+  `crate::cards::…` path inside the engine, and `mtg_engine::{all_cards, CardDefinition, …}`
+  outside it, resolve exactly as before. **Touching an engine file leaves `mtg-card-defs`
+  `Fresh`** (`cargo check -p mtg-engine -v`); touching `card-types` correctly rebuilds it.
+  The arrow direction is the whole mechanism — putting defs *above* the engine (as the
+  pipeline doc originally sketched) would recompile all 1,749 cards on every rules edit.
+  Nothing in `card-types` may reference `GameState`. Keyword-registry sites (SR-5) are now
+  **workspace-relative** paths and the scan spans both crates.
+- **Last Updated**: 2026-07-10 (SR-6 — card defs extracted to `mtg-card-defs` + DSL to
+  `mtg-card-types`; engine-internal edits no longer re-typecheck the 1,749 defs
+  (`CARGO_INCREMENTAL=0` check 7s → 2–3s; defs report `Fresh`). All 1,749 def files moved with
+  **zero content edits** via a two-module re-export in `card-defs`. Earlier same day: SR-5 —
+  `state::keyword_registry` gates new KeywordAbility variants; the task's "117 KeywordAbility catch-alls" premise was a misattribution — only 2 of them are on that enum, the rest sit on `AbilityDefinition`/`ZoneId`/`ZoneChangeAction`, filed as `scutemob-67`; 3129 tests. Earlier same day: SR-4 — 398 swallow-sites in effects/resolution classified LKI-vs-bug; `state::diagnostics` vocabulary. SR-3 — invariant #3 machine-enforced: GameState sealed, 287 files migrated, `cargo build --workspace` added to CI as the seal gate. SR-2 — invariant #9 registry gate; clean coverage 57.6%. The prior 56.2% was an undercount: the authoring report's `abilities: vec![]` regex also matched nested `mana_abilities: vec![]`. SR-1 — CI live.)
 
 ### What Exists (M0-M9.5 + Engine Core Complete + all P3/P4 abilities)
 
