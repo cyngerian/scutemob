@@ -1951,3 +1951,61 @@ fn resolve_cda_zone_target(zone: &ZoneTarget, state: &GameState, controller: Pla
         ZoneTarget::CommandZone => ZoneId::Command(controller),
     }
 }
+
+#[cfg(test)]
+mod expect_characteristics_tests {
+    use super::*;
+    use crate::state::{GameStateBuilder, ObjectSpec, PlayerId, ZoneId};
+
+    fn state_with_a_creature() -> (GameState, ObjectId) {
+        let state = GameStateBuilder::new()
+            .add_player(PlayerId(0))
+            .add_player(PlayerId(1))
+            .object(
+                ObjectSpec::creature(PlayerId(0), "Grizzly Bears", 2, 2)
+                    .in_zone(ZoneId::Battlefield),
+            )
+            .build()
+            .expect("builder is valid");
+        let id = state
+            .objects
+            .iter()
+            .find(|(_, o)| o.zone == ZoneId::Battlefield)
+            .map(|(id, _)| *id)
+            .expect("the creature was placed");
+        (state, id)
+    }
+
+    #[test]
+    fn expect_characteristics_returns_the_layer_result_for_a_live_object() {
+        let (state, id) = state_with_a_creature();
+        let chars = expect_characteristics(&state, id);
+        assert_eq!(chars.power, Some(2));
+        assert_eq!(chars.toughness, Some(2));
+    }
+
+    /// `calculate_characteristics` returns `None` for exactly one reason: the id is
+    /// absent. So `expect_characteristics` at a site that guarantees liveness must be
+    /// loud rather than quietly handing back a blank `Characteristics` — which is how
+    /// `combat.rs`'s landwalk check would have silently decided a Forest is not a land.
+    #[test]
+    #[should_panic(expected = "requires the object to be live")]
+    fn expect_characteristics_panics_in_debug_on_a_dead_id() {
+        let (mut state, old_id) = state_with_a_creature();
+        state
+            .move_object_to_zone(old_id, ZoneId::Graveyard(PlayerId(0)))
+            .expect("legal move");
+        // CR 400.7: `old_id` names nothing now.
+        let _ = expect_characteristics(&state, old_id);
+    }
+
+    /// The fizzle path stays available and stays silent.
+    #[test]
+    fn calculate_characteristics_returns_none_for_a_dead_id_without_panicking() {
+        let (mut state, old_id) = state_with_a_creature();
+        state
+            .move_object_to_zone(old_id, ZoneId::Graveyard(PlayerId(0)))
+            .expect("legal move");
+        assert!(calculate_characteristics(&state, old_id).is_none());
+    }
+}

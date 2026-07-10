@@ -326,7 +326,7 @@ impl GameState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::GameStateBuilder;
+    use crate::state::{GameStateBuilder, ObjectSpec};
 
     fn two_player_state() -> GameState {
         GameStateBuilder::new()
@@ -334,6 +334,26 @@ mod tests {
             .add_player(PlayerId(1))
             .build()
             .expect("two-player builder is valid")
+    }
+
+    /// A state with one creature on the battlefield; returns it and its id.
+    fn state_with_a_creature() -> (GameState, ObjectId) {
+        let state = GameStateBuilder::new()
+            .add_player(PlayerId(0))
+            .add_player(PlayerId(1))
+            .object(
+                ObjectSpec::creature(PlayerId(0), "Grizzly Bears", 2, 2)
+                    .in_zone(ZoneId::Battlefield),
+            )
+            .build()
+            .expect("builder is valid");
+        let id = state
+            .objects
+            .iter()
+            .find(|(_, o)| o.zone == ZoneId::Battlefield)
+            .map(|(id, _)| *id)
+            .expect("the creature was placed");
+        (state, id)
     }
 
     #[test]
@@ -361,6 +381,98 @@ mod tests {
     fn lki_object_returns_none_without_panicking() {
         let state = two_player_state();
         assert!(state.lki_object(ObjectId(9_999)).is_none());
+    }
+
+    /// The whole premise of the split, exercised end to end.
+    ///
+    /// CR 400.7: "An object that moves from one zone to another becomes a new object
+    /// with no memory of, or relation to, its previous existence." So after a zone
+    /// change the *old* id names nothing — that is the fizzle these helpers exist to
+    /// distinguish from a bug. This test proves the situation is reachable rather than
+    /// hypothetical: if `move_object_to_zone` ever stopped minting a new id, the
+    /// `lki_*` family would be dead code and this assertion would catch it.
+    #[test]
+    fn a_zone_change_really_does_kill_the_old_object_id() {
+        let (mut state, old_id) = state_with_a_creature();
+        let (new_id, _) = state
+            .move_object_to_zone(old_id, ZoneId::Graveyard(PlayerId(0)))
+            .expect("battlefield -> graveyard is a legal move");
+
+        assert_ne!(
+            new_id, old_id,
+            "CR 400.7: the graveyard card is a new object"
+        );
+        assert!(
+            state.lki_object(old_id).is_none(),
+            "CR 400.7: the old id must name nothing"
+        );
+        assert!(state.lki_object(new_id).is_some());
+    }
+
+    /// A move through a dead id is the CR 400.7 / 608.2b fizzle: silent `None`.
+    #[test]
+    fn lki_move_of_a_dead_id_fizzles_quietly() {
+        let (mut state, old_id) = state_with_a_creature();
+        state
+            .move_object_to_zone(old_id, ZoneId::Graveyard(PlayerId(0)))
+            .expect("legal move");
+
+        assert!(state
+            .lki_move_object_to_zone(old_id, ZoneId::Exile)
+            .is_none());
+    }
+
+    /// The same move through `expect_*` is an engine-bug claim, so it must fire.
+    #[test]
+    #[should_panic(expected = "requires the object to be live")]
+    fn expect_move_of_a_dead_id_panics_in_debug() {
+        let (mut state, old_id) = state_with_a_creature();
+        state
+            .move_object_to_zone(old_id, ZoneId::Graveyard(PlayerId(0)))
+            .expect("legal move");
+
+        let _ = state.expect_move_object_to_zone(old_id, ZoneId::Exile);
+    }
+
+    /// `lki_move_object_to_zone` tolerates a dead object but *not* a missing zone —
+    /// that half of the error space is never a legal fizzle.
+    #[test]
+    #[should_panic(expected = "zones are never removed")]
+    fn lki_move_still_asserts_on_a_fabricated_destination_zone() {
+        let (mut state, id) = state_with_a_creature();
+        let _ = state.lki_move_object_to_zone(id, ZoneId::Graveyard(PlayerId(99)));
+    }
+
+    #[test]
+    fn expect_move_of_a_live_id_succeeds() {
+        let (mut state, id) = state_with_a_creature();
+        assert!(state
+            .expect_move_object_to_zone(id, ZoneId::Graveyard(PlayerId(0)))
+            .is_some());
+    }
+
+    #[test]
+    #[should_panic(expected = "add_object")]
+    fn expect_add_object_panics_on_a_fabricated_zone() {
+        let (mut state, id) = state_with_a_creature();
+        let obj = state.objects.get(&id).expect("live").clone();
+        let _ = state.expect_add_object(obj, ZoneId::Graveyard(PlayerId(99)));
+    }
+
+    #[test]
+    fn debug_assert_object_live_accepts_a_live_id() {
+        let (state, id) = state_with_a_creature();
+        debug_assert_object_live!(state, id);
+    }
+
+    #[test]
+    #[should_panic(expected = "requires it to be live")]
+    fn debug_assert_object_live_fires_on_a_dead_id() {
+        let (mut state, old_id) = state_with_a_creature();
+        state
+            .move_object_to_zone(old_id, ZoneId::Graveyard(PlayerId(0)))
+            .expect("legal move");
+        debug_assert_object_live!(state, old_id);
     }
 
     #[test]
