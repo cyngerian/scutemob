@@ -209,10 +209,38 @@ Per **CR 704.5, winning-by-effect is NOT an SBA**: do *not* splice into `sba.rs`
 - [x] Implement: Effect::WinGame (CR 104.1/104.2b/104.3f; 4p test) — dispatch in `effects/mod.rs`; added `is_game_over`/`check_game_over` poll to `engine.rs::handle_all_passed` post-resolution (needed for GameOver to fire same-command; not previously present for any resolving effect)
 - [x] hash.rs: new enum arms + HASH_SCHEMA_VERSION 34→35 + mutation-verified tests — 26 other test files' hardcoded `34u8` sentinels bulk-updated to `35u8`
 - [x] `cargo build --workspace` + `cargo test --all` — 3055 passed (was 3035 baseline + 20 new)
-- [ ] Review (primitive-impl-reviewer) → `memory/primitives/pb-review-AC8.md`
-- [ ] Fix all HIGH/MEDIUM findings
-- [ ] Backfill: re-author unblocked cards, delete stale markers
-- [ ] Review backfill (card-batch-reviewer)
-- [ ] Final gates: build / test --all / clippy -D warnings / fmt --check
-- [ ] authoring-report rerun + coverage delta posted as task comment
+- [x] Review (primitive-impl-reviewer) → `memory/primitives/pb-review-AC8.md` — 0 HIGH, 2 MEDIUM, 4 LOW
+- [x] Fix all HIGH/MEDIUM findings — E1 (CantBeSacrificed half-wired: Blitz/Encore/Mobilize/decayed unguarded) + E2 (goad missing CR 508.1d owner-exclusion) both fixed; T1/C1 LOWs also fixed; E3/E4 recorded as OOS
+- [x] Backfill: Nezahal + Toski fully authored (markers deleted); Curiosity Crafter fully authored after review found its ENGINE-BLOCKED marker was STALE; Hellkite/Simic/Niv-Mizzet remain PARTIAL with accurate markers
+- [x] Review backfill (card-batch-reviewer) → `memory/card-authoring/review-pb-ac8-backfill.md` — 1 HIGH (stale marker), 1 MEDIUM (Simic win-con unreachable, accepted), 1 LOW (oracle text drift) — all resolved or accepted
+- [x] Final gates: build --workspace / test --all (3062) / clippy -D warnings / fmt --check — all clean
+- [x] authoring-report rerun — clean 970 → 973 (+3), 55.5% → 55.7%; delta posted as task comment
 - [ ] `/review`, satisfy criteria 4403-4406, close
+
+## Outcome
+
+**Yield honesty**: PB-AC8 is a **prerequisite/infrastructure batch, not a yield
+batch**. The briefed ~14 cards resolved to **3 fully unblocked** — and all three
+were *mis-triaged*, blocked only by stale markers naming primitives that already
+existed. The 3 genuinely-new primitives (`CantAttackOwner`, `CantBeSacrificed`,
+`Effect::WinGame`) fully unblock **zero** cards on their own; every candidate
+carries a second, out-of-scope co-blocking gap.
+
+**Bugs found that were in no one's brief:**
+1. Cleanup discard read `obj.characteristics.keywords` directly, so layer-granted
+   `NoMaxHandSize` was invisible — `wrenn_and_seven.rs` grants exactly that, and
+   its emblem proxy was silently dead. Fixed (W3-LC pattern) + regression test.
+2. `handle_all_passed` never polled game-over after stack resolution, so an
+   effect that ends the game set the flags but emitted no `GameOver` in the same
+   command. Fixed; incidentally makes draw-from-empty-library during resolution
+   emit `GameOver` same-command too.
+3. `CantBeSacrificed` shipped half-wired (review E1) — the exact
+   `feedback_verify_full_chain` failure mode, caught by adversarial review.
+4. Curiosity Crafter's `ENGINE-BLOCKED` marker was stale (card-review HIGH);
+   the token combat-damage filter was already expressible.
+
+**Recommendation for PB-AC9 scoping**: run a stale-marker triage sweep *before*
+scoping the next primitive batch. If PB-AC8's ~14 collapsed to 3 mis-triage wins,
+the campaign's remaining per-batch estimates are likely counting dead TODO
+markers rather than real engine gaps — a sweep would likely recover coverage
+faster than the next primitive batch will.
