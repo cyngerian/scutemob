@@ -34,6 +34,14 @@
 //!   The cost is one needless version bump; the alternative is a
 //!   variant-sorting normalizer, which is more code that can be wrong in the
 //!   *unsafe* direction. Accepted.
+//! - **Formatting churn is a false positive too.** `normalize_ws` collapses runs
+//!   of whitespace, but rustfmt rewrapping a long field type also *inserts
+//!   tokens* — a trailing comma inside `Vector<\n AbilityInstance,\n>` — so the
+//!   normalized text moves. Verified. `cargo fmt --check` is a CI gate, so the
+//!   tree is always canonical for the pinned toolchain; this can therefore only
+//!   fire when **rustfmt's version changes**, which is exactly what `scutemob-63`
+//!   (SR-11, pin the toolchain) exists to prevent. Both false positives err in
+//!   the safe direction: a spurious bump, never a missed one.
 //!
 //! Per the SR-5 lesson ("assert the denominator"), every derived set here has a
 //! non-vacuity guard: an index that finds nothing, a closure that walks nowhere,
