@@ -42,7 +42,13 @@ winget install Rustlang.Rustup
 
 ## CI: GitHub Actions
 
-- Runs on: Ubuntu, Windows, macOS
-- Runs: `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test --all`
-- Nightly: performance benchmarks with regression alerts
-- Tauri builds: cross-platform via `tauri-action` (configured in M11)
+Deliberately minimal — `.github/workflows/ci.yml`, one job, kept cheap until the
+engine is closer to playable alpha.
+
+- Runs on: Ubuntu only (`ubuntu-latest`), 45-minute timeout
+- Triggers: push to `main`, PRs targeting `main`, and `workflow_dispatch`
+- Runs: `cargo fmt --all -- --check`, `cargo clippy --all-targets -- -D warnings`,
+  `cargo test --all`
+- Caching: `Swatinem/rust-cache@v2`; concurrency group cancels superseded runs
+- Deferred to M10/M11: OS matrix (Windows, macOS), nightly benchmark regression
+  alerts, cross-platform Tauri builds via `tauri-action`

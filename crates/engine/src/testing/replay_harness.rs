@@ -2454,15 +2454,14 @@ pub fn enrich_spec_from_def(
                     spell_type_filter,
                     noncreature_only,
                     spell_subtype_filter,
-                    // chosen_subtype_filter (CR 603.1 "of the chosen type", Vanquisher's
-                    // Banner only) is a dynamic per-source condition (compared against
-                    // the source's `chosen_creature_type` at trigger time) rather than a
-                    // static TargetFilter predicate, so it cannot be folded into
+                    // The elided `chosen_subtype_filter` (CR 603.1 "of the chosen type",
+                    // Vanquisher's Banner only) is a dynamic per-source condition (compared
+                    // against the source's `chosen_creature_type` at trigger time) rather
+                    // than a static TargetFilter predicate, so it cannot be folded into
                     // `triggering_creature_filter` below. It remains unenforced by this
                     // conversion — same as before this fix — and is out of scope here
                     // (see rules/abilities.rs G-4 comment; Vanquisher's Banner card-level
                     // fix is explicitly deferred).
-                    chosen_subtype_filter: _,
                     ..
                 },
             effect,
