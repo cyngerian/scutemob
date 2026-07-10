@@ -98,6 +98,27 @@ fn the_version_tag_is_present_in_the_serialized_bytes() {
     );
 }
 
+/// `Envelope<T>` is a wire frame, but it is generic, so the source-scanning gate
+/// in `tests/protocol_schema.rs` cannot walk it (`T` resolves to nothing). Its
+/// field names are therefore pinned here instead.
+///
+/// Renaming `payload` to `body`, or adding a third field, is a wire change that
+/// no other test would notice.
+#[test]
+fn the_envelope_frame_has_exactly_the_expected_fields() {
+    let wire = encode(&a_command()).expect("encode");
+    let value: serde_json::Value = serde_json::from_str(&wire).expect("valid json");
+    let obj = value.as_object().expect("envelope is a JSON object");
+    let mut keys: Vec<&str> = obj.keys().map(String::as_str).collect();
+    keys.sort_unstable();
+    assert_eq!(
+        keys,
+        ["payload", "protocol_version"],
+        "the Envelope wire frame changed. This is a protocol change: bump PROTOCOL_VERSION and \
+         update this test. (The schema fingerprint cannot see Envelope — it is generic.)"
+    );
+}
+
 #[test]
 fn envelope_new_stamps_the_current_version() {
     let envelope = Envelope::new(a_command());

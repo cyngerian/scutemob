@@ -9,10 +9,10 @@
 //! Nothing about a hand-bumped constant makes that true. So this suite computes
 //! the wire shape from source and pins it:
 //!
-//! 1. Index every `pub enum` / `pub struct` under the scan roots.
+//! 1. Index every `pub enum` / `pub struct` / `pub type` under the scan roots.
 //! 2. Walk the **type positions** (named-field types, tuple-variant elements)
-//!    transitively from `Command` and `GameEvent`. That closure — currently 89
-//!    types — is the wire surface.
+//!    transitively from the wire frames `Command`, `GameEvent` and `ReplayLog`.
+//!    That closure — currently 90 types — is the wire surface.
 //! 3. Digest the normalized declaration text of the closure, attributes
 //!    included, and compare against `PROTOCOL_SCHEMA_FINGERPRINT`.
 //!
@@ -49,8 +49,21 @@ use mtg_engine::{PROTOCOL_SCHEMA_FINGERPRINT, PROTOCOL_VERSION};
 /// card *definitions* are not sent, only the runtime types derived from them.
 const SCAN_ROOTS: [&str; 2] = ["crates/engine/src", "crates/card-types/src"];
 
-/// The two enums that *are* the protocol (invariants #3 and #4).
-const PROTOCOL_ROOTS: [&str; 2] = ["Command", "GameEvent"];
+/// Every type that is serialized as a wire frame in its own right.
+///
+/// `Command` and `GameEvent` *are* the protocol (invariants #3 and #4).
+/// `ReplayLog` is the third: `encode_replay_log` puts it on the wire, and its
+/// own frame (`hash_schema_version` + `commands`) is wire format even though
+/// nothing reachable from `Command`/`GameEvent` mentions it. Leaving it out
+/// meant a new field on `ReplayLog` changed the replay-log format with nothing
+/// forcing a `PROTOCOL_VERSION` bump — a process guarantee, which is the thing
+/// this whole gate exists to delete.
+///
+/// The remaining frame, `Envelope<T>`, is generic and so cannot be walked here;
+/// its two field *names* are pinned instead by
+/// `the_envelope_frame_has_exactly_the_expected_fields` in
+/// `tests/protocol_roundtrip.rs`.
+const PROTOCOL_ROOTS: [&str; 3] = ["Command", "GameEvent", "ReplayLog"];
 
 /// Types whose serialized shape is owned by someone else (std, `im`).
 ///
@@ -309,12 +322,24 @@ fn preceding_attributes(src: &str, decl_start: usize) -> String {
     normalize_ws(&kept.join(" "))
 }
 
-/// Every `pub enum` / `pub struct` under the scan roots, keyed by type name.
-fn index_declarations() -> (BTreeMap<String, Decl>, BTreeMap<String, BTreeSet<String>>) {
+/// What a source scan yields: the type index, the per-root denominators, and
+/// any name declared more than once.
+struct ScanResult {
+    index: BTreeMap<String, Decl>,
+    /// scan root -> type names declared under it (per-root denominator guard)
+    by_root: BTreeMap<String, BTreeSet<String>>,
+    /// Names declared twice. `index` keeps the first, so a collision means the
+    /// digest may be hashing the wrong declaration.
+    collisions: BTreeSet<String>,
+}
+
+/// Every `pub enum` / `pub struct` / `pub type` under the scan roots, keyed by
+/// type name.
+fn index_declarations() -> ScanResult {
     let root = workspace_root();
     let mut index: BTreeMap<String, Decl> = BTreeMap::new();
-    // scan root -> type names declared under it (for the per-root denominator guard)
     let mut by_root: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    let mut collisions: BTreeSet<String> = BTreeSet::new();
 
     for scan_root in SCAN_ROOTS {
         let mut files = Vec::new();
@@ -373,7 +398,11 @@ fn index_declarations() -> (BTreeMap<String, Decl>, BTreeMap<String, BTreeSet<St
                     };
 
                     names.insert(name.clone());
-                    // First declaration wins; names are unique across these crates.
+                    if index.contains_key(&name) {
+                        collisions.insert(name.clone());
+                    }
+                    // First declaration wins. Sound only while names are unique —
+                    // asserted by `declared_type_names_are_unique`.
                     index.entry(name.clone()).or_insert_with(|| Decl {
                         hash_text: normalize_ws(&format!(
                             "{} {}{} {}",
@@ -389,7 +418,11 @@ fn index_declarations() -> (BTreeMap<String, Decl>, BTreeMap<String, BTreeSet<St
             }
         }
     }
-    (index, by_root)
+    ScanResult {
+        index,
+        by_root,
+        collisions,
+    }
 }
 
 fn walk(dir: &Path, acc: &mut Vec<PathBuf>) {
@@ -537,7 +570,7 @@ fn compute_fingerprint(index: &BTreeMap<String, Decl>, closure: &BTreeSet<String
 /// this file passes forever (SR-5 learned that the hard way).
 #[test]
 fn scanner_is_not_vacuous() {
-    let (index, by_root) = index_declarations();
+    let ScanResult { index, by_root, .. } = index_declarations();
     assert!(
         index.len() >= MIN_INDEXED_TYPES,
         "indexed only {} pub types; the declaration scanner is broken (expected >= {})",
@@ -554,11 +587,49 @@ fn scanner_is_not_vacuous() {
     }
 }
 
+/// The index is keyed by bare type name and keeps the **first** declaration it
+/// sees. That is sound only while names are unique across the scan roots.
+///
+/// If two modules ever declare the same name, the digest silently hashes
+/// whichever file sorted first — and real changes to the wire-bearing one go
+/// undetected. Nothing about the scan makes that visible, so assert it.
+#[test]
+fn declared_type_names_are_unique() {
+    let ScanResult { collisions, .. } = index_declarations();
+    assert!(
+        collisions.is_empty(),
+        "these type names are declared more than once under the scan roots: {collisions:?}\n\
+         `index_declarations` keeps only the first, so the fingerprint may be hashing the wrong \
+         declaration and would not move when the real wire type changes. Disambiguate the names, \
+         or key the index by module path."
+    );
+}
+
+/// An `EXTERNAL_TYPES` entry suppresses that *bare name* everywhere in the walk.
+/// So if the workspace ever declares a type named `Vector`, `Box`, `OrdMap`, …,
+/// it would be silently treated as somebody else's type and left out of the
+/// digest, wire-bearing or not.
+#[test]
+fn no_workspace_type_shadows_an_external_type_name() {
+    let ScanResult { index, .. } = index_declarations();
+    let shadowed: Vec<&str> = EXTERNAL_TYPES
+        .iter()
+        .copied()
+        .filter(|name| index.contains_key(*name))
+        .collect();
+    assert!(
+        shadowed.is_empty(),
+        "the workspace declares {shadowed:?}, which are also in EXTERNAL_TYPES. The closure walk \
+         matches on bare names, so these types are skipped as 'external' and their shape is NOT \
+         in the fingerprint. Rename the workspace type, or drop it from EXTERNAL_TYPES."
+    );
+}
+
 /// Non-vacuity: the closure walk actually walked, and it bottoms out where the
 /// design says it does.
 #[test]
 fn protocol_closure_is_not_vacuous_and_is_bounded() {
-    let (index, _) = index_declarations();
+    let ScanResult { index, .. } = index_declarations();
     let (closure, _) = protocol_closure(&index);
 
     assert!(
@@ -594,7 +665,7 @@ fn protocol_closure_is_not_vacuous_and_is_bounded() {
 /// type that the digest simply never sees.
 #[test]
 fn every_referenced_type_resolves() {
-    let (index, _) = index_declarations();
+    let ScanResult { index, .. } = index_declarations();
     let (_, unresolved) = protocol_closure(&index);
     assert!(
         unresolved.is_empty(),
@@ -616,7 +687,7 @@ fn every_referenced_type_resolves() {
 /// **The gate.** If this fails, the wire format moved.
 #[test]
 fn protocol_schema_fingerprint_is_pinned() {
-    let (index, _) = index_declarations();
+    let ScanResult { index, .. } = index_declarations();
     let (closure, _) = protocol_closure(&index);
     let actual = compute_fingerprint(&index, &closure);
 
@@ -671,7 +742,7 @@ fn fingerprint_of_empty_closure_is_not_the_pinned_value() {
 /// have called that change wire-compatible.
 #[test]
 fn serde_attributes_are_inside_the_digest() {
-    let (index, _) = index_declarations();
+    let ScanResult { index, .. } = index_declarations();
     let command = index.get("Command").expect("Command is indexed");
     assert!(
         command.hash_text.contains("#[serde(default)]"),
@@ -703,7 +774,7 @@ fn serde_attributes_are_inside_the_digest() {
 /// either that happened, or the type is not actually serializable.
 #[test]
 fn every_closure_type_shows_its_serialize_derive() {
-    let (index, _) = index_declarations();
+    let ScanResult { index, .. } = index_declarations();
     let (closure, _) = protocol_closure(&index);
 
     let missing: Vec<&String> = closure
@@ -728,7 +799,7 @@ fn every_closure_type_shows_its_serialize_derive() {
 /// paths would inject phantom types into the closure.
 #[test]
 fn traversal_body_excludes_attributes() {
-    let (index, _) = index_declarations();
+    let ScanResult { index, .. } = index_declarations();
     let command = index.get("Command").expect("Command is indexed");
     assert!(
         !command.traversal_body.contains("serde"),

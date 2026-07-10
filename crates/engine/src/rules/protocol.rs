@@ -25,11 +25,12 @@
 //! process guarantee the SR track exists to convert into a machine guarantee: it
 //! is correct exactly as long as every future author remembers it. So
 //! [`PROTOCOL_SCHEMA_FINGERPRINT`] pins a digest of the **transitive type
-//! closure** of `Command` and `GameEvent`, computed from workspace source by
-//! `tests/protocol_schema.rs`. Change the shape of anything on the wire and that
-//! test fails, names the drift, and tells you to bump [`PROTOCOL_VERSION`].
+//! closure** of the three wire frames — `Command`, `GameEvent`, [`ReplayLog`] —
+//! computed from workspace source by `tests/protocol_schema.rs`. Change the
+//! shape of anything on the wire and that test fails, names the drift, and tells
+//! you to bump [`PROTOCOL_VERSION`].
 //!
-//! The closure is 89 types, not 2. `GameEvent::CreatureDied` carries
+//! The closure is 90 types, not 3. `GameEvent::CreatureDied` carries
 //! `Option<Characteristics>`, which reaches `AbilityInstance` → `Effect` →
 //! `TargetFilter` → the whole card DSL. **Adding an `Effect` variant is a wire
 //! change**, so most primitive batches (PB-*) will bump this version. That is
@@ -56,21 +57,26 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///
 /// # History
 /// - 1: SR-8 (2026-07-10) — initial versioned envelope. Baseline shape is the
-///   88-type closure recorded in [`PROTOCOL_SCHEMA_FINGERPRINT`].
+///   90-type closure recorded in [`PROTOCOL_SCHEMA_FINGERPRINT`].
 pub const PROTOCOL_VERSION: u32 = 1;
 
-/// Digest of the serialized shape of the `Command` / `GameEvent` type closure.
+/// Digest of the serialized shape of the wire-frame type closure
+/// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
 ///
 /// Recomputed from workspace source by `tests/protocol_schema.rs` and compared
 /// against this constant. A mismatch means the wire format changed. Update this
 /// value **and** bump [`PROTOCOL_VERSION`] in the same commit.
+///
+/// The one exception: widening the *definition* of the closure (adding a scan
+/// root, a protocol root, or an `EXTERNAL_TYPES` entry) also moves the digest
+/// without any wire change. Re-pin without bumping, and say so in the commit.
 ///
 /// This is a shape digest, not a semantic one: renaming a field, adding a
 /// variant, or adding `#[serde(skip)]` all move it, but redefining what an
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "655184d666e7d2085ca1b0b36c69fe5cea33a877d4155569575e0f5b5eb47748";
+    "da1327e27cbb7d681ed63041264f69b476086c436a761bdf57d2447c138298db";
 
 /// Why a versioned message could not be decoded.
 #[derive(Debug, thiserror::Error)]

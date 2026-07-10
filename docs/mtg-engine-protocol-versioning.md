@@ -5,7 +5,7 @@
 > **Status**: implemented, SR-8 (`scutemob-60`). Binding on all M10 networking work.
 >
 > **Code**: `crates/engine/src/rules/protocol.rs`
-> **Gates**: `crates/engine/tests/protocol_schema.rs` (9 tests), `crates/engine/tests/protocol_roundtrip.rs` (16 tests)
+> **Gates**: `crates/engine/tests/protocol_schema.rs` (11 tests), `crates/engine/tests/protocol_roundtrip.rs` (17 tests)
 
 ---
 
@@ -93,13 +93,18 @@ guarantee, and converting process guarantees into machine guarantees is the enti
 of the SR remediation track.
 
 So `PROTOCOL_SCHEMA_FINGERPRINT` pins a blake3 digest of the **transitive type closure**
-of `Command` and `GameEvent`, recomputed from workspace source by
-`tests/protocol_schema.rs`. Change the shape of anything reachable on the wire and the
-test fails, names the drift, and prints the new digest along with instructions.
+of the three wire frames — `Command`, `GameEvent`, and `ReplayLog` — recomputed from
+workspace source by `tests/protocol_schema.rs`. Change the shape of anything reachable on
+the wire and the test fails, names the drift, and prints the new digest along with
+instructions.
 
 Attributes are inside the digest, because they are wire format:
 `#[serde(rename)]` renames a field, `#[serde(skip)]` deletes one, `#[serde(default)]`
 changes what a missing field means. None of those three is visible to `rustc`.
+
+The fourth frame, `Envelope<T>`, is generic, so the source-scanning walk cannot follow it
+(`T` resolves to nothing). Its two field names are pinned directly instead, by
+`the_envelope_frame_has_exactly_the_expected_fields`.
 
 ### 4. Replay logs carry two versions, and both are checked.
 
@@ -121,7 +126,7 @@ cannot verify.
 
 ## What is actually on the wire
 
-The closure is **89 types, not 2**.
+The closure is **90 types, not 3**.
 
 `GameEvent::CreatureDied` carries `Option<Characteristics>` (added for LKI correctness,
 CR 603.10a). `Characteristics` holds `Vector<AbilityInstance>`, which reaches `Effect`,
@@ -155,6 +160,11 @@ For a **semantic** change that does not move the shape — redefining what an ex
 The sentinel test then fails, which is the intended forcing function: a bump is always
 one deliberate, reviewable edit.
 
+There is exactly one case where you re-pin the digest **without** bumping the version:
+when you widen the *definition* of the closure itself — adding a `SCAN_ROOTS` entry, a
+`PROTOCOL_ROOTS` entry, or an `EXTERNAL_TYPES` entry. The digest moves because coverage
+grew, not because the wire did. Say so in the commit message.
+
 ---
 
 ## Known holes
@@ -186,6 +196,7 @@ tree, pushed **past the compiler** where `rustc` objected, run, and reverted.
 | `#[serde(rename)]` one `Command` variant | yes | `protocol_schema_fingerprint_is_pinned` |
 | Add a `GameEvent` variant | **no** | `rustc` — `hash.rs`'s exhaustive match |
 | Add a `GameEvent` variant **and satisfy that match** | yes | `protocol_schema_fingerprint_is_pinned` — *and nothing else* |
+| Add a field to `ReplayLog` | yes | `protocol_schema_fingerprint_is_pinned` (only after review; see below) |
 | Blind the declaration scanner | yes | `scanner_is_not_vacuous` + 4 others |
 | Blind the closure walk (roots only) | yes | `protocol_closure_is_not_vacuous_and_is_bounded` |
 | Bump `PROTOCOL_VERSION` with no shape change | yes | `protocol_version_sentinel` |
@@ -203,8 +214,33 @@ This is SR-5's finding one enum over: *"'adding a variant fails to compile' was 
 true — but it only forces you to assign a hash byte and a display string. Neither is
 behavior."*
 
-Two under-inclusion holes were found by the guards *while the guards were being written*,
-which is the argument for writing them:
+### The hole the review found
+
+The first version of this gate rooted the closure at `Command` and `GameEvent` only —
+"the two enums that *are* the protocol." But `encode_replay_log` puts a **third** frame on
+the wire, `ReplayLog { hash_schema_version, commands }`, and nothing reachable from
+`Command`/`GameEvent` mentions it. Its `commands: Vec<Command>` contents were covered; its
+own two-field frame was not. Adding a field to `ReplayLog` compiled clean, changed the
+replay-log wire format, and tripped nothing — the exact process-not-machine failure this
+gate exists to delete, in the one place the acceptance criteria explicitly named.
+
+`ReplayLog` is now a `PROTOCOL_ROOTS` entry, and the attack (add `pub author: String`) was
+re-run to confirm it fires. This is the sixth consecutive SR task where the review found
+the gap in the *gate* rather than a bug in the code. The pattern is stable enough to name:
+**the author checks that the gate fires on the thing they were thinking about, and does
+not enumerate the things the gate is not pointed at.** Two further guards came out of the
+same review, both of which pass today and would not have been noticed failing later:
+
+- `declared_type_names_are_unique` — the type index is keyed by bare name and keeps the
+  first declaration, so a future same-named type in another module would silently make the
+  digest hash the wrong declaration.
+- `no_workspace_type_shadows_an_external_type_name` — an `EXTERNAL_TYPES` entry suppresses
+  that bare name *everywhere*, so declaring a workspace type called `Vector` or `Box` would
+  quietly drop it out of the digest.
+
+### Holes found by the guards while the guards were being written
+
+Which is the argument for writing them:
 
 - **`pub type RoomIndex = usize;`** is wire-bearing but is neither an enum nor a struct.
   `every_referenced_type_resolves` refused to let an unresolved type name pass silently.
