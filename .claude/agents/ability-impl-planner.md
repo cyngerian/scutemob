@@ -101,7 +101,7 @@ If the ability-wip.md shows some steps already done, read those files to underst
 exists:
 
 ```
-Grep pattern="<ability name>" path="crates/engine/src/state/types.rs" output_mode="content"
+Grep pattern="<ability name>" path="crates/card-types/src/state/types.rs" output_mode="content"
 Grep pattern="<ability name>" path="crates/engine/src/rules/" output_mode="content"
 Grep pattern="<ability name>" path="crates/engine/tests/" output_mode="content"
 ```
@@ -151,7 +151,7 @@ structure:
 
     ### Step 1: Enum Variant (if not done)
 
-    **File**: `crates/engine/src/state/types.rs`
+    **File**: `crates/card-types/src/state/types.rs`
     **Action**: Add `KeywordAbility::<Name>` variant (or appropriate type)
     **Pattern**: Follow `KeywordAbility::Flying` at line N
     **Hash**: Add to `state/hash.rs` HashInto impl

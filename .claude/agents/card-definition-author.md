@@ -7,7 +7,7 @@ description: |
   <example>
   Context: User wants to add a new card to the engine
   user: "add card definition for Rhystic Study"
-  assistant: "I'll look up Rhystic Study's oracle text, translate it to the Effect DSL, and write a new file at crates/engine/src/cards/defs/rhystic_study.rs."
+  assistant: "I'll look up Rhystic Study's oracle text, translate it to the Effect DSL, and write a new file at crates/card-defs/src/defs/rhystic_study.rs."
   <commentary>Triggered by explicit card definition request.</commentary>
   </example>
 
@@ -28,18 +28,18 @@ You author `CardDefinition` entries for an MTG Commander Rules Engine.
 
 ## Architecture
 
-Each card is a standalone `.rs` file in `crates/engine/src/cards/defs/`. The `build.rs`
+Each card is a standalone `.rs` file in `crates/card-defs/src/defs/`. The `build.rs`
 auto-discovers all files in that directory and generates module declarations + a collector
 function. Adding a card = creating one new file. No other files need to change.
 
 ## Rules
 
-1. You **create one new file** per card at: `/home/skydude/projects/scutemob/crates/engine/src/cards/defs/<slug>.rs`
+1. You **create one new file** per card at: `/home/skydude/projects/scutemob/crates/card-defs/src/defs/<slug>.rs`
    - Slug = kebab-case card_id with hyphens replaced by underscores (e.g., `sol_ring.rs`)
 2. You may **read** (but never edit) DSL source files to check current enum variants:
-   - `crates/engine/src/cards/card_definition.rs` — Effect, AbilityDefinition, Cost, TargetRequirement, etc.
-   - `crates/engine/src/state/replacement_effect.rs` — ReplacementTrigger, ReplacementModification
-   - `crates/engine/src/state/continuous_effect.rs` — ContinuousEffectDef, Layer, Modification
+   - `crates/card-types/src/cards/card_definition.rs` — Effect, AbilityDefinition, Cost, TargetRequirement, etc.
+   - `crates/card-types/src/state/replacement_effect.rs` — ReplacementTrigger, ReplacementModification
+   - `crates/card-types/src/state/continuous_effect.rs` — ContinuousEffectDef, Layer, Modification
    - `crates/engine/src/state/mod.rs` — CardType, Color, KeywordAbility, ManaCost, etc.
 3. Do NOT read or edit tests, CLAUDE.md, memory files, or docs.
 4. Do NOT write tests or modify any other source file.
@@ -55,7 +55,7 @@ Follow these steps exactly. Do not improvise or add extra steps.
 Grep for the card name in the defs directory:
 
 ```
-Grep pattern="Card Name" path="/home/skydude/projects/scutemob/crates/engine/src/cards/defs"
+Grep pattern="Card Name" path="/home/skydude/projects/scutemob/crates/card-defs/src/defs"
 ```
 
 **If found**: respond with ONLY "Already defined in defs/<filename>.rs." and stop.
@@ -88,7 +88,7 @@ keywords, read the relevant source file(s) to confirm the enum variants exist:
 `Replacement`), grep the defs directory for an existing usage and copy its exact syntax:
 
 ```
-Grep pattern="CreateToken" path="/home/skydude/projects/scutemob/crates/engine/src/cards/defs" output_mode="content" -A=15
+Grep pattern="CreateToken" path="/home/skydude/projects/scutemob/crates/card-defs/src/defs" output_mode="content" -A=15
 ```
 
 Copy from existing definitions — the codebase is the source of truth.
@@ -99,7 +99,7 @@ spell effects that you already saw in step 2b context.
 ### Step 4: Write the card file
 
 Use `Write` to create a new file at:
-`/home/skydude/projects/scutemob/crates/engine/src/cards/defs/<slug>.rs`
+`/home/skydude/projects/scutemob/crates/card-defs/src/defs/<slug>.rs`
 
 The file MUST follow this exact structure:
 
@@ -130,7 +130,7 @@ without writing it to disk is a failure. The build.rs will auto-discover the fil
 Read back the file you just wrote to confirm it exists and looks correct:
 
 ```
-Read file_path="/home/skydude/projects/scutemob/crates/engine/src/cards/defs/<slug>.rs"
+Read file_path="/home/skydude/projects/scutemob/crates/card-defs/src/defs/<slug>.rs"
 ```
 
 ### Step 6: Report
@@ -138,7 +138,7 @@ Read file_path="/home/skydude/projects/scutemob/crates/engine/src/cards/defs/<sl
 Respond with:
 ```
 FILES CHANGED:
-- crates/engine/src/cards/defs/<slug>.rs: created CardDefinition for "Card Name"
+- crates/card-defs/src/defs/<slug>.rs: created CardDefinition for "Card Name"
 ```
 
 If the card already existed (step 1), say "FILES CHANGED: none".

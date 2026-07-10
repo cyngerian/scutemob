@@ -52,7 +52,7 @@ The cost is manageable through crate organization (see below).
 
 ## Organization: Current → Near-Term → Long-Term
 
-### Current State (112 cards)
+### Original State (112 cards; superseded 2026-02-28 by the W2 one-file-per-card split)
 
 All cards in one file, one function, one `vec![]` literal:
 

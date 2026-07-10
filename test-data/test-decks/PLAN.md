@@ -357,7 +357,7 @@ Given a card name:
 1. Look up card data (local deck files first, Scryfall API fallback)
 2. Generate a `.rs` file with all mechanical fields filled in
 3. Leave `abilities: vec![]` with TODO comments derived from oracle text
-4. Write to `crates/engine/src/cards/defs/<slug>.rs`
+4. Write to `crates/card-defs/src/defs/<slug>.rs`
 
 Example output for Skullclamp:
 ```rust

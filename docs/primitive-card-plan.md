@@ -599,7 +599,7 @@ Each wave follows the same workflow as W5 card authoring:
 
 After all cards are authored:
 
-1. **Full TODO scan**: `grep -r "TODO" crates/engine/src/cards/defs/` — target: **zero TODOs**
+1. **Full TODO scan**: `grep -r "TODO" crates/card-defs/src/defs/` — target: **zero TODOs**
 2. **Partial implementation scan**: Check for any remaining wrong-behavior cards
 3. **Oracle text verification**: Spot-check 10% of card defs against MCP oracle text lookup
 4. **Build + test**: `cargo build --workspace && cargo test --all && cargo clippy -- -D warnings`

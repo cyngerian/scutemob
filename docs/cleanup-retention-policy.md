@@ -53,7 +53,7 @@ retires the agent that uses the corpus:
   Untouchable until that agent is retired. Other files in
   `memory/card-authoring/` (named hard references like `consolidated-fix-list.md`,
   `dsl-gap-audit-v2.md`, `triage-summary.md`) are managed individually.
-- **`crates/engine/src/cards/defs/`** is parent-referenced from every card
+- **`crates/card-defs/src/defs/`** is parent-referenced from every card
   authoring agent. Out of doc-cleanup scope entirely.
 - **`test-data/generated-scripts/`** is parent-referenced from at least 5
   sources. Out of doc-cleanup scope entirely.
@@ -184,7 +184,7 @@ ACTIVE (per `memory/workstream-state.md`):
   CLAUDE.md but does not edit the file itself.
 - **Source code** under `crates/`, `tools/`, `benches/` — code is governed
   by its own review process (`milestone-reviewer`, code-review fix sessions).
-- **Card definition files** under `crates/engine/src/cards/defs/` — too
+- **Card definition files** under `crates/card-defs/src/defs/` — too
   numerous, too volatile, governed by the card-authoring pipeline.
 - **Test data and generated scripts** under `test-data/` — owned by the
   testing system.
