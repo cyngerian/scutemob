@@ -6,11 +6,11 @@ description: Orchestrate the primitive batch implementation pipeline -- plan, im
 # Implement Primitive
 
 Orchestrate the full primitive batch (PB-N) implementation pipeline. Manages
-`memory/primitive-wip.md` as a state file and dispatches the right agent for the current phase.
+`memory/primitives/primitive-wip.md` as a state file and dispatches the right agent for the current phase.
 
 ## Arguments
 
-- No args: continue from current phase in `memory/primitive-wip.md`
+- No args: continue from current phase in `memory/primitives/primitive-wip.md`
 - `PB-<N>` or `<N>`: start a new primitive batch (overwrites any WIP)
 - `--review-only PB-<N>`: retroactive review of an already-completed batch (skips plan + implement)
 - `--status`: show current WIP state and exit
@@ -53,7 +53,7 @@ Set up dependencies: 2 blockedBy 1, 3 blockedBy 2.
 
 ### Step 0: Read Current State
 
-Read `memory/primitive-wip.md` if it exists. Determine the current phase.
+Read `memory/primitives/primitive-wip.md` if it exists. Determine the current phase.
 
 If `$ARGUMENTS` is `--status`:
 - If `primitive-wip.md` exists: display its contents and stop.
@@ -87,7 +87,7 @@ This mode skips plan and implement phases. Used for retroactive review of comple
 2. Read `docs/project-status.md` Review Backlog to confirm PB-N is `pending`.
 3. **Create task list** (3 tasks for review-only mode, with dependencies).
 
-Create `memory/primitive-wip.md`:
+Create `memory/primitives/primitive-wip.md`:
 
 ```markdown
 # Primitive WIP: PB-<N> -- <Title> (REVIEW-ONLY)
@@ -121,7 +121,7 @@ Also read `memory/workstream-state.md` "Last Handoff" for deferred items from pr
 
 **Create task list** (5 tasks for full pipeline, with dependencies).
 
-Create `memory/primitive-wip.md`:
+Create `memory/primitives/primitive-wip.md`:
 
 ```markdown
 # Primitive WIP: PB-<N> -- <Title>
@@ -155,13 +155,13 @@ Spawn the `primitive-impl-planner` agent (Opus):
 ```
 Agent tool:
   subagent_type: primitive-impl-planner
-  prompt: "Plan the implementation of PB-<N> (<title>). Read memory/primitive-wip.md for context. Write the plan to memory/primitives/pb-plan-<N>.md."
+  prompt: "Plan the implementation of PB-<N> (<title>). Read memory/primitives/primitive-wip.md for context. Write the plan to memory/primitives/pb-plan-<N>.md."
   model: opus
 ```
 
 After the planner completes:
 - Verify `memory/primitives/pb-plan-<N>.md` was created
-- Update `memory/primitive-wip.md`: set `phase: implement`
+- Update `memory/primitives/primitive-wip.md`: set `phase: implement`
 - **TaskUpdate**: Set plan task to `completed`
 - Report: "Plan written. Run `/implement-primitive` to start implementation."
 
@@ -174,7 +174,7 @@ Spawn the `primitive-impl-runner` agent (Sonnet):
 ```
 Agent tool:
   subagent_type: primitive-impl-runner
-  prompt: "Implement PB-<N> (<title>). Read memory/primitive-wip.md and memory/primitives/pb-plan-<N>.md. Execute all steps, run tests, and check off completed steps in primitive-wip.md."
+  prompt: "Implement PB-<N> (<title>). Read memory/primitives/primitive-wip.md and memory/primitives/pb-plan-<N>.md. Execute all steps, run tests, and check off completed steps in primitive-wip.md."
   model: sonnet
 ```
 
@@ -185,7 +185,7 @@ After the runner completes:
   - Re-invoke the runner with the same prompt plus: "The previous run did not write its changes.
     Start from scratch -- implement all unchecked steps now."
   - Run the build check again before proceeding.
-- Read `memory/primitive-wip.md` to confirm steps are checked off
+- Read `memory/primitives/primitive-wip.md` to confirm steps are checked off
 - **Commit**: Stage all changed files and create a commit:
   `W6-prim: PB-<N> implement <title>`
   Include a brief body listing what was added (engine changes, card fixes, tests).
@@ -230,7 +230,7 @@ Spawn the `primitive-impl-reviewer` agent (Opus):
 ```
 Agent tool:
   subagent_type: primitive-impl-reviewer
-  prompt: "Review the PB-<N> (<title>) implementation. Read memory/primitive-wip.md and memory/primitives/pb-plan-<N>.md. Verify engine changes against CR rules. Verify every card def against oracle text. Write findings to memory/primitives/pb-review-<N>.md."
+  prompt: "Review the PB-<N> (<title>) implementation. Read memory/primitives/primitive-wip.md and memory/primitives/pb-plan-<N>.md. Verify engine changes against CR rules. Verify every card def against oracle text. Write findings to memory/primitives/pb-review-<N>.md."
   model: opus
 ```
 
@@ -259,7 +259,7 @@ Spawn the `primitive-impl-runner` agent (Sonnet) in fix mode:
 ```
 Agent tool:
   subagent_type: primitive-impl-runner
-  prompt: "Fix the PB-<N> review findings. Read memory/primitive-wip.md and memory/primitives/pb-review-<N>.md. Apply all HIGH, MEDIUM, and LOW fixes, run tests."
+  prompt: "Fix the PB-<N> review findings. Read memory/primitives/primitive-wip.md and memory/primitives/pb-review-<N>.md. Apply all HIGH, MEDIUM, and LOW fixes, run tests."
   model: sonnet
 ```
 
@@ -353,6 +353,6 @@ After the runner completes:
   items, always suggest the next review before suggesting new PB implementation.
 - **Review-only mode produces the same review file format** as normal mode. The reviewer
   agent's output is identical -- only the input differs (no plan file, uses batch spec + code).
-- **The state file is the source of truth.** Always read `memory/primitive-wip.md` before
+- **The state file is the source of truth.** Always read `memory/primitives/primitive-wip.md` before
   doing anything. Always update it after each phase.
 - **When resuming, check TaskList first.** Don't create duplicate tasks -- reuse existing ones.
