@@ -43,3 +43,4 @@ mod primitive_pb_xa;
 mod primitive_pb_xa2;
 mod primitive_pb_xs;
 mod primitive_pb_xs_e;
+mod sr13_lki_damage_source;
