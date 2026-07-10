@@ -248,8 +248,7 @@ pub fn handle_declare_attackers(
             if total_tax > 0 {
                 // Check if attacking player has enough mana in their pool.
                 let available_mana = state
-                    .players
-                    .get(&player)
+                    .expect_player(player)
                     .map(|ps| ps.mana_pool.total_with_restricted())
                     .unwrap_or(0);
                 if available_mana < total_tax {
@@ -286,11 +285,8 @@ pub fn handle_declare_attackers(
                 continue;
             }
             // Check if the creature is able to attack.
-            let chars = match calculate_characteristics(state, goaded_id) {
-                Some(c) => c,
-                None => continue,
-            };
-            let obj = match state.objects.get(&goaded_id) {
+            let chars = crate::rules::layers::expect_characteristics(state, goaded_id);
+            let obj = match state.expect_object(goaded_id) {
                 Some(o) => o,
                 None => continue,
             };
@@ -319,8 +315,7 @@ pub fn handle_declare_attackers(
                     *pid != player
                         && *pid != obj.owner
                         && state
-                            .players
-                            .get(pid)
+                            .expect_player(*pid)
                             .map(|p| !p.has_lost && !p.has_conceded)
                             .unwrap_or(false)
                 });
@@ -348,15 +343,14 @@ pub fn handle_declare_attackers(
             .filter(|pid| **pid != player)
             .filter(|pid| {
                 state
-                    .players
-                    .get(*pid)
+                    .expect_player(**pid)
                     .map(|p| !p.has_lost && !p.has_conceded)
                     .unwrap_or(false)
             })
             .copied()
             .collect();
         for (attacker_id, target) in &attackers {
-            let obj = match state.objects.get(attacker_id) {
+            let obj = match state.expect_object(*attacker_id) {
                 Some(o) => o,
                 None => continue,
             };
@@ -385,10 +379,7 @@ pub fn handle_declare_attackers(
             if obj.zone != ZoneId::Battlefield || obj.controller != player {
                 continue;
             }
-            let chars = match calculate_characteristics(state, *obj_id) {
-                Some(c) => c,
-                None => continue,
-            };
+            let chars = crate::rules::layers::expect_characteristics(state, *obj_id);
             if !chars
                 .keywords
                 .contains(&KeywordAbility::MustAttackEachCombat)
@@ -423,8 +414,7 @@ pub fn handle_declare_attackers(
                     *pid != player
                         && *pid != obj.owner
                         && state
-                            .players
-                            .get(pid)
+                            .expect_player(*pid)
                             .map(|p| !p.has_lost && !p.has_conceded)
                             .unwrap_or(false)
                 });
@@ -600,7 +590,7 @@ pub fn handle_declare_attackers(
     // Uses pre-computed vigilance flags to avoid a redundant calculate_characteristics call.
     for (attacker_id, has_vigilance) in &attacker_vigilance {
         if !has_vigilance {
-            if let Some(obj) = state.objects.get_mut(attacker_id) {
+            if let Some(obj) = state.expect_object_mut(*attacker_id) {
                 obj.status.tapped = true;
             }
             events.push(GameEvent::PermanentTapped {
@@ -612,7 +602,7 @@ pub fn handle_declare_attackers(
     // CR 702.154a / CR 508.1j: Tap enlisted creatures as part of the
     // attack cost payment.
     for (_, enlisted_id) in &enlist_choices {
-        if let Some(obj) = state.objects.get_mut(enlisted_id) {
+        if let Some(obj) = state.expect_object_mut(*enlisted_id) {
             obj.status.tapped = true;
         }
         events.push(GameEvent::PermanentTapped {
@@ -632,7 +622,7 @@ pub fn handle_declare_attackers(
     // e.g. Ninjutsu, Aggravated Assault-style effects) do NOT set this flag
     // (Bloodsoaked Champion ruling).
     if !attackers.is_empty() {
-        if let Some(ps) = state.players.get_mut(&player) {
+        if let Some(ps) = state.expect_player_mut(player) {
             ps.attacked_this_turn = true;
         }
     }
@@ -643,7 +633,7 @@ pub fn handle_declare_attackers(
     // CR 701.43a/d: Set Designations::EXERTED on each exerted attacker and store the
     // exert choices in combat state for linked-trigger collection in abilities.rs.
     for exerted_id in &exert_choices {
-        if let Some(obj) = state.objects.get_mut(exerted_id) {
+        if let Some(obj) = state.expect_object_mut(*exerted_id) {
             obj.designations.insert(Designations::EXERTED);
         }
         events.push(GameEvent::PermanentExerted {
@@ -664,7 +654,7 @@ pub fn handle_declare_attackers(
             .map(|c| c.keywords.contains(&KeywordAbility::Decayed))
             .unwrap_or(false);
         if has_decayed {
-            if let Some(obj) = state.objects.get_mut(attacker_id) {
+            if let Some(obj) = state.expect_object_mut(*attacker_id) {
                 obj.decayed_sacrifice_at_eoc = true;
             }
         }
@@ -954,13 +944,13 @@ pub fn handle_declare_blockers(
         // CR 701.54c (ring level >= 1): Ring-bearer can't be blocked by creatures with
         // greater power. Identical to Skulk's restriction, but triggered by the RING_BEARER
         // designation rather than a keyword ability.
-        if let Some(attacker_obj) = state.objects.get(attacker_id) {
+        if let Some(attacker_obj) = state.expect_object(*attacker_id) {
             if attacker_obj
                 .designations
                 .contains(crate::state::game_object::Designations::RING_BEARER)
             {
                 let controller = attacker_obj.controller;
-                if let Some(ps) = state.players.get(&controller) {
+                if let Some(ps) = state.expect_player(controller) {
                     if ps.ring_level >= 1 {
                         let attacker_power = attacker_chars.power.unwrap_or(0);
                         let blocker_power = blocker_chars.power.unwrap_or(0);
@@ -1086,6 +1076,9 @@ pub fn handle_declare_blockers(
             };
             let attacker_chars = match calculate_characteristics(state, must_block_attacker) {
                 Some(c) => c,
+                // CR 400.7: the provoking attacker may have changed zones since the
+                // forced-block was recorded; its old id names nothing, so the requirement
+                // can't apply (LKI fizzle -- not an engine bug).
                 None => continue, // Attacker gone -- skip
             };
             // CR 509.1b / CR 702.9a: Flying evasion check.
@@ -1187,13 +1180,13 @@ pub fn handle_declare_blockers(
                 }
             }
             // CR 701.54c: Ring-bearer blocking restriction (identical to Skulk).
-            if let Some(attacker_obj) = state.objects.get(&must_block_attacker) {
+            if let Some(attacker_obj) = state.expect_object(must_block_attacker) {
                 if attacker_obj
                     .designations
                     .contains(crate::state::game_object::Designations::RING_BEARER)
                 {
                     let controller = attacker_obj.controller;
-                    if let Some(ps) = state.players.get(&controller) {
+                    if let Some(ps) = state.expect_player(controller) {
                         if ps.ring_level >= 1 {
                             let attacker_power = attacker_chars.power.unwrap_or(0);
                             let blocker_power = provoked_chars.power.unwrap_or(0);
@@ -1277,7 +1270,7 @@ pub fn handle_declare_blockers(
     // when delayed trigger infrastructure is expanded.
     for (blocker_id, attacker_id) in &blockers {
         let (is_ring_bearer, ring_level) = {
-            let obj = state.objects.get(attacker_id);
+            let obj = state.expect_object(*attacker_id);
             match obj {
                 Some(o) => {
                     let bearer = o
@@ -1285,8 +1278,7 @@ pub fn handle_declare_blockers(
                         .contains(crate::state::game_object::Designations::RING_BEARER);
                     let ctrl = o.controller;
                     let lvl = state
-                        .players
-                        .get(&ctrl)
+                        .expect_player(ctrl)
                         .map(|ps| ps.ring_level)
                         .unwrap_or(0);
                     (bearer, lvl)
@@ -1295,7 +1287,7 @@ pub fn handle_declare_blockers(
             }
         };
         if is_ring_bearer && ring_level >= 3 {
-            if let Some(obj) = state.objects.get_mut(blocker_id) {
+            if let Some(obj) = state.expect_object_mut(*blocker_id) {
                 obj.ring_block_sacrifice_at_eoc = true;
             }
         }
@@ -1668,8 +1660,7 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
                 let controller = o.controller;
                 let card_id = o.card_id.clone()?;
                 let is_commander = state
-                    .players
-                    .get(&controller)
+                    .expect_player(controller)
                     .map(|p| p.commander_ids.iter().any(|c| *c == card_id))
                     .unwrap_or(false);
                 if is_commander {
@@ -1771,7 +1762,7 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
         }
         match &assignment.target {
             CombatDamageTarget::Creature(obj_id) => {
-                if let Some(obj) = state.objects.get_mut(obj_id) {
+                if let Some(obj) = state.expect_object_mut(*obj_id) {
                     if *source_wither || *source_infect {
                         // CR 702.80a / CR 702.90c / CR 120.3d: damage to a creature by a
                         // source with wither and/or infect places -1/-1 counters instead
@@ -1802,7 +1793,7 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
                 if *source_infect {
                     // CR 702.90b / CR 120.3b: infect damage to a player gives poison
                     // counters instead of causing life loss.
-                    if let Some(player) = state.players.get_mut(player_id) {
+                    if let Some(player) = state.expect_player_mut(*player_id) {
                         player.poison_counters += final_dmg;
                         // CR 702.54a: Bloodthirst counts infect damage even though
                         // it causes poison counters rather than life loss.
@@ -1815,7 +1806,7 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
                     });
                 } else {
                     // CR 120.3a: normal damage causes life loss.
-                    if let Some(player) = state.players.get_mut(player_id) {
+                    if let Some(player) = state.expect_player_mut(*player_id) {
                         player.life_total -= final_dmg as i32;
                         // CR 702.137a: track life lost this turn for Spectacle.
                         player.life_lost_this_turn += final_dmg;
@@ -1830,7 +1821,7 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
                 // The final_dmg == 0 guard above ensures we only reach here when damage
                 // was actually dealt (CR 120.3g: "combat damage dealt to a player").
                 if *source_toxic_total > 0 {
-                    if let Some(player) = state.players.get_mut(player_id) {
+                    if let Some(player) = state.expect_player_mut(*player_id) {
                         player.poison_counters += *source_toxic_total;
                     }
                     poison_events.push(GameEvent::PoisonCountersGiven {
@@ -1846,22 +1837,20 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
                     if player_id != attacking_player {
                         // Can't double-borrow players — read current value, then write.
                         let current = state
-                            .players
-                            .get(player_id)
+                            .expect_player(*player_id)
                             .and_then(|p| p.commander_damage_received.get(attacking_player))
                             .and_then(|m| m.get(card_id))
                             .copied()
                             .unwrap_or(0);
                         let new_val = current + final_dmg;
                         let inner = state
-                            .players
-                            .get(player_id)
+                            .expect_player(*player_id)
                             .and_then(|p| p.commander_damage_received.get(attacking_player))
                             .cloned()
                             .unwrap_or_default();
                         let mut new_inner = inner;
                         new_inner.insert(card_id.clone(), new_val);
-                        if let Some(target_player) = state.players.get_mut(player_id) {
+                        if let Some(target_player) = state.expect_player_mut(*player_id) {
                             target_player
                                 .commander_damage_received
                                 .insert(*attacking_player, new_inner);
@@ -1873,7 +1862,10 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
                 // CR 306.8: Damage dealt to a planeswalker results in that many
                 // loyalty counters being removed from it. This matches the non-combat
                 // damage path in effects/mod.rs.
-                if let Some(obj) = state.objects.get_mut(pw_id) {
+                // CR 400.7: the attacked planeswalker may have left the battlefield since
+                // attackers were declared (combat.attackers still names it); its old id
+                // then names nothing, so no loyalty is removed (LKI fizzle).
+                if let Some(obj) = state.lki_object_mut(*pw_id) {
                     let cur = obj
                         .counters
                         .get(&CounterType::Loyalty)
@@ -1901,7 +1893,7 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
     });
     // Apply lifelink gains and emit LifeGained events.
     for (controller, amount) in &lifelink_gains {
-        if let Some(player) = state.players.get_mut(controller) {
+        if let Some(player) = state.expect_player_mut(*controller) {
             player.life_total += *amount as i32;
             // PB-B: Track life gained this turn for Condition::ControllerGainedLifeThisTurn.
             player.life_gained_this_turn += *amount;

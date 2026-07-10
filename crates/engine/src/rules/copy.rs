@@ -9,7 +9,7 @@
 //! values of the object being copied AFTER all copy effects on that object have
 //! been applied in layer 1.  This means a Clone copying a Clone-that-copied-a-Bear
 //! becomes a Bear — not a Clone.
-use super::layers::calculate_characteristics;
+use super::layers::expect_characteristics;
 use crate::rules::events::GameEvent;
 use crate::state::continuous_effect::LayerModification;
 use crate::state::{
@@ -289,9 +289,10 @@ pub fn create_storm_copies(
 /// This is `spells_cast_this_turn - 1` (the storm spell itself is already counted).
 /// Returns 0 if no other spells were cast or if player state is unavailable.
 pub fn storm_count(state: &GameState, caster: PlayerId) -> u32 {
+    // SR-14 IMPOSSIBLE: players are never removed from `state.players`, so a missing
+    // caster id is an engine bug, not a legal absence.
     state
-        .players
-        .get(&caster)
+        .expect_player(caster)
         .map(|p| p.spells_cast_this_turn.saturating_sub(1))
         .unwrap_or(0)
 }
@@ -343,49 +344,36 @@ pub fn resolve_cascade(
             break;
         };
         // Exile the top card.
-        let (exile_id, _old) = match state.move_object_to_zone(top_id, ZoneId::Exile) {
-            Ok(r) => r,
-            Err(_) => break,
+        // SR-14 IMPOSSIBLE: `top_id` was just read from the live library top with no
+        // intervening move, and the Exile zone always exists, so the move cannot fail.
+        let Some((exile_id, _old)) = state.expect_move_object_to_zone(top_id, ZoneId::Exile) else {
+            break;
         };
         exiled_ids.push(exile_id);
         // Check if this is a qualifying card: nonland with mana value < spell_mana_value.
         // CR 702.85a: use the card's actual characteristics (applying continuous effects such
-        // as Mycosynth Lattice or Trinisphere), falling back to raw characteristics if the
-        // layer system has no information for the object (MR-M9.4-04).
-        let calc_chars = calculate_characteristics(state, exile_id);
-        let is_land = calc_chars
+        // as Mycosynth Lattice or Trinisphere). SR-14 IMPOSSIBLE: `exile_id` was just returned
+        // by the move above with no intervening zone change, so calc cannot be None
+        // (expect_characteristics preserves the raw-characteristics fallback in release, MR-M9.4-04).
+        let exile_chars = expect_characteristics(state, exile_id);
+        let is_land = exile_chars.card_types.contains(&CardType::Land);
+        let card_mv = exile_chars
+            .mana_cost
             .as_ref()
-            .map(|c| c.card_types.contains(&CardType::Land))
-            .unwrap_or_else(|| {
-                state
-                    .objects
-                    .get(&exile_id)
-                    .map(|obj| obj.characteristics.card_types.contains(&CardType::Land))
-                    .unwrap_or(false)
-            });
-        let card_mv = calc_chars
-            .as_ref()
-            .and_then(|c| c.mana_cost.as_ref())
             .map(|mc| mc.mana_value())
-            .unwrap_or_else(|| {
-                state
-                    .objects
-                    .get(&exile_id)
-                    .and_then(|obj| obj.characteristics.mana_cost.as_ref())
-                    .map(|mc| mc.mana_value())
-                    .unwrap_or(0)
-            });
+            .unwrap_or(0);
         if !is_land && card_mv < spell_mana_value {
             // Found the qualifying card. Cast it for free (deterministic: always cast).
             // Step 3: Put it on the stack without paying mana cost.
             let stack_entry_id = state.next_object_id();
             // Move card from exile to stack zone (new ObjectId via CR 400.7).
-            let (stack_source_id, _old) = match state.move_object_to_zone(exile_id, ZoneId::Stack) {
-                Ok(r) => r,
-                Err(_) => {
-                    // Failed to move card — leave in exile and stop.
-                    break;
-                }
+            // SR-14 IMPOSSIBLE: `exile_id` is present (its chars were just read) and the
+            // Stack zone always exists, so the move cannot fail.
+            let Some((stack_source_id, _old)) =
+                state.expect_move_object_to_zone(exile_id, ZoneId::Stack)
+            else {
+                // Failed to move card — leave in exile and stop.
+                break;
             };
             // Remove it from the exiled list (it was cast, not put on bottom).
             exiled_ids.pop();
@@ -458,7 +446,8 @@ pub fn resolve_cascade(
             state.stack_objects.push_back(stack_obj);
             // CR 702.85c: cascade triggers "whenever you cast" — increment spells_cast_this_turn.
             // Use saturating_add to match defensive overflow handling used elsewhere (CR 702.85).
-            if let Some(ps) = state.players.get_mut(&caster) {
+            // SR-14 IMPOSSIBLE: players are never removed, so `caster` is always present.
+            if let Some(ps) = state.expect_player_mut(caster) {
                 ps.spells_cast_this_turn = ps.spells_cast_this_turn.saturating_add(1);
                 // PB-AC6: all-players-reset "this game turn" spell count.
                 ps.spells_cast_this_game_turn = ps.spells_cast_this_game_turn.saturating_add(1);
@@ -496,14 +485,12 @@ pub fn resolve_cascade(
     exiled_ids.sort();
     let library_zone_id = ZoneId::Library(caster);
     for exile_id in exiled_ids {
-        // MR-M9.4-01: If the zone move fails (e.g., the object was already removed
-        // from exile), the card is left in its current zone rather than silently
-        // disappearing. The card NOT reaching the library is detectable via the
-        // CascadeExiled event listing cards that did not end up in the library.
-        if let Err(_e) = state.move_object_to_bottom_of_zone(exile_id, library_zone_id) {
-            // Card stays in its current zone — no silent data loss.
-            // This branch is unreachable in well-formed game state.
-        }
+        // MR-M9.4-01 / SR-14 IMPOSSIBLE: each `exile_id` is distinct and still in Exile
+        // (a plain zone move runs no SBAs/triggers, so no id invalidates another), and the
+        // library zone always exists — the move cannot fail. `expect_` asserts in debug and
+        // still leaves the card in place in release (no silent data loss); the card NOT
+        // reaching the library remains detectable via the CascadeExiled event.
+        let _ = state.expect_move_object_to_bottom_of_zone(exile_id, library_zone_id);
     }
     (events, cast_id)
 }
@@ -553,37 +540,24 @@ pub fn resolve_discover(
             break;
         };
         // Exile the top card.
-        let (exile_id, _old) = match state.move_object_to_zone(top_id, ZoneId::Exile) {
-            Ok(r) => r,
-            Err(_) => break,
+        // SR-14 IMPOSSIBLE: `top_id` was just read from the live library top with no
+        // intervening move, and the Exile zone always exists, so the move cannot fail.
+        let Some((exile_id, _old)) = state.expect_move_object_to_zone(top_id, ZoneId::Exile) else {
+            break;
         };
         exiled_ids.push(exile_id);
         // Check if this card qualifies: nonland with mana value <= discover_n.
         // CR 701.57a: "nonland card with mana value N or less"
         // Note: Cascade uses strictly-less-than (< spell_MV); Discover uses <= N.
-        let calc_chars = calculate_characteristics(state, exile_id);
-        let is_land = calc_chars
+        // SR-14 IMPOSSIBLE: `exile_id` was just returned by the move above with no
+        // intervening zone change, so calc cannot be None.
+        let exile_chars = expect_characteristics(state, exile_id);
+        let is_land = exile_chars.card_types.contains(&CardType::Land);
+        let card_mv = exile_chars
+            .mana_cost
             .as_ref()
-            .map(|c| c.card_types.contains(&CardType::Land))
-            .unwrap_or_else(|| {
-                state
-                    .objects
-                    .get(&exile_id)
-                    .map(|obj| obj.characteristics.card_types.contains(&CardType::Land))
-                    .unwrap_or(false)
-            });
-        let card_mv = calc_chars
-            .as_ref()
-            .and_then(|c| c.mana_cost.as_ref())
             .map(|mc| mc.mana_value())
-            .unwrap_or_else(|| {
-                state
-                    .objects
-                    .get(&exile_id)
-                    .and_then(|obj| obj.characteristics.mana_cost.as_ref())
-                    .map(|mc| mc.mana_value())
-                    .unwrap_or(0)
-            });
+            .unwrap_or(0);
         if !is_land && card_mv <= discover_n {
             // Found the qualifying card (the "discovered card" per CR 701.57c).
             //
@@ -686,7 +660,8 @@ pub fn resolve_discover(
             };
             state.stack_objects.push_back(stack_obj);
             // Discover free-cast triggers "whenever you cast a spell".
-            if let Some(ps) = state.players.get_mut(&player) {
+            // SR-14 IMPOSSIBLE: players are never removed, so `player` is always present.
+            if let Some(ps) = state.expect_player_mut(player) {
                 ps.spells_cast_this_turn = ps.spells_cast_this_turn.saturating_add(1);
                 // PB-AC6: all-players-reset "this game turn" spell count.
                 ps.spells_cast_this_game_turn = ps.spells_cast_this_game_turn.saturating_add(1);
@@ -721,10 +696,10 @@ pub fn resolve_discover(
     exiled_ids.sort();
     let library_zone_id = ZoneId::Library(player);
     for exile_id in exiled_ids {
-        if let Err(_e) = state.move_object_to_bottom_of_zone(exile_id, library_zone_id) {
-            // Card stays in current zone — no silent data loss.
-            // Unreachable in well-formed game state.
-        }
+        // SR-14 IMPOSSIBLE: each `exile_id` is distinct and still in Exile (a plain zone
+        // move runs no SBAs/triggers, so no id invalidates another), and the library zone
+        // always exists. `expect_` asserts in debug and leaves the card in place in release.
+        let _ = state.expect_move_object_to_bottom_of_zone(exile_id, library_zone_id);
     }
     (events, result_id)
 }

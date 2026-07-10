@@ -167,8 +167,7 @@ pub fn handle_activate_ability(
         // dispatch is correct for future "grant a Channel ability" or "grant a
         // graveyard-activated ability" patterns. unwrap_or_else falls back to base
         // characteristics for objects not on the battlefield (LKI path).
-        let resolved_ab_chars = crate::rules::layers::calculate_characteristics(state, source)
-            .unwrap_or_else(|| obj.characteristics.clone());
+        let resolved_ab_chars = crate::rules::layers::expect_characteristics(state, source);
         let (is_channel, activation_zone) = resolved_ab_chars
             .activated_abilities
             .get(ability_index)
@@ -216,8 +215,7 @@ pub fn handle_activate_ability(
         // (e.g. PB-S LayerModification::AddActivatedAbility) are reachable; base
         // characteristics would only see native printed abilities, making granted
         // abilities unreachable at runtime.
-        let resolved_ab = crate::rules::layers::calculate_characteristics(state, source)
-            .unwrap_or_else(|| obj.characteristics.clone());
+        let resolved_ab = crate::rules::layers::expect_characteristics(state, source);
         if resolved_ab.activated_abilities.get(ability_index).is_none() {
             return Err(GameStateError::InvalidAbilityIndex {
                 object_id: source,
@@ -228,9 +226,8 @@ pub fn handle_activate_ability(
     // CR 602.5d: Check sorcery-speed restriction before paying any costs.
     // CR 613.1f: Use layer-resolved activated abilities (Humility removes them).
     {
-        let obj = state.object(source)?;
-        let resolved = crate::rules::layers::calculate_characteristics(state, source)
-            .unwrap_or_else(|| obj.characteristics.clone());
+        state.object(source)?;
+        let resolved = crate::rules::layers::expect_characteristics(state, source);
         let ab = resolved.activated_abilities.get(ability_index).ok_or_else(|| {
             GameStateError::InvalidCommand(format!(
                 "activated ability index {} not found (may have been removed by a continuous effect)",
@@ -306,9 +303,8 @@ pub fn handle_activate_ability(
     // Effect must be captured now in case sacrifice-as-cost removes the source object.
     // CR 613.1f: Use layer-resolved activated abilities (Humility removes them).
     let (ability_cost, embedded_effect, target_requirements, is_once_per_turn) = {
-        let obj = state.object(source)?;
-        let resolved = crate::rules::layers::calculate_characteristics(state, source)
-            .unwrap_or_else(|| obj.characteristics.clone());
+        state.object(source)?;
+        let resolved = crate::rules::layers::expect_characteristics(state, source);
         let ab = resolved
             .activated_abilities
             .get(ability_index)
@@ -502,8 +498,7 @@ pub fn handle_activate_ability(
         // use calculate_characteristics for the same reason. Without this, a granted
         // tap-cost activated ability on an animated non-creature would skip sickness
         // checks, and a granted haste on a summoning-sick creature would still be rejected.
-        let resolved_tap = crate::rules::layers::calculate_characteristics(state, source)
-            .unwrap_or_else(|| obj.characteristics.clone());
+        let resolved_tap = crate::rules::layers::expect_characteristics(state, source);
         let is_creature = resolved_tap
             .card_types
             .contains(&crate::state::types::CardType::Creature);
@@ -518,7 +513,7 @@ pub fn handle_activate_ability(
                 )));
             }
         }
-        if let Some(obj) = state.objects.get_mut(&source) {
+        if let Some(obj) = state.expect_object_mut(source) {
             obj.status.tapped = true;
         }
         events.push(GameEvent::PermanentTapped {
@@ -554,7 +549,7 @@ pub fn handle_activate_ability(
         // which cannot be distinguished from the card def alone.
         // Refactoring to a stable ability identifier is deferred until a card def collides
         // (see get_self_activated_reduction doc comment for details).
-        if let Some(card_id) = state.objects.get(&source).and_then(|o| o.card_id.clone()) {
+        if let Some(card_id) = state.expect_object(source).and_then(|o| o.card_id.clone()) {
             if let Some(card_def) = state.card_registry.get(card_id) {
                 let amount = get_self_activated_reduction(card_def, ability_index)
                     .map(|r| evaluate_self_activated_reduction(state, player, &r))
@@ -642,9 +637,7 @@ pub fn handle_activate_ability(
             // would fail to fire. unwrap_or_else fallback handles graveyard/exile objects
             // (LKI path) where calculate_characteristics may return None.
             let pre_chars_opt = crate::rules::layers::calculate_characteristics(state, source);
-            let resolved = pre_chars_opt
-                .clone()
-                .unwrap_or_else(|| obj.characteristics.clone());
+            let resolved = crate::rules::layers::expect_characteristics(state, source);
             // CR 603.10a: capture layer-resolved power for SourcePowerAtLastKnownInformation.
             let lki_power = resolved.power.or(obj.characteristics.power);
             (
@@ -695,8 +688,7 @@ pub fn handle_activate_ability(
     // Note: exile is NOT death (CR 700.4) — no CreatureDied event is emitted.
     if ability_cost.exile_self {
         let (pre_exile_controller, pre_exile_counters, exile_self_lki_power) = state
-            .objects
-            .get(&source)
+            .expect_object(source)
             .map(|o| {
                 let lki_power = crate::rules::layers::calculate_characteristics(state, source)
                     .and_then(|c| c.power)
@@ -726,7 +718,7 @@ pub fn handle_activate_ability(
                 "exert cost: source must be on the battlefield (CR 701.43c)".into(),
             ));
         }
-        if let Some(obj) = state.objects.get_mut(&source) {
+        if let Some(obj) = state.expect_object_mut(source) {
             obj.designations
                 .insert(crate::state::game_object::Designations::EXERTED);
         }
@@ -765,8 +757,7 @@ pub fn handle_activate_ability(
                 ));
             }
             // Validate the permanent matches the sacrifice filter using layer-resolved characteristics.
-            let chars = crate::rules::layers::calculate_characteristics(state, sac_id)
-                .unwrap_or_else(|| sac_obj.characteristics.clone());
+            let chars = crate::rules::layers::expect_characteristics(state, sac_id);
             let matches_filter = match filter {
                 crate::state::game_object::SacrificeFilter::Creature => chars
                     .card_types
@@ -831,9 +822,7 @@ pub fn handle_activate_ability(
             // it is sacrificed as a cost, so "whenever a creature dies" triggers fire.
             // unwrap_or_else fallback handles LKI path (object not on battlefield).
             let pre_chars_opt = crate::rules::layers::calculate_characteristics(state, sac_id);
-            let resolved = pre_chars_opt
-                .clone()
-                .unwrap_or_else(|| obj.characteristics.clone());
+            let resolved = crate::rules::layers::expect_characteristics(state, sac_id);
             // CR 608.2b: Capture LKI power BEFORE the zone move (CR 400.7 kills old id after).
             let lki_power = resolved.power.or(obj.characteristics.power);
             sacrificed_lki_powers.push(lki_power.unwrap_or(0));
@@ -894,8 +883,7 @@ pub fn handle_activate_ability(
                     && !crate::effects::object_cant_be_sacrificed(state, id)
                 {
                     // Use layer-resolved characteristics to respect continuous effects.
-                    let chars = crate::rules::layers::calculate_characteristics(state, id)
-                        .unwrap_or_else(|| obj.characteristics.clone());
+                    let chars = crate::rules::layers::expect_characteristics(state, id);
                     if chars.subtypes.contains(&food_subtype) {
                         Some(id)
                     } else {
@@ -932,8 +920,7 @@ pub fn handle_activate_ability(
             // Sacrifice a Food (deterministic: lowest ObjectId).
             let food_id = food_ids[0];
             let (owner, food_pre_lba) = state
-                .objects
-                .get(&food_id)
+                .expect_object(food_id)
                 .map(|o| (o.owner, o.counters.clone()))
                 .unwrap_or_else(|| (player, imbl::OrdMap::new()));
             // Food tokens are not creatures; no power LKI needed.
@@ -978,7 +965,7 @@ pub fn handle_activate_ability(
                 count, counter_type, current
             )));
         }
-        if let Some(obj) = state.objects.get_mut(&source) {
+        if let Some(obj) = state.expect_object_mut(source) {
             let new_count = current - count;
             if new_count == 0 {
                 obj.counters.remove(counter_type);
@@ -1011,8 +998,7 @@ pub fn handle_activate_ability(
                     .ok_or(GameStateError::ObjectNotFound(*id))?;
                 // CR 702.11a / CR 702.18a / CR 702.16b: Hexproof, shroud, and protection.
                 // CR 613.1f: Use layer-resolved keywords (Humility removes hexproof/shroud).
-                let target_chars = crate::rules::layers::calculate_characteristics(state, *id)
-                    .unwrap_or_else(|| obj.characteristics.clone());
+                let target_chars = crate::rules::layers::expect_characteristics(state, *id);
                 super::validate_target_protection(
                     &target_chars.keywords,
                     obj.controller,
@@ -1052,7 +1038,7 @@ pub fn handle_activate_ability(
                 zone_at_cast: None,
             },
             Target::Object(id) => {
-                let zone = state.objects.get(id).map(|o| o.zone);
+                let zone = state.expect_object(*id).map(|o| o.zone);
                 SpellTarget {
                     target: Target::Object(*id),
                     zone_at_cast: zone,
@@ -1094,7 +1080,7 @@ pub fn handle_activate_ability(
     state.stack_objects.push_back(stack_obj);
     // CR 602.5b: Track once-per-turn activation for abilities with the restriction.
     if is_once_per_turn {
-        if let Some(obj) = state.objects.get_mut(&source) {
+        if let Some(obj) = state.expect_object_mut(source) {
             obj.abilities_activated_this_turn = obj.abilities_activated_this_turn.saturating_add(1);
         }
     }
@@ -1675,7 +1661,7 @@ pub fn handle_activate_bloodrush(
     );
     stack_obj.targets = vec![SpellTarget {
         target: Target::Object(target),
-        zone_at_cast: state.objects.get(&target).map(|o| o.zone),
+        zone_at_cast: state.expect_object(target).map(|o| o.zone),
     }];
     state.stack_objects.push_back(stack_obj);
     // 9. Reset priority (CR 602.2e): active player gets priority.
@@ -2014,8 +2000,7 @@ pub fn handle_ninjutsu(
     //     NOT the controller's hand -- in multiplayer theft, the attacker goes
     //     to the original owner's hand.
     let (attacker_owner, ninja_pre_lba, ninja_lki_power) = state
-        .objects
-        .get(&attacker_to_return)
+        .expect_object(attacker_to_return)
         .map(|o| {
             let lki_power =
                 crate::rules::layers::calculate_characteristics(state, attacker_to_return)
@@ -2651,7 +2636,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // sacrifices it." This goes on the stack as a separate triggered ability,
                 // allowing the controller to order it relative to other ETB triggers
                 // (e.g., Mulldrifter can resolve draw before sacrifice).
-                if let Some(obj) = state.objects.get(object_id) {
+                // CR 113.7a: the entering object may have left this event batch; use LKI.
+                if let Some(obj) = state.lki_object(*object_id) {
                     if obj.cast_alt_cost == Some(crate::state::types::AltCostKind::Evoke) {
                         let evoke_trigger = PendingTrigger {
                             triggering_event: Some(TriggerEvent::SelfEntersBattlefield),
@@ -2668,7 +2654,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // CR 702.110a: If the permanent has Exploit, generate the exploit trigger.
                 // "When this creature enters, you may sacrifice a creature."
                 // Each instance of Exploit in the card definition triggers separately.
-                if let Some(obj) = state.objects.get(object_id) {
+                // CR 113.7a: the entering object may have left this event batch; use LKI.
+                if let Some(obj) = state.lki_object(*object_id) {
                     if obj
                         .characteristics
                         .keywords
@@ -2716,7 +2703,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // Each Hideaway(N) keyword on the permanent generates one trigger.
                 // Multiple instances trigger separately (CR 603.2: each keyword instance
                 // is a separate triggered ability).
-                if let Some(obj) = state.objects.get(object_id) {
+                // CR 113.7a: the entering object may have left this event batch; use LKI.
+                if let Some(obj) = state.lki_object(*object_id) {
                     let controller = obj.controller;
                     let hideaway_keywords: Vec<u32> = obj
                         .characteristics
@@ -2753,7 +2741,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // controller (the player most likely to have the partner in their
                 // library in a Commander game).
                 {
-                    if let Some(obj) = state.objects.get(object_id) {
+                    // CR 113.7a: the entering object may have left this event batch; use LKI.
+                    if let Some(obj) = state.lki_object(*object_id) {
                         let controller = obj.controller;
                         let partner_with_names: Vec<String> = obj
                             .characteristics
@@ -2793,7 +2782,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // CR 702.165c: Only printed abilities (from card definition), not gained ones.
                 // CR 702.165a: Only abilities printed BELOW the Backup entry in the definition.
                 {
-                    if let Some(obj) = state.objects.get(object_id) {
+                    // CR 113.7a: the entering object may have left this event batch; use LKI.
+                    if let Some(obj) = state.lki_object(*object_id) {
                         let controller = obj.controller;
                         let card_id = obj.card_id.clone();
                         if let Some(cid) = card_id {
@@ -2842,7 +2832,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // "When this permanent enters, sacrifice it unless you exile
                 // another [object] you control."
                 {
-                    if let Some(obj) = state.objects.get(object_id) {
+                    // CR 113.7a: the entering object may have left this event batch; use LKI.
+                    if let Some(obj) = state.lki_object(*object_id) {
                         if obj
                             .characteristics
                             .keywords
@@ -2889,7 +2880,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // CR 603.4: Intervening-if — "you control another unpaired creature" is
                 // checked at trigger time AND at resolution.
                 {
-                    let entering_controller = state.objects.get(object_id).map(|o| o.controller);
+                    // CR 113.7a: the entering object may have left this event batch; use LKI.
+                    let entering_controller = state.lki_object(*object_id).map(|o| o.controller);
                     let entering_is_creature =
                         crate::rules::layers::calculate_characteristics(state, *object_id)
                             .or_else(|| {
@@ -2927,10 +2919,9 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             && obj.controller == controller
                                             && obj.id != *object_id
                                             && obj.paired_with.is_none()
-                                            && crate::rules::layers::calculate_characteristics(
+                                            && crate::rules::layers::expect_characteristics(
                                                 state, obj.id,
                                             )
-                                            .unwrap_or_else(|| obj.characteristics.clone())
                                             .card_types
                                             .contains(&CardType::Creature)
                                     })
@@ -2974,10 +2965,9 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             // CR 613.1d/613.1f: Use layer-resolved types and
                                             // keywords for Soulbond pairing candidates.
                                             && {
-                                                let chars = crate::rules::layers::calculate_characteristics(
+                                                let chars = crate::rules::layers::expect_characteristics(
                                                     state, obj.id,
-                                                )
-                                                .unwrap_or_else(|| obj.characteristics.clone());
+                                                );
                                                 chars.card_types.contains(&CardType::Creature)
                                                     && chars.keywords.contains(&KeywordAbility::Soulbond)
                                             }
@@ -3034,7 +3024,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             .unwrap_or(false);
                     if entering_is_creature {
                         let entering_controller =
-                            state.objects.get(object_id).map(|o| o.controller);
+                            // CR 113.7a: the entering object may have left this event batch; use LKI.
+                            state.lki_object(*object_id).map(|o| o.controller);
                         if let Some(controller) = entering_controller {
                             // Get the entering creature's P/T (layer-aware).
                             let entering_chars =
@@ -3088,16 +3079,14 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     || entering_toughness > evolve_toughness
                                 {
                                     let evolve_controller = state
-                                        .objects
-                                        .get(&evolve_id)
+                                        .expect_object(evolve_id)
                                         .map(|o| o.controller)
                                         .unwrap_or(controller);
                                     // CR 702.100d: Count evolve instances from card
                                     // definition — OrdSet deduplicates, so check the
                                     // card definition for the exact count.
                                     let evolve_count = state
-                                        .objects
-                                        .get(&evolve_id)
+                                        .expect_object(evolve_id)
                                         .and_then(|obj| obj.card_id.as_ref())
                                         .and_then(|cid| state.card_registry.get(cid.clone()))
                                         .map(|def| {
@@ -3177,8 +3166,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             })
                             .filter_map(|(id, obj)| {
                                 let chars =
-                                    crate::rules::layers::calculate_characteristics(state, *id)
-                                        .unwrap_or_else(|| obj.characteristics.clone());
+                                    crate::rules::layers::expect_characteristics(state, *id);
                                 let graft_count = chars
                                     .keywords
                                     .iter()
@@ -3413,7 +3401,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // G-15: WhenYouCastThisSpell — fires when the spell itself is put on the stack.
                 // The trigger source is the stack object (source_object_id).
                 // Look up the spell's CardDef for WhenYouCastThisSpell triggered abilities.
-                if let Some(stack_obj) = state.objects.get(source_object_id) {
+                // CR 113.7a: the cast spell may have left the stack this batch; use LKI.
+                if let Some(stack_obj) = state.lki_object(*source_object_id) {
                     let caster = stack_obj.controller;
                     if let Some(card_id) = stack_obj.card_id.clone() {
                         if let Some(def) = state.card_registry.get(card_id) {
@@ -3547,7 +3536,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     // `PendingTriggerKind::Myriad` so flush_pending_triggers creates a
                     // KeywordTrigger (Myriad) stack object (not a plain TriggeredAbility).
                     for t in &mut triggers[pre_len..] {
-                        if let Some(obj) = state.objects.get(&t.source) {
+                        // CR 113.7a: the trigger source may have left this batch; use LKI.
+                        if let Some(obj) = state.lki_object(t.source) {
                             if let Some(ta) =
                                 obj.characteristics.triggered_abilities.get(t.ability_index)
                             {
@@ -3569,7 +3559,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     // successive triggers from the same attacker pick different creatures.
                     let mut provoke_targets_used: Vec<ObjectId> = Vec::new();
                     for t in &mut triggers[pre_len..] {
-                        if let Some(obj) = state.objects.get(&t.source) {
+                        // CR 113.7a: the trigger source may have left this batch; use LKI.
+                        if let Some(obj) = state.lki_object(t.source) {
                             if let Some(ta) =
                                 obj.characteristics.triggered_abilities.get(t.ability_index)
                             {
@@ -3612,7 +3603,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     // Rampage which needs an N value, Melee always gives +1/+1 per
                     // opponent attacked -- no parameter to carry.
                     for t in &mut triggers[pre_len..] {
-                        if let Some(obj) = state.objects.get(&t.source) {
+                        // CR 113.7a: the trigger source may have left this batch; use LKI.
+                        if let Some(obj) = state.lki_object(t.source) {
                             if let Some(ta) =
                                 obj.characteristics.triggered_abilities.get(t.ability_index)
                             {
@@ -3644,7 +3636,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         // Collect indices of Enlist placeholder triggers from this batch.
                         let mut enlist_trigger_indices: Vec<usize> = Vec::new();
                         for (i, t) in triggers[pre_len..].iter().enumerate() {
-                            if let Some(obj) = state.objects.get(&t.source) {
+                            // CR 113.7a: the trigger source may have left this batch; use LKI.
+                            if let Some(obj) = state.lki_object(t.source) {
                                 if let Some(ta) =
                                     obj.characteristics.triggered_abilities.get(t.ability_index)
                                 {
@@ -3690,7 +3683,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             .map(|c| c.exerted_attackers.contains(attacker_id))
                             .unwrap_or(false);
                         if was_exerted {
-                            if let Some(src_obj) = state.objects.get(attacker_id) {
+                            // CR 113.7a: the attacking source may have left this batch; use LKI.
+                            if let Some(src_obj) = state.lki_object(*attacker_id) {
                                 if src_obj.zone == ZoneId::Battlefield && src_obj.is_phased_in() {
                                     let controller = src_obj.controller;
                                     let source_id = src_obj.id;
@@ -3739,8 +3733,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     if let crate::state::combat::AttackTarget::Player(def_pid) = attack_target {
                         // Find the maximum life total among all active (non-eliminated) players.
                         let defending_life = state
-                            .players
-                            .get(def_pid)
+                            .expect_player(*def_pid)
                             .map(|p| p.life_total)
                             .unwrap_or(i32::MIN);
                         let max_life = state
@@ -3822,8 +3815,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         .unwrap_or(false);
                     if is_ring_bearer {
                         let ring_level = state
-                            .players
-                            .get(attacking_player)
+                            .expect_player(*attacking_player)
                             .map(|ps| ps.ring_level)
                             .unwrap_or(0);
                         if ring_level >= 2 {
@@ -3938,8 +3930,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     // CR 613.1f: Use layer-resolved keywords for Flanking checks
                     // (Humility removes Flanking; equipment/Auras can grant it).
                     let attacker_chars =
-                        crate::rules::layers::calculate_characteristics(state, *attacker_id)
-                            .unwrap_or_else(|| attacker_obj.characteristics.clone());
+                        crate::rules::layers::expect_characteristics(state, *attacker_id);
                     if !attacker_chars.keywords.contains(&KeywordAbility::Flanking) {
                         continue;
                     }
@@ -3947,9 +3938,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     let blocker_has_flanking = state
                         .objects
                         .get(blocker_id)
-                        .map(|b| {
-                            crate::rules::layers::calculate_characteristics(state, *blocker_id)
-                                .unwrap_or_else(|| b.characteristics.clone())
+                        .map(|_b| {
+                            crate::rules::layers::expect_characteristics(state, *blocker_id)
                                 .keywords
                                 .contains(&KeywordAbility::Flanking)
                         })
@@ -4015,7 +4005,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     // Each Rampage(n) keyword on the attacker generates a TriggeredAbilityDef
                     // with description starting "Rampage N (CR 702.23a):". We detect these
                     // and set the custom StackObjectKind by tagging the PendingTrigger.
-                    if let Some(obj) = state.objects.get(&attacker_id) {
+                    // CR 113.7a: the blocked attacker may have left this batch; use LKI.
+                    if let Some(obj) = state.lki_object(attacker_id) {
                         for t in &mut triggers[pre_len..] {
                             if let Some(ability_def) =
                                 obj.characteristics.triggered_abilities.get(t.ability_index)
@@ -4069,7 +4060,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // CR 702.21a: Ward triggers when this permanent becomes the target
                 // of a spell or ability an opponent controls. Only triggers if the
                 // targeting player is an opponent (not the permanent's controller).
-                if let Some(obj) = state.objects.get(target_id) {
+                // CR 113.7a: the targeted permanent may have left this batch; use LKI.
+                if let Some(obj) = state.lki_object(*target_id) {
                     if obj.zone == ZoneId::Battlefield
                         && obj.is_phased_in()
                         && obj.controller != *targeting_controller
@@ -4118,7 +4110,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // triggered_abilities) are preserved by move_object_to_zone. Check the graveyard
                 // object for SelfDies triggers rather than trying to find the battlefield object
                 // (which no longer exists at trigger-check time).
-                if let Some(obj) = state.objects.get(new_grave_id) {
+                // CR 603.10a: the dies trigger reads the graveyard object (LKI); it may already be gone.
+                if let Some(obj) = state.lki_object(*new_grave_id) {
                     for (idx, trigger_def) in
                         obj.characteristics.triggered_abilities.iter().enumerate()
                     {
@@ -4178,7 +4171,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 }
                 // CR 603.10a: SelfLeavesBattlefield — fires on the dead creature (LKI).
                 // Check graveyard object for WhenLeavesBattlefield triggers.
-                if let Some(dead_obj) = state.objects.get(new_grave_id) {
+                // CR 603.10a: leaves-battlefield trigger reads the graveyard object (LKI); it may already be gone.
+                if let Some(dead_obj) = state.lki_object(*new_grave_id) {
                     let controller = *death_controller;
                     for (idx, trigger_def) in dead_obj
                         .characteristics
@@ -4219,7 +4213,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // graveyard").
                 //
                 // Identify the owner's graveyard by looking at the new_grave_id object.
-                if let Some(dead_obj) = state.objects.get(new_grave_id) {
+                // CR 603.10a: Recover reads the graveyard object (LKI); it may already be gone.
+                if let Some(dead_obj) = state.lki_object(*new_grave_id) {
                     let owner_gy = crate::state::zone::ZoneId::Graveyard(dead_obj.owner);
                     // Collect Recover cards in the owner's graveyard.
                     // Use a snapshot to avoid borrow conflicts during iteration.
@@ -4265,7 +4260,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 //
                 // CR 603.10a: LTB triggers look back in time -- champion_exiled_card is
                 // preserved in move_object_to_zone so we can read it from the graveyard object.
-                if let Some(dead_obj) = state.objects.get(new_grave_id) {
+                // CR 603.10a: LKI read; the graveyard object may already be gone.
+                if let Some(dead_obj) = state.lki_object(*new_grave_id) {
                     if let Some(exiled_id) = dead_obj.champion_exiled_card {
                         let champion_controller = *death_controller;
                         triggers.push(PendingTrigger {
@@ -4284,7 +4280,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // CR 702.55b: When a creature with Haunt dies, exile the dying creature
                 // haunting another target creature.
                 // Look back in time via new_grave_id to check if the dead creature had Haunt.
-                if let Some(dead_obj) = state.objects.get(new_grave_id) {
+                // CR 603.10a: Haunt reads the graveyard object (LKI); it may already be gone.
+                if let Some(dead_obj) = state.lki_object(*new_grave_id) {
                     if dead_obj
                         .characteristics
                         .keywords
@@ -4373,12 +4370,11 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         .map(|obj| obj.id)
                         .collect();
                     for obj_id in candidate_ids {
-                        let Some(obj) = state.objects.get(&obj_id) else {
+                        let Some(obj) = state.expect_object(obj_id) else {
                             continue;
                         };
                         let resolved_chars =
-                            crate::rules::layers::calculate_characteristics(state, obj_id)
-                                .unwrap_or_else(|| obj.characteristics.clone());
+                            crate::rules::layers::expect_characteristics(state, obj_id);
                         for (idx, trigger_def) in
                             resolved_chars.triggered_abilities.iter().enumerate()
                         {
@@ -4469,7 +4465,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // The Aura's characteristics (including triggered_abilities) are preserved in
                 // the graveyard object by move_object_to_zone — same look-back pattern as
                 // CreatureDied. Controller defaults to owner (as reset by move_object_to_zone).
-                if let Some(obj) = state.objects.get(new_grave_id) {
+                // CR 603.10a: Aura LTB reads the graveyard object (LKI); it may already be gone.
+                if let Some(obj) = state.lki_object(*new_grave_id) {
                     let controller = obj.controller;
                     for (idx, trigger_def) in
                         obj.characteristics.triggered_abilities.iter().enumerate()
@@ -4569,7 +4566,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // line 1518 and would skip off-battlefield objects. To comply with CR
                 // 701.50b, we bypass the helper and generate the trigger inline,
                 // accepting the object in ANY zone.
-                if let Some(obj) = state.objects.get(object_id) {
+                // CR 701.50b / CR 113.7a: the connive source may have left any zone; use LKI.
+                if let Some(obj) = state.lki_object(*object_id) {
                     for (idx, trigger_def) in
                         obj.characteristics.triggered_abilities.iter().enumerate()
                     {
@@ -4630,7 +4628,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         // The PendingTriggerKind::Normal path looks them up at resolution via
                         // the card registry fallback (resolution.rs line ~1862).
                         if let CombatDamageTarget::Player(damaged_pid) = &assignment.target {
-                            if let Some(src_obj) = state.objects.get(&assignment.source) {
+                            // CR 113.7a: the damage source may have left the battlefield; use LKI.
+                            if let Some(src_obj) = state.lki_object(assignment.source) {
                                 if src_obj.zone == ZoneId::Battlefield && src_obj.is_phased_in() {
                                     let controller = src_obj.controller;
                                     let source_id = src_obj.id;
@@ -4676,7 +4675,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         // damage to a player, that player exiles the top card of
                         // their library."
                         // CR 702.115b: Multiple instances trigger separately.
-                        if let Some(obj) = state.objects.get(&assignment.source) {
+                        // CR 113.7a: the damage source may have left the battlefield; use LKI.
+                        if let Some(obj) = state.lki_object(assignment.source) {
                             if obj.zone == ZoneId::Battlefield
                                 && obj.is_phased_in()
                                 && obj
@@ -4737,7 +4737,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         // CR 702.112c: Multiple instances trigger separately.
                         // CR 603.4: Intervening-if -- checked here at trigger time
                         // (is_renowned must be false) and again at resolution time.
-                        if let Some(obj) = state.objects.get(&assignment.source) {
+                        // CR 113.7a: the damage source may have left the battlefield; use LKI.
+                        if let Some(obj) = state.lki_object(assignment.source) {
                             if obj.zone == ZoneId::Battlefield
                                 && obj.is_phased_in()
                                 && !obj
@@ -4793,7 +4794,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         // CR 702.70a: Poisonous N -- "Whenever this creature deals combat
                         // damage to a player, that player gets N poison counters."
                         // CR 702.70b: Multiple instances trigger separately.
-                        if let Some(obj) = state.objects.get(&assignment.source) {
+                        // CR 113.7a: the damage source may have left the battlefield; use LKI.
+                        if let Some(obj) = state.lki_object(assignment.source) {
                             if obj.zone == ZoneId::Battlefield && obj.is_phased_in() {
                                 // Already guaranteed by the outer `if matches!(..., Player(_))`
                                 // guard -- use `let...else` for safety.
@@ -4856,7 +4858,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         // CR 702.99c: If the encoded card left exile, the trigger still goes on
                         // the stack but does nothing at resolution (checked in resolution.rs).
                         if assignment.amount > 0 {
-                            if let Some(obj) = state.objects.get(&assignment.source) {
+                            // CR 113.7a: the damage source may have left the battlefield; use LKI.
+                            if let Some(obj) = state.lki_object(assignment.source) {
                                 if obj.zone == ZoneId::Battlefield && obj.is_phased_in() {
                                     let CombatDamageTarget::Player(_damaged_player) =
                                         &assignment.target
@@ -4969,7 +4972,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         let CombatDamageTarget::Player(damaged_pid) = &assignment.target else {
                             continue;
                         };
-                        if let Some(obj) = state.objects.get(&assignment.source) {
+                        // CR 113.7a: the damage source may have left the battlefield; use LKI.
+                        if let Some(obj) = state.lki_object(assignment.source) {
                             if obj.zone == ZoneId::Battlefield && obj.is_phased_in() {
                                 *damaged_by_ctrl
                                     .entry((obj.controller, *damaged_pid))
@@ -4989,13 +4993,12 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             .map(|o| o.id)
                             .collect();
                         for obj_id in all_bf {
-                            let obj = match state.objects.get(&obj_id) {
+                            let obj = match state.expect_object(obj_id) {
                                 Some(o) if o.controller == *controller => o,
                                 _ => continue,
                             };
                             let resolved_chars =
-                                crate::rules::layers::calculate_characteristics(state, obj_id)
-                                    .unwrap_or_else(|| obj.characteristics.clone());
+                                crate::rules::layers::expect_characteristics(state, obj_id);
                             for (idx, trigger_def) in
                                 resolved_chars.triggered_abilities.iter().enumerate()
                             {
@@ -5040,10 +5043,9 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             return false;
                                         }
                                         let dealing_chars =
-                                            crate::rules::layers::calculate_characteristics(
+                                            crate::rules::layers::expect_characteristics(
                                                 state, a.source,
-                                            )
-                                            .unwrap_or_else(|| dealing_obj.characteristics.clone());
+                                            );
                                         crate::effects::matches_filter(&dealing_chars, filter)
                                     });
                                     if !any_matches {
@@ -5093,9 +5095,9 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         continue;
                     }
                     // Collect attachment IDs (Equipment + Auras on this creature).
+                    // Source presence guaranteed by the creature_on_bf guard above.
                     let attachments: Vec<ObjectId> = state
-                        .objects
-                        .get(&assignment.source)
+                        .expect_object(assignment.source)
                         .map(|o| o.attachments.iter().copied().collect())
                         .unwrap_or_default();
                     for attachment_id in attachments {
@@ -5190,8 +5192,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     .contains(crate::state::game_object::Designations::RING_BEARER);
                                 let ctrl = o.controller;
                                 let lvl = state
-                                    .players
-                                    .get(&ctrl)
+                                    .expect_player(ctrl)
                                     .map(|ps| ps.ring_level)
                                     .unwrap_or(0);
                                 (bearer, lvl, ctrl)
@@ -5239,7 +5240,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 pre_lba_power: destroyed_lki_power,
                 ..
             } => {
-                if let Some(dead_obj) = state.objects.get(new_grave_id) {
+                // CR 603.10a: LKI read of the graveyard object; it may already be gone.
+                if let Some(dead_obj) = state.lki_object(*new_grave_id) {
                     if let Some(exiled_id) = dead_obj.champion_exiled_card {
                         let champion_controller = dead_obj.controller;
                         triggers.push(PendingTrigger {
@@ -5255,7 +5257,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     }
                 }
                 // CR 603.10a: SelfLeavesBattlefield LTB trigger (look-back via graveyard object).
-                if let Some(dead_obj) = state.objects.get(new_grave_id) {
+                // CR 603.10a: LKI read of the graveyard object; it may already be gone.
+                if let Some(dead_obj) = state.lki_object(*new_grave_id) {
                     let controller = dead_obj.controller;
                     for (idx, trigger_def) in dead_obj
                         .characteristics
@@ -5295,7 +5298,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 pre_lba_power: exiled_lki_power,
                 ..
             } => {
-                if let Some(exiled_obj) = state.objects.get(new_exile_id) {
+                // CR 603.10a: LKI read of the exiled object; it may already be gone.
+                if let Some(exiled_obj) = state.lki_object(*new_exile_id) {
                     if let Some(exiled_card_id) = exiled_obj.champion_exiled_card {
                         let champion_controller = exiled_obj.controller;
                         triggers.push(PendingTrigger {
@@ -5311,7 +5315,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     }
                 }
                 // CR 603.10a: SelfLeavesBattlefield LTB trigger on exile (look-back via exile object).
-                if let Some(exiled_obj) = state.objects.get(new_exile_id) {
+                // CR 603.10a: LKI read of the exiled object; it may already be gone.
+                if let Some(exiled_obj) = state.lki_object(*new_exile_id) {
                     let controller = exiled_obj.controller;
                     for (idx, trigger_def) in exiled_obj
                         .characteristics
@@ -5351,7 +5356,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 pre_lba_power: bounced_lki_power,
                 ..
             } => {
-                if let Some(hand_obj) = state.objects.get(new_hand_id) {
+                // CR 603.10a: LKI read of the hand object; it may already be gone.
+                if let Some(hand_obj) = state.lki_object(*new_hand_id) {
                     if let Some(exiled_id) = hand_obj.champion_exiled_card {
                         let champion_controller = hand_obj.controller;
                         triggers.push(PendingTrigger {
@@ -5367,7 +5373,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     }
                 }
                 // CR 603.10a: SelfLeavesBattlefield LTB trigger on bounce (look-back via hand object).
-                if let Some(hand_obj) = state.objects.get(new_hand_id) {
+                // CR 603.10a: LKI read of the hand object; it may already be gone.
+                if let Some(hand_obj) = state.lki_object(*new_hand_id) {
                     let controller = hand_obj.controller;
                     for (idx, trigger_def) in hand_obj
                         .characteristics
@@ -5487,7 +5494,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     .map(|obj| obj.id)
                     .collect();
                 for obj_id in obj_ids {
-                    let card_id = state.objects.get(&obj_id).and_then(|o| o.card_id.clone());
+                    let card_id = state.expect_object(obj_id).and_then(|o| o.card_id.clone());
                     let Some(cid) = card_id else { continue };
                     let Some(def) = state.card_registry.get(cid) else {
                         continue;
@@ -5790,7 +5797,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 }
                 // SelfLeavesBattlefield: fire on the sacrificed object (LKI in graveyard/exile).
                 // CR 603.10a: look-back trigger — check graveyard/exile object.
-                if let Some(gone_obj) = state.objects.get(new_id) {
+                // CR 603.10a: LKI read of the sacrificed object in its new zone; it may already be gone.
+                if let Some(gone_obj) = state.lki_object(*new_id) {
                     let controller = gone_obj.controller;
                     for (idx, trigger_def) in gone_obj
                         .characteristics
@@ -5944,8 +5952,7 @@ fn collect_permanent_becomes_target_triggers(
         .values()
         .filter(|o| o.zone == ZoneId::Battlefield && o.is_phased_in())
     {
-        let resolved_chars = crate::rules::layers::calculate_characteristics(state, src.id)
-            .unwrap_or_else(|| src.characteristics.clone());
+        let resolved_chars = crate::rules::layers::expect_characteristics(state, src.id);
         for (idx, trigger_def) in resolved_chars.triggered_abilities.iter().enumerate() {
             let TriggerEvent::PermanentBecomesTarget {
                 scope,
@@ -5974,12 +5981,12 @@ fn collect_permanent_becomes_target_triggers(
                     if target_controller != Some(src.controller) {
                         continue;
                     }
-                    let Some(target_obj) = state.objects.get(&target_id) else {
+                    // CR 608.2b: target may have left before the trigger check; fizzle the scope gate.
+                    let Some(_target_obj) = state.objects.get(&target_id) else {
                         continue;
                     };
                     let target_chars =
-                        crate::rules::layers::calculate_characteristics(state, target_id)
-                            .unwrap_or_else(|| target_obj.characteristics.clone());
+                        crate::rules::layers::expect_characteristics(state, target_id);
                     if !crate::effects::matches_filter(&target_chars, filter) {
                         continue;
                     }
@@ -6046,8 +6053,7 @@ fn collect_triggers_for_event(
         }
         // CR 613.1f (Layer 6): Use layer-resolved triggered abilities so that
         // ability-removing effects (Humility, Dress Down) suppress triggers.
-        let resolved_chars = crate::rules::layers::calculate_characteristics(state, obj_id)
-            .unwrap_or_else(|| obj.characteristics.clone());
+        let resolved_chars = crate::rules::layers::expect_characteristics(state, obj_id);
         for (idx, trigger_def) in resolved_chars.triggered_abilities.iter().enumerate() {
             if trigger_def.trigger_on != event_type {
                 continue;
@@ -6079,12 +6085,10 @@ fn collect_triggers_for_event(
                             == TriggerEvent::AnyCreatureYouControlDealsCombatDamageToPlayer
                         {
                             if let Some(ref filter) = trigger_def.combat_damage_filter {
-                                let dealing_chars =
-                                    crate::rules::layers::calculate_characteristics(
-                                        state,
-                                        attacking_id,
-                                    )
-                                    .unwrap_or_else(|| attacking_obj.characteristics.clone());
+                                let dealing_chars = crate::rules::layers::expect_characteristics(
+                                    state,
+                                    attacking_id,
+                                );
                                 // is_token check: uses the object's is_token field directly.
                                 if filter.is_token && !attacking_obj.is_token {
                                     continue;
@@ -6099,11 +6103,8 @@ fn collect_triggers_for_event(
                         // attacking creature. Applies to BOTH attack and damage events (author's
                         // choice per trigger def). CR 508.1m / CR 603.2.
                         if let Some(ref creature_filter) = trigger_def.triggering_creature_filter {
-                            let attacking_chars = crate::rules::layers::calculate_characteristics(
-                                state,
-                                attacking_id,
-                            )
-                            .unwrap_or_else(|| attacking_obj.characteristics.clone());
+                            let attacking_chars =
+                                crate::rules::layers::expect_characteristics(state, attacking_id);
                             // is_token check: runtime field on GameObject.
                             if creature_filter.is_token && !attacking_obj.is_token {
                                 continue;
@@ -6150,8 +6151,7 @@ fn collect_triggers_for_event(
                         TargetController::DamagedPlayer => {}
                     }
                     let untapped_chars =
-                        crate::rules::layers::calculate_characteristics(state, untapped_id)
-                            .unwrap_or_else(|| untapped_obj.characteristics.clone());
+                        crate::rules::layers::expect_characteristics(state, untapped_id);
                     if !crate::effects::matches_filter(&untapped_chars, filter) {
                         continue;
                     }
@@ -6190,8 +6190,7 @@ fn collect_triggers_for_event(
                         TargetController::DamagedPlayer => {}
                     }
                     let receiving_chars =
-                        crate::rules::layers::calculate_characteristics(state, receiving_id)
-                            .unwrap_or_else(|| receiving_obj.characteristics.clone());
+                        crate::rules::layers::expect_characteristics(state, receiving_id);
                     if !crate::effects::matches_filter(&receiving_chars, filter) {
                         continue;
                     }
@@ -6211,8 +6210,7 @@ fn collect_triggers_for_event(
                         // CR 613.1d (Layer 4): Use layer-resolved card types so
                         // animated permanents are recognized as creatures.
                         let entering_chars =
-                            crate::rules::layers::calculate_characteristics(state, entering_id)
-                                .unwrap_or_else(|| entering_obj.characteristics.clone());
+                            crate::rules::layers::expect_characteristics(state, entering_id);
                         // creature_only: entering permanent must be a creature.
                         if etb_filter.creature_only
                             && !entering_chars.card_types.contains(&CardType::Creature)
@@ -6327,7 +6325,7 @@ pub(crate) fn collect_emblem_triggers_for_event(
         .map(|obj| obj.id)
         .collect();
     for obj_id in emblem_ids {
-        let Some(obj) = state.objects.get(&obj_id) else {
+        let Some(obj) = state.expect_object(obj_id) else {
             continue;
         };
         // If a caster filter is given, only fire triggers for that player's emblems.
@@ -6426,11 +6424,8 @@ fn collect_graveyard_carddef_triggers(
                         if *exclude_self && *entering_id == obj_id {
                             false
                         } else if let Some(entering_obj) = state.objects.get(entering_id) {
-                            let entering_chars = crate::rules::layers::calculate_characteristics(
-                                state,
-                                *entering_id,
-                            )
-                            .unwrap_or_else(|| entering_obj.characteristics.clone());
+                            let entering_chars =
+                                crate::rules::layers::expect_characteristics(state, *entering_id);
                             if let Some(f) = filter {
                                 crate::effects::matches_filter(&entering_chars, f)
                                     // "you control" filter: the entering land's controller
@@ -6701,7 +6696,6 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 let mut all_satisfied = true;
                 for req in &ability_targets {
                     use crate::cards::card_definition::TargetRequirement;
-                    use crate::rules::layers::calculate_characteristics;
                     use crate::state::types::CardType as CT;
                     let candidate: Option<SpellTarget> = match req {
                         // Player-targeting requirements: pick the first active opponent,
@@ -6718,16 +6712,14 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                                 .find(|&&p| {
                                     p != trigger.controller
                                         && state
-                                            .players
-                                            .get(&p)
+                                            .expect_player(p)
                                             .map(|pl| !pl.has_lost && !pl.has_conceded)
                                             .unwrap_or(false)
                                 })
                                 .copied()
                                 .or_else(|| {
                                     state
-                                        .players
-                                        .get(&trigger.controller)
+                                        .expect_player(trigger.controller)
                                         .filter(|pl| !pl.has_lost && !pl.has_conceded)
                                         .map(|_| trigger.controller)
                                 });
@@ -6827,16 +6819,14 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                                         .find(|&&p| {
                                             p != trigger.controller
                                                 && state
-                                                    .players
-                                                    .get(&p)
+                                                    .expect_player(p)
                                                     .map(|pl| !pl.has_lost && !pl.has_conceded)
                                                     .unwrap_or(false)
                                         })
                                         .copied()
                                         .or_else(|| {
                                             state
-                                                .players
-                                                .get(&trigger.controller)
+                                                .expect_player(trigger.controller)
                                                 .filter(|pl| !pl.has_lost && !pl.has_conceded)
                                                 .map(|_| trigger.controller)
                                         });
@@ -6862,8 +6852,8 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                                         }
                                         // CR 613.1f: Use layer-resolved keywords for
                                         // hexproof/shroud/protection (Humility removes them).
-                                        let chars = calculate_characteristics(state, obj.id)
-                                            .unwrap_or_else(|| obj.characteristics.clone());
+                                        let chars =
+                                            crate::rules::layers::expect_characteristics(state, obj.id);
                                         // Check protection/hexproof/shroud (CR 603.3d).
                                         if super::validate_target_protection(
                                             &chars.keywords,
@@ -7167,8 +7157,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         .find(|(id, obj)| {
                             obj.zone == ZoneId::Battlefield && obj.is_phased_in() && {
                                 let chars =
-                                    crate::rules::layers::calculate_characteristics(state, **id)
-                                        .unwrap_or_else(|| obj.characteristics.clone());
+                                    crate::rules::layers::expect_characteristics(state, **id);
                                 chars.card_types.contains(&CardType::Artifact)
                                     && chars.card_types.contains(&CardType::Creature)
                             }
@@ -7826,7 +7815,8 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
         // it has been put on the stack (exactly once, per the additional_count == 0
         // override above).
         if once_per_turn_flag {
-            if let Some(obj) = state.objects.get_mut(&trigger.source) {
+            // CR 113.7a: the trigger source may have left before its trigger flushed; use LKI.
+            if let Some(obj) = state.lki_object_mut(trigger.source) {
                 obj.triggered_abilities_fired_this_turn
                     .insert(trigger.ability_index);
             }
@@ -8160,7 +8150,7 @@ pub fn handle_crew_vehicle(
     // Pay the cost: tap all crew creatures (CR 602.2b analog for crew cost).
     let mut events = Vec::new();
     for &id in &crew_creatures {
-        if let Some(obj) = state.objects.get_mut(&id) {
+        if let Some(obj) = state.expect_object_mut(id) {
             obj.status.tapped = true;
         }
         events.push(GameEvent::PermanentTapped {
@@ -8383,7 +8373,7 @@ pub fn handle_saddle_mount(
     // Pay the cost: tap all saddling creatures (CR 602.2b analog for saddle cost).
     let mut events = Vec::new();
     for &id in &saddle_creatures {
-        if let Some(obj) = state.objects.get_mut(&id) {
+        if let Some(obj) = state.expect_object_mut(id) {
             obj.status.tapped = true;
         }
         events.push(GameEvent::PermanentTapped {
@@ -8428,8 +8418,7 @@ pub fn check_intervening_if(
 ) -> bool {
     match cond {
         InterveningIf::ControllerLifeAtLeast(n) => state
-            .players
-            .get(&controller)
+            .expect_player(controller)
             .map(|p| p.life_total >= *n as i32)
             .unwrap_or(false),
         // CR 702.79a / CR 702.93a: "if it had no [counter type] counters on it"

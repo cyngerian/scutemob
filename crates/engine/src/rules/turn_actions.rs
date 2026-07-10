@@ -3,6 +3,7 @@ use super::abilities::collect_emblem_triggers_for_event;
 use super::events::{GameEvent, LossReason};
 use crate::cards::card_definition::{AbilityDefinition, TriggerCondition};
 use crate::state::combat::CombatState;
+use crate::state::diagnostics::debug_assert_object_live;
 use crate::state::error::GameStateError;
 use crate::state::game_object::{Designations, ObjectId, TriggerEvent};
 use crate::state::player::PlayerId;
@@ -383,13 +384,12 @@ fn precombat_main_actions(state: &mut GameState) -> Vec<GameEvent> {
         .collect();
     for (saga_id, card_id) in sagas {
         let old_count = state
-            .objects
-            .get(&saga_id)
+            .expect_object(saga_id)
             .and_then(|o| o.counters.get(&CounterType::Lore).copied())
             .unwrap_or(0);
         let new_count = old_count + 1;
         // Add the lore counter.
-        if let Some(obj) = state.objects.get_mut(&saga_id) {
+        if let Some(obj) = state.expect_object_mut(saga_id) {
             obj.counters.insert(CounterType::Lore, new_count);
         }
         events.push(GameEvent::CounterAdded {
@@ -827,7 +827,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             .collect();
         for (token_id, controller) in sacrifice_tokens {
             // CR 603.7b: clear flag so trigger fires only once, even if countered.
-            if let Some(obj) = state.objects.get_mut(&token_id) {
+            if let Some(obj) = state.expect_object_mut(token_id) {
                 obj.sacrifice_at_end_step = false;
             }
             state
@@ -859,7 +859,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             .collect();
         for (token_id, controller) in exile_tokens {
             // CR 603.7b: clear flag so trigger fires only once, even if countered.
-            if let Some(obj) = state.objects.get_mut(&token_id) {
+            if let Some(obj) = state.expect_object_mut(token_id) {
                 obj.exile_at_end_step = false;
             }
             state
@@ -894,7 +894,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             .collect();
         for (obj_id, owner) in return_objects {
             // Clear the flag (zone change clears it too, but be explicit).
-            if let Some(obj) = state.objects.get_mut(&obj_id) {
+            if let Some(obj) = state.expect_object_mut(obj_id) {
                 obj.return_to_hand_at_end_step = false;
             }
             state
@@ -964,9 +964,9 @@ pub fn untap_active_player_permanents(state: &mut GameState) -> Vec<GameEvent> {
         .collect::<Vec<_>>()
         .into_iter()
         .filter(|id| {
-            super::layers::calculate_characteristics(state, *id)
-                .map(|chars| chars.keywords.contains(&KeywordAbility::Phasing))
-                .unwrap_or(false)
+            super::layers::expect_characteristics(state, *id)
+                .keywords
+                .contains(&KeywordAbility::Phasing)
         })
         .collect();
     // Step 3: Apply phase-IN mutations (using the snapshot taken above).
@@ -989,7 +989,7 @@ pub fn untap_active_player_permanents(state: &mut GameState) -> Vec<GameEvent> {
                 .map(|(id, _)| *id)
                 .collect();
             for indirect_id in &indirect_ids {
-                if let Some(obj) = state.objects.get_mut(indirect_id) {
+                if let Some(obj) = state.expect_object_mut(*indirect_id) {
                     obj.status.phased_out = false;
                     obj.phased_out_indirectly = false;
                     obj.phased_out_controller = None;
@@ -997,7 +997,7 @@ pub fn untap_active_player_permanents(state: &mut GameState) -> Vec<GameEvent> {
                 all_phased_in.push(*indirect_id);
             }
             // Phase in the host itself.
-            if let Some(obj) = state.objects.get_mut(host_id) {
+            if let Some(obj) = state.expect_object_mut(*host_id) {
                 obj.status.phased_out = false;
                 obj.phased_out_controller = None;
             }
@@ -1016,8 +1016,7 @@ pub fn untap_active_player_permanents(state: &mut GameState) -> Vec<GameEvent> {
         let mut fi = Vec::new();
         for host_id in &phase_out_direct {
             let attachments: Vec<ObjectId> = state
-                .objects
-                .get(host_id)
+                .expect_object(*host_id)
                 .map(|obj| obj.attachments.iter().copied().collect::<Vec<_>>())
                 .unwrap_or_default();
             for att_id in &attachments {
@@ -1040,12 +1039,11 @@ pub fn untap_active_player_permanents(state: &mut GameState) -> Vec<GameEvent> {
             }
             // CR 702.26g: Phase out attached Auras/Equipment/Fortifications indirectly.
             let attachments: Vec<ObjectId> = state
-                .objects
-                .get(host_id)
+                .expect_object(*host_id)
                 .map(|obj| obj.attachments.iter().copied().collect::<Vec<_>>())
                 .unwrap_or_default();
             for att_id in &attachments {
-                if let Some(att_obj) = state.objects.get_mut(att_id) {
+                if let Some(att_obj) = state.expect_object_mut(*att_id) {
                     if !att_obj.status.phased_out {
                         att_obj.status.phased_out = true;
                         // CR 702.26h: whether attachment has its own Phasing keyword or
@@ -1058,7 +1056,7 @@ pub fn untap_active_player_permanents(state: &mut GameState) -> Vec<GameEvent> {
                 }
             }
             // Phase out the host itself (directly).
-            if let Some(obj) = state.objects.get_mut(host_id) {
+            if let Some(obj) = state.expect_object_mut(*host_id) {
                 obj.status.phased_out = true;
                 obj.phased_out_controller = Some(active);
                 // phased_out_indirectly remains false (this is a direct phase-out).
@@ -1088,10 +1086,10 @@ pub fn untap_active_player_permanents(state: &mut GameState) -> Vec<GameEvent> {
         // taking a mutable borrow of the object. Using calculate_characteristics (not
         // base characteristics) means Humility / Dress Down (ability removal, Layer 6)
         // correctly lets a DoesNotUntap permanent untap again.
-        let does_not_untap = super::layers::calculate_characteristics(state, *id)
-            .map(|chars| chars.keywords.contains(&KeywordAbility::DoesNotUntap))
-            .unwrap_or(false);
-        if let Some(obj) = state.objects.get_mut(id) {
+        let does_not_untap = super::layers::expect_characteristics(state, *id)
+            .keywords
+            .contains(&KeywordAbility::DoesNotUntap);
+        if let Some(obj) = state.expect_object_mut(*id) {
             // CR 302.6: Clear summoning sickness for permanents the player now controls.
             obj.has_summoning_sickness = false;
             // CR 701.15a: Goad expires at the start of the goaded creature's controller's
@@ -1154,7 +1152,7 @@ pub fn draw_card(
     player: PlayerId,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     // MR-M2-04: Eliminated or conceded players cannot draw cards.
-    if let Some(p) = state.players.get(&player) {
+    if let Some(p) = state.expect_player(player) {
         if p.has_lost || p.has_conceded {
             return Ok(vec![]);
         }
@@ -1183,7 +1181,7 @@ pub fn draw_card(
         Some(id) => id,
         None => {
             // Library empty — player loses (CR 104.3b)
-            if let Some(p) = state.players.get_mut(&player) {
+            if let Some(p) = state.expect_player_mut(player) {
                 p.has_lost = true;
             }
             return Ok(vec![GameEvent::PlayerLost {
@@ -1195,7 +1193,7 @@ pub fn draw_card(
     let hand_zone = ZoneId::Hand(player);
     let (new_id, _old_obj) = state.move_object_to_zone(top_id, hand_zone)?;
     // Mark that this player has drawn for the turn and increment draw counter.
-    if let Some(p) = state.players.get_mut(&player) {
+    if let Some(p) = state.expect_player_mut(player) {
         p.has_drawn_for_turn = true;
         // CR 121.1: track draws-per-turn for Sylvan Library and similar effects (CC#33).
         p.cards_drawn_this_turn += 1;
@@ -1233,15 +1231,11 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
     let has_no_max = state.objects.iter().any(|(id, obj)| {
         obj.zone == ZoneId::Battlefield
             && obj.controller == active
-            && super::layers::calculate_characteristics(state, *id)
-                .map(|chars| {
-                    chars
-                        .keywords
-                        .contains(&crate::state::types::KeywordAbility::NoMaxHandSize)
-                })
-                .unwrap_or(false)
+            && super::layers::expect_characteristics(state, *id)
+                .keywords
+                .contains(&crate::state::types::KeywordAbility::NoMaxHandSize)
     });
-    if let Some(ps) = state.players.get_mut(&active) {
+    if let Some(ps) = state.expect_player_mut(active) {
         // PB-AC9 / CR 402.2: OR in the persistent "rest of the game" designation
         // (Effect::SetNoMaximumHandSize) so this battlefield-driven recompute
         // never clobbers it back to false once set.
@@ -1256,13 +1250,11 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
         active
     );
     let no_max = state
-        .players
-        .get(&active)
+        .expect_player(active)
         .map(|p| p.no_max_hand_size)
         .unwrap_or(false);
     let max_hand_size = state
-        .players
-        .get(&active)
+        .expect_player(active)
         .map(|p| p.max_hand_size)
         .unwrap_or(7);
     let hand_zone = ZoneId::Hand(active);
@@ -1271,13 +1263,13 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
         if no_max {
             break;
         }
-        let hand_size = state.zone(&hand_zone).map(|z| z.len()).unwrap_or(0);
+        let hand_size = state.expect_zone(&hand_zone).map(|z| z.len()).unwrap_or(0);
         if hand_size <= max_hand_size {
             break;
         }
         // Pick the last object in the hand (arbitrary in M2 — hand is unordered)
         let obj_ids = state
-            .zone(&hand_zone)
+            .expect_zone(&hand_zone)
             .map(|z| z.object_ids())
             .unwrap_or_default();
         if let Some(&discard_id) = obj_ids.last() {
@@ -1286,12 +1278,10 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
             // (triggers, UI) correlate by the hand identity, not the new zone ID.
             // CR 702.35a: If the discarded card has Madness, exile it instead of graveyard.
             let cleanup_card_id_opt = state
-                .objects
-                .get(&discard_id)
+                .expect_object(discard_id)
                 .and_then(|o| o.card_id.clone());
             let has_madness = state
-                .objects
-                .get(&discard_id)
+                .expect_object(discard_id)
                 .map(|obj| {
                     obj.characteristics
                         .keywords
@@ -1303,7 +1293,7 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
             } else {
                 graveyard_zone
             };
-            if let Ok((new_id, _)) = state.move_object_to_zone(discard_id, destination) {
+            if let Some((new_id, _)) = state.expect_move_object_to_zone(discard_id, destination) {
                 events.push(GameEvent::DiscardedToHandSize {
                     player: active,
                     object_id: discard_id,
@@ -1353,7 +1343,7 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
             .map(|(id, _)| *id)
             .collect();
         for id in saddled_ids {
-            if let Some(obj) = state.objects.get_mut(&id) {
+            if let Some(obj) = state.expect_object_mut(id) {
                 obj.designations.remove(Designations::SADDLED);
             }
         }
@@ -1380,7 +1370,7 @@ pub fn empty_all_mana_pools(state: &mut GameState) -> Vec<GameEvent> {
         return Vec::new();
     }
     for id in &player_ids {
-        if let Some(p) = state.players.get_mut(id) {
+        if let Some(p) = state.expect_player_mut(*id) {
             p.mana_pool.empty();
         }
     }
@@ -1397,7 +1387,7 @@ pub fn clear_damage(state: &mut GameState) {
         .map(|(id, _)| *id)
         .collect();
     for id in &ids {
-        if let Some(obj) = state.objects.get_mut(id) {
+        if let Some(obj) = state.expect_object_mut(*id) {
             obj.damage_marked = 0;
             obj.deathtouch_damage = false;
         }
@@ -1412,12 +1402,11 @@ pub fn reset_turn_state(state: &mut GameState, player: PlayerId) {
     // "previous turn's spell count" for day/night transition checking.
     // This is checked at the NEXT player's untap step (CR 730.2).
     let prev_spells = state
-        .players
-        .get(&player)
+        .expect_player(player)
         .map(|p| p.spells_cast_this_turn)
         .unwrap_or(0);
     state.previous_turn_spells_cast = prev_spells;
-    if let Some(p) = state.players.get_mut(&player) {
+    if let Some(p) = state.expect_player_mut(player) {
         p.land_plays_remaining = 1;
         p.has_drawn_for_turn = false;
         // (additional land play sources applied below after base reset)
@@ -1441,7 +1430,7 @@ pub fn reset_turn_state(state: &mut GameState, player: PlayerId) {
     // is scoped to "this game turn" for any player who draws.
     let player_ids: Vec<PlayerId> = state.players.keys().copied().collect();
     for pid in player_ids {
-        if let Some(p) = state.players.get_mut(&pid) {
+        if let Some(p) = state.expect_player_mut(pid) {
             // CR 121.1: per-turn draw count resets at the start of each turn for all players.
             p.cards_drawn_this_turn = 0;
             // CR 702.137a: per-turn life-loss counter resets at the start of each
@@ -1489,7 +1478,7 @@ pub fn reset_turn_state(state: &mut GameState, player: PlayerId) {
         .map(|s| s.count)
         .sum();
     if additional_land_plays > 0 {
-        if let Some(p) = state.players.get_mut(&player) {
+        if let Some(p) = state.expect_player_mut(player) {
             p.land_plays_remaining += additional_land_plays;
         }
     }
@@ -1537,7 +1526,7 @@ pub fn reset_turn_state(state: &mut GameState, player: PlayerId) {
         .map(|(id, _)| *id)
         .collect();
     for id in loyalty_ids {
-        if let Some(obj) = state.objects.get_mut(&id) {
+        if let Some(obj) = state.expect_object_mut(id) {
             obj.loyalty_ability_activated_this_turn = false;
         }
     }
@@ -1600,15 +1589,15 @@ pub fn enforce_daybound_nightbound(state: &mut GameState) -> Vec<GameEvent> {
     if state.day_night.is_none() {
         let has_daybound = state.objects.values().any(|obj| {
             obj.zone == ZoneId::Battlefield
-                && super::layers::calculate_characteristics(state, obj.id)
-                    .map(|c| c.keywords.contains(&KeywordAbility::Daybound))
-                    .unwrap_or(false)
+                && super::layers::expect_characteristics(state, obj.id)
+                    .keywords
+                    .contains(&KeywordAbility::Daybound)
         });
         let has_nightbound = state.objects.values().any(|obj| {
             obj.zone == ZoneId::Battlefield
-                && super::layers::calculate_characteristics(state, obj.id)
-                    .map(|c| c.keywords.contains(&KeywordAbility::Nightbound))
-                    .unwrap_or(false)
+                && super::layers::expect_characteristics(state, obj.id)
+                    .keywords
+                    .contains(&KeywordAbility::Nightbound)
         });
         if has_daybound {
             // CR 702.145d: Daybound causes it to become day.
@@ -1630,7 +1619,7 @@ pub fn enforce_daybound_nightbound(state: &mut GameState) -> Vec<GameEvent> {
             if obj.zone != ZoneId::Battlefield {
                 return None;
             }
-            let chars = super::layers::calculate_characteristics(state, *id)?;
+            let chars = super::layers::expect_characteristics(state, *id);
             // CR 702.145c: If it's night and the permanent has daybound and is front-face-up.
             if state.day_night == Some(DayNight::Night)
                 && chars.keywords.contains(&KeywordAbility::Daybound)
@@ -1649,6 +1638,11 @@ pub fn enforce_daybound_nightbound(state: &mut GameState) -> Vec<GameEvent> {
         })
         .collect();
     for id in ids_to_transform {
+        // Disjoint borrow: the block reads and bumps `state.timestamp_counter` while
+        // `obj` is borrowed, so `expect_object_mut` (whole-`state` borrow) can't be used.
+        // `id` came from `ids_to_transform`, collected from live `state.objects.iter()`
+        // with no intervening zone change, so its absence is an engine bug (SR-4).
+        debug_assert_object_live!(state, id);
         if let Some(obj) = state.objects.get_mut(&id) {
             let to_back_face = !obj.is_transformed;
             obj.is_transformed = to_back_face;
@@ -1713,7 +1707,10 @@ fn check_initiative_steal_from_combat_damage(state: &mut GameState, events: &mut
                 }
                 if let crate::rules::events::CombatDamageTarget::Player(damaged) = a.target {
                     if damaged == initiative_holder {
-                        return state.objects.get(&a.source).map(|obj| obj.controller);
+                        // CR 113.7a: the damage source may have left its zone since
+                        // dealing this combat damage, so `a.source` can be
+                        // last-known-information; its absence is a legal fizzle.
+                        return state.lki_object(a.source).map(|obj| obj.controller);
                     }
                 }
                 None
@@ -1752,7 +1749,10 @@ fn check_monarch_steal_from_combat_damage(state: &mut GameState, events: &mut Ve
                 }
                 if let crate::rules::events::CombatDamageTarget::Player(damaged) = a.target {
                     if damaged == current_monarch {
-                        return state.objects.get(&a.source).map(|obj| obj.controller);
+                        // CR 113.7a: the damage source may have left its zone since
+                        // dealing this combat damage, so `a.source` can be
+                        // last-known-information; its absence is a legal fizzle.
+                        return state.lki_object(a.source).map(|obj| obj.controller);
                     }
                 }
                 None
@@ -1789,6 +1789,10 @@ fn first_strike_damage_step(state: &mut GameState) -> Vec<GameEvent> {
             .copied()
             .collect();
         for id in all_ids {
+            // CR 400.7: `id` is a combat attacker/blocker key captured before this
+            // step; a combatant that left the battlefield since (e.g. was destroyed in
+            // the declare-blockers step) is a legal fizzle — `None` means it deals no
+            // first-strike damage. Keep the LKI-tolerant `calculate_characteristics`.
             let chars = super::layers::calculate_characteristics(state, id);
             if let Some(c) = chars {
                 if c.keywords.contains(&KeywordAbility::FirstStrike)
@@ -1850,8 +1854,7 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
     for token_id in myriad_token_ids {
         // Capture controller, counters, and power before moving zone (needed for the exile event).
         let (controller, myriad_pre_lba, myriad_lki_power) = state
-            .objects
-            .get(&token_id)
+            .expect_object(token_id)
             .map(|o| {
                 let lki_power = crate::rules::layers::calculate_characteristics(state, token_id)
                     .and_then(|c| c.power)
@@ -1859,8 +1862,8 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
                 (o.controller, o.counters.clone(), lki_power)
             })
             .unwrap_or((state.turn.active_player, imbl::OrdMap::new(), None));
-        if let Ok((new_exile_id, _old)) =
-            state.move_object_to_zone(token_id, crate::state::zone::ZoneId::Exile)
+        if let Some((new_exile_id, _old)) =
+            state.expect_move_object_to_zone(token_id, crate::state::zone::ZoneId::Exile)
         {
             events.push(GameEvent::ObjectExiled {
                 player: controller,
@@ -1899,7 +1902,7 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
         .map(|obj| obj.id)
         .collect();
     for &id in &decayed_tagged_ids {
-        if let Some(obj) = state.objects.get_mut(&id) {
+        if let Some(obj) = state.expect_object_mut(id) {
             obj.decayed_sacrifice_at_eoc = false;
         }
     }
@@ -1912,7 +1915,7 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
         .collect();
     for obj_id in decayed_sacrifice_ids {
         let (owner, controller, pre_death_counters, pre_death_power, decayed_pre_chars) =
-            match state.objects.get(&obj_id) {
+            match state.expect_object(obj_id) {
                 Some(obj) => {
                     let pre_chars = crate::rules::layers::calculate_characteristics(state, obj_id);
                     let lki_power = pre_chars
@@ -1945,7 +1948,7 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
                 ..
             } => {
                 events.extend(repl_events);
-                if let Ok((new_id, _old)) = state.move_object_to_zone(obj_id, to) {
+                if let Some((new_id, _old)) = state.expect_move_object_to_zone(obj_id, to) {
                     match to {
                         crate::state::zone::ZoneId::Exile => {
                             events.push(GameEvent::ObjectExiled {
@@ -1973,9 +1976,10 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
                 }
             }
             crate::rules::replacement::ZoneChangeAction::Proceed => {
-                if let Ok((new_id, _old)) =
-                    state.move_object_to_zone(obj_id, crate::state::zone::ZoneId::Graveyard(owner))
-                {
+                if let Some((new_id, _old)) = state.expect_move_object_to_zone(
+                    obj_id,
+                    crate::state::zone::ZoneId::Graveyard(owner),
+                ) {
                     events.push(GameEvent::CreatureDied {
                         object_id: obj_id,
                         new_grave_id: new_id,
@@ -1989,9 +1993,10 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
             crate::rules::replacement::ZoneChangeAction::ChoiceRequired { .. } => {
                 // Multiple replacements — in the absence of full choice infrastructure
                 // for TBA context, fall back to Proceed (graveyard).
-                if let Ok((new_id, _old)) =
-                    state.move_object_to_zone(obj_id, crate::state::zone::ZoneId::Graveyard(owner))
-                {
+                if let Some((new_id, _old)) = state.expect_move_object_to_zone(
+                    obj_id,
+                    crate::state::zone::ZoneId::Graveyard(owner),
+                ) {
                     events.push(GameEvent::CreatureDied {
                         object_id: obj_id,
                         new_grave_id: new_id,
@@ -2026,7 +2031,7 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
         .collect();
     for obj_id in ring_sacrifice_ids {
         let (owner, controller, pre_death_counters, pre_death_power, ring_pre_chars) =
-            match state.objects.get(&obj_id) {
+            match state.expect_object(obj_id) {
                 Some(obj) => {
                     let pre_chars = crate::rules::layers::calculate_characteristics(state, obj_id);
                     let lki_power = pre_chars
@@ -2059,7 +2064,7 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
                 ..
             } => {
                 events.extend(repl_events);
-                if let Ok((new_id, _old)) = state.move_object_to_zone(obj_id, to) {
+                if let Some((new_id, _old)) = state.expect_move_object_to_zone(obj_id, to) {
                     match to {
                         crate::state::zone::ZoneId::Exile => {
                             events.push(GameEvent::ObjectExiled {
@@ -2087,9 +2092,10 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
                 }
             }
             crate::rules::replacement::ZoneChangeAction::Proceed => {
-                if let Ok((new_id, _old)) =
-                    state.move_object_to_zone(obj_id, crate::state::zone::ZoneId::Graveyard(owner))
-                {
+                if let Some((new_id, _old)) = state.expect_move_object_to_zone(
+                    obj_id,
+                    crate::state::zone::ZoneId::Graveyard(owner),
+                ) {
                     events.push(GameEvent::CreatureDied {
                         object_id: obj_id,
                         new_grave_id: new_id,
@@ -2103,9 +2109,10 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
             crate::rules::replacement::ZoneChangeAction::ChoiceRequired { .. } => {
                 // Multiple replacements — in the absence of full choice infrastructure
                 // for TBA context, fall back to Proceed (graveyard).
-                if let Ok((new_id, _old)) =
-                    state.move_object_to_zone(obj_id, crate::state::zone::ZoneId::Graveyard(owner))
-                {
+                if let Some((new_id, _old)) = state.expect_move_object_to_zone(
+                    obj_id,
+                    crate::state::zone::ZoneId::Graveyard(owner),
+                ) {
                     events.push(GameEvent::CreatureDied {
                         object_id: obj_id,
                         new_grave_id: new_id,
@@ -2147,9 +2154,11 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
             // For AtEndOfCombat ExileObject, exile inline (like myriad) rather than via stack
             // to avoid complexity. Can be upgraded to stack-based later.
             if action == DelayedTriggerAction::ExileObject {
+                // CR 400.7: `target` is a delayed AtEndOfCombat trigger's target,
+                // registered earlier; it may have changed zones since, so this id can be
+                // last-known-information and its absence is a legal fizzle.
                 let eoc_pre_lba = state
-                    .objects
-                    .get(&target)
+                    .lki_object(target)
                     .filter(|o| o.zone == ZoneId::Battlefield)
                     .map(|o| {
                         let lki_power =
@@ -2159,7 +2168,8 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
                         (o.counters.clone(), lki_power)
                     });
                 if let Some((eoc_counters, eoc_lki_power)) = eoc_pre_lba {
-                    if let Ok((new_exile_id, _)) = state.move_object_to_zone(target, ZoneId::Exile)
+                    if let Some((new_exile_id, _)) =
+                        state.expect_move_object_to_zone(target, ZoneId::Exile)
                     {
                         events.push(GameEvent::ObjectExiled {
                             player: controller,

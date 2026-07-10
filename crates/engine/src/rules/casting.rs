@@ -24,7 +24,7 @@ use crate::cards::card_definition::{
     SpellCostFilter, TargetController, TargetRequirement,
 };
 use crate::rules::commander::apply_commander_tax;
-use crate::rules::layers::calculate_characteristics;
+use crate::rules::layers::expect_characteristics;
 use crate::state::error::GameStateError;
 use crate::state::game_object::{Characteristics, Designations, ManaCost, ObjectId};
 use crate::state::player::{PlayerId, SpellContext};
@@ -770,14 +770,10 @@ pub fn handle_cast_spell(
         }
     }
     // Use calculate_characteristics for type/keyword checks to respect continuous effects
-    // (CR 613). Falls back to raw characteristics if the object is not found (command zone
-    // objects may not participate in layer calculations).
-    let mut chars = calculate_characteristics(state, card).unwrap_or_else(|| {
-        state
-            .object(card)
-            .map(|o| o.characteristics.clone())
-            .unwrap_or_default()
-    });
+    // (CR 613). SR-14: `card` is the object being cast; it is present in state.objects
+    // throughout this legality check (it does not move to the stack until CR 601.2c below),
+    // so its characteristics are never absent — expect_characteristics asserts that.
+    let mut chars = expect_characteristics(state, card);
     // CR 715.3a / CR 715.3b: When casting as an Adventure, use the adventure face's
     // characteristics for legality checks and speed determination. The adventure half is
     // always an Instant or Sorcery (subtyped "Adventure"). This override ensures that:
@@ -1339,8 +1335,9 @@ pub fn handle_cast_spell(
                 ));
             }
             // CR 702.140a: target must be a creature (by layer-resolved characteristics).
-            let target_chars = calculate_characteristics(state, target_id)
-                .unwrap_or_else(|| target_obj.characteristics.clone());
+            // SR-14: target_id was just fetched present at the `state.objects.get` above with
+            // no intervening zone change, so its characteristics are never absent here.
+            let target_chars = expect_characteristics(state, target_id);
             if !target_chars.card_types.contains(&CardType::Creature) {
                 return Err(GameStateError::InvalidCommand(
                     "mutate: target must be a creature (CR 702.140a)".into(),
@@ -1901,14 +1898,9 @@ pub fn handle_cast_spell(
                 ));
             }
             // Must be a creature (by layer-resolved characteristics).
-            let sac_chars = calculate_characteristics(state, sac_id)
-                .or_else(|| {
-                    state
-                        .objects
-                        .get(&sac_id)
-                        .map(|o| o.characteristics.clone())
-                })
-                .unwrap_or_default();
+            // SR-14: sac_id was fetched present via `state.object(sac_id)?` above with no
+            // intervening zone change, so its characteristics are never absent here.
+            let sac_chars = expect_characteristics(state, sac_id);
             if !sac_chars.card_types.contains(&CardType::Creature) {
                 return Err(GameStateError::InvalidCommand(
                     "emerge: sacrifice target must be a creature (CR 702.119a)".into(),
@@ -3038,14 +3030,9 @@ pub fn handle_cast_spell(
                     )));
             }
             // CR 702.47a: The splice card must have the Splice keyword.
-            let splice_card_chars = calculate_characteristics(state, *splice_card_id)
-                .unwrap_or_else(|| {
-                    state
-                        .objects
-                        .get(splice_card_id)
-                        .map(|o| o.characteristics.clone())
-                        .unwrap_or_default()
-                });
+            // SR-14: splice_card_id was fetched present via `state.object(*splice_card_id)?`
+            // above with no intervening zone change, so its characteristics are never absent.
+            let splice_card_chars = expect_characteristics(state, *splice_card_id);
             if !splice_card_chars.keywords.contains(&KeywordAbility::Splice) {
                 return Err(GameStateError::InvalidCommand(format!(
                     "splice: card {:?} does not have the Splice keyword (CR 702.47a)",
@@ -3227,14 +3214,9 @@ pub fn handle_cast_spell(
                 ));
             }
             // Must be an artifact, enchantment, or token.
-            let sac_chars = calculate_characteristics(state, sac_id)
-                .or_else(|| {
-                    state
-                        .objects
-                        .get(&sac_id)
-                        .map(|o| o.characteristics.clone())
-                })
-                .unwrap_or_default();
+            // SR-14: sac_id was fetched present via `state.object(sac_id)?` above with no
+            // intervening zone change, so its characteristics are never absent here.
+            let sac_chars = expect_characteristics(state, sac_id);
             let is_artifact = sac_chars.card_types.contains(&CardType::Artifact);
             let is_enchantment = sac_chars.card_types.contains(&CardType::Enchantment);
             if !is_artifact && !is_enchantment && !sac_is_token {
@@ -3286,14 +3268,9 @@ pub fn handle_cast_spell(
                 ));
             }
             // Must be a creature (by layer-resolved characteristics).
-            let sac_chars = calculate_characteristics(state, sac_id)
-                .or_else(|| {
-                    state
-                        .objects
-                        .get(&sac_id)
-                        .map(|o| o.characteristics.clone())
-                })
-                .unwrap_or_default();
+            // SR-14: sac_id was fetched present via `state.object(sac_id)?` above with no
+            // intervening zone change, so its characteristics are never absent here.
+            let sac_chars = expect_characteristics(state, sac_id);
             if !sac_chars.card_types.contains(&CardType::Creature) {
                 return Err(GameStateError::InvalidCommand(
                     "casualty: sacrifice target must be a creature (CR 702.153a)".into(),
@@ -3358,14 +3335,9 @@ pub fn handle_cast_spell(
                     ));
                 }
                 // Validate the permanent matches the required filter using layer-resolved chars.
-                let sac_chars = calculate_characteristics(state, sac_id)
-                    .or_else(|| {
-                        state
-                            .objects
-                            .get(&sac_id)
-                            .map(|o| o.characteristics.clone())
-                    })
-                    .unwrap_or_default();
+                // SR-14: sac_id was fetched present via `state.object(sac_id)?` above with no
+                // intervening zone change, so its characteristics are never absent here.
+                let sac_chars = expect_characteristics(state, sac_id);
                 let matches = match required {
                     SpellAdditionalCost::SacrificeCreature => {
                         sac_chars.card_types.contains(&CardType::Creature)
@@ -3763,12 +3735,10 @@ pub fn handle_cast_spell(
                             "Aura target must be on the battlefield (CR 303.4a)".into(),
                         ));
                     }
-                    let target_chars = calculate_characteristics(state, target_id).or_else(|| {
-                        state
-                            .objects
-                            .get(&target_id)
-                            .map(|o| o.characteristics.clone())
-                    });
+                    // SR-14: reaching here means target_id was found present and on the
+                    // battlefield by the is_on_battlefield check above, so its characteristics
+                    // are never absent — expect_characteristics asserts that.
+                    let target_chars = Some(expect_characteristics(state, target_id));
                     if let Some(tc) = target_chars {
                         // CR 303.4a: for Filtered enchant targets, compare controllers.
                         // `player` is the caster (= future Aura controller).
@@ -4214,9 +4184,9 @@ pub fn handle_cast_spell(
                                 "pitch: the chosen card is not in your hand (CR 118.9)".into(),
                             ));
                         }
-                        let pitch_chars =
-                            crate::rules::layers::calculate_characteristics(state, pitch_card_id)
-                                .unwrap_or_else(|| pitch_obj.characteristics.clone());
+                        // SR-14: pitch_card_id was fetched present via `state.object(pitch_card_id)?`
+                        // above with no intervening zone change, so its characteristics are never absent.
+                        let pitch_chars = expect_characteristics(state, pitch_card_id);
                         if !pitch_chars.colors.contains(color) {
                             return Err(GameStateError::InvalidCommand(format!(
                                 "pitch: the chosen card is not {color:?} (CR 118.9)"
@@ -4259,14 +4229,9 @@ pub fn handle_cast_spell(
         // object's calculate_characteristics has lost battlefield-gated layer effects (BASELINE-LKI-01).
         // Only a captured integer (snapshot before zone change) is correct (CAPTURE-BY-VALUE).
         let sac_lki_power: i32 = {
-            let chars = crate::rules::layers::calculate_characteristics(state, sac_id)
-                .or_else(|| {
-                    state
-                        .objects
-                        .get(&sac_id)
-                        .map(|o| o.characteristics.clone())
-                })
-                .unwrap_or_default();
+            // SR-14: sac_id was verified present via `state.object(sac_id)?` above; the zone
+            // move that invalidates it happens below, so it is still present here.
+            let chars = expect_characteristics(state, sac_id);
             chars.power.unwrap_or(0)
         };
         // Patch the lki_powers field of the AdditionalCost::Sacrifice entry in additional_costs
@@ -4290,7 +4255,8 @@ pub fn handle_cast_spell(
             None
         };
         // CR 603.10a / CR 613.1d: capture full characteristics snapshot before zone move.
-        let casting_sac_pre_chars = crate::rules::layers::calculate_characteristics(state, sac_id);
+        // SR-14: sac_id is still present here (the move is below), so the snapshot is never absent.
+        let casting_sac_pre_chars = Some(expect_characteristics(state, sac_id));
         let (new_sac_id, _) = state.move_object_to_zone(sac_id, ZoneId::Graveyard(sac_owner))?;
         if is_creature {
             events.push(GameEvent::CreatureDied {
@@ -4620,7 +4586,9 @@ pub fn handle_cast_spell(
     // object on the stack. The spell becomes an Aura enchantment with enchant creature
     // and loses the Creature type while on the stack.
     if casting_with_bestow {
-        if let Some(stack_source) = state.objects.get_mut(&new_card_id) {
+        // SR-14: new_card_id was just returned by move_object_to_zone(card, Stack) above with
+        // no intervening move, so the stack object is present.
+        if let Some(stack_source) = state.expect_object_mut(new_card_id) {
             stack_source
                 .characteristics
                 .card_types
@@ -4647,7 +4615,9 @@ pub fn handle_cast_spell(
     // The prototype flag is orthogonal to alt_cost — both can be set simultaneously.
     // CR 718.2a: These values become part of the copiable values while on the stack.
     if let Some((ref proto_cost, proto_power, proto_toughness)) = prototype_data {
-        if let Some(stack_source) = state.objects.get_mut(&new_card_id) {
+        // SR-14: new_card_id was just returned by move_object_to_zone(card, Stack) above with
+        // no intervening move, so the stack object is present.
+        if let Some(stack_source) = state.expect_object_mut(new_card_id) {
             // CR 718.3b: Set alternative mana cost (replaces the card's normal cost).
             stack_source.characteristics.mana_cost = Some(proto_cost.clone());
             // CR 718.3b: Set alternative P/T.
@@ -4685,7 +4655,9 @@ pub fn handle_cast_spell(
                 FaceDownKind::Morph
             }
         };
-        if let Some(stack_source) = state.objects.get_mut(&new_card_id) {
+        // SR-14: new_card_id was just returned by move_object_to_zone(card, Stack) above with
+        // no intervening move, so the stack object is present.
+        if let Some(stack_source) = state.expect_object_mut(new_card_id) {
             stack_source.status.face_down = true;
             stack_source.face_down_as = Some(kind);
         }
@@ -4737,7 +4709,8 @@ pub fn handle_cast_spell(
     // `storm_count()` (which uses `spells_cast_this_turn - 1`) yields the correct
     // count of OTHER spells cast before this one. If this ordering changes, storm
     // count would be wrong.
-    if let Some(ps) = state.players.get_mut(&player) {
+    // SR-14: players are never removed from state.players, so the caster is always present.
+    if let Some(ps) = state.expect_player_mut(player) {
         ps.spells_cast_this_turn += 1;
         // PB-AC6: all-players-reset "this game turn" spell count (see PlayerState doc
         // comment). Incremented alongside spells_cast_this_turn at every cast site.
@@ -5474,9 +5447,9 @@ fn apply_convoke_reduction(
             )));
         }
         // Must be a creature (use calculate_characteristics for layer-correct check).
-        let chars = calculate_characteristics(state, id)
-            .or_else(|| state.objects.get(&id).map(|o| o.characteristics.clone()))
-            .unwrap_or_default();
+        // SR-14: id was fetched present via `state.objects.get(&id).ok_or(...)?` above in this
+        // same iteration with no intervening zone change, so its characteristics are never absent.
+        let chars = expect_characteristics(state, id);
         if !chars
             .card_types
             .contains(&crate::state::types::CardType::Creature)
@@ -5524,7 +5497,9 @@ fn apply_convoke_reduction(
     }
     // Tap each convoke creature and emit PermanentTapped events.
     for &id in convoke_creatures {
-        if let Some(obj) = state.objects.get_mut(&id) {
+        // SR-14: every id in convoke_creatures was validated present in the loop above; nothing
+        // between there and here moves an object, so it is still present.
+        if let Some(obj) = state.expect_object_mut(id) {
             obj.status.tapped = true;
         }
         events.push(GameEvent::PermanentTapped {
@@ -5602,9 +5577,9 @@ fn apply_improvise_reduction(
             )));
         }
         // Must be an artifact (use calculate_characteristics for layer-correct check).
-        let chars = calculate_characteristics(state, id)
-            .or_else(|| state.objects.get(&id).map(|o| o.characteristics.clone()))
-            .unwrap_or_default();
+        // SR-14: id was fetched present via `state.objects.get(&id).ok_or(...)?` above in this
+        // same iteration with no intervening zone change, so its characteristics are never absent.
+        let chars = expect_characteristics(state, id);
         if !chars
             .card_types
             .contains(&crate::state::types::CardType::Artifact)
@@ -5630,7 +5605,9 @@ fn apply_improvise_reduction(
     reduced.generic -= improvise_artifacts.len() as u32;
     // Tap each improvise artifact and emit PermanentTapped events.
     for &id in improvise_artifacts {
-        if let Some(obj) = state.objects.get_mut(&id) {
+        // SR-14: every id in improvise_artifacts was validated present in the loop above; nothing
+        // between there and here moves an object, so it is still present.
+        if let Some(obj) = state.expect_object_mut(id) {
             obj.status.tapped = true;
         }
         events.push(GameEvent::PermanentTapped {
@@ -6062,8 +6039,9 @@ fn validate_mapped_targets(
                 if matches!(obj.zone, ZoneId::Battlefield | ZoneId::Stack) {
                     // CR 613.1f: Use layer-resolved keywords for hexproof/shroud/protection
                     // (Humility removes them; equipment can grant them).
-                    let target_chars = crate::rules::layers::calculate_characteristics(state, *id)
-                        .unwrap_or_else(|| obj.characteristics.clone());
+                    // SR-14: id was fetched present via `state.objects.get(id).ok_or(...)?` above
+                    // with no intervening zone change, so its characteristics are never absent.
+                    let target_chars = expect_characteristics(state, *id);
                     super::validate_target_protection(
                         &target_chars.keywords,
                         obj.controller,
@@ -6139,8 +6117,9 @@ fn validate_object_satisfies_requirement(
         }
         // For TargetSpellWithFilter, also check the filter against the spell's characteristics.
         if let TargetRequirement::TargetSpellWithFilter(filter) = req {
-            let chars: Characteristics =
-                calculate_characteristics(state, id).unwrap_or_else(|| obj.characteristics.clone());
+            // SR-14: id was fetched present via `state.objects.get(&id).ok_or(...)?` at the top
+            // of this fn with no intervening zone change, so its characteristics are never absent.
+            let chars: Characteristics = expect_characteristics(state, id);
             if !crate::effects::matches_filter(&chars, filter) {
                 return Err(GameStateError::InvalidTarget(format!(
                     "spell {:?} does not match the filter for {:?}",
@@ -6182,8 +6161,9 @@ fn validate_object_satisfies_requirement(
         return Ok(());
     }
     // Use calculate_characteristics to respect continuous effects (CR 613).
-    let chars: Characteristics =
-        calculate_characteristics(state, id).unwrap_or_else(|| obj.characteristics.clone());
+    // SR-14: id was fetched present via `state.objects.get(&id).ok_or(...)?` at the top of this
+    // fn with no intervening zone change, so its characteristics are never absent.
+    let chars: Characteristics = expect_characteristics(state, id);
     let on_battlefield = obj.zone == ZoneId::Battlefield;
     let is_creature = chars.card_types.contains(&CardType::Creature);
     let is_artifact = chars.card_types.contains(&CardType::Artifact);
@@ -6875,13 +6855,13 @@ fn find_play_from_top_on_cast_effect(
 pub fn has_split_second_on_stack(state: &GameState) -> bool {
     state.stack_objects.iter().any(|stack_obj| {
         if let StackObjectKind::Spell { source_object } = &stack_obj.kind {
-            let chars = calculate_characteristics(state, *source_object).unwrap_or_else(|| {
-                state
-                    .object(*source_object)
-                    .map(|o| o.characteristics.clone())
-                    .unwrap_or_default()
-            });
-            chars.keywords.contains(&KeywordAbility::SplitSecond)
+            // CR 400.7 / 113.7a: a Spell stack entry can outlive its source object in
+            // state.objects (e.g. a free/plotted cast whose source has left), so
+            // `source_object` may be last-known-information. A missing object cannot have
+            // Split Second, so absence resolves the predicate to false (CR 608.2b).
+            crate::rules::layers::calculate_characteristics(state, *source_object)
+                .map(|chars| chars.keywords.contains(&KeywordAbility::SplitSecond))
+                .unwrap_or(false)
         } else {
             false
         }
@@ -6969,8 +6949,9 @@ fn matches_affinity_target(
     obj: &crate::state::game_object::GameObject,
     target: &AffinityTarget,
 ) -> bool {
-    let chars =
-        calculate_characteristics(state, obj.id).unwrap_or_else(|| obj.characteristics.clone());
+    // SR-14: obj is a live &GameObject from state.objects.values(), so obj.id is present and
+    // its characteristics are never absent.
+    let chars = expect_characteristics(state, obj.id);
     match target {
         AffinityTarget::Artifacts => chars.card_types.contains(&CardType::Artifact),
         AffinityTarget::BasicLandType(subtype) => {
@@ -7494,8 +7475,9 @@ fn evaluate_self_cost_reduction(
                 .values()
                 .filter(|obj| obj.zone == ZoneId::Battlefield && obj.controller == caster)
                 .filter_map(|obj| {
-                    let chars = calculate_characteristics(state, obj.id)
-                        .unwrap_or_else(|| obj.characteristics.clone());
+                    // SR-14: obj is a live &GameObject from state.objects.values(); its
+                    // characteristics are never absent.
+                    let chars = expect_characteristics(state, obj.id);
                     if chars.card_types.contains(&CardType::Creature) {
                         chars.power.map(|p| p.max(0) as u32)
                     } else {
@@ -7531,8 +7513,9 @@ fn evaluate_self_cost_reduction(
             for sub in &basic_land_subtypes {
                 let has_it = state.objects.values().any(|obj| {
                     obj.zone == ZoneId::Battlefield && obj.controller == caster && {
-                        let chars = calculate_characteristics(state, obj.id)
-                            .unwrap_or_else(|| obj.characteristics.clone());
+                        // SR-14: obj is a live &GameObject from state.objects.values(); its
+                        // characteristics are never absent.
+                        let chars = expect_characteristics(state, obj.id);
                         chars.card_types.contains(&CardType::Land) && chars.subtypes.contains(sub)
                     }
                 });
@@ -7549,8 +7532,9 @@ fn evaluate_self_cost_reduction(
                 .values()
                 .filter(|obj| obj.zone == ZoneId::Battlefield && obj.controller == caster)
                 .filter_map(|obj| {
-                    let chars = calculate_characteristics(state, obj.id)
-                        .unwrap_or_else(|| obj.characteristics.clone());
+                    // SR-14: obj is a live &GameObject from state.objects.values(); its
+                    // characteristics are never absent.
+                    let chars = expect_characteristics(state, obj.id);
                     if permanent_matches_filter(&chars, filter) {
                         Some(chars.mana_cost.as_ref().map_or(0, |mc| mc.mana_value()))
                     } else {
@@ -7571,7 +7555,8 @@ fn evaluate_self_cost_reduction(
             // Shadow of Mortality — costs {X} less where X is life lost from starting total.
             // Commander starting life is 40 (CR 903.7).
             const STARTING_LIFE: i64 = 40;
-            if let Some(player) = state.players.get(&caster) {
+            // SR-14: players are never removed from state.players, so the caster is always present.
+            if let Some(player) = state.expect_player(caster) {
                 let current = player.life_total as i64;
                 if current < STARTING_LIFE {
                     (STARTING_LIFE - current) as u32
@@ -7589,8 +7574,9 @@ fn evaluate_self_cost_reduction(
             // Bolt Bend — costs {N} less if you control a creature with power >= threshold.
             let has_big_creature = state.objects.values().any(|obj| {
                 obj.zone == ZoneId::Battlefield && obj.controller == caster && {
-                    let chars = calculate_characteristics(state, obj.id)
-                        .unwrap_or_else(|| obj.characteristics.clone());
+                    // SR-14: obj is a live &GameObject from state.objects.values(); its
+                    // characteristics are never absent.
+                    let chars = expect_characteristics(state, obj.id);
                     chars.card_types.contains(&CardType::Creature)
                         && chars.power.unwrap_or(0) >= *threshold
                 }
@@ -7672,8 +7658,9 @@ fn count_permanents_matching(
                 PlayerTarget::EachPlayer => {} // All players' permanents count.
                 _ => {}                        // DeclaredTarget, ControllerOf — treat as no filter.
             }
-            let chars = calculate_characteristics(state, obj.id)
-                .unwrap_or_else(|| obj.characteristics.clone());
+            // SR-14: obj is a live &GameObject from state.objects.values(); its
+            // characteristics are never absent.
+            let chars = expect_characteristics(state, obj.id);
             permanent_matches_filter(&chars, filter)
         })
         .count() as u32
