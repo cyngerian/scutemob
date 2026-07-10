@@ -369,7 +369,7 @@ to pick one, then follow these steps. Not every ability needs every step — sim
 
 ### Step 1: Add or verify the enum variant
 
-**File**: `crates/engine/src/state/types.rs` (`KeywordAbility` enum)
+**File**: `crates/card-types/src/state/types.rs` (`KeywordAbility` enum)
 
 - Add a new variant if one doesn't exist (e.g., `Cycling`).
 - Add a doc comment citing the CR rule number.
@@ -429,7 +429,7 @@ for keyword abilities).
 ### Step 5: Add a card definition
 
 Use the `card-definition-author` agent or add manually to
-`crates/engine/src/cards/definitions.rs`.
+`crates/card-defs/src/defs/` (one file per card).
 
 - Pick a real Commander-playable card that uses the ability.
 - Follow the existing card definition patterns (see card #45 Lightning Greaves for

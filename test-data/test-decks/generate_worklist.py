@@ -335,12 +335,12 @@ def classify_card(card, coverage):
 def parse_authored_cards(project_root):
     """Extract card names from per-file defs/ directory.
 
-    Scans crates/engine/src/cards/defs/*.rs for lines matching:
+    Scans crates/card-defs/src/defs/*.rs for lines matching:
         name: "Card Name".to_string(),
     Returns a set of card names.
     """
     defs_path = os.path.join(
-        project_root, "crates", "engine", "src", "cards", "defs"
+        project_root, "crates", "card-defs", "src", "defs"
     )
     authored = set()
     pattern = re.compile(r'name:\s*"([^"]+)"\.to_string\(\)')

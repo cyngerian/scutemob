@@ -454,7 +454,7 @@ fn parse_project_status(root: &Path) -> Option<ProjectProgress> {
 // ─── live card scanner ──────────────────────────────────────────────────────
 
 fn scan_card_health_live(root: &Path) -> CardHealth {
-    let defs_dir = root.join("crates/engine/src/cards/defs");
+    let defs_dir = root.join("crates/card-defs/src/defs");
     let entries = match fs::read_dir(&defs_dir) {
         Ok(e) => e,
         Err(_) => return CardHealth::default(),
@@ -502,7 +502,7 @@ fn scan_live_cards(
     Vec<LiveCardEntry>,
     std::collections::HashMap<String, String>,
 ) {
-    let defs_dir = root.join("crates/engine/src/cards/defs");
+    let defs_dir = root.join("crates/card-defs/src/defs");
     let entries = match fs::read_dir(&defs_dir) {
         Ok(e) => e,
         Err(_) => return (vec![], std::collections::HashMap::new()),

@@ -273,7 +273,7 @@
 - **Card definition `modes` field is `Option<ModeSelection>`, NOT `Vec`** — `card-definition-author`
   repeatedly writes `modes: vec![]` which causes a type error. Correct value: `modes: None` for
   non-modal spells, or `modes: Some(ModeSelection { min_modes, max_modes, modes: vec![...] })`.
-  `ModeSelection` is now exported from `crates/engine/src/cards/helpers.rs` (added B7).
+  `ModeSelection` is now exported from `crates/card-types/src/cards/helpers.rs` (added B7).
 - **Convoke scripts: duplicate creature names resolve to the same ObjectId** — rejected as
   "duplicate ObjectId in convoke_creatures." Use distinct card names (e.g., Llanowar Elves,
   Elvish Mystic, Birds of Paradise) rather than three identical "Llanowar Elves" entries.

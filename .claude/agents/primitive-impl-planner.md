@@ -100,7 +100,7 @@ Cross-reference the PB specification's card list with:
 - **Deferred items from prior PBs**: Check if this primitive resolves any
 
 ```
-Grep pattern="TODO" path="crates/engine/src/cards/defs/<card_name>.rs" output_mode="content"
+Grep pattern="TODO" path="crates/card-defs/src/defs/<card_name>.rs" output_mode="content"
 ```
 
 For each card, look up its oracle text:
@@ -110,22 +110,22 @@ mcp__mtg-rules__lookup_card(card_name: "<card name>")
 
 ### 3a. MANDATORY — Pre-existing TODO sweep for the target primitive (roster-recall gate)
 
-Before finalizing the candidate roster, **grep `crates/engine/src/cards/defs/` for TODO
+Before finalizing the candidate roster, **grep `crates/card-defs/src/defs/` for TODO
 comments that name the target primitive in question**. This is a load-bearing gate — any
 card with such a comment is a **forced add** to the candidate list. These are cards that
 have already self-identified as needing the primitive, and missing them is a
 roster-recall failure that MCP oracle lookup alone will not catch.
 
 ```
-Grep pattern="TODO.*<primitive keyword>" path="crates/engine/src/cards/defs/" output_mode="content"
+Grep pattern="TODO.*<primitive keyword>" path="crates/card-defs/src/defs/" output_mode="content"
 ```
 
 Use multiple keywords if the primitive has synonyms. For example, if planning a
 "SubtypeFilteredAttack" PB:
 ```
-Grep pattern="TODO.*subtype.*filter" path="crates/engine/src/cards/defs/" output_mode="content"
-Grep pattern="TODO.*Dragon subtype" path="crates/engine/src/cards/defs/" output_mode="content"
-Grep pattern="TODO.*over-trigger" path="crates/engine/src/cards/defs/" output_mode="content"
+Grep pattern="TODO.*subtype.*filter" path="crates/card-defs/src/defs/" output_mode="content"
+Grep pattern="TODO.*Dragon subtype" path="crates/card-defs/src/defs/" output_mode="content"
+Grep pattern="TODO.*over-trigger" path="crates/card-defs/src/defs/" output_mode="content"
 ```
 
 For each result:

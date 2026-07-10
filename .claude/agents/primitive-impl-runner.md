@@ -72,7 +72,7 @@ For each engine change in the plan:
 
 For each card def listed in the plan:
 
-1. **Read the existing card def** file in `crates/engine/src/cards/defs/`
+1. **Read the existing card def** file in `crates/card-defs/src/defs/`
 2. **Look up the card's oracle text** via `mcp__mtg-rules__lookup_card` if needed
 3. **Apply the fix** described in the plan — replace TODOs with actual DSL usage
 4. **Verify** the card def uses the new primitive correctly
@@ -87,9 +87,11 @@ The batch is not complete until ALL matching TODOs are resolved.
 
 For new cards listed in the plan:
 
-1. **Create the file** at `crates/engine/src/cards/defs/<snake_case_name>.rs`
+1. **Create the file** at `crates/card-defs/src/defs/<snake_case_name>.rs`
 2. **Use `use crate::cards::helpers::*;`** for all types
-3. **Register the card** in `crates/engine/src/cards/defs/mod.rs`
+3. **Do not register the card anywhere.** `crates/card-defs/build.rs` discovers every
+   `.rs` file in that directory and generates the module list plus `all_cards()`.
+   Adding a card is adding exactly one file; there is no `mod.rs` to edit.
 4. **Follow existing card def patterns** — use `..Default::default()` for optional fields
 
 ### Step 4: Unit Tests
@@ -116,7 +118,7 @@ For new cards listed in the plan:
   This catches missed match arms in replay-viewer and TUI that `cargo check` misses.
 - **No speculative additions.** Only implement what the plan describes.
 - **helpers.rs exports**: If card defs fail to compile with "undeclared type", add the type
-  to `crates/engine/src/cards/helpers.rs` re-exports.
+  to `crates/card-types/src/cards/helpers.rs` re-exports.
 
 ## Fix Phase
 
@@ -158,7 +160,7 @@ After completing ALL steps (or all fixes):
 
 5. **Verify no remaining TODOs in affected card defs**:
    ```bash
-   for card in <list from plan>; do grep -l "TODO" "crates/engine/src/cards/defs/${card}.rs" 2>/dev/null; done
+   for card in <list from plan>; do grep -l "TODO" "crates/card-defs/src/defs/${card}.rs" 2>/dev/null; done
    ```
 
 ## Completion Report

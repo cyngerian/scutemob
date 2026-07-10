@@ -30,14 +30,14 @@ You read fix lists or review findings, correct the card def files, and verify th
 
 ## Architecture
 
-Each card is a standalone `.rs` file in `crates/engine/src/cards/defs/`. The `build.rs`
+Each card is a standalone `.rs` file in `crates/card-defs/src/defs/`. The `build.rs`
 auto-discovers all files. Fixing a card = editing its existing file. No other files change.
 
 ## CRITICAL Rules
 
 1. **Use MCP `lookup_card`** for oracle text when the finding says "oracle mismatch" or
    when you need to verify the correct value. Don't guess.
-2. **Only edit card def files** in `crates/engine/src/cards/defs/`. Never touch engine
+2. **Only edit card def files** in `crates/card-defs/src/defs/`. Never touch engine
    source files, tests, docs, or memory files.
 3. **Use `Edit` for targeted changes.** Don't rewrite entire files unless the fix is
    pervasive (>50% of lines changing).

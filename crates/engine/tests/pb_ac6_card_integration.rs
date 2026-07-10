@@ -1,7 +1,7 @@
 //! PB-AC6 card integration tests — Searslicer Goblin, Chart a Course, Bloodsoaked
 //! Champion, Idol of Oblivion, Dark Petition, Land Tax.
 //!
-//! These exercise the *real* `CardDefinition`s in `crates/engine/src/cards/defs/`
+//! These exercise the *real* `CardDefinition`s in `crates/card-defs/src/defs/`
 //! (not synthetic fixtures) through full `process_command` flows, validating that
 //! the PB-AC6 primitives (`Condition::YouAttackedThisTurn`,
 //! `Condition::CreatedATokenThisTurn`, `Condition::SpellMastery`,

@@ -63,7 +63,7 @@ text maps to a single, known DSL pattern.
 - Filter lands: "Add one mana of any color that a land an opponent controls could produce" → `AddManaAnyColor` approximation + TODO
 - Bounce lands: "When ~ enters, return a land you control to its owner's hand" → ETB trigger + mana ability
 
-**Output**: One `.rs` file per card in `crates/engine/src/cards/defs/`. `build.rs` auto-discovers.
+**Output**: One `.rs` file per card in `crates/card-defs/src/defs/`. `build.rs` auto-discovers.
 
 **Estimated effort**: Write the script (~300-400 lines), run it, `cargo build` to verify.
 
@@ -74,7 +74,7 @@ text maps to a single, known DSL pattern.
 **Inputs**:
 - `_authoring_plan.json` — session groups (knows which cards are in which group)
 - `cards.sqlite` — oracle text, type_line, mana_cost, power, toughness, subtypes
-- `crates/engine/src/cards/defs/` — skip already-existing files
+- `crates/card-defs/src/defs/` — skip already-existing files
 
 **Card ID convention**: `cid("card-name")` — lowercase, spaces→hyphens, strip apostrophes/commas.
 Use same slug logic as `generate_skeleton.py`.
@@ -83,7 +83,7 @@ Use same slug logic as `generate_skeleton.py`.
 
 **All generated files use**: `use crate::cards::helpers::*;`
 
-**Helper functions available** (from `crates/engine/src/cards/helpers.rs`):
+**Helper functions available** (from `crates/card-types/src/cards/helpers.rs`):
 - `cid(s: &str) -> CardId` — creates card ID from slug
 - `types(card_types: &[CardType]) -> TypeLine` — basic type line
 - `types_sub(card_types: &[CardType], subtypes: &[&str]) -> TypeLine` — with subtypes
@@ -119,7 +119,7 @@ pub fn card() -> CardDefinition {
 ```
 
 **Template 2: ETB Tapped Land** (`group_id == "land-etb-tapped"`)
-Reference: `crates/engine/src/cards/defs/dimir_guildgate.rs`
+Reference: `crates/card-defs/src/defs/dimir_guildgate.rs`
 ```rust
 // Card Name — Land; enters tapped. {T}: Add {X} or {Y}.
 use crate::cards::helpers::*;
@@ -163,14 +163,14 @@ Variations:
 - Has additional abilities beyond mana (e.g., Castle Locthwain): skip template, leave for Phase 2
 
 **Template 3: Mana Land** (`group_id == "mana-land"`)
-Reference: `crates/engine/src/cards/defs/command_tower.rs`
+Reference: `crates/card-defs/src/defs/command_tower.rs`
 ```rust
 // Same as ETB Tapped but WITHOUT the Replacement block.
 // Only the Activated { cost: Cost::Tap, effect: AddMana/AddManaAnyColor/Choose }
 ```
 
 **Template 4: Mana Artifact** (`group_id == "mana-artifact"`)
-Reference: `crates/engine/src/cards/defs/arcane_signet.rs`
+Reference: `crates/card-defs/src/defs/arcane_signet.rs`
 ```rust
 // Same as Mana Land but types: types(&[CardType::Artifact])
 // or types_sub(&[CardType::Artifact], &["Subtype"]) if it has subtypes
@@ -178,7 +178,7 @@ Reference: `crates/engine/src/cards/defs/arcane_signet.rs`
 ```
 
 **Template 5: Mana Creature** (`group_id == "mana-creature"`)
-Reference: `crates/engine/src/cards/defs/elvish_mystic.rs`
+Reference: `crates/card-defs/src/defs/elvish_mystic.rs`
 ```rust
 // Same activated ability but creature_types(&[...]) + power/toughness
 // Has mana_cost, power: Some(N), toughness: Some(N), back_face: None
@@ -233,7 +233,7 @@ Create a new agent (or modify `card-definition-author`) that:
 - Input: session ID from `_authoring_plan.json`
 - Tools: Read, Write, Edit, Glob, Grep, Bash, `mcp__mtg-rules__lookup_card`
 - One invocation per session, not per card
-- Reads `crates/engine/src/cards/helpers.rs` for available types
+- Reads `crates/card-types/src/cards/helpers.rs` for available types
 - Reads 1-2 existing card defs from the same group as reference
 - Must `cargo build --lib -p mtg-engine` after writing all files
 
@@ -426,8 +426,8 @@ Split all authored cards from the wave into review batches of 5 cards each.
 ```
 Agent subagent_type="card-batch-reviewer"
   prompt="Review these 5 card definitions against their oracle text:
-    1. crates/engine/src/cards/defs/<file1>.rs (<Card Name 1>)
-    2. crates/engine/src/cards/defs/<file2>.rs (<Card Name 2>)
+    1. crates/card-defs/src/defs/<file1>.rs (<Card Name 1>)
+    2. crates/card-defs/src/defs/<file2>.rs (<Card Name 2>)
     ...
     Write findings to memory/card-authoring/review-wave-NNN-batch-M.md"
 ```
@@ -455,7 +455,7 @@ Agent subagent_type="ability-impl-runner"
 #### Step 5: Commit and update wave plan
 
 ```bash
-git add crates/engine/src/cards/defs/*.rs
+git add crates/card-defs/src/defs/*.rs
 git commit -m "W5-cards: author <group label> (<N> cards)"
 ```
 

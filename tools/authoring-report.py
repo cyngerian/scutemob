@@ -19,7 +19,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-DEFS = REPO / "crates/engine/src/cards/defs"
+DEFS = REPO / "crates/card-defs/src/defs"
+# SR-6 moved the defs out of the engine crate. Git history for every card
+# straddles that rename, so history queries must name both paths, and must pass
+# -M so the move commit itself is classified as renames (R) rather than as 1,749
+# card additions (A) — otherwise the "added in the last N days" figures spike for
+# a month. Per-file queries use --follow instead, which needs a single pathspec.
+DEFS_PATHSPECS = ["crates/card-defs/src/defs", "crates/engine/src/cards/defs"]
 PLAN = REPO / "test-data/test-cards/_authoring_plan.json"
 OUT = REPO / "docs/authoring-status.md"
 MISSING_OUT = REPO / "docs/authoring-status-missing.txt"
@@ -204,11 +210,12 @@ def git_count_added(since_days: int) -> int:
         "git",
         "log",
         f"--since={since_days}.days.ago",
+        "-M",
         "--diff-filter=A",
         "--name-only",
         "--pretty=format:",
         "--",
-        "crates/engine/src/cards/defs/*.rs",
+        *DEFS_PATHSPECS,
     )
     return sum(1 for ln in out.splitlines() if ln.endswith(".rs"))
 
@@ -218,11 +225,12 @@ def git_count_modified(since_days: int) -> int:
         "git",
         "log",
         f"--since={since_days}.days.ago",
+        "-M",
         "--diff-filter=M",
         "--name-only",
         "--pretty=format:",
         "--",
-        "crates/engine/src/cards/defs/*.rs",
+        *DEFS_PATHSPECS,
     )
     return len({ln for ln in out.splitlines() if ln.endswith(".rs")})
 
@@ -234,7 +242,7 @@ def git_recent_card_commits(limit: int = 25) -> list[str]:
         f"-{limit}",
         "--oneline",
         "--",
-        "crates/engine/src/cards/defs/",
+        *DEFS_PATHSPECS,
     )
     return out.splitlines()
 
@@ -315,9 +323,12 @@ def main() -> int:
     if extras:
         for slug in extras:
             try:
+                # --follow walks through the SR-6 rename, so the earliest "add" is
+                # still the commit that authored the card, not the commit that
+                # moved it. It takes exactly one pathspec, hence not DEFS_PATHSPECS.
                 out = subprocess.check_output(
-                    ["git", "log", "--diff-filter=A", "--format=%ad|%s", "--date=short",
-                     "--", f"crates/engine/src/cards/defs/{slug}.rs"],
+                    ["git", "log", "--follow", "--diff-filter=A", "--format=%ad|%s",
+                     "--date=short", "--", f"crates/card-defs/src/defs/{slug}.rs"],
                     cwd=REPO, text=True, stderr=subprocess.DEVNULL,
                 ).strip().splitlines()
                 if not out:

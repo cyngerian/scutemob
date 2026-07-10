@@ -420,7 +420,7 @@ Re-scan all 740 card def files. For each file with a TODO comment, determine whe
 the TODO is still valid given PB-0 through PB-22.
 
 **Procedure**:
-1. Grep all `TODO` lines from `crates/engine/src/cards/defs/*.rs`
+1. Grep all `TODO` lines from `crates/card-defs/src/defs/*.rs`
 2. For each TODO, classify:
    - **Now expressible**: The DSL primitive exists. Card should be re-authored.
    - **Still blocked**: No DSL support. Document what's missing.

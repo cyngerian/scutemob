@@ -40,12 +40,12 @@ If not, stop: "Infrastructure tasks must be complete before triage. Run I-* item
 
 ### T-1: Refresh DSL Gap Audit
 
-1. Grep all `TODO` lines from `crates/engine/src/cards/defs/*.rs`
+1. Grep all `TODO` lines from `crates/card-defs/src/defs/*.rs`
 2. For each TODO, classify against the current DSL (PB-0 through PB-22):
    - **Now expressible**: The DSL primitive exists. Card should be re-authored.
    - **Still blocked**: No DSL support. Document what's missing.
    - **Stale/wrong**: TODO claims something is missing that already exists.
-3. Cross-reference against `crates/engine/src/cards/helpers.rs` exports and the
+3. Cross-reference against `crates/card-types/src/cards/helpers.rs` exports and the
    Effect/AbilityDefinition/TriggerCondition/TargetRequirement enums
 4. Write `memory/card-authoring/dsl-gap-audit-v2.md` with:
    - Per-gap-bucket table: count, DSL status (yes/no/partial), what's missing, effort
@@ -83,7 +83,7 @@ Same procedure as T-2, applied to sessions with `"status": "deferred"`.
 
 ### T-5: Inventory Pre-existing Defs Not in Plan
 
-1. List all card def files in `crates/engine/src/cards/defs/`
+1. List all card def files in `crates/card-defs/src/defs/`
 2. Cross-reference against `_authoring_plan.json` card names
 3. For defs not in the plan:
    a. Check for TODOs

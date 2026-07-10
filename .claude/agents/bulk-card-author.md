@@ -31,7 +31,7 @@ all card definition files in a single invocation.
 
 ## Architecture
 
-Each card is a standalone `.rs` file in `crates/engine/src/cards/defs/`. The `build.rs`
+Each card is a standalone `.rs` file in `crates/card-defs/src/defs/`. The `build.rs`
 auto-discovers all files. Adding a card = creating one new file. No other files change.
 
 ## CRITICAL Rules
@@ -110,7 +110,7 @@ Choose references based on the group:
 | tutor | grep for `SearchLibrary` in defs/ |
 | other/complex | grep for a relevant pattern in defs/ |
 
-Also read `crates/engine/src/cards/helpers.rs` for the available helper functions.
+Also read `crates/card-types/src/cards/helpers.rs` for the available helper functions.
 
 ### Step 3: Look up all cards via MCP
 
@@ -127,7 +127,7 @@ For each card, note:
 
 For each card, check if a file already exists:
 ```
-Glob pattern="crates/engine/src/cards/defs/<slug>.rs"
+Glob pattern="crates/card-defs/src/defs/<slug>.rs"
 ```
 
 Skip cards that already have files UNLESS the file has `abilities: vec![]` and
@@ -194,8 +194,8 @@ List all files created and any cards skipped (with reason):
 
 ```
 FILES CREATED:
-- crates/engine/src/cards/defs/card_one.rs: Card One (combat keywords)
-- crates/engine/src/cards/defs/card_two.rs: Card Two (TODO: targeted trigger)
+- crates/card-defs/src/defs/card_one.rs: Card One (combat keywords)
+- crates/card-defs/src/defs/card_two.rs: Card Two (TODO: targeted trigger)
 
 SKIPPED:
 - Card Three: already exists with abilities

@@ -1,0 +1,10 @@
+[package]
+name = "mtg-card-types"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+bitflags = { version = "2", features = ["serde"] }
+im = { version = "15", features = ["serde"] }
+rand = "0.8"
+serde = { version = "1", features = ["derive"] }

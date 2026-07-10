@@ -1,7 +1,7 @@
 //! PB-AC7 card integration tests — Kenrith's Transformation, Eaten by Piranhas,
 //! Darksteel Mutation, Sram, Senior Edificer, Leaf-Crowned Visionary.
 //!
-//! These exercise the *real* `CardDefinition`s in `crates/engine/src/cards/defs/`
+//! These exercise the *real* `CardDefinition`s in `crates/card-defs/src/defs/`
 //! (not synthetic fixtures) through full `process_command` flows, validating that
 //! the PB-AC7 primitives (`LayerModification::SetCreatureTypes`,
 //! `LayerModification::SetCardTypes`,
