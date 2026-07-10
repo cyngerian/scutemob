@@ -15,12 +15,25 @@ pub fn card() -> CardDefinition {
         toughness: Some(5),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // Combat damage: roll d20, create that many Treasures
+            // CR 706.2: Combat damage — roll d20, create that many Treasures. Any
+            // token-doubling replacement (e.g. Doubling Season) applies on top of the
+            // resolved roll count via the normal CreateToken chokepoint.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
-                effect: Effect::CreateToken { spec: treasure_token_spec(10) },
-                // TODO: d20 roll for variable count — using fixed 10 as average approximation.
+                effect: Effect::RollDice {
+                    sides: 20,
+                    results: vec![(
+                        1,
+                        20,
+                        Effect::CreateToken {
+                            spec: TokenSpec {
+                                count: EffectAmount::LastDiceRoll,
+                                ..treasure_token_spec(1)
+                            },
+                        },
+                    )],
+                },
                 intervening_if: None,
                 targets: vec![],
 

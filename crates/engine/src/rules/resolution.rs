@@ -4624,7 +4624,18 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             // CR 603.4: Intervening-if re-check. squad_count is fixed at cast time and
             // immutable, so this always passes if the trigger fired. Verified for correctness.
             if squad_count > 0 {
-                for _ in 0..squad_count {
+                // PB-AC9 / CR 111.1 / CR 614.1: Squad's "create a token ... for each
+                // time" is a single token-creation instruction (count = squad_count) —
+                // apply token-doubling replacements (Doubling Season, etc.) once to the
+                // whole batch, not per-instance.
+                let (token_count, repl_events) =
+                    crate::rules::replacement::apply_token_creation_replacement(
+                        state,
+                        controller,
+                        squad_count,
+                    );
+                events.extend(repl_events);
+                for _ in 0..token_count {
                     // CR 608.2b / CR 400.7: If source left the battlefield, skip.
                     if state
                         .objects
@@ -4844,158 +4855,160 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         })
                 })
                 .unwrap_or_default();
-            let token_obj = crate::state::game_object::GameObject {
-                triggered_abilities_fired_this_turn: im::OrdSet::new(),
-                id: crate::state::game_object::ObjectId(0), // replaced by add_object
-                card_id: None,
-                characteristics: source_characteristics,
-                controller,
-                owner: controller,
-                zone: ZoneId::Battlefield,
-                status: crate::state::game_object::ObjectStatus {
-                    // CR 302.6: Tokens have summoning sickness (enter normally).
-                    ..crate::state::game_object::ObjectStatus::default()
-                },
-                counters: im::OrdMap::new(),
-                attachments: im::Vector::new(),
-                attached_to: None,
-                damage_marked: 0,
-                deathtouch_damage: false,
-                is_token: true,
-                is_emblem: false,
-                timestamp: 0, // replaced by add_object
-                has_summoning_sickness: true,
-                entered_turn: Some(state.turn.turn_number),
-                goaded_by: im::Vector::new(),
-                kicker_times_paid: 0,
-                cast_alt_cost: None,
-                foretold_turn: 0,
-                warped_turn: 0,
-                was_unearthed: false,
-                myriad_exile_at_eoc: false,
-                decayed_sacrifice_at_eoc: false,
-                ring_block_sacrifice_at_eoc: false,
-                exiled_by_hideaway: None,
-                encore_sacrifice_at_end_step: false,
-                encore_must_attack: None,
-                encore_activated_by: None,
-                sacrifice_at_end_step: false,
-                exile_at_end_step: false,
-                return_to_hand_at_end_step: false,
-                is_plotted: false,
-                plotted_turn: 0,
-                is_prototyped: false,
-                was_bargained: false,
-                evidence_collected: false,
-                phased_out_indirectly: false,
-                phased_out_controller: None,
-                creatures_devoured: 0,
-                paired_with: None,
-                tribute_was_paid: false,
-                // CR 107.3m: Offspring tokens are never cast, so x_value is always 0.
-                x_value: 0,
-                // CR 702.157a: Offspring tokens are never cast, so squad_count is always 0.
-                squad_count: 0,
-                // CR 702.175a: Offspring tokens are never cast, so offspring_paid is always false.
-                offspring_paid: false,
-                // CR 702.174a: tokens/copies are never gift casts.
-                gift_was_given: false,
-                champion_exiled_card: None,
-                gift_opponent: None,
-                // CR 702.171b: tokens are not saddled by default.
-                encoded_cards: im::Vector::new(),
-                haunting_target: None,
-                // CR 702.151b: tokens are not reconfigured by default.
-                // CR 729.2: tokens are not part of a merged permanent by default.
-                merged_components: im::Vector::new(),
-                // CR 712.8a: DFC state is reset for all new permanents.
-                is_transformed: false,
-                last_transform_timestamp: 0,
-                was_cast_disturbed: false,
-                was_cast: false,
-                abilities_activated_this_turn: 0,
-                craft_exiled_cards: im::Vector::new(),
-                chosen_creature_type: None,
-                chosen_color: None,
-                face_down_as: None,
-                loyalty_ability_activated_this_turn: false,
-                class_level: 0,
-                designations: Designations::default(),
-                adventure_exiled_by: None,
-                meld_component: None,
-
-                skip_untap_steps: 0,
-            };
-            // Add the token to the battlefield.
-            let token_id = match state.add_object(token_obj, ZoneId::Battlefield) {
-                Ok(id) => id,
-                Err(_) => {
-                    events.push(GameEvent::AbilityResolved {
-                        controller,
-                        stack_object_id: stack_obj.id,
-                    });
-                    return Ok(events);
-                }
-            };
-            // CR 707.2: Apply a Layer 1 CopyOf continuous effect so the token
-            // has the copiable characteristics of the source creature.
-            // NOTE: source_object may have left the battlefield; CopyOf still records
-            // the source_id for layer resolution. If source is gone, Layer 1 applies
-            // the last-known characteristics we already copied into token_obj.characteristics.
-            if source_on_battlefield {
-                let copy_effect = crate::rules::copy::create_copy_effect(
-                    state,
-                    token_id,
-                    source_object,
+            // PB-AC9 / CR 111.1 / CR 614.1: Offspring's "create a token that's a copy of
+            // it" is a single 1-token creation instruction — apply token-doubling
+            // replacements (Doubling Season, etc.) before looping.
+            let (token_count, repl_events) =
+                crate::rules::replacement::apply_token_creation_replacement(state, controller, 1);
+            events.extend(repl_events);
+            for _ in 0..token_count {
+                let token_obj = crate::state::game_object::GameObject {
+                    triggered_abilities_fired_this_turn: im::OrdSet::new(),
+                    id: crate::state::game_object::ObjectId(0), // replaced by add_object
+                    card_id: None,
+                    characteristics: source_characteristics.clone(),
                     controller,
-                );
-                state.continuous_effects.push_back(copy_effect);
+                    owner: controller,
+                    zone: ZoneId::Battlefield,
+                    status: crate::state::game_object::ObjectStatus {
+                        // CR 302.6: Tokens have summoning sickness (enter normally).
+                        ..crate::state::game_object::ObjectStatus::default()
+                    },
+                    counters: im::OrdMap::new(),
+                    attachments: im::Vector::new(),
+                    attached_to: None,
+                    damage_marked: 0,
+                    deathtouch_damage: false,
+                    is_token: true,
+                    is_emblem: false,
+                    timestamp: 0, // replaced by add_object
+                    has_summoning_sickness: true,
+                    entered_turn: Some(state.turn.turn_number),
+                    goaded_by: im::Vector::new(),
+                    kicker_times_paid: 0,
+                    cast_alt_cost: None,
+                    foretold_turn: 0,
+                    warped_turn: 0,
+                    was_unearthed: false,
+                    myriad_exile_at_eoc: false,
+                    decayed_sacrifice_at_eoc: false,
+                    ring_block_sacrifice_at_eoc: false,
+                    exiled_by_hideaway: None,
+                    encore_sacrifice_at_end_step: false,
+                    encore_must_attack: None,
+                    encore_activated_by: None,
+                    sacrifice_at_end_step: false,
+                    exile_at_end_step: false,
+                    return_to_hand_at_end_step: false,
+                    is_plotted: false,
+                    plotted_turn: 0,
+                    is_prototyped: false,
+                    was_bargained: false,
+                    evidence_collected: false,
+                    phased_out_indirectly: false,
+                    phased_out_controller: None,
+                    creatures_devoured: 0,
+                    paired_with: None,
+                    tribute_was_paid: false,
+                    // CR 107.3m: Offspring tokens are never cast, so x_value is always 0.
+                    x_value: 0,
+                    // CR 702.157a: Offspring tokens are never cast, so squad_count is always 0.
+                    squad_count: 0,
+                    // CR 702.175a: Offspring tokens are never cast, so offspring_paid is always false.
+                    offspring_paid: false,
+                    // CR 702.174a: tokens/copies are never gift casts.
+                    gift_was_given: false,
+                    champion_exiled_card: None,
+                    gift_opponent: None,
+                    // CR 702.171b: tokens are not saddled by default.
+                    encoded_cards: im::Vector::new(),
+                    haunting_target: None,
+                    // CR 702.151b: tokens are not reconfigured by default.
+                    // CR 729.2: tokens are not part of a merged permanent by default.
+                    merged_components: im::Vector::new(),
+                    // CR 712.8a: DFC state is reset for all new permanents.
+                    is_transformed: false,
+                    last_transform_timestamp: 0,
+                    was_cast_disturbed: false,
+                    was_cast: false,
+                    abilities_activated_this_turn: 0,
+                    craft_exiled_cards: im::Vector::new(),
+                    chosen_creature_type: None,
+                    chosen_color: None,
+                    face_down_as: None,
+                    loyalty_ability_activated_this_turn: false,
+                    class_level: 0,
+                    designations: Designations::default(),
+                    adventure_exiled_by: None,
+                    meld_component: None,
+
+                    skip_untap_steps: 0,
+                };
+                // Add the token to the battlefield.
+                let token_id = match state.add_object(token_obj, ZoneId::Battlefield) {
+                    Ok(id) => id,
+                    Err(_) => continue,
+                };
+                // CR 707.2: Apply a Layer 1 CopyOf continuous effect so the token
+                // has the copiable characteristics of the source creature.
+                // NOTE: source_object may have left the battlefield; CopyOf still records
+                // the source_id for layer resolution. If source is gone, Layer 1 applies
+                // the last-known characteristics we already copied into token_obj.characteristics.
+                if source_on_battlefield {
+                    let copy_effect = crate::rules::copy::create_copy_effect(
+                        state,
+                        token_id,
+                        source_object,
+                        controller,
+                    );
+                    state.continuous_effects.push_back(copy_effect);
+                }
+                // CR 702.175a: "except it's 1/1" -- apply a Layer 7b effect that sets base P/T to 1/1.
+                // This effect is indefinite (not until-end-of-turn) and applies on top of the CopyOf.
+                //
+                // TODO: CR 707.9b deviation -- the "except it's 1/1" clause is a copy-with-exception,
+                // meaning the modified P/T (1/1) should become part of the token's *copiable values*
+                // (Layer 1), not a separate Layer 7b effect. The current Layer 7b approach is incorrect
+                // when another copy effect subsequently targets this token: get_copiable_values() only
+                // resolves Layer 1 (CopyOf) effects, not Layer 7b. So a Clone copying the Offspring
+                // token would inherit the *source creature's* original P/T instead of 1/1.
+                //
+                // CR 707.9d also states CDAs defining the overridden characteristic (P/T) should not
+                // be copied. The Layer 7b approach happens to mask any P/T CDA since 7b overrides 7a,
+                // but the CDA is still present in the token's copiable values -- wrong per 707.9d.
+                //
+                // A proper fix requires a new LayerModification variant (e.g., SetCopiablePT) applied
+                // at Layer 1 with a later timestamp than the CopyOf effect, and modifications to
+                // apply_layer_modification and get_copiable_values in copy.rs. This is a separate
+                // infrastructure task; the behavior is correct in the common case (no subsequent copy).
+                let ts = state.timestamp_counter;
+                state.timestamp_counter += 1;
+                let effect_id_val = state.timestamp_counter;
+                state.timestamp_counter += 1;
+                let pt_override = ContinuousEffect {
+                    id: EffectId(effect_id_val),
+                    source: Some(token_id),
+                    timestamp: ts,
+                    layer: EffectLayer::PtSet,
+                    duration: EffectDuration::Indefinite,
+                    filter: EffectFilter::SingleObject(token_id),
+                    modification: LayerModification::SetPowerToughness {
+                        power: 1,
+                        toughness: 1,
+                    },
+                    is_cda: false,
+                    condition: None,
+                };
+                state.continuous_effects.push_back(pt_override);
+                events.push(GameEvent::TokenCreated {
+                    player: controller,
+                    object_id: token_id,
+                });
+                events.push(GameEvent::PermanentEnteredBattlefield {
+                    player: controller,
+                    object_id: token_id,
+                });
             }
-            // CR 702.175a: "except it's 1/1" -- apply a Layer 7b effect that sets base P/T to 1/1.
-            // This effect is indefinite (not until-end-of-turn) and applies on top of the CopyOf.
-            //
-            // TODO: CR 707.9b deviation -- the "except it's 1/1" clause is a copy-with-exception,
-            // meaning the modified P/T (1/1) should become part of the token's *copiable values*
-            // (Layer 1), not a separate Layer 7b effect. The current Layer 7b approach is incorrect
-            // when another copy effect subsequently targets this token: get_copiable_values() only
-            // resolves Layer 1 (CopyOf) effects, not Layer 7b. So a Clone copying the Offspring
-            // token would inherit the *source creature's* original P/T instead of 1/1.
-            //
-            // CR 707.9d also states CDAs defining the overridden characteristic (P/T) should not
-            // be copied. The Layer 7b approach happens to mask any P/T CDA since 7b overrides 7a,
-            // but the CDA is still present in the token's copiable values -- wrong per 707.9d.
-            //
-            // A proper fix requires a new LayerModification variant (e.g., SetCopiablePT) applied
-            // at Layer 1 with a later timestamp than the CopyOf effect, and modifications to
-            // apply_layer_modification and get_copiable_values in copy.rs. This is a separate
-            // infrastructure task; the behavior is correct in the common case (no subsequent copy).
-            let ts = state.timestamp_counter;
-            state.timestamp_counter += 1;
-            let effect_id_val = state.timestamp_counter;
-            state.timestamp_counter += 1;
-            let pt_override = ContinuousEffect {
-                id: EffectId(effect_id_val),
-                source: Some(token_id),
-                timestamp: ts,
-                layer: EffectLayer::PtSet,
-                duration: EffectDuration::Indefinite,
-                filter: EffectFilter::SingleObject(token_id),
-                modification: LayerModification::SetPowerToughness {
-                    power: 1,
-                    toughness: 1,
-                },
-                is_cda: false,
-                condition: None,
-            };
-            state.continuous_effects.push_back(pt_override);
-            events.push(GameEvent::TokenCreated {
-                player: controller,
-                object_id: token_id,
-            });
-            events.push(GameEvent::PermanentEnteredBattlefield {
-                player: controller,
-                object_id: token_id,
-            });
             events.push(GameEvent::AbilityResolved {
                 controller,
                 stack_object_id: stack_obj.id,
@@ -5551,134 +5564,144 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 {
                     break;
                 }
-                // Build a blank token object that will become a copy of the source.
-                // CR 111.10: Tokens enter the battlefield as the stated kind of object.
-                // CR 707.2: Copy uses copiable values of the source creature.
-                let token_obj = crate::state::game_object::GameObject {
-                    triggered_abilities_fired_this_turn: im::OrdSet::new(),
-                    id: crate::state::game_object::ObjectId(0), // replaced by add_object
-                    card_id: None,
-                    characteristics: state
-                        .objects
-                        .get(&source_object)
-                        .map(|o| o.characteristics.clone())
-                        .unwrap_or_default(),
-                    controller,
-                    owner: controller,
-                    zone: ZoneId::Battlefield,
-                    status: crate::state::game_object::ObjectStatus {
-                        // CR 702.116a: "tapped and attacking" — enters tapped.
-                        tapped: true,
-                        ..crate::state::game_object::ObjectStatus::default()
-                    },
-                    counters: im::OrdMap::new(),
-                    attachments: im::Vector::new(),
-                    attached_to: None,
-                    damage_marked: 0,
-                    deathtouch_damage: false,
-                    is_token: true,
-                    is_emblem: false,
-                    timestamp: 0, // replaced by add_object
-                    // CR 302.6: Tokens have summoning sickness; they are already attacking
-                    // so sickness does not prevent combat participation this turn.
-                    has_summoning_sickness: true,
-                    entered_turn: Some(state.turn.turn_number),
-                    goaded_by: im::Vector::new(),
-                    kicker_times_paid: 0,
-                    cast_alt_cost: None,
-                    foretold_turn: 0,
-                    warped_turn: 0,
-                    was_unearthed: false,
-                    // CR 702.116a: "exile the tokens at end of combat"
-                    // Tagged here so end_combat() in turn_actions.rs can find them.
-                    myriad_exile_at_eoc: true,
-                    decayed_sacrifice_at_eoc: false,
-                    ring_block_sacrifice_at_eoc: false,
-                    exiled_by_hideaway: None,
-                    // CR 701.60b: tokens are not suspected by default.
-                    encore_sacrifice_at_end_step: false,
-                    encore_must_attack: None,
-                    encore_activated_by: None,
-                    sacrifice_at_end_step: false,
-                    exile_at_end_step: false,
-                    return_to_hand_at_end_step: false,
-                    is_plotted: false,
-                    plotted_turn: 0,
-                    is_prototyped: false,
-                    was_bargained: false,
-                    evidence_collected: false,
-                    phased_out_indirectly: false,
-                    phased_out_controller: None,
-                    creatures_devoured: 0,
-                    paired_with: None,
-                    tribute_was_paid: false,
-                    // CR 107.3m: Tokens/copies are never cast, so x_value is always 0.
-                    x_value: 0,
-                    // CR 702.157a: Tokens/copies are never cast, so squad_count is always 0.
-                    squad_count: 0,
-                    // CR 702.175a: Tokens/copies are never cast, so offspring_paid is always false.
-                    offspring_paid: false,
-                    // CR 702.174a: tokens/copies are never gift casts.
-                    gift_was_given: false,
-                    champion_exiled_card: None,
-                    gift_opponent: None,
-                    // CR 702.171b: tokens are not saddled by default.
-                    encoded_cards: im::Vector::new(),
-                    haunting_target: None,
-                    // CR 702.151b: tokens are not reconfigured by default.
-                    // CR 729.2: tokens are not part of a merged permanent by default.
-                    merged_components: im::Vector::new(),
-                    // CR 712.8a: DFC state is reset for all new permanents.
-                    is_transformed: false,
-                    last_transform_timestamp: 0,
-                    was_cast_disturbed: false,
-                    was_cast: false,
-                    abilities_activated_this_turn: 0,
-                    craft_exiled_cards: im::Vector::new(),
-                    chosen_creature_type: None,
-                    chosen_color: None,
-                    face_down_as: None,
-                    loyalty_ability_activated_this_turn: false,
-                    class_level: 0,
-                    designations: Designations::default(),
-                    adventure_exiled_by: None,
-                    meld_component: None,
-
-                    skip_untap_steps: 0,
-                };
-                // Add the token to the battlefield.
-                let token_id = match state.add_object(token_obj, ZoneId::Battlefield) {
-                    Ok(id) => id,
-                    Err(_) => continue,
-                };
-                // CR 707.2: Apply a Layer 1 CopyOf continuous effect so the token
-                // has the copiable characteristics of the source creature.
-                // This ensures correct P/T, name, subtypes, etc. via the layer system.
-                let copy_effect = crate::rules::copy::create_copy_effect(
-                    state,
-                    token_id,
-                    source_object,
-                    controller,
-                );
-                state.continuous_effects.push_back(copy_effect);
-                // CR 702.116a: Token is "tapped and attacking" -- register it in combat state
-                // as attacking the opponent. Tokens enter attacking but were NOT declared
-                // as attackers, so "whenever a creature attacks" triggers do NOT fire
-                // on them (including the token's own myriad ability).
-                if let Some(combat) = state.combat.as_mut() {
-                    combat.attackers.insert(
-                        token_id,
-                        crate::state::combat::AttackTarget::Player(opponent_id),
+                // PB-AC9 / CR 111.1 / CR 614.1: Myriad's "create a token that's a copy of
+                // that creature" is a separate 1-token creation instruction PER opponent —
+                // apply token-doubling replacements (Doubling Season, etc.) per opponent.
+                let (token_count, repl_events) =
+                    crate::rules::replacement::apply_token_creation_replacement(
+                        state, controller, 1,
                     );
+                events.extend(repl_events);
+                for _ in 0..token_count {
+                    // Build a blank token object that will become a copy of the source.
+                    // CR 111.10: Tokens enter the battlefield as the stated kind of object.
+                    // CR 707.2: Copy uses copiable values of the source creature.
+                    let token_obj = crate::state::game_object::GameObject {
+                        triggered_abilities_fired_this_turn: im::OrdSet::new(),
+                        id: crate::state::game_object::ObjectId(0), // replaced by add_object
+                        card_id: None,
+                        characteristics: state
+                            .objects
+                            .get(&source_object)
+                            .map(|o| o.characteristics.clone())
+                            .unwrap_or_default(),
+                        controller,
+                        owner: controller,
+                        zone: ZoneId::Battlefield,
+                        status: crate::state::game_object::ObjectStatus {
+                            // CR 702.116a: "tapped and attacking" — enters tapped.
+                            tapped: true,
+                            ..crate::state::game_object::ObjectStatus::default()
+                        },
+                        counters: im::OrdMap::new(),
+                        attachments: im::Vector::new(),
+                        attached_to: None,
+                        damage_marked: 0,
+                        deathtouch_damage: false,
+                        is_token: true,
+                        is_emblem: false,
+                        timestamp: 0, // replaced by add_object
+                        // CR 302.6: Tokens have summoning sickness; they are already attacking
+                        // so sickness does not prevent combat participation this turn.
+                        has_summoning_sickness: true,
+                        entered_turn: Some(state.turn.turn_number),
+                        goaded_by: im::Vector::new(),
+                        kicker_times_paid: 0,
+                        cast_alt_cost: None,
+                        foretold_turn: 0,
+                        warped_turn: 0,
+                        was_unearthed: false,
+                        // CR 702.116a: "exile the tokens at end of combat"
+                        // Tagged here so end_combat() in turn_actions.rs can find them.
+                        myriad_exile_at_eoc: true,
+                        decayed_sacrifice_at_eoc: false,
+                        ring_block_sacrifice_at_eoc: false,
+                        exiled_by_hideaway: None,
+                        // CR 701.60b: tokens are not suspected by default.
+                        encore_sacrifice_at_end_step: false,
+                        encore_must_attack: None,
+                        encore_activated_by: None,
+                        sacrifice_at_end_step: false,
+                        exile_at_end_step: false,
+                        return_to_hand_at_end_step: false,
+                        is_plotted: false,
+                        plotted_turn: 0,
+                        is_prototyped: false,
+                        was_bargained: false,
+                        evidence_collected: false,
+                        phased_out_indirectly: false,
+                        phased_out_controller: None,
+                        creatures_devoured: 0,
+                        paired_with: None,
+                        tribute_was_paid: false,
+                        // CR 107.3m: Tokens/copies are never cast, so x_value is always 0.
+                        x_value: 0,
+                        // CR 702.157a: Tokens/copies are never cast, so squad_count is always 0.
+                        squad_count: 0,
+                        // CR 702.175a: Tokens/copies are never cast, so offspring_paid is always false.
+                        offspring_paid: false,
+                        // CR 702.174a: tokens/copies are never gift casts.
+                        gift_was_given: false,
+                        champion_exiled_card: None,
+                        gift_opponent: None,
+                        // CR 702.171b: tokens are not saddled by default.
+                        encoded_cards: im::Vector::new(),
+                        haunting_target: None,
+                        // CR 702.151b: tokens are not reconfigured by default.
+                        // CR 729.2: tokens are not part of a merged permanent by default.
+                        merged_components: im::Vector::new(),
+                        // CR 712.8a: DFC state is reset for all new permanents.
+                        is_transformed: false,
+                        last_transform_timestamp: 0,
+                        was_cast_disturbed: false,
+                        was_cast: false,
+                        abilities_activated_this_turn: 0,
+                        craft_exiled_cards: im::Vector::new(),
+                        chosen_creature_type: None,
+                        chosen_color: None,
+                        face_down_as: None,
+                        loyalty_ability_activated_this_turn: false,
+                        class_level: 0,
+                        designations: Designations::default(),
+                        adventure_exiled_by: None,
+                        meld_component: None,
+
+                        skip_untap_steps: 0,
+                    };
+                    // Add the token to the battlefield.
+                    let token_id = match state.add_object(token_obj, ZoneId::Battlefield) {
+                        Ok(id) => id,
+                        Err(_) => continue,
+                    };
+                    // CR 707.2: Apply a Layer 1 CopyOf continuous effect so the token
+                    // has the copiable characteristics of the source creature.
+                    // This ensures correct P/T, name, subtypes, etc. via the layer system.
+                    let copy_effect = crate::rules::copy::create_copy_effect(
+                        state,
+                        token_id,
+                        source_object,
+                        controller,
+                    );
+                    state.continuous_effects.push_back(copy_effect);
+                    // CR 702.116a: Token is "tapped and attacking" -- register it in combat state
+                    // as attacking the opponent. Tokens enter attacking but were NOT declared
+                    // as attackers, so "whenever a creature attacks" triggers do NOT fire
+                    // on them (including the token's own myriad ability).
+                    if let Some(combat) = state.combat.as_mut() {
+                        combat.attackers.insert(
+                            token_id,
+                            crate::state::combat::AttackTarget::Player(opponent_id),
+                        );
+                    }
+                    events.push(GameEvent::TokenCreated {
+                        player: controller,
+                        object_id: token_id,
+                    });
+                    events.push(GameEvent::PermanentEnteredBattlefield {
+                        player: controller,
+                        object_id: token_id,
+                    });
                 }
-                events.push(GameEvent::TokenCreated {
-                    player: controller,
-                    object_id: token_id,
-                });
-                events.push(GameEvent::PermanentEnteredBattlefield {
-                    player: controller,
-                    object_id: token_id,
-                });
             }
             events.push(GameEvent::AbilityResolved {
                 controller,
@@ -6232,137 +6255,147 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     loyalty: None,
                     defense: None,
                 };
-                let token_obj = crate::state::game_object::GameObject {
-                    triggered_abilities_fired_this_turn: im::OrdSet::new(),
-                    id: crate::state::game_object::ObjectId(0), // replaced by add_object
-                    card_id: source_card_id.clone(),
-                    characteristics,
-                    controller,
-                    owner: controller,
-                    zone: ZoneId::Battlefield,
-                    status: crate::state::game_object::ObjectStatus::default(),
-                    counters: im::OrdMap::new(),
-                    attachments: im::Vector::new(),
-                    attached_to: None,
-                    damage_marked: 0,
-                    deathtouch_damage: false,
-                    is_token: true,
-                    is_emblem: false,
-                    timestamp: 0, // replaced by add_object
-                    // CR 302.6: Tokens have summoning sickness when they enter the battlefield.
-                    has_summoning_sickness: true,
-                    entered_turn: Some(state.turn.turn_number),
-                    goaded_by: im::Vector::new(),
-                    kicker_times_paid: 0,
-                    cast_alt_cost: None,
-                    foretold_turn: 0,
-                    warped_turn: 0,
-                    was_unearthed: false,
-                    myriad_exile_at_eoc: false,
-                    decayed_sacrifice_at_eoc: false,
-                    ring_block_sacrifice_at_eoc: false,
-                    exiled_by_hideaway: None,
-                    // CR 701.60b: tokens are not suspected by default.
-                    encore_sacrifice_at_end_step: false,
-                    encore_must_attack: None,
-                    encore_activated_by: None,
-                    sacrifice_at_end_step: false,
-                    exile_at_end_step: false,
-                    return_to_hand_at_end_step: false,
-                    is_plotted: false,
-                    plotted_turn: 0,
-                    is_prototyped: false,
-                    was_bargained: false,
-                    evidence_collected: false,
-                    phased_out_indirectly: false,
-                    phased_out_controller: None,
-                    creatures_devoured: 0,
-                    paired_with: None,
-                    tribute_was_paid: false,
-                    // CR 107.3m: Tokens/copies are never cast, so x_value is always 0.
-                    x_value: 0,
-                    // CR 702.157a: Tokens/copies are never cast, so squad_count is always 0.
-                    squad_count: 0,
-                    // CR 702.175a: Tokens/copies are never cast, so offspring_paid is always false.
-                    offspring_paid: false,
-                    // CR 702.174a: tokens/copies are never gift casts.
-                    gift_was_given: false,
-                    champion_exiled_card: None,
-                    gift_opponent: None,
-                    // CR 702.171b: tokens are not saddled by default.
-                    encoded_cards: im::Vector::new(),
-                    haunting_target: None,
-                    // CR 702.151b: tokens are not reconfigured by default.
-                    // CR 729.2: tokens are not part of a merged permanent by default.
-                    merged_components: im::Vector::new(),
-                    // CR 712.8a: DFC state is reset for all new permanents.
-                    is_transformed: false,
-                    last_transform_timestamp: 0,
-                    was_cast_disturbed: false,
-                    was_cast: false,
-                    abilities_activated_this_turn: 0,
-                    craft_exiled_cards: im::Vector::new(),
-                    chosen_creature_type: None,
-                    chosen_color: None,
-                    face_down_as: None,
-                    loyalty_ability_activated_this_turn: false,
-                    class_level: 0,
-                    designations: Designations::default(),
-                    adventure_exiled_by: None,
-                    meld_component: None,
+                // PB-AC9 / CR 111.1 / CR 614.1: Embalm's "create a token that's a copy of
+                // this card" is a single 1-token creation instruction — apply
+                // token-doubling replacements (Doubling Season, etc.) before looping.
+                let (token_count, repl_events) =
+                    crate::rules::replacement::apply_token_creation_replacement(
+                        state, controller, 1,
+                    );
+                events.extend(repl_events);
+                for _ in 0..token_count {
+                    let token_obj = crate::state::game_object::GameObject {
+                        triggered_abilities_fired_this_turn: im::OrdSet::new(),
+                        id: crate::state::game_object::ObjectId(0), // replaced by add_object
+                        card_id: source_card_id.clone(),
+                        characteristics: characteristics.clone(),
+                        controller,
+                        owner: controller,
+                        zone: ZoneId::Battlefield,
+                        status: crate::state::game_object::ObjectStatus::default(),
+                        counters: im::OrdMap::new(),
+                        attachments: im::Vector::new(),
+                        attached_to: None,
+                        damage_marked: 0,
+                        deathtouch_damage: false,
+                        is_token: true,
+                        is_emblem: false,
+                        timestamp: 0, // replaced by add_object
+                        // CR 302.6: Tokens have summoning sickness when they enter the battlefield.
+                        has_summoning_sickness: true,
+                        entered_turn: Some(state.turn.turn_number),
+                        goaded_by: im::Vector::new(),
+                        kicker_times_paid: 0,
+                        cast_alt_cost: None,
+                        foretold_turn: 0,
+                        warped_turn: 0,
+                        was_unearthed: false,
+                        myriad_exile_at_eoc: false,
+                        decayed_sacrifice_at_eoc: false,
+                        ring_block_sacrifice_at_eoc: false,
+                        exiled_by_hideaway: None,
+                        // CR 701.60b: tokens are not suspected by default.
+                        encore_sacrifice_at_end_step: false,
+                        encore_must_attack: None,
+                        encore_activated_by: None,
+                        sacrifice_at_end_step: false,
+                        exile_at_end_step: false,
+                        return_to_hand_at_end_step: false,
+                        is_plotted: false,
+                        plotted_turn: 0,
+                        is_prototyped: false,
+                        was_bargained: false,
+                        evidence_collected: false,
+                        phased_out_indirectly: false,
+                        phased_out_controller: None,
+                        creatures_devoured: 0,
+                        paired_with: None,
+                        tribute_was_paid: false,
+                        // CR 107.3m: Tokens/copies are never cast, so x_value is always 0.
+                        x_value: 0,
+                        // CR 702.157a: Tokens/copies are never cast, so squad_count is always 0.
+                        squad_count: 0,
+                        // CR 702.175a: Tokens/copies are never cast, so offspring_paid is always false.
+                        offspring_paid: false,
+                        // CR 702.174a: tokens/copies are never gift casts.
+                        gift_was_given: false,
+                        champion_exiled_card: None,
+                        gift_opponent: None,
+                        // CR 702.171b: tokens are not saddled by default.
+                        encoded_cards: im::Vector::new(),
+                        haunting_target: None,
+                        // CR 702.151b: tokens are not reconfigured by default.
+                        // CR 729.2: tokens are not part of a merged permanent by default.
+                        merged_components: im::Vector::new(),
+                        // CR 712.8a: DFC state is reset for all new permanents.
+                        is_transformed: false,
+                        last_transform_timestamp: 0,
+                        was_cast_disturbed: false,
+                        was_cast: false,
+                        abilities_activated_this_turn: 0,
+                        craft_exiled_cards: im::Vector::new(),
+                        chosen_creature_type: None,
+                        chosen_color: None,
+                        face_down_as: None,
+                        loyalty_ability_activated_this_turn: false,
+                        class_level: 0,
+                        designations: Designations::default(),
+                        adventure_exiled_by: None,
+                        meld_component: None,
 
-                    skip_untap_steps: 0,
-                };
-                // Add the token to the battlefield.
-                let token_id = state.add_object(token_obj, ZoneId::Battlefield)?;
-                // Set controller (add_object uses a default; enforce it here).
-                if let Some(obj) = state.objects.get_mut(&token_id) {
-                    obj.controller = controller;
+                        skip_untap_steps: 0,
+                    };
+                    // Add the token to the battlefield.
+                    let token_id = state.add_object(token_obj, ZoneId::Battlefield)?;
+                    // Set controller (add_object uses a default; enforce it here).
+                    if let Some(obj) = state.objects.get_mut(&token_id) {
+                        obj.controller = controller;
+                    }
+                    // Run the full ETB pipeline for the token.
+                    // (ETB replacements, static continuous effects, ETB triggers.)
+                    let self_evts = super::replacement::apply_self_etb_from_definition(
+                        state,
+                        token_id,
+                        controller,
+                        source_card_id.as_ref(),
+                        &registry,
+                    );
+                    events.extend(self_evts);
+                    let etb_evts =
+                        super::replacement::apply_etb_replacements(state, token_id, controller);
+                    events.extend(etb_evts);
+                    super::replacement::register_permanent_replacement_abilities(
+                        state,
+                        token_id,
+                        controller,
+                        source_card_id.as_ref(),
+                        &registry,
+                    );
+                    super::replacement::register_static_continuous_effects(
+                        state,
+                        token_id,
+                        source_card_id.as_ref(),
+                        &registry,
+                    );
+                    events.push(GameEvent::TokenCreated {
+                        player: controller,
+                        object_id: token_id,
+                    });
+                    events.push(GameEvent::PermanentEnteredBattlefield {
+                        player: controller,
+                        object_id: token_id,
+                    });
+                    // Queue WhenEntersBattlefield triggered abilities from card definition.
+                    // CR 603.3: goes on stack at next priority window.
+                    let etb_trigger_evts = super::replacement::queue_carddef_etb_triggers(
+                        state,
+                        token_id,
+                        controller,
+                        source_card_id.as_ref(),
+                        &registry,
+                    );
+                    events.extend(etb_trigger_evts);
                 }
-                // Run the full ETB pipeline for the token.
-                // (ETB replacements, static continuous effects, ETB triggers.)
-                let self_evts = super::replacement::apply_self_etb_from_definition(
-                    state,
-                    token_id,
-                    controller,
-                    source_card_id.as_ref(),
-                    &registry,
-                );
-                events.extend(self_evts);
-                let etb_evts =
-                    super::replacement::apply_etb_replacements(state, token_id, controller);
-                events.extend(etb_evts);
-                super::replacement::register_permanent_replacement_abilities(
-                    state,
-                    token_id,
-                    controller,
-                    source_card_id.as_ref(),
-                    &registry,
-                );
-                super::replacement::register_static_continuous_effects(
-                    state,
-                    token_id,
-                    source_card_id.as_ref(),
-                    &registry,
-                );
-                events.push(GameEvent::TokenCreated {
-                    player: controller,
-                    object_id: token_id,
-                });
-                events.push(GameEvent::PermanentEnteredBattlefield {
-                    player: controller,
-                    object_id: token_id,
-                });
-                // Queue WhenEntersBattlefield triggered abilities from card definition.
-                // CR 603.3: goes on stack at next priority window.
-                let etb_trigger_evts = super::replacement::queue_carddef_etb_triggers(
-                    state,
-                    token_id,
-                    controller,
-                    source_card_id.as_ref(),
-                    &registry,
-                );
-                events.extend(etb_trigger_evts);
             }
             // If no card definition found, ability does nothing (shouldn't happen in practice).
             events.push(GameEvent::AbilityResolved {
@@ -6447,137 +6480,147 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     loyalty: None,
                     defense: None,
                 };
-                let token_obj = crate::state::game_object::GameObject {
-                    triggered_abilities_fired_this_turn: im::OrdSet::new(),
-                    id: crate::state::game_object::ObjectId(0), // replaced by add_object
-                    card_id: source_card_id.clone(),
-                    characteristics,
-                    controller,
-                    owner: controller,
-                    zone: ZoneId::Battlefield,
-                    status: crate::state::game_object::ObjectStatus::default(),
-                    counters: im::OrdMap::new(),
-                    attachments: im::Vector::new(),
-                    attached_to: None,
-                    damage_marked: 0,
-                    deathtouch_damage: false,
-                    is_token: true,
-                    is_emblem: false,
-                    timestamp: 0, // replaced by add_object
-                    // CR 302.6: Tokens have summoning sickness when they enter the battlefield.
-                    has_summoning_sickness: true,
-                    entered_turn: Some(state.turn.turn_number),
-                    goaded_by: im::Vector::new(),
-                    kicker_times_paid: 0,
-                    cast_alt_cost: None,
-                    foretold_turn: 0,
-                    warped_turn: 0,
-                    was_unearthed: false,
-                    myriad_exile_at_eoc: false,
-                    decayed_sacrifice_at_eoc: false,
-                    ring_block_sacrifice_at_eoc: false,
-                    exiled_by_hideaway: None,
-                    // CR 701.60b: tokens are not suspected by default.
-                    encore_sacrifice_at_end_step: false,
-                    encore_must_attack: None,
-                    encore_activated_by: None,
-                    sacrifice_at_end_step: false,
-                    exile_at_end_step: false,
-                    return_to_hand_at_end_step: false,
-                    is_plotted: false,
-                    plotted_turn: 0,
-                    is_prototyped: false,
-                    was_bargained: false,
-                    evidence_collected: false,
-                    phased_out_indirectly: false,
-                    phased_out_controller: None,
-                    creatures_devoured: 0,
-                    paired_with: None,
-                    tribute_was_paid: false,
-                    // CR 107.3m: Tokens/copies are never cast, so x_value is always 0.
-                    x_value: 0,
-                    // CR 702.157a: Tokens/copies are never cast, so squad_count is always 0.
-                    squad_count: 0,
-                    // CR 702.175a: Tokens/copies are never cast, so offspring_paid is always false.
-                    offspring_paid: false,
-                    // CR 702.174a: tokens/copies are never gift casts.
-                    gift_was_given: false,
-                    champion_exiled_card: None,
-                    gift_opponent: None,
-                    // CR 702.171b: tokens are not saddled by default.
-                    encoded_cards: im::Vector::new(),
-                    haunting_target: None,
-                    // CR 702.151b: tokens are not reconfigured by default.
-                    // CR 729.2: tokens are not part of a merged permanent by default.
-                    merged_components: im::Vector::new(),
-                    // CR 712.8a: DFC state is reset for all new permanents.
-                    is_transformed: false,
-                    last_transform_timestamp: 0,
-                    was_cast_disturbed: false,
-                    was_cast: false,
-                    abilities_activated_this_turn: 0,
-                    craft_exiled_cards: im::Vector::new(),
-                    chosen_creature_type: None,
-                    chosen_color: None,
-                    face_down_as: None,
-                    loyalty_ability_activated_this_turn: false,
-                    class_level: 0,
-                    designations: Designations::default(),
-                    adventure_exiled_by: None,
-                    meld_component: None,
+                // PB-AC9 / CR 111.1 / CR 614.1: Eternalize's "create a token that's a
+                // copy of this card" is a single 1-token creation instruction — apply
+                // token-doubling replacements (Doubling Season, etc.) before looping.
+                let (eternalize_token_count, eternalize_repl_events) =
+                    crate::rules::replacement::apply_token_creation_replacement(
+                        state, controller, 1,
+                    );
+                events.extend(eternalize_repl_events);
+                for _ in 0..eternalize_token_count {
+                    let token_obj = crate::state::game_object::GameObject {
+                        triggered_abilities_fired_this_turn: im::OrdSet::new(),
+                        id: crate::state::game_object::ObjectId(0), // replaced by add_object
+                        card_id: source_card_id.clone(),
+                        characteristics: characteristics.clone(),
+                        controller,
+                        owner: controller,
+                        zone: ZoneId::Battlefield,
+                        status: crate::state::game_object::ObjectStatus::default(),
+                        counters: im::OrdMap::new(),
+                        attachments: im::Vector::new(),
+                        attached_to: None,
+                        damage_marked: 0,
+                        deathtouch_damage: false,
+                        is_token: true,
+                        is_emblem: false,
+                        timestamp: 0, // replaced by add_object
+                        // CR 302.6: Tokens have summoning sickness when they enter the battlefield.
+                        has_summoning_sickness: true,
+                        entered_turn: Some(state.turn.turn_number),
+                        goaded_by: im::Vector::new(),
+                        kicker_times_paid: 0,
+                        cast_alt_cost: None,
+                        foretold_turn: 0,
+                        warped_turn: 0,
+                        was_unearthed: false,
+                        myriad_exile_at_eoc: false,
+                        decayed_sacrifice_at_eoc: false,
+                        ring_block_sacrifice_at_eoc: false,
+                        exiled_by_hideaway: None,
+                        // CR 701.60b: tokens are not suspected by default.
+                        encore_sacrifice_at_end_step: false,
+                        encore_must_attack: None,
+                        encore_activated_by: None,
+                        sacrifice_at_end_step: false,
+                        exile_at_end_step: false,
+                        return_to_hand_at_end_step: false,
+                        is_plotted: false,
+                        plotted_turn: 0,
+                        is_prototyped: false,
+                        was_bargained: false,
+                        evidence_collected: false,
+                        phased_out_indirectly: false,
+                        phased_out_controller: None,
+                        creatures_devoured: 0,
+                        paired_with: None,
+                        tribute_was_paid: false,
+                        // CR 107.3m: Tokens/copies are never cast, so x_value is always 0.
+                        x_value: 0,
+                        // CR 702.157a: Tokens/copies are never cast, so squad_count is always 0.
+                        squad_count: 0,
+                        // CR 702.175a: Tokens/copies are never cast, so offspring_paid is always false.
+                        offspring_paid: false,
+                        // CR 702.174a: tokens/copies are never gift casts.
+                        gift_was_given: false,
+                        champion_exiled_card: None,
+                        gift_opponent: None,
+                        // CR 702.171b: tokens are not saddled by default.
+                        encoded_cards: im::Vector::new(),
+                        haunting_target: None,
+                        // CR 702.151b: tokens are not reconfigured by default.
+                        // CR 729.2: tokens are not part of a merged permanent by default.
+                        merged_components: im::Vector::new(),
+                        // CR 712.8a: DFC state is reset for all new permanents.
+                        is_transformed: false,
+                        last_transform_timestamp: 0,
+                        was_cast_disturbed: false,
+                        was_cast: false,
+                        abilities_activated_this_turn: 0,
+                        craft_exiled_cards: im::Vector::new(),
+                        chosen_creature_type: None,
+                        chosen_color: None,
+                        face_down_as: None,
+                        loyalty_ability_activated_this_turn: false,
+                        class_level: 0,
+                        designations: Designations::default(),
+                        adventure_exiled_by: None,
+                        meld_component: None,
 
-                    skip_untap_steps: 0,
-                };
-                // Add the token to the battlefield.
-                let token_id = state.add_object(token_obj, ZoneId::Battlefield)?;
-                // Set controller (add_object uses a default; enforce it here).
-                if let Some(obj) = state.objects.get_mut(&token_id) {
-                    obj.controller = controller;
+                        skip_untap_steps: 0,
+                    };
+                    // Add the token to the battlefield.
+                    let token_id = state.add_object(token_obj, ZoneId::Battlefield)?;
+                    // Set controller (add_object uses a default; enforce it here).
+                    if let Some(obj) = state.objects.get_mut(&token_id) {
+                        obj.controller = controller;
+                    }
+                    // Run the full ETB pipeline for the token.
+                    // (ETB replacements, static continuous effects, ETB triggers.)
+                    let self_evts = super::replacement::apply_self_etb_from_definition(
+                        state,
+                        token_id,
+                        controller,
+                        source_card_id.as_ref(),
+                        &registry,
+                    );
+                    events.extend(self_evts);
+                    let etb_evts =
+                        super::replacement::apply_etb_replacements(state, token_id, controller);
+                    events.extend(etb_evts);
+                    super::replacement::register_permanent_replacement_abilities(
+                        state,
+                        token_id,
+                        controller,
+                        source_card_id.as_ref(),
+                        &registry,
+                    );
+                    super::replacement::register_static_continuous_effects(
+                        state,
+                        token_id,
+                        source_card_id.as_ref(),
+                        &registry,
+                    );
+                    events.push(GameEvent::TokenCreated {
+                        player: controller,
+                        object_id: token_id,
+                    });
+                    events.push(GameEvent::PermanentEnteredBattlefield {
+                        player: controller,
+                        object_id: token_id,
+                    });
+                    // Queue WhenEntersBattlefield triggered abilities from card definition.
+                    // CR 603.3: goes on stack at next priority window.
+                    let etb_trigger_evts = super::replacement::queue_carddef_etb_triggers(
+                        state,
+                        token_id,
+                        controller,
+                        source_card_id.as_ref(),
+                        &registry,
+                    );
+                    events.extend(etb_trigger_evts);
                 }
-                // Run the full ETB pipeline for the token.
-                // (ETB replacements, static continuous effects, ETB triggers.)
-                let self_evts = super::replacement::apply_self_etb_from_definition(
-                    state,
-                    token_id,
-                    controller,
-                    source_card_id.as_ref(),
-                    &registry,
-                );
-                events.extend(self_evts);
-                let etb_evts =
-                    super::replacement::apply_etb_replacements(state, token_id, controller);
-                events.extend(etb_evts);
-                super::replacement::register_permanent_replacement_abilities(
-                    state,
-                    token_id,
-                    controller,
-                    source_card_id.as_ref(),
-                    &registry,
-                );
-                super::replacement::register_static_continuous_effects(
-                    state,
-                    token_id,
-                    source_card_id.as_ref(),
-                    &registry,
-                );
-                events.push(GameEvent::TokenCreated {
-                    player: controller,
-                    object_id: token_id,
-                });
-                events.push(GameEvent::PermanentEnteredBattlefield {
-                    player: controller,
-                    object_id: token_id,
-                });
-                // Queue WhenEntersBattlefield triggered abilities from card definition.
-                // CR 603.3: goes on stack at next priority window.
-                let etb_trigger_evts = super::replacement::queue_carddef_etb_triggers(
-                    state,
-                    token_id,
-                    controller,
-                    source_card_id.as_ref(),
-                    &registry,
-                );
-                events.extend(etb_trigger_evts);
             }
             // If no card definition found, ability does nothing (shouldn't happen in practice).
             events.push(GameEvent::AbilityResolved {
@@ -6656,6 +6699,14 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     }
                 }
                 for opponent_id in opponent_ids {
+                    // PB-AC9 / CR 111.1 / CR 614.1: Encore's "for each opponent, create a
+                    // token" is a separate 1-token creation instruction PER opponent —
+                    // apply token-doubling replacements (Doubling Season, etc.) per opponent.
+                    let (encore_token_count, encore_repl_events) =
+                        crate::rules::replacement::apply_token_creation_replacement(
+                            state, controller, 1,
+                        );
+                    events.extend(encore_repl_events);
                     let keywords = base_keywords.clone();
                     let characteristics = crate::state::game_object::Characteristics {
                         name: def.name.clone(),
@@ -6676,138 +6727,140 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         loyalty: None,
                         defense: None,
                     };
-                    let token_obj = crate::state::game_object::GameObject {
-                        triggered_abilities_fired_this_turn: im::OrdSet::new(),
-                        id: crate::state::game_object::ObjectId(0), // replaced by add_object
-                        card_id: source_card_id.clone(),
-                        characteristics,
-                        controller,
-                        owner: controller,
-                        zone: ZoneId::Battlefield,
-                        status: crate::state::game_object::ObjectStatus::default(),
-                        counters: im::OrdMap::new(),
-                        attachments: im::Vector::new(),
-                        attached_to: None,
-                        damage_marked: 0,
-                        deathtouch_damage: false,
-                        is_token: true,
-                        is_emblem: false,
-                        timestamp: 0, // replaced by add_object
-                        // CR 302.6: Tokens have summoning sickness when they enter.
-                        // Has Haste so can attack despite summoning sickness.
-                        has_summoning_sickness: true,
-                        entered_turn: Some(state.turn.turn_number),
-                        goaded_by: im::Vector::new(),
-                        kicker_times_paid: 0,
-                        cast_alt_cost: None,
-                        foretold_turn: 0,
-                        warped_turn: 0,
-                        was_unearthed: false,
-                        myriad_exile_at_eoc: false,
-                        decayed_sacrifice_at_eoc: false,
-                        ring_block_sacrifice_at_eoc: false,
-                        exiled_by_hideaway: None,
-                        // CR 701.60b: tokens are not suspected by default.
-                        encore_sacrifice_at_end_step: true, // sacrificed at end step
-                        encore_must_attack: Some(opponent_id), // must attack this opponent
-                        // Ruling 2020-11-10: track the original activator so the end-step
-                        // sacrifice trigger can verify control hasn't changed.
-                        encore_activated_by: Some(controller),
-                        sacrifice_at_end_step: false,
-                        exile_at_end_step: false,
-                        return_to_hand_at_end_step: false,
-                        is_plotted: false,
-                        plotted_turn: 0,
-                        is_prototyped: false,
-                        was_bargained: false,
-                        evidence_collected: false,
-                        phased_out_indirectly: false,
-                        phased_out_controller: None,
-                        creatures_devoured: 0,
-                        paired_with: None,
-                        tribute_was_paid: false,
-                        // CR 107.3m: Tokens are never cast, so x_value is always 0.
-                        x_value: 0,
-                        // CR 702.157a: Tokens are never cast, so squad_count is always 0.
-                        squad_count: 0,
-                        offspring_paid: false,
-                        // CR 702.174a: tokens/copies are never gift casts.
-                        gift_was_given: false,
-                        champion_exiled_card: None,
-                        gift_opponent: None,
-                        // CR 702.171b: tokens are not saddled by default.
-                        encoded_cards: im::Vector::new(),
-                        haunting_target: None,
-                        // CR 702.151b: tokens are not reconfigured by default.
-                        // CR 729.2: tokens are not part of a merged permanent by default.
-                        merged_components: im::Vector::new(),
-                        // CR 712.8a: DFC state is reset for all new permanents.
-                        is_transformed: false,
-                        last_transform_timestamp: 0,
-                        was_cast_disturbed: false,
-                        was_cast: false,
-                        abilities_activated_this_turn: 0,
-                        craft_exiled_cards: im::Vector::new(),
-                        chosen_creature_type: None,
-                        chosen_color: None,
-                        face_down_as: None,
-                        loyalty_ability_activated_this_turn: false,
-                        class_level: 0,
-                        designations: Designations::default(),
-                        adventure_exiled_by: None,
-                        meld_component: None,
+                    for _ in 0..encore_token_count {
+                        let token_obj = crate::state::game_object::GameObject {
+                            triggered_abilities_fired_this_turn: im::OrdSet::new(),
+                            id: crate::state::game_object::ObjectId(0), // replaced by add_object
+                            card_id: source_card_id.clone(),
+                            characteristics: characteristics.clone(),
+                            controller,
+                            owner: controller,
+                            zone: ZoneId::Battlefield,
+                            status: crate::state::game_object::ObjectStatus::default(),
+                            counters: im::OrdMap::new(),
+                            attachments: im::Vector::new(),
+                            attached_to: None,
+                            damage_marked: 0,
+                            deathtouch_damage: false,
+                            is_token: true,
+                            is_emblem: false,
+                            timestamp: 0, // replaced by add_object
+                            // CR 302.6: Tokens have summoning sickness when they enter.
+                            // Has Haste so can attack despite summoning sickness.
+                            has_summoning_sickness: true,
+                            entered_turn: Some(state.turn.turn_number),
+                            goaded_by: im::Vector::new(),
+                            kicker_times_paid: 0,
+                            cast_alt_cost: None,
+                            foretold_turn: 0,
+                            warped_turn: 0,
+                            was_unearthed: false,
+                            myriad_exile_at_eoc: false,
+                            decayed_sacrifice_at_eoc: false,
+                            ring_block_sacrifice_at_eoc: false,
+                            exiled_by_hideaway: None,
+                            // CR 701.60b: tokens are not suspected by default.
+                            encore_sacrifice_at_end_step: true, // sacrificed at end step
+                            encore_must_attack: Some(opponent_id), // must attack this opponent
+                            // Ruling 2020-11-10: track the original activator so the end-step
+                            // sacrifice trigger can verify control hasn't changed.
+                            encore_activated_by: Some(controller),
+                            sacrifice_at_end_step: false,
+                            exile_at_end_step: false,
+                            return_to_hand_at_end_step: false,
+                            is_plotted: false,
+                            plotted_turn: 0,
+                            is_prototyped: false,
+                            was_bargained: false,
+                            evidence_collected: false,
+                            phased_out_indirectly: false,
+                            phased_out_controller: None,
+                            creatures_devoured: 0,
+                            paired_with: None,
+                            tribute_was_paid: false,
+                            // CR 107.3m: Tokens are never cast, so x_value is always 0.
+                            x_value: 0,
+                            // CR 702.157a: Tokens are never cast, so squad_count is always 0.
+                            squad_count: 0,
+                            offspring_paid: false,
+                            // CR 702.174a: tokens/copies are never gift casts.
+                            gift_was_given: false,
+                            champion_exiled_card: None,
+                            gift_opponent: None,
+                            // CR 702.171b: tokens are not saddled by default.
+                            encoded_cards: im::Vector::new(),
+                            haunting_target: None,
+                            // CR 702.151b: tokens are not reconfigured by default.
+                            // CR 729.2: tokens are not part of a merged permanent by default.
+                            merged_components: im::Vector::new(),
+                            // CR 712.8a: DFC state is reset for all new permanents.
+                            is_transformed: false,
+                            last_transform_timestamp: 0,
+                            was_cast_disturbed: false,
+                            was_cast: false,
+                            abilities_activated_this_turn: 0,
+                            craft_exiled_cards: im::Vector::new(),
+                            chosen_creature_type: None,
+                            chosen_color: None,
+                            face_down_as: None,
+                            loyalty_ability_activated_this_turn: false,
+                            class_level: 0,
+                            designations: Designations::default(),
+                            adventure_exiled_by: None,
+                            meld_component: None,
 
-                        skip_untap_steps: 0,
-                    };
-                    // Add the token to the battlefield.
-                    let token_id = state.add_object(token_obj, ZoneId::Battlefield)?;
-                    // Set controller (add_object uses a default; enforce it here).
-                    if let Some(obj) = state.objects.get_mut(&token_id) {
-                        obj.controller = controller;
+                            skip_untap_steps: 0,
+                        };
+                        // Add the token to the battlefield.
+                        let token_id = state.add_object(token_obj, ZoneId::Battlefield)?;
+                        // Set controller (add_object uses a default; enforce it here).
+                        if let Some(obj) = state.objects.get_mut(&token_id) {
+                            obj.controller = controller;
+                        }
+                        // Run the full ETB pipeline for the token.
+                        let self_evts = super::replacement::apply_self_etb_from_definition(
+                            state,
+                            token_id,
+                            controller,
+                            source_card_id.as_ref(),
+                            &registry,
+                        );
+                        events.extend(self_evts);
+                        let etb_evts =
+                            super::replacement::apply_etb_replacements(state, token_id, controller);
+                        events.extend(etb_evts);
+                        super::replacement::register_permanent_replacement_abilities(
+                            state,
+                            token_id,
+                            controller,
+                            source_card_id.as_ref(),
+                            &registry,
+                        );
+                        super::replacement::register_static_continuous_effects(
+                            state,
+                            token_id,
+                            source_card_id.as_ref(),
+                            &registry,
+                        );
+                        events.push(GameEvent::TokenCreated {
+                            player: controller,
+                            object_id: token_id,
+                        });
+                        events.push(GameEvent::PermanentEnteredBattlefield {
+                            player: controller,
+                            object_id: token_id,
+                        });
+                        // Queue WhenEntersBattlefield triggered abilities from card definition.
+                        // CR 603.3: goes on stack at next priority window.
+                        let etb_trigger_evts = super::replacement::queue_carddef_etb_triggers(
+                            state,
+                            token_id,
+                            controller,
+                            source_card_id.as_ref(),
+                            &registry,
+                        );
+                        events.extend(etb_trigger_evts);
                     }
-                    // Run the full ETB pipeline for the token.
-                    let self_evts = super::replacement::apply_self_etb_from_definition(
-                        state,
-                        token_id,
-                        controller,
-                        source_card_id.as_ref(),
-                        &registry,
-                    );
-                    events.extend(self_evts);
-                    let etb_evts =
-                        super::replacement::apply_etb_replacements(state, token_id, controller);
-                    events.extend(etb_evts);
-                    super::replacement::register_permanent_replacement_abilities(
-                        state,
-                        token_id,
-                        controller,
-                        source_card_id.as_ref(),
-                        &registry,
-                    );
-                    super::replacement::register_static_continuous_effects(
-                        state,
-                        token_id,
-                        source_card_id.as_ref(),
-                        &registry,
-                    );
-                    events.push(GameEvent::TokenCreated {
-                        player: controller,
-                        object_id: token_id,
-                    });
-                    events.push(GameEvent::PermanentEnteredBattlefield {
-                        player: controller,
-                        object_id: token_id,
-                    });
-                    // Queue WhenEntersBattlefield triggered abilities from card definition.
-                    // CR 603.3: goes on stack at next priority window.
-                    let etb_trigger_evts = super::replacement::queue_carddef_etb_triggers(
-                        state,
-                        token_id,
-                        controller,
-                        source_card_id.as_ref(),
-                        &registry,
-                    );
-                    events.extend(etb_trigger_evts);
                 }
             }
             // If no card definition found, ability does nothing.
@@ -7691,17 +7744,25 @@ fn execute_gift_effect(
     match gift_type {
         GiftType::Food => {
             // CR 702.174d: "The chosen player creates a Food token."
-            let spec = food_token_spec(1);
-            let obj = crate::effects::make_token(&spec, recipient);
-            if let Ok(id) = state.add_object(obj, ZoneId::Battlefield) {
-                events.push(GameEvent::TokenCreated {
-                    player: recipient,
-                    object_id: id,
-                });
-                events.push(GameEvent::PermanentEnteredBattlefield {
-                    player: recipient,
-                    object_id: id,
-                });
+            // PB-AC9 / CR 111.1 / CR 614.1: token-doubling replacements key on the
+            // token's CONTROLLER, which is the gift recipient here -- not the gifting
+            // spell/permanent's controller (`_controller`).
+            let (token_count, repl_events) =
+                crate::rules::replacement::apply_token_creation_replacement(state, recipient, 1);
+            events.extend(repl_events);
+            for _ in 0..token_count {
+                let spec = food_token_spec(1);
+                let obj = crate::effects::make_token(&spec, recipient);
+                if let Ok(id) = state.add_object(obj, ZoneId::Battlefield) {
+                    events.push(GameEvent::TokenCreated {
+                        player: recipient,
+                        object_id: id,
+                    });
+                    events.push(GameEvent::PermanentEnteredBattlefield {
+                        player: recipient,
+                        object_id: id,
+                    });
+                }
             }
         }
         GiftType::Card => {
@@ -7712,17 +7773,25 @@ fn execute_gift_effect(
         }
         GiftType::Treasure => {
             // CR 702.174h: "The chosen player creates a Treasure token."
-            let spec = treasure_token_spec(1);
-            let obj = crate::effects::make_token(&spec, recipient);
-            if let Ok(id) = state.add_object(obj, ZoneId::Battlefield) {
-                events.push(GameEvent::TokenCreated {
-                    player: recipient,
-                    object_id: id,
-                });
-                events.push(GameEvent::PermanentEnteredBattlefield {
-                    player: recipient,
-                    object_id: id,
-                });
+            // PB-AC9 / CR 111.1 / CR 614.1: token-doubling replacements key on the
+            // token's CONTROLLER, which is the gift recipient here -- not the gifting
+            // spell/permanent's controller (`_controller`).
+            let (token_count, repl_events) =
+                crate::rules::replacement::apply_token_creation_replacement(state, recipient, 1);
+            events.extend(repl_events);
+            for _ in 0..token_count {
+                let spec = treasure_token_spec(1);
+                let obj = crate::effects::make_token(&spec, recipient);
+                if let Ok(id) = state.add_object(obj, ZoneId::Battlefield) {
+                    events.push(GameEvent::TokenCreated {
+                        player: recipient,
+                        object_id: id,
+                    });
+                    events.push(GameEvent::PermanentEnteredBattlefield {
+                        player: recipient,
+                        object_id: id,
+                    });
+                }
             }
         }
         GiftType::ExtraTurn => {

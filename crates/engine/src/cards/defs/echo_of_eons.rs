@@ -19,19 +19,13 @@ pub fn card() -> CardDefinition {
                 cost: ManaCost { generic: 2, blue: 1, ..Default::default() },
             },
             AbilityDefinition::Spell {
-                // TODO: "shuffle hand and graveyard into library" — no Effect for this.
-                // Using discard-all + draw-7 as wheel approximation; the shuffle-in of
-                // graveyard is not modeled. Full Timetwister effect needs dedicated variant.
-                effect: Effect::Sequence(vec![
-                    Effect::DiscardCards {
-                        player: PlayerTarget::EachPlayer,
-                        count: EffectAmount::Fixed(7),
-                    },
-                    Effect::DrawCards {
-                        player: PlayerTarget::EachPlayer,
-                        count: EffectAmount::Fixed(7),
-                    },
-                ]),
+                // CR 701.24 / 121.1: each player shuffles their hand and graveyard into
+                // their library, then draws seven cards.
+                effect: Effect::WheelHand {
+                    player: PlayerTarget::EachPlayer,
+                    disposal: WheelDisposal::ShuffleHandAndGraveyardIntoLibrary,
+                    draw: WheelDraw::Fixed(7),
+                },
                 targets: vec![],
                 modes: None,
                 cant_be_countered: false,

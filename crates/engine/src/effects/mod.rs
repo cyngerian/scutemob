@@ -21,7 +21,7 @@
 //! AFTER the effect resolves — the caller (resolution.rs) runs SBA checks.
 use crate::cards::card_definition::{
     Condition, Cost, Effect, EffectAmount, EffectTarget, ForEachTarget, ManaRestriction,
-    PlayerTarget, TargetController, TargetFilter, ZoneTarget,
+    PlayerTarget, TargetController, TargetFilter, WheelDisposal, WheelDraw, ZoneTarget,
 };
 use crate::rules::events::{CombatDamageTarget, GameEvent};
 use crate::state::game_object::{
@@ -552,6 +552,60 @@ fn execute_effect_inner(
                 discard_cards(state, p, n, events);
             }
         }
+        // CR 701.9 / 701.24 / 121.1: wheel effect — dispose of the hand, then draw.
+        // The "that many" count MUST be snapshotted BEFORE disposal (a naive
+        // DiscardCards{HandSize} + DrawCards{HandSize} would read 0 after the
+        // discard has already emptied the hand). APNAP order comes from
+        // `resolve_player_target_list`'s `PlayerTarget::EachPlayer` iteration.
+        Effect::WheelHand {
+            player,
+            disposal,
+            draw,
+        } => {
+            let players = resolve_player_target_list(state, player, ctx);
+            for p in players {
+                let hand_zone = ZoneId::Hand(p);
+                let hand_size = state
+                    .objects
+                    .iter()
+                    .filter(|(_, obj)| obj.zone == hand_zone)
+                    .count();
+                match disposal {
+                    WheelDisposal::Discard => discard_cards(state, p, hand_size, events),
+                    WheelDisposal::ShuffleHandIntoLibrary => {
+                        move_zone_all_then_shuffle(state, p, &[ZoneId::Hand(p)], events);
+                    }
+                    WheelDisposal::ShuffleHandAndGraveyardIntoLibrary => {
+                        move_zone_all_then_shuffle(
+                            state,
+                            p,
+                            &[ZoneId::Hand(p), ZoneId::Graveyard(p)],
+                            events,
+                        );
+                    }
+                }
+                let n = match draw {
+                    WheelDraw::ThatMany => hand_size,
+                    WheelDraw::Fixed(k) => *k as usize,
+                };
+                for _ in 0..n {
+                    let draw_evts = draw_one_card(state, p);
+                    events.extend(draw_evts);
+                }
+            }
+        }
+        // CR 402.2: permanently remove the target player's maximum hand size for
+        // the rest of the game (Ancient Silver Dragon). Sets the persistent flag;
+        // the per-cleanup recompute in `turn_actions.rs` ORs it in so it is never
+        // clobbered back to false.
+        Effect::SetNoMaximumHandSize { player } => {
+            let players = resolve_player_target_list(state, player, ctx);
+            for p in players {
+                if let Some(ps) = state.players.get_mut(&p) {
+                    ps.no_max_hand_size_permanent = true;
+                }
+            }
+        }
         Effect::MillCards { player, count } => {
             let n = resolve_amount(state, count, ctx) as usize;
             let players = resolve_player_target_list(state, player, ctx);
@@ -625,8 +679,19 @@ fn execute_effect_inner(
             // CR 608.2h: Resolve dynamic count at execution time.
             let raw_count = resolve_amount(state, &spec.count, ctx);
             let resolved_count = raw_count.max(0) as u32;
+            // PB-AC9 / CR 111.1 / CR 614.1: apply token-creation replacement effects
+            // (Doubling Season, etc.) — Living Weapon's Germ token is a token creation
+            // like any other. If multiple Germs are created, only the first is equipped
+            // (ruling 2020-08-07); the rest are subject to SBAs normally.
+            let (token_count, repl_events) =
+                crate::rules::replacement::apply_token_creation_replacement(
+                    state,
+                    ctx.controller,
+                    resolved_count,
+                );
+            events.extend(repl_events);
             let mut first_token_id: Option<ObjectId> = None;
-            for _ in 0..resolved_count {
+            for _ in 0..token_count {
                 let obj = make_token(spec, ctx.controller);
                 if let Ok(id) = state.add_object(obj, ZoneId::Battlefield) {
                     events.push(GameEvent::TokenCreated {
@@ -694,18 +759,30 @@ fn execute_effect_inner(
             let n = resolve_amount(state, count, ctx).max(0) as u32;
             if n > 0 {
                 let spec = crate::cards::card_definition::clue_token_spec(1);
-                // Create tokens one at a time (ruling 2024-06-07).
+                // Create tokens one at a time (ruling 2024-06-07). Each individual
+                // Clue creation is its own "would create tokens" event, so
+                // PB-AC9 / CR 111.1 / CR 614.1: apply token-doubling replacements
+                // (Doubling Season, etc.) PER instance, not to the whole batch.
                 for _ in 0..n {
-                    let obj = make_token(&spec, ctx.controller);
-                    if let Ok(id) = state.add_object(obj, ZoneId::Battlefield) {
-                        events.push(GameEvent::TokenCreated {
-                            player: ctx.controller,
-                            object_id: id,
-                        });
-                        events.push(GameEvent::PermanentEnteredBattlefield {
-                            player: ctx.controller,
-                            object_id: id,
-                        });
+                    let (clue_count, repl_events) =
+                        crate::rules::replacement::apply_token_creation_replacement(
+                            state,
+                            ctx.controller,
+                            1,
+                        );
+                    events.extend(repl_events);
+                    for _ in 0..clue_count {
+                        let obj = make_token(&spec, ctx.controller);
+                        if let Ok(id) = state.add_object(obj, ZoneId::Battlefield) {
+                            events.push(GameEvent::TokenCreated {
+                                player: ctx.controller,
+                                object_id: id,
+                            });
+                            events.push(GameEvent::PermanentEnteredBattlefield {
+                                player: ctx.controller,
+                                object_id: id,
+                            });
+                        }
                     }
                 }
                 // CR 701.16a: Emit Investigated event for "whenever you investigate"
@@ -2412,20 +2489,38 @@ fn execute_effect_inner(
             // If no Army exists, create a 0/0 black [subtype] Army token (CR 701.47a).
             // Ruling 2023-06-16: the token enters as 0/0 BEFORE receiving counters.
             // SBAs are not checked between token creation and counter placement.
+            //
+            // PB-AC9 / CR 111.1 / CR 614.1: apply token-doubling replacements
+            // (Doubling Season, etc.) to the Army token creation. If doubled, the
+            // amass counters go on only the FIRST created token (mirrors the
+            // Living Weapon Germ precedent -- "if multiple tokens are created,
+            // only the first" receives the follow-up effect); the extra Army
+            // token(s) remain bare 0/0s and die to SBA immediately.
             let army_id = if army_ids.is_empty() {
                 let spec = crate::cards::card_definition::army_token_spec(subtype);
-                let token = make_token(&spec, controller);
-                if let Ok(id) = state.add_object(token, ZoneId::Battlefield) {
-                    events.push(GameEvent::TokenCreated {
-                        player: controller,
-                        object_id: id,
-                    });
-                    events.push(GameEvent::PermanentEnteredBattlefield {
-                        player: controller,
-                        object_id: id,
-                    });
-                    army_ids.push(id);
-                    id
+                let (army_token_count, repl_events) =
+                    crate::rules::replacement::apply_token_creation_replacement(
+                        state, controller, 1,
+                    );
+                events.extend(repl_events);
+                let mut created_ids = Vec::new();
+                for _ in 0..army_token_count {
+                    let token = make_token(&spec, controller);
+                    if let Ok(id) = state.add_object(token, ZoneId::Battlefield) {
+                        events.push(GameEvent::TokenCreated {
+                            player: controller,
+                            object_id: id,
+                        });
+                        events.push(GameEvent::PermanentEnteredBattlefield {
+                            player: controller,
+                            object_id: id,
+                        });
+                        created_ids.push(id);
+                    }
+                }
+                if let Some(&first_id) = created_ids.first() {
+                    army_ids.extend(created_ids.iter().copied());
+                    first_id
                 } else {
                     // Token creation failed (should not happen in normal play).
                     // CR 701.47b: still emit Amassed even if actions were impossible.
@@ -2446,20 +2541,41 @@ fn execute_effect_inner(
                 chosen
             };
             // Step 3: Place N +1/+1 counters on the chosen Army (if N > 0).
+            //
+            // CR 701.47a + CR 614.1 (PB-AC9 review E1): the counter placement is a
+            // replaceable event, exactly like every other counter placement. Route it
+            // through `apply_counter_replacement` rather than writing `counters` directly,
+            // so Doubling Season / Corpsejack Menace / Vorinclex / Hardened Scales see it.
+            // Note the amassed Army receives the counters as a *single* placement on one
+            // chosen Army (CR 701.47a: "Put N +1/+1 counters on that creature"), so the
+            // doubling applies once to N, not per-token.
             if n > 0 {
-                if let Some(obj) = state.objects.get_mut(&army_id) {
-                    let cur = obj
-                        .counters
-                        .get(&crate::state::types::CounterType::PlusOnePlusOne)
-                        .copied()
-                        .unwrap_or(0);
-                    obj.counters
-                        .insert(crate::state::types::CounterType::PlusOnePlusOne, cur + n);
-                    events.push(GameEvent::CounterAdded {
-                        object_id: army_id,
-                        counter: crate::state::types::CounterType::PlusOnePlusOne,
-                        count: n,
-                    });
+                let (modified_count, repl_events) =
+                    crate::rules::replacement::apply_counter_replacement(
+                        state,
+                        controller,
+                        army_id,
+                        &crate::state::types::CounterType::PlusOnePlusOne,
+                        n,
+                    );
+                events.extend(repl_events);
+                if modified_count > 0 {
+                    if let Some(obj) = state.objects.get_mut(&army_id) {
+                        let cur = obj
+                            .counters
+                            .get(&crate::state::types::CounterType::PlusOnePlusOne)
+                            .copied()
+                            .unwrap_or(0);
+                        obj.counters.insert(
+                            crate::state::types::CounterType::PlusOnePlusOne,
+                            cur + modified_count,
+                        );
+                        events.push(GameEvent::CounterAdded {
+                            object_id: army_id,
+                            counter: crate::state::types::CounterType::PlusOnePlusOne,
+                            count: modified_count,
+                        });
+                    }
                 }
             }
             // Step 4: If the chosen Army isn't a [subtype], add the subtype (CR 701.47a).
@@ -7634,6 +7750,39 @@ fn discard_cards(state: &mut GameState, player: PlayerId, n: usize, events: &mut
             }
         }
     }
+}
+/// Move every object currently in `from_zones` into `player`'s library, then
+/// shuffle it (CR 701.24). Used by `Effect::WheelHand`'s shuffle-based
+/// dispositions (Winds of Change, Echo of Eons, Timetwister).
+///
+/// CR 400.7: each moved card becomes a new object; no `ObjectId` collected here
+/// remains valid after the move. Objects are moved in ascending `ObjectId` order
+/// for determinism (their post-shuffle order is randomized anyway).
+fn move_zone_all_then_shuffle(
+    state: &mut GameState,
+    player: PlayerId,
+    from_zones: &[ZoneId],
+    events: &mut Vec<GameEvent>,
+) {
+    let mut ids: Vec<ObjectId> = state
+        .objects
+        .iter()
+        .filter(|(_, obj)| from_zones.contains(&obj.zone))
+        .map(|(&id, _)| id)
+        .collect();
+    ids.sort_by_key(|id| id.0);
+    let lib_zone = ZoneId::Library(player);
+    for id in ids {
+        let _ = state.move_object_to_zone(id, lib_zone);
+    }
+    // MR-M7-17: seed from timestamp_counter (not entropy) for deterministic replay.
+    let seed = state.timestamp_counter;
+    state.timestamp_counter += 1;
+    if let Some(zone) = state.zones.get_mut(&lib_zone) {
+        let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+        zone.shuffle(&mut rng);
+    }
+    events.push(GameEvent::LibraryShuffled { player });
 }
 /// Mill `n` cards from the top of a player's library.
 fn mill_cards(state: &mut GameState, player: PlayerId, n: usize, events: &mut Vec<GameEvent>) {

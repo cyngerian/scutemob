@@ -16,7 +16,8 @@ use mtg_engine::effects::{execute_effect, EffectContext};
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
     Effect, EffectAmount, GameEvent, GameStateBuilder, ManaColor, ManaCost, ObjectId, ObjectSpec,
-    PlayerId, Step, SubType, TypeLine, ZoneId,
+    PlayerFilter, PlayerId, ReplacementModification, ReplacementTrigger, Step, SubType, TypeLine,
+    ZoneId,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -491,4 +492,81 @@ fn test_investigate_clue_can_be_activated() {
         0,
         "Clue token should be gone after being sacrificed"
     );
+}
+
+// ── PB-AC9: token-doubling completeness pass regression ───────────────────────
+
+fn doubler_def() -> CardDefinition {
+    CardDefinition {
+        card_id: CardId("investigate-doubler-test".to_string()),
+        name: "Investigate Doubler Test".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            ..Default::default()
+        }),
+        types: TypeLine {
+            card_types: [CardType::Enchantment].into_iter().collect(),
+            ..Default::default()
+        },
+        oracle_text: "If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead.".to_string(),
+        abilities: vec![AbilityDefinition::Replacement {
+            trigger: ReplacementTrigger::WouldCreateTokens {
+                controller_filter: PlayerFilter::Specific(PlayerId(0)),
+            },
+            modification: ReplacementModification::DoubleTokens,
+            is_self: false,
+            unless_condition: None,
+        }],
+        ..Default::default()
+    }
+}
+
+/// PB-AC9 / CR 111.1 / CR 614.1 / ruling 2024-06-07 — each individual
+/// investigation is its own "would create tokens" event. With a Doubling
+/// Season-style permanent registered, investigating twice creates 4 Clues (2
+/// per instance), not 2. Regression for the PB-AC9 §5 completeness pass,
+/// which found this site previously unwired.
+#[test]
+fn test_investigate_doubling_season_doubles_per_instance() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let registry = CardRegistry::new(vec![doubler_def()]);
+    let mut doubler_spec =
+        ObjectSpec::artifact(p1, "Investigate Doubler Test").in_zone(ZoneId::Battlefield);
+    doubler_spec.card_id = Some(CardId("investigate-doubler-test".to_string()));
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(doubler_spec)
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let doubler_id = find_by_name(&state, "Investigate Doubler Test");
+    let registry = state.card_registry.clone();
+    mtg_engine::rules::replacement::register_permanent_replacement_abilities(
+        &mut state,
+        doubler_id,
+        p1,
+        Some(&CardId("investigate-doubler-test".to_string())),
+        &registry,
+    );
+
+    let (state, events) = run_investigate(state, p1, 2);
+
+    assert_eq!(
+        count_clues_on_battlefield(&state, p1),
+        4,
+        "PB-AC9: Doubling Season must double each of the 2 investigate instances \
+         (2 x 2 = 4 Clues, not 2)"
+    );
+    let token_created_count = events
+        .iter()
+        .filter(|e| matches!(e, GameEvent::TokenCreated { .. }))
+        .count();
+    assert_eq!(token_created_count, 4);
 }

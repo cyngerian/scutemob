@@ -17,8 +17,10 @@
 //! - Tokens did NOT trigger myriad themselves (they entered attacking, not declared).
 
 use mtg_engine::{
-    process_command, AttackTarget, CardRegistry, Command, GameEvent, GameState, GameStateBuilder,
-    KeywordAbility, ObjectId, ObjectSpec, PlayerId, Step, ZoneId,
+    process_command, AbilityDefinition, AttackTarget, CardDefinition, CardId, CardRegistry,
+    CardType, Command, GameEvent, GameState, GameStateBuilder, KeywordAbility, ManaCost, ObjectId,
+    ObjectSpec, PlayerFilter, PlayerId, ReplacementModification, ReplacementTrigger, Step,
+    TypeLine, ZoneId,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -725,5 +727,111 @@ fn test_myriad_original_attacker_unaffected() {
         battlefield_count(&state, p1),
         2,
         "P1 should control original + 1 myriad token"
+    );
+}
+
+// ── PB-AC9: token-doubling completeness pass regression ───────────────────────
+
+fn doubler_def() -> CardDefinition {
+    CardDefinition {
+        card_id: CardId("myriad-doubler-test".to_string()),
+        name: "Myriad Doubler Test".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            ..Default::default()
+        }),
+        types: TypeLine {
+            card_types: [CardType::Enchantment].into_iter().collect(),
+            ..Default::default()
+        },
+        oracle_text: "If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead.".to_string(),
+        abilities: vec![AbilityDefinition::Replacement {
+            trigger: ReplacementTrigger::WouldCreateTokens {
+                controller_filter: PlayerFilter::Specific(PlayerId(0)),
+            },
+            modification: ReplacementModification::DoubleTokens,
+            is_self: false,
+            unless_condition: None,
+        }],
+        ..Default::default()
+    }
+}
+
+#[test]
+/// PB-AC9 / CR 111.1 / CR 614.1 — Myriad creates ONE token PER opponent (a
+/// separate token-creation instruction per opponent, CR 702.116a). With a
+/// Doubling Season-style permanent registered, EACH opponent's single token is
+/// doubled to 2 -- not the total instance count. Regression for the PB-AC9 §5
+/// completeness pass, which found this site previously unwired (Doubling
+/// Season had no effect on Myriad tokens before this fix).
+fn test_myriad_doubling_season_doubles_per_opponent() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+    let p3 = PlayerId(3);
+    let p4 = PlayerId(4);
+
+    let attacker = ObjectSpec::creature(p1, "Myriad Creature", 5, 3)
+        .with_keyword(KeywordAbility::Myriad)
+        .in_zone(ZoneId::Battlefield);
+
+    let mut doubler_spec =
+        ObjectSpec::artifact(p1, "Myriad Doubler Test").in_zone(ZoneId::Battlefield);
+    doubler_spec.card_id = Some(CardId("myriad-doubler-test".to_string()));
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p3)
+        .add_player(p4)
+        .with_registry(CardRegistry::new(vec![doubler_def()]))
+        .object(attacker)
+        .object(doubler_spec)
+        .active_player(p1)
+        .at_step(Step::DeclareAttackers)
+        .build()
+        .unwrap();
+
+    let mut state = state;
+    let doubler_id = find_object(&state, "Myriad Doubler Test");
+    let registry = state.card_registry.clone();
+    mtg_engine::rules::replacement::register_permanent_replacement_abilities(
+        &mut state,
+        doubler_id,
+        p1,
+        Some(&CardId("myriad-doubler-test".to_string())),
+        &registry,
+    );
+
+    let attacker_id = find_object(&state, "Myriad Creature");
+
+    let (state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
+            exert_choices: vec![],
+        },
+    )
+    .expect("DeclareAttackers should succeed");
+
+    // Resolve the myriad trigger.
+    let (state, events) = pass_all(state, &[p1, p2, p3, p4]);
+
+    // Without doubling: 2 tokens (one for P3, one for P4). With doubling: 4
+    // tokens (2 for P3, 2 for P4).
+    let token_created_count = events
+        .iter()
+        .filter(|e| matches!(e, GameEvent::TokenCreated { .. }))
+        .count();
+    assert_eq!(
+        token_created_count, 4,
+        "PB-AC9: Doubling Season must double Myriad's per-opponent token \
+         creation (2 opponents x 2 tokens each = 4, not 2)"
+    );
+    assert_eq!(
+        token_count(&state, p1),
+        4,
+        "P1 should control 4 myriad tokens (2 per opponent) with doubling active"
     );
 }

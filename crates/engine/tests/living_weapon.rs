@@ -14,10 +14,11 @@
 
 use mtg_engine::state::{ActivatedAbility, ActivationCost};
 use mtg_engine::{
-    calculate_characteristics, process_command, CardRegistry, CardType, Color, Command,
-    ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, GameEvent, GameState,
-    GameStateBuilder, KeywordAbility, LayerModification, ManaColor, ManaCost, ObjectId, ObjectSpec,
-    PlayerId, StackObjectKind, Step, SubType, ZoneId,
+    calculate_characteristics, process_command, AbilityDefinition, CardDefinition, CardId,
+    CardRegistry, CardType, Color, Command, ContinuousEffect, EffectDuration, EffectFilter,
+    EffectId, EffectLayer, GameEvent, GameState, GameStateBuilder, KeywordAbility,
+    LayerModification, ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerFilter, PlayerId,
+    ReplacementModification, ReplacementTrigger, StackObjectKind, Step, SubType, TypeLine, ZoneId,
 };
 use mtg_engine::{CardEffectTarget, Effect};
 
@@ -734,5 +735,87 @@ fn test_living_weapon_multiplayer_single_trigger() {
             .map(|o| o.zone == ZoneId::Battlefield)
             .unwrap_or(false),
         "Equipment should stay on battlefield after trigger resolves"
+    );
+}
+
+// ── PB-AC9: token-doubling completeness pass regression ───────────────────────
+
+fn doubler_def() -> CardDefinition {
+    CardDefinition {
+        card_id: CardId("living-weapon-doubler-test".to_string()),
+        name: "Living Weapon Doubler Test".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            ..Default::default()
+        }),
+        types: TypeLine {
+            card_types: [CardType::Enchantment].into_iter().collect(),
+            ..Default::default()
+        },
+        oracle_text: "If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead.".to_string(),
+        abilities: vec![AbilityDefinition::Replacement {
+            trigger: ReplacementTrigger::WouldCreateTokens {
+                controller_filter: PlayerFilter::Specific(PlayerId(0)),
+            },
+            modification: ReplacementModification::DoubleTokens,
+            is_self: false,
+            unless_condition: None,
+        }],
+        ..Default::default()
+    }
+}
+
+#[test]
+/// PB-AC9 / CR 111.1 / CR 614.1 / CR 702.92a ruling (2020-08-07) — Living
+/// Weapon's `Effect::CreateTokenAndAttachSource` is a token-creation effect
+/// like any other. With a Doubling Season-style permanent registered, TWO
+/// Germ tokens are created instead of one (only the first is equipped, per
+/// ruling). Regression for the PB-AC9 §5 completeness pass, which found this
+/// site previously unwired.
+fn test_living_weapon_doubling_season_doubles_germ() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let equipment = living_weapon_equipment_in_hand(p1, "Doubled Glaive");
+    let mut doubler_spec =
+        ObjectSpec::artifact(p1, "Living Weapon Doubler Test").in_zone(ZoneId::Battlefield);
+    doubler_spec.card_id = Some(CardId("living-weapon-doubler-test".to_string()));
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(CardRegistry::new(vec![doubler_def()]))
+        .object(equipment)
+        .object(doubler_spec)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    let mut state = state;
+    let doubler_id = find_by_name(&state, "Living Weapon Doubler Test");
+    let registry = state.card_registry.clone();
+    mtg_engine::rules::replacement::register_permanent_replacement_abilities(
+        &mut state,
+        doubler_id,
+        p1,
+        Some(&CardId("living-weapon-doubler-test".to_string())),
+        &registry,
+    );
+
+    // Cast and enter battlefield; LivingWeapon trigger queued.
+    let (state, _) = cast_and_enter_battlefield(state, p1, "Doubled Glaive", &[p1, p2]);
+
+    // Resolve the trigger -- doubled token creation.
+    let (_state, resolve_events) = pass_all(state, &[p1, p2]);
+
+    let token_created_count = resolve_events
+        .iter()
+        .filter(|e| matches!(e, GameEvent::TokenCreated { .. }))
+        .count();
+    assert_eq!(
+        token_created_count, 2,
+        "PB-AC9: Doubling Season must double Living Weapon's Germ token creation \
+         (2 Germs, not 1)"
     );
 }

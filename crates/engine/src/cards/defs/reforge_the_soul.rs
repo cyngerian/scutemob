@@ -11,22 +11,22 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Sorcery]),
         oracle_text: "Each player discards their hand, then draws seven cards.\nMiracle {1}{R} (You may cast this card for its miracle cost when you draw it if it's the first card you drew this turn.)".to_string(),
         abilities: vec![
-            // TODO: Miracle {1}{R} — KeywordAbility::Miracle not yet implemented.
-            // When Miracle is added, include AltCastAbility with Miracle cost.
+            // CR 702.94a: Miracle keyword marker — enables miracle casting in miracle.rs.
+            AbilityDefinition::Keyword(KeywordAbility::Miracle),
+            // CR 702.94a: The miracle alternative cost ({1}{R}).
+            AbilityDefinition::Miracle {
+                cost: ManaCost { generic: 1, red: 1, ..Default::default() },
+            },
             AbilityDefinition::Spell {
-                effect: Effect::Sequence(vec![
-                    // Each player discards their hand.
-                    // TODO: EffectAmount::HandSize not in DSL — using Fixed(7) approximation.
-                    Effect::DiscardCards {
-                        player: PlayerTarget::EachPlayer,
-                        count: EffectAmount::Fixed(7),
-                    },
-                    // Then draws seven cards.
-                    Effect::DrawCards {
-                        player: PlayerTarget::EachPlayer,
-                        count: EffectAmount::Fixed(7),
-                    },
-                ]),
+                // PB-AC9 (CR 701.9 / 121.1): each player discards their ENTIRE hand, then
+                // draws seven cards. `Effect::WheelHand` fixes the previous approximation
+                // (`DiscardCards{Fixed(7)}`, which discarded exactly 7 regardless of hand
+                // size instead of "their hand").
+                effect: Effect::WheelHand {
+                    player: PlayerTarget::EachPlayer,
+                    disposal: WheelDisposal::Discard,
+                    draw: WheelDraw::Fixed(7),
+                },
                 targets: vec![],
                 modes: None,
                 cant_be_countered: false,

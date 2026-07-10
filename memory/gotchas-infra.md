@@ -367,6 +367,16 @@ This is the same pattern as `myriad_exile_at_eoc`. See `game_object.rs` (Decayed
 
 ## Testing Gotchas
 
+- **NEVER assign `state.timestamp_counter` a smaller value in a test.** `next_object_id()`
+  (`state/mod.rs:299`) mints IDs as `ObjectId(self.timestamp_counter)` after incrementing —
+  the object-ID counter and the timestamp counter are *the same counter*. Forcing
+  `timestamp_counter` to a small fixed value after the builder has placed objects makes the
+  next `add_object()` hand out an `ObjectId` that **collides with an existing object**,
+  silently overwriting it in `state.objects`. No panic, no error — just wrong game state.
+  Found in PB-AC9 while trying to pin an RNG seed (`Effect::RollDice` and shuffles seed from
+  `timestamp_counter`): an Ancient Silver Dragon test drew 6 cards instead of 10 because the
+  drawn cards aliased onto battlefield objects. **To control a seed, advance the counter
+  forward (or seed off a derived value), never rewind it.**
 - **`GameStateBuilder::six_player()`** added in M9 alongside `four_player()`. 6-player tests
   cover priority rotation, combat with 5 defenders, APNAP ordering, turn advancement skipping
   eliminated players, concession mid-game — all in `crates/engine/tests/six_player.rs`.

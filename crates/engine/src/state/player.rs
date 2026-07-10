@@ -318,6 +318,13 @@ pub struct PlayerState {
     /// player's control (e.g. Thought Vessel, Reliquary Tower).
     #[serde(default)]
     pub no_max_hand_size: bool,
+    /// CR 402.2: set by a one-shot effect (e.g. `Effect::SetNoMaximumHandSize`,
+    /// Ancient Silver Dragon) that removes the maximum hand size FOR THE REST OF
+    /// THE GAME, independent of any permanent on the battlefield. OR'd into the
+    /// per-cleanup recompute of `no_max_hand_size` so it is never clobbered back
+    /// to false by the battlefield scan.
+    #[serde(default)]
+    pub no_max_hand_size_permanent: bool,
     /// Number of cards drawn by this player this turn (CR 121.1).
     ///
     /// Incremented each time `draw_one_card` completes successfully. Reset to 0

@@ -1,9 +1,6 @@
 // Winds of Change — {R}, Sorcery
 // Each player shuffles the cards from their hand into their library, then draws
 // that many cards.
-//
-// TODO: "shuffle hand into library, draw that many" — wheel effect. No Effect to
-// shuffle hand into library exists. Approximated as Effect::Nothing.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -14,10 +11,15 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Sorcery]),
         oracle_text: "Each player shuffles the cards from their hand into their library, then draws that many cards.".to_string(),
         abilities: vec![
-            // TODO: Wheel effect — "each player shuffles hand into library, draws that many."
-            // Needs Effect::ShuffleHandIntoLibrary + DrawCards(hand_size) for each player.
+            // CR 701.24 / 121.1: each player shuffles their hand into their library, then
+            // draws that many cards. `Effect::WheelHand` snapshots the hand size before
+            // the shuffle-in.
             AbilityDefinition::Spell {
-                effect: Effect::Nothing,
+                effect: Effect::WheelHand {
+                    player: PlayerTarget::EachPlayer,
+                    disposal: WheelDisposal::ShuffleHandIntoLibrary,
+                    draw: WheelDraw::ThatMany,
+                },
                 targets: vec![],
                 modes: None,
                 cant_be_countered: false,

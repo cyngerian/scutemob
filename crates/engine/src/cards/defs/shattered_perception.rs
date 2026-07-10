@@ -18,18 +18,13 @@ pub fn card() -> CardDefinition {
                 cost: ManaCost { generic: 5, red: 1, ..Default::default() },
             },
             AbilityDefinition::Spell {
-                // TODO: "discard hand, draw that many" — needs EffectAmount::HandSize.
-                // Using Fixed(7) approximation for discard.
-                effect: Effect::Sequence(vec![
-                    Effect::DiscardCards {
-                        player: PlayerTarget::Controller,
-                        count: EffectAmount::Fixed(7),
-                    },
-                    Effect::DrawCards {
-                        player: PlayerTarget::Controller,
-                        count: EffectAmount::Fixed(7),
-                    },
-                ]),
+                // CR 701.9 / 121.1: discard the whole hand, then draw that many cards.
+                // `Effect::WheelHand` snapshots the hand size before discarding.
+                effect: Effect::WheelHand {
+                    player: PlayerTarget::Controller,
+                    disposal: WheelDisposal::Discard,
+                    draw: WheelDraw::ThatMany,
+                },
                 targets: vec![],
                 modes: None,
                 cant_be_countered: false,

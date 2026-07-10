@@ -1504,7 +1504,10 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
                 .unwrap_or(false)
     });
     if let Some(ps) = state.players.get_mut(&active) {
-        ps.no_max_hand_size = has_no_max;
+        // PB-AC9 / CR 402.2: OR in the persistent "rest of the game" designation
+        // (Effect::SetNoMaximumHandSize) so this battlefield-driven recompute
+        // never clobbers it back to false once set.
+        ps.no_max_hand_size = has_no_max || ps.no_max_hand_size_permanent;
     }
     // Discard to hand size (CR 514.1)
     // Skip entirely if the player has no maximum hand size.

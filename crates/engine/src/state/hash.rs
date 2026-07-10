@@ -293,7 +293,23 @@
 ///   GameState/PlayerState/GameObject fields — WinGame reuses existing
 ///   `PlayerState.has_lost` (no `has_won` field: see pb-plan-AC8.md design note,
 ///   `active_players()` would not shrink from a won-but-not-lost flag).
-pub const HASH_SCHEMA_VERSION: u8 = 35;
+/// - 36: PB-AC9 (2026-07-10) — Misc & mana (final AC-chain batch). New
+///   `Effect::WheelHand { player, disposal, draw }` (disc 91, CR 701.9/701.24/
+///   121.1 — "each player discards/shuffles away their hand, then draws";
+///   snapshot-then-disposal ordering) with sub-enums `WheelDisposal` (Discard /
+///   ShuffleHandIntoLibrary / ShuffleHandAndGraveyardIntoLibrary) and `WheelDraw`
+///   (ThatMany / Fixed(u32)), each with their own `HashInto` impl. New
+///   `Effect::SetNoMaximumHandSize { player }` (disc 92, CR 402.2 — permanent
+///   "rest of the game" designation, Ancient Silver Dragon) backed by a new
+///   mutable `PlayerState.no_max_hand_size_permanent: bool` field, OR'd into the
+///   existing per-cleanup `no_max_hand_size` recompute (`turn_actions.rs`) so the
+///   battlefield-driven scan never clobbers the permanent flag back to false.
+///   Three of five briefed primitives (d20 results table, token-doubling
+///   replacement, multi-output filter mana) were found to already exist and were
+///   dropped from scope — see `pb-plan-AC9.md` §0. Token-doubling completeness
+///   pass (wiring `apply_token_creation_replacement` into previously-unwired
+///   `TokenCreated` sites) touches no new hashed state (existing fields only).
+pub const HASH_SCHEMA_VERSION: u8 = 36;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -328,7 +344,8 @@ use crate::cards::card_definition::{
     AbilityDefinition, ActivationZone, Condition, ContinuousEffectDef, Cost, Effect, EffectAmount,
     EffectTarget, ForEachTarget, LibraryPosition, LoyaltyCost, ManaSourceFilter, ModeSelection,
     PlayerTarget, SoulbondGrant, TargetController, TargetFilter, TargetRequirement,
-    TimingRestriction, TokenSpec, TriggerCondition, TriggerZone, TypeLine, ZoneTarget,
+    TimingRestriction, TokenSpec, TriggerCondition, TriggerZone, TypeLine, WheelDisposal,
+    WheelDraw, ZoneTarget,
 };
 use crate::rules::events::{CombatDamageAssignment, CombatDamageTarget, GameEvent, LossReason};
 use blake3::Hasher;
@@ -1428,6 +1445,9 @@ impl HashInto for PlayerState {
         self.companion_used.hash_into(hasher);
         self.mulligan_count.hash_into(hasher);
         self.no_max_hand_size.hash_into(hasher);
+        // PB-AC9 / CR 402.2: persistent "no max hand size for the rest of the
+        // game" designation (Effect::SetNoMaximumHandSize).
+        self.no_max_hand_size_permanent.hash_into(hasher);
         self.cards_drawn_this_turn.hash_into(hasher);
         // M9.4: spells_cast_this_turn (CR 702.40a)
         self.spells_cast_this_turn.hash_into(hasher);
@@ -6199,6 +6219,44 @@ impl HashInto for Effect {
             // a field on this variant (see PB-AC8 plan design note).
             Effect::WinGame => {
                 90u8.hash_into(hasher);
+            }
+            // PB-AC9: WheelHand (discriminant 91) — CR 701.9 / 701.24 / 121.1.
+            Effect::WheelHand {
+                player,
+                disposal,
+                draw,
+            } => {
+                91u8.hash_into(hasher);
+                player.hash_into(hasher);
+                disposal.hash_into(hasher);
+                draw.hash_into(hasher);
+            }
+            // PB-AC9: SetNoMaximumHandSize (discriminant 92) — CR 402.2.
+            Effect::SetNoMaximumHandSize { player } => {
+                92u8.hash_into(hasher);
+                player.hash_into(hasher);
+            }
+        }
+    }
+}
+/// PB-AC9: hashes `Effect::WheelHand`'s disposal payload (CR 701.9 / 701.24).
+impl HashInto for WheelDisposal {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            WheelDisposal::Discard => 0u8.hash_into(hasher),
+            WheelDisposal::ShuffleHandIntoLibrary => 1u8.hash_into(hasher),
+            WheelDisposal::ShuffleHandAndGraveyardIntoLibrary => 2u8.hash_into(hasher),
+        }
+    }
+}
+/// PB-AC9: hashes `Effect::WheelHand`'s draw-count payload.
+impl HashInto for WheelDraw {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            WheelDraw::ThatMany => 0u8.hash_into(hasher),
+            WheelDraw::Fixed(k) => {
+                1u8.hash_into(hasher);
+                k.hash_into(hasher);
             }
         }
     }
