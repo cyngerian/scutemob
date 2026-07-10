@@ -36,8 +36,8 @@ Full evidence (file:line) is in each task's ESM description — run
 | 1 | scutemob-53 | SR-1: Revive CI | S | **DONE 2026-07-10.** CI green; every later task now has a machine gate. |
 | 2 | scutemob-54 | SR-2: Registry gate (invariant #9) | M | **DONE 2026-07-10.** Superseded archived scutemob-48. Card-authoring waves unblocked. Follow-up: `scutemob-64` (SR-12). |
 | 3 | scutemob-55 | SR-3: Seal GameState | M–L | **DONE 2026-07-10.** Invariant #3 machine-enforced. CI gained `cargo build --workspace` — do not drop it. |
-| 4 | scutemob-56 | SR-4: Silent-failure sweep | M–L | Mechanical but large; classification work. Can run any time after SR-1. |
-| 5 | scutemob-57 | SR-5: KeywordAbility catch-all audit | M | Pairs naturally with SR-4 (same files). |
+| 4 | scutemob-56 | SR-4: Silent-failure sweep | M–L | **DONE 2026-07-10.** 398 sites classified; `state::diagnostics` vocabulary added. Follow-ups: `scutemob-65` (SR-13), `scutemob-66` (SR-14). |
+| 5 | scutemob-57 | SR-5: KeywordAbility catch-all audit | M | Pairs naturally with SR-4 (same files) — **do this next**; SR-4 just mapped the terrain. |
 | 6 | scutemob-58 | SR-6: Extract card-defs crate | M | Wide blast radius. Coordinate with card authoring (collision rules). |
 | 7 | scutemob-59 | SR-7: PendingTrigger → TriggerData cutover | M | Requires HASH_SCHEMA_VERSION bump; read `state/hash.rs` header first. |
 | 8 | scutemob-60 | SR-8: Protocol versioning policy | M | Hard blocker before M10's first networked client. Design + implement. |
@@ -45,6 +45,8 @@ Full evidence (file:line) is in each task's ESM description — run
 | 10 | scutemob-62 | SR-10: Dependency & lint hygiene | S–M | Four independent chores; safe filler work between larger tasks. |
 | 11 | scutemob-63 | SR-11: Pin the Rust toolchain | S | Discovered during SR-1. CI floats to newest stable; new lints redden CI with no commit, and the local clippy gate can't reproduce them. Pairs well with SR-10. |
 | 12 | scutemob-64 | SR-12: Unbypassable invariant-9 gate + marker anti-rot | M | Discovered during SR-2 review. `GameStateBuilder`/`start_game` skip `validate_deck`; only the Inert marker class has a rot guard. |
+| 13 | scutemob-65 | SR-13: Damage-source characteristics must use LKI | M | Discovered during SR-4. Wither/infect "function no matter what zone" (CR 702.80c/702.90e) but the engine reads the source through a live lookup and treats a dead source as having neither. Real bug, not an assert. |
+| 14 | scutemob-66 | SR-14: Extend the SR-4 diagnostics vocabulary to the rest of `rules/` | M | Discovered during SR-4, which scoped to its two named files. ~200 unswept `calculate_characteristics` sites; method is written up in `docs/sr-4-silent-failure-audit.md`. |
 
 Order is a recommendation, not a dependency chain. Hard constraints only:
 
@@ -223,7 +225,38 @@ Task-specific extras:
      method chains) were caught only because the tree was reset and redone rather
      than patched forward. Verify no *other* type in the workspace has a method
      named like a sealed field first, or a wrong rewrite compiles silently.
-- **SR-4/SR-5:** "expected fizzle" classifications must cite the CR rule
+- **SR-4: DONE (2026-07-10).** 398 sites classified; full record in
+  `docs/sr-4-silent-failure-audit.md`. Read that before SR-5 or SR-14 — it is the
+  method, not just the result. What mattered:
+  1. **Establish the ground truths before classifying anything.** Three facts turned a
+     400-site judgment call into mostly mechanical work: `GameState::players` never
+     loses entries (so *every* missing `PlayerId` is a bug — 32 sites decided at once);
+     `GameState::zones` never shrinks (8 more); and `calculate_characteristics` returns
+     `None` **iff** the ObjectId is absent, every other step being total (so its
+     `unwrap_or_*` fallbacks are either dead code or the fizzle branch, never a
+     rounded-off partial result). Only `state.objects` genuinely loses entries.
+  2. **The classification belongs in the code, not a comment.** `expect_object` vs
+     `lki_object` (both returning `Option`) makes each site a one-token change, and the
+     `debug_assert!` is then machine-checked by the existing suite. A comment saying
+     "this can't be None" rots; a `debug_assert!` that fires does not.
+  3. **`move_object_to_zone` has four error variants, not two** — `ObjectNotFound`,
+     `ZoneNotFound(to)`, `ZoneNotFound(from)`, `ObjectNotInZone`. Only the first can be
+     a legal fizzle. `Err(_) => {}` was collapsing all four. Splitting them is safe only
+     because a stale id is removed from `state.objects` entirely, so LKI always surfaces
+     as `ObjectNotFound`; that assumption now has a tripwire test. **Read the error enum,
+     don't trust the `Err(_)` arm's comment.**
+  4. **Believe the code over the classifier.** Three sites a classifier called
+     IMPOSSIBLE had existing comments saying "card disappeared — nothing to cast." The
+     comments were right. When the two disagree, the demotion to FIZZLE is free and the
+     promotion to IMPOSSIBLE is a panic in a real game.
+  5. Bias uncertain calls toward FIZZLE and let `cargo test --all` adjudicate: 31 of the
+     222 IMPOSSIBLE verdicts were `med` confidence, and the suite ran every one.
+  6. **The SR-3 disjoint-borrow hazard recurs immediately.** `state.expect_object_mut(id)`
+     borrows all of `GameState`; `state.objects.get_mut(&id)` borrows one field. Five
+     blocks needed `card_registry` / `timestamp_counter` alongside. Hence the
+     `debug_assert_object_live!` macro — the assert without the borrow. Expect this in
+     any future accessor migration.
+- **SR-5:** "expected fizzle" classifications must cite the CR rule
   (608.2b etc.) per project test convention; use the mtg-rules MCP server, and
   remember CR text is authoritative over card rulings.
 - **SR-6:** the defs import `crate::cards::helpers::*` — the DSL types and
@@ -237,6 +270,36 @@ Task-specific extras:
 
 _One entry per session, newest first. Format:_
 `- YYYY-MM-DD — SR-<N> (scutemob-<id>) — <status: done / in progress / blocked> — <one-line outcome + hazards + pointer for next session>`
+
+- 2026-07-10 — SR-4 (scutemob-56) — **done** — The LKI-vs-bug distinction is now a
+  property of the code. New `crates/engine/src/state/diagnostics.rs` supplies two
+  families that both return `Option`, so converting a site is a one-token change:
+  `expect_player[_mut]` / `expect_object[_mut]` / `expect_zone[_mut]` /
+  `expect_move_object_to_zone` / `expect_move_object_to_bottom_of_zone` /
+  `expect_add_object` / `layers::expect_characteristics` all `debug_assert!` with
+  `#[track_caller]`; `lki_object[_mut]` / `lki_move_object_to_zone` return a silent,
+  CR-cited `None`. Plus `debug_assert_object_live!` for sites that need a disjoint
+  field borrow. All 398 candidate sites in `effects/mod.rs` (219) and `resolution.rs`
+  (179) classified — 222 impossible, 69 fizzle, 107 non-swallow — with the per-site
+  table in `docs/sr-4-silent-failure-audit.md`, anchored to `ef0d9579`. 3123 tests pass
+  with debug assertions live; **no assert fired**, which is the point: these are
+  tripwires for the next regression, not a bug hunt. All four gates clean.
+  **Hazards discovered:** all six written up in the SR-4 gotcha above — chiefly
+  (a) establish the never-removed invariants *first*, they decide ~40 sites for free;
+  (b) `move_object_to_zone` has four error variants and `Err(_)` was eating all of them
+  (caught by `/review`, not by me); (c) the SR-3 disjoint-borrow problem recurs on any
+  accessor migration. Also: `combat.rs`'s two `unwrap_or_default()` sites (the ones the
+  task named) would have silently disabled the CR 702.14c landwalk check had they ever
+  fired, because a blank `Characteristics` contains no `CardType::Land`.
+  **Deliberately not closed:** `scutemob-65` (SR-13) — the engine reads a damage
+  source's wither/infect through a *live* lookup, so a source that died with its damage
+  ability on the stack silently loses both, contra CR 702.80c / 702.90e / 113.7a. That
+  is a real bug and a semantics change, not an assert, so it did not belong in a sweep.
+  `scutemob-66` (SR-14) — the same vocabulary over the ~200 unswept
+  `calculate_characteristics` sites in the rest of `rules/`; SR-4 was scoped to its two
+  named files.
+  **Next session:** SR-5 (`scutemob-57`) — it is the natural pair, on the same files,
+  and the terrain is now mapped.
 
 - 2026-07-10 — SR-3 (scutemob-55) — **done** — Invariant #3 is now a machine gate.
   All 38 `GameState` fields are `pub(crate)`, with one public read accessor each

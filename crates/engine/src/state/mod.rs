@@ -5,6 +5,7 @@
 pub mod builder;
 pub mod combat;
 pub mod continuous_effect;
+pub mod diagnostics;
 pub mod dungeon;
 pub mod error;
 pub mod game_object;

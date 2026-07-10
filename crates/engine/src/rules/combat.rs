@@ -995,7 +995,7 @@ pub fn handle_declare_blockers(
             if let KeywordAbility::Landwalk(lw_type) = kw {
                 let defender_has_matching_land = state.objects.values().any(|obj| {
                     obj.zone == ZoneId::Battlefield && obj.controller == player && {
-                        let chars = calculate_characteristics(state, obj.id).unwrap_or_default();
+                        let chars = crate::rules::layers::expect_characteristics(state, obj.id);
                         chars.card_types.contains(&CardType::Land)
                             && match lw_type {
                                 LandwalkType::BasicType(st) => chars.subtypes.contains(st),
@@ -1219,8 +1219,7 @@ pub fn handle_declare_blockers(
                 if let KeywordAbility::Landwalk(lw_type) = kw {
                     let defender_has_matching_land = state.objects.values().any(|obj| {
                         obj.zone == ZoneId::Battlefield && obj.controller == player && {
-                            let chars =
-                                calculate_characteristics(state, obj.id).unwrap_or_default();
+                            let chars = crate::rules::layers::expect_characteristics(state, obj.id);
                             chars.card_types.contains(&CardType::Land)
                                 && match lw_type {
                                     LandwalkType::BasicType(st) => chars.subtypes.contains(st),

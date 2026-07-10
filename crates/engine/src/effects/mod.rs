@@ -294,7 +294,7 @@ fn execute_effect_inner(
                             if source_has_infect {
                                 // CR 120.3b: infect damage to a player gives poison counters
                                 // instead of causing life loss (CR 702.90b).
-                                if let Some(player) = state.players.get_mut(&p) {
+                                if let Some(player) = state.expect_player_mut(p) {
                                     player.poison_counters += final_dmg;
                                     // CR 702.54a: Bloodthirst counts infect damage even though
                                     // it causes poison counters rather than life loss.
@@ -312,7 +312,7 @@ fn execute_effect_inner(
                                 });
                             } else {
                                 // CR 120.3a: normal damage causes life loss.
-                                if let Some(player) = state.players.get_mut(&p) {
+                                if let Some(player) = state.expect_player_mut(p) {
                                     player.life_total -= final_dmg as i32;
                                     // CR 702.137a: track life lost this turn for Spectacle.
                                     player.life_lost_this_turn += final_dmg;
@@ -333,14 +333,12 @@ fn execute_effect_inner(
                     }
                     ResolvedTarget::Object(id) => {
                         // CR 613.1d: Use layer-resolved types for damage target classification.
-                        let card_types = state
-                            .objects
-                            .get(&id)
-                            .map(|o| {
-                                crate::rules::layers::calculate_characteristics(state, id)
-                                    .unwrap_or_else(|| o.characteristics.clone())
-                                    .card_types
-                            })
+                        // Expected fizzle: a resolved target may have left its zone before the
+                        // damage is dealt (CR 400.7 / CR 608.2b). `calculate_characteristics`
+                        // returns `None` only for an absent object, so this `unwrap_or_default`
+                        // is exactly the "target is gone" branch and nothing else.
+                        let card_types = crate::rules::layers::calculate_characteristics(state, id)
+                            .map(|c| c.card_types)
                             .unwrap_or_default();
                         let damage_target = if card_types.contains(&CardType::Planeswalker) {
                             CombatDamageTarget::Planeswalker(id)
@@ -372,7 +370,7 @@ fn execute_effect_inner(
                         if final_dmg > 0 {
                             if card_types.contains(&CardType::Planeswalker) {
                                 // CR 120.3c: damage to planeswalker removes loyalty counters.
-                                if let Some(obj) = state.objects.get_mut(&id) {
+                                if let Some(obj) = state.lki_object_mut(id) {
                                     let cur = obj
                                         .counters
                                         .get(&crate::state::types::CounterType::Loyalty)
@@ -398,7 +396,7 @@ fn execute_effect_inner(
                                     .as_ref()
                                     .map(|c| c.keywords.contains(&KeywordAbility::Infect))
                                     .unwrap_or(false);
-                                if let Some(obj) = state.objects.get_mut(&id) {
+                                if let Some(obj) = state.lki_object_mut(id) {
                                     if source_has_wither || source_has_infect {
                                         // CR 702.80a / CR 702.90c / CR 120.3d: wither and/or
                                         // infect damage to a creature places -1/-1 counters
@@ -430,7 +428,7 @@ fn execute_effect_inner(
                                 // CR 120.3e: non-creature, non-planeswalker permanents (e.g.,
                                 // battles, CR 120.3h) mark damage normally. Wither does NOT
                                 // apply (CR 702.80a — only creatures receive -1/-1 counters).
-                                if let Some(obj) = state.objects.get_mut(&id) {
+                                if let Some(obj) = state.lki_object_mut(id) {
                                     obj.damage_marked += final_dmg;
                                 }
                             }
@@ -452,7 +450,7 @@ fn execute_effect_inner(
             }
             let players = resolve_player_target_list(state, player, ctx);
             for p in players {
-                if let Some(ps) = state.players.get_mut(&p) {
+                if let Some(ps) = state.expect_player_mut(p) {
                     ps.life_total += gain as i32;
                     // PB-B: Track life gained this turn for Condition::ControllerGainedLifeThisTurn.
                     ps.life_gained_this_turn += gain;
@@ -475,7 +473,7 @@ fn execute_effect_inner(
                 let (final_loss, doubling_events) =
                     crate::rules::replacement::apply_life_loss_doubling(state, p, loss);
                 events.extend(doubling_events);
-                if let Some(ps) = state.players.get_mut(&p) {
+                if let Some(ps) = state.expect_player_mut(p) {
                     ps.life_total -= final_loss as i32;
                     // CR 702.137a: track life lost this turn for Spectacle.
                     ps.life_lost_this_turn += final_loss;
@@ -506,7 +504,7 @@ fn execute_effect_inner(
                 let (final_loss, doubling_events) =
                     crate::rules::replacement::apply_life_loss_doubling(state, p, loss);
                 events.extend(doubling_events);
-                if let Some(ps) = state.players.get_mut(&p) {
+                if let Some(ps) = state.expect_player_mut(p) {
                     let before = ps.life_total;
                     ps.life_total -= final_loss as i32;
                     // Actual loss = pre-loss total minus post-loss total, clamped to >=0.
@@ -522,7 +520,7 @@ fn execute_effect_inner(
             }
             // Controller gains life equal to total actually lost by all opponents.
             if total_lost > 0 {
-                if let Some(ps) = state.players.get_mut(&ctx.controller) {
+                if let Some(ps) = state.expect_player_mut(ctx.controller) {
                     ps.life_total += total_lost as i32;
                     // PB-B: Track life gained this turn for Condition::ControllerGainedLifeThisTurn.
                     ps.life_gained_this_turn += total_lost;
@@ -601,7 +599,7 @@ fn execute_effect_inner(
         Effect::SetNoMaximumHandSize { player } => {
             let players = resolve_player_target_list(state, player, ctx);
             for p in players {
-                if let Some(ps) = state.players.get_mut(&p) {
+                if let Some(ps) = state.expect_player_mut(p) {
                     ps.no_max_hand_size_permanent = true;
                 }
             }
@@ -643,7 +641,7 @@ fn execute_effect_inner(
             };
             for _ in 0..token_count {
                 let obj = make_token(spec, ctx.controller);
-                if let Ok(id) = state.add_object(obj, ZoneId::Battlefield) {
+                if let Some(id) = state.expect_add_object(obj, ZoneId::Battlefield) {
                     events.push(GameEvent::TokenCreated {
                         player: ctx.controller,
                         object_id: id,
@@ -693,7 +691,7 @@ fn execute_effect_inner(
             let mut first_token_id: Option<ObjectId> = None;
             for _ in 0..token_count {
                 let obj = make_token(spec, ctx.controller);
-                if let Ok(id) = state.add_object(obj, ZoneId::Battlefield) {
+                if let Some(id) = state.expect_add_object(obj, ZoneId::Battlefield) {
                     events.push(GameEvent::TokenCreated {
                         player: ctx.controller,
                         object_id: id,
@@ -722,7 +720,7 @@ fn execute_effect_inner(
                     // Detach from previous (should not be attached, but defensive).
                     let prev_target_opt = state.objects.get(&equip_id).and_then(|o| o.attached_to);
                     if let Some(prev_target) = prev_target_opt {
-                        if let Some(prev) = state.objects.get_mut(&prev_target) {
+                        if let Some(prev) = state.lki_object_mut(prev_target) {
                             prev.attachments.retain(|&x| x != equip_id);
                         }
                     }
@@ -730,11 +728,11 @@ fn execute_effect_inner(
                     // CR 701.3c / CR 613.7e: new timestamp on attach.
                     state.timestamp_counter += 1;
                     let new_ts = state.timestamp_counter;
-                    if let Some(equip_obj) = state.objects.get_mut(&equip_id) {
+                    if let Some(equip_obj) = state.expect_object_mut(equip_id) {
                         equip_obj.attached_to = Some(token_id);
                         equip_obj.timestamp = new_ts;
                     }
-                    if let Some(target_obj) = state.objects.get_mut(&token_id) {
+                    if let Some(target_obj) = state.expect_object_mut(token_id) {
                         if !target_obj.attachments.contains(&equip_id) {
                             target_obj.attachments.push_back(equip_id);
                         }
@@ -773,7 +771,7 @@ fn execute_effect_inner(
                     events.extend(repl_events);
                     for _ in 0..clue_count {
                         let obj = make_token(&spec, ctx.controller);
-                        if let Ok(id) = state.add_object(obj, ZoneId::Battlefield) {
+                        if let Some(id) = state.expect_add_object(obj, ZoneId::Battlefield) {
                             events.push(GameEvent::TokenCreated {
                                 player: ctx.controller,
                                 object_id: id,
@@ -900,7 +898,7 @@ fn execute_effect_inner(
                             ..
                         } => {
                             events.extend(repl_events);
-                            if let Ok((new_id, _old)) = state.move_object_to_zone(id, dest) {
+                            if let Some((new_id, _old)) = state.lki_move_object_to_zone(id, dest) {
                                 match dest {
                                     ZoneId::Exile => {
                                         events.push(GameEvent::ObjectExiled {
@@ -962,8 +960,8 @@ fn execute_effect_inner(
                         }
                         crate::rules::replacement::ZoneChangeAction::Proceed => {
                             // No replacement — move to graveyard normally.
-                            if let Ok((new_id, _old)) =
-                                state.move_object_to_zone(id, ZoneId::Graveyard(owner))
+                            if let Some((new_id, _old)) =
+                                state.lki_move_object_to_zone(id, ZoneId::Graveyard(owner))
                             {
                                 if card_types.contains(&CardType::Creature) {
                                     events.push(GameEvent::CreatureDied {
@@ -1007,9 +1005,7 @@ fn execute_effect_inner(
                     obj.zone == ZoneId::Battlefield
                         && obj.is_phased_in()
                         && {
-                            let chars =
-                                crate::rules::layers::calculate_characteristics(state, **id)
-                                    .unwrap_or_else(|| obj.characteristics.clone());
+                            let chars = crate::rules::layers::expect_characteristics(state, **id);
                             matches_filter(&chars, filter)
                                 && check_chosen_subtype_filter(state, ctx, filter, &chars)
                                 // CR 122.1: counter check must be against GameObject (not Characteristics).
@@ -1118,7 +1114,7 @@ fn execute_effect_inner(
                         ..
                     } => {
                         events.extend(repl_events);
-                        if let Ok((new_id, _old)) = state.move_object_to_zone(id, dest) {
+                        if let Some((new_id, _old)) = state.lki_move_object_to_zone(id, dest) {
                             match dest {
                                 ZoneId::Exile => {
                                     events.push(GameEvent::ObjectExiled {
@@ -1183,8 +1179,8 @@ fn execute_effect_inner(
                         });
                     }
                     crate::rules::replacement::ZoneChangeAction::Proceed => {
-                        if let Ok((new_id, _old)) =
-                            state.move_object_to_zone(id, ZoneId::Graveyard(owner))
+                        if let Some((new_id, _old)) =
+                            state.lki_move_object_to_zone(id, ZoneId::Graveyard(owner))
                         {
                             if card_types.contains(&CardType::Creature) {
                                 events.push(GameEvent::CreatureDied {
@@ -1323,7 +1319,9 @@ fn execute_effect_inner(
                                 ..
                             } => {
                                 events.extend(repl_events);
-                                if let Ok((new_id, _old)) = state.move_object_to_zone(id, dest) {
+                                if let Some((new_id, _old)) =
+                                    state.lki_move_object_to_zone(id, dest)
+                                {
                                     match dest {
                                         ZoneId::Exile => {
                                             events.push(GameEvent::ObjectExiled {
@@ -1392,8 +1390,8 @@ fn execute_effect_inner(
                             }
                             crate::rules::replacement::ZoneChangeAction::Proceed => {
                                 // No replacement — move to graveyard normally.
-                                if let Ok((new_id, _old)) =
-                                    state.move_object_to_zone(id, ZoneId::Graveyard(owner))
+                                if let Some((new_id, _old)) =
+                                    state.lki_move_object_to_zone(id, ZoneId::Graveyard(owner))
                                 {
                                     if card_types.contains(&CardType::Creature) {
                                         events.push(GameEvent::CreatureDied {
@@ -1435,9 +1433,11 @@ fn execute_effect_inner(
                     continue;
                 }
                 let entering_controller = ctx.controller;
-                if let Ok((new_id, _old)) = state.move_object_to_zone(old_id, ZoneId::Battlefield) {
+                if let Some((new_id, _old)) =
+                    state.expect_move_object_to_zone(old_id, ZoneId::Battlefield)
+                {
                     // CR 400.7: override controller — "under your control".
-                    if let Some(obj) = state.objects.get_mut(&new_id) {
+                    if let Some(obj) = state.expect_object_mut(new_id) {
                         obj.controller = entering_controller;
                     }
                     let card_id = state
@@ -1502,9 +1502,7 @@ fn execute_effect_inner(
                     obj.zone == ZoneId::Battlefield
                         && obj.is_phased_in()
                         && {
-                            let chars =
-                                crate::rules::layers::calculate_characteristics(state, **id)
-                                    .unwrap_or_else(|| obj.characteristics.clone());
+                            let chars = crate::rules::layers::expect_characteristics(state, **id);
                             matches_filter(&chars, filter)
                                 && check_chosen_subtype_filter(state, ctx, filter, &chars)
                                 // CR 122.1: counter check must be against GameObject (not Characteristics).
@@ -1551,7 +1549,7 @@ fn execute_effect_inner(
                         ..
                     } => {
                         events.extend(repl_events);
-                        if let Ok((new_id, _old)) = state.move_object_to_zone(id, dest) {
+                        if let Some((new_id, _old)) = state.lki_move_object_to_zone(id, dest) {
                             match dest {
                                 ZoneId::Command(_) => {
                                     // Commander redirected — no exile event.
@@ -1590,7 +1588,9 @@ fn execute_effect_inner(
                         });
                     }
                     crate::rules::replacement::ZoneChangeAction::Proceed => {
-                        if let Ok((new_id, _old)) = state.move_object_to_zone(id, ZoneId::Exile) {
+                        if let Some((new_id, _old)) =
+                            state.lki_move_object_to_zone(id, ZoneId::Exile)
+                        {
                             events.push(GameEvent::ObjectExiled {
                                 player: owner,
                                 object_id: id,
@@ -1626,8 +1626,7 @@ fn execute_effect_inner(
                         && obj.is_phased_in()
                         && {
                             let chars =
-                                crate::rules::layers::calculate_characteristics(state, **id)
-                                    .unwrap_or_else(|| obj.characteristics.clone());
+                                crate::rules::layers::expect_characteristics(state, **id);
                             matches_filter(&chars, &effective_filter)
                                 && check_chosen_subtype_filter(state, ctx, &effective_filter, &chars)
                         }
@@ -1682,7 +1681,7 @@ fn execute_effect_inner(
                         ..
                     } => {
                         events.extend(repl_events);
-                        if let Ok((new_id, _old)) = state.move_object_to_zone(id, dest) {
+                        if let Some((new_id, _old)) = state.lki_move_object_to_zone(id, dest) {
                             match dest {
                                 ZoneId::Command(_) => {
                                     // Commander redirected to command zone.
@@ -1722,7 +1721,7 @@ fn execute_effect_inner(
                     }
                     crate::rules::replacement::ZoneChangeAction::Proceed => {
                         let dest = ZoneId::Hand(owner);
-                        if let Ok((new_id, _old)) = state.move_object_to_zone(id, dest) {
+                        if let Some((new_id, _old)) = state.lki_move_object_to_zone(id, dest) {
                             events.push(GameEvent::ObjectReturnedToHand {
                                 player: owner,
                                 object_id: id,
@@ -1795,7 +1794,9 @@ fn execute_effect_inner(
                                 ..
                             } => {
                                 events.extend(repl_events);
-                                if let Ok((new_id, _old)) = state.move_object_to_zone(id, dest) {
+                                if let Some((new_id, _old)) =
+                                    state.lki_move_object_to_zone(id, dest)
+                                {
                                     if let Some(idx) = idx_opt {
                                         ctx.target_remaps.insert(idx, new_id);
                                     }
@@ -1838,8 +1839,8 @@ fn execute_effect_inner(
                             }
                             crate::rules::replacement::ZoneChangeAction::Proceed => {
                                 // No replacement — exile normally.
-                                if let Ok((new_id, _old)) =
-                                    state.move_object_to_zone(id, ZoneId::Exile)
+                                if let Some((new_id, _old)) =
+                                    state.lki_move_object_to_zone(id, ZoneId::Exile)
                                 {
                                     if let Some(idx) = idx_opt {
                                         ctx.target_remaps.insert(idx, new_id);
@@ -1909,8 +1910,8 @@ fn execute_effect_inner(
                                 } else {
                                     ZoneId::Graveyard(owner)
                                 };
-                                if let Ok((new_id, _)) =
-                                    state.move_object_to_zone(source_object, destination)
+                                if let Some((new_id, _)) =
+                                    state.lki_move_object_to_zone(source_object, destination)
                                 {
                                     events.push(GameEvent::SpellCountered {
                                         player: controller,
@@ -1948,7 +1949,7 @@ fn execute_effect_inner(
             let targets = resolve_effect_target_list(state, target, ctx);
             for resolved in targets {
                 if let ResolvedTarget::Object(id) = resolved {
-                    if let Some(obj) = state.objects.get_mut(&id) {
+                    if let Some(obj) = state.lki_object_mut(id) {
                         if !obj.status.tapped {
                             obj.status.tapped = true;
                             let player = obj.controller;
@@ -1965,7 +1966,7 @@ fn execute_effect_inner(
             let targets = resolve_effect_target_list(state, target, ctx);
             for resolved in targets {
                 if let ResolvedTarget::Object(id) = resolved {
-                    if let Some(obj) = state.objects.get_mut(&id) {
+                    if let Some(obj) = state.lki_object_mut(id) {
                         if obj.status.tapped {
                             obj.status.tapped = false;
                             let player = obj.controller;
@@ -1987,7 +1988,7 @@ fn execute_effect_inner(
             let targets = resolve_effect_target_list(state, target, ctx);
             for resolved in targets {
                 if let ResolvedTarget::Object(id) = resolved {
-                    if let Some(obj) = state.objects.get_mut(&id) {
+                    if let Some(obj) = state.lki_object_mut(id) {
                         obj.skip_untap_steps = obj.skip_untap_steps.saturating_add(1);
                     }
                 }
@@ -2006,9 +2007,7 @@ fn execute_effect_inner(
                         && obj.is_phased_in()
                         && obj.status.tapped
                         && {
-                            let chars =
-                                crate::rules::layers::calculate_characteristics(state, **id)
-                                    .unwrap_or_else(|| obj.characteristics.clone());
+                            let chars = crate::rules::layers::expect_characteristics(state, **id);
                             matches_filter(&chars, filter)
                                 && check_chosen_subtype_filter(state, ctx, filter, &chars)
                         }
@@ -2025,7 +2024,7 @@ fn execute_effect_inner(
                 .collect();
             let mut untapped_count: u32 = 0;
             for id in &ids_to_untap {
-                if let Some(obj) = state.objects.get_mut(id) {
+                if let Some(obj) = state.expect_object_mut(*id) {
                     obj.status.tapped = false;
                     let player = obj.controller;
                     events.push(GameEvent::PermanentUntapped {
@@ -2053,7 +2052,7 @@ fn execute_effect_inner(
             .filter(|(_, amt)| *amt > 0)
             .collect();
             for p in players {
-                if let Some(ps) = state.players.get_mut(&p) {
+                if let Some(ps) = state.expect_player_mut(p) {
                     for &(color, amount) in &mana_entries {
                         ps.mana_pool.add(color, amount);
                         events.push(GameEvent::ManaAdded {
@@ -2070,7 +2069,7 @@ fn execute_effect_inner(
             // M9+: interactive mana color choice. For now, add colorless.
             let players = resolve_player_target_list(state, player, ctx);
             for p in players {
-                if let Some(ps) = state.players.get_mut(&p) {
+                if let Some(ps) = state.expect_player_mut(p) {
                     ps.mana_pool.add(ManaColor::Colorless, 1);
                     events.push(GameEvent::ManaAdded {
                         player: p,
@@ -2090,7 +2089,7 @@ fn execute_effect_inner(
         } => {
             let players = resolve_player_target_list(state, player, ctx);
             for p in players {
-                if let Some(ps) = state.players.get_mut(&p) {
+                if let Some(ps) = state.expect_player_mut(p) {
                     ps.mana_pool.add(*color_a, 1);
                     events.push(GameEvent::ManaAdded {
                         player: p,
@@ -2116,7 +2115,7 @@ fn execute_effect_inner(
             let amount = resolve_amount(state, count, ctx).max(0) as u32;
             let players = resolve_player_target_list(state, player, ctx);
             for p in players {
-                if let Some(ps) = state.players.get_mut(&p) {
+                if let Some(ps) = state.expect_player_mut(p) {
                     ps.mana_pool.add(*color, amount);
                     events.push(GameEvent::ManaAdded {
                         player: p,
@@ -2147,7 +2146,7 @@ fn execute_effect_inner(
             .filter(|(_, amt)| *amt > 0)
             .collect();
             for p in players {
-                if let Some(ps) = state.players.get_mut(&p) {
+                if let Some(ps) = state.expect_player_mut(p) {
                     for &(color, amount) in &mana_entries {
                         add_mana_with_restriction(ps, color, amount, &resolved);
                         events.push(GameEvent::ManaAdded {
@@ -2168,7 +2167,7 @@ fn execute_effect_inner(
             let players = resolve_player_target_list(state, player, ctx);
             let resolved = resolve_mana_restriction(state, &Some(restriction.clone()), ctx);
             for p in players {
-                if let Some(ps) = state.players.get_mut(&p) {
+                if let Some(ps) = state.expect_player_mut(p) {
                     add_mana_with_restriction(ps, ManaColor::Colorless, 1, &resolved);
                     events.push(GameEvent::ManaAdded {
                         player: p,
@@ -2192,7 +2191,7 @@ fn execute_effect_inner(
                 .map(|&(c, _)| c)
                 .unwrap_or(ManaColor::Colorless);
             for p in players {
-                if let Some(ps) = state.players.get_mut(&p) {
+                if let Some(ps) = state.expect_player_mut(p) {
                     ps.mana_pool.add(color, 1);
                     events.push(GameEvent::ManaAdded {
                         player: p,
@@ -2209,7 +2208,7 @@ fn execute_effect_inner(
             let n = resolve_amount(state, amount, ctx).max(0) as u32;
             let players = resolve_player_target_list(state, player, ctx);
             for p in players {
-                if let Some(ps) = state.players.get_mut(&p) {
+                if let Some(ps) = state.expect_player_mut(p) {
                     ps.mana_pool.add(ManaColor::Colorless, n);
                     if n > 0 {
                         events.push(GameEvent::ManaAdded {
@@ -2244,7 +2243,7 @@ fn execute_effect_inner(
                 })
                 .unwrap_or(ManaColor::Colorless);
             for p in players {
-                if let Some(ps) = state.players.get_mut(&p) {
+                if let Some(ps) = state.expect_player_mut(p) {
                     ps.mana_pool.add(chosen_mana_color, n);
                     if n > 0 {
                         events.push(GameEvent::ManaAdded {
@@ -2281,7 +2280,7 @@ fn execute_effect_inner(
                         );
                     events.extend(repl_events);
                     if modified_count > 0 {
-                        if let Some(obj) = state.objects.get_mut(&id) {
+                        if let Some(obj) = state.lki_object_mut(id) {
                             let cur = obj.counters.get(&counter).copied().unwrap_or(0);
                             obj.counters.insert(counter.clone(), cur + modified_count);
                             events.push(GameEvent::CounterAdded {
@@ -2316,7 +2315,7 @@ fn execute_effect_inner(
                             );
                         events.extend(repl_events);
                         if modified_count > 0 {
-                            if let Some(obj) = state.objects.get_mut(&id) {
+                            if let Some(obj) = state.lki_object_mut(id) {
                                 let cur = obj.counters.get(&counter).copied().unwrap_or(0);
                                 obj.counters.insert(counter.clone(), cur + modified_count);
                                 events.push(GameEvent::CounterAdded {
@@ -2361,7 +2360,7 @@ fn execute_effect_inner(
             let targets = resolve_effect_target_list(state, target, ctx);
             for resolved in targets {
                 if let ResolvedTarget::Object(id) = resolved {
-                    if let Some(obj) = state.objects.get_mut(&id) {
+                    if let Some(obj) = state.lki_object_mut(id) {
                         let cur = obj.counters.get(&counter).copied().unwrap_or(0);
                         let new_val = cur.saturating_sub(count);
                         if new_val == 0 {
@@ -2427,7 +2426,7 @@ fn execute_effect_inner(
                     continue;
                 };
                 // Place N +1/+1 counters on the chosen creature.
-                if let Some(obj) = state.objects.get_mut(&chosen_id) {
+                if let Some(obj) = state.expect_object_mut(chosen_id) {
                     let cur = obj
                         .counters
                         .get(&crate::state::types::CounterType::PlusOnePlusOne)
@@ -2506,7 +2505,7 @@ fn execute_effect_inner(
                 let mut created_ids = Vec::new();
                 for _ in 0..army_token_count {
                     let token = make_token(&spec, controller);
-                    if let Ok(id) = state.add_object(token, ZoneId::Battlefield) {
+                    if let Some(id) = state.expect_add_object(token, ZoneId::Battlefield) {
                         events.push(GameEvent::TokenCreated {
                             player: controller,
                             object_id: id,
@@ -2560,7 +2559,7 @@ fn execute_effect_inner(
                     );
                 events.extend(repl_events);
                 if modified_count > 0 {
-                    if let Some(obj) = state.objects.get_mut(&army_id) {
+                    if let Some(obj) = state.expect_object_mut(army_id) {
                         let cur = obj
                             .counters
                             .get(&crate::state::types::CounterType::PlusOnePlusOne)
@@ -2582,7 +2581,7 @@ fn execute_effect_inner(
             // This is a one-shot modification (not a continuous effect) — the subtype
             // is permanently added to the creature's characteristics.
             let army_subtype = crate::state::types::SubType(subtype.clone());
-            if let Some(obj) = state.objects.get_mut(&army_id) {
+            if let Some(obj) = state.expect_object_mut(army_id) {
                 if !obj.characteristics.subtypes.contains(&army_subtype) {
                     obj.characteristics.subtypes.insert(army_subtype);
                 }
@@ -2621,14 +2620,14 @@ fn execute_effect_inner(
                         })
                         .unwrap_or_default();
                     let dest = resolve_zone_target(to, state, ctx);
-                    if let Ok((new_id, _)) = state.move_object_to_zone(id, dest) {
+                    if let Some((new_id, _)) = state.lki_move_object_to_zone(id, dest) {
                         // Apply controller override for "under your control" effects (e.g. Reanimate).
                         // move_object_to_zone always resets controller to owner; override after.
                         if let Some(override_player_target) = controller_override {
                             let override_players =
                                 resolve_player_target_list(state, override_player_target, ctx);
                             if let (Some(new_obj), Some(&new_controller)) =
-                                (state.objects.get_mut(&new_id), override_players.first())
+                                (state.expect_object_mut(new_id), override_players.first())
                             {
                                 new_obj.controller = new_controller;
                             }
@@ -2713,7 +2712,7 @@ fn execute_effect_inner(
                 ids.sort_by_key(|id| id.0);
                 ids.truncate(n);
                 for id in ids {
-                    if let Ok((new_id, _)) = state.move_object_to_zone(id, lib_zone) {
+                    if let Some((new_id, _)) = state.expect_move_object_to_zone(id, lib_zone) {
                         events.push(GameEvent::ObjectPutOnLibrary {
                             player: p,
                             object_id: id,
@@ -2794,7 +2793,7 @@ fn execute_effect_inner(
                     if *shuffle_before_placing && found_in_library {
                         let seed = state.timestamp_counter;
                         state.timestamp_counter += 1;
-                        if let Some(zone) = state.zones.get_mut(&ZoneId::Library(p)) {
+                        if let Some(zone) = state.expect_zone_mut(&ZoneId::Library(p)) {
                             let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
                             zone.shuffle(&mut rng);
                         }
@@ -2804,10 +2803,10 @@ fn execute_effect_inner(
                     let tapped_opt = dest_tapped(destination);
                     let dest = resolve_zone_target(destination, state, ctx);
                     if let Some(tap) = tapped_opt {
-                        if let Ok((new_id, _)) = state.move_object_to_zone(card_id, dest) {
+                        if let Some((new_id, _)) = state.expect_move_object_to_zone(card_id, dest) {
                             // If the destination is battlefield tapped, apply tapped status.
                             if tap {
-                                if let Some(obj) = state.objects.get_mut(&new_id) {
+                                if let Some(obj) = state.expect_object_mut(new_id) {
                                     obj.status.tapped = true;
                                 }
                             }
@@ -2818,7 +2817,7 @@ fn execute_effect_inner(
                         }
                     } else {
                         // Hand or graveyard or other zone.
-                        let _ = state.move_object_to_zone(card_id, dest);
+                        let _ = state.expect_move_object_to_zone(card_id, dest);
                     }
                 }
             }
@@ -2845,7 +2844,7 @@ fn execute_effect_inner(
                 for id in to_bottom {
                     // Move to bottom by removing and re-inserting at the bottom
                     // (library zones are Ordered, so we use move_to_zone back).
-                    let _ = state.move_object_to_zone(id, lib_zone);
+                    let _ = state.expect_move_object_to_zone(id, lib_zone);
                 }
                 events.push(GameEvent::Scried {
                     player: p,
@@ -2880,7 +2879,7 @@ fn execute_effect_inner(
                 to_graveyard.sort_by_key(|id| id.0);
                 let actual_count = to_graveyard.len();
                 for id in to_graveyard {
-                    let _ = state.move_object_to_zone(id, graveyard_zone);
+                    let _ = state.expect_move_object_to_zone(id, graveyard_zone);
                 }
                 // CR 701.25d: event fires even if some actions were impossible
                 // (e.g., library had fewer than N cards).
@@ -2897,7 +2896,7 @@ fn execute_effect_inner(
             for p in players {
                 let seed = state.timestamp_counter;
                 state.timestamp_counter += 1;
-                if let Some(zone) = state.zones.get_mut(&ZoneId::Library(p)) {
+                if let Some(zone) = state.expect_zone_mut(&ZoneId::Library(p)) {
                     let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
                     zone.shuffle(&mut rng);
                 }
@@ -3240,7 +3239,7 @@ fn execute_effect_inner(
                     .map(|(pid, _)| *pid)
                     .collect();
                 for pid in opponent_ids {
-                    if let Some(p) = state.players.get_mut(&pid) {
+                    if let Some(p) = state.expect_player_mut(pid) {
                         p.has_lost = true;
                     }
                     events.push(GameEvent::PlayerLost {
@@ -3259,7 +3258,7 @@ fn execute_effect_inner(
             let targets = resolve_effect_target_list(state, target, ctx);
             for resolved in targets {
                 if let ResolvedTarget::Object(id) = resolved {
-                    if let Some(obj) = state.objects.get_mut(&id) {
+                    if let Some(obj) = state.lki_object_mut(id) {
                         if !obj.goaded_by.contains(&ctx.controller) {
                             obj.goaded_by.push_back(ctx.controller);
                         }
@@ -3278,7 +3277,7 @@ fn execute_effect_inner(
             let targets = resolve_effect_target_list(state, target, ctx);
             for resolved in targets {
                 if let ResolvedTarget::Object(id) = resolved {
-                    if let Some(obj) = state.objects.get_mut(&id) {
+                    if let Some(obj) = state.lki_object_mut(id) {
                         // CR 701.60d: A suspected permanent can't become suspected again.
                         if !obj.designations.contains(Designations::SUSPECTED) {
                             obj.designations.insert(Designations::SUSPECTED);
@@ -3298,7 +3297,7 @@ fn execute_effect_inner(
             let targets = resolve_effect_target_list(state, target, ctx);
             for resolved in targets {
                 if let ResolvedTarget::Object(id) = resolved {
-                    if let Some(obj) = state.objects.get_mut(&id) {
+                    if let Some(obj) = state.lki_object_mut(id) {
                         if obj.designations.contains(Designations::SUSPECTED) {
                             obj.designations.remove(Designations::SUSPECTED);
                             events.push(GameEvent::CreatureUnsuspected {
@@ -3333,8 +3332,7 @@ fn execute_effect_inner(
                 // CR 613.1d: Use layer-resolved types/subtypes for creature scan.
                 for obj in state.objects.values() {
                     if obj.controller == ctx.controller && matches!(obj.zone, ZoneId::Battlefield) {
-                        let chars = crate::rules::layers::calculate_characteristics(state, obj.id)
-                            .unwrap_or_else(|| obj.characteristics.clone());
+                        let chars = crate::rules::layers::expect_characteristics(state, obj.id);
                         if chars.card_types.contains(&CardType::Creature) {
                             for st in &chars.subtypes {
                                 *type_counts.entry(st.clone()).or_insert(0usize) += 1;
@@ -3349,7 +3347,7 @@ fn execute_effect_inner(
                     .unwrap_or_else(|| default.clone())
             };
             // Set on the source permanent if it's on the battlefield (ETB replacement path).
-            if let Some(obj) = state.objects.get_mut(&ctx.source) {
+            if let Some(obj) = state.lki_object_mut(ctx.source) {
                 obj.chosen_creature_type = Some(chosen.clone());
             }
             // Also set on ctx for spell-level Sequence use (Kindred Dominance, Pact of the Serpent).
@@ -3459,7 +3457,7 @@ fn execute_effect_inner(
                             );
                         events.extend(repl_events);
                         if modified_count > 0 {
-                            if let Some(obj) = state.objects.get_mut(obj_id) {
+                            if let Some(obj) = state.expect_object_mut(*obj_id) {
                                 let cur = obj.counters.get(counter_type).copied().unwrap_or(0);
                                 obj.counters
                                     .insert(counter_type.clone(), cur + modified_count);
@@ -3488,7 +3486,7 @@ fn execute_effect_inner(
                     .map(|(id, _)| *id)
                     .collect();
                 for pid in &eligible_players {
-                    if let Some(player) = state.players.get_mut(pid) {
+                    if let Some(player) = state.expect_player_mut(*pid) {
                         player.poison_counters += 1;
                         events.push(GameEvent::PoisonCountersGiven {
                             player: *pid,
@@ -3565,10 +3563,12 @@ fn execute_effect_inner(
             let lib_id = ZoneId::Library(manifest_player);
             let top_card = state.zones.get(&lib_id).and_then(|z| z.top());
             if let Some(top_id) = top_card {
-                if let Ok((new_id, _)) = state.move_object_to_zone(top_id, ZoneId::Battlefield) {
+                if let Some((new_id, _)) =
+                    state.expect_move_object_to_zone(top_id, ZoneId::Battlefield)
+                {
                     // CR 708.2 / CR 708.3: Set face-down status; the card enters as a 2/2 creature.
                     // The layer system handles characteristic override.
-                    if let Some(obj) = state.objects.get_mut(&new_id) {
+                    if let Some(obj) = state.expect_object_mut(new_id) {
                         obj.controller = manifest_player;
                         obj.owner = manifest_player;
                         obj.status.face_down = true;
@@ -3615,10 +3615,12 @@ fn execute_effect_inner(
             let lib_id = ZoneId::Library(cloak_player);
             let top_card = state.zones.get(&lib_id).and_then(|z| z.top());
             if let Some(top_id) = top_card {
-                if let Ok((new_id, _)) = state.move_object_to_zone(top_id, ZoneId::Battlefield) {
+                if let Some((new_id, _)) =
+                    state.expect_move_object_to_zone(top_id, ZoneId::Battlefield)
+                {
                     // CR 701.58a: Set face-down status with Cloak kind.
                     // The layer system adds ward {2} for Cloak permanents.
-                    if let Some(obj) = state.objects.get_mut(&new_id) {
+                    if let Some(obj) = state.expect_object_mut(new_id) {
                         obj.controller = cloak_player;
                         obj.owner = cloak_player;
                         obj.status.face_down = true;
@@ -3689,7 +3691,7 @@ fn execute_effect_inner(
         // CR 603.7 / PB-33: Set the return_to_hand_at_end_step flag on the source object.
         // Used by The Locust God's WhenDies trigger.
         Effect::SetReturnToHandAtEndStep => {
-            if let Some(obj) = state.objects.get_mut(&ctx.source) {
+            if let Some(obj) = state.lki_object_mut(ctx.source) {
                 obj.return_to_hand_at_end_step = true;
             }
         }
@@ -3789,14 +3791,14 @@ fn execute_effect_inner(
                         // created — they are phantom intermediaries, not real exile zone
                         // residents (CR 701.42a: cards go directly onto the battlefield combined).
                         let exile_zone = crate::state::zone::ZoneId::Exile;
+                        // Impossible-absence: both ids were verified on the battlefield above
+                        // and the Exile zone always exists, so neither move can fail.
                         let exiled_source_id = state
-                            .move_object_to_zone(source_id, exile_zone)
-                            .map(|(new_id, _)| new_id)
-                            .ok();
+                            .expect_move_object_to_zone(source_id, exile_zone)
+                            .map(|(new_id, _)| new_id);
                         let exiled_partner_id = state
-                            .move_object_to_zone(partner_obj_id, exile_zone)
-                            .map(|(new_id, _)| new_id)
-                            .ok();
+                            .expect_move_object_to_zone(partner_obj_id, exile_zone)
+                            .map(|(new_id, _)| new_id);
                         // Create the melded permanent on the battlefield.
                         // The primary object uses the source card's identity;
                         // meld_component stores the partner's CardId for zone-change splitting.
@@ -3892,7 +3894,7 @@ fn execute_effect_inner(
                         {
                             state.objects.remove(&phantom_id);
                             if let Some(exile_set) =
-                                state.zones.get_mut(&crate::state::zone::ZoneId::Exile)
+                                state.expect_zone_mut(&crate::state::zone::ZoneId::Exile)
                             {
                                 exile_set.remove(&phantom_id);
                             }
@@ -3941,27 +3943,28 @@ fn execute_effect_inner(
                     .map(|obj| obj.characteristics.card_types.contains(&CardType::Land))
                     .unwrap_or(false);
                 // Turn face-up and clear the hideaway link.
-                if let Some(obj) = state.objects.get_mut(&card_id) {
+                if let Some(obj) = state.expect_object_mut(card_id) {
                     obj.status.face_down = false;
                     obj.exiled_by_hideaway = None;
                 }
                 if is_land {
                     // Play the land: move directly to battlefield.
                     // CR 701.13: Playing a land bypasses the stack.
-                    match state.move_object_to_zone(card_id, ZoneId::Battlefield) {
-                        Ok((new_id, _)) => {
-                            if let Some(obj) = state.objects.get_mut(&new_id) {
-                                obj.controller = controller;
-                                obj.owner = controller;
-                            }
-                            events.push(GameEvent::PermanentEnteredBattlefield {
-                                player: controller,
-                                object_id: new_id,
-                            });
+                    // Expected fizzle: the card may have left exile since it was chosen.
+                    // CR 400.7 — it is a different object now; CR 608.2b — the effect
+                    // "fails to determine any such information" and does nothing.
+                    // A missing *zone* would still be a bug, and still asserts.
+                    if let Some((new_id, _)) =
+                        state.lki_move_object_to_zone(card_id, ZoneId::Battlefield)
+                    {
+                        if let Some(obj) = state.expect_object_mut(new_id) {
+                            obj.controller = controller;
+                            obj.owner = controller;
                         }
-                        Err(_) => {
-                            // Card disappeared from exile — ability does nothing.
-                        }
+                        events.push(GameEvent::PermanentEnteredBattlefield {
+                            player: controller,
+                            object_id: new_id,
+                        });
                     }
                 } else {
                     // Cast as permanent without paying mana cost.
@@ -3980,10 +3983,10 @@ fn execute_effect_inner(
                         })
                         .unwrap_or(false);
                     if is_permanent {
-                        if let Ok((new_id, _)) =
-                            state.move_object_to_zone(card_id, ZoneId::Battlefield)
+                        if let Some((new_id, _)) =
+                            state.expect_move_object_to_zone(card_id, ZoneId::Battlefield)
                         {
-                            if let Some(obj) = state.objects.get_mut(&new_id) {
+                            if let Some(obj) = state.expect_object_mut(new_id) {
                                 obj.controller = controller;
                                 obj.owner = controller;
                             }
@@ -3995,7 +3998,8 @@ fn execute_effect_inner(
                     } else {
                         // Instant/sorcery: move to graveyard (simplified resolution).
                         let graveyard_zone = ZoneId::Graveyard(controller);
-                        if let Ok((new_id, _)) = state.move_object_to_zone(card_id, graveyard_zone)
+                        if let Some((new_id, _)) =
+                            state.expect_move_object_to_zone(card_id, graveyard_zone)
                         {
                             events.push(GameEvent::ObjectPutInGraveyard {
                                 player: controller,
@@ -4084,7 +4088,7 @@ fn execute_effect_inner(
                     // Detach from previous creature (CR 301.5c: can't equip more than one).
                     let prev_target_opt = state.objects.get(&equip_id).and_then(|o| o.attached_to);
                     if let Some(prev_target) = prev_target_opt {
-                        if let Some(prev) = state.objects.get_mut(&prev_target) {
+                        if let Some(prev) = state.lki_object_mut(prev_target) {
                             prev.attachments.retain(|&x| x != equip_id);
                         }
                     }
@@ -4092,11 +4096,11 @@ fn execute_effect_inner(
                     // CR 701.3c / CR 613.7e: new timestamp on reattach.
                     state.timestamp_counter += 1;
                     let new_ts = state.timestamp_counter;
-                    if let Some(equip_obj) = state.objects.get_mut(&equip_id) {
+                    if let Some(equip_obj) = state.expect_object_mut(equip_id) {
                         equip_obj.attached_to = Some(target_id);
                         equip_obj.timestamp = new_ts;
                     }
-                    if let Some(target_obj) = state.objects.get_mut(&target_id) {
+                    if let Some(target_obj) = state.expect_object_mut(target_id) {
                         if !target_obj.attachments.contains(&equip_id) {
                             target_obj.attachments.push_back(equip_id);
                         }
@@ -4118,7 +4122,7 @@ fn execute_effect_inner(
                             })
                             .unwrap_or(false);
                     if has_reconfigure {
-                        if let Some(equip_obj) = state.objects.get_mut(&equip_id) {
+                        if let Some(equip_obj) = state.expect_object_mut(equip_id) {
                             equip_obj.designations.insert(Designations::RECONFIGURED);
                         }
                     }
@@ -4223,7 +4227,7 @@ fn execute_effect_inner(
                     // fortify more than one land).
                     let prev_target_opt = state.objects.get(&equip_id).and_then(|o| o.attached_to);
                     if let Some(prev_target) = prev_target_opt {
-                        if let Some(prev) = state.objects.get_mut(&prev_target) {
+                        if let Some(prev) = state.lki_object_mut(prev_target) {
                             prev.attachments.retain(|&x| x != equip_id);
                         }
                     }
@@ -4231,11 +4235,11 @@ fn execute_effect_inner(
                     // CR 701.3c / CR 613.7e: new timestamp on reattach.
                     state.timestamp_counter += 1;
                     let new_ts = state.timestamp_counter;
-                    if let Some(equip_obj) = state.objects.get_mut(&equip_id) {
+                    if let Some(equip_obj) = state.expect_object_mut(equip_id) {
                         equip_obj.attached_to = Some(target_id);
                         equip_obj.timestamp = new_ts;
                     }
-                    if let Some(target_obj) = state.objects.get_mut(&target_id) {
+                    if let Some(target_obj) = state.expect_object_mut(target_id) {
                         if !target_obj.attachments.contains(&equip_id) {
                             target_obj.attachments.push_back(equip_id);
                         }
@@ -4280,13 +4284,13 @@ fn execute_effect_inner(
                     continue;
                 };
                 // Clear attached_to on the equipment.
-                if let Some(equip_obj) = state.objects.get_mut(&equip_id) {
+                if let Some(equip_obj) = state.expect_object_mut(equip_id) {
                     equip_obj.attached_to = None;
                     // CR 702.151b: Clear the reconfigure flag; creature type is restored.
                     equip_obj.designations.remove(Designations::RECONFIGURED);
                 }
                 // Remove equipment from target's attachments.
-                if let Some(target_obj) = state.objects.get_mut(&target_id) {
+                if let Some(target_obj) = state.lki_object_mut(target_id) {
                     target_obj.attachments.retain(|&x| x != equip_id);
                 }
                 events.push(GameEvent::EquipmentUnattached {
@@ -4360,7 +4364,8 @@ fn execute_effect_inner(
                             } else {
                                 ZoneId::Graveyard(controller)
                             };
-                            if let Ok((new_id, _)) = state.move_object_to_zone(card_id, destination)
+                            if let Some((new_id, _)) =
+                                state.expect_move_object_to_zone(card_id, destination)
                             {
                                 // CR ruling: CardDiscarded fires even when card goes to exile.
                                 events.push(GameEvent::CardDiscarded {
@@ -4405,7 +4410,7 @@ fn execute_effect_inner(
                         .map(|o| o.zone == ZoneId::Battlefield && o.is_phased_in())
                         .unwrap_or(false);
                     if nonland_count > 0 && creature_on_battlefield {
-                        if let Some(obj) = state.objects.get_mut(&creature_id) {
+                        if let Some(obj) = state.expect_object_mut(creature_id) {
                             let cur = obj
                                 .counters
                                 .get(&crate::state::types::CounterType::PlusOnePlusOne)
@@ -4553,7 +4558,7 @@ fn execute_effect_inner(
                 let mut matched_ids = Vec::new();
                 let mut unmatched_ids = Vec::new();
                 for &id in &top_ids {
-                    if let Some(obj) = state.objects.get(&id) {
+                    if let Some(obj) = state.expect_object(id) {
                         if matches_filter(&obj.characteristics, filter)
                             && check_has_counter_type(obj, filter)
                         {
@@ -4570,9 +4575,9 @@ fn execute_effect_inner(
                 let matched_zone = resolve_zone_target(matched_dest, state, ctx);
                 let matched_tapped = dest_tapped(matched_dest);
                 for id in &matched_ids {
-                    if let Ok((new_id, _)) = state.move_object_to_zone(*id, matched_zone) {
+                    if let Some((new_id, _)) = state.expect_move_object_to_zone(*id, matched_zone) {
                         if let Some(tapped) = matched_tapped {
-                            if let Some(obj) = state.objects.get_mut(&new_id) {
+                            if let Some(obj) = state.expect_object_mut(new_id) {
                                 obj.status.tapped = tapped;
                             }
                         }
@@ -4583,7 +4588,8 @@ fn execute_effect_inner(
                 // Move unmatched cards to their destination.
                 let unmatched_zone = resolve_zone_target(unmatched_dest, state, ctx);
                 for id in &unmatched_ids {
-                    if let Ok((new_id, _)) = state.move_object_to_zone(*id, unmatched_zone) {
+                    if let Some((new_id, _)) = state.expect_move_object_to_zone(*id, unmatched_zone)
+                    {
                         let event = zone_move_event(ctx.controller, *id, new_id, unmatched_zone);
                         events.push(event);
                     }
@@ -4756,9 +4762,9 @@ fn execute_effect_inner(
 
                     skip_untap_steps: 0,
                 };
-                let token_id = match state.add_object(token_obj, ZoneId::Battlefield) {
-                    Ok(id) => id,
-                    Err(_) => continue,
+                // Impossible-absence: add_object's only error is a missing zone (never removed).
+                let Some(token_id) = state.expect_add_object(token_obj, ZoneId::Battlefield) else {
+                    continue;
                 };
                 // CR 707.2: Apply Layer 1 CopyOf continuous effect.
                 let copy_effect =
@@ -4926,9 +4932,9 @@ fn execute_effect_inner(
 
                 skip_untap_steps: 0,
             };
-            let emblem_id = match state.add_object(emblem_obj, command_zone) {
-                Ok(id) => id,
-                Err(_) => return,
+            // Impossible-absence: add_object's only error is a missing zone (never removed).
+            let Some(emblem_id) = state.expect_add_object(emblem_obj, command_zone) else {
+                return;
             };
             // Register static continuous effects from the emblem.
             // Duration is Indefinite since emblems never leave the command zone.
@@ -4995,7 +5001,8 @@ fn execute_effect_inner(
                         })
                         .unwrap_or_default();
                     // Step 1: Exile the permanent.
-                    if let Ok((exile_id, _)) = state.move_object_to_zone(id, ZoneId::Exile) {
+                    if let Some((exile_id, _)) = state.expect_move_object_to_zone(id, ZoneId::Exile)
+                    {
                         events.push(GameEvent::ObjectExiled {
                             player: ctx.controller,
                             object_id: id,
@@ -5005,10 +5012,10 @@ fn execute_effect_inner(
                             pre_lba_power,
                         });
                         // Step 2: Return from exile to battlefield under owner's control.
-                        if let Ok((new_bf_id, _)) =
-                            state.move_object_to_zone(exile_id, ZoneId::Battlefield)
+                        if let Some((new_bf_id, _)) =
+                            state.expect_move_object_to_zone(exile_id, ZoneId::Battlefield)
                         {
-                            if let Some(obj) = state.objects.get_mut(&new_bf_id) {
+                            if let Some(obj) = state.expect_object_mut(new_bf_id) {
                                 obj.controller = obj.owner;
                                 if *return_tapped {
                                     obj.status.tapped = true;
@@ -5086,7 +5093,8 @@ fn execute_effect_inner(
                         continue;
                     };
                     // Step 1: Exile the permanent.
-                    if let Ok((exile_id, _)) = state.move_object_to_zone(id, ZoneId::Exile) {
+                    if let Some((exile_id, _)) = state.expect_move_object_to_zone(id, ZoneId::Exile)
+                    {
                         events.push(GameEvent::ObjectExiled {
                             player: ctx.controller,
                             object_id: id,
@@ -5124,7 +5132,7 @@ fn execute_effect_inner(
         // CR 305.2: Grant the controller one additional land play this turn.
         Effect::AdditionalLandPlay => {
             let controller = ctx.controller;
-            if let Some(p) = state.players.get_mut(&controller) {
+            if let Some(p) = state.expect_player_mut(controller) {
                 p.land_plays_remaining += 1;
             }
         }
@@ -5175,7 +5183,7 @@ fn execute_effect_inner(
                     };
                     state.continuous_effects.push_back(eff);
                     // Update the object's controller immediately.
-                    if let Some(obj) = state.objects.get_mut(&obj_id) {
+                    if let Some(obj) = state.lki_object_mut(obj_id) {
                         obj.controller = controller;
                     }
                 }
@@ -5204,8 +5212,8 @@ fn execute_effect_inner(
                 }
             });
             if let (Some(a_id), Some(b_id)) = (a_id, b_id) {
-                let a_ctrl = state.objects.get(&a_id).map(|o| o.controller);
-                let b_ctrl = state.objects.get(&b_id).map(|o| o.controller);
+                let a_ctrl = state.lki_object(a_id).map(|o| o.controller);
+                let b_ctrl = state.lki_object(b_id).map(|o| o.controller);
                 if let (Some(ac), Some(bc)) = (a_ctrl, b_ctrl) {
                     // CR 701.12b: If same controller, do nothing.
                     if ac != bc {
@@ -5226,7 +5234,7 @@ fn execute_effect_inner(
                                     condition: None,
                                 },
                             );
-                            if let Some(obj) = state.objects.get_mut(&obj_id) {
+                            if let Some(obj) = state.expect_object_mut(obj_id) {
                                 obj.controller = new_controller;
                             }
                         }
@@ -5246,7 +5254,7 @@ fn execute_effect_inner(
         } => {
             let player_ids = resolve_player_target_list(state, player, ctx);
             for pid in player_ids {
-                if let Some(ps) = state.players.get_mut(&pid) {
+                if let Some(ps) = state.expect_player_mut(pid) {
                     match duration {
                         Some(_) => {
                             // Temporary protection — store in the timed field.
@@ -5292,12 +5300,12 @@ fn execute_effect_inner(
                 land_ids.into_iter().next()
             };
             if let Some(land_id) = land_id_opt {
-                if let Ok((new_land_id, _)) =
-                    state.move_object_to_zone(land_id, ZoneId::Battlefield)
+                if let Some((new_land_id, _)) =
+                    state.expect_move_object_to_zone(land_id, ZoneId::Battlefield)
                 {
                     // CR 305.4: entering tapped if requested.
                     if *tapped {
-                        if let Some(obj) = state.objects.get_mut(&new_land_id) {
+                        if let Some(obj) = state.expect_object_mut(new_land_id) {
                             obj.status.tapped = true;
                         }
                     }
@@ -5355,7 +5363,7 @@ fn execute_effect_inner(
         }
         // CR 719.3a: Set the SOLVED designation on the source permanent.
         Effect::SolveCase => {
-            if let Some(obj) = state.objects.get_mut(&ctx.source) {
+            if let Some(obj) = state.lki_object_mut(ctx.source) {
                 obj.designations.insert(Designations::SOLVED);
             }
         }
@@ -5529,9 +5537,11 @@ fn execute_effect_inner(
                     Some(_) => owner,
                     None => owner, // "under their owners' control"
                 };
-                if let Ok((new_id, _old)) = state.move_object_to_zone(old_id, ZoneId::Battlefield) {
+                if let Some((new_id, _old)) =
+                    state.lki_move_object_to_zone(old_id, ZoneId::Battlefield)
+                {
                     // Override controller if specified.
-                    if let Some(obj) = state.objects.get_mut(&new_id) {
+                    if let Some(obj) = state.expect_object_mut(new_id) {
                         obj.controller = entering_controller;
                         // Apply tapped status if requested (Splendid Reclamation, World Shaper).
                         if *tapped {
@@ -5617,8 +5627,8 @@ fn execute_effect_inner(
                 creature_cards.sort();
                 let mut exiled_this_player: Vec<ObjectId> = Vec::new();
                 for old_id in creature_cards {
-                    if let Ok((new_exile_id, _old)) =
-                        state.move_object_to_zone(old_id, ZoneId::Exile)
+                    if let Some((new_exile_id, _old)) =
+                        state.expect_move_object_to_zone(old_id, ZoneId::Exile)
                     {
                         events.push(GameEvent::ObjectExiled {
                             player: *pid,
@@ -5663,7 +5673,7 @@ fn execute_effect_inner(
                     pre_death_counters,
                     pre_death_power_ld,
                     ld_pre_chars,
-                ) = match state.objects.get(&id) {
+                ) = match state.lki_object(id) {
                     Some(obj) => {
                         let pre_chars_opt =
                             crate::rules::layers::calculate_characteristics(state, id);
@@ -5699,7 +5709,7 @@ fn execute_effect_inner(
                         ..
                     } => {
                         events.extend(repl_events);
-                        if let Ok((new_id, _old)) = state.move_object_to_zone(id, dest) {
+                        if let Some((new_id, _old)) = state.expect_move_object_to_zone(id, dest) {
                             match dest {
                                 ZoneId::Exile => {
                                     events.push(GameEvent::ObjectExiled {
@@ -5771,8 +5781,8 @@ fn execute_effect_inner(
                         });
                     }
                     crate::rules::replacement::ZoneChangeAction::Proceed => {
-                        if let Ok((new_id, _old)) =
-                            state.move_object_to_zone(id, ZoneId::Graveyard(owner))
+                        if let Some((new_id, _old)) =
+                            state.expect_move_object_to_zone(id, ZoneId::Graveyard(owner))
                         {
                             if card_types.contains(&CardType::Creature) {
                                 events.push(GameEvent::CreatureDied {
@@ -5818,11 +5828,11 @@ fn execute_effect_inner(
                     if !still_in_exile {
                         continue;
                     }
-                    if let Ok((new_id, _old)) =
-                        state.move_object_to_zone(exile_id, ZoneId::Battlefield)
+                    if let Some((new_id, _old)) =
+                        state.expect_move_object_to_zone(exile_id, ZoneId::Battlefield)
                     {
                         // Returned cards are controlled by their owner (CR 101.4).
-                        if let Some(obj) = state.objects.get_mut(&new_id) {
+                        if let Some(obj) = state.expect_object_mut(new_id) {
                             obj.controller = owner;
                         }
                         let card_id = state
@@ -6085,7 +6095,11 @@ fn resolve_effect_target_list_indexed(
                     target: Target::Player(p),
                     ..
                 }) => {
-                    if state.players.get(p).map(|ps| !ps.has_lost).unwrap_or(false) {
+                    if state
+                        .expect_player(*p)
+                        .map(|ps| !ps.has_lost)
+                        .unwrap_or(false)
+                    {
                         vec![(None, ResolvedTarget::Player(*p))]
                     } else {
                         vec![]
@@ -6137,8 +6151,7 @@ fn resolve_effect_target_list_indexed(
             .filter(|(id, obj)| {
                 obj.zone == ZoneId::Battlefield
                     && obj.is_phased_in()
-                    && crate::rules::layers::calculate_characteristics(state, **id)
-                        .unwrap_or_else(|| obj.characteristics.clone())
+                    && crate::rules::layers::expect_characteristics(state, **id)
                         .card_types
                         .contains(&CardType::Creature)
             })
@@ -6158,8 +6171,7 @@ fn resolve_effect_target_list_indexed(
                 obj.zone == ZoneId::Battlefield
                     && obj.is_phased_in()
                     && {
-                        let chars = crate::rules::layers::calculate_characteristics(state, **id)
-                            .unwrap_or_else(|| obj.characteristics.clone());
+                        let chars = crate::rules::layers::expect_characteristics(state, **id);
                         matches_filter(&chars, filter)
                             // CR 122.1: counter check must be against GameObject (not Characteristics).
                             && check_has_counter_type(obj, filter)
@@ -6206,7 +6218,7 @@ fn resolve_effect_target_list_indexed(
         // PB-33: The creature the source Equipment is attached to.
         // Used by Helm of the Host ("create a token that's a copy of equipped creature").
         EffectTarget::EquippedCreature => {
-            if let Some(attached_id) = state.objects.get(&ctx.source).and_then(|o| o.attached_to) {
+            if let Some(attached_id) = state.lki_object(ctx.source).and_then(|o| o.attached_to) {
                 if state.objects.contains_key(&attached_id) {
                     vec![(None, ResolvedTarget::Object(attached_id))]
                 } else {
@@ -6299,7 +6311,7 @@ fn resolve_player_target_list(
                 .into_iter()
                 .filter_map(|t| {
                     if let ResolvedTarget::Object(id) = t {
-                        state.objects.get(&id).map(|obj| obj.owner)
+                        state.lki_object(id).map(|obj| obj.owner)
                     } else {
                         None
                     }
@@ -6490,7 +6502,7 @@ fn deal_creature_power_damage(
         .map(|c| c.keywords.contains(&KeywordAbility::Lifelink))
         .unwrap_or(false);
     // Apply damage to the target creature.
-    if let Some(obj) = state.objects.get_mut(&target_creature) {
+    if let Some(obj) = state.expect_object_mut(target_creature) {
         if source_has_wither || source_has_infect {
             // CR 702.80a / CR 702.90c: wither/infect damage to creatures = -1/-1 counters.
             let cur = obj
@@ -6525,8 +6537,8 @@ fn deal_creature_power_damage(
     });
     // CR 702.15b: Lifelink — controller of the creature source gains life.
     if source_has_lifelink {
-        if let Some(controller_id) = state.objects.get(&creature_source).map(|o| o.controller) {
-            if let Some(ps) = state.players.get_mut(&controller_id) {
+        if let Some(controller_id) = state.expect_object(creature_source).map(|o| o.controller) {
+            if let Some(ps) = state.expect_player_mut(controller_id) {
                 ps.life_total += final_dmg as i32;
                 // PB-B: Track life gained this turn for Condition::ControllerGainedLifeThisTurn.
                 ps.life_gained_this_turn += final_dmg;
@@ -6555,9 +6567,7 @@ pub(crate) fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &Eff
                         // (includes counters, equipment, anthems, P/T setting).
                         state.objects.get(&id).and_then(|obj| {
                             if obj.zone == ZoneId::Battlefield {
-                                crate::rules::layers::calculate_characteristics(state, id)
-                                    .unwrap_or_else(|| obj.characteristics.clone())
-                                    .power
+                                crate::rules::layers::expect_characteristics(state, id).power
                             } else {
                                 obj.characteristics.power
                             }
@@ -6578,9 +6588,7 @@ pub(crate) fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &Eff
                         // CR 613.1: Use layer-resolved P/T for battlefield permanents.
                         state.objects.get(&id).and_then(|obj| {
                             if obj.zone == ZoneId::Battlefield {
-                                crate::rules::layers::calculate_characteristics(state, id)
-                                    .unwrap_or_else(|| obj.characteristics.clone())
-                                    .toughness
+                                crate::rules::layers::expect_characteristics(state, id).toughness
                             } else {
                                 obj.characteristics.toughness
                             }
@@ -6598,7 +6606,7 @@ pub(crate) fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &Eff
                 .into_iter()
                 .filter_map(|t| {
                     if let ResolvedTarget::Object(id) = t {
-                        state.objects.get(&id).map(|obj| {
+                        state.lki_object(id).map(|obj| {
                             obj.characteristics
                                 .mana_cost
                                 .as_ref()
@@ -6668,9 +6676,7 @@ pub(crate) fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &Eff
                         && obj.is_phased_in()
                         && players.contains(&obj.controller)
                         && {
-                            let chars =
-                                crate::rules::layers::calculate_characteristics(state, obj.id)
-                                    .unwrap_or_else(|| obj.characteristics.clone());
+                            let chars = crate::rules::layers::expect_characteristics(state, obj.id);
                             matches_filter(&chars, filter)
                                 && check_chosen_subtype_filter(state, ctx, filter, &chars)
                                 // CR 122.1: counter check must be against GameObject (not Characteristics).
@@ -6808,7 +6814,7 @@ pub(crate) fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &Eff
             match counter {
                 crate::state::types::CounterType::Poison => players
                     .iter()
-                    .filter_map(|pid| state.players.get(pid))
+                    .filter_map(|pid| state.expect_player(*pid))
                     .map(|ps| ps.poison_counters as i32)
                     .sum(),
                 // Future-proof: energy/experience/rad/ticket etc. live as separate
@@ -6849,9 +6855,7 @@ pub(crate) fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &Eff
                         && obj.is_phased_in()
                         && players.contains(&obj.controller)
                         && {
-                            let chars =
-                                crate::rules::layers::calculate_characteristics(state, obj.id)
-                                    .unwrap_or_else(|| obj.characteristics.clone());
+                            let chars = crate::rules::layers::expect_characteristics(state, obj.id);
                             chars.card_types.contains(&CardType::Creature)
                                 && chars.subtypes.contains(&ct)
                         }
@@ -6878,9 +6882,7 @@ pub(crate) fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &Eff
                         && obj.is_phased_in()
                         && players.contains(&obj.controller)
                         && {
-                            let chars =
-                                crate::rules::layers::calculate_characteristics(state, obj.id)
-                                    .unwrap_or_else(|| obj.characteristics.clone());
+                            let chars = crate::rules::layers::expect_characteristics(state, obj.id);
                             chars.card_types.contains(&CardType::Land)
                                 && chars.subtypes.contains(sub)
                         }
@@ -6939,8 +6941,7 @@ pub(crate) fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &Eff
                             .as_ref()
                             .map(|f| {
                                 let chars =
-                                    crate::rules::layers::calculate_characteristics(state, obj.id)
-                                        .unwrap_or_else(|| obj.characteristics.clone());
+                                    crate::rules::layers::expect_characteristics(state, obj.id);
                                 matches_filter(&chars, f)
                                     && check_chosen_subtype_filter(state, ctx, f, &chars)
                                     && check_has_counter_type(obj, f)
@@ -6969,9 +6970,7 @@ pub(crate) fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &Eff
                         && {
                             // CR 613.1d / W3-LC discipline: battlefield type/filter reads
                             // must go through calculate_characteristics, not base chars.
-                            let chars =
-                                crate::rules::layers::calculate_characteristics(state, obj.id)
-                                    .unwrap_or_else(|| obj.characteristics.clone());
+                            let chars = crate::rules::layers::expect_characteristics(state, obj.id);
                             chars
                                 .card_types
                                 .contains(&crate::state::types::CardType::Creature)
@@ -7280,8 +7279,7 @@ fn eligible_sacrifice_targets(
             }
             if let Some(tf) = filter {
                 // CR 613.1d: use layer-resolved characteristics for filter check.
-                let chars = crate::rules::layers::calculate_characteristics(state, **id)
-                    .unwrap_or_else(|| obj.characteristics.clone());
+                let chars = crate::rules::layers::expect_characteristics(state, **id);
                 // Check Characteristics-based fields via matches_filter.
                 if !matches_filter(&chars, tf) {
                     return false;
@@ -7348,7 +7346,7 @@ fn sacrifice_permanents_for_player(
             pre_death_counters,
             pre_death_power,
             sac_perm_pre_chars,
-        ) = match state.objects.get(&id) {
+        ) = match state.lki_object(id) {
             Some(obj) => {
                 let pre_chars_opt = crate::rules::layers::calculate_characteristics(state, id);
                 let chars = pre_chars_opt
@@ -7384,7 +7382,7 @@ fn sacrifice_permanents_for_player(
                 ..
             } => {
                 events.extend(repl_events);
-                if let Ok((new_id, _old)) = state.move_object_to_zone(id, dest) {
+                if let Some((new_id, _old)) = state.expect_move_object_to_zone(id, dest) {
                     match dest {
                         ZoneId::Exile => {
                             events.push(GameEvent::ObjectExiled {
@@ -7456,7 +7454,8 @@ fn sacrifice_permanents_for_player(
             }
             crate::rules::replacement::ZoneChangeAction::Proceed => {
                 // No replacement — sacrifice to graveyard normally.
-                if let Ok((new_id, _old)) = state.move_object_to_zone(id, ZoneId::Graveyard(owner))
+                if let Some((new_id, _old)) =
+                    state.expect_move_object_to_zone(id, ZoneId::Graveyard(owner))
                 {
                     if card_types.contains(&CardType::Creature) {
                         events.push(GameEvent::CreatureDied {
@@ -7566,7 +7565,7 @@ fn pay_optional_cost(
 ) {
     match cost {
         Cost::Mana(mc) => {
-            if let Some(ps) = state.players.get_mut(&pid) {
+            if let Some(ps) = state.expect_player_mut(pid) {
                 crate::rules::casting::pay_cost(&mut ps.mana_pool, mc);
             }
         }
@@ -7576,7 +7575,7 @@ fn pay_optional_cost(
             let (final_loss, doubling_events) =
                 crate::rules::replacement::apply_life_loss_doubling(state, pid, *n);
             events.extend(doubling_events);
-            if let Some(ps) = state.players.get_mut(&pid) {
+            if let Some(ps) = state.expect_player_mut(pid) {
                 ps.life_total -= final_loss as i32;
                 // CR 702.137a: track life lost this turn for Spectacle.
                 ps.life_lost_this_turn += final_loss;
@@ -7651,7 +7650,7 @@ fn draw_one_card(state: &mut GameState, player: PlayerId) -> Vec<GameEvent> {
     match top {
         None => {
             // CR 104.3b: drawing from empty library causes loss.
-            if let Some(ps) = state.players.get_mut(&player) {
+            if let Some(ps) = state.expect_player_mut(player) {
                 ps.has_lost = true;
             }
             vec![GameEvent::PlayerLost {
@@ -7660,9 +7659,11 @@ fn draw_one_card(state: &mut GameState, player: PlayerId) -> Vec<GameEvent> {
             }]
         }
         Some(card_id) => {
-            if let Ok((new_id, _)) = state.move_object_to_zone(card_id, ZoneId::Hand(player)) {
+            if let Some((new_id, _)) =
+                state.expect_move_object_to_zone(card_id, ZoneId::Hand(player))
+            {
                 // CR 121.1: increment per-turn draw counter for Sylvan Library and similar effects.
-                if let Some(ps) = state.players.get_mut(&player) {
+                if let Some(ps) = state.expect_player_mut(player) {
                     ps.cards_drawn_this_turn += 1;
                 }
                 let mut events = vec![GameEvent::CardDrawn {
@@ -7715,7 +7716,7 @@ fn discard_cards(state: &mut GameState, player: PlayerId, n: usize, events: &mut
             } else {
                 ZoneId::Graveyard(player)
             };
-            if let Ok((new_id, _)) = state.move_object_to_zone(card_id, destination) {
+            if let Some((new_id, _)) = state.expect_move_object_to_zone(card_id, destination) {
                 // CR ruling: CardDiscarded always fires, even when card goes to exile.
                 events.push(GameEvent::CardDiscarded {
                     player,
@@ -7773,12 +7774,12 @@ fn move_zone_all_then_shuffle(
     ids.sort_by_key(|id| id.0);
     let lib_zone = ZoneId::Library(player);
     for id in ids {
-        let _ = state.move_object_to_zone(id, lib_zone);
+        let _ = state.expect_move_object_to_zone(id, lib_zone);
     }
     // MR-M7-17: seed from timestamp_counter (not entropy) for deterministic replay.
     let seed = state.timestamp_counter;
     state.timestamp_counter += 1;
-    if let Some(zone) = state.zones.get_mut(&lib_zone) {
+    if let Some(zone) = state.expect_zone_mut(&lib_zone) {
         let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
         zone.shuffle(&mut rng);
     }
@@ -7790,7 +7791,9 @@ fn mill_cards(state: &mut GameState, player: PlayerId, n: usize, events: &mut Ve
     for _ in 0..n {
         let top = state.zones.get(&lib_id).and_then(|z| z.top());
         if let Some(card_id) = top {
-            if let Ok((new_id, _)) = state.move_object_to_zone(card_id, ZoneId::Graveyard(player)) {
+            if let Some((new_id, _)) =
+                state.expect_move_object_to_zone(card_id, ZoneId::Graveyard(player))
+            {
                 events.push(GameEvent::CardMilled { player, new_id });
             }
         }
@@ -8001,8 +8004,7 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                 && obj.is_phased_in()
                 && obj.controller == ctx.controller
                 && {
-                    let chars = crate::rules::layers::calculate_characteristics(state, obj.id)
-                        .unwrap_or_else(|| obj.characteristics.clone());
+                    let chars = crate::rules::layers::expect_characteristics(state, obj.id);
                     matches_filter(&chars, filter)
                         // CR 122.1: counter check must be against GameObject (not Characteristics).
                         && check_has_counter_type(obj, filter)
@@ -8013,8 +8015,7 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                 && obj.is_phased_in()
                 && obj.controller != ctx.controller
                 && {
-                    let chars = crate::rules::layers::calculate_characteristics(state, obj.id)
-                        .unwrap_or_else(|| obj.characteristics.clone());
+                    let chars = crate::rules::layers::expect_characteristics(state, obj.id);
                     matches_filter(&chars, filter)
                         // CR 122.1: counter check must be against GameObject (not Characteristics).
                         && check_has_counter_type(obj, filter)
@@ -8034,7 +8035,10 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                 Some(SpellTarget {
                     target: Target::Player(p),
                     ..
-                }) => state.players.get(p).map(|ps| !ps.has_lost).unwrap_or(false),
+                }) => state
+                    .expect_player(*p)
+                    .map(|ps| !ps.has_lost)
+                    .unwrap_or(false),
                 None => false,
             }
         }
@@ -8109,8 +8113,7 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                 && obj.is_phased_in()
                 && obj.controller == ctx.controller
                 && {
-                    let chars = crate::rules::layers::calculate_characteristics(state, obj.id)
-                        .unwrap_or_else(|| obj.characteristics.clone());
+                    let chars = crate::rules::layers::expect_characteristics(state, obj.id);
                     chars.card_types.contains(&CardType::Land)
                         && subtypes.iter().any(|st| chars.subtypes.contains(st))
                 }
@@ -8126,8 +8129,7 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                         && obj.zone == ZoneId::Battlefield
                         && obj.is_phased_in()
                         && obj.controller == ctx.controller
-                        && crate::rules::layers::calculate_characteristics(state, id)
-                            .unwrap_or_else(|| obj.characteristics.clone())
+                        && crate::rules::layers::expect_characteristics(state, id)
                             .card_types
                             .contains(&CardType::Land)
                 })
@@ -8166,9 +8168,7 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                         && obj.is_phased_in()
                         && obj.controller == ctx.controller
                         && {
-                            let chars =
-                                crate::rules::layers::calculate_characteristics(state, obj.id)
-                                    .unwrap_or_else(|| obj.characteristics.clone());
+                            let chars = crate::rules::layers::expect_characteristics(state, obj.id);
                             chars.card_types.contains(&CardType::Land)
                                 && chars
                                     .supertypes
@@ -8189,8 +8189,7 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                         && obj.zone == ZoneId::Battlefield
                         && obj.is_phased_in()
                         && obj.controller == ctx.controller
-                        && crate::rules::layers::calculate_characteristics(state, id)
-                            .unwrap_or_else(|| obj.characteristics.clone())
+                        && crate::rules::layers::expect_characteristics(state, id)
                             .card_types
                             .contains(&CardType::Land)
                 })
@@ -8208,8 +8207,7 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                         && obj.zone == ZoneId::Battlefield
                         && obj.is_phased_in()
                         && obj.controller == ctx.controller
-                        && crate::rules::layers::calculate_characteristics(state, id)
-                            .unwrap_or_else(|| obj.characteristics.clone())
+                        && crate::rules::layers::expect_characteristics(state, id)
                             .subtypes
                             .contains(subtype)
                 })
@@ -8222,8 +8220,7 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                 && obj.is_phased_in()
                 && obj.controller == ctx.controller
                 && {
-                    let chars = crate::rules::layers::calculate_characteristics(state, obj.id)
-                        .unwrap_or_else(|| obj.characteristics.clone());
+                    let chars = crate::rules::layers::expect_characteristics(state, obj.id);
                     chars.card_types.contains(&CardType::Creature)
                         && chars.supertypes.contains(&SuperType::Legendary)
                 }
@@ -8234,8 +8231,7 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                 && obj.is_phased_in()
                 && obj.controller == ctx.controller
                 && {
-                    let chars = crate::rules::layers::calculate_characteristics(state, obj.id)
-                        .unwrap_or_else(|| obj.characteristics.clone());
+                    let chars = crate::rules::layers::expect_characteristics(state, obj.id);
                     chars.card_types.contains(&CardType::Creature)
                         && chars.subtypes.contains(subtype)
                 }
@@ -8316,7 +8312,7 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
             let top_id = state.zones.get(&lib_zone).and_then(|z| z.top());
             match (chosen, top_id) {
                 (Some(ct), Some(id)) => {
-                    let top_card = state.objects.get(&id);
+                    let top_card = state.expect_object(id);
                     // CR 400.2: Library cards have printed characteristics;
                     // no layer calculation needed.
                     top_card
@@ -8380,8 +8376,7 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                         o.zone == ZoneId::Battlefield && o.is_phased_in() && o.controller == pid
                     })
                     .filter(|o| {
-                        let chars = crate::rules::layers::calculate_characteristics(state, o.id)
-                            .unwrap_or_else(|| o.characteristics.clone());
+                        let chars = crate::rules::layers::expect_characteristics(state, o.id);
                         chars.card_types.contains(&CardType::Land)
                     })
                     .count()
@@ -8448,9 +8443,7 @@ pub fn check_static_condition(
                             // If performance becomes an issue, consider using base
                             // characteristics (`obj.characteristics`) for the filter check
                             // instead of calling `calculate_characteristics` again.
-                            let chars =
-                                crate::rules::layers::calculate_characteristics(state, obj.id)
-                                    .unwrap_or_else(|| obj.characteristics.clone());
+                            let chars = crate::rules::layers::expect_characteristics(state, obj.id);
                             matches_filter(&chars, filter)
                                 // CR 122.1: counter check must be against GameObject (not Characteristics).
                                 && check_has_counter_type(obj, filter)
@@ -8599,8 +8592,7 @@ fn collect_for_each(state: &GameState, over: &ForEachTarget, ctx: &EffectContext
             .filter(|(id, obj)| {
                 obj.zone == ZoneId::Battlefield
                     && obj.is_phased_in()
-                    && crate::rules::layers::calculate_characteristics(state, **id)
-                        .unwrap_or_else(|| obj.characteristics.clone())
+                    && crate::rules::layers::expect_characteristics(state, **id)
                         .card_types
                         .contains(&CardType::Creature)
             })
@@ -8613,8 +8605,7 @@ fn collect_for_each(state: &GameState, over: &ForEachTarget, ctx: &EffectContext
                 obj.zone == ZoneId::Battlefield
                     && obj.is_phased_in()
                     && obj.controller == ctx.controller
-                    && crate::rules::layers::calculate_characteristics(state, **id)
-                        .unwrap_or_else(|| obj.characteristics.clone())
+                    && crate::rules::layers::expect_characteristics(state, **id)
                         .card_types
                         .contains(&CardType::Creature)
             })
@@ -8627,8 +8618,7 @@ fn collect_for_each(state: &GameState, over: &ForEachTarget, ctx: &EffectContext
                 obj.zone == ZoneId::Battlefield
                     && obj.is_phased_in()
                     && obj.controller != ctx.controller
-                    && crate::rules::layers::calculate_characteristics(state, **id)
-                        .unwrap_or_else(|| obj.characteristics.clone())
+                    && crate::rules::layers::expect_characteristics(state, **id)
                         .card_types
                         .contains(&CardType::Creature)
             })
@@ -8644,8 +8634,7 @@ fn collect_for_each(state: &GameState, over: &ForEachTarget, ctx: &EffectContext
                 if obj.zone != ZoneId::Battlefield {
                     return false;
                 }
-                let chars = crate::rules::layers::calculate_characteristics(state, **id)
-                    .unwrap_or_else(|| obj.characteristics.clone());
+                let chars = crate::rules::layers::expect_characteristics(state, **id);
                 if !matches_filter(&chars, filter) {
                     return false;
                 }
