@@ -237,7 +237,7 @@ fn variant_name(kw: &KeywordAbility) -> String {
 /// Rust cannot enumerate an enum's variants, so `all_keywords()` is hand-written
 /// and could silently drift. This re-derives the truth from the declaration.
 fn declared_variants() -> BTreeSet<String> {
-    const TYPES_RS: &str = include_str!("../../card-types/src/state/types.rs");
+    const TYPES_RS: &str = include_str!("../../../card-types/src/state/types.rs");
     let code = strip_comments_and_literals(TYPES_RS);
     let start = code
         .find("pub enum KeywordAbility {")
@@ -344,7 +344,7 @@ fn declared_variants_parser_is_not_vacuous() {
         );
     }
     // The parser assumes no `#[..]` attributes sit between variants.
-    const TYPES_RS: &str = include_str!("../../card-types/src/state/types.rs");
+    const TYPES_RS: &str = include_str!("../../../card-types/src/state/types.rs");
     let code = strip_comments_and_literals(TYPES_RS);
     let start = code.find("pub enum KeywordAbility {").expect("declaration");
     let open = start + code[start..].find('{').expect("open brace");

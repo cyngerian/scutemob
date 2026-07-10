@@ -267,7 +267,7 @@ fn pending_trigger_literals(src: &str) -> Vec<(usize, String)> {
 
 /// Field names declared on `pub struct PendingTrigger`, parsed out of the source.
 fn declared_fields() -> BTreeSet<String> {
-    let src = include_str!("../../card-types/src/state/stubs.rs");
+    let src = include_str!("../../../card-types/src/state/stubs.rs");
     let clean = strip_comments_and_strings(src);
     let decl = clean
         .find("pub struct PendingTrigger")
