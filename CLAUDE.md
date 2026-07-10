@@ -28,7 +28,7 @@
   accessors, gated on the `test-util` feature (self dev-dependency). **`cargo build
   --workspace` is the only gate that proves the seal** — `test --all` and `clippy
   --all-targets` enable `test-util` workspace-wide via feature unification. It is a CI step.
-- **Tests**: **3175 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
+- **Tests**: **3178 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
 - **CI**: **LIVE and green** since 2026-07-10 (SR-1, merge `e9742dc2`) — single Ubuntu job (fmt + clippy + `build --workspace` + full tests) on push/PR to main + workflow_dispatch; rust-cache@v2, 45m timeout. Caveat: CI rustc floats to latest stable (1.97.0) vs local 1.95.0 — new lints can redden CI with no code change until SR-11 (`scutemob-63`) pins the toolchain. SR remediation track ACTIVE: `docs/sr-remediation-plan.md` (tasks `scutemob-53..64`, SR-1/SR-2/SR-3 done).
 - **Abilities**: ~199 validated; 42/42 P1; 17/17 P2; 40/40 P3; 95/95 P4 implemented (9 permanent-n/a; 1 deferred: Banding)
 - **Primitives**: PB-0..PB-37 + named-letter chain (PB-A/B/E/J/M/S/X/Q/Q4/N/D/P/L/T/SFT/CC-{W,B,C,A}/TS/LKI-CC/CD/LKI-Power/EWC/XS/XS-E/XA/EAT/XA2/EWC-D) all DONE. PB-Q2/Q3/Q5 reserved.
@@ -119,11 +119,15 @@
   and `ObjectId`s are assigned in insertion order, so the same script built different states run to run
   (40 builds → 2 hashes). Every loop over a script-supplied map must now go through
   `sorted_zone_entries`. `init.turn_number` was also declared and never read (every script ran on turn 1).
+  `resolve_targets` used to **drop** an unresolvable target (`filter_map`), turning a `cast_spell` at an
+  absent permanent into a targeted spell cast with **no target** (CR 601.2c); it now returns `None`.
   A script may still name a card with **no `CardDefinition`** — the object enters typeless and silent,
   bypassing invariant #9 — pinned as a shrinking allowlist and handed to SR-9c along with seven other
-  `initial_state` fields the harness ignores.
+  `initial_state` fields the harness ignores. **Only 6 of `translate_player_action`'s 60+ `Command`
+  shapes are cross-validated**; the alt-cost translations (convoke, delve, escape, kicker, casualty,
+  splice, escalate, modal, mutate, ninjutsu…) are not. Adding a scenario is cheap.
 - **Last Updated**: 2026-07-10 (SR-9b — the JSON-script regime and the hand-written `Command` regime
-  now cross-validate. Three divergences, all the harness's, as gotcha SR-9(b) predicted. The load-bearing
+  now cross-validate. Four divergences, all the harness's, as gotcha SR-9(b) predicted. The load-bearing
   one: **`build_initial_state` was not deterministic** — `RandomState` seeds each `HashMap` instance
   separately, `ObjectId`s are handed out in insertion order, so two deserializations of the same JSON in
   the same process produced different states (40 builds → 2 distinct hashes). Nothing that hashes a
@@ -137,7 +141,15 @@
   a two-step sequence; and `equivalence_equip` survives reverting the determinism fix, because only one
   player has permanents in it. Also: `proptest` writes `tests/proptest-regressions/` on first failure and
   SR-9a's group gate read it as a stray group, so one red test became two — live since before SR-9a,
-  fixed here. 3175 tests. Earlier same day: SR-9a — 297 integration-test binaries → 9 targets; warm test-build
+  fixed here. **`/review` then found two perturbations that survived the new gate** — the eighth
+  consecutive SR task whose review findings were holes in the gate, not bugs in the code, and both the
+  named shape: the determinism check was pointed only at the battlefield map (the scenarios have
+  one-owner hands and no graveyards), and `card_names` never read the commander block. A third: the file
+  *documented* that the harness's `resolve_targets` drops unresolvable targets while a direct test
+  aborts, and that no scenario exercised the difference — writing that scenario made it divergence #4,
+  because `filter_map` turned a `cast_spell` at an absent permanent into a targeted spell cast with no
+  target (CR 601.2c). **A documented hazard that nothing executes is a hazard, not a note.** 3178 tests.
+  Earlier same day: SR-9a — 297 integration-test binaries → 9 targets; warm test-build
   34.2s → 11.1s, `target/` 19 GB → 2.2 GB, test count unmoved (3162 → 3167, the +5 being the new
   gate's own). The gate, `tests/no_stray_test_binaries.rs`, exists because a dropped `mod` line
   converts a test file into a text file and the suite goes green with less coverage than it had

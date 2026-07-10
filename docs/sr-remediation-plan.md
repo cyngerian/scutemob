@@ -43,7 +43,7 @@ Full evidence (file:line) is in each task's ESM description — run
 | 8 | scutemob-60 | SR-8: Protocol versioning policy | M | **DONE 2026-07-10.** Strict lockstep; `Envelope`/`PROTOCOL_VERSION` in `rules/protocol.rs`. The M10 blocker is cleared. Policy: `docs/mtg-engine-protocol-versioning.md`. |
 | 9 | scutemob-61 | SR-9: Test infra consolidation | L | **SPLIT 2026-07-10** into `scutemob-69` (SR-9a), `scutemob-70` (SR-9b), `scutemob-71` (SR-9c). Umbrella closes when all three land. |
 | 9a | scutemob-69 | SR-9a: Consolidate 291 integration-test binaries | M | **DONE 2026-07-10.** 297 binaries → 9 targets; warm test-build 34.2s→11.1s; `target/` 19GB→2.2GB. |
-| 9b | scutemob-70 | SR-9b: Harness-vs-direct equivalence property test | M | **DONE 2026-07-10.** `tests/scripts/harness_equivalence.rs`. Three harness divergences found and fixed/pinned; `build_initial_state` was **nondeterministic**. |
+| 9b | scutemob-70 | SR-9b: Harness-vs-direct equivalence property test | M | **DONE 2026-07-10.** `tests/scripts/harness_equivalence.rs`. Four harness divergences found and fixed/pinned; `build_initial_state` was **nondeterministic**. |
 | 9c | scutemob-71 | SR-9c: Golden-script corpus triage | M | Sub-item (c) of SR-9. 95/271 approved; pending_review silently skipped. **SR-9b hands it a list** — see its session-log entry. |
 | 10 | scutemob-62 | SR-10: Dependency & lint hygiene | S–M | Four independent chores; safe filler work between larger tasks. |
 | 11 | scutemob-63 | SR-11: Pin the Rust toolchain | S | Discovered during SR-1. CI floats to newest stable; new lints redden CI with no commit, and the local clippy gate can't reproduce them. Pairs well with SR-10. |
@@ -474,6 +474,11 @@ Task-specific extras:
   proptest under `tests/`**: on its first failure `proptest` writes `tests/proptest-regressions/`,
   which SR-9a's `every_expected_group_exists_and_has_a_module_root` reads as a stray test group — one
   red test becomes two, and the second buries the first. `NON_GROUP_DIRS` exempts it.
+  Two more, both from the review: `resolve_targets` used to **drop** unresolvable targets
+  (`filter_map`), turning a `cast_spell` at an absent permanent into a targeted spell cast with no
+  target (CR 601.2c) — it now returns `None`. And a determinism fixture with a **one-owner** zone map
+  tests nothing: a one-key `HashMap` has exactly one iteration order, so the gate silently becomes a
+  no-op. `determinism_fixture_has_two_owners_in_every_zone_map` guards that.
 
 ## Session Log
 
@@ -487,7 +492,7 @@ _One entry per session, newest first. Format:_
   (`public_state_hash` **plus every player's `private_state_hash`**) after every step, not just the
   last. The public hash alone omits hand and library *contents*; a harness that dealt the right
   number of cards in the wrong order would have passed a public-hash-only check.
-  **The gotcha held — all three divergences were the harness's:**
+  **The gotcha held — all four divergences were the harness's; the engine needed no change:**
   (1) **`build_initial_state` was not deterministic.** `InitialState`'s zone and player maps are
   `std::collections::HashMap`. Object `ObjectId`s are handed out in insertion order, and `RandomState`
   seeds each map instance separately, so two deserializations of *the same JSON in the same process*
@@ -509,6 +514,11 @@ _One entry per session, newest first. Format:_
   (`UNDEFINED_CARDS_IN_APPROVED_SCRIPTS`, one entry) with a denominator guard that fails when an
   entry stops being referenced — that guard immediately caught two bogus entries I had put in it
   from a bad `grep`.
+  (4) **`resolve_targets` silently dropped unresolvable targets** (`filter_map`), so a `cast_spell`
+  naming a permanent that is not on the battlefield became a `CastSpell` with an **empty `targets`
+  vec** — a targeted spell cast with no target, CR 601.2c — and the script went green. Found only
+  because the review asked why a documented asymmetry had no test. Now returns `None` if any target
+  fails; all 95 approved scripts stayed green.
   **What is and is not cross-validated.** Both regimes call `enrich_spec_from_def` (the direct regime
   already imports it — `cost_primitives.rs`, `combat_harness.rs`, `golgari_grave_troll.rs` all do), so
   the equivalence test does **not** prove enrich's *inference* correct; there is no second source of
@@ -542,9 +552,36 @@ _One entry per session, newest first. Format:_
   `"combat"` arm although scripts use it as their `phase`; it falls through to the default. And
   `replay_script` silently skips any action `translate_player_action` cannot translate — the combat
   corpus is full of `turn_based_action` entries that dispatch nothing at all.
-  **Gates:** 3167 → **3175 tests** (+8, all this file's), 0 failed; clippy `--all-targets -D warnings`,
+  **`/review` (Opus) found two perturbations that survived the gate — the eighth consecutive SR task
+  where the review's real findings were holes in the *gate*, not bugs in the code, and both were the
+  named shape: the author checks that the gate fires on the thing he was thinking about and never
+  enumerates what it is not pointed at.** (a) The determinism gate exercised only the **battlefield**
+  map: the three scenarios have one-owner hands and populate no graveyard or library at all, so
+  reverting `sorted_zone_entries` on those three loops left the entire scripts suite green. Fixed with
+  a two-owners-in-every-zone fixture — plus a guard asserting the fixture *still* has two owners in
+  each map, because a one-owner `HashMap` has exactly one iteration order and the gate would silently
+  become a no-op. (b) `card_names` never read `players.<p>.commander` / `.partner_commander` — the
+  canonical place a commander is named, and the one card that can legally live only in the command
+  zone; an approved script naming an undefined commander passed.
+  **And exercising a documented asymmetry turned it into divergence (4).** The file had a comment
+  saying the harness's `resolve_targets` used `filter_map` while a direct test aborts, and that no
+  scenario exercised the difference. Writing that scenario failed immediately: `filter_map` silently
+  **dropped** an unresolvable target, so a `cast_spell` naming a permanent that is not on the
+  battlefield produced a `CastSpell` with an **empty `targets` vec** — a targeted spell cast with no
+  target, CR 601.2c — and the script went green. Now returns `None` if any target fails. All 95
+  approved scripts stayed green, so nothing was leaning on it. **A documented hazard that nothing
+  executes is a hazard, not a note.**
+  All three previously-surviving perturbations now fail exactly one test each, verified by re-running
+  them.
+  **Gates:** 3167 → **3178 tests** (+11, all this file's), 0 failed; clippy `--all-targets -D warnings`,
   `fmt --check`, `build --workspace` all clean.
   **Next session:** SR-9c (`scutemob-71`, golden-script triage) — it now has a concrete worklist above.
+  Also worth someone's time: only **6 of `translate_player_action`'s 60+ `Command` shapes** are
+  cross-validated (`pass_priority`, `play_land`, `tap_for_mana`, single-target `cast_spell`,
+  `activate_ability`, `declare_attackers`). None of the alt-cost translations that give the function
+  its 40+ parameters — convoke, delve, escape, kicker, bargain, casualty, splice, escalate, modal,
+  mutate, ninjutsu — is covered. Adding a scenario is cheap: a JSON blob, a `direct` fn, a `Move`
+  variant.
 
 - 2026-07-10 — SR-9a (scutemob-69) — **done** — The 297 top-level `crates/engine/tests/*.rs`
   files are now **9 test targets** (`core`, `rules`, `combat`, `casting`, `primitives`, `scripts`,
