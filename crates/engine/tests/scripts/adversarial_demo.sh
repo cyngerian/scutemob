@@ -64,6 +64,18 @@ f="$SD/baseline/007_night_whisper_draw_two.json"
 python3 -c "import json;p='$f';d=json.load(open(p));[s['actions'].__setitem__(slice(None),[a for a in s['actions'] if a['type']!='assert_state']) for s in d['script']];json.dump(d,open(p,'w'),indent=2)"
 expect_red "an approved script has zero assertions" "$f" run_test every_approved_script_asserts_something
 
+# 4b. An approved assert_state with an empty `assertions: {}` map — a checkpoint that
+#     produces zero mismatches. Counting checkpoints (not entries) would miss it.
+f="$SD/baseline/018_mountain_tap_for_red.json"
+python3 -c "
+import json;p='$f';d=json.load(open(p))
+for s in d['script']:
+    for a in s['actions']:
+        if a['type']=='assert_state': a['assertions']={}
+json.dump(d,open(p,'w'),indent=2)
+"
+expect_red "an approved script has only empty assert_state maps" "$f" run_test every_approved_script_asserts_something
+
 # 5. An approved script using an un-allowlisted untranslatable action.
 f="$SD/baseline/008_lightning_bolt_creature.json"
 python3 -c "

@@ -127,18 +127,22 @@ fn parsed_corpus() -> Vec<(String, GameScript)> {
     ok
 }
 
-fn assert_state_count(script: &GameScript) -> usize {
+/// Total number of individual assertion *entries* across all `assert_state`
+/// checkpoints — not the number of checkpoints. An `assert_state` with an empty
+/// `assertions: {}` map produces zero mismatches and is as vacuous as no checkpoint
+/// at all, so counting checkpoints would let a contentless one satisfy
+/// `every_approved_script_asserts_something`.
+fn assertion_entry_count(script: &GameScript) -> usize {
+    use mtg_engine::testing::script_schema::ScriptAction;
     script
         .script
         .iter()
         .flat_map(|step| step.actions.iter())
-        .filter(|a| {
-            matches!(
-                a,
-                mtg_engine::testing::script_schema::ScriptAction::AssertState { .. }
-            )
+        .map(|a| match a {
+            ScriptAction::AssertState { assertions, .. } => assertions.len(),
+            _ => 0,
         })
-        .count()
+        .sum()
 }
 
 // ── Corpus accounting gates ───────────────────────────────────────────────────
@@ -197,19 +201,21 @@ fn retired_scripts_carry_a_reason() {
 }
 
 #[test]
-/// An approved script with no `assert_state` checkpoint runs the engine and checks
-/// nothing. It cannot fail, so it is not a test.
+/// An approved script that makes no assertion runs the engine and checks nothing.
+/// It cannot fail, so it is not a test. This counts assertion *entries*, so an
+/// `assert_state` with an empty `assertions: {}` map does not launder a vacuous
+/// script past the gate.
 fn every_approved_script_asserts_something() {
     let vacuous: Vec<_> = parsed_corpus()
         .into_iter()
         .filter(|(_, s)| s.metadata.review_status == ReviewStatus::Approved)
-        .filter(|(_, s)| assert_state_count(s) == 0)
+        .filter(|(_, s)| assertion_entry_count(s) == 0)
         .map(|(label, _)| format!("  {label}"))
         .collect();
 
     assert!(
         vacuous.is_empty(),
-        "{} approved script(s) contain zero `assert_state` actions and therefore \
+        "{} approved script(s) make zero assertions and therefore \
          cannot fail:\n{}",
         vacuous.len(),
         vacuous.join("\n")
