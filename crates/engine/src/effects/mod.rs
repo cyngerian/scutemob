@@ -392,6 +392,18 @@ fn execute_effect_inner(
                             );
                         events.extend(prev_events);
                         if final_dmg > 0 {
+                            // CR 120.3d/e / 702.2b / 702.15a: check the source's keywords.
+                            // CR 702.80c / CR 702.90e: wither/infect function from any zone.
+                            // SR-13 (CR 608.2h / 113.7a): read via LKI so a source that has
+                            // left its zone still applies its damage keywords.
+                            let source_chars = damage_source_characteristics(state, ctx.source);
+                            let source_has = |kw: KeywordAbility| -> bool {
+                                source_chars
+                                    .as_ref()
+                                    .map(|c| c.keywords.contains(&kw))
+                                    .unwrap_or(false)
+                            };
+                            let source_has_lifelink = source_has(KeywordAbility::Lifelink);
                             if card_types.contains(&CardType::Planeswalker) {
                                 // CR 120.3c: damage to planeswalker removes loyalty counters.
                                 if let Some(obj) = state.lki_object_mut(id) {
@@ -405,31 +417,13 @@ fn execute_effect_inner(
                                         .insert(crate::state::types::CounterType::Loyalty, new_val);
                                 }
                             } else if card_types.contains(&CardType::Creature) {
-                                // CR 120.3d/e: check source for wither and/or infect keyword.
                                 // CR 702.80a: wither applies to damage dealt to creatures.
                                 // CR 702.90c: infect also places -1/-1 counters on creatures.
                                 // CR 702.2b: deathtouch marks the creature as having taken
-                                // lethal damage. CR 702.15a: lifelink gains the controller life.
-                                // CR 702.80c / CR 702.90e: wither/infect function from any zone.
-                                // SR-13 (CR 608.2h / 113.7a): read via LKI so a source that has
-                                // left its zone still applies all four keywords.
-                                let source_chars = damage_source_characteristics(state, ctx.source);
-                                let source_has_wither = source_chars
-                                    .as_ref()
-                                    .map(|c| c.keywords.contains(&KeywordAbility::Wither))
-                                    .unwrap_or(false);
-                                let source_has_infect = source_chars
-                                    .as_ref()
-                                    .map(|c| c.keywords.contains(&KeywordAbility::Infect))
-                                    .unwrap_or(false);
-                                let source_has_deathtouch = source_chars
-                                    .as_ref()
-                                    .map(|c| c.keywords.contains(&KeywordAbility::Deathtouch))
-                                    .unwrap_or(false);
-                                let source_has_lifelink = source_chars
-                                    .as_ref()
-                                    .map(|c| c.keywords.contains(&KeywordAbility::Lifelink))
-                                    .unwrap_or(false);
+                                // lethal damage.
+                                let source_has_wither = source_has(KeywordAbility::Wither);
+                                let source_has_infect = source_has(KeywordAbility::Infect);
+                                let source_has_deathtouch = source_has(KeywordAbility::Deathtouch);
                                 if let Some(obj) = state.lki_object_mut(id) {
                                     if source_has_wither || source_has_infect {
                                         // CR 702.80a / CR 702.90c / CR 120.3d: wither and/or
@@ -463,28 +457,30 @@ fn execute_effect_inner(
                                         obj.deathtouch_damage = true;
                                     }
                                 }
-                                // CR 702.15a/b: Lifelink — the source's controller gains life
-                                // equal to the damage dealt (any damage, not just combat).
-                                if source_has_lifelink {
-                                    if let Some(controller_id) =
-                                        damage_source_controller(state, ctx.source)
-                                    {
-                                        if let Some(ps) = state.expect_player_mut(controller_id) {
-                                            ps.life_total += final_dmg as i32;
-                                            ps.life_gained_this_turn += final_dmg;
-                                        }
-                                        events.push(GameEvent::LifeGained {
-                                            player: controller_id,
-                                            amount: final_dmg,
-                                        });
-                                    }
-                                }
                             } else {
                                 // CR 120.3e: non-creature, non-planeswalker permanents (e.g.,
                                 // battles, CR 120.3h) mark damage normally. Wither does NOT
                                 // apply (CR 702.80a — only creatures receive -1/-1 counters).
                                 if let Some(obj) = state.lki_object_mut(id) {
                                     obj.damage_marked += final_dmg;
+                                }
+                            }
+                            // CR 702.15a/b: Lifelink applies to ANY damage the source deals —
+                            // to a creature, planeswalker, or battle alike — so it is handled
+                            // once here for every object target. The source's controller comes
+                            // from LKI so it still gains life if the source is already gone.
+                            if source_has_lifelink {
+                                if let Some(controller_id) =
+                                    damage_source_controller(state, ctx.source)
+                                {
+                                    if let Some(ps) = state.expect_player_mut(controller_id) {
+                                        ps.life_total += final_dmg as i32;
+                                        ps.life_gained_this_turn += final_dmg;
+                                    }
+                                    events.push(GameEvent::LifeGained {
+                                        player: controller_id,
+                                        amount: final_dmg,
+                                    });
                                 }
                             }
                             events.push(GameEvent::DamageDealt {

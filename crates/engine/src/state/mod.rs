@@ -485,6 +485,13 @@ impl GameState {
     /// no about-to-be-flushed trigger can still need a departed source's LKI. Safe to
     /// call at any priority or turn boundary; a no-op unless both queues are drained. See
     /// the `lki_objects` field docs.
+    ///
+    /// Known limitation: a *delayed* triggered ability whose source died in an earlier
+    /// priority window and which deals damage across the gap (e.g. "at the beginning of
+    /// the next end step, ~ deals damage") loses its snapshot when the stack empties in
+    /// between, and would fall back to normal damage. This is not a regression (no LKI
+    /// existed before SR-13) and is vanishingly rare; the common "damage ability on the
+    /// stack / pending when the source dies" case is fully covered.
     pub(crate) fn maybe_clear_lki_objects(&mut self) {
         if !self.lki_objects.is_empty()
             && self.stack_objects.is_empty()
