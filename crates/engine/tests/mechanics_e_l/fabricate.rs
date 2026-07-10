@@ -17,6 +17,7 @@
 //! - Non-Fabricate creatures do not receive counters or tokens.
 //! - 4-player multiplayer: Fabricate fires correctly.
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
     CounterType, GameEvent, GameStateBuilder, KeywordAbility, ManaCost, ObjectId, ObjectSpec,
@@ -95,7 +96,7 @@ fn cast_creature(
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: caster,
             card: card_id,
             targets: vec![],
@@ -111,7 +112,7 @@ fn cast_creature(
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
     state

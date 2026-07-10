@@ -42,9 +42,9 @@ fn sorin_def() -> CardDefinition {
             ..Default::default()
         }),
         types: TypeLine {
-            supertypes: im::OrdSet::new(),
-            card_types: im::ordset![CardType::Planeswalker],
-            subtypes: im::OrdSet::new(),
+            supertypes: imbl::OrdSet::new(),
+            card_types: imbl::ordset![CardType::Planeswalker],
+            subtypes: imbl::OrdSet::new(),
         },
         oracle_text: String::new(),
         starting_loyalty: Some(6),

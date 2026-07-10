@@ -1,3 +1,4 @@
+use crate::rules::command::CastSpellData;
 use crate::state::combat::AttackTarget;
 use crate::state::types::{AdditionalCost, AltCostKind, FaceDownKind, TurnFaceUpMethod};
 use crate::state::{ActivatedAbility, ActivationCost, CounterType, SacrificeFilter};
@@ -11,7 +12,7 @@ use crate::{
     KeywordAbility, ManaAbility, ManaColor, ObjectSpec, PlayerId, Step, TargetController,
     TargetFilter, TimingRestriction, TriggerCondition, TriggerEvent, TriggeredAbilityDef, ZoneId,
 };
-use im::OrdMap;
+use imbl::OrdMap;
 /// Replay harness helpers — extracted from `crates/engine/tests/script_replay.rs`
 /// so that external tools (e.g. `tools/replay-viewer`) can reuse the same
 /// `build_initial_state` logic without code duplication.
@@ -372,7 +373,7 @@ pub fn translate_player_action(
                 .collect();
             // CR 702.174a: Resolve gift opponent name to PlayerId if provided.
             let gift_pid = gift_opponent_name.and_then(|name| players.get(name).copied());
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -411,7 +412,7 @@ pub fn translate_player_action(
                 },
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 702.34a: Cast a spell with flashback from the player's graveyard.
         // The engine determines it's a flashback cast by checking the card's zone
@@ -421,7 +422,7 @@ pub fn translate_player_action(
         "cast_spell_flashback" => {
             let card_id = find_in_graveyard(state, player, card_name?)?;
             let target_list = resolve_targets(targets, state, players)?;
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -437,14 +438,14 @@ pub fn translate_player_action(
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 702.74a: Cast a spell with evoke from the player's hand.
         // The evoke cost (an alternative cost) is paid instead of the mana cost.
         "cast_spell_evoke" => {
             let card_id = find_in_hand(state, player, card_name?)?;
             let target_list = resolve_targets(targets, state, players)?;
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -460,14 +461,14 @@ pub fn translate_player_action(
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 702.103a: Cast a spell with bestow from the player's hand.
         // The bestow cost (an alternative cost) is paid instead of the mana cost.
         "cast_spell_bestow" => {
             let card_id = find_in_hand(state, player, card_name?)?;
             let target_list = resolve_targets(targets, state, players)?;
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -483,7 +484,7 @@ pub fn translate_player_action(
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 702.35a: Cast a madness card from exile by paying the madness cost.
         // The card is located in the caster's exile zone (put there by the discard
@@ -491,7 +492,7 @@ pub fn translate_player_action(
         "cast_spell_madness" => {
             let card_id = find_in_exile(state, player, card_name?)?;
             let target_list = resolve_targets(targets, state, players)?;
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -507,7 +508,7 @@ pub fn translate_player_action(
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 702.94a: Cast a miracle card from hand by paying the miracle cost.
         // The card is in hand (drawn this turn as first draw). A MiracleTrigger must
@@ -515,7 +516,7 @@ pub fn translate_player_action(
         "cast_spell_miracle" => {
             let card_id = find_in_hand(state, player, card_name?)?;
             let target_list = resolve_targets(targets, state, players)?;
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -531,7 +532,7 @@ pub fn translate_player_action(
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 702.138a: Cast a spell with escape from the player's graveyard.
         // The escape cost (mana + exiling other cards) is paid instead of the mana cost.
@@ -544,7 +545,7 @@ pub fn translate_player_action(
                 .iter()
                 .filter_map(|name| find_in_graveyard(state, player, name.as_str()))
                 .collect();
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -560,7 +561,7 @@ pub fn translate_player_action(
                 additional_costs: vec![AdditionalCost::EscapeExile { cards: exile_ids }],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 702.94a: Choose to reveal a miracle card drawn this turn.
         // Sent in response to a `MiracleRevealChoiceRequired` event.
@@ -932,7 +933,7 @@ pub fn translate_player_action(
         "cast_spell_foretell" => {
             let card_id = find_foretold_in_exile(state, player, card_name?)?;
             let target_list = resolve_targets(targets, state, players)?;
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -948,7 +949,7 @@ pub fn translate_player_action(
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 702.170a / CR 116.2k: Plot a card from the player's hand.
         // The player pays the plot cost and exiles the named card face-up.
@@ -967,7 +968,7 @@ pub fn translate_player_action(
         "cast_spell_plot" => {
             let card_id = find_plotted_in_exile(state, player, card_name?)?;
             let target_list = resolve_targets(targets, state, players)?;
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -983,7 +984,7 @@ pub fn translate_player_action(
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 702.185a: Cast a spell by paying its warp cost. Tries hand (first cast),
         // then warped-in-exile (recast on a later turn), then graveyard (Timeline
@@ -994,7 +995,7 @@ pub fn translate_player_action(
                 .or_else(|| find_warped_in_exile(state, player, name))
                 .or_else(|| find_in_graveyard(state, player, name))?;
             let target_list = resolve_targets(targets, state, players)?;
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -1010,7 +1011,7 @@ pub fn translate_player_action(
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 118.9: Cast a spell by paying its pitch cost -- exile a card of the
         // required color from hand (pitch_exile_card_name) instead of paying the mana
@@ -1019,7 +1020,7 @@ pub fn translate_player_action(
             let card_id = find_in_hand(state, player, card_name?)?;
             let target_list = resolve_targets(targets, state, players)?;
             let pitch_id = pitch_exile_card_name.and_then(|name| find_in_hand(state, player, name));
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -1041,7 +1042,7 @@ pub fn translate_player_action(
                 },
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 702.96a: Cast a spell with overload from the player's hand.
         // The overload cost (an alternative cost) is paid instead of the mana cost.
@@ -1049,7 +1050,7 @@ pub fn translate_player_action(
         "cast_spell_overload" => {
             let card_id = find_in_hand(state, player, card_name?)?;
             // CR 702.96b: Overloaded spells have no targets.
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: vec![],
@@ -1065,7 +1066,7 @@ pub fn translate_player_action(
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 702.81a: Cast a spell with retrace from the player's graveyard.
         // The player discards a land card from hand as an additional cost.
@@ -1076,7 +1077,7 @@ pub fn translate_player_action(
             let target_list = resolve_targets(targets, state, players)?;
             let land_name = discard_land_name?;
             let land_id = find_in_hand(state, player, land_name)?;
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -1092,7 +1093,7 @@ pub fn translate_player_action(
                 additional_costs: vec![AdditionalCost::Discard(vec![land_id])],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 702.133a: Cast a spell with jump-start from the player's graveyard.
         // The player pays the card's normal mana cost PLUS discards a card from hand.
@@ -1103,7 +1104,7 @@ pub fn translate_player_action(
             let target_list = resolve_targets(targets, state, players)?;
             let discard_name = discard_card_name?;
             let discard_id = find_in_hand(state, player, discard_name)?;
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -1119,7 +1120,7 @@ pub fn translate_player_action(
                 additional_costs: vec![AdditionalCost::Discard(vec![discard_id])],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 702.127a: Cast the aftermath half of a split card from the player's graveyard.
         // The aftermath half's mana cost is paid (alternative cost) and the card is exiled
@@ -1127,7 +1128,7 @@ pub fn translate_player_action(
         "cast_spell_aftermath" => {
             let card_id = find_in_graveyard(state, player, card_name?)?;
             let target_list = resolve_targets(targets, state, players)?;
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -1143,7 +1144,7 @@ pub fn translate_player_action(
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 702.160 / CR 718: Cast a spell using its prototype cost from the player's hand.
         // Prototype is NOT an alternative cost (CR 118.9 / 2022-10-14 ruling) — orthogonal
@@ -1151,7 +1152,7 @@ pub fn translate_player_action(
         "cast_spell_prototype" => {
             let card_id = find_in_hand(state, player, card_name?)?;
             let target_list = resolve_targets(targets, state, players)?;
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -1167,14 +1168,14 @@ pub fn translate_player_action(
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 702.109a: Cast a spell with dash from the player's hand.
         // The dash cost (an alternative cost) is paid instead of the mana cost.
         "cast_spell_dash" => {
             let card_id = find_in_hand(state, player, card_name?)?;
             let target_list = resolve_targets(targets, state, players)?;
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -1190,14 +1191,14 @@ pub fn translate_player_action(
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 702.152a: Cast a spell with blitz from the player's hand.
         // The blitz cost (an alternative cost) is paid instead of the mana cost.
         "cast_spell_blitz" => {
             let card_id = find_in_hand(state, player, card_name?)?;
             let target_list = resolve_targets(targets, state, players)?;
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -1213,14 +1214,14 @@ pub fn translate_player_action(
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 702.176a: Cast a spell with impending from the player's hand.
         // The impending cost (an alternative cost) is paid instead of the mana cost.
         "cast_spell_impending" => {
             let card_id = find_in_hand(state, player, card_name?)?;
             let target_list = resolve_targets(targets, state, players)?;
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -1236,7 +1237,7 @@ pub fn translate_player_action(
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 702.166a: Cast a spell with bargain from the player's hand, sacrificing
         // an artifact, enchantment, or token as the optional additional cost.
@@ -1247,7 +1248,7 @@ pub fn translate_player_action(
             let target_list = resolve_targets(targets, state, players)?;
             let bargain_sac_id =
                 bargain_sacrifice_name.and_then(|name| find_on_battlefield(state, player, name));
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -1270,7 +1271,7 @@ pub fn translate_player_action(
                     .unwrap_or_default(),
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 701.59a: Cast a spell with collect evidence from the player's hand, exiling
         // cards from the caster's graveyard with total mana value >= N as an additional cost.
@@ -1285,7 +1286,7 @@ pub fn translate_player_action(
                 .iter()
                 .filter_map(|name| find_in_graveyard(state, player, name.as_str()))
                 .collect();
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -1303,7 +1304,7 @@ pub fn translate_player_action(
                 }],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 702.119a: Cast a spell with emerge from the player's hand, sacrificing
         // a creature as part of the emerge alternative cost. The total mana cost is
@@ -1313,7 +1314,7 @@ pub fn translate_player_action(
             let target_list = resolve_targets(targets, state, players)?;
             let emerge_sac_name = emerge_sacrifice_name?;
             let emerge_sac_id = find_on_battlefield(state, player, emerge_sac_name)?;
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -1332,7 +1333,7 @@ pub fn translate_player_action(
                 }],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 702.137a: Cast a spell with spectacle from the player's hand.
         // The spectacle cost (an alternative cost) is paid instead of the mana cost.
@@ -1340,7 +1341,7 @@ pub fn translate_player_action(
         "cast_spell_spectacle" => {
             let card_id = find_in_hand(state, player, card_name?)?;
             let target_list = resolve_targets(targets, state, players)?;
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -1356,12 +1357,12 @@ pub fn translate_player_action(
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         "cast_spell_surge" => {
             let card_id = find_in_hand(state, player, card_name?)?;
             let target_list = resolve_targets(targets, state, players)?;
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -1377,7 +1378,7 @@ pub fn translate_player_action(
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 702.153a: Cast a spell with casualty from the player's hand, optionally
         // sacrificing a creature with power >= N as the casualty additional cost.
@@ -1390,7 +1391,7 @@ pub fn translate_player_action(
             let target_list = resolve_targets(targets, state, players)?;
             let casualty_sac_id =
                 casualty_sacrifice_name.and_then(|name| find_on_battlefield(state, player, name));
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -1413,7 +1414,7 @@ pub fn translate_player_action(
                     .unwrap_or_default(),
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 702.132a: Cast a spell with assist from the player's hand. The assist player
         // pays some amount of the generic mana cost from their own mana pool. The caster
@@ -1425,7 +1426,7 @@ pub fn translate_player_action(
             let card_id = find_in_hand(state, player, card_name?)?;
             let target_list = resolve_targets(targets, state, players)?;
             let assist_pid = assist_player_name.and_then(|name| players.get(name).copied());
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -1448,7 +1449,7 @@ pub fn translate_player_action(
                 },
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 702.56a: Cast a spell with the replicate additional cost paid N times.
         // `replicate_count` is the number of times the replicate cost is paid.
@@ -1458,7 +1459,7 @@ pub fn translate_player_action(
         "cast_spell_replicate" => {
             let card_id = find_in_hand(state, player, card_name?)?;
             let target_list = resolve_targets(targets, state, players)?;
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -1480,7 +1481,7 @@ pub fn translate_player_action(
                 },
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 702.47a: Cast a spell with splice cards declared.
         // `splice_card_names` lists the names of cards in the caster's hand to splice
@@ -1498,7 +1499,7 @@ pub fn translate_player_action(
                     .unwrap_or_else(|| panic!("splice card '{name}' not found in hand"));
                 splice_ids.push(id);
             }
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -1518,12 +1519,12 @@ pub fn translate_player_action(
                 },
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 702.148a: Cast with Cleave — pay the cleave cost to remove bracketed text.
         "cast_spell_cleave" => {
             let card_id = find_in_hand(state, player, card_name?)?;
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: vec![],
@@ -1539,7 +1540,7 @@ pub fn translate_player_action(
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 702.140a: Cast a creature spell using its mutate alternative cost, merging it
         // with a target non-Human creature the caster owns. `target_creature_name` names the
@@ -1551,7 +1552,7 @@ pub fn translate_player_action(
             // Resolve mutate target from target_creature_name (find non-Human creature on battlefield).
             let target_id =
                 target_creature_name.and_then(|name| find_on_battlefield(state, player, name))?;
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: vec![],
@@ -1570,7 +1571,7 @@ pub fn translate_player_action(
                 }],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 702.42a: Cast a modal spell with the entwine additional cost paid.
         // When entwine_paid = true, all modes of the spell are chosen and the entwine
@@ -1578,7 +1579,7 @@ pub fn translate_player_action(
         "cast_spell_entwine" => {
             let card_id = find_in_hand(state, player, card_name?)?;
             let target_list = resolve_targets(targets, state, players)?;
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -1594,7 +1595,7 @@ pub fn translate_player_action(
                 additional_costs: vec![AdditionalCost::Entwine],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 702.120a: Cast a modal spell with escalate additional cost paid.
         // `escalate_modes` is the number of extra modes beyond the first. The escalate
@@ -1603,7 +1604,7 @@ pub fn translate_player_action(
         "cast_spell_escalate" => {
             let card_id = find_in_hand(state, player, card_name?)?;
             let target_list = resolve_targets(targets, state, players)?;
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -1625,7 +1626,7 @@ pub fn translate_player_action(
                 },
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 702.82a: Cast with Devour -- sacrifice creatures as an ETB replacement effect.
         // `convoke_names` (reused parameter slot) lists the names of creatures on the
@@ -1639,7 +1640,7 @@ pub fn translate_player_action(
                 .iter()
                 .filter_map(|name| find_on_battlefield(state, player, name.as_str()))
                 .collect();
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -1662,7 +1663,7 @@ pub fn translate_player_action(
                 },
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 700.2a / 601.2b: Cast a modal spell with explicit mode indices chosen.
         // `modes_chosen` specifies which mode indices (0-indexed) to execute at resolution.
@@ -1672,7 +1673,7 @@ pub fn translate_player_action(
         "cast_spell_modal" => {
             let card_id = find_in_hand(state, player, card_name?)?;
             let target_list = resolve_targets(targets, state, players)?;
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -1688,7 +1689,7 @@ pub fn translate_player_action(
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 702.102a: Cast a fused split card from hand, paying the combined mana cost
         // of both halves (CR 702.102c). At resolution, the left half's effect executes
@@ -1697,7 +1698,7 @@ pub fn translate_player_action(
         "cast_spell_fuse" => {
             let card_id = find_in_hand(state, player, card_name?)?;
             let target_list = resolve_targets(targets, state, players)?;
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -1713,7 +1714,7 @@ pub fn translate_player_action(
                 additional_costs: vec![AdditionalCost::Fuse],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 702.157a: Cast a creature spell with the squad additional cost paid N times.
         // `squad_count` is the number of times the squad cost is paid (from the action).
@@ -1722,7 +1723,7 @@ pub fn translate_player_action(
         "cast_spell_squad" => {
             let card_id = find_in_hand(state, player, card_name?)?;
             let target_list = resolve_targets(targets, state, players)?;
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -1742,7 +1743,7 @@ pub fn translate_player_action(
                 },
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 702.175a: Cast a creature spell with the offspring additional cost paid.
         // Sets `offspring_paid: true` on CastSpell. On ETB, an OffspringTrigger creates
@@ -1750,7 +1751,7 @@ pub fn translate_player_action(
         "cast_spell_offspring" => {
             let card_id = find_in_hand(state, player, card_name?)?;
             let target_list = resolve_targets(targets, state, players)?;
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -1766,7 +1767,7 @@ pub fn translate_player_action(
                 additional_costs: vec![AdditionalCost::Offspring],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 702.37a / CR 702.168a: Cast a spell face-down via Morph, Megamorph, or Disguise.
         // The card is cast from the player's hand for {3} (the morph cost). The face_down_kind
@@ -1799,7 +1800,7 @@ pub fn translate_player_action(
                     FaceDownKind::Morph
                 }
             };
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: vec![],
@@ -1815,7 +1816,7 @@ pub fn translate_player_action(
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 118.9 / Commander 2020 cycle: Cast a spell from hand without paying its mana cost,
         // conditional on controlling a commander on the battlefield.
@@ -1826,7 +1827,7 @@ pub fn translate_player_action(
         "cast_spell_commander_free" => {
             let card_id = find_in_hand(state, player, card_name?)?;
             let target_list = resolve_targets(targets, state, players)?;
-            Some(Command::CastSpell {
+            Some(Command::CastSpell(Box::new(CastSpellData {
                 player,
                 card: card_id,
                 targets: target_list,
@@ -1842,7 +1843,7 @@ pub fn translate_player_action(
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            })
+            })))
         }
         // CR 702.37e / CR 702.168d / CR 701.40b: Turn a face-down permanent face up.
         // This is a special action (CR 116.2b) — does NOT use the stack.
@@ -3585,7 +3586,7 @@ fn try_as_tap_mana_ability(effect: &Effect) -> Option<ManaAbility> {
     // Any color: {T}: Add one mana of any color
     if matches!(effect, Effect::AddManaAnyColor { .. }) {
         return Some(ManaAbility {
-            produces: im::OrdMap::new(),
+            produces: imbl::OrdMap::new(),
             requires_tap: true,
             sacrifice_self: false,
             any_color: true,
@@ -3598,7 +3599,7 @@ fn try_as_tap_mana_ability(effect: &Effect) -> Option<ManaAbility> {
         color_a, color_b, ..
     } = effect
     {
-        let mut produces = im::OrdMap::new();
+        let mut produces = imbl::OrdMap::new();
         produces.insert(*color_a, 1u32);
         *produces.entry(*color_b).or_insert(0) += 1;
         return Some(ManaAbility {
@@ -3612,7 +3613,7 @@ fn try_as_tap_mana_ability(effect: &Effect) -> Option<ManaAbility> {
     // Scaled mana: {T}: AddManaScaled { color, count }
     // Registers with produces={color: 1} as a marker; actual production is dynamic.
     if let Effect::AddManaScaled { color, .. } = effect {
-        let mut p = im::OrdMap::new();
+        let mut p = imbl::OrdMap::new();
         p.insert(*color, 1u32);
         return Some(ManaAbility {
             produces: p,

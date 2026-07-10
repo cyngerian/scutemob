@@ -20,6 +20,7 @@
 //! - Insufficient mana rejected even with valid discard card (CR 601.2f-h).
 
 use mtg_engine::cards::card_definition::{EffectAmount, PlayerTarget};
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::types::AltCostKind;
 use mtg_engine::state::CardType;
 use mtg_engine::AdditionalCost;
@@ -255,7 +256,7 @@ fn test_jump_start_basic_cast_from_graveyard() {
     // p1 casts Radical Idea from graveyard via jump-start, discarding Grizzly Bears.
     let (state, cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -271,7 +272,7 @@ fn test_jump_start_basic_cast_from_graveyard() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -378,7 +379,7 @@ fn test_jump_start_exile_on_resolution() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -394,7 +395,7 @@ fn test_jump_start_exile_on_resolution() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -494,7 +495,7 @@ fn test_jump_start_exile_on_counter() {
     // p1 casts Radical Idea via jump-start.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -510,7 +511,7 @@ fn test_jump_start_exile_on_counter() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -535,7 +536,7 @@ fn test_jump_start_exile_on_counter() {
     // p2 casts Counterspell targeting the jump-start spell.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: counter_id,
             targets: vec![mtg_engine::Target::Object(spell_on_stack_id)],
@@ -551,7 +552,7 @@ fn test_jump_start_exile_on_counter() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -635,7 +636,7 @@ fn test_jump_start_sorcery_timing() {
     // p1 tries to cast jump-start sorcery during p2's turn — should fail.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![mtg_engine::Target::Player(p2)],
@@ -651,7 +652,7 @@ fn test_jump_start_sorcery_timing() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -711,7 +712,7 @@ fn test_jump_start_non_jump_start_card_cannot_cast() {
     // Try to cast Lightning Bolt from graveyard via jump-start — should fail.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![mtg_engine::Target::Player(p2)],
@@ -727,7 +728,7 @@ fn test_jump_start_non_jump_start_card_cannot_cast() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -800,7 +801,7 @@ fn test_jump_start_pays_normal_mana_cost() {
     // Should succeed — exact normal mana cost is available.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -816,7 +817,7 @@ fn test_jump_start_pays_normal_mana_cost() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -885,7 +886,7 @@ fn test_jump_start_discard_required() {
     // Try to cast with jump_start_discard: None — should fail.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -901,7 +902,7 @@ fn test_jump_start_discard_required() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -968,7 +969,7 @@ fn test_jump_start_discard_must_be_in_hand() {
     // Try to discard a card that's in the graveyard — should fail.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -984,7 +985,7 @@ fn test_jump_start_discard_must_be_in_hand() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -1057,7 +1058,7 @@ fn test_jump_start_discard_any_card() {
     // Discard a creature (not a land) — should succeed.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -1073,7 +1074,7 @@ fn test_jump_start_discard_any_card() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -1140,7 +1141,7 @@ fn test_jump_start_normal_hand_cast_not_exiled() {
     // Cast normally from hand (cast_with_jump_start: false).
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -1156,7 +1157,7 @@ fn test_jump_start_normal_hand_cast_not_exiled() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -1240,7 +1241,7 @@ fn test_jump_start_flag_set_on_stack() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -1256,7 +1257,7 @@ fn test_jump_start_flag_set_on_stack() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -1325,7 +1326,7 @@ fn test_jump_start_insufficient_mana_rejected() {
     // Should fail — insufficient mana.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -1341,7 +1342,7 @@ fn test_jump_start_insufficient_mana_rejected() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(

@@ -11,6 +11,7 @@
 //! - No artifact creature target → trigger not placed (CR 603.3d).
 //! - Zero pre-death counters → trigger resolves with no effect.
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     calculate_characteristics, process_command, AbilityDefinition, CardDefinition, CardId,
     CardRegistry, CardType, Command, CounterType, GameEvent, GameStateBuilder, KeywordAbility,
@@ -179,7 +180,7 @@ fn test_modular_etb_counters() {
     // Cast the creature.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: creature_id,
             targets: vec![],
@@ -195,7 +196,7 @@ fn test_modular_etb_counters() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
 
@@ -277,7 +278,7 @@ fn test_modular_etb_counters_n() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: creature_id,
             targets: vec![],
@@ -293,7 +294,7 @@ fn test_modular_etb_counters_n() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
 
@@ -677,7 +678,7 @@ fn test_modular_multiple_instances_etb() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: creature_id,
             targets: vec![],
@@ -693,7 +694,7 @@ fn test_modular_multiple_instances_etb() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
 
@@ -757,7 +758,7 @@ fn test_modular_0_0_base_stats_survives_etb() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: creature_id,
             targets: vec![],
@@ -773,7 +774,7 @@ fn test_modular_0_0_base_stats_survives_etb() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
 

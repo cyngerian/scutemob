@@ -479,7 +479,7 @@ pub struct StackObject {
     /// (resolution.rs) into EffectContext.lki_counters.
     /// Empty for stack objects that are not LBA triggered abilities.
     #[serde(default)]
-    pub lki_counters: im::OrdMap<crate::state::types::CounterType, u32>,
+    pub lki_counters: imbl::OrdMap<crate::state::types::CounterType, u32>,
     /// CR 603.10a / CR 113.7a: LKI source-power snapshot for WhenDies / WhenLeavesBattlefield triggers.
     /// Set from PendingTrigger::lki_power when the trigger is flushed to the stack
     /// (abilities.rs `flush_pending_triggers`). Read at resolution time
@@ -553,7 +553,7 @@ impl StackObject {
             triggering_creature_id: None,
             sacrificed_creature_powers: vec![],
             cast_from_top_with_bonus: false,
-            lki_counters: im::OrdMap::new(),
+            lki_counters: imbl::OrdMap::new(),
             lki_power: None,
         }
     }

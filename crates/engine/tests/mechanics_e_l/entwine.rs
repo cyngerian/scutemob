@@ -12,6 +12,7 @@
 //! - Auto-mode[0]: when not entwined, only the first mode executes.
 //! - Entwine cost stacks with commander tax (CR 601.2f + CR 903.8).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::CardType;
 use mtg_engine::AdditionalCost;
 use mtg_engine::Effect;
@@ -214,7 +215,7 @@ fn test_entwine_basic_both_modes_execute() {
     // Cast with entwine paid.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -230,7 +231,7 @@ fn test_entwine_basic_both_modes_execute() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("cast with entwine_paid failed: {:?}", e));
 
@@ -335,7 +336,7 @@ fn test_entwine_not_paid_only_first_mode() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -351,7 +352,7 @@ fn test_entwine_not_paid_only_first_mode() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("cast without entwine failed: {:?}", e));
 
@@ -436,7 +437,7 @@ fn test_entwine_insufficient_mana_rejected() {
     // Cast with entwine_paid = true but insufficient mana — should fail.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -452,7 +453,7 @@ fn test_entwine_insufficient_mana_rejected() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_err(),
@@ -500,7 +501,7 @@ fn test_entwine_no_keyword_rejected() {
     // Attempt entwine on a spell without the keyword — should fail.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -516,7 +517,7 @@ fn test_entwine_no_keyword_rejected() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_err(),
@@ -598,7 +599,7 @@ fn test_entwine_modes_in_printed_order() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -614,7 +615,7 @@ fn test_entwine_modes_in_printed_order() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
 
@@ -684,7 +685,7 @@ fn test_entwine_was_entwined_flag_on_stack() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -700,7 +701,7 @@ fn test_entwine_was_entwined_flag_on_stack() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("cast with entwine failed: {:?}", e));
 

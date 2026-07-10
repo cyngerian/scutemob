@@ -15,6 +15,7 @@
 //! - Sacrifice trigger checks source is still on battlefield (CR 400.7).
 
 use mtg_engine::cards::card_definition::{EffectAmount, PlayerTarget};
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::test_util;
 use mtg_engine::state::types::AltCostKind;
 use mtg_engine::state::CardType;
@@ -223,7 +224,7 @@ fn test_evoke_basic_cast_with_evoke_cost() {
     // Cast with evoke.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: creature_id,
             targets: vec![],
@@ -239,7 +240,7 @@ fn test_evoke_basic_cast_with_evoke_cost() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell with evoke failed: {:?}", e));
 
@@ -374,7 +375,7 @@ fn test_evoke_basic_cast_without_evoke() {
     // Cast without evoke (normal cast).
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: creature_id,
             targets: vec![],
@@ -390,7 +391,7 @@ fn test_evoke_basic_cast_without_evoke() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell without evoke failed: {:?}", e));
 
@@ -476,7 +477,7 @@ fn test_evoke_sacrifice_trigger_goes_through_stack() {
     // Cast with evoke.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: creature_id,
             targets: vec![],
@@ -492,7 +493,7 @@ fn test_evoke_sacrifice_trigger_goes_through_stack() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell with evoke failed: {:?}", e));
 
@@ -587,7 +588,7 @@ fn test_evoke_does_not_change_mana_value() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: creature_id,
             targets: vec![],
@@ -603,7 +604,7 @@ fn test_evoke_does_not_change_mana_value() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell with evoke failed: {:?}", e));
 
@@ -729,7 +730,7 @@ fn test_evoke_cannot_combine_with_flashback() {
     // The engine should detect the conflict and reject.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -745,7 +746,7 @@ fn test_evoke_cannot_combine_with_flashback() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -800,7 +801,7 @@ fn test_evoke_non_evoke_spell_rejected() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![mtg_engine::Target::Player(p2)],
@@ -816,7 +817,7 @@ fn test_evoke_non_evoke_spell_rejected() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -881,7 +882,7 @@ fn test_evoke_uses_alternative_cost_not_mana_cost() {
     // Should succeed with just {2}{U} (evoke cost).
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: creature_id,
             targets: vec![],
@@ -897,7 +898,7 @@ fn test_evoke_uses_alternative_cost_not_mana_cost() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_ok(),
@@ -971,7 +972,7 @@ fn test_evoke_sacrifice_trigger_fizzles_if_source_left_battlefield() {
     // Cast with evoke.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: creature_id,
             targets: vec![],
@@ -987,7 +988,7 @@ fn test_evoke_sacrifice_trigger_fizzles_if_source_left_battlefield() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 

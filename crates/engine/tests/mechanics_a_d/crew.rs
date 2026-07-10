@@ -550,7 +550,7 @@ fn test_crew_already_crewed_vehicle_is_legal() {
 
     // Reset priority for second crew.
     state.turn_mut().priority_holder = Some(p1);
-    state.turn_mut().players_passed = im::OrdSet::new();
+    state.turn_mut().players_passed = imbl::OrdSet::new();
 
     // Second crew with Pilot B — this should succeed (already a creature, but legal).
     let result = process_command(

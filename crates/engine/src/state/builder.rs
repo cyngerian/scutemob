@@ -24,7 +24,7 @@ use crate::cards::CardRegistry;
 use crate::state::continuous_effect::{
     EffectDuration as CEDuration, EffectFilter as CEFilter, EffectLayer, LayerModification,
 };
-use im::{OrdMap, OrdSet, Vector};
+use imbl::{OrdMap, OrdSet, Vector};
 use std::sync::Arc;
 /// Builder for constructing `GameState` values in tests.
 pub struct GameStateBuilder {
@@ -55,7 +55,7 @@ impl GameStateBuilder {
             objects: Vec::new(),
             continuous_effects: Vec::new(),
             replacement_effects: Vec::new(),
-            prevention_counters: im::OrdMap::new(),
+            prevention_counters: imbl::OrdMap::new(),
             turn_number: 1,
             step: None,
             active_player: None,
@@ -266,7 +266,7 @@ impl GameStateBuilder {
                 damage_received_this_turn: 0,
                 protection_qualities: vec![],
                 dungeons_completed: 0,
-                dungeons_completed_set: im::OrdSet::new(),
+                dungeons_completed_set: imbl::OrdSet::new(),
                 ring_level: 0,
                 ring_bearer_id: None,
                 temporary_protection_qualities: vec![],
@@ -324,8 +324,8 @@ impl GameStateBuilder {
             etb_suppressors: Vector::new(),
             restrictions: Vector::new(),
             flash_grants: Vector::new(),
-            play_from_top_permissions: im::Vector::new(),
-            play_from_graveyard_permissions: im::Vector::new(),
+            play_from_top_permissions: imbl::Vector::new(),
+            play_from_graveyard_permissions: imbl::Vector::new(),
             stack_objects: Vector::new(),
             combat: None,
             timestamp_counter: 0,
@@ -335,7 +335,7 @@ impl GameStateBuilder {
             pending_echo_payments: Vector::new(),
             pending_cumulative_upkeep_payments: Vector::new(),
             pending_recover_payments: Vector::new(),
-            forecast_used_this_turn: im::OrdSet::new(),
+            forecast_used_this_turn: imbl::OrdSet::new(),
             // CR 730.1: Game starts with neither day nor night.
             day_night: None,
             // CR 730.2: No previous turn spells cast at game start.
@@ -347,11 +347,11 @@ impl GameStateBuilder {
             // CR 724.1: No player is the monarch at game start.
             monarch: None,
             // CR 305.2: No additional land play sources at game start.
-            additional_land_play_sources: im::Vector::new(),
+            additional_land_play_sources: imbl::Vector::new(),
             // CR 615.1: No combat damage prevention at game start.
             prevent_all_combat_damage: false,
-            combat_damage_prevented_from: im::OrdSet::new(),
-            combat_damage_prevented_to: im::OrdSet::new(),
+            combat_damage_prevented_from: imbl::OrdSet::new(),
+            combat_damage_prevented_to: imbl::OrdSet::new(),
             card_registry: self.card_registry,
         };
         // Add continuous effects
@@ -380,7 +380,8 @@ impl GameStateBuilder {
             // interactive payment is deferred to M10+.
             let mut triggered_abilities: Vec<TriggeredAbilityDef> =
                 spec.triggered_abilities.into_iter().collect();
-            let spec_keywords: im::OrdSet<KeywordAbility> = spec.keywords.iter().cloned().collect();
+            let spec_keywords: imbl::OrdSet<KeywordAbility> =
+                spec.keywords.iter().cloned().collect();
             for kw in spec.keywords.iter() {
                 if let KeywordAbility::Ward(cost_n) = kw {
                     triggered_abilities.push(TriggeredAbilityDef {
@@ -769,7 +770,7 @@ impl GameStateBuilder {
                                 power: 1,
                                 toughness: 1,
                                 colors: [Color::White, Color::Black].into_iter().collect(),
-                                supertypes: im::OrdSet::new(),
+                                supertypes: imbl::OrdSet::new(),
                                 card_types: [CardType::Creature].into_iter().collect(),
                                 subtypes: [SubType("Spirit".to_string())].into_iter().collect(),
                                 keywords: [KeywordAbility::Flying].into_iter().collect(),
@@ -838,7 +839,7 @@ impl GameStateBuilder {
                                 power: 0,
                                 toughness: 0,
                                 colors: [Color::Black].into_iter().collect(),
-                                supertypes: im::OrdSet::new(),
+                                supertypes: imbl::OrdSet::new(),
                                 card_types: [CardType::Creature].into_iter().collect(),
                                 subtypes: [
                                     SubType("Phyrexian".to_string()),
@@ -846,7 +847,7 @@ impl GameStateBuilder {
                                 ]
                                 .into_iter()
                                 .collect(),
-                                keywords: im::OrdSet::new(),
+                                keywords: imbl::OrdSet::new(),
                                 count: EffectAmount::Fixed(1),
                                 tapped: false,
                                 enters_attacking: false,
@@ -1071,7 +1072,7 @@ impl GameStateBuilder {
                 counters.insert(ct, count);
             }
             let object = GameObject {
-                triggered_abilities_fired_this_turn: im::OrdSet::new(),
+                triggered_abilities_fired_this_turn: imbl::OrdSet::new(),
                 id: ObjectId(0), // Assigned by add_object
                 card_id: spec.card_id,
                 characteristics,
@@ -1101,7 +1102,7 @@ impl GameStateBuilder {
                 // add_object will set this to Some(turn_number) for battlefield objects,
                 // but build tests can override if needed.
                 entered_turn: None,
-                goaded_by: im::Vector::new(),
+                goaded_by: imbl::Vector::new(),
                 kicker_times_paid: 0,
                 cast_alt_cost: None,
                 foretold_turn: 0,
@@ -1140,11 +1141,11 @@ impl GameStateBuilder {
                 gift_was_given: false,
                 gift_opponent: None,
                 // CR 702.99b: test-placed objects have no encoded cipher cards.
-                encoded_cards: im::Vector::new(),
+                encoded_cards: imbl::Vector::new(),
                 // CR 702.55b: test-placed objects have no haunting relationship.
                 haunting_target: None,
                 // CR 729.2: test-placed objects are not part of a merged permanent.
-                merged_components: im::Vector::new(),
+                merged_components: imbl::Vector::new(),
                 // CR 712.8d: test-placed objects start with front face up.
                 is_transformed: false,
                 // CR 701.27f: test-placed objects have not transformed.
@@ -1154,7 +1155,7 @@ impl GameStateBuilder {
                 was_cast: false,
                 abilities_activated_this_turn: 0,
                 // CR 702.167c: test-placed objects have no craft materials.
-                craft_exiled_cards: im::Vector::new(),
+                craft_exiled_cards: imbl::Vector::new(),
                 // CR 708.2: test-placed objects are not morph/manifest/cloak face-down.
                 chosen_creature_type: None,
                 chosen_color: None,

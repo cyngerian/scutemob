@@ -26,6 +26,7 @@
 //!       via the replacement (counters present immediately, no trigger).
 //!   (d) Hash schema sentinel: `HASH_SCHEMA_VERSION == 18` (PB-EWC bump).
 
+use mtg_engine::rules::command::CastSpellData;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -112,7 +113,7 @@ fn cast_creature(
     state.turn_mut().priority_holder = Some(caster);
     process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: caster,
             card,
             targets: vec![],
@@ -128,7 +129,7 @@ fn cast_creature(
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e))
 }
@@ -152,7 +153,7 @@ fn cast_x_spell(
     state.turn_mut().priority_holder = Some(caster);
     process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: caster,
             card,
             targets: vec![],
@@ -168,7 +169,7 @@ fn cast_x_spell(
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell(x_value={}) failed: {:?}", x_value, e))
 }

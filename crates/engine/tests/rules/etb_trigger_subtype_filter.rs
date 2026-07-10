@@ -13,6 +13,7 @@
 //! - CR 603.10: ETB is NOT a look-back-in-time trigger (characteristics evaluated after entry).
 //! - CR 603.10a: death triggers DO look back — regression guard confirms death path unchanged.
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     all_cards, enrich_spec_from_def, process_command, AbilityDefinition, CardDefinition, CardId,
     CardRegistry, CardType, Color, Command, DeathTriggerFilter, ETBTriggerFilter, Effect,
@@ -108,7 +109,7 @@ fn cast_creature(
 
     process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player,
             card: card_id,
             targets: vec![],
@@ -124,7 +125,7 @@ fn cast_creature(
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("CastSpell failed")
 }
@@ -489,7 +490,7 @@ fn test_etb_nontoken_filter_no_fire_on_token() {
                     power: 5,
                     toughness: 5,
                     count: EffectAmount::Fixed(1),
-                    supertypes: im::OrdSet::new(),
+                    supertypes: imbl::OrdSet::new(),
                     keywords: [mtg_engine::KeywordAbility::Flying].into_iter().collect(),
                     tapped: false,
                     enters_attacking: false,
@@ -971,7 +972,7 @@ fn test_etb_lathliss_token_integration() {
                     power: 5,
                     toughness: 5,
                     count: EffectAmount::Fixed(1),
-                    supertypes: im::OrdSet::new(),
+                    supertypes: imbl::OrdSet::new(),
                     keywords: [mtg_engine::KeywordAbility::Flying].into_iter().collect(),
                     tapped: false,
                     enters_attacking: false,
@@ -1011,7 +1012,7 @@ fn test_etb_lathliss_token_integration() {
                 power: 5,
                 toughness: 5,
                 count: EffectAmount::Fixed(1),
-                supertypes: im::OrdSet::new(),
+                supertypes: imbl::OrdSet::new(),
                 keywords: [mtg_engine::KeywordAbility::Flying].into_iter().collect(),
                 tapped: false,
                 enters_attacking: false,
@@ -1570,7 +1571,7 @@ fn test_etb_lathliss_carddef_integration_via_enrich() {
                     power: 5,
                     toughness: 5,
                     count: EffectAmount::Fixed(1),
-                    supertypes: im::OrdSet::new(),
+                    supertypes: imbl::OrdSet::new(),
                     keywords: [mtg_engine::KeywordAbility::Flying].into_iter().collect(),
                     tapped: false,
                     enters_attacking: false,

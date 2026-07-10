@@ -5,7 +5,7 @@
 //! constructs a game state with continuous effects (Humility-style, animation,
 //! anthem) and checks that the engine respects them.
 
-use im::ordset;
+use imbl::ordset;
 use mtg_engine::{
     calculate_characteristics, CardType, Command, ContinuousEffect, Effect, EffectAmount,
     EffectDuration, EffectFilter, EffectId, EffectLayer, GameState, GameStateBuilder,
@@ -415,7 +415,7 @@ fn test_w3lc_sacrifice_mana_uses_layer_resolved_types() {
         condition: None,
     };
 
-    let mut produces = im::OrdMap::new();
+    let mut produces = imbl::OrdMap::new();
     produces.insert(ManaColor::Colorless, 1);
 
     let mut state = GameStateBuilder::new()

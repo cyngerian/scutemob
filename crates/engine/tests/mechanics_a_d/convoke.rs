@@ -20,6 +20,7 @@
 //! - Cannot tap more creatures than the total cost allows (Venerated Loxodon ruling).
 //! - Multiple instances of convoke on the same spell are redundant (CR 702.51d).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     process_command, CardId, CardType, Color, Command, GameEvent, GameState, GameStateBuilder,
     KeywordAbility, ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerId, Step, SuperType, ZoneId,
@@ -187,7 +188,7 @@ fn test_convoke_basic_tap_creatures_reduce_cost() {
 
     let (state, events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -203,7 +204,7 @@ fn test_convoke_basic_tap_creatures_reduce_cost() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell with convoke failed: {:?}", e));
 
@@ -287,7 +288,7 @@ fn test_convoke_colored_mana_match() {
 
     let (state, _events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -303,7 +304,7 @@ fn test_convoke_colored_mana_match() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell with white convoke failed: {:?}", e));
 
@@ -380,7 +381,7 @@ fn test_convoke_generic_mana_any_creature() {
 
     let (state, _events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -396,7 +397,7 @@ fn test_convoke_generic_mana_any_creature() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell with red creatures for generic failed: {:?}", e));
 
@@ -458,7 +459,7 @@ fn test_convoke_reject_no_keyword() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -474,7 +475,7 @@ fn test_convoke_reject_no_keyword() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -518,7 +519,7 @@ fn test_convoke_reject_tapped_creature() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -534,7 +535,7 @@ fn test_convoke_reject_tapped_creature() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -577,7 +578,7 @@ fn test_convoke_reject_not_creature() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -593,7 +594,7 @@ fn test_convoke_reject_not_creature() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -637,7 +638,7 @@ fn test_convoke_reject_not_controlled() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -653,7 +654,7 @@ fn test_convoke_reject_not_controlled() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -708,7 +709,7 @@ fn test_convoke_reject_too_many_creatures() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -724,7 +725,7 @@ fn test_convoke_reject_too_many_creatures() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -819,7 +820,7 @@ fn test_convoke_with_commander_tax() {
 
     let (state, events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: cmd_obj_id,
             targets: vec![],
@@ -835,7 +836,7 @@ fn test_convoke_with_commander_tax() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("Commander convoke cast failed: {:?}", e));
 
@@ -910,7 +911,7 @@ fn test_convoke_no_summoning_sickness() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -926,7 +927,7 @@ fn test_convoke_no_summoning_sickness() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -976,7 +977,7 @@ fn test_convoke_zero_creatures() {
 
     let (state, _events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -992,7 +993,7 @@ fn test_convoke_zero_creatures() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("Normal cast of convoke spell failed: {:?}", e));
 
@@ -1057,7 +1058,7 @@ fn test_convoke_multicolored_creature_pays_colored() {
 
     let (state, _events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -1073,7 +1074,7 @@ fn test_convoke_multicolored_creature_pays_colored() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("Multicolored creature convoke failed: {:?}", e));
 

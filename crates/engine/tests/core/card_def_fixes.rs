@@ -13,6 +13,7 @@
 //! - Rogue's Passage: creature with CantBeBlocked can't be blocked (CR 509.1b)
 //! - Rest in Peace ETB: exiles all cards from all graveyards on entry (CR 603.2)
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::player::CardId;
 use mtg_engine::{
     all_cards, calculate_characteristics, process_command, start_game, CardRegistry, CardType,
@@ -100,7 +101,7 @@ fn test_read_the_bones_scry_then_draw() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: rtb_id,
             targets: vec![],
@@ -116,7 +117,7 @@ fn test_read_the_bones_scry_then_draw() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -277,7 +278,7 @@ fn test_path_to_exile_optional_search() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: path_id,
             targets: vec![mtg_engine::Target::Object(goblin_id)],
@@ -293,7 +294,7 @@ fn test_path_to_exile_optional_search() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -867,7 +868,7 @@ fn test_rest_in_peace_etb_exiles_graveyards() {
     // Cast Rest in Peace.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: rip_id,
             targets: vec![],
@@ -883,7 +884,7 @@ fn test_rest_in_peace_etb_exiles_graveyards() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("casting Rest in Peace failed");
 

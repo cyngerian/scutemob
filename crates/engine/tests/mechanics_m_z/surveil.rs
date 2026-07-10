@@ -13,6 +13,7 @@
 //! - "Whenever you surveil" triggers fire via TriggerEvent::ControllerSurveils (CR 701.25d).
 //! - Surveil 0 does NOT fire "whenever you surveil" triggers (CR 701.25c).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::CardType;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, Command, CounterType,
@@ -186,7 +187,7 @@ fn test_surveil_basic_cards_go_to_graveyard() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -202,7 +203,7 @@ fn test_surveil_basic_cards_go_to_graveyard() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -289,7 +290,7 @@ fn test_surveil_zero_no_event() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -305,7 +306,7 @@ fn test_surveil_zero_no_event() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -386,7 +387,7 @@ fn test_surveil_empty_library_still_emits_event() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -402,7 +403,7 @@ fn test_surveil_empty_library_still_emits_event() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -471,7 +472,7 @@ fn test_surveil_library_fewer_than_n() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -487,7 +488,7 @@ fn test_surveil_library_fewer_than_n() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -578,7 +579,7 @@ fn test_surveil_then_draw_sequence() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -594,7 +595,7 @@ fn test_surveil_then_draw_sequence() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -718,7 +719,7 @@ fn test_whenever_you_surveil_trigger() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -734,7 +735,7 @@ fn test_whenever_you_surveil_trigger() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -831,7 +832,7 @@ fn test_surveil_zero_does_not_fire_trigger() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -847,7 +848,7 @@ fn test_surveil_zero_does_not_fire_trigger() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 

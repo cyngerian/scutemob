@@ -23,6 +23,7 @@
 //!   (E) Independence: a creature that already has Mutant (printed) gains the
 //!       counters but the subtype set is unaffected (idempotent OrdSet insert).
 
+use mtg_engine::rules::command::CastSpellData;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -108,7 +109,7 @@ fn cast_creature(
     state.turn_mut().priority_holder = Some(caster);
     process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: caster,
             card,
             targets: vec![],
@@ -124,7 +125,7 @@ fn cast_creature(
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e))
 }

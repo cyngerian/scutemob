@@ -15,6 +15,7 @@
 //! keyword.
 
 use mtg_engine::effects::{execute_effect, EffectContext};
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::CardType;
 use mtg_engine::{
     enrich_spec_from_def, process_command, CardDefinition, CardId, CardRegistry, Command, Effect,
@@ -126,7 +127,7 @@ fn resolve_stack(mut state: GameState, players: &[PlayerId]) -> GameState {
 }
 
 fn empty_cast_spell(player: PlayerId, card: ObjectId) -> Command {
-    Command::CastSpell {
+    Command::CastSpell(Box::new(CastSpellData {
         player,
         card,
         targets: vec![],
@@ -142,7 +143,7 @@ fn empty_cast_spell(player: PlayerId, card: ObjectId) -> Command {
         additional_costs: vec![],
         hybrid_choices: vec![],
         phyrexian_life_payments: vec![],
-    }
+    }))
 }
 
 // ── 1. Searslicer Goblin — Raid, CR 508.1 ───────────────────────────────────────

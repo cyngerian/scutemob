@@ -14,6 +14,7 @@
 //! - CR 701.58a/b: Cloak -- like Manifest but with ward {2} while face-down.
 
 use mtg_engine::cards::card_definition::{EffectAmount, PlayerTarget};
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::types::AltCostKind;
 use mtg_engine::{
     calculate_characteristics, process_command, AbilityDefinition, CardDefinition, CardId,
@@ -375,7 +376,7 @@ fn test_morph_cast_face_down_basic() {
     // Cast face-down via morph.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -391,7 +392,7 @@ fn test_morph_cast_face_down_basic() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("Morph cast failed: {:?}", e));
 
@@ -588,7 +589,7 @@ fn test_morph_face_down_no_etb() {
     // Cast face-down via morph.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -604,7 +605,7 @@ fn test_morph_face_down_no_etb() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("Morph cast failed: {:?}", e));
 
@@ -1198,7 +1199,7 @@ fn test_morph_cast_face_down_is_creature_spell() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -1214,7 +1215,7 @@ fn test_morph_cast_face_down_is_creature_spell() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("Morph cast failed: {:?}", e));
 

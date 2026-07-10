@@ -36,9 +36,9 @@ fn emblem_pw_def(
             ..Default::default()
         }),
         types: TypeLine {
-            supertypes: im::ordset![SuperType::Legendary],
-            card_types: im::ordset![CardType::Planeswalker],
-            subtypes: im::OrdSet::new(),
+            supertypes: imbl::ordset![SuperType::Legendary],
+            card_types: imbl::ordset![CardType::Planeswalker],
+            subtypes: imbl::OrdSet::new(),
         },
         oracle_text: String::new(),
         abilities: vec![
@@ -436,7 +436,7 @@ fn test_multiple_emblems_stack() {
     };
 
     let second_emblem = mtg_engine::state::game_object::GameObject {
-        triggered_abilities_fired_this_turn: im::OrdSet::new(),
+        triggered_abilities_fired_this_turn: imbl::OrdSet::new(),
         id: mtg_engine::ObjectId(0), // replaced by add_object
         card_id: None,
         characteristics: second_chars,
@@ -444,8 +444,8 @@ fn test_multiple_emblems_stack() {
         owner: p1(),
         zone: ZoneId::Command(p1()),
         status: ObjectStatus::default(),
-        counters: im::OrdMap::new(),
-        attachments: im::Vector::new(),
+        counters: imbl::OrdMap::new(),
+        attachments: imbl::Vector::new(),
         attached_to: None,
         damage_marked: 0,
         deathtouch_damage: false,
@@ -453,7 +453,7 @@ fn test_multiple_emblems_stack() {
         is_emblem: true,
         timestamp: 0,
         has_summoning_sickness: false,
-        goaded_by: im::Vector::new(),
+        goaded_by: imbl::Vector::new(),
         kicker_times_paid: 0,
         cast_alt_cost: None,
         foretold_turn: 0,
@@ -485,15 +485,15 @@ fn test_multiple_emblems_stack() {
         offspring_paid: false,
         gift_was_given: false,
         gift_opponent: None,
-        encoded_cards: im::Vector::new(),
+        encoded_cards: imbl::Vector::new(),
         haunting_target: None,
-        merged_components: im::Vector::new(),
+        merged_components: imbl::Vector::new(),
         is_transformed: false,
         last_transform_timestamp: 0,
         was_cast_disturbed: false,
         was_cast: false,
         abilities_activated_this_turn: 0,
-        craft_exiled_cards: im::Vector::new(),
+        craft_exiled_cards: imbl::Vector::new(),
         chosen_creature_type: None,
         chosen_color: None,
         face_down_as: None,

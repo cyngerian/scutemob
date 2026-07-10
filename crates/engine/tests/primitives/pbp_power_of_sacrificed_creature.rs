@@ -15,6 +15,7 @@
 //! - CR 613.1: Layer 7b (P/T-modifying effects, e.g. anthems) applies while the object
 //!   is on the battlefield. Graveyard objects do not benefit from Layer 7b effects.
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     process_command, CardId, CardRegistry, Command, ContinuousEffect, EffectAmount, EffectDuration,
     EffectFilter, EffectId, EffectLayer, GameEvent, GameState, GameStateBuilder, LayerModification,
@@ -408,7 +409,7 @@ fn test_lifes_legacy_draws_by_sacrificed_power_on_resolve() {
     // The harness caller passes lki_powers: vec![] — the engine fills in the captured value.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: legacy_id,
             targets: vec![],
@@ -427,7 +428,7 @@ fn test_lifes_legacy_draws_by_sacrificed_power_on_resolve() {
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
             face_down_kind: None,
-        },
+        })),
     )
     .expect("Cast Life's Legacy should succeed");
 
@@ -894,7 +895,7 @@ fn test_backward_compat_existing_powerof_cards_still_work() {
     // Cast Swords to Plowshares targeting P2's 5/5 creature.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: swords_id,
             targets: vec![mtg_engine::Target::Object(victim_id)],
@@ -910,7 +911,7 @@ fn test_backward_compat_existing_powerof_cards_still_work() {
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
             face_down_kind: None,
-        },
+        })),
     )
     .expect("Swords to Plowshares cast should succeed");
 
@@ -1130,7 +1131,7 @@ fn test_lifes_legacy_with_zero_power_creature_draws_zero() {
     // Cast Life's Legacy sacrificing the 0-power Wall.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: legacy_id,
             targets: vec![],
@@ -1149,7 +1150,7 @@ fn test_lifes_legacy_with_zero_power_creature_draws_zero() {
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
             face_down_kind: None,
-        },
+        })),
     )
     .expect("Cast Life's Legacy should succeed");
 

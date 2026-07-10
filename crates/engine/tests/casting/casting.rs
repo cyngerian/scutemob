@@ -3,6 +3,7 @@
 //! M3-B: CastSpell command — casting windows, stack placement, priority reset.
 //! Cost payment and target validation are deferred to M3-D.
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::rules::{process_command, Command, GameEvent};
 use mtg_engine::state::turn::Step;
 use mtg_engine::state::zone::ZoneId;
@@ -45,7 +46,7 @@ fn test_cast_spell_sorcery_speed_happy_path() {
 
     let (new_state, events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -61,7 +62,7 @@ fn test_cast_spell_sorcery_speed_happy_path() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -114,7 +115,7 @@ fn test_cast_spell_sorcery_postcombat_main_ok() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -130,7 +131,7 @@ fn test_cast_spell_sorcery_postcombat_main_ok() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(result.is_ok());
 }
@@ -170,7 +171,7 @@ fn test_cast_spell_instant_during_opponents_upkeep() {
 
     let (new_state, events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: card_id,
             targets: vec![],
@@ -186,7 +187,7 @@ fn test_cast_spell_instant_during_opponents_upkeep() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -225,7 +226,7 @@ fn test_cast_spell_flash_at_instant_speed() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -241,7 +242,7 @@ fn test_cast_spell_flash_at_instant_speed() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_ok(),
@@ -283,7 +284,7 @@ fn test_cast_spell_lifo_stack_order() {
     let first_card = hand_ids[0];
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: first_card,
             targets: vec![],
@@ -299,7 +300,7 @@ fn test_cast_spell_lifo_stack_order() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -314,7 +315,7 @@ fn test_cast_spell_lifo_stack_order() {
     let second_card = hand_ids[0];
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: second_card,
             targets: vec![],
@@ -330,7 +331,7 @@ fn test_cast_spell_lifo_stack_order() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -371,7 +372,7 @@ fn test_cast_spell_not_priority_holder_fails() {
     // p2 does not have priority (p1 does).
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: card_id,
             targets: vec![],
@@ -387,7 +388,7 @@ fn test_cast_spell_not_priority_holder_fails() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(matches!(
         result,
@@ -423,7 +424,7 @@ fn test_cast_spell_sorcery_during_opponents_turn_fails() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: card_id,
             targets: vec![],
@@ -439,7 +440,7 @@ fn test_cast_spell_sorcery_during_opponents_turn_fails() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
 }
@@ -469,7 +470,7 @@ fn test_cast_spell_sorcery_in_upkeep_fails() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -485,7 +486,7 @@ fn test_cast_spell_sorcery_in_upkeep_fails() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(matches!(result, Err(GameStateError::NotMainPhase)));
 }
@@ -532,7 +533,7 @@ fn test_cast_spell_sorcery_with_nonempty_stack_fails() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: instant_id,
             targets: vec![],
@@ -548,7 +549,7 @@ fn test_cast_spell_sorcery_with_nonempty_stack_fails() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -562,7 +563,7 @@ fn test_cast_spell_sorcery_with_nonempty_stack_fails() {
         .unwrap();
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: sorcery_id,
             targets: vec![],
@@ -578,7 +579,7 @@ fn test_cast_spell_sorcery_with_nonempty_stack_fails() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(matches!(result, Err(GameStateError::StackNotEmpty)));
 }
@@ -606,7 +607,7 @@ fn test_cast_spell_land_fails() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -622,7 +623,7 @@ fn test_cast_spell_land_fails() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
 }
@@ -653,7 +654,7 @@ fn test_cast_spell_card_not_in_hand_fails() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -669,7 +670,7 @@ fn test_cast_spell_card_not_in_hand_fails() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
 }
@@ -704,7 +705,7 @@ fn test_cast_spell_priority_resets_to_active_player() {
 
     let (new_state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: card_id,
             targets: vec![],
@@ -720,7 +721,7 @@ fn test_cast_spell_priority_resets_to_active_player() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 

@@ -27,7 +27,7 @@ use crate::state::types::{
 };
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
-use im::OrdSet;
+use imbl::OrdSet;
 /// CR 608.1: Resolve the top object on the stack.
 ///
 /// Called when all players pass priority in succession with a non-empty stack.
@@ -1027,7 +1027,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     if !amplify_instances.is_empty() {
                         // Resolve the entering creature's subtypes via the layer system
                         // (respects Changeling / CDAs in all zones -- CR 604.3).
-                        let entering_subtypes: im::OrdSet<SubType> =
+                        let entering_subtypes: imbl::OrdSet<SubType> =
                             crate::rules::layers::calculate_characteristics(state, new_id)
                                 .map(|c| c.subtypes)
                                 .unwrap_or_default();
@@ -4167,7 +4167,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                     .or(o.characteristics.power);
                             (o.owner, o.counters.clone(), lki_power)
                         })
-                        .unwrap_or((controller, im::OrdMap::new(), None));
+                        .unwrap_or((controller, imbl::OrdMap::new(), None));
                     if let Some((new_exile_id, _old)) =
                         state.expect_move_object_to_zone(target_id, ZoneId::Exile)
                     {
@@ -4589,7 +4589,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // CR 111.10: Tokens enter the battlefield as the stated kind of object.
                     // CR 707.2: Copy uses copiable values of the source creature.
                     let token_obj = crate::state::game_object::GameObject {
-                        triggered_abilities_fired_this_turn: im::OrdSet::new(),
+                        triggered_abilities_fired_this_turn: imbl::OrdSet::new(),
                         id: crate::state::game_object::ObjectId(0), // replaced by add_object
                         card_id: None,
                         characteristics: state
@@ -4604,8 +4604,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             // CR 302.6: Tokens have summoning sickness (enter normally).
                             ..crate::state::game_object::ObjectStatus::default()
                         },
-                        counters: im::OrdMap::new(),
-                        attachments: im::Vector::new(),
+                        counters: imbl::OrdMap::new(),
+                        attachments: imbl::Vector::new(),
                         attached_to: None,
                         damage_marked: 0,
                         deathtouch_damage: false,
@@ -4614,7 +4614,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         timestamp: 0, // replaced by add_object
                         has_summoning_sickness: true,
                         entered_turn: Some(state.turn.turn_number),
-                        goaded_by: im::Vector::new(),
+                        goaded_by: imbl::Vector::new(),
                         kicker_times_paid: 0,
                         cast_alt_cost: None,
                         foretold_turn: 0,
@@ -4651,18 +4651,18 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         champion_exiled_card: None,
                         gift_opponent: None,
                         // CR 702.171b: tokens are not saddled by default.
-                        encoded_cards: im::Vector::new(),
+                        encoded_cards: imbl::Vector::new(),
                         haunting_target: None,
                         // CR 702.151b: tokens are not reconfigured by default.
                         // CR 729.2: tokens are not part of a merged permanent by default.
-                        merged_components: im::Vector::new(),
+                        merged_components: imbl::Vector::new(),
                         // CR 712.8a: DFC state is reset for all new permanents.
                         is_transformed: false,
                         last_transform_timestamp: 0,
                         was_cast_disturbed: false,
                         was_cast: false,
                         abilities_activated_this_turn: 0,
-                        craft_exiled_cards: im::Vector::new(),
+                        craft_exiled_cards: imbl::Vector::new(),
                         chosen_creature_type: None,
                         chosen_color: None,
                         face_down_as: None,
@@ -4774,7 +4774,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             // Build minimal characteristics from the card definition.
                             // Keywords from def.abilities (keyword entries only)
                             let mut keywords =
-                                im::OrdSet::<crate::state::types::KeywordAbility>::new();
+                                imbl::OrdSet::<crate::state::types::KeywordAbility>::new();
                             for ability in &def.abilities {
                                 if let crate::cards::card_definition::AbilityDefinition::Keyword(
                                     kw,
@@ -4805,7 +4805,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             events.extend(repl_events);
             for _ in 0..token_count {
                 let token_obj = crate::state::game_object::GameObject {
-                    triggered_abilities_fired_this_turn: im::OrdSet::new(),
+                    triggered_abilities_fired_this_turn: imbl::OrdSet::new(),
                     id: crate::state::game_object::ObjectId(0), // replaced by add_object
                     card_id: None,
                     characteristics: source_characteristics.clone(),
@@ -4816,8 +4816,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         // CR 302.6: Tokens have summoning sickness (enter normally).
                         ..crate::state::game_object::ObjectStatus::default()
                     },
-                    counters: im::OrdMap::new(),
-                    attachments: im::Vector::new(),
+                    counters: imbl::OrdMap::new(),
+                    attachments: imbl::Vector::new(),
                     attached_to: None,
                     damage_marked: 0,
                     deathtouch_damage: false,
@@ -4826,7 +4826,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     timestamp: 0, // replaced by add_object
                     has_summoning_sickness: true,
                     entered_turn: Some(state.turn.turn_number),
-                    goaded_by: im::Vector::new(),
+                    goaded_by: imbl::Vector::new(),
                     kicker_times_paid: 0,
                     cast_alt_cost: None,
                     foretold_turn: 0,
@@ -4863,18 +4863,18 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     champion_exiled_card: None,
                     gift_opponent: None,
                     // CR 702.171b: tokens are not saddled by default.
-                    encoded_cards: im::Vector::new(),
+                    encoded_cards: imbl::Vector::new(),
                     haunting_target: None,
                     // CR 702.151b: tokens are not reconfigured by default.
                     // CR 729.2: tokens are not part of a merged permanent by default.
-                    merged_components: im::Vector::new(),
+                    merged_components: imbl::Vector::new(),
                     // CR 712.8a: DFC state is reset for all new permanents.
                     is_transformed: false,
                     last_transform_timestamp: 0,
                     was_cast_disturbed: false,
                     was_cast: false,
                     abilities_activated_this_turn: 0,
-                    craft_exiled_cards: im::Vector::new(),
+                    craft_exiled_cards: imbl::Vector::new(),
                     chosen_creature_type: None,
                     chosen_color: None,
                     face_down_as: None,
@@ -5110,7 +5110,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     ps.spells_cast_this_game_turn = ps.spells_cast_this_game_turn.saturating_add(1);
                 }
                 // CR 116.3b: Casting a spell resets priority (all players must pass again).
-                state.turn.players_passed = im::OrdSet::new();
+                state.turn.players_passed = imbl::OrdSet::new();
                 let active = state.turn.active_player;
                 state.turn.priority_holder = Some(active);
                 events.push(GameEvent::SpellCast {
@@ -5365,7 +5365,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 }
                 // If a keyword is granted, register Layer 6 effect (UntilEndOfTurn).
                 if let Some(keyword) = grants_keyword {
-                    let kw_set: im::OrdSet<crate::state::types::KeywordAbility> =
+                    let kw_set: imbl::OrdSet<crate::state::types::KeywordAbility> =
                         std::iter::once(keyword).collect();
                     let ts_kw = state.timestamp_counter;
                     state.timestamp_counter += 1;
@@ -5438,7 +5438,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer,
                         LayerModification,
                     };
-                    let kw_set: im::OrdSet<KeywordAbility> =
+                    let kw_set: imbl::OrdSet<KeywordAbility> =
                         abilities_to_grant.into_iter().collect();
                     let ts = state.timestamp_counter;
                     state.timestamp_counter += 1;
@@ -5518,7 +5518,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // CR 111.10: Tokens enter the battlefield as the stated kind of object.
                     // CR 707.2: Copy uses copiable values of the source creature.
                     let token_obj = crate::state::game_object::GameObject {
-                        triggered_abilities_fired_this_turn: im::OrdSet::new(),
+                        triggered_abilities_fired_this_turn: imbl::OrdSet::new(),
                         id: crate::state::game_object::ObjectId(0), // replaced by add_object
                         card_id: None,
                         characteristics: state
@@ -5534,8 +5534,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             tapped: true,
                             ..crate::state::game_object::ObjectStatus::default()
                         },
-                        counters: im::OrdMap::new(),
-                        attachments: im::Vector::new(),
+                        counters: imbl::OrdMap::new(),
+                        attachments: imbl::Vector::new(),
                         attached_to: None,
                         damage_marked: 0,
                         deathtouch_damage: false,
@@ -5546,7 +5546,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         // so sickness does not prevent combat participation this turn.
                         has_summoning_sickness: true,
                         entered_turn: Some(state.turn.turn_number),
-                        goaded_by: im::Vector::new(),
+                        goaded_by: imbl::Vector::new(),
                         kicker_times_paid: 0,
                         cast_alt_cost: None,
                         foretold_turn: 0,
@@ -5586,18 +5586,18 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         champion_exiled_card: None,
                         gift_opponent: None,
                         // CR 702.171b: tokens are not saddled by default.
-                        encoded_cards: im::Vector::new(),
+                        encoded_cards: imbl::Vector::new(),
                         haunting_target: None,
                         // CR 702.151b: tokens are not reconfigured by default.
                         // CR 729.2: tokens are not part of a merged permanent by default.
-                        merged_components: im::Vector::new(),
+                        merged_components: imbl::Vector::new(),
                         // CR 712.8a: DFC state is reset for all new permanents.
                         is_transformed: false,
                         last_transform_timestamp: 0,
                         was_cast_disturbed: false,
                         was_cast: false,
                         abilities_activated_this_turn: 0,
-                        craft_exiled_cards: im::Vector::new(),
+                        craft_exiled_cards: imbl::Vector::new(),
                         chosen_creature_type: None,
                         chosen_color: None,
                         face_down_as: None,
@@ -5772,7 +5772,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         state.stack_objects.push_back(suspend_stack_obj);
                         // CR 116.3b: Casting a spell resets priority. All players must
                         // pass again before the newly-cast suspend spell resolves.
-                        state.turn.players_passed = im::OrdSet::new();
+                        state.turn.players_passed = imbl::OrdSet::new();
                         // CR 702.62a: suspend triggers "whenever you cast a spell".
                         if let Some(ps) = state.expect_player_mut(owner) {
                             ps.spells_cast_this_turn = ps.spells_cast_this_turn.saturating_add(1);
@@ -5919,7 +5919,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             let controller = stack_obj.controller;
             let lib_zone = ZoneId::Library(target_player);
             // Find the first card in the target player's library with the exact name.
-            // Use lowest ObjectId for determinism (im::OrdMap iteration order is
+            // Use lowest ObjectId for determinism (imbl::OrdMap iteration order is
             // by key, so iteration is already in ascending ObjectId order).
             let matching_card: Option<crate::state::game_object::ObjectId> = state
                 .objects
@@ -5989,8 +5989,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         player: controller,
                         object_id: card_id,
                         new_exile_id,
-                        pre_lba_counters: im::OrdMap::new(), // library→exile: no battlefield counters
-                        pre_lba_power: None,                 // library→exile: no battlefield power
+                        pre_lba_counters: imbl::OrdMap::new(), // library→exile: no battlefield counters
+                        pre_lba_power: None, // library→exile: no battlefield power
                     });
                 }
             }
@@ -6152,18 +6152,18 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             if let Some(def) = def_opt {
                 // Build token subtypes: copy from card definition, add Zombie.
                 // CR 702.128a: "Zombie in addition to its other types"
-                let mut subtypes: im::OrdSet<SubType> = im::OrdSet::new();
+                let mut subtypes: imbl::OrdSet<SubType> = imbl::OrdSet::new();
                 for st in &def.types.subtypes {
                     subtypes.insert(st.clone() as SubType);
                 }
                 subtypes.insert(SubType("Zombie".to_string()));
                 // Build token card types from card definition.
-                let mut card_types: im::OrdSet<CardType> = im::OrdSet::new();
+                let mut card_types: imbl::OrdSet<CardType> = imbl::OrdSet::new();
                 for ct in &def.types.card_types {
                     card_types.insert(*ct);
                 }
                 // Build token keywords from card definition's printed abilities.
-                let mut keywords: im::OrdSet<KeywordAbility> = im::OrdSet::new();
+                let mut keywords: imbl::OrdSet<KeywordAbility> = imbl::OrdSet::new();
                 for ability in &def.abilities {
                     if let crate::cards::card_definition::AbilityDefinition::Keyword(kw) = ability {
                         keywords.insert(kw.clone());
@@ -6171,7 +6171,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 }
                 // CR 702.128a: "except it's white" -- replace all colors with White.
                 // CR 707.9b: This color override becomes the copiable value.
-                let mut colors: im::OrdSet<Color> = im::OrdSet::new();
+                let mut colors: imbl::OrdSet<Color> = imbl::OrdSet::new();
                 colors.insert(Color::White);
                 // CR 702.128a: "it has no mana cost" -- mana cost is None (mana value 0).
                 // CR 707.9d: The CDA that might define color from mana cost is not copied.
@@ -6187,9 +6187,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     card_types,
                     subtypes,
                     rules_text: def.oracle_text.clone(),
-                    abilities: im::Vector::new(),
+                    abilities: imbl::Vector::new(),
                     keywords,
-                    mana_abilities: im::Vector::new(),
+                    mana_abilities: imbl::Vector::new(),
                     // TODO(embalm-review-finding-2): Non-keyword triggered/activated abilities
                     // from the card definition are not populated on runtime-created tokens.
                     // This is a pre-existing systemic gap: the builder converts AbilityDefinition
@@ -6216,7 +6216,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 events.extend(repl_events);
                 for _ in 0..token_count {
                     let token_obj = crate::state::game_object::GameObject {
-                        triggered_abilities_fired_this_turn: im::OrdSet::new(),
+                        triggered_abilities_fired_this_turn: imbl::OrdSet::new(),
                         id: crate::state::game_object::ObjectId(0), // replaced by add_object
                         card_id: source_card_id.clone(),
                         characteristics: characteristics.clone(),
@@ -6224,8 +6224,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         owner: controller,
                         zone: ZoneId::Battlefield,
                         status: crate::state::game_object::ObjectStatus::default(),
-                        counters: im::OrdMap::new(),
-                        attachments: im::Vector::new(),
+                        counters: imbl::OrdMap::new(),
+                        attachments: imbl::Vector::new(),
                         attached_to: None,
                         damage_marked: 0,
                         deathtouch_damage: false,
@@ -6235,7 +6235,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         // CR 302.6: Tokens have summoning sickness when they enter the battlefield.
                         has_summoning_sickness: true,
                         entered_turn: Some(state.turn.turn_number),
-                        goaded_by: im::Vector::new(),
+                        goaded_by: imbl::Vector::new(),
                         kicker_times_paid: 0,
                         cast_alt_cost: None,
                         foretold_turn: 0,
@@ -6273,18 +6273,18 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         champion_exiled_card: None,
                         gift_opponent: None,
                         // CR 702.171b: tokens are not saddled by default.
-                        encoded_cards: im::Vector::new(),
+                        encoded_cards: imbl::Vector::new(),
                         haunting_target: None,
                         // CR 702.151b: tokens are not reconfigured by default.
                         // CR 729.2: tokens are not part of a merged permanent by default.
-                        merged_components: im::Vector::new(),
+                        merged_components: imbl::Vector::new(),
                         // CR 712.8a: DFC state is reset for all new permanents.
                         is_transformed: false,
                         last_transform_timestamp: 0,
                         was_cast_disturbed: false,
                         was_cast: false,
                         abilities_activated_this_turn: 0,
-                        craft_exiled_cards: im::Vector::new(),
+                        craft_exiled_cards: imbl::Vector::new(),
                         chosen_creature_type: None,
                         chosen_color: None,
                         face_down_as: None,
@@ -6380,18 +6380,18 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             if let Some(def) = def_opt {
                 // Build token subtypes: copy from card definition, add Zombie.
                 // CR 702.129a: "Zombie in addition to its other types"
-                let mut subtypes: im::OrdSet<SubType> = im::OrdSet::new();
+                let mut subtypes: imbl::OrdSet<SubType> = imbl::OrdSet::new();
                 for st in &def.types.subtypes {
                     subtypes.insert(st.clone() as SubType);
                 }
                 subtypes.insert(SubType("Zombie".to_string()));
                 // Build token card types from card definition.
-                let mut card_types: im::OrdSet<CardType> = im::OrdSet::new();
+                let mut card_types: imbl::OrdSet<CardType> = imbl::OrdSet::new();
                 for ct in &def.types.card_types {
                     card_types.insert(*ct);
                 }
                 // Build token keywords from card definition's printed abilities.
-                let mut keywords: im::OrdSet<KeywordAbility> = im::OrdSet::new();
+                let mut keywords: imbl::OrdSet<KeywordAbility> = imbl::OrdSet::new();
                 for ability in &def.abilities {
                     if let crate::cards::card_definition::AbilityDefinition::Keyword(kw) = ability {
                         keywords.insert(kw.clone());
@@ -6399,7 +6399,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 }
                 // CR 702.129a: "except it's black" -- replace all colors with Black.
                 // CR 707.9b: This color override becomes the copiable value.
-                let mut colors: im::OrdSet<Color> = im::OrdSet::new();
+                let mut colors: imbl::OrdSet<Color> = imbl::OrdSet::new();
                 colors.insert(Color::Black);
                 // CR 702.129a: "it has no mana cost" -- mana cost is None (mana value 0).
                 // CR 702.129a: "it's 4/4" -- P/T overridden to 4/4.
@@ -6416,9 +6416,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     card_types,
                     subtypes,
                     rules_text: def.oracle_text.clone(),
-                    abilities: im::Vector::new(),
+                    abilities: imbl::Vector::new(),
                     keywords,
-                    mana_abilities: im::Vector::new(),
+                    mana_abilities: imbl::Vector::new(),
                     // TODO(eternalize-review-finding-1): Non-keyword triggered/activated
                     // abilities from the card definition are not populated on runtime-created
                     // tokens. This is the same gap as Embalm (ability-review-embalm.md #2).
@@ -6441,7 +6441,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 events.extend(eternalize_repl_events);
                 for _ in 0..eternalize_token_count {
                     let token_obj = crate::state::game_object::GameObject {
-                        triggered_abilities_fired_this_turn: im::OrdSet::new(),
+                        triggered_abilities_fired_this_turn: imbl::OrdSet::new(),
                         id: crate::state::game_object::ObjectId(0), // replaced by add_object
                         card_id: source_card_id.clone(),
                         characteristics: characteristics.clone(),
@@ -6449,8 +6449,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         owner: controller,
                         zone: ZoneId::Battlefield,
                         status: crate::state::game_object::ObjectStatus::default(),
-                        counters: im::OrdMap::new(),
-                        attachments: im::Vector::new(),
+                        counters: imbl::OrdMap::new(),
+                        attachments: imbl::Vector::new(),
                         attached_to: None,
                         damage_marked: 0,
                         deathtouch_damage: false,
@@ -6460,7 +6460,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         // CR 302.6: Tokens have summoning sickness when they enter the battlefield.
                         has_summoning_sickness: true,
                         entered_turn: Some(state.turn.turn_number),
-                        goaded_by: im::Vector::new(),
+                        goaded_by: imbl::Vector::new(),
                         kicker_times_paid: 0,
                         cast_alt_cost: None,
                         foretold_turn: 0,
@@ -6498,18 +6498,18 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         champion_exiled_card: None,
                         gift_opponent: None,
                         // CR 702.171b: tokens are not saddled by default.
-                        encoded_cards: im::Vector::new(),
+                        encoded_cards: imbl::Vector::new(),
                         haunting_target: None,
                         // CR 702.151b: tokens are not reconfigured by default.
                         // CR 729.2: tokens are not part of a merged permanent by default.
-                        merged_components: im::Vector::new(),
+                        merged_components: imbl::Vector::new(),
                         // CR 712.8a: DFC state is reset for all new permanents.
                         is_transformed: false,
                         last_transform_timestamp: 0,
                         was_cast_disturbed: false,
                         was_cast: false,
                         abilities_activated_this_turn: 0,
-                        craft_exiled_cards: im::Vector::new(),
+                        craft_exiled_cards: imbl::Vector::new(),
                         chosen_creature_type: None,
                         chosen_color: None,
                         face_down_as: None,
@@ -6612,7 +6612,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     .collect();
                 // Build token keywords from card definition's printed abilities.
                 // CR 702.141a: "tokens gain haste" -- add Haste to whatever the card has.
-                let mut base_keywords: im::OrdSet<KeywordAbility> = im::OrdSet::new();
+                let mut base_keywords: imbl::OrdSet<KeywordAbility> = imbl::OrdSet::new();
                 for ability in &def.abilities {
                     if let crate::cards::card_definition::AbilityDefinition::Keyword(kw) = ability {
                         base_keywords.insert(kw.clone());
@@ -6620,18 +6620,18 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 }
                 base_keywords.insert(KeywordAbility::Haste);
                 // Build token card types from card definition.
-                let mut card_types: im::OrdSet<CardType> = im::OrdSet::new();
+                let mut card_types: imbl::OrdSet<CardType> = imbl::OrdSet::new();
                 for ct in &def.types.card_types {
                     card_types.insert(*ct);
                 }
                 // Build token subtypes from card definition.
-                let mut subtypes: im::OrdSet<SubType> = im::OrdSet::new();
+                let mut subtypes: imbl::OrdSet<SubType> = imbl::OrdSet::new();
                 for st in &def.types.subtypes {
                     subtypes.insert(st.clone() as SubType);
                 }
                 // Build token colors from card definition (copies original colors).
                 // CR 707.2: copiable values include color.
-                let mut colors: im::OrdSet<Color> = im::OrdSet::new();
+                let mut colors: imbl::OrdSet<Color> = imbl::OrdSet::new();
                 if let Some(ref mc) = def.mana_cost {
                     if mc.white > 0 {
                         colors.insert(Color::White);
@@ -6668,9 +6668,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         card_types: card_types.clone(),
                         subtypes: subtypes.clone(),
                         rules_text: def.oracle_text.clone(),
-                        abilities: im::Vector::new(),
+                        abilities: imbl::Vector::new(),
                         keywords,
-                        mana_abilities: im::Vector::new(),
+                        mana_abilities: imbl::Vector::new(),
                         activated_abilities: Vec::new(),
                         triggered_abilities: Vec::new(),
                         power: def.power,
@@ -6680,7 +6680,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     };
                     for _ in 0..encore_token_count {
                         let token_obj = crate::state::game_object::GameObject {
-                            triggered_abilities_fired_this_turn: im::OrdSet::new(),
+                            triggered_abilities_fired_this_turn: imbl::OrdSet::new(),
                             id: crate::state::game_object::ObjectId(0), // replaced by add_object
                             card_id: source_card_id.clone(),
                             characteristics: characteristics.clone(),
@@ -6688,8 +6688,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             owner: controller,
                             zone: ZoneId::Battlefield,
                             status: crate::state::game_object::ObjectStatus::default(),
-                            counters: im::OrdMap::new(),
-                            attachments: im::Vector::new(),
+                            counters: imbl::OrdMap::new(),
+                            attachments: imbl::Vector::new(),
                             attached_to: None,
                             damage_marked: 0,
                             deathtouch_damage: false,
@@ -6700,7 +6700,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             // Has Haste so can attack despite summoning sickness.
                             has_summoning_sickness: true,
                             entered_turn: Some(state.turn.turn_number),
-                            goaded_by: im::Vector::new(),
+                            goaded_by: imbl::Vector::new(),
                             kicker_times_paid: 0,
                             cast_alt_cost: None,
                             foretold_turn: 0,
@@ -6739,18 +6739,18 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             champion_exiled_card: None,
                             gift_opponent: None,
                             // CR 702.171b: tokens are not saddled by default.
-                            encoded_cards: im::Vector::new(),
+                            encoded_cards: imbl::Vector::new(),
                             haunting_target: None,
                             // CR 702.151b: tokens are not reconfigured by default.
                             // CR 729.2: tokens are not part of a merged permanent by default.
-                            merged_components: im::Vector::new(),
+                            merged_components: imbl::Vector::new(),
                             // CR 712.8a: DFC state is reset for all new permanents.
                             is_transformed: false,
                             last_transform_timestamp: 0,
                             was_cast_disturbed: false,
                             was_cast: false,
                             abilities_activated_this_turn: 0,
-                            craft_exiled_cards: im::Vector::new(),
+                            craft_exiled_cards: imbl::Vector::new(),
                             chosen_creature_type: None,
                             chosen_color: None,
                             face_down_as: None,
@@ -7043,7 +7043,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     if let Some(target_obj) = state.objects.get(&target) {
                         target_obj.merged_components.clone()
                     } else {
-                        im::Vector::new()
+                        imbl::Vector::new()
                     }
                 };
                 let target_card_id = state.objects.get(&target).and_then(|o| o.card_id.clone());
@@ -7060,7 +7060,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // Step 4: Build the new merged_components vector.
                 // If the target had no components, first record the target itself as component[0].
                 // Then insert the spell component at top (index 0) or bottom (end).
-                let new_components: im::Vector<MergedComponent> =
+                let new_components: imbl::Vector<MergedComponent> =
                     if target_existing_components.is_empty() {
                         // First merge: target becomes a component, then spell is added.
                         let target_component = MergedComponent {
@@ -7070,13 +7070,13 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         };
                         if mutate_on_top {
                             // Spell on top: [spell, target]
-                            let mut v = im::Vector::new();
+                            let mut v = imbl::Vector::new();
                             v.push_back(spell_component);
                             v.push_back(target_component);
                             v
                         } else {
                             // Spell on bottom: [target, spell]
-                            let mut v = im::Vector::new();
+                            let mut v = imbl::Vector::new();
                             v.push_back(target_component);
                             v.push_back(spell_component);
                             v
@@ -7526,7 +7526,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 player: stack_obj.controller,
                                 object_id: target,
                                 new_hand_id: new_id,
-                                pre_lba_counters: im::OrdMap::new(), // exile→hand: no battlefield counters
+                                pre_lba_counters: imbl::OrdMap::new(), // exile→hand: no battlefield counters
                                 pre_lba_power: None, // exile→hand: no battlefield power
                             });
                         }
@@ -7547,7 +7547,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 player: stack_obj.controller,
                                 object_id: target,
                                 new_hand_id: new_id,
-                                pre_lba_counters: im::OrdMap::new(), // graveyard→hand: no battlefield counters
+                                pre_lba_counters: imbl::OrdMap::new(), // graveyard→hand: no battlefield counters
                                 pre_lba_power: None, // graveyard→hand: no battlefield power
                             });
                         }

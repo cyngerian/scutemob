@@ -17,6 +17,7 @@
 //! - CR 701.20a: RevealAndRoute with land filter: land → BF (untapped), non-land → hand.
 
 use mtg_engine::effects::{execute_effect, EffectContext};
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::rules::layers::calculate_characteristics;
 use mtg_engine::state::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -381,7 +382,7 @@ fn test_domain_count_dual_land() {
 
     // Register a Layer 4 continuous effect that adds all 5 basic land subtypes to "Exotic Land".
     // This simulates Dryad of the Ilysian Grove ("lands you control are every basic land type").
-    let all_basic_subtypes: im::OrdSet<SubType> = [
+    let all_basic_subtypes: imbl::OrdSet<SubType> = [
         SubType("Plains".to_string()),
         SubType("Island".to_string()),
         SubType("Swamp".to_string()),
@@ -706,7 +707,7 @@ fn test_commander_free_cast_with_commander() {
     // p1 casts for free (no mana needed).
     let (state, events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -722,7 +723,7 @@ fn test_commander_free_cast_with_commander() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("CR 118.9: Free-cast while controlling a commander should succeed");
 
@@ -769,7 +770,7 @@ fn test_commander_free_cast_without_commander() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -785,7 +786,7 @@ fn test_commander_free_cast_without_commander() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -852,7 +853,7 @@ fn test_commander_free_cast_any_commander() {
     // p1 controls p2's commander on the battlefield — should satisfy the condition.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -868,7 +869,7 @@ fn test_commander_free_cast_any_commander() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -933,7 +934,7 @@ fn test_coiling_oracle_land_to_battlefield() {
     // Cast Coiling Oracle.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: oracle_id,
             targets: vec![],
@@ -949,7 +950,7 @@ fn test_coiling_oracle_land_to_battlefield() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -1019,7 +1020,7 @@ fn test_coiling_oracle_nonland_to_hand() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: oracle_id,
             targets: vec![],
@@ -1035,7 +1036,7 @@ fn test_coiling_oracle_nonland_to_hand() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 

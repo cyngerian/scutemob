@@ -4,6 +4,7 @@
 //! keyword. Protection blocks Damage, Enchanting, Blocking, and Targeting (DEBT).
 //! Session 5 covers Targeting (T); Session 6 covers Damage (D), Enchanting (E), Blocking (B).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::CombatDamageTarget;
 use mtg_engine::{
     process_command, start_game, AttackTarget, CardType, Color, Command, GameEvent,
@@ -70,7 +71,7 @@ fn test_protection_from_red_blocks_red_spell_targeting() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: bolt_id,
             targets: vec![Target::Object(target_id)],
@@ -86,7 +87,7 @@ fn test_protection_from_red_blocks_red_spell_targeting() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -147,7 +148,7 @@ fn test_protection_from_red_allows_green_spell() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: vines_id,
             targets: vec![Target::Object(target_id)],
@@ -163,7 +164,7 @@ fn test_protection_from_red_allows_green_spell() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -234,7 +235,7 @@ fn test_protection_from_creatures_blocks_creature_ability() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: spell_id,
             targets: vec![Target::Object(target_id)],
@@ -250,7 +251,7 @@ fn test_protection_from_creatures_blocks_creature_ability() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -304,7 +305,7 @@ fn test_protection_from_all_blocks_all_targeting() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: spell_id,
             targets: vec![Target::Object(target_id)],
@@ -320,7 +321,7 @@ fn test_protection_from_all_blocks_all_targeting() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -671,7 +672,7 @@ fn test_protection_player_target_blocked_by_red_spell() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: bolt_id,
             targets: vec![Target::Player(p2)],
@@ -687,7 +688,7 @@ fn test_protection_player_target_blocked_by_red_spell() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -741,7 +742,7 @@ fn test_protection_player_target_allowed_without_protection() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: bolt_id,
             targets: vec![Target::Player(p2)],
@@ -757,7 +758,7 @@ fn test_protection_player_target_allowed_without_protection() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -878,7 +879,7 @@ fn test_protection_from_red_blocks_multicolor_red_source() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: spell_id,
             targets: vec![Target::Object(target_id)],
@@ -894,7 +895,7 @@ fn test_protection_from_red_blocks_multicolor_red_source() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -956,7 +957,7 @@ fn test_protection_from_red_allows_green_only_multicolor_source() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: spell_id,
             targets: vec![Target::Object(target_id)],
@@ -972,7 +973,7 @@ fn test_protection_from_red_allows_green_only_multicolor_source() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -1038,7 +1039,7 @@ fn test_protection_from_subtype_goblin_blocks_goblin_source() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: spell_id,
             targets: vec![Target::Object(target_id)],
@@ -1054,7 +1055,7 @@ fn test_protection_from_subtype_goblin_blocks_goblin_source() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -1121,7 +1122,7 @@ fn test_protection_from_subtype_goblin_allows_wizard_source() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: spell_id,
             targets: vec![Target::Object(target_id)],
@@ -1137,7 +1138,7 @@ fn test_protection_from_subtype_goblin_allows_wizard_source() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -1246,7 +1247,7 @@ fn test_protection_from_supertype_legendary() {
 
         process_command(
             state,
-            Command::CastSpell {
+            Command::CastSpell(Box::new(CastSpellData {
                 player: p2,
                 card: spell_id,
                 targets: vec![Target::Object(target_id)],
@@ -1262,7 +1263,7 @@ fn test_protection_from_supertype_legendary() {
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            },
+            })),
         )
         .is_err()
     }
@@ -1327,7 +1328,7 @@ fn test_protection_from_name() {
 
         process_command(
             state,
-            Command::CastSpell {
+            Command::CastSpell(Box::new(CastSpellData {
                 player: p2,
                 card: spell_id,
                 targets: vec![Target::Object(target_id)],
@@ -1343,7 +1344,7 @@ fn test_protection_from_name() {
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            },
+            })),
         )
         .is_err()
     }
@@ -1409,7 +1410,7 @@ fn test_protection_from_player_targeting() {
 
         process_command(
             state,
-            Command::CastSpell {
+            Command::CastSpell(Box::new(CastSpellData {
                 player: caster,
                 card: spell_id,
                 targets: vec![Target::Object(target_id)],
@@ -1425,7 +1426,7 @@ fn test_protection_from_player_targeting() {
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            },
+            })),
         )
         .is_err()
     }
@@ -1581,7 +1582,7 @@ fn test_protection_from_multicolor_source_damage_prevention() {
 /// SR-PRO-04 tests cover only the targeting path): an attacker with protection from
 /// Goblins cannot be blocked by a Goblin creature, but can be blocked by a Wizard.
 fn test_protection_from_subtype_goblin_prevents_blocking() {
-    let attacker_keywords: im::OrdSet<KeywordAbility> = [KeywordAbility::ProtectionFrom(
+    let attacker_keywords: imbl::OrdSet<KeywordAbility> = [KeywordAbility::ProtectionFrom(
         ProtectionQuality::FromSubType(SubType("Goblin".to_string())),
     )]
     .iter()

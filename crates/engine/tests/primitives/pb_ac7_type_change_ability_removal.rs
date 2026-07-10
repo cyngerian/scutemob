@@ -21,9 +21,10 @@
 //! 30/31, new `WheneverYouCastSpell.spell_subtype_filter` field). No new mutable
 //! runtime GameState/PlayerState/GameObject fields this batch (see hash.rs changelog).
 
-use im::OrdSet;
+use imbl::OrdSet;
 use mtg_engine::cards::card_definition::EffectAmount;
 use mtg_engine::effects::{execute_effect, EffectContext};
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     calculate_characteristics, enrich_spec_from_def, process_command, AbilityDefinition,
     CardDefinition, CardId, CardRegistry, CardType, Command, ContinuousEffect, Effect,
@@ -88,7 +89,7 @@ fn cast_spell(
 ) -> Result<(GameState, Vec<GameEvent>), mtg_engine::GameStateError> {
     process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player,
             card,
             targets,
@@ -104,7 +105,7 @@ fn cast_spell(
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
 }
 

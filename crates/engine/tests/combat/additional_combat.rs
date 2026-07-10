@@ -1,6 +1,6 @@
 //! Additional combat phase tests (CR 500.8, 500.10a, 505.1a).
 
-use im::Vector;
+use imbl::Vector;
 use mtg_engine::rules::engine::process_command;
 use mtg_engine::{
     Command, GameEvent, GameState, GameStateBuilder, ObjectSpec, Phase, PlayerId, Step, ZoneId,

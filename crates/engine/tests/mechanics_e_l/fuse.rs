@@ -13,6 +13,7 @@
 //! - Engine validation: fuse=true rejected when not casting from hand.
 //! - Engine validation: fuse cannot be combined with alternative costs.
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::types::AltCostKind;
 use mtg_engine::state::CardType;
 use mtg_engine::AdditionalCost;
@@ -202,7 +203,7 @@ fn test_fuse_basic_both_halves_execute() {
     // Cast with fuse=true, targeting p2 for the left half (3 damage).
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![Target::Player(p2)],
@@ -218,7 +219,7 @@ fn test_fuse_basic_both_halves_execute() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("fuse cast failed: {:?}", e));
 
@@ -294,7 +295,7 @@ fn test_fuse_single_half_cast() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![Target::Player(p2)],
@@ -310,7 +311,7 @@ fn test_fuse_single_half_cast() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("single-half cast failed: {:?}", e));
 
@@ -389,7 +390,7 @@ fn test_fuse_from_hand_only_rejected_from_graveyard() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![Target::Player(p2)],
@@ -405,7 +406,7 @@ fn test_fuse_from_hand_only_rejected_from_graveyard() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -459,7 +460,7 @@ fn test_fuse_no_keyword_rejected() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -475,7 +476,7 @@ fn test_fuse_no_keyword_rejected() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -544,7 +545,7 @@ fn test_fuse_combined_mana_cost_required() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![Target::Player(p2)],
@@ -560,7 +561,7 @@ fn test_fuse_combined_mana_cost_required() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -629,7 +630,7 @@ fn test_fuse_resolution_order_left_then_right() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![Target::Player(p2)],
@@ -645,7 +646,7 @@ fn test_fuse_resolution_order_left_then_right() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("fuse cast failed: {:?}", e));
 
@@ -737,7 +738,7 @@ fn test_fuse_alt_cost_rejected() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![Target::Player(p2)],
@@ -754,7 +755,7 @@ fn test_fuse_alt_cost_rejected() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(

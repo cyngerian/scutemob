@@ -14,9 +14,9 @@ fn test_pw_def() -> CardDefinition {
             ..Default::default()
         }),
         types: TypeLine {
-            supertypes: im::OrdSet::new(),
-            card_types: im::ordset![CardType::Planeswalker],
-            subtypes: im::OrdSet::new(),
+            supertypes: imbl::OrdSet::new(),
+            card_types: imbl::ordset![CardType::Planeswalker],
+            subtypes: imbl::OrdSet::new(),
         },
         oracle_text: String::new(),
         abilities: vec![
@@ -289,9 +289,9 @@ fn test_loyalty_insufficient_counters_cr606_6() {
             ..Default::default()
         }),
         types: TypeLine {
-            supertypes: im::OrdSet::new(),
-            card_types: im::ordset![CardType::Planeswalker],
-            subtypes: im::OrdSet::new(),
+            supertypes: imbl::OrdSet::new(),
+            card_types: imbl::ordset![CardType::Planeswalker],
+            subtypes: imbl::OrdSet::new(),
         },
         oracle_text: String::new(),
         abilities: vec![AbilityDefinition::LoyaltyAbility {
@@ -403,7 +403,7 @@ fn test_loyalty_needs_empty_stack_cr606_3() {
             triggering_creature_id: None,
             cast_from_top_with_bonus: false,
             sacrificed_creature_powers: vec![],
-            lki_counters: im::OrdMap::new(),
+            lki_counters: imbl::OrdMap::new(),
             lki_power: None,
         });
 

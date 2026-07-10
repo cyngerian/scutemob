@@ -14,6 +14,7 @@
 //! - Eliminated opponents are not opponents (CR 800.4a / CR 102.3).
 //! - CounterAdded event is emitted when counters are placed.
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
     CounterType, GameEvent, GameStateBuilder, KeywordAbility, ManaCost, ObjectId, ObjectSpec,
@@ -77,7 +78,7 @@ fn cast_creature(
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: caster,
             card: card_id,
             targets: vec![],
@@ -93,7 +94,7 @@ fn cast_creature(
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
     state

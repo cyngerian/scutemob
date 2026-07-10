@@ -22,6 +22,7 @@
 //! for the `spell_subtype_filter` case (Static ability at `abilities[0]` desyncing a
 //! `Triggered` ability at `abilities[1]`).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     enrich_spec_from_def, process_command, CardDefinition, CardId, CardRegistry, CardType, Command,
     GameEvent, GameState, GameStateBuilder, ObjectId, ObjectSpec, PlayerId, Step, TriggerEvent,
@@ -80,7 +81,7 @@ fn cast_spell(
 ) -> Result<(GameState, Vec<GameEvent>), mtg_engine::GameStateError> {
     process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player,
             card,
             targets: vec![],
@@ -96,7 +97,7 @@ fn cast_spell(
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
 }
 

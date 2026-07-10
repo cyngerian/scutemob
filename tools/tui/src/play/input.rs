@@ -1,6 +1,7 @@
 //! Keyboard input handling for play mode.
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::Command;
 use mtg_simulator::LegalAction;
 
@@ -91,7 +92,7 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
                         }
                     }
 
-                    let cmd = Command::CastSpell {
+                    let cmd = Command::CastSpell(Box::new(CastSpellData {
                         player: app.human_player,
                         card: *obj_id,
                         targets: Vec::new(),
@@ -107,7 +108,7 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
                         additional_costs: vec![],
                         hybrid_choices: vec![],
                         phyrexian_life_payments: vec![],
-                    };
+                    }));
                     app.execute_command(cmd)?;
                 } else {
                     let has_any_cast = legal

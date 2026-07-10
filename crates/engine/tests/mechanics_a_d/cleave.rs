@@ -13,6 +13,7 @@
 //! - Cleaved cast uses the broadened (bracket-removed) effect.
 
 use mtg_engine::cards::card_definition::{Condition, ForEachTarget, TargetFilter};
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::types::AltCostKind;
 use mtg_engine::state::CardType;
 use mtg_engine::{
@@ -250,7 +251,7 @@ fn test_702_148_cleave_basic_cast_sets_was_cleaved() {
     // Cast with cleave cost.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![mtg_engine::state::targeting::Target::Object(creature_id)],
@@ -266,7 +267,7 @@ fn test_702_148_cleave_basic_cast_sets_was_cleaved() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("Cleave CastSpell failed: {:?}", e));
 
@@ -331,7 +332,7 @@ fn test_702_148_normal_cast_does_not_set_was_cleaved() {
     // Cast normally (no alt_cost).
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![mtg_engine::state::targeting::Target::Object(creature_id)],
@@ -347,7 +348,7 @@ fn test_702_148_normal_cast_does_not_set_was_cleaved() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("Normal CastSpell failed: {:?}", e));
 
@@ -406,7 +407,7 @@ fn test_702_148_cleave_mutually_exclusive_with_other_alt_costs() {
     // Trying Overload+Cleave combination:
     let result = process_command(
         state.clone(),
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![mtg_engine::state::targeting::Target::Object(creature_id)],
@@ -425,7 +426,7 @@ fn test_702_148_cleave_mutually_exclusive_with_other_alt_costs() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -480,7 +481,7 @@ fn test_702_148_cleave_condition_routes_to_if_true_on_resolution() {
     // Cast with cleave.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![mtg_engine::state::targeting::Target::Object(creature_id)],
@@ -496,7 +497,7 @@ fn test_702_148_cleave_condition_routes_to_if_true_on_resolution() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("Cleave CastSpell failed: {:?}", e));
 
@@ -557,7 +558,7 @@ fn test_702_148_normal_cast_routes_to_if_false_on_resolution() {
     // Cast normally.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![mtg_engine::state::targeting::Target::Object(creature_id)],
@@ -573,7 +574,7 @@ fn test_702_148_normal_cast_routes_to_if_false_on_resolution() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("Normal CastSpell failed: {:?}", e));
 
@@ -641,7 +642,7 @@ fn test_702_148_cleave_on_non_cleave_card_fails() {
     // Attempt to cast Bear Token (no Cleave) with Cleave alt cost -- must fail.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![mtg_engine::state::targeting::Target::Object(creature_id)],
@@ -657,7 +658,7 @@ fn test_702_148_cleave_on_non_cleave_card_fails() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -725,7 +726,7 @@ fn test_702_148_boardwipe_cleave_destroys_all_creatures() {
     // Cast with cleave (no targets -- board wipe).
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -741,7 +742,7 @@ fn test_702_148_boardwipe_cleave_destroys_all_creatures() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("Cleave board-wipe CastSpell failed: {:?}", e));
 
@@ -825,7 +826,7 @@ fn test_702_148_boardwipe_normal_cast_routes_to_if_false_no_destruction() {
     // Cast normally (no alt_cost — pays {1}{B}{B}).
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -841,7 +842,7 @@ fn test_702_148_boardwipe_normal_cast_routes_to_if_false_no_destruction() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("Normal board-wipe CastSpell failed: {:?}", e));
 

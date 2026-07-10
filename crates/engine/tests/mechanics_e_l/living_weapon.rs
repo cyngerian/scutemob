@@ -12,6 +12,7 @@
 //! - Equipment can re-equip to another creature; Germ dies to SBA when unequipped (0/0).
 //! - Multiplayer: trigger fires exactly once per Equipment entered (CR 603.3).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::{ActivatedAbility, ActivationCost};
 use mtg_engine::{
     calculate_characteristics, process_command, AbilityDefinition, CardDefinition, CardId,
@@ -142,7 +143,7 @@ fn cast_and_enter_battlefield(
     // Cast the spell.
     let (state, cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: caster,
             card: card_id,
             targets: vec![],
@@ -158,7 +159,7 @@ fn cast_and_enter_battlefield(
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
 

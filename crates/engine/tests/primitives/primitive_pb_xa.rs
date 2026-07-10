@@ -69,14 +69,14 @@ fn combat_with_attacker(attacking_player: PlayerId, attacker_id: ObjectId) -> Co
         attackers: [(attacker_id, AttackTarget::Player(p(2)))]
             .into_iter()
             .collect(),
-        blockers: im::OrdMap::new(),
-        damage_assignment_order: im::OrdMap::new(),
-        first_strike_participants: im::OrdSet::new(),
-        defenders_declared: im::OrdSet::new(),
-        forced_blocks: im::OrdMap::new(),
+        blockers: imbl::OrdMap::new(),
+        damage_assignment_order: imbl::OrdMap::new(),
+        first_strike_participants: imbl::OrdSet::new(),
+        defenders_declared: imbl::OrdSet::new(),
+        forced_blocks: imbl::OrdMap::new(),
         enlist_pairings: Vec::new(),
-        blocked_attackers: im::OrdSet::new(),
-        exerted_attackers: im::OrdSet::new(),
+        blocked_attackers: imbl::OrdSet::new(),
+        exerted_attackers: imbl::OrdSet::new(),
     }
 }
 
@@ -128,7 +128,7 @@ fn attacking_creature_target_ability(name: &str) -> CardDefinition {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Creature],
+            card_types: imbl::ordset![CardType::Creature],
             ..Default::default()
         },
         power: Some(2),
@@ -275,7 +275,7 @@ fn attacking_permanent_target_ability(name: &str) -> CardDefinition {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Creature],
+            card_types: imbl::ordset![CardType::Creature],
             ..Default::default()
         },
         power: Some(1),
@@ -421,7 +421,7 @@ fn test_pbxa_graveyard_target_with_is_attacking_always_rejected() {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Creature],
+            card_types: imbl::ordset![CardType::Creature],
             ..Default::default()
         },
         power: Some(1),
@@ -553,7 +553,7 @@ fn test_pbxa_trigger_picker_selects_attacking_creature_positive() {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Creature],
+            card_types: imbl::ordset![CardType::Creature],
             ..Default::default()
         },
         power: Some(1),
@@ -710,7 +710,7 @@ fn test_pbxa_trigger_picker_skipped_when_no_attacker() {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Creature],
+            card_types: imbl::ordset![CardType::Creature],
             ..Default::default()
         },
         power: Some(1),
@@ -821,7 +821,7 @@ fn test_pbxa_matches_filter_ignores_is_attacking_by_design() {
 
     let chars = Characteristics {
         name: "Test Creature".to_string(),
-        card_types: im::ordset![CardType::Creature],
+        card_types: imbl::ordset![CardType::Creature],
         ..Characteristics::default()
     };
     let f_no_attacking = TargetFilter::default();

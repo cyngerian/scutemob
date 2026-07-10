@@ -21,6 +21,7 @@
 use mtg_engine::cards::card_definition::{
     CastFromGraveyardAdditionalCost, EffectAmount, PlayerTarget,
 };
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::stubs::PlayFromGraveyardPermission;
 use mtg_engine::state::test_util;
 use mtg_engine::{
@@ -43,7 +44,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 }
 
 fn cast_spell(player: PlayerId, card: ObjectId, alt_cost: Option<AltCostKind>) -> Command {
-    Command::CastSpell {
+    Command::CastSpell(Box::new(CastSpellData {
         player,
         card,
         targets: vec![],
@@ -59,7 +60,7 @@ fn cast_spell(player: PlayerId, card: ObjectId, alt_cost: Option<AltCostKind>) -
         phyrexian_life_payments: vec![],
         face_down_kind: None,
         additional_costs: vec![],
-    }
+    }))
 }
 
 fn play_land(player: PlayerId, card: ObjectId) -> Command {
@@ -798,7 +799,7 @@ fn test_cast_self_from_graveyard_brokkos_requires_mutate() {
 
     // Attempt WITH mutate alt cost + mutate target additional cost — should succeed.
     let target_id = find_object(&state, "Mutate Target");
-    let cmd_mutate = Command::CastSpell {
+    let cmd_mutate = Command::CastSpell(Box::new(CastSpellData {
         player: p1,
         card: brokkos_id,
         targets: vec![],
@@ -817,7 +818,7 @@ fn test_cast_self_from_graveyard_brokkos_requires_mutate() {
             target: target_id,
             on_top: true,
         }],
-    };
+    }));
     let result_with_mutate = process_command(state, cmd_mutate);
     assert!(
         result_with_mutate.is_ok(),

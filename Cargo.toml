@@ -17,3 +17,13 @@ members = [
 [workspace.package]
 edition = "2021"
 license = "MIT"
+
+# Lint policy, source-encoded rather than CI-flag-only (SR-10).
+# Mirrors CI's `cargo clippy --all-targets -- -D warnings`: the `warnings`
+# group promotes every warn-level rustc *and* clippy diagnostic to an error,
+# so a plain `cargo build`/`cargo clippy` now enforces the same bar without the
+# extra flag. Each workspace member opts in with `[lints] workspace = true`.
+# (Toolchain float — new lints in a newer stable reddening with no code change —
+# is handled separately by pinning the toolchain in SR-11 / scutemob-63.)
+[workspace.lints.rust]
+warnings = "deny"

@@ -17,6 +17,7 @@
 //! - Kicker cost is added before convoke/delve reduction (CR 601.2f).
 //! - Insufficient mana for kicker cost is rejected (CR 601.2f-h).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     all_cards, process_command, CardId, CardRegistry, CardType, Command, GameEvent, GameState,
     GameStateBuilder, KeywordAbility, ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerId, Step,
@@ -117,7 +118,7 @@ fn test_kicker_basic_cast_with_kicker() {
     // Cast Burst Lightning with kicker.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![mtg_engine::Target::Player(p2)],
@@ -133,7 +134,7 @@ fn test_kicker_basic_cast_with_kicker() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell with kicker failed: {:?}", e));
 
@@ -227,7 +228,7 @@ fn test_kicker_basic_cast_without_kicker() {
     // Cast Burst Lightning WITHOUT kicker (kicker_times: 0).
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![mtg_engine::Target::Player(p2)],
@@ -243,7 +244,7 @@ fn test_kicker_basic_cast_without_kicker() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell without kicker failed: {:?}", e));
 
@@ -321,7 +322,7 @@ fn test_kicker_insufficient_mana_with_kicker() {
     // Attempt to kick with insufficient mana — should fail.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![mtg_engine::Target::Player(p2)],
@@ -337,7 +338,7 @@ fn test_kicker_insufficient_mana_with_kicker() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -392,7 +393,7 @@ fn test_kicker_non_kicker_spell_rejected() {
     // Try to kick a non-kicker spell — should be rejected.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![mtg_engine::Target::Player(p2)],
@@ -408,7 +409,7 @@ fn test_kicker_non_kicker_spell_rejected() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -467,7 +468,7 @@ fn test_kicker_standard_kicker_rejects_multiple() {
     // Try to kick twice on a standard (non-multikicker) spell — should fail.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![mtg_engine::Target::Player(p2)],
@@ -483,7 +484,7 @@ fn test_kicker_standard_kicker_rejects_multiple() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -550,7 +551,7 @@ fn test_kicker_permanent_etb_kicked() {
     // Cast Torch Slinger with kicker.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -566,7 +567,7 @@ fn test_kicker_permanent_etb_kicked() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell Torch Slinger kicked failed: {:?}", e));
 
@@ -647,7 +648,7 @@ fn test_kicker_permanent_etb_not_kicked() {
     // Cast without kicker.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -663,7 +664,7 @@ fn test_kicker_permanent_etb_not_kicked() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell Torch Slinger not kicked failed: {:?}", e));
 
@@ -735,7 +736,7 @@ fn test_kicker_does_not_change_mana_value() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![mtg_engine::Target::Player(p2)],
@@ -751,7 +752,7 @@ fn test_kicker_does_not_change_mana_value() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell Burst Lightning kicked failed: {:?}", e));
 
@@ -867,7 +868,7 @@ fn test_kicker_with_commander_tax() {
     // Cast from command zone with kicker.
     let (state, events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: cmd_obj_id,
             targets: vec![],
@@ -883,7 +884,7 @@ fn test_kicker_with_commander_tax() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("Commander + kicker cast failed: {:?}", e));
 
@@ -982,7 +983,7 @@ fn test_kicker_spell_cast_event_emitted() {
 
     let (_state, events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![mtg_engine::Target::Player(p2)],
@@ -998,7 +999,7 @@ fn test_kicker_spell_cast_event_emitted() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell kicked failed: {:?}", e));
 

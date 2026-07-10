@@ -12,6 +12,7 @@
 //! - Engine validation: escalate_modes ≥ modes.len() is clamped at resolution.
 
 use mtg_engine::cards::card_definition::EffectTarget;
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::CardType;
 use mtg_engine::AdditionalCost;
 use mtg_engine::Effect;
@@ -229,7 +230,7 @@ fn test_escalate_single_mode_no_extra_cost() {
     // Cast with escalate_modes = 0 (no extra modes).
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -245,7 +246,7 @@ fn test_escalate_single_mode_no_extra_cost() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("cast with escalate_modes=0 failed: {:?}", e));
 
@@ -326,7 +327,7 @@ fn test_escalate_two_modes_one_extra_cost() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -342,7 +343,7 @@ fn test_escalate_two_modes_one_extra_cost() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("cast with escalate_modes=1 failed: {:?}", e));
 
@@ -418,7 +419,7 @@ fn test_escalate_all_three_modes() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -434,7 +435,7 @@ fn test_escalate_all_three_modes() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("cast with escalate_modes=2 failed: {:?}", e));
 
@@ -523,7 +524,7 @@ fn test_escalate_insufficient_mana_rejected() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -539,7 +540,7 @@ fn test_escalate_insufficient_mana_rejected() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_err(),
@@ -587,7 +588,7 @@ fn test_escalate_no_keyword_rejected() {
     // Attempt escalate on a spell without the keyword — should fail.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -603,7 +604,7 @@ fn test_escalate_no_keyword_rejected() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_err(),
@@ -648,7 +649,7 @@ fn test_escalate_modes_paid_on_stack() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -664,7 +665,7 @@ fn test_escalate_modes_paid_on_stack() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
 
@@ -734,7 +735,7 @@ fn test_escalate_modes_exceed_available_clamped() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -750,7 +751,7 @@ fn test_escalate_modes_exceed_available_clamped() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("cast with escalate_modes=5 failed: {:?}", e));
 
@@ -815,7 +816,7 @@ fn test_escalate_modes_execute_in_printed_order() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -831,7 +832,7 @@ fn test_escalate_modes_execute_in_printed_order() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
 
@@ -938,7 +939,7 @@ fn test_escalate_rejected_on_non_modal_spell() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -954,7 +955,7 @@ fn test_escalate_rejected_on_non_modal_spell() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(

@@ -15,6 +15,7 @@
 use mtg_engine::cards::card_definition::{
     CardDefinition, EffectAmount, PlayerTarget, TargetFilter,
 };
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     process_command, AbilityDefinition, CardId, CardRegistry, CardType, Command, Effect,
     GameStateBuilder, ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerId, Step, TypeLine, ZoneId,
@@ -104,7 +105,7 @@ fn cast_test_sorcery(
     state.turn_mut().priority_holder = Some(p1);
     process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -120,7 +121,7 @@ fn cast_test_sorcery(
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e))
 }

@@ -1,6 +1,6 @@
 //! Turn structure types: phases, steps, and turn state (CR 500-514).
 use super::player::PlayerId;
-use im::{OrdSet, Vector};
+use imbl::{OrdSet, Vector};
 use serde::{Deserialize, Serialize};
 /// Game phases (CR 500.1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]

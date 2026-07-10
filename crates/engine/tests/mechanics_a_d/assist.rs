@@ -26,6 +26,7 @@
 //! - `assist_amount: 0` with a chosen player is a no-op.
 //! - Spell without Assist keyword cannot use assist.
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::AdditionalCost;
 use mtg_engine::{
     process_command, CardId, CardType, Command, GameState, GameStateBuilder, KeywordAbility,
@@ -138,7 +139,7 @@ fn test_assist_basic_another_player_pays_generic() {
 
     let (state, _events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -157,7 +158,7 @@ fn test_assist_basic_another_player_pays_generic() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("assist cast failed: {:?}", e));
 
@@ -212,7 +213,7 @@ fn test_assist_no_assist_player_pays_full_cost() {
 
     let (state, _events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -228,7 +229,7 @@ fn test_assist_no_assist_player_pays_full_cost() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("non-assist cast failed: {:?}", e));
 
@@ -265,7 +266,7 @@ fn test_assist_cannot_assist_self() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -284,7 +285,7 @@ fn test_assist_cannot_assist_self() {
             }], // trying to self-assist
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -328,7 +329,7 @@ fn test_assist_exceeds_generic_mana_rejected() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -347,7 +348,7 @@ fn test_assist_exceeds_generic_mana_rejected() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -387,7 +388,7 @@ fn test_assist_eliminated_player_cannot_assist() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -406,7 +407,7 @@ fn test_assist_eliminated_player_cannot_assist() {
             }], // p2 is eliminated
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -455,7 +456,7 @@ fn test_assist_pays_all_generic_caster_pays_only_colored() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -474,7 +475,7 @@ fn test_assist_pays_all_generic_caster_pays_only_colored() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("assist all-generic cast failed: {:?}", e));
 
@@ -541,7 +542,7 @@ fn test_assist_with_convoke_reduces_assist_ceiling() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -560,7 +561,7 @@ fn test_assist_with_convoke_reduces_assist_ceiling() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("convoke+assist cast failed: {:?}", e));
 
@@ -604,7 +605,7 @@ fn test_assist_amount_zero_is_noop() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -623,7 +624,7 @@ fn test_assist_amount_zero_is_noop() {
             }], // no-op assist
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("zero-assist cast failed: {:?}", e));
 
@@ -671,7 +672,7 @@ fn test_assist_insufficient_mana_assisting_player() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -690,7 +691,7 @@ fn test_assist_insufficient_mana_assisting_player() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -733,7 +734,7 @@ fn test_assist_spell_without_keyword_rejected() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -752,7 +753,7 @@ fn test_assist_spell_without_keyword_rejected() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -790,7 +791,7 @@ fn test_assist_multiplayer_any_opponent_can_assist() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -809,7 +810,7 @@ fn test_assist_multiplayer_any_opponent_can_assist() {
             }], // P3, not P2, assists
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("P3 assist failed: {:?}", e));
 

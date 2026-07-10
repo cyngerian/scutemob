@@ -37,7 +37,7 @@ use crate::state::types::{
 };
 use crate::state::zone::ZoneId;
 use crate::state::{GameState, PendingTrigger};
-use im::OrdSet;
+use imbl::OrdSet;
 /// Handle a CastSpell command: move a card from hand to the stack.
 ///
 /// Validates the casting window, validates targets, pays the mana cost, moves
@@ -3980,7 +3980,7 @@ pub fn handle_cast_spell(
                             player,
                             object_id: exile_id,
                             new_exile_id,
-                            pre_lba_counters: im::OrdMap::new(), // graveyard→exile: no battlefield counters
+                            pre_lba_counters: imbl::OrdMap::new(), // graveyard→exile: no battlefield counters
                             pre_lba_power: None, // graveyard→exile: no battlefield power to snapshot
                         });
                     }
@@ -4228,7 +4228,7 @@ pub fn handle_cast_spell(
                             player,
                             object_id: pitch_card_id,
                             new_exile_id,
-                            pre_lba_counters: im::OrdMap::new(),
+                            pre_lba_counters: imbl::OrdMap::new(),
                             pre_lba_power: None,
                         });
                     }
@@ -4389,8 +4389,8 @@ pub fn handle_cast_spell(
                 player,
                 object_id: ev_id,
                 new_exile_id,
-                pre_lba_counters: im::OrdMap::new(), // graveyard→exile: no battlefield counters
-                pre_lba_power: None,                 // graveyard→exile: no battlefield power
+                pre_lba_counters: imbl::OrdMap::new(), // graveyard→exile: no battlefield counters
+                pre_lba_power: None,                   // graveyard→exile: no battlefield power
             });
         }
     }
@@ -4612,7 +4612,7 @@ pub fn handle_cast_spell(
         // PB-P: For spells, LKI powers flow through additional_costs.Sacrifice.lki_powers
         // at resolution; this field is for activated abilities only.
         sacrificed_creature_powers: vec![],
-        lki_counters: im::OrdMap::new(),
+        lki_counters: imbl::OrdMap::new(),
         lki_power: None,
     };
     state.stack_objects.push_back(stack_obj);
@@ -5404,8 +5404,8 @@ fn apply_escape_exile_cost(
             player,
             object_id: id,
             new_exile_id,
-            pre_lba_counters: im::OrdMap::new(), // graveyard→exile: no battlefield counters
-            pre_lba_power: None,                 // graveyard→exile: no battlefield power
+            pre_lba_counters: imbl::OrdMap::new(), // graveyard→exile: no battlefield counters
+            pre_lba_power: None,                   // graveyard→exile: no battlefield power
         });
     }
     Ok(())
@@ -5446,7 +5446,7 @@ fn apply_convoke_reduction(
         }
     }
     // Build per-creature color list with validation, before mutably borrowing state.
-    let mut creature_colors: Vec<(ObjectId, im::OrdSet<Color>)> = Vec::new();
+    let mut creature_colors: Vec<(ObjectId, imbl::OrdSet<Color>)> = Vec::new();
     for &id in convoke_creatures {
         let obj = state
             .objects
@@ -5710,8 +5710,8 @@ fn apply_delve_reduction(
             player,
             object_id: id,
             new_exile_id,
-            pre_lba_counters: im::OrdMap::new(), // graveyard→exile: no battlefield counters
-            pre_lba_power: None,                 // graveyard→exile: no battlefield power
+            pre_lba_counters: imbl::OrdMap::new(), // graveyard→exile: no battlefield counters
+            pre_lba_power: None,                   // graveyard→exile: no battlefield power
         });
     }
     // If the original cost was Some, return Some(reduced); if it was None, return None.
@@ -7054,10 +7054,10 @@ pub(crate) fn get_prototype_data(
 ///
 /// An object is the color or colors of the mana symbols in its mana cost.
 /// Used to compute the colors of a prototyped permanent (CR 718.3b).
-pub(crate) fn colors_from_mana_cost(cost: &ManaCost) -> im::OrdSet<crate::state::types::Color> {
+pub(crate) fn colors_from_mana_cost(cost: &ManaCost) -> imbl::OrdSet<crate::state::types::Color> {
     use crate::state::game_object::{HybridMana, PhyrexianMana};
     use crate::state::types::{Color, ManaColor};
-    let mut colors = im::OrdSet::new();
+    let mut colors = imbl::OrdSet::new();
     if cost.white > 0 {
         colors.insert(Color::White);
     }
@@ -7074,7 +7074,7 @@ pub(crate) fn colors_from_mana_cost(cost: &ManaCost) -> im::OrdSet<crate::state:
         colors.insert(Color::Green);
     }
     // CR 202.2d: Hybrid and Phyrexian symbols add their component colors.
-    let add_mana_color = |colors: &mut im::OrdSet<Color>, mc: &ManaColor| {
+    let add_mana_color = |colors: &mut imbl::OrdSet<Color>, mc: &ManaColor| {
         match mc {
             ManaColor::White => {
                 colors.insert(Color::White);
@@ -7923,7 +7923,7 @@ mod tests {
             triggering_creature_id: None,
             cast_from_top_with_bonus: false,
             sacrificed_creature_powers: vec![],
-            lki_counters: im::OrdMap::new(),
+            lki_counters: imbl::OrdMap::new(),
             lki_power: None,
         }
     }

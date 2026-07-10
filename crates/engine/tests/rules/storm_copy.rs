@@ -7,6 +7,7 @@
 //! - `KeywordAbility::Storm` — triggers on cast; copies pushed above original
 //! - `GameEvent::SpellCopied` — emitted for each copy; copies are NOT cast
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
     Completeness, Effect, EffectAmount, GameEvent, GameState, GameStateBuilder, KeywordAbility,
@@ -141,7 +142,7 @@ fn test_storm_creates_copies() {
 
     let (state, cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: storm_id,
             targets: vec![],
@@ -157,7 +158,7 @@ fn test_storm_creates_copies() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -263,7 +264,7 @@ fn test_storm_copies_resolve_independently() {
 
     let (state, _cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: storm_id,
             targets: vec![],
@@ -279,7 +280,7 @@ fn test_storm_copies_resolve_independently() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -392,7 +393,7 @@ fn test_storm_count_resets_each_turn() {
     // [storm spell (bottom), storm trigger (top)] = 2 objects.
     let (state, _events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: storm_id,
             targets: vec![],
@@ -408,7 +409,7 @@ fn test_storm_count_resets_each_turn() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -497,7 +498,7 @@ fn test_spell_copy_is_not_cast() {
 
     let (state, cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: storm_id,
             targets: vec![],
@@ -513,7 +514,7 @@ fn test_spell_copy_is_not_cast() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 

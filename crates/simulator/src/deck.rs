@@ -41,7 +41,7 @@ pub fn random_deck(rng: &mut StdRng, cards: &[CardDefinition]) -> Option<DeckCon
         return None;
     }
 
-    let commander = commanders[rng.gen_range(0..commanders.len())];
+    let commander = commanders[rng.random_range(0..commanders.len())];
     let color_identity = compute_color_identity(commander);
 
     // Gather cards fitting within the commander's color identity.
@@ -97,7 +97,7 @@ pub fn random_deck(rng: &mut StdRng, cards: &[CardDefinition]) -> Option<DeckCon
             // Colorless commander — use Wastes (or just any basic)
             main_deck.push(CardId("forest".to_string()));
         } else {
-            let basic = &basics[rng.gen_range(0..basics.len())];
+            let basic = &basics[rng.random_range(0..basics.len())];
             main_deck.push(basic.clone());
         }
     }

@@ -24,6 +24,7 @@
 //! uncastable in board states lacking one of those permanent types. This is exactly
 //! that wrong-game-state bug, fixed.
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::rules::events::GameEvent;
 use mtg_engine::state::test_util;
 use mtg_engine::{
@@ -122,7 +123,7 @@ fn cast_modal(
     state.turn_mut().priority_holder = Some(player);
     process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player,
             card: card_id,
             targets,
@@ -138,7 +139,7 @@ fn cast_modal(
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell({}) failed: {:?}", name, e))
 }
@@ -194,7 +195,7 @@ fn push_spell_stack_object(
         triggering_creature_id: None,
         cast_from_top_with_bonus: false,
         sacrificed_creature_powers: vec![],
-        lki_counters: im::OrdMap::new(),
+        lki_counters: imbl::OrdMap::new(),
         lki_power: None,
     });
     stack_id

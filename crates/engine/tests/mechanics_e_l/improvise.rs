@@ -17,6 +17,7 @@
 //! - Artifact creatures (both types) can be tapped for improvise (ruling).
 //! - Summoning sickness does NOT prevent improvise (ruling: not an activated ability).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     process_command, CardId, CardType, Command, GameEvent, GameState, GameStateBuilder,
     KeywordAbility, ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerId, Step, SuperType, ZoneId,
@@ -139,7 +140,7 @@ fn test_improvise_basic_tap_artifacts_reduce_generic_cost() {
 
     let (state, events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -155,7 +156,7 @@ fn test_improvise_basic_tap_artifacts_reduce_generic_cost() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("CR 702.126a: should succeed when tapping 3 artifacts for 3 generic pips");
 
@@ -242,7 +243,7 @@ fn test_improvise_cannot_pay_colored_mana() {
     // Attempt to use 2 artifacts to pay for a spell with 0 generic pips.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -258,7 +259,7 @@ fn test_improvise_cannot_pay_colored_mana() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -310,7 +311,7 @@ fn test_improvise_reject_no_keyword() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -326,7 +327,7 @@ fn test_improvise_reject_no_keyword() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -371,7 +372,7 @@ fn test_improvise_reject_tapped_artifact() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -387,7 +388,7 @@ fn test_improvise_reject_tapped_artifact() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -431,7 +432,7 @@ fn test_improvise_reject_not_artifact() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -447,7 +448,7 @@ fn test_improvise_reject_not_artifact() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -491,7 +492,7 @@ fn test_improvise_reject_opponent_artifact() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -507,7 +508,7 @@ fn test_improvise_reject_opponent_artifact() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -560,7 +561,7 @@ fn test_improvise_reject_too_many_artifacts() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -576,7 +577,7 @@ fn test_improvise_reject_too_many_artifacts() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -628,7 +629,7 @@ fn test_improvise_zero_artifacts_normal_cast() {
 
     let (state, _events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -644,7 +645,7 @@ fn test_improvise_zero_artifacts_normal_cast() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("CR 702.126a: should succeed with zero artifacts (normal full-mana cast)");
 
@@ -746,7 +747,7 @@ fn test_improvise_with_commander_tax() {
 
     let (state, events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_obj_id,
             targets: vec![],
@@ -762,7 +763,7 @@ fn test_improvise_with_commander_tax() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect(
         "CR 702.126b + CR 903.8: should succeed tapping 4 artifacts for 4 generic (2 base + 2 tax)",
@@ -865,7 +866,7 @@ fn test_improvise_combined_with_convoke() {
 
     let (state, events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -881,7 +882,7 @@ fn test_improvise_combined_with_convoke() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("edge case: spell with both convoke and improvise should succeed");
 
@@ -945,7 +946,7 @@ fn test_improvise_artifact_creature_can_be_used() {
 
     let (state, _events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -961,7 +962,7 @@ fn test_improvise_artifact_creature_can_be_used() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("ruling: artifact creature should be valid for improvise");
 
@@ -1019,7 +1020,7 @@ fn test_improvise_summoning_sickness_irrelevant() {
 
     let (state, _events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -1035,7 +1036,7 @@ fn test_improvise_summoning_sickness_irrelevant() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("ruling: summoning sickness should NOT prevent improvise");
 

@@ -28,8 +28,8 @@ fn test_mutate_data_model_compiles() {
     assert!(!comp.is_token);
     assert_eq!(comp.card_id, None);
 
-    // Verify im::Vector is usable (clone, len, index access)
-    let mut components: im::Vector<MergedComponent> = im::Vector::new();
+    // Verify imbl::Vector is usable (clone, len, index access)
+    let mut components: imbl::Vector<MergedComponent> = imbl::Vector::new();
     components.push_back(comp.clone());
     assert_eq!(components.len(), 1);
     assert_eq!(components[0].characteristics.power, Some(2));
@@ -43,7 +43,7 @@ fn test_mutate_data_model_compiles() {
 /// Verifies the empty-means-unmerged invariant at the type level.
 #[test]
 fn test_merged_component_default_empty() {
-    let components: im::Vector<MergedComponent> = im::Vector::new();
+    let components: imbl::Vector<MergedComponent> = imbl::Vector::new();
     assert!(
         components.is_empty(),
         "CR 729.2: unmerged permanent must have empty merged_components"
@@ -65,7 +65,7 @@ fn test_merged_component_default_empty() {
         },
         is_token: true,
     };
-    let mut merged: im::Vector<MergedComponent> = im::Vector::new();
+    let mut merged: imbl::Vector<MergedComponent> = imbl::Vector::new();
     merged.push_back(comp_a);
     merged.push_back(comp_b);
     assert_eq!(merged.len(), 2);
@@ -78,7 +78,7 @@ fn test_merged_component_default_empty() {
 /// Discriminant 147 — after FriendsForever (144), ChooseABackground (145), DoctorsCompanion (146).
 #[test]
 fn test_mutate_keyword_in_ordset() {
-    let mut keywords = im::OrdSet::new();
+    let mut keywords = imbl::OrdSet::new();
     keywords.insert(KeywordAbility::Mutate);
 
     assert!(

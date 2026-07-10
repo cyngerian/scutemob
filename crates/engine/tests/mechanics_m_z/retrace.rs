@@ -19,6 +19,7 @@
 //! - Normal hand cast does not require land discard (retrace_discard_land: None).
 
 use mtg_engine::cards::card_definition::{EffectAmount, PlayerTarget};
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::CardType;
 use mtg_engine::AdditionalCost;
 use mtg_engine::{
@@ -223,7 +224,7 @@ fn test_retrace_basic_cast_from_graveyard() {
     // p1 casts Flame Jab from graveyard via retrace, discarding Mountain.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: jab_id,
             targets: vec![],
@@ -239,7 +240,7 @@ fn test_retrace_basic_cast_from_graveyard() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -348,7 +349,7 @@ fn test_retrace_card_returns_to_graveyard_on_resolution() {
     // Cast Flame Jab via retrace.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: jab_id,
             targets: vec![],
@@ -364,7 +365,7 @@ fn test_retrace_card_returns_to_graveyard_on_resolution() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -461,7 +462,7 @@ fn test_retrace_card_returns_to_graveyard_when_countered() {
     // p1 casts Flame Jab via retrace.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: jab_id,
             targets: vec![],
@@ -477,7 +478,7 @@ fn test_retrace_card_returns_to_graveyard_when_countered() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -501,7 +502,7 @@ fn test_retrace_card_returns_to_graveyard_when_countered() {
     // p2 counters with Counterspell.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: counter_id,
             targets: vec![Target::Object(jab_stack_id)],
@@ -517,7 +518,7 @@ fn test_retrace_card_returns_to_graveyard_when_countered() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -597,7 +598,7 @@ fn test_retrace_normal_timing_sorcery_cannot_cast_on_opponents_turn() {
     // Attempt to cast Flame Jab via retrace during p2's turn — should fail.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: jab_id,
             targets: vec![],
@@ -613,7 +614,7 @@ fn test_retrace_normal_timing_sorcery_cannot_cast_on_opponents_turn() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -678,7 +679,7 @@ fn test_retrace_discard_must_be_land() {
     // Attempt to discard a non-land as retrace cost — should fail.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: jab_id,
             targets: vec![],
@@ -694,7 +695,7 @@ fn test_retrace_discard_must_be_land() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(result.is_err(), "Retrace should reject a non-land discard");
@@ -758,7 +759,7 @@ fn test_retrace_discard_must_be_in_hand() {
     // Attempt to use a land on the battlefield as retrace cost — should fail.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: jab_id,
             targets: vec![],
@@ -774,7 +775,7 @@ fn test_retrace_discard_must_be_in_hand() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(result.is_err(), "Retrace should reject a land not in hand");
@@ -838,7 +839,7 @@ fn test_retrace_no_retrace_keyword_cannot_cast_from_graveyard() {
     // Attempt to cast from graveyard with retrace_discard_land — should fail.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: sorcery_id,
             targets: vec![],
@@ -854,7 +855,7 @@ fn test_retrace_no_retrace_keyword_cannot_cast_from_graveyard() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -915,7 +916,7 @@ fn test_retrace_pays_normal_mana_cost() {
     // Cast via retrace — should succeed with exactly {R}.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: jab_id,
             targets: vec![],
@@ -931,7 +932,7 @@ fn test_retrace_pays_normal_mana_cost() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -996,7 +997,7 @@ fn test_retrace_without_land_provided_cannot_cast_from_graveyard() {
     // No land provided — should fail as "card is not in your hand".
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: jab_id,
             targets: vec![],
@@ -1012,7 +1013,7 @@ fn test_retrace_without_land_provided_cannot_cast_from_graveyard() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -1067,7 +1068,7 @@ fn test_retrace_normal_hand_cast_no_land_discard_needed() {
     // Normal cast from hand — no retrace_discard_land needed.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: jab_id,
             targets: vec![],
@@ -1083,7 +1084,7 @@ fn test_retrace_normal_hand_cast_no_land_discard_needed() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -1171,7 +1172,7 @@ fn test_retrace_recast_after_resolution() {
     // First retrace cast.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: jab_id,
             targets: vec![],
@@ -1187,7 +1188,7 @@ fn test_retrace_recast_after_resolution() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("First retrace cast should succeed");
 
@@ -1213,7 +1214,7 @@ fn test_retrace_recast_after_resolution() {
     // Second retrace cast (using the second mountain).
     let result2 = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: new_jab_id,
             targets: vec![],
@@ -1229,7 +1230,7 @@ fn test_retrace_recast_after_resolution() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(

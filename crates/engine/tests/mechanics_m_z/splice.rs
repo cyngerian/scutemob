@@ -14,6 +14,7 @@
 //! - CR 702.47e: Splice changes are lost when the spell leaves the stack (lifecycle-managed).
 
 use mtg_engine::cards::card_definition::{EffectAmount, PlayerTarget};
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::AdditionalCost;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
@@ -261,7 +262,7 @@ fn test_splice_basic_onto_arcane() {
     // Cast Arcane Instant with Splice Card spliced onto it.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: arcane_id,
             targets: vec![],
@@ -279,7 +280,7 @@ fn test_splice_basic_onto_arcane() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("CastSpell with splice should succeed");
 
@@ -346,7 +347,7 @@ fn test_splice_cost_added() {
     // Should be rejected: insufficient mana for base {1}{U} + splice {1}{R}.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: arcane_id,
             targets: vec![],
@@ -364,7 +365,7 @@ fn test_splice_cost_added() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -423,7 +424,7 @@ fn test_splice_card_stays_in_hand() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: arcane_id,
             targets: vec![],
@@ -441,7 +442,7 @@ fn test_splice_card_stays_in_hand() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("CastSpell with splice should succeed");
 
@@ -517,7 +518,7 @@ fn test_splice_wrong_subtype_rejected() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: non_arcane_id,
             targets: vec![],
@@ -535,7 +536,7 @@ fn test_splice_wrong_subtype_rejected() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -595,7 +596,7 @@ fn test_splice_same_card_twice_rejected() {
     // Pass the same splice_id twice.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: arcane_id,
             targets: vec![],
@@ -613,7 +614,7 @@ fn test_splice_same_card_twice_rejected() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -673,7 +674,7 @@ fn test_splice_not_in_hand_rejected() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: arcane_id,
             targets: vec![],
@@ -691,7 +692,7 @@ fn test_splice_not_in_hand_rejected() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -766,7 +767,7 @@ fn test_splice_multiple_cards() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: arcane_id,
             targets: vec![],
@@ -784,7 +785,7 @@ fn test_splice_multiple_cards() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("CastSpell with two splice cards should succeed");
 
@@ -864,7 +865,7 @@ fn test_splice_main_effect_first() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: arcane_id,
             targets: vec![],
@@ -882,7 +883,7 @@ fn test_splice_main_effect_first() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("CastSpell with splice should succeed");
 
@@ -985,7 +986,7 @@ fn test_splice_onto_itself_rejected() {
     // Attempt to splice the card onto itself (pass it as both the card being cast and splice card).
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: self_id,
             targets: vec![],
@@ -1003,7 +1004,7 @@ fn test_splice_onto_itself_rejected() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(

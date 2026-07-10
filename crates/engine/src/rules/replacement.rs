@@ -1437,13 +1437,13 @@ pub fn queue_carddef_etb_triggers(
                         name: "Servo".to_string(),
                         power: 1,
                         toughness: 1,
-                        colors: im::OrdSet::new(),
-                        supertypes: im::OrdSet::new(),
+                        colors: imbl::OrdSet::new(),
+                        supertypes: imbl::OrdSet::new(),
                         card_types: [CardType::Artifact, CardType::Creature]
                             .into_iter()
                             .collect(),
                         subtypes: [SubType("Servo".to_string())].into_iter().collect(),
-                        keywords: im::OrdSet::new(),
+                        keywords: imbl::OrdSet::new(),
                         count: EffectAmount::Fixed(n as i32),
                         tapped: false,
                         enters_attacking: false,
@@ -1699,7 +1699,7 @@ fn zone_change_events(
     dest: ZoneId,
     owner: PlayerId,
     pre_move_controller: PlayerId,
-    pre_death_counters: &im::OrdMap<crate::state::types::CounterType, u32>,
+    pre_death_counters: &imbl::OrdMap<crate::state::types::CounterType, u32>,
     pre_death_power: Option<i32>,
     pre_death_characteristics: Option<crate::state::game_object::Characteristics>,
 ) -> Vec<GameEvent> {
@@ -2582,8 +2582,8 @@ pub fn apply_regeneration(
         // Also remove from damage_assignment_order as an attacker
         combat.damage_assignment_order.remove(&object_id);
         // Remove as a blocker from all damage assignment orders.
-        // im::OrdMap has no iter_mut, so rebuild.
-        let updated: im::OrdMap<_, _> = combat
+        // imbl::OrdMap has no iter_mut, so rebuild.
+        let updated: imbl::OrdMap<_, _> = combat
             .damage_assignment_order
             .iter()
             .map(|(attacker_id, order)| {
@@ -2598,7 +2598,7 @@ pub fn apply_regeneration(
         combat.damage_assignment_order = updated;
     }
     // 4. Remove the one-shot shield (consumed)
-    let keep: im::Vector<_> = state
+    let keep: imbl::Vector<_> = state
         .replacement_effects
         .iter()
         .filter(|e| e.id != shield_id)
@@ -2655,7 +2655,7 @@ pub fn check_umbra_armor(state: &GameState, object_id: ObjectId) -> Vec<ObjectId
         })
         .collect();
     // Sort by ObjectId for deterministic selection when multiple Auras match
-    // (im::HashMap iteration order is non-deterministic; replay correctness requires
+    // (imbl::HashMap iteration order is non-deterministic; replay correctness requires
     // stable ordering so the same Aura is always selected first -- CR 616.1 TODO).
     auras.sort();
     auras

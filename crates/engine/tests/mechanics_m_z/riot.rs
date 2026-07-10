@@ -14,6 +14,7 @@
 //! - CounterAdded events are emitted for each Riot instance.
 //! - Non-Riot creature is unaffected (negative case).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     calculate_characteristics, process_command, AbilityDefinition, CardDefinition, CardId,
     CardRegistry, CardType, Command, CounterType, GameEvent, GameStateBuilder, KeywordAbility,
@@ -189,7 +190,7 @@ fn test_riot_enters_with_counter() {
     // Cast the creature.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: creature_id,
             targets: vec![],
@@ -205,7 +206,7 @@ fn test_riot_enters_with_counter() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
 
@@ -297,7 +298,7 @@ fn test_riot_creature_has_correct_stats() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: creature_id,
             targets: vec![],
@@ -313,7 +314,7 @@ fn test_riot_creature_has_correct_stats() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -387,7 +388,7 @@ fn test_riot_keyword_present_on_permanent() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: creature_id,
             targets: vec![],
@@ -403,7 +404,7 @@ fn test_riot_keyword_present_on_permanent() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -479,7 +480,7 @@ fn test_riot_multiple_instances_each_add_counter() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: creature_id,
             targets: vec![],
@@ -495,7 +496,7 @@ fn test_riot_multiple_instances_each_add_counter() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
 
@@ -584,7 +585,7 @@ fn test_riot_no_counters_on_non_riot_creature() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: creature_id,
             targets: vec![],
@@ -600,7 +601,7 @@ fn test_riot_no_counters_on_non_riot_creature() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 

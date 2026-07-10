@@ -248,7 +248,7 @@ pub fn handle_play_land(
             .unwrap_or_default();
         if !amplify_instances.is_empty() {
             // Resolve entering land's subtypes (via layer system -- respects CDAs).
-            let entering_subtypes: im::OrdSet<SubType> =
+            let entering_subtypes: imbl::OrdSet<SubType> =
                 crate::rules::layers::calculate_characteristics(state, new_land_id)
                     .map(|c| c.subtypes)
                     .unwrap_or_default();
@@ -425,7 +425,7 @@ pub fn handle_play_land(
     }
     // 11. Reset players_passed — a game action occurred, so the priority round
     //     starts fresh. The active player retains priority (CR 117.3b).
-    state.turn.players_passed = im::OrdSet::new();
+    state.turn.players_passed = imbl::OrdSet::new();
     Ok(events)
 }
 /// PB-B: Check if an active play-from-graveyard permission allows playing a land.

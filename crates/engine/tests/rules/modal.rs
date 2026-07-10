@@ -12,6 +12,7 @@
 //! - CR 702.42b: Entwine overrides modes_chosen — all modes execute.
 //! - Backward compat: empty modes_chosen auto-selects mode[0].
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::CardType;
 use mtg_engine::AdditionalCost;
 use mtg_engine::Effect;
@@ -235,7 +236,7 @@ fn test_modal_choose_one_mode_zero() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -251,7 +252,7 @@ fn test_modal_choose_one_mode_zero() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
 
@@ -309,7 +310,7 @@ fn test_modal_choose_one_mode_one() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -325,7 +326,7 @@ fn test_modal_choose_one_mode_one() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
 
@@ -372,7 +373,7 @@ fn test_modal_choose_one_mode_two() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -388,7 +389,7 @@ fn test_modal_choose_one_mode_two() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
 
@@ -476,7 +477,7 @@ fn test_modal_choose_two_modes() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -492,7 +493,7 @@ fn test_modal_choose_two_modes() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
 
@@ -533,7 +534,7 @@ fn test_modal_default_auto_selects_mode_zero() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -549,7 +550,7 @@ fn test_modal_default_auto_selects_mode_zero() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("cast with empty modes_chosen failed: {:?}", e));
 
@@ -578,7 +579,7 @@ fn test_modal_invalid_index_rejected() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -594,7 +595,7 @@ fn test_modal_invalid_index_rejected() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -631,7 +632,7 @@ fn test_modal_duplicate_index_rejected() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -647,7 +648,7 @@ fn test_modal_duplicate_index_rejected() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -699,7 +700,7 @@ fn test_modal_too_few_modes_rejected() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -715,7 +716,7 @@ fn test_modal_too_few_modes_rejected() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -739,7 +740,7 @@ fn test_modal_too_many_modes_rejected() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -755,7 +756,7 @@ fn test_modal_too_many_modes_rejected() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -877,7 +878,7 @@ fn test_modal_entwine_overrides_modes_chosen() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -893,7 +894,7 @@ fn test_modal_entwine_overrides_modes_chosen() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("cast with entwine failed: {:?}", e));
 
@@ -986,7 +987,7 @@ fn test_modal_non_modal_spell_with_modes_chosen_rejected() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -1002,7 +1003,7 @@ fn test_modal_non_modal_spell_with_modes_chosen_rejected() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -1027,7 +1028,7 @@ fn test_modal_modes_chosen_stored_on_stack_object() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -1043,7 +1044,7 @@ fn test_modal_modes_chosen_stored_on_stack_object() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
 
@@ -1085,7 +1086,7 @@ fn test_modal_copy_inherits_modes() {
     // Cast with mode 1 (DrawCards 2).
     let (mut state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -1101,7 +1102,7 @@ fn test_modal_copy_inherits_modes() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
 
@@ -1261,7 +1262,7 @@ fn test_modal_allow_duplicate_modes() {
     // Cast with modes [0, 0] — duplicate mode 0 allowed by allow_duplicate_modes=true.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -1277,7 +1278,7 @@ fn test_modal_allow_duplicate_modes() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("cast with duplicate modes failed: {:?}", e));
 

@@ -11,6 +11,7 @@
 //! Two Panharmonicons triple a trigger.
 //! Removing Panharmonicon after triggers are already on the stack doesn't cancel them.
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
     Completeness, Effect, EffectAmount, GameEvent, GameStateBuilder, ManaCost, ObjectSpec,
@@ -236,7 +237,7 @@ fn test_panharmonicon_doubles_etb_trigger() {
     // p1 casts the entering creature.
     let (state, _cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: entering_hand_id,
             targets: vec![],
@@ -252,7 +253,7 @@ fn test_panharmonicon_doubles_etb_trigger() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -414,7 +415,7 @@ fn test_two_panharmonicons_triple_triggers() {
 
     let (state, _cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: entering_hand_id,
             targets: vec![],
@@ -430,7 +431,7 @@ fn test_two_panharmonicons_triple_triggers() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -574,7 +575,7 @@ fn test_panharmonicon_removal_doesnt_cancel_already_triggered() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: entering_hand_id,
             targets: vec![],
@@ -590,7 +591,7 @@ fn test_panharmonicon_removal_doesnt_cancel_already_triggered() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -732,7 +733,7 @@ fn test_panharmonicon_registration_via_resolution() {
     // Step 1: Cast Panharmonicon.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: pharm_hand_id,
             targets: vec![],
@@ -748,7 +749,7 @@ fn test_panharmonicon_registration_via_resolution() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -787,7 +788,7 @@ fn test_panharmonicon_registration_via_resolution() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: entering_hand_id,
             targets: vec![],
@@ -803,7 +804,7 @@ fn test_panharmonicon_registration_via_resolution() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -953,7 +954,7 @@ fn test_panharmonicon_doubles_self_etb_trigger() {
     // Cast the creature.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: creature_hand_id,
             targets: vec![],
@@ -969,7 +970,7 @@ fn test_panharmonicon_doubles_self_etb_trigger() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -1101,7 +1102,7 @@ fn test_panharmonicon_does_not_double_enchantment_etb() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: enchantment_hand_id,
             targets: vec![],
@@ -1117,7 +1118,7 @@ fn test_panharmonicon_does_not_double_enchantment_etb() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -1274,7 +1275,7 @@ fn test_any_permanent_etb_doubler_doubles_enchantment() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: ench_hand_id,
             targets: vec![],
@@ -1290,7 +1291,7 @@ fn test_any_permanent_etb_doubler_doubles_enchantment() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -1524,7 +1525,7 @@ fn test_land_etb_doubler_doubles_landfall_not_creature() {
 
     let (state2, _) = process_command(
         state2,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: creature_hand_id,
             targets: vec![],
@@ -1540,7 +1541,7 @@ fn test_land_etb_doubler_doubles_landfall_not_creature() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -1693,7 +1694,7 @@ fn test_panharmonicon_doubles_carddef_etb_trigger() {
     // Cast the creature.
     let (state, _cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: creature_hand_id,
             targets: vec![],
@@ -1709,7 +1710,7 @@ fn test_panharmonicon_doubles_carddef_etb_trigger() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 

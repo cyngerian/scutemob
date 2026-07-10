@@ -27,6 +27,7 @@
 //! - Mana value is based on printed mana cost, not escape cost (CR 118.9c).
 
 use mtg_engine::cards::card_definition::{EffectAmount, PlayerTarget};
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::types::AltCostKind;
 use mtg_engine::AdditionalCost;
 use mtg_engine::{
@@ -326,7 +327,7 @@ fn test_escape_basic_cast_from_graveyard() {
     // p1 casts Uro from graveyard via escape, exiling 3 other graveyard cards.
     let (state, cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: uro_id,
             targets: vec![],
@@ -344,7 +345,7 @@ fn test_escape_basic_cast_from_graveyard() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -457,7 +458,7 @@ fn test_escape_exile_cost_events() {
 
     let (_state, cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: uro_id,
             targets: vec![],
@@ -475,7 +476,7 @@ fn test_escape_exile_cost_events() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -553,7 +554,7 @@ fn test_escape_permanent_resolves_to_battlefield() {
     // Cast Uro via escape.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: uro_id,
             targets: vec![],
@@ -571,7 +572,7 @@ fn test_escape_permanent_resolves_to_battlefield() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -657,7 +658,7 @@ fn test_escape_was_escaped_flag_on_permanent() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: uro_id,
             targets: vec![],
@@ -675,7 +676,7 @@ fn test_escape_was_escaped_flag_on_permanent() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -756,7 +757,7 @@ fn test_escape_with_counter() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: ox_id,
             targets: vec![],
@@ -772,7 +773,7 @@ fn test_escape_with_counter() {
             additional_costs: vec![AdditionalCost::EscapeExile { cards: chaff_ids }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -851,7 +852,7 @@ fn test_escape_with_counter_not_applied_when_not_escaped() {
     // Cast normally from hand (NOT escape).
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: ox_id,
             targets: vec![],
@@ -867,7 +868,7 @@ fn test_escape_with_counter_not_applied_when_not_escaped() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -959,7 +960,7 @@ fn test_escape_insufficient_exile_cards_rejected() {
     // Attempt to cast with only 2 exile cards (needs 3) — should fail.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: uro_id,
             targets: vec![],
@@ -977,7 +978,7 @@ fn test_escape_insufficient_exile_cards_rejected() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -1044,7 +1045,7 @@ fn test_escape_duplicate_exile_ids_rejected() {
     // Pass d1_id twice — should be rejected as duplicate.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: uro_id,
             targets: vec![],
@@ -1062,7 +1063,7 @@ fn test_escape_duplicate_exile_ids_rejected() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -1134,7 +1135,7 @@ fn test_escape_exile_card_not_in_graveyard_rejected() {
     // Try to exile HandCard (not in graveyard) as part of escape cost.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: uro_id,
             targets: vec![],
@@ -1152,7 +1153,7 @@ fn test_escape_exile_card_not_in_graveyard_rejected() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -1220,7 +1221,7 @@ fn test_escape_on_dual_keyword_card_succeeds() {
     // This is legal per CR 118.9a: "you choose which one to apply."
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: loot_id,
             targets: vec![],
@@ -1238,7 +1239,7 @@ fn test_escape_on_dual_keyword_card_succeeds() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     // Should SUCCEED: player chose escape; flashback is not combined with escape.
@@ -1318,7 +1319,7 @@ fn test_escape_requires_card_in_graveyard() {
     // Attempt escape from hand (invalid).
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: uro_id,
             targets: vec![],
@@ -1336,7 +1337,7 @@ fn test_escape_requires_card_in_graveyard() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -1406,7 +1407,7 @@ fn test_escape_mana_value_unchanged() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: uro_id,
             targets: vec![],
@@ -1424,7 +1425,7 @@ fn test_escape_mana_value_unchanged() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -1524,7 +1525,7 @@ fn test_escape_auto_detected_from_graveyard() {
     // with the Escape keyword and no Flashback keyword.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: uro_id,
             targets: vec![],
@@ -1544,7 +1545,7 @@ fn test_escape_auto_detected_from_graveyard() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     // Auto-detection: even with cast_with_escape: false, the escape is applied
@@ -1622,7 +1623,7 @@ fn test_escape_exile_cards_get_new_ids_in_exile() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: uro_id,
             targets: vec![],
@@ -1640,7 +1641,7 @@ fn test_escape_exile_cards_get_new_ids_in_exile() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -1732,7 +1733,7 @@ fn test_escape_sorcery_resolves_to_graveyard() {
     // Cast sorcery from graveyard via escape, exiling 1 other card.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: sorcery_id,
             targets: vec![],
@@ -1750,7 +1751,7 @@ fn test_escape_sorcery_resolves_to_graveyard() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -1852,7 +1853,7 @@ fn test_escape_exile_from_opponent_graveyard_rejected() {
     // Even if we provided 3 cards, the p2 card must be rejected.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: uro_id,
             targets: vec![],
@@ -1871,7 +1872,7 @@ fn test_escape_exile_from_opponent_graveyard_rejected() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(

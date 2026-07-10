@@ -10,6 +10,7 @@
 //! CC#29 (split card mana value) is documented but not implemented since the
 //! engine doesn't support split cards yet (CR 708.4).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
     Completeness, Effect, EffectAmount, GameEvent, GameState, GameStateBuilder, KeywordAbility,
@@ -266,7 +267,7 @@ fn test_cascade_exiles_until_hit() {
 
     let (state, cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: cascade_hand_id,
             targets: vec![],
@@ -282,7 +283,7 @@ fn test_cascade_exiles_until_hit() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -435,7 +436,7 @@ fn test_cascade_skips_lands() {
 
     let (state, cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: cascade_hand_id,
             targets: vec![],
@@ -451,7 +452,7 @@ fn test_cascade_skips_lands() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -606,7 +607,7 @@ fn test_cascade_combined_mana_value_skip() {
 
     let (state, cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: cascade_hand_id,
             targets: vec![],
@@ -622,7 +623,7 @@ fn test_cascade_combined_mana_value_skip() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 

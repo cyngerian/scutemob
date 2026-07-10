@@ -16,6 +16,7 @@
 //! - Commander tax applies on top of surge cost (CR 118.9d).
 //! - `cast_alt_cost` is set to `Some(AltCostKind::Surge)` on the resolved permanent (for "if surge cost was paid" effects).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::types::AltCostKind;
 use mtg_engine::{
     process_command, register_commander_zone_replacements, AbilityDefinition, CardDefinition,
@@ -167,7 +168,7 @@ fn test_surge_basic_cast_with_surge_cost() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -183,7 +184,7 @@ fn test_surge_basic_cast_with_surge_cost() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -231,7 +232,7 @@ fn test_surge_rejected_no_prior_spell() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -247,7 +248,7 @@ fn test_surge_rejected_no_prior_spell() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -284,7 +285,7 @@ fn test_surge_optional_normal_cost() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -300,7 +301,7 @@ fn test_surge_optional_normal_cost() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -333,7 +334,7 @@ fn test_surge_after_resolved_spell() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -349,7 +350,7 @@ fn test_surge_after_resolved_spell() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -381,7 +382,7 @@ fn test_surge_after_countered_spell() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -397,7 +398,7 @@ fn test_surge_after_countered_spell() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -466,7 +467,7 @@ fn test_surge_mutual_exclusion_with_flashback() {
         let id = find_object(&s, "Plain Spell");
         let result = process_command(
             s,
-            Command::CastSpell {
+            Command::CastSpell(Box::new(CastSpellData {
                 player: p1,
                 card: id,
                 targets: vec![],
@@ -482,7 +483,7 @@ fn test_surge_mutual_exclusion_with_flashback() {
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            },
+            })),
         );
         assert!(
             result.is_err(),
@@ -529,7 +530,7 @@ fn test_surge_mutual_exclusion_with_spectacle() {
     // Passing Spectacle for a Surge card: rejected because the card has Surge, not Spectacle.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -545,7 +546,7 @@ fn test_surge_mutual_exclusion_with_spectacle() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -606,7 +607,7 @@ fn test_surge_card_without_keyword_rejected() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -622,7 +623,7 @@ fn test_surge_card_without_keyword_rejected() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -671,7 +672,7 @@ fn test_surge_reset_at_turn_start() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -687,7 +688,7 @@ fn test_surge_reset_at_turn_start() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_ok(),
@@ -743,7 +744,7 @@ fn test_surge_reset_at_turn_start() {
         // Attempt surge with 0 prior spells — should fail.
         let result2 = process_command(
             state2,
-            Command::CastSpell {
+            Command::CastSpell(Box::new(CastSpellData {
                 player: p1,
                 card: id,
                 targets: vec![],
@@ -759,7 +760,7 @@ fn test_surge_reset_at_turn_start() {
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            },
+            })),
         );
         assert!(
             result2.is_err(),
@@ -888,7 +889,7 @@ fn test_surge_commander_tax_stacks() {
     // Cast the commander from the command zone with surge.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: cmd_obj_id,
             targets: vec![],
@@ -904,7 +905,7 @@ fn test_surge_commander_tax_stacks() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -956,7 +957,7 @@ fn test_surge_cast_alt_cost_tracked() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -972,7 +973,7 @@ fn test_surge_cast_alt_cost_tracked() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(

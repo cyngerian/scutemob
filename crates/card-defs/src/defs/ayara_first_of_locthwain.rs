@@ -21,7 +21,7 @@ pub fn card() -> CardDefinition {
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         controller: TargetController::You,
-                        colors: Some(im::ordset![Color::Black]),
+                        colors: Some(imbl::ordset![Color::Black]),
                         ..Default::default()
                     }),
                     exclude_self: false,
@@ -40,7 +40,7 @@ pub fn card() -> CardDefinition {
                     Cost::Tap,
                     Cost::Sacrifice(TargetFilter {
                         has_card_type: Some(CardType::Creature),
-                        colors: Some(im::ordset![Color::Black]),
+                        colors: Some(imbl::ordset![Color::Black]),
                         ..Default::default()
                     }),
                 ]),

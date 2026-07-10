@@ -7,6 +7,7 @@
 //! - CR 702.146b (ruling): If cast disturbed and would go to graveyard, exile instead.
 //! - CR 712.8c: Mana value on stack uses front face mana cost.
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     calculate_characteristics, process_command, AbilityDefinition, AltCostKind, CardDefinition,
     CardFace, CardId, CardRegistry, CardType, Command, GameEvent, GameState, GameStateBuilder,
@@ -159,7 +160,7 @@ fn test_disturb_cast_from_graveyard() {
     // Cast with disturb (from graveyard).
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: beggar_id,
             alt_cost: Some(AltCostKind::Disturb),
@@ -175,7 +176,7 @@ fn test_disturb_cast_from_graveyard() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("Cast with disturb should succeed");
 
@@ -233,7 +234,7 @@ fn test_disturb_enters_transformed() {
     // Cast with disturb.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: beggar_id,
             alt_cost: Some(AltCostKind::Disturb),
@@ -249,7 +250,7 @@ fn test_disturb_enters_transformed() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("Cast with disturb should succeed");
 
@@ -413,7 +414,7 @@ fn test_disturb_requires_graveyard() {
     // Attempt to cast with disturb from hand — should fail.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: beggar_id,
             alt_cost: Some(AltCostKind::Disturb),
@@ -429,7 +430,7 @@ fn test_disturb_requires_graveyard() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(

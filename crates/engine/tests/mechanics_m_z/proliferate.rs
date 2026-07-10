@@ -18,6 +18,7 @@
 //! - Multiplayer: all eligible permanents and players (including opponents) are affected.
 
 use mtg_engine::effects::{execute_effect, EffectContext};
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
     CounterType, Effect, GameEvent, GameStateBuilder, ManaColor, ManaCost, ObjectId, ObjectSpec,
@@ -821,7 +822,7 @@ fn test_whenever_you_proliferate_trigger_fires() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -837,7 +838,7 @@ fn test_whenever_you_proliferate_trigger_fires() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 

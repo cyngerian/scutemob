@@ -25,7 +25,7 @@ pub mod sba;
 pub mod suspend;
 pub mod turn_actions;
 pub mod turn_structure;
-pub use command::Command;
+pub use command::{CastSpellData, Command};
 pub use engine::process_command;
 pub use events::{GameEvent, LossReason};
 pub use layers::calculate_characteristics;
@@ -46,7 +46,7 @@ pub use protocol::{
 ///
 /// Used by both `casting::validate_targets` and `abilities::handle_activate_ability`.
 pub(crate) fn validate_target_protection(
-    keywords: &im::OrdSet<crate::state::types::KeywordAbility>,
+    keywords: &imbl::OrdSet<crate::state::types::KeywordAbility>,
     controller: crate::state::player::PlayerId,
     caster: crate::state::player::PlayerId,
     source_chars: Option<&crate::state::game_object::Characteristics>,

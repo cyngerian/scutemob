@@ -21,6 +21,7 @@
 //! depends on stable-sort insertion order rather than distinct timestamps. This
 //! test locks that behavior in as a regression guard.
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     calculate_characteristics, enrich_spec_from_def, process_command, CardDefinition, CardId,
     CardRegistry, CardType, Command, CounterType, GameEvent, GameState, GameStateBuilder,
@@ -80,7 +81,7 @@ fn cast_spell(
 ) -> Result<(GameState, Vec<GameEvent>), mtg_engine::GameStateError> {
     process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player,
             card,
             targets,
@@ -96,7 +97,7 @@ fn cast_spell(
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
 }
 
@@ -189,12 +190,12 @@ fn test_kenriths_transformation_full_integration() {
     assert_eq!(chars.toughness, Some(3));
     assert_eq!(
         chars.card_types,
-        im::OrdSet::unit(CardType::Creature),
+        imbl::OrdSet::unit(CardType::Creature),
         "loses all other card types"
     );
     assert_eq!(
         chars.subtypes,
-        im::OrdSet::unit(SubType("Elk".to_string())),
+        imbl::OrdSet::unit(SubType("Elk".to_string())),
         "is ... an Elk creature"
     );
     assert!(
@@ -261,10 +262,10 @@ fn test_eaten_by_piranhas_full_integration() {
     let chars = calculate_characteristics(&state, target_id).unwrap();
     assert_eq!(chars.power, Some(1));
     assert_eq!(chars.toughness, Some(1));
-    assert_eq!(chars.card_types, im::OrdSet::unit(CardType::Creature));
+    assert_eq!(chars.card_types, imbl::OrdSet::unit(CardType::Creature));
     assert_eq!(
         chars.subtypes,
-        im::OrdSet::unit(SubType("Skeleton".to_string()))
+        imbl::OrdSet::unit(SubType("Skeleton".to_string()))
     );
     assert!(chars.colors.contains(&mtg_engine::Color::Black));
     assert!(
@@ -331,7 +332,7 @@ fn test_darksteel_mutation_full_integration() {
     );
     assert_eq!(
         chars.subtypes,
-        im::OrdSet::unit(SubType("Insect".to_string()))
+        imbl::OrdSet::unit(SubType("Insect".to_string()))
     );
     assert!(
         chars.keywords.contains(&KeywordAbility::Indestructible),
@@ -663,12 +664,12 @@ fn test_vraska_betrayals_sting_minus2_full_integration() {
     let chars = calculate_characteristics(&state, target_id).unwrap();
     assert_eq!(
         chars.card_types,
-        im::OrdSet::unit(CardType::Artifact),
+        imbl::OrdSet::unit(CardType::Artifact),
         "loses all other card types (is only a Treasure artifact)"
     );
     assert_eq!(
         chars.subtypes,
-        im::OrdSet::unit(SubType("Treasure".to_string())),
+        imbl::OrdSet::unit(SubType("Treasure".to_string())),
         "loses all other subtypes ... only a Treasure artifact"
     );
     assert!(

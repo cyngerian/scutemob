@@ -18,6 +18,7 @@
 //! - Controller's own poison counters never satisfy the condition.
 //! - Eliminated opponents (has_lost == true) are excluded from the check.
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
     Condition, Effect, EffectAmount, GameState, GameStateBuilder, ManaColor, ManaCost, ObjectId,
@@ -98,7 +99,7 @@ fn cast_corrupted_creature(state: GameState, player: PlayerId, name: &str) -> Ga
     let card_id = find_object(&state, name);
     process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player,
             card: card_id,
             targets: vec![],
@@ -114,7 +115,7 @@ fn cast_corrupted_creature(state: GameState, player: PlayerId, name: &str) -> Ga
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell ({}) failed: {:?}", name, e))
     .0

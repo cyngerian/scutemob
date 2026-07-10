@@ -14,7 +14,8 @@
 //! - Lifelink applies to fight/bite damage.
 //! - Bite is one-sided: only the source deals damage; target does not deal damage back.
 
-use im::OrdSet;
+use imbl::OrdSet;
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::test_util;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardEffectTarget, CardId, CardRegistry,
@@ -88,7 +89,7 @@ fn cast_spell_two_targets(
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: caster,
             card: spell_id,
             targets: vec![
@@ -107,7 +108,7 @@ fn cast_spell_two_targets(
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell (two targets) failed: {:?}", e));
     state

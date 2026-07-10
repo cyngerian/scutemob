@@ -361,7 +361,7 @@ use crate::cards::card_definition::{
 };
 use crate::rules::events::{CombatDamageAssignment, CombatDamageTarget, GameEvent, LossReason};
 use blake3::Hasher;
-use im::{OrdMap, OrdSet, Vector};
+use imbl::{OrdMap, OrdSet, Vector};
 /// Feeds data into a `blake3::Hasher` in a deterministic, canonical order.
 ///
 /// Unlike `std::hash::Hash`, this trait:
@@ -2447,7 +2447,7 @@ impl HashInto for PendingTrigger {
         self.damaged_player.hash_into(hasher);
         self.combat_damage_amount.hash_into(hasher);
         // CR 603.10a: LKI counter snapshot — must be hashed for replay determinism.
-        // OrdMap iteration is deterministic by sorted key (im::OrdMap invariant).
+        // OrdMap iteration is deterministic by sorted key (imbl::OrdMap invariant).
         for (ct, count) in self.lki_counters.iter() {
             ct.hash_into(hasher);
             count.hash_into(hasher);
@@ -3356,7 +3356,7 @@ impl HashInto for StackObject {
             p.hash_into(hasher);
         }
         // CR 603.10a: LKI counter snapshot for WhenDies / WhenLeavesBattlefield triggers.
-        // OrdMap iteration is deterministic by sorted key (im::OrdMap invariant).
+        // OrdMap iteration is deterministic by sorted key (imbl::OrdMap invariant).
         for (ct, count) in self.lki_counters.iter() {
             ct.hash_into(hasher);
             count.hash_into(hasher);

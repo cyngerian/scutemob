@@ -22,6 +22,7 @@
 //! exercised until M10 adds player-choice infrastructure. When that lands, add a
 //! test that declines to cast and verifies the card moves to hand via DiscoverToHand.
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
     Completeness, Effect, EffectAmount, GameEvent, GameState, GameStateBuilder, KeywordAbility,
@@ -183,7 +184,7 @@ fn cast_discover_creature(state: GameState, name: &str) -> (GameState, Vec<GameE
 
     process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1(),
             card: card_id,
             targets: vec![],
@@ -199,7 +200,7 @@ fn cast_discover_creature(state: GameState, name: &str) -> (GameState, Vec<GameE
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell '{}' failed: {:?}", name, e))
 }

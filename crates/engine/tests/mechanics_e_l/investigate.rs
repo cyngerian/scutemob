@@ -13,6 +13,7 @@
 //! - Clue token can be activated ({2}, sacrifice) to draw a card (CR 111.10f).
 
 use mtg_engine::effects::{execute_effect, EffectContext};
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
     Effect, EffectAmount, GameEvent, GameStateBuilder, ManaColor, ManaCost, ObjectId, ObjectSpec,
@@ -408,7 +409,7 @@ fn test_investigate_clue_can_be_activated() {
     // Cast the Investigate sorcery.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -424,7 +425,7 @@ fn test_investigate_clue_can_be_activated() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 

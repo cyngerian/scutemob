@@ -200,10 +200,10 @@ impl<P: LegalActionProvider> GameDriver<P> {
             }
 
             // If the command is CastSpell, auto-tap mana sources first
-            let commands = if let Command::CastSpell { player, card, .. } = &cmd {
-                if let Ok(obj) = state.object(*card) {
+            let commands = if let Command::CastSpell(cast) = &cmd {
+                if let Ok(obj) = state.object(cast.card) {
                     if let Some(ref cost) = obj.characteristics.mana_cost {
-                        let mut cmds = mana_solver::solve_mana_payment(&state, *player, cost)
+                        let mut cmds = mana_solver::solve_mana_payment(&state, cast.player, cost)
                             .unwrap_or_default();
                         cmds.push(cmd.clone());
                         cmds

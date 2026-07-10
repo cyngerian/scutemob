@@ -30,7 +30,7 @@
 //!      force a fail here as well as in the sweep files).
 
 use blake3::Hasher;
-use im::OrdMap;
+use imbl::OrdMap;
 use mtg_engine::state::hash::HashInto;
 use mtg_engine::state::types::CounterType;
 use mtg_engine::{GameEvent, ObjectId, PlayerId, HASH_SCHEMA_VERSION};

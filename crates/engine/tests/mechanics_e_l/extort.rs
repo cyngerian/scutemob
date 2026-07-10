@@ -13,6 +13,7 @@
 //! - Extort trigger resolves before the triggering spell (standard triggered ability ordering).
 //! - Multiplayer: in 4-player, each of 3 opponents loses 1 life, controller gains 3.
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     process_command, CardDefinition, CardId, CardRegistry, CardType, Command, GameEvent,
     GameStateBuilder, KeywordAbility, ManaCost, ObjectSpec, PlayerId, Step, Target, TypeLine,
@@ -158,7 +159,7 @@ fn test_extort_basic_drain_on_spell_cast() {
     // p1 casts Lightning Bolt targeting p2.
     let (state, cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![Target::Player(p2)],
@@ -174,7 +175,7 @@ fn test_extort_basic_drain_on_spell_cast() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -277,7 +278,7 @@ fn test_extort_triggers_on_creature_spell() {
 
     let (state, cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -293,7 +294,7 @@ fn test_extort_triggers_on_creature_spell() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -360,7 +361,7 @@ fn test_extort_does_not_trigger_for_opponent_spell() {
 
     let (state, cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: spell_id,
             targets: vec![Target::Player(p1)],
@@ -376,7 +377,7 @@ fn test_extort_does_not_trigger_for_opponent_spell() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -454,7 +455,7 @@ fn test_extort_multiple_instances_trigger_separately() {
 
     let (state, cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![Target::Player(p2)],
@@ -470,7 +471,7 @@ fn test_extort_multiple_instances_trigger_separately() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -580,7 +581,7 @@ fn test_extort_does_not_target_hits_all_opponents() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![Target::Player(p2)],
@@ -596,7 +597,7 @@ fn test_extort_does_not_target_hits_all_opponents() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -667,7 +668,7 @@ fn test_extort_resolves_before_triggering_spell() {
     // Cast Lightning Bolt.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![Target::Player(p2)],
@@ -683,7 +684,7 @@ fn test_extort_resolves_before_triggering_spell() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -769,7 +770,7 @@ fn test_extort_multiplayer_4_player_drain() {
     // p1 casts Lightning Bolt targeting p2.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![Target::Player(p2)],
@@ -785,7 +786,7 @@ fn test_extort_multiplayer_4_player_drain() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 

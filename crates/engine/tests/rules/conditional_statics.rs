@@ -3,7 +3,7 @@
 //! Tests that `ContinuousEffect::condition` gates layer application correctly,
 //! using each of the five new `Condition` variants and `RemoveCardTypes`.
 
-use im::ordset;
+use imbl::ordset;
 use mtg_engine::{
     calculate_characteristics, CardType, Condition, ContinuousEffect, CounterType, EffectDuration,
     EffectFilter, EffectId, EffectLayer, GameState, GameStateBuilder, KeywordAbility,

@@ -11,6 +11,7 @@
 //! - Prowess resolves independently of the triggering spell (rulings).
 //! - Storm copies are not casts and do not trigger prowess.
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::CardType;
 use mtg_engine::{
     calculate_characteristics, process_command, AbilityDefinition, CardDefinition, CardId,
@@ -221,7 +222,7 @@ fn test_prowess_basic_noncreature_spell_gives_plus_one() {
     // p1 casts Lightning Bolt targeting p2.
     let (state, cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![Target::Player(p2)],
@@ -237,7 +238,7 @@ fn test_prowess_basic_noncreature_spell_gives_plus_one() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -337,7 +338,7 @@ fn test_prowess_does_not_trigger_on_creature_spell() {
 
     let (state, cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -353,7 +354,7 @@ fn test_prowess_does_not_trigger_on_creature_spell() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -420,7 +421,7 @@ fn test_prowess_does_not_trigger_on_artifact_creature_spell() {
 
     let (state, cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -436,7 +437,7 @@ fn test_prowess_does_not_trigger_on_artifact_creature_spell() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -501,7 +502,7 @@ fn test_prowess_does_not_trigger_on_opponent_spell() {
 
     let (state, cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: spell_id,
             targets: vec![Target::Player(p1)],
@@ -517,7 +518,7 @@ fn test_prowess_does_not_trigger_on_opponent_spell() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -583,7 +584,7 @@ fn test_prowess_resolves_independently_of_triggering_spell() {
     // p1 casts Lightning Bolt targeting p2.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![Target::Player(p2)],
@@ -599,7 +600,7 @@ fn test_prowess_resolves_independently_of_triggering_spell() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -678,7 +679,7 @@ fn test_prowess_until_end_of_turn_expires() {
     // Cast and let prowess resolve.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![Target::Player(p2)],
@@ -694,7 +695,7 @@ fn test_prowess_until_end_of_turn_expires() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -787,7 +788,7 @@ fn test_prowess_multiple_spells_stack() {
     // Cast Lightning Bolt targeting p2 — prowess trigger 1 goes on stack.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: bolt_id,
             targets: vec![Target::Player(p2)],
@@ -803,7 +804,7 @@ fn test_prowess_multiple_spells_stack() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -827,7 +828,7 @@ fn test_prowess_multiple_spells_stack() {
     let shock_id = find_object(&state, "Shock");
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: shock_id,
             targets: vec![Target::Player(p2)],
@@ -843,7 +844,7 @@ fn test_prowess_multiple_spells_stack() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -925,7 +926,7 @@ fn test_prowess_multiplayer_only_controllers_creatures_trigger() {
 
     let (state, cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![Target::Player(p2)],
@@ -941,7 +942,7 @@ fn test_prowess_multiplayer_only_controllers_creatures_trigger() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 

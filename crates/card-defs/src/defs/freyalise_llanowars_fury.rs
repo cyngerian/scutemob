@@ -25,8 +25,8 @@ pub fn card() -> CardDefinition {
                         colors: [Color::Green].into_iter().collect(),
                         power: 1,
                         toughness: 1,
-                        supertypes: im::OrdSet::new(),
-                        keywords: im::OrdSet::new(),
+                        supertypes: imbl::OrdSet::new(),
+                        keywords: imbl::OrdSet::new(),
                         count: EffectAmount::Fixed(1),
                         tapped: false,
                         enters_attacking: false,
@@ -58,7 +58,7 @@ pub fn card() -> CardDefinition {
                     count: EffectAmount::PermanentCount {
                         filter: TargetFilter {
                             has_card_type: Some(CardType::Creature),
-                            colors: Some(im::ordset![Color::Green]),
+                            colors: Some(imbl::ordset![Color::Green]),
                             ..Default::default()
                         },
                         controller: PlayerTarget::Controller,

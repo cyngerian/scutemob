@@ -16,6 +16,7 @@
 //! - Subtype filter: "Champion a Faerie" only accepts permanents with that subtype (CR 702.72a).
 //! - Changeling (all subtypes) satisfies any subtype filter (implicit from changeling rules).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::CardType;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, ChampionFilter,
@@ -255,7 +256,7 @@ fn setup_champion_on_bf(
     // Cast the champion creature.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: hand_id,
             targets: vec![],
@@ -271,7 +272,7 @@ fn setup_champion_on_bf(
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
 
@@ -340,7 +341,7 @@ fn test_champion_basic_etb_exiles_creature() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: hand_id,
             targets: vec![],
@@ -356,7 +357,7 @@ fn test_champion_basic_etb_exiles_creature() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
 
@@ -462,7 +463,7 @@ fn test_champion_no_target_sacrifices_self() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: hand_id,
             targets: vec![],
@@ -478,7 +479,7 @@ fn test_champion_no_target_sacrifices_self() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
 
@@ -580,7 +581,7 @@ fn test_champion_ltb_returns_exiled_card() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: hand_id,
             targets: vec![],
@@ -596,7 +597,7 @@ fn test_champion_ltb_returns_exiled_card() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
 
@@ -687,7 +688,7 @@ fn test_champion_non_champion_no_trigger() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: hand_id,
             targets: vec![],
@@ -703,7 +704,7 @@ fn test_champion_non_champion_no_trigger() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
 
@@ -798,7 +799,7 @@ fn test_champion_subtype_filter_rejects_wrong_type() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: hand_id,
             targets: vec![],
@@ -814,7 +815,7 @@ fn test_champion_subtype_filter_rejects_wrong_type() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
 
@@ -900,7 +901,7 @@ fn test_champion_subtype_filter_accepts_faerie() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: hand_id,
             targets: vec![],
@@ -916,7 +917,7 @@ fn test_champion_subtype_filter_accepts_faerie() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
 
@@ -998,7 +999,7 @@ fn test_champion_changeling_matches_faerie_filter() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: hand_id,
             targets: vec![],
@@ -1014,7 +1015,7 @@ fn test_champion_changeling_matches_faerie_filter() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
 
@@ -1098,7 +1099,7 @@ fn test_champion_cannot_target_itself() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: hand_id,
             targets: vec![],
@@ -1114,7 +1115,7 @@ fn test_champion_cannot_target_itself() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
 

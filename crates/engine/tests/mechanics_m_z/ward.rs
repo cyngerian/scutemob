@@ -10,6 +10,7 @@
 //! non-interactive engine.
 
 use mtg_engine::cards::card_definition::ForEachTarget;
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::CardType;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardEffectTarget, CardId, CardRegistry,
@@ -189,7 +190,7 @@ fn test_ward_basic_counter_on_targeting() {
     // p2 casts Doom Blade targeting the ward creature.
     let (state, cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: spell_id,
             targets: vec![Target::Object(creature_id)],
@@ -205,7 +206,7 @@ fn test_ward_basic_counter_on_targeting() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -319,7 +320,7 @@ fn test_ward_does_not_trigger_for_controller() {
     // p1 casts Doom Blade targeting their own ward creature.
     let (state, _cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![Target::Object(creature_id)],
@@ -335,7 +336,7 @@ fn test_ward_does_not_trigger_for_controller() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -414,7 +415,7 @@ fn test_ward_does_not_trigger_for_non_targeting_spell() {
     // p2 casts Wrath of God (no targets).
     let (state, cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: spell_id,
             targets: vec![],
@@ -430,7 +431,7 @@ fn test_ward_does_not_trigger_for_non_targeting_spell() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -622,7 +623,7 @@ fn test_ward_cant_be_countered_spell_resolves_normally() {
     // p2 casts the cant-be-countered spell targeting the ward creature.
     let (state, cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: spell_id,
             targets: vec![Target::Object(creature_id)],
@@ -638,7 +639,7 @@ fn test_ward_cant_be_countered_spell_resolves_normally() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -791,7 +792,7 @@ fn test_ward_multiple_targets_trigger_separately() {
     // p2 casts Twin Bolt targeting both ward creatures.
     let (state, cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: spell_id,
             targets: vec![Target::Object(a_id), Target::Object(b_id)],
@@ -807,7 +808,7 @@ fn test_ward_multiple_targets_trigger_separately() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -889,7 +890,7 @@ fn test_ward_multiplayer_opponent_check() {
     // p3 (opponent of p1) casts Doom Blade targeting p1's ward creature.
     let (state, cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p3,
             card: spell_id,
             targets: vec![Target::Object(creature_id)],
@@ -905,7 +906,7 @@ fn test_ward_multiplayer_opponent_check() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 

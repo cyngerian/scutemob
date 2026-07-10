@@ -18,6 +18,7 @@
 //! - The old ObjectId from `delve_cards` is retired after exile (CR 400.7).
 //! - Multiple instances of delve on the same spell are redundant (CR 702.66c).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     process_command, CardId, CardType, Command, GameEvent, GameState, GameStateBuilder,
     KeywordAbility, ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerId, Step, SuperType, ZoneId,
@@ -175,7 +176,7 @@ fn test_delve_basic_exile_cards_reduce_generic_cost() {
 
     let (state, _events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -191,7 +192,7 @@ fn test_delve_basic_exile_cards_reduce_generic_cost() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell with delve failed: {:?}", e));
 
@@ -285,7 +286,7 @@ fn test_delve_partial_reduction() {
 
     let (state, _events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -301,7 +302,7 @@ fn test_delve_partial_reduction() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("Partial delve cast failed: {:?}", e));
 
@@ -373,7 +374,7 @@ fn test_delve_object_exiled_events() {
 
     let (state, events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -389,7 +390,7 @@ fn test_delve_object_exiled_events() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("Delve cast failed: {:?}", e));
 
@@ -468,7 +469,7 @@ fn test_delve_reject_no_keyword() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -484,7 +485,7 @@ fn test_delve_reject_no_keyword() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -543,7 +544,7 @@ fn test_delve_reject_too_many_cards() {
     // Try to exile 3 cards for a spell with only 2 generic.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -559,7 +560,7 @@ fn test_delve_reject_too_many_cards() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -604,7 +605,7 @@ fn test_delve_reject_card_not_in_graveyard() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -620,7 +621,7 @@ fn test_delve_reject_card_not_in_graveyard() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -665,7 +666,7 @@ fn test_delve_reject_opponents_graveyard() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -681,7 +682,7 @@ fn test_delve_reject_opponents_graveyard() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -726,7 +727,7 @@ fn test_delve_reject_duplicate_cards() {
     // Pass the same card ID twice.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -742,7 +743,7 @@ fn test_delve_reject_duplicate_cards() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -796,7 +797,7 @@ fn test_delve_zero_cards_normal_cast() {
 
     let (state, _events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -812,7 +813,7 @@ fn test_delve_zero_cards_normal_cast() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("Normal cast of delve spell failed: {:?}", e));
 
@@ -921,7 +922,7 @@ fn test_delve_with_commander_tax() {
 
     let (state, events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: cmd_obj_id,
             targets: vec![],
@@ -937,7 +938,7 @@ fn test_delve_with_commander_tax() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("Commander delve cast failed: {:?}", e));
 

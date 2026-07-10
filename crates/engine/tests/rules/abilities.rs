@@ -3,6 +3,7 @@
 //! M3-E: ActivateAbility command, triggered ability infrastructure, APNAP ordering,
 //! intervening-if clause, and ability resolution from the stack.
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::rules::{process_command, Command, GameEvent};
 use mtg_engine::state::player::ManaPool;
 use mtg_engine::state::turn::Step;
@@ -592,7 +593,7 @@ fn test_triggered_ability_self_etb_fires_on_enter() {
     // Cast the creature (no cost for M3-E tests).
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -608,7 +609,7 @@ fn test_triggered_ability_self_etb_fires_on_enter() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -668,7 +669,7 @@ fn test_triggered_ability_any_etb_watches_all_permanents() {
     // p2 casts the creature.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: card_id,
             targets: vec![],
@@ -684,7 +685,7 @@ fn test_triggered_ability_any_etb_watches_all_permanents() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -747,7 +748,7 @@ fn test_triggered_ability_apnap_ordering() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -763,7 +764,7 @@ fn test_triggered_ability_apnap_ordering() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -838,7 +839,7 @@ fn test_triggered_ability_intervening_if_false_does_not_trigger() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -854,7 +855,7 @@ fn test_triggered_ability_intervening_if_false_does_not_trigger() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -912,7 +913,7 @@ fn test_triggered_ability_intervening_if_true_triggers() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -928,7 +929,7 @@ fn test_triggered_ability_intervening_if_true_triggers() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -980,7 +981,7 @@ fn test_triggered_ability_resolves_after_all_pass() {
     // Cast creature, pass priority to put it on the stack, then resolve it.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -996,7 +997,7 @@ fn test_triggered_ability_resolves_after_all_pass() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -2248,7 +2249,7 @@ fn test_dies_trigger_full_via_lightning_bolt_and_sba() {
     // p2 casts Lightning Bolt targeting Solemn Simulacrum.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: bolt_id,
             targets: vec![Target::Object(solemn_id)],
@@ -2264,7 +2265,7 @@ fn test_dies_trigger_full_via_lightning_bolt_and_sba() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("p2 should be able to cast Lightning Bolt targeting Solemn Simulacrum");
 

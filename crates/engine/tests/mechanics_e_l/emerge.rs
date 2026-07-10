@@ -17,6 +17,7 @@
 //! - Cards without Emerge keyword reject alt_cost Emerge (engine validation).
 //! - The spell can also be cast normally without using emerge (CR 702.119a).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::types::AltCostKind;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
@@ -208,7 +209,7 @@ fn test_emerge_basic_sacrifice_reduces_cost() {
     // Cast Emerge Creature using emerge, sacrificing the 3-MV creature.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -227,7 +228,7 @@ fn test_emerge_basic_sacrifice_reduces_cost() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell with emerge (MV 3 creature) failed: {:?}", e));
 
@@ -297,7 +298,7 @@ fn test_emerge_sacrifice_token_mv_zero() {
     // Cast using emerge, sacrificing the token (MV 0 = no reduction).
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -316,7 +317,7 @@ fn test_emerge_sacrifice_token_mv_zero() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell with emerge (token, MV 0) failed: {:?}", e));
 
@@ -374,7 +375,7 @@ fn test_emerge_sacrifice_high_mv_creature() {
     // Cast emerge with no mana -- cost should have been reduced to {0}.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -393,7 +394,7 @@ fn test_emerge_sacrifice_high_mv_creature() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| {
         panic!(
@@ -459,7 +460,7 @@ fn test_emerge_sacrifice_must_be_creature() {
     // Attempting to sacrifice an artifact for emerge should be rejected.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -478,7 +479,7 @@ fn test_emerge_sacrifice_must_be_creature() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -531,7 +532,7 @@ fn test_emerge_sacrifice_must_be_own_creature() {
     // Attempting to sacrifice the opponent's creature should be rejected.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -550,7 +551,7 @@ fn test_emerge_sacrifice_must_be_own_creature() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -591,7 +592,7 @@ fn test_emerge_without_sacrifice_fails() {
     // Emerge alt cost without a sacrifice should be rejected.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -608,7 +609,7 @@ fn test_emerge_without_sacrifice_fails() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -661,7 +662,7 @@ fn test_emerge_mutual_exclusion_with_flashback() {
     // providing emerge_sacrifice -- the engine rejects because flashback != Emerge.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -680,7 +681,7 @@ fn test_emerge_mutual_exclusion_with_flashback() {
             }], // // Also providing emerge sacrifice
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     // Should fail: the sacrifice is silently ignored (no Emerge alt_cost to claim it),
@@ -747,7 +748,7 @@ fn test_emerge_no_keyword_rejects_emerge() {
     // Attempting to use emerge alt_cost on a card without Emerge keyword should be rejected.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -766,7 +767,7 @@ fn test_emerge_no_keyword_rejects_emerge() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -803,7 +804,7 @@ fn test_emerge_normal_cast_without_emerge() {
     // Cast without emerge alt_cost.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -819,7 +820,7 @@ fn test_emerge_normal_cast_without_emerge() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("Normal cast of emerge creature failed: {:?}", e));
 
@@ -873,7 +874,7 @@ fn test_sacrifice_without_matching_ability_is_ignored() {
     // RC-1: This is now silently ignored (sacrifice is not performed).
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -892,7 +893,7 @@ fn test_sacrifice_without_matching_ability_is_ignored() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     // Spell casts successfully; the unclaimed sacrifice is ignored.

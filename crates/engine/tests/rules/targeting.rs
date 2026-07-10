@@ -4,6 +4,7 @@
 //! without effect), partial fizzle (some targets illegal → spell resolves normally),
 //! and mana cost payment with validation.
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::rules::{process_command, Command, GameEvent};
 use mtg_engine::state::game_object::ManaCost;
 use mtg_engine::state::turn::Step;
@@ -47,7 +48,7 @@ fn test_601_2c_targeting_active_player_is_valid() {
     // Cast targeting p2 (active player p1 has priority at Upkeep).
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![Target::Player(p2)],
@@ -63,7 +64,7 @@ fn test_601_2c_targeting_active_player_is_valid() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(result.is_ok(), "targeting an active player should succeed");
 
@@ -107,7 +108,7 @@ fn test_601_2c_targeting_object_is_valid() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![Target::Object(creature_id)],
@@ -123,7 +124,7 @@ fn test_601_2c_targeting_object_is_valid() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(result.is_ok());
 
@@ -160,7 +161,7 @@ fn test_601_2c_targeting_nonexistent_object_fails() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![Target::Object(bogus_id)],
@@ -176,7 +177,7 @@ fn test_601_2c_targeting_nonexistent_object_fails() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_err(),
@@ -228,7 +229,7 @@ fn test_601_2c_targeting_eliminated_player_fails() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![Target::Player(p2)], // p2 is eliminated
@@ -244,7 +245,7 @@ fn test_601_2c_targeting_eliminated_player_fails() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_err(),
@@ -284,7 +285,7 @@ fn test_608_2b_fizzle_player_target_concedes() {
     // p1 casts targeting p2.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![Target::Player(p2)],
@@ -300,7 +301,7 @@ fn test_608_2b_fizzle_player_target_concedes() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
     assert_eq!(state.stack_objects().len(), 1);
@@ -365,7 +366,7 @@ fn test_608_2b_fizzle_all_targets_illegal() {
     // Cast targeting p2.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![Target::Player(p2)],
@@ -381,7 +382,7 @@ fn test_608_2b_fizzle_all_targets_illegal() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -466,7 +467,7 @@ fn test_608_2b_partial_fizzle_spell_resolves() {
     // Cast targeting both p2 and p3.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![Target::Player(p2), Target::Player(p3)],
@@ -482,7 +483,7 @@ fn test_608_2b_partial_fizzle_spell_resolves() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -565,7 +566,7 @@ fn test_601_mana_cost_deducted_on_cast() {
 
     let (new_state, events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -581,7 +582,7 @@ fn test_601_mana_cost_deducted_on_cast() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -634,7 +635,7 @@ fn test_601_mana_cost_colored_and_generic() {
 
     let (new_state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -650,7 +651,7 @@ fn test_601_mana_cost_colored_and_generic() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -696,7 +697,7 @@ fn test_601_insufficient_mana_fails() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -712,7 +713,7 @@ fn test_601_insufficient_mana_fails() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(result.is_err(), "casting without enough mana should fail");
     assert!(matches!(
@@ -762,7 +763,7 @@ fn test_601_generic_paid_from_any_color() {
 
     let (new_state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -778,7 +779,7 @@ fn test_601_generic_paid_from_any_color() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -825,7 +826,7 @@ fn test_601_colorless_requirement_must_use_colorless() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -841,7 +842,7 @@ fn test_601_colorless_requirement_must_use_colorless() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_err(),
@@ -877,7 +878,7 @@ fn test_601_no_mana_cost_casts_free() {
 
     let (_, events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -893,7 +894,7 @@ fn test_601_no_mana_cost_casts_free() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -985,7 +986,7 @@ fn test_601_2c_doom_blade_cannot_target_black_creature() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p(1),
             card: doom_card_id,
             targets: vec![Target::Object(black_id)],
@@ -1001,7 +1002,7 @@ fn test_601_2c_doom_blade_cannot_target_black_creature() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -1039,7 +1040,7 @@ fn test_601_2c_doom_blade_can_target_non_black_creature() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p(1),
             card: doom_card_id,
             targets: vec![Target::Object(red_id)],
@@ -1055,7 +1056,7 @@ fn test_601_2c_doom_blade_can_target_non_black_creature() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -1137,7 +1138,7 @@ fn test_601_2c_target_creature_rejects_non_creature() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: doom_card,
             targets: vec![Target::Object(enchantment_id)],
@@ -1153,7 +1154,7 @@ fn test_601_2c_target_creature_rejects_non_creature() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(

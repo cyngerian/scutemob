@@ -88,7 +88,7 @@ pub fn check_for_mandatory_loop(state: &mut GameState) -> Option<GameEvent> {
 /// mandatory-action sequence). This ensures optional loops (where a player
 /// has a choice to break the cycle) are not falsely flagged.
 pub fn reset_loop_detection(state: &mut GameState) {
-    state.loop_detection_hashes = im::OrdMap::new();
+    state.loop_detection_hashes = imbl::OrdMap::new();
 }
 /// Compute a hash of the game state for loop detection purposes.
 ///
@@ -113,7 +113,7 @@ fn compute_mandatory_state_hash(state: &GameState) -> u64 {
     state.turn.step.hash_into(&mut hasher);
     state.turn.active_player.hash_into(&mut hasher);
     // 2. All game objects (board state) — sorted by ObjectId for determinism.
-    // MR-M9.4-09: state.objects is an im::OrdMap which iterates in key order,
+    // MR-M9.4-09: state.objects is an imbl::OrdMap which iterates in key order,
     // so no manual collect+sort is needed.
     for obj in state.objects.values() {
         // Only hash objects in public zones (battlefield, graveyard, exile, command)

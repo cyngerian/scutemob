@@ -22,6 +22,7 @@
 use mtg_engine::cards::card_definition::{
     AbilityDefinition, CardDefinition, Effect, EffectAmount, PlayerTarget, TargetRequirement,
 };
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::CardType;
 use mtg_engine::{
     process_command, CardEffectTarget, CardId, CardRegistry, Command, GameEvent, GameStateBuilder,
@@ -434,7 +435,7 @@ fn test_madness_cast_from_exile() {
     // p1 casts Fiery Temper from exile via madness, targeting p2.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![Target::Player(p2)],
@@ -450,7 +451,7 @@ fn test_madness_cast_from_exile() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -532,7 +533,7 @@ fn test_madness_sorcery_ignores_timing() {
     // p1 casts the sorcery via madness during p2's turn — should succeed.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![Target::Player(p2)],
@@ -548,7 +549,7 @@ fn test_madness_sorcery_ignores_timing() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -664,7 +665,7 @@ fn test_madness_cast_with_madness_flag_set_on_stack() {
 
     let (state_after, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![Target::Player(p2)],
@@ -680,7 +681,7 @@ fn test_madness_cast_with_madness_flag_set_on_stack() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -740,7 +741,7 @@ fn test_madness_non_madness_exile_cannot_cast() {
     // Attempting to cast a non-madness card from exile should fail.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -756,7 +757,7 @@ fn test_madness_non_madness_exile_cannot_cast() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -895,7 +896,7 @@ fn test_madness_mana_value_unchanged() {
 
     let (state_after, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![Target::Player(p2)],
@@ -911,7 +912,7 @@ fn test_madness_mana_value_unchanged() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -1023,7 +1024,7 @@ fn test_madness_effect_discard_goes_to_exile() {
     // p2 casts Discard Spell targeting p1.
     let (state_after_cast, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: discard_id,
             targets: vec![Target::Player(p1)],
@@ -1039,7 +1040,7 @@ fn test_madness_effect_discard_goes_to_exile() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 

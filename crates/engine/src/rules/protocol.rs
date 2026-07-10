@@ -58,7 +58,14 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 /// # History
 /// - 1: SR-8 (2026-07-10) — initial versioned envelope. Baseline shape is the
 ///   90-type closure recorded in [`PROTOCOL_SCHEMA_FINGERPRINT`].
-pub const PROTOCOL_VERSION: u32 = 1;
+/// - 2: SR-10 (2026-07-10) — `Command::CastSpell`'s ~16-field payload boxed into
+///   a new [`crate::rules::command::CastSpellData`] struct (clippy::large_enum_variant;
+///   shrinks every `Command` value and replay-log entry). The serialized **bytes**
+///   are unchanged — a boxed newtype variant wrapping a struct is serde-identical to
+///   the former struct variant — but the shape digest moved because the closure grew
+///   by one type (90 → 91) and the variant's declared form changed. Bumped per this
+///   gate's policy that any non-variant-reorder digest move bumps the version.
+pub const PROTOCOL_VERSION: u32 = 2;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -76,7 +83,7 @@ pub const PROTOCOL_VERSION: u32 = 1;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "da1327e27cbb7d681ed63041264f69b476086c436a761bdf57d2447c138298db";
+    "ba7907d9f51a65acba39ccf020a14bd6234f637731c934490a7cbf749e5f97b6";
 
 /// Why a versioned message could not be decoded.
 #[derive(Debug, thiserror::Error)]

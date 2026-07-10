@@ -15,6 +15,7 @@
 
 use mtg_engine::check_and_apply_sbas;
 use mtg_engine::register_commander_zone_replacements;
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::rules::{process_command, Command, GameEvent};
 use mtg_engine::state::test_util;
 use mtg_engine::state::turn::Step;
@@ -119,7 +120,7 @@ fn test_cast_commander_from_command_zone_first_time() {
 
     let (new_state, events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_obj_id,
             targets: vec![],
@@ -135,7 +136,7 @@ fn test_cast_commander_from_command_zone_first_time() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -216,7 +217,7 @@ fn test_cast_commander_from_command_zone_second_time() {
 
     let (new_state, events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_obj_id,
             targets: vec![],
@@ -232,7 +233,7 @@ fn test_cast_commander_from_command_zone_second_time() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -302,7 +303,7 @@ fn test_cast_commander_from_command_zone_third_time() {
 
     let (new_state, events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_obj_id,
             targets: vec![],
@@ -318,7 +319,7 @@ fn test_cast_commander_from_command_zone_third_time() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -386,7 +387,7 @@ fn test_cast_commander_from_command_zone_insufficient_mana() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_obj_id,
             targets: vec![],
@@ -402,7 +403,7 @@ fn test_cast_commander_from_command_zone_insufficient_mana() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -449,7 +450,7 @@ fn test_cast_non_commander_from_command_zone_rejected() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_obj_id,
             targets: vec![],
@@ -465,7 +466,7 @@ fn test_cast_non_commander_from_command_zone_rejected() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -507,7 +508,7 @@ fn test_cast_commander_sorcery_speed_enforced() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: card_obj_id,
             targets: vec![],
@@ -523,7 +524,7 @@ fn test_cast_commander_sorcery_speed_enforced() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     // Creatures are sorcery speed; must be cast during own turn
@@ -1019,7 +1020,7 @@ fn test_partner_commanders_separate_tax_tracking() {
 
     let (mut state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: cmd_a_obj_id,
             targets: vec![],
@@ -1035,7 +1036,7 @@ fn test_partner_commanders_separate_tax_tracking() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -1100,7 +1101,7 @@ fn test_partner_commanders_separate_tax_tracking() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: cmd_a_obj_id2,
             targets: vec![],
@@ -1116,7 +1117,7 @@ fn test_partner_commanders_separate_tax_tracking() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -2021,7 +2022,7 @@ fn test_companion_rejected_with_non_empty_stack() {
         triggering_creature_id: None,
         cast_from_top_with_bonus: false,
         sacrificed_creature_powers: vec![],
-        lki_counters: im::OrdMap::new(),
+        lki_counters: imbl::OrdMap::new(),
         lki_power: None,
     });
 
@@ -2162,7 +2163,7 @@ fn test_full_four_player_commander_game() {
     // Pre-set p3 having 14 commander damage from p1.
     {
         let p3_state = state.players_mut().get_mut(&p3).unwrap();
-        let inner = im::OrdMap::from(vec![(alpha_id.clone(), 14u32)]);
+        let inner = imbl::OrdMap::from(vec![(alpha_id.clone(), 14u32)]);
         p3_state.commander_damage_received.insert(p1, inner);
     }
 
@@ -2309,7 +2310,7 @@ fn test_full_four_player_commander_game() {
 
     let (state, cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: beta_cmd_obj_id,
             targets: vec![],
@@ -2325,7 +2326,7 @@ fn test_full_four_player_commander_game() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 

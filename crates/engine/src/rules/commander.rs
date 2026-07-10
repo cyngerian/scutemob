@@ -207,10 +207,10 @@ pub fn validate_deck(
         colors
     };
     // Check each card in the deck.
-    // MR-M9-10: im::OrdMap (not std HashMap) keeps the engine consistent with the
+    // MR-M9-10: imbl::OrdMap (not std HashMap) keeps the engine consistent with the
     // im-rs policy (Architecture Invariant 2) and, because it iterates in sorted
     // key order, produces deterministic DuplicateCard violation ordering.
-    let mut name_counts: im::OrdMap<String, usize> = im::OrdMap::new();
+    let mut name_counts: imbl::OrdMap<String, usize> = imbl::OrdMap::new();
     // Architecture Invariant 9: one IncompleteCard violation per distinct card, even
     // though basic lands legitimately occupy many deck slots.
     let mut reported_incomplete: std::collections::HashSet<&CardId> =

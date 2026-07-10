@@ -11,6 +11,7 @@
 //!
 //! Card integrations: Eyeblight Massacre, Crippling Fear, Olivia's Wrath, Balthor the Defiled.
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::rules::replacement::{
     apply_damage_doubling, register_permanent_replacement_abilities,
 };
@@ -291,7 +292,7 @@ fn test_chosen_subtype_filter_substituted_at_apply_time() {
     // Cast Crippling Fear
     let (state, _) = process_command(
         state.clone(),
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: cf_id,
             targets: vec![],
@@ -307,7 +308,7 @@ fn test_chosen_subtype_filter_substituted_at_apply_time() {
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
             face_down_kind: None,
-        },
+        })),
     )
     .expect("cast Crippling Fear");
 
@@ -405,7 +406,7 @@ fn test_eyeblight_massacre_card_integration() {
     let spell_id = find_object(&state, "Eyeblight Massacre");
     let (state, _) = process_command(
         state.clone(),
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -421,7 +422,7 @@ fn test_eyeblight_massacre_card_integration() {
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
             face_down_kind: None,
-        },
+        })),
     )
     .expect("cast Eyeblight Massacre");
 
@@ -508,7 +509,7 @@ fn test_modify_both_dynamic_resolved_at_apply_time() {
     let spell_id = find_object(&state, "Olivia's Wrath");
     let (state, _) = process_command(
         state.clone(),
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -524,7 +525,7 @@ fn test_modify_both_dynamic_resolved_at_apply_time() {
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
             face_down_kind: None,
-        },
+        })),
     )
     .expect("cast Olivia's Wrath");
 
@@ -613,7 +614,7 @@ fn test_modify_both_dynamic_value_locked_at_resolution() {
     let spell_id = find_object(&state, "Olivia's Wrath");
     let (state, _) = process_command(
         state.clone(),
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -629,7 +630,7 @@ fn test_modify_both_dynamic_value_locked_at_resolution() {
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
             face_down_kind: None,
-        },
+        })),
     )
     .expect("cast Olivia's Wrath");
     let (state, _) = pass_all(state, &[p1, p(2), p(3), p(4)]);
@@ -693,7 +694,7 @@ fn test_modify_both_dynamic_zero_vampires() {
     let spell_id = find_object(&state, "Olivia's Wrath");
     let (state, _) = process_command(
         state.clone(),
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -709,7 +710,7 @@ fn test_modify_both_dynamic_zero_vampires() {
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
             face_down_kind: None,
-        },
+        })),
     )
     .expect("cast Olivia's Wrath with 0 Vampires");
     let (state, _) = pass_all(state, &[p1, p(2), p(3), p(4)]);
@@ -1351,7 +1352,7 @@ fn test_obelisk_of_urd_chosen_type_pump() {
     // Cast Obelisk of Urd
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: obelisk_id,
             targets: vec![],
@@ -1367,7 +1368,7 @@ fn test_obelisk_of_urd_chosen_type_pump() {
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
             face_down_kind: None,
-        },
+        })),
     )
     .expect("cast Obelisk of Urd");
 

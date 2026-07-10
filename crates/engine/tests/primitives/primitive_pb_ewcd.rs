@@ -25,6 +25,7 @@
 //!       — E2 regression: OwnedByOpponentsOf(PlayerId(0)) placeholder is rebound
 //!       to the actual controller at registration time.
 
+use mtg_engine::rules::command::CastSpellData;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -111,7 +112,7 @@ fn cast_creature(
     state.turn_mut().priority_holder = Some(caster);
     process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: caster,
             card,
             targets: vec![],
@@ -127,7 +128,7 @@ fn cast_creature(
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e))
 }

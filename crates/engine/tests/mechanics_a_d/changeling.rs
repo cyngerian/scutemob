@@ -4,7 +4,7 @@
 //! It applies in Layer 4 (TypeChange) as a CDA, before any non-CDA Layer 4 effects (CR 613.3).
 //! It functions in all zones, not just the battlefield (CR 604.3).
 
-use im::{ordset, OrdSet};
+use imbl::{ordset, OrdSet};
 use mtg_engine::{
     calculate_characteristics, CardType, ContinuousEffect, EffectDuration, EffectFilter, EffectId,
     EffectLayer, GameStateBuilder, KeywordAbility, LayerModification, ObjectSpec, PlayerId,

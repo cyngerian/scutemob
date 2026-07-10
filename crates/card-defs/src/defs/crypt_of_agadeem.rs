@@ -50,7 +50,7 @@ pub fn card() -> CardDefinition {
                         player: PlayerTarget::Controller,
                         filter: Some(TargetFilter {
                             has_card_type: Some(CardType::Creature),
-                            colors: Some(im::ordset![Color::Black]),
+                            colors: Some(imbl::ordset![Color::Black]),
                             ..Default::default()
                         }),
                     },

@@ -12,7 +12,7 @@ use crate::state::game_object::{Characteristics, ObjectId};
 use crate::state::player::PlayerId;
 use crate::state::types::{KeywordAbility, ProtectionQuality};
 use crate::state::GameState;
-use im::OrdSet;
+use imbl::OrdSet;
 /// CR 702.16a: Check if a set of keywords contains protection from a given source.
 ///
 /// Returns `true` if any `ProtectionFrom(q)` keyword in `keywords` matches the

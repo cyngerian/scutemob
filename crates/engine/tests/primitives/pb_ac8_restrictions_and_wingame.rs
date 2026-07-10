@@ -26,6 +26,7 @@ use mtg_engine::cards::card_definition::{
     TriggerCondition,
 };
 use mtg_engine::effects::{execute_effect, EffectContext};
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::stubs::{ActiveRestriction, PendingTrigger, PendingTriggerKind};
 use mtg_engine::state::test_util;
 use mtg_engine::state::{ActivatedAbility, ActivationCost, SacrificeFilter};
@@ -99,7 +100,7 @@ fn declare_cmd(player: PlayerId, attackers: Vec<(ObjectId, AttackTarget)>) -> Co
 }
 
 fn cast_cmd(player: PlayerId, card: ObjectId) -> Command {
-    Command::CastSpell {
+    Command::CastSpell(Box::new(CastSpellData {
         player,
         card,
         targets: vec![],
@@ -115,7 +116,7 @@ fn cast_cmd(player: PlayerId, card: ObjectId) -> Command {
         additional_costs: vec![],
         hybrid_choices: vec![],
         phyrexian_life_payments: vec![],
-    }
+    }))
 }
 
 fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent>) {
@@ -1048,7 +1049,7 @@ fn test_cant_be_sacrificed_blitz_delayed_sacrifice_skipped() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -1064,7 +1065,7 @@ fn test_cant_be_sacrificed_blitz_delayed_sacrifice_skipped() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell with blitz failed: {:?}", e));
 
@@ -1282,7 +1283,7 @@ fn test_cant_be_sacrificed_cast_cost_emerge_cannot_pay() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -1301,7 +1302,7 @@ fn test_cant_be_sacrificed_cast_cost_emerge_cannot_pay() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(

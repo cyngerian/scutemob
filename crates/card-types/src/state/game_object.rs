@@ -6,7 +6,7 @@ use super::types::{
 };
 use super::zone::ZoneId;
 use bitflags::bitflags;
-use im::{OrdMap, OrdSet, Vector};
+use imbl::{OrdMap, OrdSet, Vector};
 use serde::{Deserialize, Serialize};
 bitflags! {
     /// Packed boolean designations on a GameObject. Replaces individual `is_*` fields
@@ -1075,7 +1075,7 @@ pub struct GameObject {
     /// CR 702.99c: If the encoded card leaves exile, verify at trigger resolution
     /// time that the card still exists in exile (fizzle if not -- no SBA needed).
     #[serde(default)]
-    pub encoded_cards: im::Vector<(ObjectId, crate::state::player::CardId)>,
+    pub encoded_cards: imbl::Vector<(ObjectId, crate::state::player::CardId)>,
     /// CR 702.55b: The ObjectId of the creature this exiled card is haunting.
     ///
     /// Set when a HauntExileTrigger resolves: the haunt card is moved from the
@@ -1101,7 +1101,7 @@ pub struct GameObject {
     ///
     /// CR 400.7: Reset to empty on zone changes (new objects start unmerged).
     #[serde(default)]
-    pub merged_components: im::Vector<MergedComponent>,
+    pub merged_components: imbl::Vector<MergedComponent>,
     /// CR 712.8d/e: If true, this permanent has its back face up (is transformed).
     ///
     /// When true, the layer system replaces this permanent's base characteristics
@@ -1169,7 +1169,7 @@ pub struct GameObject {
     ///
     /// Reset to empty on zone changes (CR 400.7).
     #[serde(default)]
-    pub craft_exiled_cards: im::Vector<ObjectId>,
+    pub craft_exiled_cards: imbl::Vector<ObjectId>,
     /// CR 106.12: The creature type chosen as this permanent entered the battlefield.
     ///
     /// Used by cards like Cavern of Souls, Secluded Courtyard, Unclaimed Territory:
@@ -1250,7 +1250,7 @@ pub struct GameObject {
     /// `abilities_activated_this_turn`). Reset to empty on zone changes (CR 400.7 — a new
     /// object has no memory of prior triggers).
     #[serde(default)]
-    pub triggered_abilities_fired_this_turn: im::OrdSet<usize>,
+    pub triggered_abilities_fired_this_turn: imbl::OrdSet<usize>,
 }
 /// CR 729.2: A single component in a merged permanent.
 ///

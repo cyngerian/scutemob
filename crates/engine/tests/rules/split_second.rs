@@ -16,6 +16,7 @@
 //!   and spells may be cast normally (Krosan Grip ruling 2021-03-19).
 //! - Triggered abilities still fire and are put on the stack normally (CR 702.61b).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::rules::{process_command, Command, GameEvent};
 use mtg_engine::state::turn::Step;
 use mtg_engine::state::zone::ZoneId;
@@ -159,7 +160,7 @@ fn test_split_second_blocks_casting_spells() {
     // P1 casts the split second spell — succeeds because split second isn't on stack yet.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: ss_id,
             targets: vec![],
@@ -175,7 +176,7 @@ fn test_split_second_blocks_casting_spells() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
 
@@ -194,7 +195,7 @@ fn test_split_second_blocks_casting_spells() {
     // P2 tries to cast the instant — should be blocked by split second.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: plain_id,
             targets: vec![],
@@ -210,7 +211,7 @@ fn test_split_second_blocks_casting_spells() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     match result {
@@ -286,7 +287,7 @@ fn test_split_second_blocks_activated_abilities() {
     // P1 casts the split second spell.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: ss_id,
             targets: vec![],
@@ -302,7 +303,7 @@ fn test_split_second_blocks_activated_abilities() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
 
@@ -382,7 +383,7 @@ fn test_split_second_blocks_cycling() {
     // P1 casts the split second spell.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: ss_id,
             targets: vec![],
@@ -398,7 +399,7 @@ fn test_split_second_blocks_cycling() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
 
@@ -468,7 +469,7 @@ fn test_split_second_allows_mana_abilities() {
     // P1 casts the split second spell.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: ss_id,
             targets: vec![],
@@ -484,7 +485,7 @@ fn test_split_second_allows_mana_abilities() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
 
@@ -561,7 +562,7 @@ fn test_split_second_allows_pass_priority() {
     // P1 casts the split second spell. After casting, p1 gets priority.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: ss_id,
             targets: vec![],
@@ -577,7 +578,7 @@ fn test_split_second_allows_pass_priority() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
 
@@ -641,7 +642,7 @@ fn test_split_second_blocks_caster_too() {
     // P1 casts the split second spell — succeeds.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: ss_id,
             targets: vec![],
@@ -657,7 +658,7 @@ fn test_split_second_blocks_caster_too() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
 
@@ -669,7 +670,7 @@ fn test_split_second_blocks_caster_too() {
     // P1 tries to cast another spell — should be blocked by split second (applies to caster too).
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: second_id,
             targets: vec![],
@@ -685,7 +686,7 @@ fn test_split_second_blocks_caster_too() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     match result {
@@ -749,7 +750,7 @@ fn test_split_second_restriction_ends_after_resolution() {
     // P1 casts the split second spell.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: ss_id,
             targets: vec![],
@@ -765,7 +766,7 @@ fn test_split_second_restriction_ends_after_resolution() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -795,7 +796,7 @@ fn test_split_second_restriction_ends_after_resolution() {
     // P2 casts the plain instant — should now succeed (split second is gone from stack).
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: plain_id,
             targets: vec![],
@@ -811,7 +812,7 @@ fn test_split_second_restriction_ends_after_resolution() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -877,7 +878,7 @@ fn test_split_second_triggered_abilities_still_fire() {
     // P1 casts the split second spell — should trigger the "whenever a spell is cast" ability.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: ss_id,
             targets: vec![],
@@ -893,7 +894,7 @@ fn test_split_second_triggered_abilities_still_fire() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
 

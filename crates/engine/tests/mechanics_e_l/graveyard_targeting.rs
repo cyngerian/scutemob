@@ -8,6 +8,7 @@ use mtg_engine::cards::card_definition::{
     AbilityDefinition, CardDefinition, Effect, EffectTarget, PlayerTarget, TargetFilter,
     TargetRequirement, TypeLine, ZoneTarget,
 };
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::rules::{process_command, Command, GameEvent};
 use mtg_engine::state::game_object::ManaCost;
 use mtg_engine::state::turn::Step;
@@ -64,7 +65,7 @@ fn return_from_gy_spell(
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![card_type],
+            card_types: imbl::ordset![card_type],
             ..Default::default()
         },
         abilities: vec![AbilityDefinition::Spell {
@@ -82,7 +83,7 @@ fn return_from_gy_spell(
 }
 
 fn default_cast(player: PlayerId, card: ObjectId, targets: Vec<Target>) -> Command {
-    Command::CastSpell {
+    Command::CastSpell(Box::new(CastSpellData {
         player,
         card,
         targets,
@@ -98,7 +99,7 @@ fn default_cast(player: PlayerId, card: ObjectId, targets: Vec<Target>) -> Comma
         additional_costs: vec![],
         hybrid_choices: vec![],
         phyrexian_life_payments: vec![],
-    }
+    }))
 }
 
 // ---------------------------------------------------------------------------
@@ -826,7 +827,7 @@ fn test_608_2b_fizzle_gy_target_exiled_before_resolution() {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Instant],
+            card_types: imbl::ordset![CardType::Instant],
             ..Default::default()
         },
         abilities: vec![AbilityDefinition::Spell {
@@ -1051,7 +1052,7 @@ fn test_reanimate_from_opponent_gy_under_casters_control() {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Sorcery],
+            card_types: imbl::ordset![CardType::Sorcery],
             ..Default::default()
         },
         abilities: vec![AbilityDefinition::Spell {

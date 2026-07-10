@@ -5,7 +5,7 @@
 //! ordered (position matters: library, graveyard, stack) or unordered.
 use super::game_object::ObjectId;
 use super::player::PlayerId;
-use im::{OrdSet, Vector};
+use imbl::{OrdSet, Vector};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 /// Zone types as described in CR 400.1.
@@ -139,7 +139,7 @@ impl Zone {
         if let Zone::Ordered(v) = self {
             let mut items: Vec<ObjectId> = v.iter().copied().collect();
             for i in (1..items.len()).rev() {
-                let j = rng.gen_range(0..=i);
+                let j = rng.random_range(0..=i);
                 items.swap(i, j);
             }
             *v = Vector::from(items);

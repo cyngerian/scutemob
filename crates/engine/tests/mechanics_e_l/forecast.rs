@@ -431,7 +431,7 @@ fn test_forecast_resets_each_turn() {
         .contains(&CardId("forecast-card".to_string())));
 
     // Simulate turn reset (what reset_turn_state does when a new turn begins).
-    *state.forecast_used_this_turn_mut() = im::OrdSet::new();
+    *state.forecast_used_this_turn_mut() = imbl::OrdSet::new();
 
     // Verify the tracking is cleared.
     assert!(
@@ -715,7 +715,7 @@ fn test_forecast_blocked_by_split_second() {
         triggering_creature_id: None,
         cast_from_top_with_bonus: false,
         sacrificed_creature_powers: vec![],
-        lki_counters: im::OrdMap::new(),
+        lki_counters: imbl::OrdMap::new(),
         lki_power: None,
     });
 

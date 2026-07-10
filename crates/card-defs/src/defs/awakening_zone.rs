@@ -30,7 +30,7 @@ pub fn card() -> CardDefinition {
                             sacrifice_self: true,
                             any_color: false,
                             requires_tap: false,
-                            produces: im::ordmap! { ManaColor::Colorless => 1 },
+                            produces: imbl::ordmap! { ManaColor::Colorless => 1 },
                             damage_to_controller: 0,
                         }],
                         ..Default::default()

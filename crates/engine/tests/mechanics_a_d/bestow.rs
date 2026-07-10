@@ -12,6 +12,7 @@
 //! - CR 118.9a: Bestow cannot be combined with other alternative costs (flashback, evoke).
 //! - CR 118.9c: Mana value is unchanged when cast bestowed (printed mana cost).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::test_util;
 use mtg_engine::state::types::AltCostKind;
 use mtg_engine::state::CardType;
@@ -165,7 +166,7 @@ fn test_bestow_cast_as_aura_basic() {
     // Cast with bestow, targeting the bear.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: satyr_id,
             targets: vec![Target::Object(bear_id)],
@@ -181,7 +182,7 @@ fn test_bestow_cast_as_aura_basic() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell with bestow failed: {:?}", e));
 
@@ -355,7 +356,7 @@ fn test_bestow_cast_normally_as_creature() {
     // Cast normally (no bestow, no targets).
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: satyr_id,
             targets: vec![],
@@ -371,7 +372,7 @@ fn test_bestow_cast_normally_as_creature() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell normally failed: {:?}", e));
 
@@ -499,7 +500,7 @@ fn test_bestow_target_illegal_at_resolution_becomes_creature() {
     // Cast bestowed targeting the bear.
     let (mut state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: satyr_id,
             targets: vec![Target::Object(bear_id)],
@@ -515,7 +516,7 @@ fn test_bestow_target_illegal_at_resolution_becomes_creature() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell bestow failed: {:?}", e));
 
@@ -751,7 +752,7 @@ fn test_bestow_alternative_cost_pays_bestow_cost() {
 
         let result = process_command(
             state,
-            Command::CastSpell {
+            Command::CastSpell(Box::new(CastSpellData {
                 player: p1,
                 card: satyr_id,
                 targets: vec![Target::Object(bear_id)],
@@ -767,7 +768,7 @@ fn test_bestow_alternative_cost_pays_bestow_cost() {
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            },
+            })),
         );
         assert!(
             matches!(result, Err(GameStateError::InsufficientMana)),
@@ -820,7 +821,7 @@ fn test_bestow_alternative_cost_pays_bestow_cost() {
 
         let result = process_command(
             state,
-            Command::CastSpell {
+            Command::CastSpell(Box::new(CastSpellData {
                 player: p1,
                 card: satyr_id,
                 targets: vec![Target::Object(bear_id)],
@@ -836,7 +837,7 @@ fn test_bestow_alternative_cost_pays_bestow_cost() {
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            },
+            })),
         );
         assert!(
             result.is_ok(),
@@ -907,7 +908,7 @@ fn test_bestow_cannot_combine_with_flashback() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: satyr_id,
             targets: vec![],
@@ -923,7 +924,7 @@ fn test_bestow_cannot_combine_with_flashback() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         matches!(result, Err(GameStateError::InvalidCommand(_))),
@@ -1017,7 +1018,7 @@ fn test_bestow_cannot_combine_with_evoke() {
     // confirming the card can be cast with either alt cost independently.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -1033,7 +1034,7 @@ fn test_bestow_cannot_combine_with_evoke() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     // Evoke alone is valid (card has Evoke keyword); the mutual exclusion of two
     // alt costs is enforced by the API type — only one Option<AltCostKind> can be set.
@@ -1085,7 +1086,7 @@ fn test_bestow_non_bestow_spell_rejected() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: bear_id,
             targets: vec![],
@@ -1101,7 +1102,7 @@ fn test_bestow_non_bestow_spell_rejected() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         matches!(result, Err(GameStateError::InvalidCommand(_))),

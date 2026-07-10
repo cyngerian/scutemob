@@ -17,6 +17,7 @@
 //! - Flashback exile overrides buyback return-to-hand (CR 702.34a).
 
 use mtg_engine::cards::card_definition::{EffectAmount, PlayerTarget};
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::types::AltCostKind;
 use mtg_engine::state::CardType;
 use mtg_engine::{
@@ -269,7 +270,7 @@ fn test_buyback_basic_return_to_hand() {
     // Cast Searing Touch with buyback, targeting p2.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![Target::Player(p2)],
@@ -285,7 +286,7 @@ fn test_buyback_basic_return_to_hand() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell with buyback failed: {:?}", e));
 
@@ -374,7 +375,7 @@ fn test_buyback_not_paid_goes_to_graveyard() {
     // Cast WITHOUT buyback.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![Target::Player(p2)],
@@ -390,7 +391,7 @@ fn test_buyback_not_paid_goes_to_graveyard() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell without buyback failed: {:?}", e));
 
@@ -489,7 +490,7 @@ fn test_buyback_paid_spell_countered_goes_to_graveyard() {
     // p1 casts Searing Touch with buyback, targeting p2.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: buyback_id,
             targets: vec![Target::Player(p2)],
@@ -505,7 +506,7 @@ fn test_buyback_paid_spell_countered_goes_to_graveyard() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("Buyback cast failed: {:?}", e));
 
@@ -530,7 +531,7 @@ fn test_buyback_paid_spell_countered_goes_to_graveyard() {
     // p2 casts Counterspell targeting Searing Touch.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: counter_id,
             targets: vec![Target::Object(spell_on_stack)],
@@ -546,7 +547,7 @@ fn test_buyback_paid_spell_countered_goes_to_graveyard() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("Counterspell cast failed: {:?}", e));
 
@@ -630,7 +631,7 @@ fn test_buyback_cost_added_to_total() {
     // Cast with buyback — should succeed with exactly the right amount of mana.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![Target::Player(p2)],
@@ -646,7 +647,7 @@ fn test_buyback_cost_added_to_total() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell with exact buyback mana failed: {:?}", e));
 
@@ -705,7 +706,7 @@ fn test_buyback_insufficient_mana_rejected() {
     // Attempt cast with buyback — should fail (not enough mana).
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![Target::Player(p2)],
@@ -721,7 +722,7 @@ fn test_buyback_insufficient_mana_rejected() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -774,7 +775,7 @@ fn test_buyback_no_buyback_ability_rejected() {
     // Attempt to use buyback on a non-buyback spell.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![Target::Player(p2)],
@@ -790,7 +791,7 @@ fn test_buyback_no_buyback_ability_rejected() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -864,7 +865,7 @@ fn test_buyback_with_flashback_exile_wins() {
     // cast_with_buyback: true should also be set (paying the buyback additional cost).
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -880,7 +881,7 @@ fn test_buyback_with_flashback_exile_wins() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("Flashback + buyback cast failed: {:?}", e));
 
@@ -999,7 +1000,7 @@ fn test_buyback_paid_spell_fizzles_goes_to_graveyard() {
     // Stack: [Searing Touch]
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: buyback_id,
             targets: vec![Target::Object(creature_id)],
@@ -1015,7 +1016,7 @@ fn test_buyback_paid_spell_fizzles_goes_to_graveyard() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell Searing Touch with buyback failed: {:?}", e));
 
@@ -1028,7 +1029,7 @@ fn test_buyback_paid_spell_fizzles_goes_to_graveyard() {
     // Stack: [Lightning Bolt, Searing Touch] (LB on top — resolves first)
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: bolt_id,
             targets: vec![Target::Object(creature_id)],
@@ -1044,7 +1045,7 @@ fn test_buyback_paid_spell_fizzles_goes_to_graveyard() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell Lightning Bolt failed: {:?}", e));
 
@@ -1141,7 +1142,7 @@ fn test_buyback_spell_cast_event_emitted() {
 
     let (_state, events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![Target::Player(p2)],
@@ -1157,7 +1158,7 @@ fn test_buyback_spell_cast_event_emitted() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell buyback failed: {:?}", e));
 

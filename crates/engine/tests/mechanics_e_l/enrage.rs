@@ -13,6 +13,7 @@
 //! - Ruling 2018-01-19: Lethal damage triggers Enrage; creature dies before trigger
 //!   resolves, but the effect still applies (controller still draws a card, etc.).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     process_command, AbilityDefinition, AttackTarget, CardDefinition, CardEffectTarget, CardId,
     CardRegistry, CardType, Command, DamageTargetFilter, Effect, EffectAmount, EffectDuration,
@@ -336,7 +337,7 @@ fn test_enrage_noncombat_damage_triggers() {
     // P2 casts Shock targeting the Enrage creature.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: shock_id,
             targets: vec![Target::Object(enrage_id)],
@@ -352,7 +353,7 @@ fn test_enrage_noncombat_damage_triggers() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("CastSpell (Shock) failed");
 

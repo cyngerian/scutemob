@@ -19,6 +19,7 @@
 //!   ALL targets become illegal. If some remain, the spell resolves for those.
 //! - CR 400.7: Objects that move zones become new objects with new identity.
 
+use mtg_engine::rules::command::CastSpellData;
 use std::sync::Arc;
 
 use mtg_engine::cards::card_definition::{
@@ -72,7 +73,7 @@ fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent
 }
 
 fn cast_spell(player: PlayerId, card: ObjectId, targets: Vec<Target>) -> Command {
-    Command::CastSpell {
+    Command::CastSpell(Box::new(CastSpellData {
         player,
         card,
         targets,
@@ -88,7 +89,7 @@ fn cast_spell(player: PlayerId, card: ObjectId, targets: Vec<Target>) -> Command
         additional_costs: vec![],
         hybrid_choices: vec![],
         phyrexian_life_payments: vec![],
-    }
+    }))
 }
 
 /// Build a destroy spell with UpToN targeting artifacts.
@@ -105,7 +106,7 @@ fn up_to_n_destroy_artifact_spell(name: &str, count: u32) -> CardDefinition {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Instant],
+            card_types: imbl::ordset![CardType::Instant],
             ..Default::default()
         },
         abilities: vec![AbilityDefinition::Spell {
@@ -142,7 +143,7 @@ fn up_to_n_tap_permanent_spell(name: &str, count: u32) -> CardDefinition {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Instant],
+            card_types: imbl::ordset![CardType::Instant],
             ..Default::default()
         },
         abilities: vec![AbilityDefinition::Spell {
@@ -177,7 +178,7 @@ fn mandatory_target_destroy_creature_spell(name: &str) -> CardDefinition {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Instant],
+            card_types: imbl::ordset![CardType::Instant],
             ..Default::default()
         },
         abilities: vec![AbilityDefinition::Spell {
@@ -665,7 +666,7 @@ fn test_pbt_mixed_mandatory_and_up_to_n() {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Instant],
+            card_types: imbl::ordset![CardType::Instant],
             ..Default::default()
         },
         abilities: vec![AbilityDefinition::Spell {
@@ -893,7 +894,7 @@ fn test_pbt_two_parallel_up_to_n_slots() {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Instant],
+            card_types: imbl::ordset![CardType::Instant],
             ..Default::default()
         },
         abilities: vec![AbilityDefinition::Spell {
@@ -1156,7 +1157,7 @@ fn test_pbt_up_to_n_reverse_order_declaration_succeeds() {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Instant],
+            card_types: imbl::ordset![CardType::Instant],
             ..Default::default()
         },
         abilities: vec![AbilityDefinition::Spell {

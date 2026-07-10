@@ -34,7 +34,7 @@ pub fn card() -> CardDefinition {
                         .into_iter()
                         .collect(),
                         colors: [Color::Green].into_iter().collect(),
-                        supertypes: im::OrdSet::new(),
+                        supertypes: imbl::OrdSet::new(),
                         power: 1,
                         toughness: 1,
                         keywords: [KeywordAbility::Infect].into_iter().collect(),

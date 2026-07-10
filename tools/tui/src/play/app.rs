@@ -105,7 +105,7 @@ impl PlayApp {
         let cards = all_cards();
         let registry = CardRegistry::new(cards.clone());
         let human_player = PlayerId(1);
-        let mut rng = StdRng::from_entropy();
+        let mut rng = StdRng::from_os_rng();
 
         // Build initial state with populated libraries
         let mut builder = GameStateBuilder::new().with_registry(registry.clone());
@@ -171,7 +171,7 @@ impl PlayApp {
         let mut bots: HashMap<PlayerId, Box<dyn Bot>> = HashMap::new();
         for i in 2..=player_count {
             let pid = PlayerId(i as u64);
-            let seed = rng.gen();
+            let seed = rng.random();
             let name = format!("Bot-{}", i);
             let bot: Box<dyn Bot> = match bot_type {
                 "heuristic" => Box::new(HeuristicBot::new(seed, name)),
@@ -273,12 +273,14 @@ impl PlayApp {
         }
 
         // Auto-tap mana before casting spells
-        if let Command::CastSpell { player, card, .. } = &cmd {
-            if let Ok(obj) = self.state.object(*card) {
+        if let Command::CastSpell(cast) = &cmd {
+            if let Ok(obj) = self.state.object(cast.card) {
                 if let Some(ref cost) = obj.characteristics.mana_cost {
-                    if let Some(tap_cmds) =
-                        mtg_simulator::mana_solver::solve_mana_payment(&self.state, *player, cost)
-                    {
+                    if let Some(tap_cmds) = mtg_simulator::mana_solver::solve_mana_payment(
+                        &self.state,
+                        cast.player,
+                        cost,
+                    ) {
                         for tap_cmd in tap_cmds {
                             self.execute_command(tap_cmd)?;
                         }

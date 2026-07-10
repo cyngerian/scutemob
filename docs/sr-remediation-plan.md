@@ -45,7 +45,7 @@ Full evidence (file:line) is in each task's ESM description — run
 | 9a | scutemob-69 | SR-9a: Consolidate 291 integration-test binaries | M | **DONE 2026-07-10.** 297 binaries → 9 targets; warm test-build 34.2s→11.1s; `target/` 19GB→2.2GB. |
 | 9b | scutemob-70 | SR-9b: Harness-vs-direct equivalence property test | M | **DONE 2026-07-10.** `tests/scripts/harness_equivalence.rs`. Four harness divergences found and fixed/pinned; `build_initial_state` was **nondeterministic**. |
 | 9c | scutemob-71 | SR-9c: Golden-script corpus triage | M | **DONE 2026-07-10.** 94→**210 approved**, **61 retired** (each with a recorded reason), **0 pending**. Six scripts didn't even deserialize; the replay checker passed 244 unimplemented-path + 583 `zones.stack` assertions vacuously — all closed. Gate: `run_all_scripts.rs`. |
-| 10 | scutemob-62 | SR-10: Dependency & lint hygiene | S–M | Four independent chores; safe filler work between larger tasks. |
+| 10 | scutemob-62 | SR-10: Dependency & lint hygiene | S–M | **DONE 2026-07-10.** im→imbl migrated (704/705 refs ordered collections), rand 0.9, `[workspace.lints]` (non-vacuous), CastSpell boxed (`PROTOCOL_VERSION` 1→2). Chore C bakes toolchain-float into local builds → makes SR-11 more urgent. |
 | 11 | scutemob-63 | SR-11: Pin the Rust toolchain | S | Discovered during SR-1. CI floats to newest stable; new lints redden CI with no commit, and the local clippy gate can't reproduce them. Pairs well with SR-10. |
 | 12 | scutemob-64 | SR-12: Unbypassable invariant-9 gate + marker anti-rot | M | Discovered during SR-2 review. `GameStateBuilder`/`start_game` skip `validate_deck`; only the Inert marker class has a rot guard. |
 | 13 | scutemob-65 | SR-13: Damage-source characteristics must use LKI | M | Discovered during SR-4. Wither/infect "function no matter what zone" (CR 702.80c/702.90e) but the engine reads the source through a live lookup and treats a dead source as having neither. Real bug, not an assert. |
@@ -520,11 +520,90 @@ Task-specific extras:
   rather than "fixed to match the engine," because matching a possibly-wrong engine would bless a bug and
   `cc31` is inexpressible (it fakes combat damage via `stack_resolve` and pre-seeds
   `commander_damage_received`, an init field the harness has never read).
+- **SR-10: DONE (2026-07-10).** Four independent chores; each committed separately so any
+  one is revertable. Findings:
+  1. **im → imbl: DECISION = MIGRATE (done).** The brief's stated risk ("im→imbl behaviour
+     differences") did not materialize, and the reason is measurable up front, not by faith: of
+     **705** `im::` references, **704** are *ordered* collections — `im::OrdSet` (350),
+     `im::Vector` (148), `im::OrdMap` (136), plus their macros. imbl is a fork of im 15.1 with the
+     **same** B-tree (`OrdMap`/`OrdSet`) and RRB-vector (`Vector`) internals, so iteration order —
+     the only property the engine's determinism and state-hashing depend on — is byte-identical.
+     The **one** `im::HashMap` reference is a *comment* at `rules/replacement.rs` explaining why the
+     engine never uses a hash-ordered im collection; there is zero real `HashMap`/`HashSet` usage to
+     worry about. The swap was mechanical: 4 manifest lines (`im = "15"` → `imbl = "7"`, `serde`
+     feature retained) and a `\bim:: → imbl::` rename across the tree; **no API changes were
+     needed** and the compiler was clean first try. Gates green under imbl: `state_hashing` (19),
+     `zone_integrity` shuffle determinism (19), core (347) + rules (535) + casting (147),
+     `clippy --all-targets`. **The SR-8 `PROTOCOL_SCHEMA_FINGERPRINT` did not move** even though the
+     rename touched declaration files — because struct fields name the collections *unqualified*
+     (`Vector<AbilityInstance>`, imported via `use`), and the fingerprint scanner reads field
+     declarations, not `use` lines. So the wire is provably unchanged; no `PROTOCOL_VERSION` bump.
+     No `HASH_SCHEMA_VERSION` bump either (runtime hashes are identical because iteration order is).
+     Had even a handful of real `im::HashMap`/`HashSet` uses existed on a hashed or iterated path,
+     the correct call would have been *defer* — the migration is clean precisely because the codebase
+     had already disciplined itself onto ordered types (the `replacement.rs` comment is that
+     discipline, written down).
+  2. **rand 0.8 → 0.9: clean.** Mechanical API renames (`gen_range`→`random_range`,
+     `gen_bool`→`random_bool`, `.gen()`→`.random()`, `thread_rng()`→`rng()`,
+     `StdRng::from_entropy()`→`StdRng::from_os_rng()`); `SeedableRng::seed_from_u64` and
+     `SliceRandom::shuffle` are unchanged, so the Fisher-Yates library shuffle and every seeded
+     `StdRng` kept the same call shape. **The determinism canary was a non-event because the tests
+     are built right**: every `state_hashing` and `zone_integrity` assertion is an *instance-equality*
+     check (two instances agree / differ), never a comparison to a hardcoded digest, so a
+     hypothetical change in rand 0.9's sampling algorithm would not have reddened them anyway — only
+     a *non-determinism* would. Confirmed the shuffle seed is still `timestamp_counter`-derived
+     (deterministic), so replay correctness holds. If a future rand bump ever *did* change
+     `random_range`'s output for a fixed seed, the thing that would catch it is a stored replay-log
+     fixture, which the corpus does not yet have — worth noting for whoever adds one.
+  3. **`[workspace.lints]`: `warnings = "deny"` + `[lints] workspace = true` on all 11 members.**
+     Source-encodes CI's `clippy --all-targets -- -D warnings` so a plain `cargo build`/`cargo clippy`
+     enforces the same bar. **Proved non-vacuous adversarially** (this track's rule): injecting an
+     `unused_variables` (rustc) *and* a `bool_comparison` (clippy) into a member both error with **no
+     `-D` flag** — clippy lints are promoted by the `warnings` group too, so one setting covers both.
+     Interaction with SR-11: this bakes the toolchain-float hazard into *local* builds as well as CI
+     (a newer stable's new lints now redden `cargo build` here), which is exactly the motivation to
+     pin the toolchain next (`scutemob-63`).
+  4. **Box `Command::CastSpell`: done; `PROTOCOL_VERSION` 1 → 2.** The ~16-field variant was extracted
+     into a new `pub struct CastSpellData` and the variant became `CastSpell(Box<CastSpellData>)`;
+     the `#[allow(clippy::large_enum_variant)]` came off `command.rs` and `clippy --all-targets`
+     confirms the lint stays quiet. **739 construction sites** were wrapped by a tokenizer-aware
+     brace-matcher (skips string/char/comment content while counting `{}`), and the **3** pattern
+     sites — the `process_command` dispatch arm plus two `if let` sites in tui/simulator — were
+     hand-converted *first* so the script's `Command::CastSpell {` needle matched only constructions.
+     The dispatch arm destructures `*cast` into the same local names, leaving the handler body
+     byte-for-byte unchanged. **The wire bytes do not change** — a boxed newtype variant wrapping a
+     struct is serde-identical to the former struct variant — **but the SR-8 shape digest does**,
+     because the type closure grew 90 → 91 and the variant's declared form changed. Per the gate's
+     own instruction (and its explicit "any non-reorder digest move bumps the version" policy),
+     bumped `PROTOCOL_VERSION` 1→2, re-pinned `PROTOCOL_SCHEMA_FINGERPRINT`, and updated the
+     `protocol_version_sentinel`. **No `HASH_SCHEMA_VERSION` bump** — `Command` is not reachable from
+     `GameState`'s hash closure (that boundary is exactly why SR-8 keeps the two versions separate).
+     `cargo test --all` stayed at **3185 passed / 0 failed**: same tests, just wrapped — the count not
+     moving is the evidence the box is behaviour-neutral.
 
 ## Session Log
 
 _One entry per session, newest first. Format:_
 `- YYYY-MM-DD — SR-<N> (scutemob-<id>) — <status: done / in progress / blocked> — <one-line outcome + hazards + pointer for next session>`
+
+- 2026-07-10 — SR-10 (scutemob-62) — **done (in_review, awaiting /collect)** — Dependency & lint
+  hygiene, four independent chores, each its own revertable commit. (A) **im 15.1 → imbl 7.0**:
+  migrated, not deferred — 704/705 `im::` refs are ordered collections (OrdSet/Vector/OrdMap) with
+  imbl-identical internals, the lone `im::HashMap` is a comment; mechanical dep+path swap, zero API
+  changes, wire fingerprint unmoved (fields name collections unqualified). (B) **rand 0.8 → 0.9**:
+  mechanical API renames; determinism canary (state_hashing 19, zone_integrity 19) is instance-equality
+  so it never depended on rand's sampling staying fixed, only on determinism, which holds. (C)
+  **`[workspace.lints]`**: `warnings="deny"` + `workspace=true` on 11 members, source-encoding the CI
+  `-D warnings`; proved non-vacuous (an injected rustc lint *and* a clippy lint both error with no flag).
+  (D) **box `Command::CastSpell`**: extracted `CastSpellData`, `CastSpell(Box<CastSpellData>)`, removed
+  the `large_enum_variant` allow; 739 construction sites wrapped by a comment/string-aware brace matcher,
+  3 pattern sites hand-converted first. Wire bytes unchanged but the SR-8 digest moved (closure 90→91),
+  so `PROTOCOL_VERSION` 1→2 + fingerprint re-pin + sentinel bump per the gate's policy; no
+  `HASH_SCHEMA_VERSION` bump (Command ∉ GameState hash closure). **Gates:** `cargo test --all` **3185
+  passed / 0 failed** (count unchanged — the box is behaviour-neutral), `clippy --all-targets -D warnings`,
+  `fmt --check`, `build --workspace` all clean. **Hazard handed to SR-11 (`scutemob-63`):** chore C now
+  bakes toolchain-float into *local* `cargo build`, not just CI — pinning the toolchain is the pairing
+  the inventory table already recommends. **Next:** SR-11 (pin toolchain), then SR-12+.
 
 - 2026-07-10 — SR-9c (scutemob-71) — **done** — Golden-script corpus triaged: 94→**210 approved**,
   **61 retired** (each with a recorded `retirement_reason`), **0 pending**. This closes SR-9 (the

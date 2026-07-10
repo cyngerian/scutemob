@@ -17,6 +17,7 @@
 
 use mtg_engine::cards::card_definition::{ActivationZone, AltCastDetails, Cost};
 use mtg_engine::cards::helpers::mana_pool;
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::types::AltCostKind;
 use mtg_engine::state::PlayerId;
 use mtg_engine::{
@@ -75,7 +76,7 @@ fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent
 }
 
 fn empty_cast_spell(player: PlayerId, card: ObjectId, alt_cost: Option<AltCostKind>) -> Command {
-    Command::CastSpell {
+    Command::CastSpell(Box::new(CastSpellData {
         player,
         card,
         targets: vec![],
@@ -91,7 +92,7 @@ fn empty_cast_spell(player: PlayerId, card: ObjectId, alt_cost: Option<AltCostKi
         additional_costs: vec![],
         hybrid_choices: vec![],
         phyrexian_life_payments: vec![],
-    }
+    }))
 }
 
 // ── Card definitions (mocks, unless noted "real card") ────────────────────────
@@ -510,7 +511,7 @@ fn test_was_warped_field_participates_in_hash() {
         triggering_creature_id: None,
         cast_from_top_with_bonus: false,
         sacrificed_creature_powers: vec![],
-        lki_counters: im::OrdMap::new(),
+        lki_counters: imbl::OrdMap::new(),
         lki_power: None,
     };
 
@@ -883,7 +884,7 @@ fn test_warp_countered_spell_not_exiled() {
         .expect("warp spell should be on the stack");
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: counter_id,
             targets: vec![mtg_engine::state::targeting::Target::Object(warp_stack_id)],
@@ -899,7 +900,7 @@ fn test_warp_countered_spell_not_exiled() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -1767,7 +1768,7 @@ fn test_pitch_force_of_will_exile_blue_and_life() {
     let threat_id = find_object(&state, "Mock Threat Spell");
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: threat_id,
             targets: vec![mtg_engine::state::targeting::Target::Player(p1)],
@@ -1783,7 +1784,7 @@ fn test_pitch_force_of_will_exile_blue_and_life() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
     let (state, _) = process_command(state, Command::PassPriority { player: p2 }).unwrap();
@@ -1806,7 +1807,7 @@ fn test_pitch_force_of_will_exile_blue_and_life() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![mtg_engine::state::targeting::Target::Object(
@@ -1826,7 +1827,7 @@ fn test_pitch_force_of_will_exile_blue_and_life() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("Force of Will pitch cast should succeed: {:?}", e));
 
@@ -1891,7 +1892,7 @@ fn test_pitch_wrong_color_rejected() {
     let threat_id = find_object(&state, "Mock Threat Spell");
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: threat_id,
             targets: vec![mtg_engine::state::targeting::Target::Player(p1)],
@@ -1907,7 +1908,7 @@ fn test_pitch_wrong_color_rejected() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
     let (state, _) = process_command(state, Command::PassPriority { player: p2 }).unwrap();
@@ -1926,7 +1927,7 @@ fn test_pitch_wrong_color_rejected() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![mtg_engine::state::targeting::Target::Object(
@@ -1946,7 +1947,7 @@ fn test_pitch_wrong_color_rejected() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_err(),
@@ -1998,7 +1999,7 @@ fn test_pitch_force_of_vigor_opponents_turn_only() {
     let fodder_id = find_object(&state, "Green Fodder");
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -2016,7 +2017,7 @@ fn test_pitch_force_of_vigor_opponents_turn_only() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_err(),
@@ -2029,7 +2030,7 @@ fn test_pitch_force_of_vigor_opponents_turn_only() {
     let fodder_id = find_object(&state, "Green Fodder");
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -2047,7 +2048,7 @@ fn test_pitch_force_of_vigor_opponents_turn_only() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_ok(),
@@ -2105,7 +2106,7 @@ fn test_pitch_mana_value_unchanged() {
     let threat_id = find_object(&state, "Mock Threat Spell");
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: threat_id,
             targets: vec![mtg_engine::state::targeting::Target::Player(p1)],
@@ -2121,7 +2122,7 @@ fn test_pitch_mana_value_unchanged() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
     let (state, _) = process_command(state, Command::PassPriority { player: p2 }).unwrap();
@@ -2140,7 +2141,7 @@ fn test_pitch_mana_value_unchanged() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![mtg_engine::state::targeting::Target::Object(
@@ -2160,7 +2161,7 @@ fn test_pitch_mana_value_unchanged() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -2269,7 +2270,7 @@ fn test_pitch_mutual_exclusion() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -2287,7 +2288,7 @@ fn test_pitch_mutual_exclusion() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_err(),
@@ -2338,7 +2339,7 @@ fn test_pitch_cannot_pitch_self() {
     let threat_id = find_object(&state, "Mock Threat Spell");
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: threat_id,
             targets: vec![mtg_engine::state::targeting::Target::Player(p1)],
@@ -2354,7 +2355,7 @@ fn test_pitch_cannot_pitch_self() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
     let (state, _) = process_command(state, Command::PassPriority { player: p2 }).unwrap();
@@ -2372,7 +2373,7 @@ fn test_pitch_cannot_pitch_self() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![mtg_engine::state::targeting::Target::Object(
@@ -2392,7 +2393,7 @@ fn test_pitch_cannot_pitch_self() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     // Isolate the `pitch_card_id == card` guard (casting.rs:4178) specifically: by the time
     // the pitch cost is paid the spell is already on the stack (not in hand), so a weaker test
@@ -2475,7 +2476,7 @@ fn test_force_of_negation_counters_and_exiles() {
     let bolt_id = find_object(&state, "Mock Bolt");
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: bolt_id,
             targets: vec![mtg_engine::state::targeting::Target::Player(p1)],
@@ -2491,7 +2492,7 @@ fn test_force_of_negation_counters_and_exiles() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -2511,7 +2512,7 @@ fn test_force_of_negation_counters_and_exiles() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: neg_id,
             targets: vec![mtg_engine::state::targeting::Target::Object(bolt_stack_id)],
@@ -2529,7 +2530,7 @@ fn test_force_of_negation_counters_and_exiles() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("Force of Negation pitch cast should succeed: {:?}", e));
 
