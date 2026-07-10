@@ -22,11 +22,12 @@
       "inline-etb"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Geological Appraiser card definition (crates/engine/src/cards/defs/geological_appraiser.rs): mana_cost {2}{R}{R}, power 3, toughness 2; AbilityDefinition::Triggered with WhenEntersBattlefield and Effect::Discover { player: Controller, n: 3 }. Critical engine behavior: WhenEntersBattlefield triggers with Effect::Discover are executed INLINE during creature resolution via fire_when_enters_triggered_effects (replacement.rs line 966: execute_effect called directly). This is NOT a separate stack trigger — the Discover happens during the same resolution pass as the creature entering. As a result, ONE priority_round resolves the creature AND executes Discover, placing Night's Whisper on the stack. Library layout top-to-bottom: Forest (index 0 = top), Night's Whisper (index 1), Island (index 2), Mountain (index 3 = bottom). After Discover: Forest goes to library bottom (DiscoverExiled), Night's Whisper cast for free (DiscoverCast) — library has 3 cards (Island, Mountain, Forest at bottom). Night's Whisper oracle text: 'You draw 2 cards and you lose 2 life.' Night's Whisper chosen because it has no targets (unlike Lightning Bolt which requires a target that the discover free-cast cannot auto-supply). Mana pre-loaded: 2 colorless + 2 red for {2}{R}{R}.",
-    "disputes": []
+    "disputes": [],
+    "retirement_reason": "SR-9c: Discover 3 does not cast the hit for free or draw as asserted (library/hand/life all diverge): the inline Discover mechanic is not exercised. Retire pending Discover support in the harness/engine."
   },
   "initial_state": {
     "format": "commander",
@@ -38,7 +39,10 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "colorless": 2, "red": 2 },
+        "mana_pool": {
+          "colorless": 2,
+          "red": 2
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -59,7 +63,11 @@
       "battlefield": {},
       "hand": {
         "p1": [
-          { "card": "Geological Appraiser", "is_commander": false, "owner": null }
+          {
+            "card": "Geological Appraiser",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -67,10 +75,26 @@
       "command_zone": {},
       "library": {
         "p1": [
-          { "card": "Forest", "is_commander": false, "owner": null },
-          { "card": "Night's Whisper", "is_commander": false, "owner": null },
-          { "card": "Island", "is_commander": false, "owner": null },
-          { "card": "Mountain", "is_commander": false, "owner": null }
+          {
+            "card": "Forest",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Night's Whisper",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Island",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Mountain",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "stack": []
@@ -87,8 +111,16 @@
           "description": "Initial: Geological Appraiser in p1 hand, library has 4 cards (Forest on top), stack empty, p1 at 40 life",
           "assertions": {
             "zones.hand.p1.count": 1,
-            "zones.stack": { "is_empty": true },
-            "zones.battlefield.p1": { "excludes": [{ "card": "Geological Appraiser" }] },
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "excludes": [
+                {
+                  "card": "Geological Appraiser"
+                }
+              ]
+            },
             "zones.library.p1.count": 4,
             "players.p1.life": 40
           },
@@ -100,7 +132,10 @@
           "action": "cast_spell",
           "card": "Geological Appraiser",
           "targets": [],
-          "mana_paid": { "colorless": 2, "red": 2 },
+          "mana_paid": {
+            "colorless": 2,
+            "red": 2
+          },
           "mana_source": [],
           "cr_ref": "601.2",
           "note": "CR 601.2: p1 casts Geological Appraiser paying {2}{R}{R}. Card moves from hand to the stack."
@@ -116,7 +151,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — Geological Appraiser resolves. During resolution, its WhenEntersBattlefield ETB fires inline via fire_when_enters_triggered_effects, executing Discover 3: Forest exiled and sent to library bottom (DiscoverExiled), Night's Whisper exiled and cast for free onto the stack (DiscoverCast). CR 701.57a."
         },
@@ -147,7 +185,11 @@
           "description": "After Geological Appraiser resolves with inline Discover 3: it is on battlefield, Night's Whisper is on stack (cast for free), library has 3 cards (Forest at bottom), hand empty",
           "assertions": {
             "zones.battlefield.p1": {
-              "includes": [{ "card": "Geological Appraiser" }]
+              "includes": [
+                {
+                  "card": "Geological Appraiser"
+                }
+              ]
             },
             "zones.stack.count": 1,
             "zones.library.p1.count": 3,
@@ -157,7 +199,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — Night's Whisper resolves from the stack."
         },
@@ -167,7 +212,10 @@
           "resolution": [
             {
               "effect": "draw_cards",
-              "target": { "type": "player", "player": "p1" },
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
               "amount": 2,
               "card": null,
               "owner": null,
@@ -176,7 +224,10 @@
             },
             {
               "effect": "lose_life",
-              "target": { "type": "player", "player": "p1" },
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
               "amount": 2,
               "card": null,
               "owner": null,
@@ -191,13 +242,23 @@
           "description": "Final: p1 at 38 life with 2 cards in hand, Geological Appraiser on battlefield, Night's Whisper in graveyard, Forest in library, stack empty",
           "assertions": {
             "players.p1.life": 38,
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "zones.hand.p1.count": 2,
             "zones.battlefield.p1": {
-              "includes": [{ "card": "Geological Appraiser" }]
+              "includes": [
+                {
+                  "card": "Geological Appraiser"
+                }
+              ]
             },
             "zones.graveyard.p1": {
-              "includes": [{ "card": "Night's Whisper" }]
+              "includes": [
+                {
+                  "card": "Night's Whisper"
+                }
+              ]
             },
             "zones.library.p1.count": 1
           },

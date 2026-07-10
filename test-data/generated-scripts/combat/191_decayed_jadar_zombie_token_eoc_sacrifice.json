@@ -27,7 +27,7 @@
       "engine-gap"
     ],
     "confidence": "medium",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Jadar, Ghoulcaller of Nephalia (crates/engine/src/cards/defs/jadar_ghoulcaller_of_nephalia.rs): {1}{B}, Legendary Creature — Human Wizard 1/1. AbilityDefinition::Triggered { trigger_condition: TriggerCondition::AtBeginningOfYourEndStep, effect: Effect::CreateToken { spec: zombie_decayed_token_spec(1) }, intervening_if: None }. PARTIAL FIX: end_step_actions() in turn_actions.rs now has a generic AtBeginningOfYourEndStep carddef sweep (lines ~892-960). This sweep fires correctly — the trigger is placed on the stack (stack.count=1 assertion passes). REMAINING GAP: resolution.rs StackObjectKind::TriggeredAbility resolution path (lines ~1773-1830) looks up the effect in obj.characteristics.triggered_abilities.get(ability_index). This field is populated by the builder from spec.triggered_abilities and keyword expansions, but NOT from AbilityDefinition::Triggered entries in CardDefinition. enrich_spec_from_def() (replay_harness.rs) also does not translate AbilityDefinition::Triggered into triggered_abilities on the spec. Result: ability_index=0 hits an empty Vec and returns None; the CreateToken effect is never executed. Fix needed: resolution.rs TriggeredAbility branch should fall back to card_registry when characteristics.triggered_abilities.get(ability_index) returns None, using obj.card_id to look up the CardDefinition and finding the Nth AbilityDefinition::Triggered entry. Step advancement: from PreCombatMain with empty stack, one priority_round advances one step. The path PreCombatMain→End requires 5 priority_rounds: (1)→BeginningOfCombat, (2)→DeclareAttackers, (3) no attackers→EndOfCombat (advance_step skips blockers/damage), (4)→PostCombatMain, (5)→End. Token card name per zombie_decayed_token_spec: 'Zombie'. Mana pool: { black: 1, colorless: 1 } for {1}{B} cost.",
@@ -53,7 +53,10 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "black": 1, "colorless": 1 },
+        "mana_pool": {
+          "black": 1,
+          "colorless": 1
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -74,7 +77,11 @@
       "battlefield": {},
       "hand": {
         "p1": [
-          { "card": "Jadar, Ghoulcaller of Nephalia", "is_commander": false, "owner": null }
+          {
+            "card": "Jadar, Ghoulcaller of Nephalia",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -97,7 +104,9 @@
             "zones.hand.p1.count": 1,
             "players.p1.life": 40,
             "players.p2.life": 40,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "P1 has {1}{B} in mana pool. Battlefield is empty."
         },
@@ -107,7 +116,10 @@
           "action": "cast_spell",
           "card": "Jadar, Ghoulcaller of Nephalia",
           "targets": [],
-          "mana_paid": { "colorless": 1, "black": 1 },
+          "mana_paid": {
+            "colorless": 1,
+            "black": 1
+          },
           "mana_source": [],
           "cr_ref": "601.2",
           "note": "CR 601.2: P1 casts Jadar, Ghoulcaller of Nephalia paying {1}{B}."
@@ -123,7 +135,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority. CR 608.2: Jadar resolves and enters the battlefield."
         },
@@ -133,7 +148,10 @@
           "resolution": [
             {
               "effect": "enter_battlefield",
-              "target": { "type": "player", "player": "p1" },
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
               "card": "Jadar, Ghoulcaller of Nephalia",
               "owner": null,
               "cr_ref": "608.2",
@@ -146,8 +164,16 @@
           "type": "assert_state",
           "description": "After Jadar resolves: Jadar on P1 battlefield, stack empty, life totals unchanged.",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Jadar, Ghoulcaller of Nephalia" }] },
-            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Jadar, Ghoulcaller of Nephalia"
+                }
+              ]
+            },
+            "zones.stack": {
+              "is_empty": true
+            },
             "players.p1.life": 40,
             "players.p2.life": 40
           },
@@ -155,31 +181,46 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass in PreCombatMain → advances to BeginningOfCombat (1 of 5)."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass in BeginningOfCombat → advances to DeclareAttackers (2 of 5)."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass in DeclareAttackers with no attackers declared. advance_step() skips to EndOfCombat (3 of 5)."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass in EndOfCombat → advances to PostCombatMain (4 of 5)."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass in PostCombatMain → advances to End step (5 of 5). enter_step() calls end_step_actions() which places Jadar's AtBeginningOfYourEndStep trigger on the stack via the generic carddef sweep."
         }
@@ -194,13 +235,22 @@
           "description": "Jadar end-step trigger on stack (count=1). PARTIAL FIX confirmed: end_step_actions() generic sweep places the trigger on the stack.",
           "assertions": {
             "zones.stack.count": 1,
-            "zones.battlefield.p1": { "includes": [{ "card": "Jadar, Ghoulcaller of Nephalia" }] }
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Jadar, Ghoulcaller of Nephalia"
+                }
+              ]
+            }
           },
           "note": "CR 603.1: Jadar's triggered ability fires at the beginning of P1's End step. The generic AtBeginningOfYourEndStep sweep in end_step_actions() places the trigger on the stack. Stack count = 1 — this assertion PASSES with the partial engine fix."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority. CR 608.2: Jadar's end-step trigger resolves. REMAINING GAP: effect is not executed because resolution.rs reads characteristics.triggered_abilities (empty) instead of card_registry."
         },
@@ -210,7 +260,10 @@
           "resolution": [
             {
               "effect": "create_token",
-              "target": { "type": "player", "player": "p1" },
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
               "amount": 1,
               "card": null,
               "owner": null,
@@ -224,8 +277,16 @@
           "type": "assert_state",
           "description": "After trigger resolves: stack empty, Jadar still on P1 battlefield. Zombie token should be present but is not due to remaining engine gap.",
           "assertions": {
-            "zones.stack": { "is_empty": true },
-            "zones.battlefield.p1": { "includes": [{ "card": "Jadar, Ghoulcaller of Nephalia" }] },
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Jadar, Ghoulcaller of Nephalia"
+                }
+              ]
+            },
             "players.p1.life": 40,
             "players.p2.life": 40
           },
@@ -233,7 +294,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass in End step with empty stack. Turn advances to Cleanup then to P2's turn."
         }

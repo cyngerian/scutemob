@@ -19,11 +19,12 @@
       "bird-token"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
-    "generation_notes": "Swan Song oracle: 'Counter target enchantment, instant, or sorcery spell. Its controller creates a 2/2 blue Bird creature token with flying.' It targets sorceries, instants, or enchantments \u2014 Harmonize is a sorcery. p1 casts Harmonize ({2}{G}{G}), p2 responds with Swan Song ({U}). Swan Song resolves first (LIFO): Harmonize is countered, p1 gets a 2/2 Bird token. The Bird token definition exists in the engine (Swan Song's card definition creates Bird tokens). Initial state: p1 has Harmonize with {2}{G}{G}; p2 has Swan Song with {U}.",
-    "disputes": []
+    "generation_notes": "Swan Song oracle: 'Counter target enchantment, instant, or sorcery spell. Its controller creates a 2/2 blue Bird creature token with flying.' It targets sorceries, instants, or enchantments — Harmonize is a sorcery. p1 casts Harmonize ({2}{G}{G}), p2 responds with Swan Song ({U}). Swan Song resolves first (LIFO): Harmonize is countered, p1 gets a 2/2 Bird token. The Bird token definition exists in the engine (Swan Song's card definition creates Bird tokens). Initial state: p1 has Harmonize with {2}{G}{G}; p2 has Swan Song with {U}.",
+    "disputes": [],
+    "retirement_reason": "SR-9c: Swan Song counters the target spell and its controller creates a Bird token; the token is not observed on the battlefield after resolution (token-creation/target threading gap). Unblocks when the counter+token effect creates the token."
   },
   "initial_state": {
     "format": "commander",
@@ -153,7 +154,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "Both pass \u2014 Swan Song resolves."
+          "note": "Both pass — Swan Song resolves."
         },
         {
           "type": "stack_resolve",

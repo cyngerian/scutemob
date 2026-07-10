@@ -4,11 +4,30 @@
     "id": "script_stack_131",
     "name": "Encore Briarblade Adept — exile from graveyard, create 3 tokens in 4-player game",
     "description": "In a 4-player Commander game, p1 has Briarblade Adept ({4}{B}, 3/4 Elf Assassin, Encore {3}{B}) in the graveyard with {3}{B} mana available. p1 activates encore on Briarblade Adept (paying {3}{B} and exiling the card as cost per CR 702.141a and CR 602.2c). The card is immediately exiled before the ability is placed on the stack. All four players pass priority. The encore ability resolves, creating one token copy of Briarblade Adept per opponent — three tokens total (one per p2, p3, p4) — each with Haste and flagged for sacrifice at the next end step. Final assert: original Briarblade Adept is in exile, three tokens with is_token=true are on p1's battlefield, stack is empty.",
-    "cr_sections_tested": ["702.141", "702.141a", "602.2", "602.2c", "608.2", "111.1", "111.5", "116.3"],
+    "cr_sections_tested": [
+      "702.141",
+      "702.141a",
+      "602.2",
+      "602.2c",
+      "608.2",
+      "111.1",
+      "111.5",
+      "116.3"
+    ],
     "corner_case_ref": null,
-    "tags": ["encore", "graveyard", "token", "4-player", "multiplayer", "exile-as-cost", "haste", "elf", "assassin"],
+    "tags": [
+      "encore",
+      "graveyard",
+      "token",
+      "4-player",
+      "multiplayer",
+      "exile-as-cost",
+      "haste",
+      "elf",
+      "assassin"
+    ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Briarblade Adept card definition confirmed in crates/engine/src/cards/defs/briarblade_adept.rs: {4}{B}, Creature — Elf Assassin 3/4, AbilityDefinition::Keyword(KeywordAbility::Encore) + AbilityDefinition::Encore { cost: ManaCost { generic: 3, black: 1 } }. The attack trigger for -1/-1 is omitted from the card definition due to the targeted_trigger DSL gap (W5 worklist). CR 702.141a: 'Encore [cost]' means '[Cost], Exile this card from your graveyard: For each opponent, create a token that's a copy of this card that attacks that opponent this turn if able. The tokens gain haste. Sacrifice them at the beginning of the next end step. Activate only as a sorcery.' Encore cost {3}{B}: mana_paid { colorless: 3, black: 1 }. Per CR 602.2c, all activation costs are paid before the ability is placed on the stack — so Briarblade Adept is immediately exiled at activation time (analogous to embalm/eternalize behavior confirmed in scripts 129 and 130). In a 4-player Commander game, p1 has 3 opponents (p2, p3, p4), so 3 tokens are created upon resolution. The 'encore_card' action type is supported in translate_player_action (replay_harness.rs line 591). 'Activate only as a sorcery' satisfied: precombat main phase, active player p1, empty stack. The end-step sacrifice trigger (EncoreSacrificeTrigger) cannot be driven via the script harness because the harness does not advance phases via PassPriority — the engine's turn advancement logic (end_step_actions) is not triggered from script priority_rounds. The sacrifice behavior is already covered by native unit test test_encore_sacrifice_at_end_step in crates/engine/tests/encore.rs. Script scope intentionally limited to activation + resolution. Dispute struct requires: step_index, action_index, raised_by (required String), description, resolution, resolved_by, resolved_date — all optional except raised_by.",
@@ -34,7 +53,10 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "colorless": 3, "black": 1 },
+        "mana_pool": {
+          "colorless": 3,
+          "black": 1
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -74,7 +96,11 @@
       "hand": {},
       "graveyard": {
         "p1": [
-          { "card": "Briarblade Adept", "is_commander": false, "owner": null }
+          {
+            "card": "Briarblade Adept",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "exile": [],
@@ -93,10 +119,26 @@
           "type": "assert_state",
           "description": "Initial: Briarblade Adept in p1 graveyard, battlefield empty, exile empty, stack empty",
           "assertions": {
-            "zones.graveyard.p1": { "includes": [{ "card": "Briarblade Adept" }] },
-            "zones.battlefield.p1": { "excludes": [{ "card": "Briarblade Adept" }] },
-            "zones.exile": { "is_empty": true },
-            "zones.stack": { "is_empty": true },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Briarblade Adept"
+                }
+              ]
+            },
+            "zones.battlefield.p1": {
+              "excludes": [
+                {
+                  "card": "Briarblade Adept"
+                }
+              ]
+            },
+            "zones.exile": {
+              "is_empty": true
+            },
+            "zones.stack": {
+              "is_empty": true
+            },
             "players.p1.life": 40,
             "players.p2.life": 40,
             "players.p3.life": 40,
@@ -110,7 +152,10 @@
           "action": "encore_card",
           "card": "Briarblade Adept",
           "targets": [],
-          "mana_paid": { "colorless": 3, "black": 1 },
+          "mana_paid": {
+            "colorless": 3,
+            "black": 1
+          },
           "mana_source": [],
           "cr_ref": "702.141a",
           "note": "CR 702.141a: p1 activates Encore {3}{B} on Briarblade Adept in the graveyard. Cost includes {3}{B} mana (generic 3 + black 1) and exiling Briarblade Adept from the graveyard. CR 602.2c: The exile cost is paid at activation time — Briarblade Adept immediately moves to exile before the ability is placed on the stack. 'Activate only as a sorcery' is legal: precombat main phase, active player p1, empty stack."
@@ -120,14 +165,31 @@
           "description": "After encore activation: Briarblade Adept is in exile (cost paid per CR 602.2c), encore ability on stack (count 1), graveyard empty",
           "assertions": {
             "zones.stack.count": 1,
-            "zones.exile": { "includes": [{ "card": "Briarblade Adept" }] },
-            "zones.graveyard.p1": { "excludes": [{ "card": "Briarblade Adept" }] }
+            "zones.exile": {
+              "includes": [
+                {
+                  "card": "Briarblade Adept"
+                }
+              ]
+            },
+            "zones.graveyard.p1": {
+              "excludes": [
+                {
+                  "card": "Briarblade Adept"
+                }
+              ]
+            }
           },
           "note": "CR 602.2c: Briarblade Adept was exiled as part of paying the encore activation cost — it is in exile, not the graveyard. The encore activated ability is now on the stack. The ability will create one token per opponent (p2, p3, p4) when it resolves."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2", "p3", "p4"],
+          "players": [
+            "p1",
+            "p2",
+            "p3",
+            "p4"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: All four players pass priority in succession — encore ability resolves from top of stack."
         },
@@ -137,7 +199,10 @@
           "resolution": [
             {
               "effect": "create_token",
-              "target": { "type": "player", "player": "p1" },
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
               "amount": 3,
               "card": "Briarblade Adept",
               "owner": "p1",
@@ -151,12 +216,31 @@
           "type": "assert_state",
           "description": "Final: 3 Briarblade Adept tokens on p1 battlefield (is_token=true), original Briarblade Adept in exile, stack empty, all life totals unchanged",
           "assertions": {
-            "zones.stack": { "is_empty": true },
-            "zones.battlefield.p1": {
-              "includes": [{ "card": "Briarblade Adept", "is_token": true }]
+            "zones.stack": {
+              "is_empty": true
             },
-            "zones.exile": { "includes": [{ "card": "Briarblade Adept" }] },
-            "zones.graveyard.p1": { "excludes": [{ "card": "Briarblade Adept" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Briarblade Adept",
+                  "is_token": true
+                }
+              ]
+            },
+            "zones.exile": {
+              "includes": [
+                {
+                  "card": "Briarblade Adept"
+                }
+              ]
+            },
+            "zones.graveyard.p1": {
+              "excludes": [
+                {
+                  "card": "Briarblade Adept"
+                }
+              ]
+            },
             "players.p1.life": 40,
             "players.p2.life": 40,
             "players.p3.life": 40,

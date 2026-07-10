@@ -4,11 +4,24 @@
     "id": "script_stack_155",
     "name": "Teferi's Isle — Phasing keyword on legendary land",
     "description": "Verifies that Teferi's Isle (Legendary Land with Phasing) is correctly placed on p1's battlefield in the tapped state, reflecting its 'enters tapped' replacement effect (CR 614.1c). The Phasing keyword (CR 702.26a) causes the permanent to phase out before the active player untaps during each of their untap steps. The harness cannot drive multi-step turn transitions to trigger the phasing event; that behavior is covered by the engine's Phasing unit tests. This script validates: (1) Teferi's Isle is on the battlefield under p1's control, (2) it enters tapped per the self-replacement ETB effect, and (3) it produces {U}{U} when tapped for mana.",
-    "cr_sections_tested": ["614.1", "702.26a", "702.26b", "702.26c", "702.26d"],
+    "cr_sections_tested": [
+      "614.1",
+      "702.26a",
+      "702.26b",
+      "702.26c",
+      "702.26d"
+    ],
     "corner_case_ref": null,
-    "tags": ["phasing", "legendary-land", "enters-tapped", "teferis-isle", "replacement-effect", "mana-ability"],
+    "tags": [
+      "phasing",
+      "legendary-land",
+      "enters-tapped",
+      "teferis-isle",
+      "replacement-effect",
+      "mana-ability"
+    ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Teferi's Isle oracle text: Phasing. Enters tapped. {T}: Add {U}{U}. Card definition confirmed in crates/engine/src/cards/defs/teferis_isle.rs — has KeywordAbility::Phasing, ReplacementModification::EntersTapped (is_self: true), and Activated mana ability adding 2 blue. The PhaseTransition and TurnBasedAction harness actions are informational-only (no Command emitted); the actual phasing cycle cannot be driven by the script harness and is covered by Rust unit tests in the engine. This script places Teferi's Isle already on the battlefield (tapped: true) in initial_state, matching what would happen had p1 played it last turn: it entered tapped (614.1c replacement), and is still tapped at the start of the precombat main phase (it was not untapped because phasing permanents phase out before untapping on turn 1, so it never untapped). The mana-tap action confirms the land produces {U}{U} correctly once untapped. NOTE: The mana-tap section is intentionally omitted here because the land enters already tapped and the script does not drive a full turn structure to untap it. The assertions focus on zone presence and tapped status only.",
@@ -71,10 +84,16 @@
           "description": "Initial: Teferi's Isle on p1's battlefield in tapped state",
           "assertions": {
             "zones.battlefield.p1": {
-              "includes": [{ "card": "Teferi's Isle" }]
+              "includes": [
+                {
+                  "card": "Teferi's Isle"
+                }
+              ]
             },
             "permanent.Teferi's Isle.tapped": true,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 614.1c: Teferi's Isle entered tapped (self-replacement effect). CR 702.26a: Phasing keyword is present on the permanent. The land is visible on the battlefield, meaning it is currently phased in."
         },
@@ -90,11 +109,17 @@
           "description": "Final: Teferi's Isle still on battlefield, stack empty, no life change",
           "assertions": {
             "zones.battlefield.p1": {
-              "includes": [{ "card": "Teferi's Isle" }]
+              "includes": [
+                {
+                  "card": "Teferi's Isle"
+                }
+              ]
             },
             "players.p1.life": 40,
             "players.p2.life": 40,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "No actions were taken. Teferi's Isle remains on the battlefield (phased in). Its Phasing status causes it to alternate each untap step: out, in, out, in."
         }

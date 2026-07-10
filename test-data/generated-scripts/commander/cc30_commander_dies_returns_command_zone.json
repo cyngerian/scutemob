@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "metadata": {
     "id": "script_commander_cc30",
-    "name": "Commander dies \u2014 player chooses to return to command zone",
+    "name": "Commander dies — player chooses to return to command zone",
     "description": "p1's commander Llanowar Elves is on the battlefield. p2 casts Doom Blade targeting it. Llanowar Elves would go to the graveyard; p1 chooses to redirect it to the command zone instead (CR 903.9b). Tests the SBA + replacement effect for commander zone return.",
     "cr_sections_tested": [
       "903.9b",
@@ -18,11 +18,12 @@
       "zone-replacement"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "CR 903.9b: if a commander would go to a graveyard or exile, its owner may choose to move it to the command zone instead. The engine implements this as a replacement effect registered at game start. When Doom Blade resolves, Llanowar Elves is destroyed; the replacement effect intercepts the zone change and the engine emits CommanderZoneReturnChoiceRequired. p1 chooses to send it to command zone. The pending_commander_zone_choices mechanism handles this. Initial: p1's Llanowar Elves is on battlefield as commander; p2 has Doom Blade with {1}{B}.",
-    "disputes": []
+    "disputes": [],
+    "retirement_reason": "SR-9c: After the commander dies, the zone-change replacement and the priority handoff do not match the script's pass order (NotPriorityHolder). Retire pending a priority sequence matching engine APNAP."
   },
   "initial_state": {
     "format": "commander",
@@ -145,7 +146,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "Both pass \u2014 Doom Blade resolves."
+          "note": "Both pass — Doom Blade resolves."
         },
         {
           "type": "stack_resolve",

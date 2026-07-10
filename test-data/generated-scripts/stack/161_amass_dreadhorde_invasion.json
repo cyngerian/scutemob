@@ -3,15 +3,28 @@
   "metadata": {
     "id": "script_stack_161",
     "name": "Dreadhorde Invasion — cast and resolve; amass Zombies upkeep trigger (engine gap)",
-    "description": "p1 casts Dreadhorde Invasion ({1}{B}, Enchantment). Both players pass priority. The spell resolves and Dreadhorde Invasion enters p1's battlefield. The script validates the cast\u2192resolve flow and confirms the enchantment is on the battlefield. Dreadhorde Invasion has an upkeep triggered ability: 'At the beginning of your upkeep, you lose 1 life and amass Zombies 1.' Per CR 701.47a, amass Zombies 1 means: if you don't control an Army, create a 0/0 black Zombie Army creature token, then put 1 +1/+1 counter on it (making it a 1/1). On p1's second upkeep, the same trigger fires and the existing Army (now 1/1) receives a second +1/+1 counter (making it a 2/2). p1 loses 1 life per trigger. The upkeep trigger lifecycle is an engine gap in the replay harness (see disputes); it is validated by unit tests in crates/engine/tests/amass.rs.",
-    "cr_sections_tested": ["601.2", "608.2", "701.47a", "701.47b", "603.2"],
+    "description": "p1 casts Dreadhorde Invasion ({1}{B}, Enchantment). Both players pass priority. The spell resolves and Dreadhorde Invasion enters p1's battlefield. The script validates the cast→resolve flow and confirms the enchantment is on the battlefield. Dreadhorde Invasion has an upkeep triggered ability: 'At the beginning of your upkeep, you lose 1 life and amass Zombies 1.' Per CR 701.47a, amass Zombies 1 means: if you don't control an Army, create a 0/0 black Zombie Army creature token, then put 1 +1/+1 counter on it (making it a 1/1). On p1's second upkeep, the same trigger fires and the existing Army (now 1/1) receives a second +1/+1 counter (making it a 2/2). p1 loses 1 life per trigger. The upkeep trigger lifecycle is an engine gap in the replay harness (see disputes); it is validated by unit tests in crates/engine/tests/amass.rs.",
+    "cr_sections_tested": [
+      "601.2",
+      "608.2",
+      "701.47a",
+      "701.47b",
+      "603.2"
+    ],
     "corner_case_ref": null,
-    "tags": ["amass", "zombie-army", "token", "upkeep-trigger", "enchantment", "engine-gap"],
+    "tags": [
+      "amass",
+      "zombie-army",
+      "token",
+      "upkeep-trigger",
+      "enchantment",
+      "engine-gap"
+    ],
     "confidence": "medium",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
-    "generation_notes": "Dreadhorde Invasion oracle text: 'At the beginning of your upkeep, you lose 1 life and amass Zombies 1. (Put a +1/+1 counter on an Army you control. It's also a Zombie. If you don't control an Army, create a 0/0 black Zombie Army creature token first.) Whenever a Zombie token you control with power 6 or greater attacks, it gains lifelink until end of turn.' Cost: {1}{B} = generic:1, black:1. Card definition (crates/engine/src/cards/defs/dreadhorde_invasion.rs): AbilityDefinition::Triggered { trigger_condition: TriggerCondition::AtBeginningOfYourUpkeep, effect: Effect::Sequence([LoseLife { player: Controller, amount: Fixed(1) }, Amass { subtype: 'Zombie', count: Fixed(1) }]) }. CR 701.47a (amass Zombies N): if controller has no Army, create a 0/0 black Zombie Army creature token, then choose an Army and put N +1/+1 counters on it. CR 701.47b: Amassed event fires even if some actions were impossible. ENGINE GAP: The replay harness does not drive generic AtBeginningOfYourUpkeep triggered abilities from card definitions. The upkeep_actions() function in rules/turn_actions.rs only queues specific keyword ability triggers (Suspend, Vanishing, Fading, Echo, CumulativeUpkeep). It does NOT scan card definitions for AtBeginningOfYourUpkeep triggers and queue them as PendingTrigger { kind: PendingTriggerKind::Normal }. Additionally, check_triggers() in rules/abilities.rs handles event-driven triggers only; it does NOT respond to StepChanged { step: Upkeep } to fire card-definition upkeep triggers. The full amass lifecycle (trigger fires, LoseLife -1, token created 0/0, +1/+1 counter applied \u2192 1/1 on upkeep 1; existing Army gets +1 counter \u2192 2/2 on upkeep 2) is validated by unit tests in crates/engine/tests/amass.rs. The SECOND ability ('Whenever a Zombie token with power 6+ attacks, it gains lifelink until end of turn') is not implemented in the card definition (deferred — no DSL support for attack trigger with token-type filter + power threshold). Script scope: cast Dreadhorde Invasion \u2192 resolve \u2192 assert on battlefield. The informational section below documents the two-upkeep lifecycle per CR 701.47a/b for future reference when the harness gap is fixed.",
+    "generation_notes": "Dreadhorde Invasion oracle text: 'At the beginning of your upkeep, you lose 1 life and amass Zombies 1. (Put a +1/+1 counter on an Army you control. It's also a Zombie. If you don't control an Army, create a 0/0 black Zombie Army creature token first.) Whenever a Zombie token you control with power 6 or greater attacks, it gains lifelink until end of turn.' Cost: {1}{B} = generic:1, black:1. Card definition (crates/engine/src/cards/defs/dreadhorde_invasion.rs): AbilityDefinition::Triggered { trigger_condition: TriggerCondition::AtBeginningOfYourUpkeep, effect: Effect::Sequence([LoseLife { player: Controller, amount: Fixed(1) }, Amass { subtype: 'Zombie', count: Fixed(1) }]) }. CR 701.47a (amass Zombies N): if controller has no Army, create a 0/0 black Zombie Army creature token, then choose an Army and put N +1/+1 counters on it. CR 701.47b: Amassed event fires even if some actions were impossible. ENGINE GAP: The replay harness does not drive generic AtBeginningOfYourUpkeep triggered abilities from card definitions. The upkeep_actions() function in rules/turn_actions.rs only queues specific keyword ability triggers (Suspend, Vanishing, Fading, Echo, CumulativeUpkeep). It does NOT scan card definitions for AtBeginningOfYourUpkeep triggers and queue them as PendingTrigger { kind: PendingTriggerKind::Normal }. Additionally, check_triggers() in rules/abilities.rs handles event-driven triggers only; it does NOT respond to StepChanged { step: Upkeep } to fire card-definition upkeep triggers. The full amass lifecycle (trigger fires, LoseLife -1, token created 0/0, +1/+1 counter applied → 1/1 on upkeep 1; existing Army gets +1 counter → 2/2 on upkeep 2) is validated by unit tests in crates/engine/tests/amass.rs. The SECOND ability ('Whenever a Zombie token with power 6+ attacks, it gains lifelink until end of turn') is not implemented in the card definition (deferred — no DSL support for attack trigger with token-type filter + power threshold). Script scope: cast Dreadhorde Invasion → resolve → assert on battlefield. The informational section below documents the two-upkeep lifecycle per CR 701.47a/b for future reference when the harness gap is fixed.",
     "disputes": [
       {
         "step_index": null,
@@ -34,7 +47,10 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "colorless": 1, "black": 1 },
+        "mana_pool": {
+          "colorless": 1,
+          "black": 1
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -55,7 +71,11 @@
       "battlefield": {},
       "hand": {
         "p1": [
-          { "card": "Dreadhorde Invasion", "is_commander": false, "owner": null }
+          {
+            "card": "Dreadhorde Invasion",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -76,11 +96,25 @@
           "description": "Initial: Dreadhorde Invasion in p1 hand; battlefield empty; stack empty; p1 at 40 life",
           "assertions": {
             "zones.hand.p1.count": 1,
-            "zones.hand.p1": { "includes": [{ "card": "Dreadhorde Invasion" }] },
-            "zones.battlefield.p1": { "excludes": [{ "card": "Dreadhorde Invasion" }] },
+            "zones.hand.p1": {
+              "includes": [
+                {
+                  "card": "Dreadhorde Invasion"
+                }
+              ]
+            },
+            "zones.battlefield.p1": {
+              "excludes": [
+                {
+                  "card": "Dreadhorde Invasion"
+                }
+              ]
+            },
             "players.p1.life": 40,
             "players.p2.life": 40,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Dreadhorde Invasion ({1}{B} Enchantment, Amass Zombies upkeep trigger) is in p1's hand. p1 has {1}{B} (colorless:1, black:1) in mana pool ready to cast."
         },
@@ -90,7 +124,10 @@
           "action": "cast_spell",
           "card": "Dreadhorde Invasion",
           "targets": [],
-          "mana_paid": { "colorless": 1, "black": 1 },
+          "mana_paid": {
+            "colorless": 1,
+            "black": 1
+          },
           "mana_source": [],
           "cr_ref": "601.2",
           "note": "CR 601.2: p1 casts Dreadhorde Invasion; {1}{B} paid from pool (colorless:1, black:1). The enchantment has no targets. It moves from hand to stack."
@@ -106,7 +143,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — Dreadhorde Invasion resolves (CR 608.2)."
         },
@@ -116,7 +156,10 @@
           "resolution": [
             {
               "effect": "permanent_enters_battlefield",
-              "target": { "type": "player", "player": "p1" },
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
               "amount": null,
               "card": "Dreadhorde Invasion",
               "owner": "p1",
@@ -130,9 +173,17 @@
           "type": "assert_state",
           "description": "Final: Dreadhorde Invasion on p1 battlefield; stack empty; both players at 40 life; no tokens yet",
           "assertions": {
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "zones.hand.p1.count": 0,
-            "zones.battlefield.p1": { "includes": [{ "card": "Dreadhorde Invasion" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Dreadhorde Invasion"
+                }
+              ]
+            },
             "players.p1.life": 40,
             "players.p2.life": 40
           },

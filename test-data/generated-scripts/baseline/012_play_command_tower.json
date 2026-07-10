@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "metadata": {
     "id": "script_baseline_012",
-    "name": "Play Command Tower \u2014 produces any color of commander's identity",
+    "name": "Play Command Tower — produces any color of commander's identity",
     "description": "p1 plays a Command Tower as their land for the turn. Then activates it to add {G} (one color from their commander's color identity). Tests that Command Tower enters untapped and its mana ability produces mana.",
     "cr_sections_tested": [
       "305.1",
@@ -18,7 +18,7 @@
       "commander-mana"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Command Tower oracle: '{T}: Add one mana of any color in your commander's color identity.' CR 305.1: Playing a land is a special action, doesn't use the stack. Command Tower enters untapped. Then p1 taps it for {G}. Initial: p1 has Command Tower in hand, land_plays_remaining = 1. After play: Command Tower on battlefield untapped, land_plays_remaining = 0. After activate: tapped, mana added.",

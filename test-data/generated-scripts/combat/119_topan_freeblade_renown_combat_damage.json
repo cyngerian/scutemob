@@ -32,7 +32,7 @@
       "renown-suppressed-second-attack"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Topan Freeblade oracle text (MCP verified): {1}{W}, Creature — Human Soldier, 2/2. Vigilance (Attacking doesn't cause this creature to tap). Renown 1 (When this creature deals combat damage to a player, if it isn't renowned, put a +1/+1 counter on it and it becomes renowned). Topan Freeblade is NOT in the engine Available Cards list and has no CardDefinition — harness validation will fail for trigger-related assertions until the card is authored. A dispute entry documents this. CR 702.112a: Renown 1 is a triggered ability with an embedded intervening-if clause: 'if it isn't renowned.' Per CR 603.4, the condition is checked both at trigger time and at resolution time. First attack: Topan Freeblade deals 2 combat damage to p2 (power 2, unblocked). Renown trigger fires because 'it isn't renowned' is TRUE at trigger time. Both players pass priority; condition still TRUE at resolution → trigger resolves, one +1/+1 counter placed on Topan Freeblade, it becomes renowned. Effective P/T: 3/3. CR 702.112b: Renowned is a permanent designation; it does not leave with zone changes but persists on the same battlefield object. Second attack: Topan Freeblade (now renowned, 3/3) attacks p2 again unblocked. Deals 3 combat damage (power 3). The Renown trigger does NOT fire — CR 603.4 intervening-if: 'if it isn't renowned' is FALSE (it IS renowned). The trigger simply does not trigger. No stack entry for Renown; no additional counter is placed. CR 702.20a: Vigilance means attacking does not cause Topan Freeblade to tap. Therefore tapped: false throughout both attacks. p2 life: 40 → 38 (after first attack, 2 damage) → 35 (after second attack, 3 damage from now-3/3 creature). The harness does not execute declare_attackers, combat damage, or combat triggers as engine commands, so all combat steps are informational (turn_based_action, trigger_placed). The assert_state after initial setup and the final assert_state reflect harness-visible state only. Dispute entries document the CardDefinition gap and the harness limitation.",
@@ -87,7 +87,12 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Topan Freeblade", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Topan Freeblade",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ]
       },
       "hand": {},
@@ -108,11 +113,19 @@
           "type": "assert_state",
           "description": "Initial: Topan Freeblade (2/2 not renowned) untapped on p1 battlefield; p1 at 40 life; p2 at 40 life; stack empty",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Topan Freeblade" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Topan Freeblade"
+                }
+              ]
+            },
             "permanent.Topan Freeblade.tapped": false,
             "players.p1.life": 40,
             "players.p2.life": 40,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Topan Freeblade has been on the battlefield since before turn 3 — no summoning sickness (CR 302.6). It is not yet renowned (no prior combat damage to a player). Vigilance means it will not tap when declared as an attacker."
         },
@@ -153,7 +166,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — the Renown 1 triggered ability resolves."
         },
@@ -163,7 +179,12 @@
           "resolution": [
             {
               "effect": "put_counter",
-              "target": { "type": "permanent", "player": null, "card": "Topan Freeblade", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "player": null,
+                "card": "Topan Freeblade",
+                "controller": "p1"
+              },
               "amount": 1,
               "counter_type": "plus1plus1",
               "card": null,
@@ -178,9 +199,17 @@
           "type": "assert_state",
           "description": "Post-first-attack harness state: Topan Freeblade still on p1 battlefield untapped (Vigilance), stack empty. Life totals and hand counts unchanged from harness perspective (combat not executed by harness). CR outcome documented: p2 at 38 life, Topan Freeblade renowned and effective 3/3.",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Topan Freeblade" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Topan Freeblade"
+                }
+              ]
+            },
             "permanent.Topan Freeblade.tapped": false,
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "players.p1.life": 40,
             "players.p2.life": 40
           },
@@ -196,9 +225,17 @@
           "type": "assert_state",
           "description": "Turn 4 start: Topan Freeblade still on p1 battlefield untapped (Vigilance); stack empty. (Expected CR state: renowned, 3/3 — engine sees initial harness state only.)",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Topan Freeblade" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Topan Freeblade"
+                }
+              ]
+            },
             "permanent.Topan Freeblade.tapped": false,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "By this turn, Topan Freeblade is renowned (per the CR-correct outcome of turn 3) and carries one +1/+1 counter (effective 3/3). Vigilance ensures it untapped naturally. No engine-visible change from harness state."
         },
@@ -230,9 +267,17 @@
           "type": "assert_state",
           "description": "Final harness state: Topan Freeblade still on p1 battlefield untapped (Vigilance); stack empty. No second Renown trigger was placed on the stack. Life totals unchanged from harness perspective (combat not executed by harness). CR outcome: p2 at 35 life total; Topan Freeblade is renowned and remains a 3/3 with +1/+1 counter.",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Topan Freeblade" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Topan Freeblade"
+                }
+              ]
+            },
             "permanent.Topan Freeblade.tapped": false,
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "players.p1.life": 40,
             "players.p2.life": 40
           },

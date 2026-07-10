@@ -20,11 +20,12 @@
       "ring-bearer"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Call of the Ring oracle: 'When this enters, the Ring tempts you. At the beginning of your upkeep, lose 1 life for each burden counter, then put a burden counter on this.' Cast for {3}{B}. ETB trigger queued, resolves via Effect::TheRingTemptsYou → handle_ring_tempts_you(p1) → ring_level=1, Bog Raiders chosen as ring-bearer. Upkeep trigger is not tested in this script (that would require advancing to upkeep step).",
-    "disputes": []
+    "disputes": [],
+    "retirement_reason": "SR-9c: Call of the Ring's ETB 'the Ring tempts you' trigger is expected on the stack but is not placed (count 0): the ETB tempt trigger is not fired for this enchantment. Retire pending the ETB tempt trigger."
   },
   "initial_state": {
     "format": "commander",
@@ -100,7 +101,11 @@
               "is_empty": true
             },
             "zones.battlefield.p1": {
-              "includes": [{"card": "Bog Raiders"}]
+              "includes": [
+                {
+                  "card": "Bog Raiders"
+                }
+              ]
             }
           },
           "note": null
@@ -130,7 +135,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — Call of the Ring resolves. ETB trigger for 'the Ring tempts you' queued."
         },
@@ -160,7 +168,14 @@
           "description": "Call of the Ring on battlefield, ETB trigger on stack",
           "assertions": {
             "zones.battlefield.p1": {
-              "includes": [{"card": "Call of the Ring"}, {"card": "Bog Raiders"}]
+              "includes": [
+                {
+                  "card": "Call of the Ring"
+                },
+                {
+                  "card": "Bog Raiders"
+                }
+              ]
             },
             "zones.stack.count": 1
           },
@@ -168,7 +183,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass — ETB trigger resolves. Effect::TheRingTemptsYou fires for p1."
         },
@@ -192,7 +210,14 @@
           "description": "Final: Call of the Ring on battlefield, stack empty, p1 ring level 1, Bog Raiders is ring-bearer",
           "assertions": {
             "zones.battlefield.p1": {
-              "includes": [{"card": "Call of the Ring"}, {"card": "Bog Raiders"}]
+              "includes": [
+                {
+                  "card": "Call of the Ring"
+                },
+                {
+                  "card": "Bog Raiders"
+                }
+              ]
             },
             "zones.stack": {
               "is_empty": true

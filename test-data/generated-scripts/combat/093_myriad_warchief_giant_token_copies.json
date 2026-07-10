@@ -2,8 +2,8 @@
   "schema_version": "1.0.0",
   "metadata": {
     "id": "script_combat_093",
-    "name": "Myriad \u2014 Warchief Giant creates token copies attacking P3 and P4",
-    "description": "P1 controls Warchief Giant (5/3 Haste Myriad) in a 4-player Commander game and attacks P2. The Myriad triggered ability fires (CR 702.116a): for each opponent other than P2 (the defending player), P1 may create a token copy tapped and attacking that opponent. P3 and P4 are the two eligible opponents, so two token copies are created \u2014 one attacking P3 and one attacking P4. The tokens enter tapped and attacking but were never declared as attackers, so their own Myriad abilities do not trigger (2015-11-04 ruling). All defending players (P2, P3, P4) declare no blockers. Combat damage: Warchief Giant deals 5 to P2; Token 1 deals 5 to P3; Token 2 deals 5 to P4. At end of combat, the delayed triggered ability from Myriad exiles both tokens (CR 702.116a).",
+    "name": "Myriad — Warchief Giant creates token copies attacking P3 and P4",
+    "description": "P1 controls Warchief Giant (5/3 Haste Myriad) in a 4-player Commander game and attacks P2. The Myriad triggered ability fires (CR 702.116a): for each opponent other than P2 (the defending player), P1 may create a token copy tapped and attacking that opponent. P3 and P4 are the two eligible opponents, so two token copies are created — one attacking P3 and one attacking P4. The tokens enter tapped and attacking but were never declared as attackers, so their own Myriad abilities do not trigger (2015-11-04 ruling). All defending players (P2, P3, P4) declare no blockers. Combat damage: Warchief Giant deals 5 to P2; Token 1 deals 5 to P3; Token 2 deals 5 to P4. At end of combat, the delayed triggered ability from Myriad exiles both tokens (CR 702.116a).",
     "cr_sections_tested": [
       "702.116a",
       "702.116b",
@@ -28,10 +28,10 @@
       "exile"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
-    "generation_notes": "Warchief Giant oracle text (Scryfall verified via MCP lookup_card): {3}{R}{R}, 5/3 Giant Warrior, Haste + Myriad. Warchief Giant is NOT in the engine Available Cards list \u2014 it requires a CardDefinition (card #110 in definitions.rs per the scenario brief) with Haste and Myriad abilities before harness validation can pass. A dispute is recorded for this. CR 702.116a full text: 'Whenever this creature attacks, for each opponent other than defending player, you may create a token that is a copy of this creature that is tapped and attacking that player or a planeswalker they control. If one or more tokens are created this way, exile the tokens at end of combat.' Key ruling (2015-11-04): 'Although the tokens enter the battlefield attacking, they were never declared as attackers. Abilities that trigger whenever a creature attacks won't trigger, including the myriad ability of the tokens. If there are any costs to have a creature attack, those costs won't apply to the tokens.' This means the token copies' own Myriad abilities do NOT trigger when they enter attacking \u2014 only the original Warchief Giant's Myriad triggered upon being declared as an attacker. Myriad trigger fires once and resolves to create all tokens simultaneously (ruling: 'The token creatures all enter the battlefield at the same time.'). In a 4-player game with P1 attacking P2: P3 and P4 are the two opponents other than the defending player P2, so exactly 2 tokens are created. End-of-combat exile is modeled as a turn-based action / delayed trigger per CR 702.116a \u2014 not as an explicit stack object. Initial phase set to 'declare_attackers' consistent with engine pattern (scripts 015, 067, 068). Warchief Giant has Haste so summoning sickness does not prevent it from attacking on turn 5. All players at 40 life. Combat damage: each attacker (Warchief Giant 5/3 + two 5/3 token copies) is unblocked and deals 5 damage to its respective defending player. P2 life: 40 - 5 = 35; P3 life: 40 - 5 = 35; P4 life: 40 - 5 = 35. After end of combat, both tokens are exiled and P1's Warchief Giant remains on battlefield (tapped).",
+    "generation_notes": "Warchief Giant oracle text (Scryfall verified via MCP lookup_card): {3}{R}{R}, 5/3 Giant Warrior, Haste + Myriad. Warchief Giant is NOT in the engine Available Cards list — it requires a CardDefinition (card #110 in definitions.rs per the scenario brief) with Haste and Myriad abilities before harness validation can pass. A dispute is recorded for this. CR 702.116a full text: 'Whenever this creature attacks, for each opponent other than defending player, you may create a token that is a copy of this creature that is tapped and attacking that player or a planeswalker they control. If one or more tokens are created this way, exile the tokens at end of combat.' Key ruling (2015-11-04): 'Although the tokens enter the battlefield attacking, they were never declared as attackers. Abilities that trigger whenever a creature attacks won't trigger, including the myriad ability of the tokens. If there are any costs to have a creature attack, those costs won't apply to the tokens.' This means the token copies' own Myriad abilities do NOT trigger when they enter attacking — only the original Warchief Giant's Myriad triggered upon being declared as an attacker. Myriad trigger fires once and resolves to create all tokens simultaneously (ruling: 'The token creatures all enter the battlefield at the same time.'). In a 4-player game with P1 attacking P2: P3 and P4 are the two opponents other than the defending player P2, so exactly 2 tokens are created. End-of-combat exile is modeled as a turn-based action / delayed trigger per CR 702.116a — not as an explicit stack object. Initial phase set to 'declare_attackers' consistent with engine pattern (scripts 015, 067, 068). Warchief Giant has Haste so summoning sickness does not prevent it from attacking on turn 5. All players at 40 life. Combat damage: each attacker (Warchief Giant 5/3 + two 5/3 token copies) is unblocked and deals 5 damage to its respective defending player. P2 life: 40 - 5 = 35; P3 life: 40 - 5 = 35; P4 life: 40 - 5 = 35. After end of combat, both tokens are exiled and P1's Warchief Giant remains on battlefield (tapped).",
     "disputes": [
       {
         "step_index": 0,
@@ -133,7 +133,7 @@
               "is_empty": true
             }
           },
-          "note": "Warchief Giant is untapped and free of summoning sickness (has Haste \u2014 CR 702.10a). Turn 5 in initial state ensures the permanent was controlled since before this turn."
+          "note": "Warchief Giant is untapped and free of summoning sickness (has Haste — CR 702.10a). Turn 5 in initial state ensures the permanent was controlled since before this turn."
         },
         {
           "type": "player_action",
@@ -152,7 +152,7 @@
           ],
           "blockers": [],
           "cr_ref": "508.1",
-          "note": "CR 508.1: P1 declares Warchief Giant as attacker targeting P2. CR 508.1f: Warchief Giant taps as part of being declared as an attacker. CR 702.116a: Myriad triggered ability triggers \u2014 'for each opponent other than defending player [P2], you may create a token that is a copy of this creature that is tapped and attacking that player.' P3 and P4 are the two eligible opponents \u2014 Myriad trigger is placed on the stack."
+          "note": "CR 508.1: P1 declares Warchief Giant as attacker targeting P2. CR 508.1f: Warchief Giant taps as part of being declared as an attacker. CR 702.116a: Myriad triggered ability triggers — 'for each opponent other than defending player [P2], you may create a token that is a copy of this creature that is tapped and attacking that player.' P3 and P4 are the two eligible opponents — Myriad trigger is placed on the stack."
         },
         {
           "type": "assert_state",
@@ -200,7 +200,7 @@
               "card": "Warchief Giant",
               "owner": "p1",
               "cr_ref": "702.116a",
-              "note": "CR 702.116a: Myriad creates a second token copy of Warchief Giant (5/3 Giant Warrior, Haste, Myriad) tapped and attacking P4. Ruling (2015-11-04): Both tokens enter the battlefield at the same time. Tokens were never declared as attackers \u2014 their own Myriad abilities do NOT trigger (CR 508.1; 2015-11-04 ruling)."
+              "note": "CR 702.116a: Myriad creates a second token copy of Warchief Giant (5/3 Giant Warrior, Haste, Myriad) tapped and attacking P4. Ruling (2015-11-04): Both tokens enter the battlefield at the same time. Tokens were never declared as attackers — their own Myriad abilities do NOT trigger (CR 508.1; 2015-11-04 ruling)."
             }
           ],
           "note": "CR 608.2: Myriad triggered ability resolves. Two token copies of Warchief Giant enter tapped and attacking P3 and P4 respectively. CR 702.116a: A delayed triggered ability is registered to exile the tokens at end of combat. Tokens' own Myriad abilities do not fire (they were not declared as attackers per CR 508.1)."
@@ -238,7 +238,7 @@
     },
     {
       "step": "declare_blockers",
-      "step_note": "P2, P3, and P4 each declare no blockers. Warchief Giant and both token copies are unblocked (CR 509.1). All players pass \u2014 advance to combat damage.",
+      "step_note": "P2, P3, and P4 each declare no blockers. Warchief Giant and both token copies are unblocked (CR 509.1). All players pass — advance to combat damage.",
       "actions": [
         {
           "type": "player_action",
@@ -305,12 +305,12 @@
             "p4"
           ],
           "result": "all_pass",
-          "note": "CR 116.3: All players pass priority. CR 510.1: Combat damage is dealt simultaneously \u2014 Warchief Giant deals 5 to P2, Token 1 deals 5 to P3, Token 2 deals 5 to P4. CR 510.2: After combat damage is dealt, each player has opportunity for instants/abilities before end of combat."
+          "note": "CR 116.3: All players pass priority. CR 510.1: Combat damage is dealt simultaneously — Warchief Giant deals 5 to P2, Token 1 deals 5 to P3, Token 2 deals 5 to P4. CR 510.2: After combat damage is dealt, each player has opportunity for instants/abilities before end of combat."
         },
         {
           "type": "sba_check",
           "results": [],
-          "note": "CR 704.3: SBAs checked after combat damage is dealt. P2 has 35 life (above 0), P3 has 35 life, P4 has 35 life \u2014 no player-loss SBA. Warchief Giant and token copies took no damage \u2014 no lethal-damage SBA (CR 704.5g). No SBAs apply."
+          "note": "CR 704.3: SBAs checked after combat damage is dealt. P2 has 35 life (above 0), P3 has 35 life, P4 has 35 life — no player-loss SBA. Warchief Giant and token copies took no damage — no lethal-damage SBA (CR 704.5g). No SBAs apply."
         },
         {
           "type": "assert_state",
@@ -358,7 +358,7 @@
               "card": "Warchief Giant",
               "owner": "p1",
               "cr_ref": "702.116a",
-              "note": "CR 702.116a: Delayed triggered ability resolves \u2014 token copy 1 (Warchief Giant token attacking P3) is exiled. CR 701.10a: Exile moves the permanent from the battlefield to the exile zone."
+              "note": "CR 702.116a: Delayed triggered ability resolves — token copy 1 (Warchief Giant token attacking P3) is exiled. CR 701.10a: Exile moves the permanent from the battlefield to the exile zone."
             },
             {
               "effect": "exile",
@@ -371,10 +371,10 @@
               "card": "Warchief Giant",
               "owner": "p1",
               "cr_ref": "702.116a",
-              "note": "CR 702.116a: Delayed triggered ability resolves \u2014 token copy 2 (Warchief Giant token attacking P4) is exiled. CR 511.2: End of combat step ends after all players pass priority with empty stack."
+              "note": "CR 702.116a: Delayed triggered ability resolves — token copy 2 (Warchief Giant token attacking P4) is exiled. CR 511.2: End of combat step ends after all players pass priority with empty stack."
             }
           ],
-          "note": "CR 608.2: Myriad end-of-combat delayed trigger resolves. Both Warchief Giant token copies are exiled. CR 702.116a: 'If one or more tokens are created this way, exile the tokens at end of combat.' Tokens cease to exist in exile (CR 111.7 \u2014 tokens that leave the battlefield cease to exist, but they were explicitly exiled here). Original Warchief Giant is unaffected."
+          "note": "CR 608.2: Myriad end-of-combat delayed trigger resolves. Both Warchief Giant token copies are exiled. CR 702.116a: 'If one or more tokens are created this way, exile the tokens at end of combat.' Tokens cease to exist in exile (CR 111.7 — tokens that leave the battlefield cease to exist, but they were explicitly exiled here). Original Warchief Giant is unaffected."
         },
         {
           "type": "priority_round",

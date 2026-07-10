@@ -4,11 +4,28 @@
     "id": "script_combat_068",
     "name": "Annihilator 2 — defending player sacrifices 2 permanents before blockers",
     "description": "P1 controls Ulamog's Crusher (8/8, Annihilator 2) in a 4-player Commander game. P1 declares it as an attacker targeting P2. The Annihilator 2 triggered ability fires during the declare-attackers step (CR 702.86a), requiring P2 (the defending player per CR 508.5) to sacrifice 2 permanents of their choice. P2 controls a Plains, a Forest, and a Sol Ring (3 permanents total). The engine auto-selects which 2 permanents to sacrifice (Plains and Forest), retaining Sol Ring. After the trigger resolves, P2 declares no blockers (no creatures), and Ulamog's Crusher deals 8 unblocked combat damage to P2, reducing P2's life from 40 to 32.",
-    "cr_sections_tested": ["702.86a", "508.5", "701.17a", "508.1", "509.1", "510.1b", "116.3", "608.2"],
+    "cr_sections_tested": [
+      "702.86a",
+      "508.5",
+      "701.17a",
+      "508.1",
+      "509.1",
+      "510.1b",
+      "116.3",
+      "608.2"
+    ],
     "corner_case_ref": null,
-    "tags": ["combat", "annihilator", "triggered-ability", "sacrifice", "multiplayer", "eldrazi", "4-player"],
+    "tags": [
+      "combat",
+      "annihilator",
+      "triggered-ability",
+      "sacrifice",
+      "multiplayer",
+      "eldrazi",
+      "4-player"
+    ],
     "confidence": "medium",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Ulamog's Crusher oracle text (Scryfall verified via MCP lookup_card): 'Annihilator 2 (Whenever this creature attacks, defending player sacrifices two permanents of their choice.) This creature attacks each combat if able.' Type: Creature — Eldrazi. P/T: 8/8. Mana cost: {8}. IMPORTANT: Ulamog's Crusher is NOT in the engine Available Cards list and requires a CardDefinition to be authored before this script can pass harness validation. CR 702.86a ruling (2010-06-15): Annihilator abilities trigger and resolve during the declare-attackers step. The defending player chooses and sacrifices the required number of permanents BEFORE declaring blockers. Any creatures sacrificed this way cannot block. CR 508.5: In a multiplayer game, 'defending player' = the player the creature is directly attacking. P1 attacks P2, so P2 is the defending player for the Annihilator trigger. P2's permanents: Plains (land), Forest (land), Sol Ring (artifact) — 3 total. CR 701.17a: Sacrifice = controller moves permanent to their graveyard. The sacrifice is an effect, not a cost, so P2 chooses during resolution. P2 has no creatures, so declares no blockers. Ulamog's Crusher (power 8, unblocked) deals 8 combat damage to P2 per CR 510.1b. P2 life: 40 - 8 = 32. Four-player game uses players p1, p2, p3, p4 with 40 life each. Turn 4 to avoid summoning sickness on Ulamog's Crusher (placed directly into initial state as already on battlefield). ENGINE BEHAVIOR NOTE: The engine auto-selects which permanents P2 sacrifices; it does not honor the choose_option targets. Harness validation shows the engine sacrificed Plains and Forest (first two in iteration order), leaving Sol Ring on P2's battlefield. Script assertions match the engine's actual behavior. A dispute is recorded for the choice-honoring gap (LOW severity — the quantity of sacrifice is correct per CR 702.86a, but the specific permanents chosen are not player-directed). Initial phase set to 'declare_attackers' (not 'combat') per engine requirement — matches pattern from scripts 015 and 067.",
@@ -31,7 +48,8 @@
         "resolved_by": null,
         "resolved_date": null
       }
-    ]
+    ],
+    "retirement_reason": "SR-9c: No CardDefinition for Ulamog's Crusher; the object enters typeless so its Annihilator 2 trigger and 'attacks each combat' never exist, and `choose_option` (the sacrifice choice) is not a translatable Command. Unblocks when the card is authored and a sacrifice-choice Command is added."
   },
   "initial_state": {
     "format": "commander",
@@ -81,12 +99,32 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Ulamog's Crusher", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Ulamog's Crusher",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ],
         "p2": [
-          { "card": "Plains", "is_commander": false, "owner": null, "tapped": false },
-          { "card": "Forest", "is_commander": false, "owner": null, "tapped": false },
-          { "card": "Sol Ring", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Plains",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          },
+          {
+            "card": "Forest",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          },
+          {
+            "card": "Sol Ring",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ]
       },
       "hand": {},
@@ -107,14 +145,34 @@
           "type": "assert_state",
           "description": "Initial: Ulamog's Crusher untapped on P1 battlefield; P2 controls Plains, Forest, Sol Ring; all life totals at 40; stack empty",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Ulamog's Crusher" }] },
-            "zones.battlefield.p2": { "includes": [{ "card": "Plains" }, { "card": "Forest" }, { "card": "Sol Ring" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Ulamog's Crusher"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Plains"
+                },
+                {
+                  "card": "Forest"
+                },
+                {
+                  "card": "Sol Ring"
+                }
+              ]
+            },
             "permanent.Ulamog's Crusher.tapped": false,
             "players.p1.life": 40,
             "players.p2.life": 40,
             "players.p3.life": 40,
             "players.p4.life": 40,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "P2 has exactly 3 permanents: Plains, Forest, Sol Ring. Ulamog's Crusher is untapped and free of summoning sickness (placed in initial state, turn 4)."
         },
@@ -127,7 +185,11 @@
           "mana_paid": null,
           "mana_source": [],
           "attackers": [
-            { "card": "Ulamog's Crusher", "target_player": "p2", "target_planeswalker": null }
+            {
+              "card": "Ulamog's Crusher",
+              "target_player": "p2",
+              "target_planeswalker": null
+            }
           ],
           "blockers": [],
           "cr_ref": "508.1",
@@ -144,7 +206,12 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2", "p3", "p4"],
+          "players": [
+            "p1",
+            "p2",
+            "p3",
+            "p4"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: All four players pass priority in turn order (APNAP). Stack resolves top object: Annihilator 2 triggered ability."
         },
@@ -154,7 +221,10 @@
           "resolution": [
             {
               "effect": "sacrifice_permanents",
-              "target": { "type": "player", "player": "p2" },
+              "target": {
+                "type": "player",
+                "player": "p2"
+              },
               "amount": 2,
               "card": null,
               "owner": null,
@@ -170,8 +240,18 @@
           "action": "choose_option",
           "card": null,
           "targets": [
-            { "type": "permanent", "player": null, "card": "Plains", "controller": "p2" },
-            { "type": "permanent", "player": null, "card": "Sol Ring", "controller": "p2" }
+            {
+              "type": "permanent",
+              "player": null,
+              "card": "Plains",
+              "controller": "p2"
+            },
+            {
+              "type": "permanent",
+              "player": null,
+              "card": "Sol Ring",
+              "controller": "p2"
+            }
           ],
           "mana_paid": null,
           "mana_source": [],
@@ -182,15 +262,37 @@
           "type": "assert_state",
           "description": "After Annihilator trigger resolves: 2 permanents sacrificed (Plains and Forest per engine auto-selection); Sol Ring remains on P2 battlefield; stack empty",
           "assertions": {
-            "zones.stack": { "is_empty": true },
-            "zones.battlefield.p2": { "includes": [{ "card": "Sol Ring" }] },
-            "zones.graveyard.p2": { "includes": [{ "card": "Plains" }, { "card": "Forest" }] }
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Sol Ring"
+                }
+              ]
+            },
+            "zones.graveyard.p2": {
+              "includes": [
+                {
+                  "card": "Plains"
+                },
+                {
+                  "card": "Forest"
+                }
+              ]
+            }
           },
           "note": "CR 702.86a + 701.17a: Engine sacrificed exactly 2 of P2's 3 permanents (Plains and Forest) to the Annihilator 2 trigger. Sol Ring remains on P2's battlefield. Ruling (2010-06-15): Sacrifice happens before declare-blockers step. Correct quantity (2) enforced; player choice not honored (see dispute)."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2", "p3", "p4"],
+          "players": [
+            "p1",
+            "p2",
+            "p3",
+            "p4"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: All players pass priority with empty stack in declare-attackers step. Advance to declare-blockers step."
         }
@@ -215,7 +317,12 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2", "p3", "p4"],
+          "players": [
+            "p1",
+            "p2",
+            "p3",
+            "p4"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: All players pass priority with empty stack in declare-blockers step. Advance to combat damage step."
         }
@@ -232,7 +339,12 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2", "p3", "p4"],
+          "players": [
+            "p1",
+            "p2",
+            "p3",
+            "p4"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: All players pass priority after combat damage resolves. Stack empty — advance to end of combat step."
         },
@@ -244,11 +356,34 @@
             "players.p1.life": 40,
             "players.p3.life": 40,
             "players.p4.life": 40,
-            "zones.battlefield.p2": { "includes": [{ "card": "Sol Ring" }] },
-            "zones.graveyard.p2": { "includes": [{ "card": "Plains" }, { "card": "Forest" }] },
-            "zones.battlefield.p1": { "includes": [{ "card": "Ulamog's Crusher" }] },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Sol Ring"
+                }
+              ]
+            },
+            "zones.graveyard.p2": {
+              "includes": [
+                {
+                  "card": "Plains"
+                },
+                {
+                  "card": "Forest"
+                }
+              ]
+            },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Ulamog's Crusher"
+                }
+              ]
+            },
             "permanent.Ulamog's Crusher.tapped": true,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 510.1b: Unblocked Ulamog's Crusher (power 8) dealt 8 combat damage to P2. P2 life: 40 - 8 = 32. Plains and Forest were sacrificed to Annihilator 2 trigger (CR 702.86a) and are in P2's graveyard (engine auto-selected these two). Sol Ring is the only remaining permanent on P2's battlefield. Ulamog's Crusher remains on P1's battlefield (tapped from attacking)."
         }

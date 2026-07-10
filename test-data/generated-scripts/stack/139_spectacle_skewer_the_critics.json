@@ -29,11 +29,12 @@
       "multi-phase"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Skewer the Critics (crates/engine/src/cards/defs/skewer_the_critics.rs): mana_cost {2R}, Sorcery, Spectacle {R}. Card definition has AbilityDefinition::Keyword(KeywordAbility::Spectacle), AbilityDefinition::Spectacle { cost: ManaCost { red: 1, ..Default::default() } }, and AbilityDefinition::Spell { effect: Effect::DealDamage { target: EffectTarget::DeclaredTarget { index: 0 }, amount: EffectAmount::Fixed(3) }, targets: vec![TargetRequirement::TargetAny], ... }.\n\nSpectacle (CR 702.137a): An alternative cost. You may cast the spell for its spectacle cost instead of its mana cost if an opponent lost life this turn. CR 702.137b: An opponent of the caster must have had their life total reduced (lost life) this turn for the spectacle condition to be met. CR 118.9: Only one alternative cost may be applied when casting a spell.\n\nCasting validation in casting.rs (line 1394-1404): the engine checks `state.players.iter().any(|(pid, ps)| *pid != player && !ps.has_lost && !ps.has_conceded && ps.life_lost_this_turn > 0)`. The `life_lost_this_turn` field on PlayerState (player.rs:131, #[serde(default)]) is NOT settable from the initial_state JSON (PlayerInitState in script_schema.rs lacks this field). Therefore the script must actually deal combat damage to p2 before casting with spectacle — the combat damage handler in combat.rs (line 1439) increments `player.life_lost_this_turn += final_dmg`.\n\nHarness action type `cast_spell_spectacle` (replay_harness.rs:1033): sets `alt_cost: Some(AltCostKind::Spectacle)` on Command::CastSpell. No additional fields.\n\nPhase transition pattern (confirmed from script_stack_132_dash_zurgo_bellstriker.json): Each step requires a `priority_round` (all players pass) to advance. Path from precombat_main: precombat_main -> beginning_of_combat -> declare_attackers -> declare_blockers -> combat_damage -> end_of_combat -> postcombat_main. Combat damage is applied via `assign_damage` player action. Each step boundary needs a priority_round.\n\nMana: Engine clears mana pools at phase transitions (CR 500.4). In postcombat_main, p1 taps Mountain for {R} (mana ability, CR 605.3) before casting Skewer the Critics.\n\nAttacker choice — Llanowar Elves (1/1) NOT Monastery Swiftspear: Monastery Swiftspear has Prowess (CR 702.107), which triggers whenever its controller casts a noncreature spell. Casting Skewer the Critics (a Sorcery) in postcombat_main would put the Prowess trigger on the stack alongside Skewer the Critics (stack count 2), complicating the test. Llanowar Elves (1/1, {T}: Add {G}) has no triggered abilities that fire on casting noncreature spells, keeping the stack clean. Llanowar Elves has no summoning sickness on turn 4 (harness builder sets has_summoning_sickness=false for initial-state permanents).\n\nInitial state: Turn 4. Phase: precombat_main. p1 has Llanowar Elves (1/1) and Mountain (untapped) on battlefield, Skewer the Critics in hand, empty mana pool (Mountain will be tapped for mana in postcombat main). p2 has no creatures.\n\nLife math: p2 starts at 40. Combat damage from Llanowar Elves (power 1, unblocked) = 1. p2 life: 40 - 1 = 39. Skewer the Critics deals 3. p2 life: 39 - 3 = 36. p1 life stays at 40 throughout.",
-    "disputes": []
+    "disputes": [],
+    "retirement_reason": "SR-9c: `assign_damage` is informational; the spectacle-cost combat sequence's damage is never dealt. Unblocks when a damage-assignment Command exists."
   },
   "initial_state": {
     "format": "commander",
@@ -65,13 +66,27 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Llanowar Elves", "is_commander": false, "owner": null, "tapped": false },
-          { "card": "Mountain", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Llanowar Elves",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          },
+          {
+            "card": "Mountain",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ]
       },
       "hand": {
         "p1": [
-          { "card": "Skewer the Critics", "is_commander": false, "owner": null }
+          {
+            "card": "Skewer the Critics",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -96,13 +111,18 @@
             "permanent.Llanowar Elves.tapped": false,
             "players.p1.life": 40,
             "players.p2.life": 40,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Llanowar Elves (1/1) and Mountain are on p1's battlefield, untapped, with no summoning sickness (turn 4, harness builder sets has_summoning_sickness=false). Skewer the Critics ({2R}, Spectacle {R}) is in p1's hand. p2 controls no creatures. Mana pool is empty — Mountain will be tapped in postcombat main for the spectacle cast."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority in precombat_main with empty stack — advance to beginning_of_combat step."
         }
@@ -114,7 +134,10 @@
       "actions": [
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority in beginning_of_combat with empty stack — advance to declare_attackers step."
         }
@@ -133,7 +156,11 @@
           "mana_paid": null,
           "mana_source": [],
           "attackers": [
-            { "card": "Llanowar Elves", "target_player": "p2", "target_planeswalker": null }
+            {
+              "card": "Llanowar Elves",
+              "target_player": "p2",
+              "target_planeswalker": null
+            }
           ],
           "blockers": [],
           "cr_ref": "508.1",
@@ -144,13 +171,18 @@
           "description": "After declare_attackers: Llanowar Elves is tapped, stack empty",
           "assertions": {
             "permanent.Llanowar Elves.tapped": true,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 508.1f: Llanowar Elves was tapped as part of the attack declaration. No triggered abilities fire (Llanowar Elves has no attack trigger)."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority — advance to declare_blockers step."
         }
@@ -175,7 +207,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority — advance to combat_damage step."
         }
@@ -191,7 +226,12 @@
           "action": "assign_damage",
           "card": "Llanowar Elves",
           "targets": [
-            { "type": "player", "player": "p2", "card": null, "controller": null }
+            {
+              "type": "player",
+              "player": "p2",
+              "card": null,
+              "controller": null
+            }
           ],
           "mana_paid": null,
           "mana_source": [],
@@ -204,15 +244,26 @@
           "assertions": {
             "players.p2.life": 39,
             "players.p1.life": 40,
-            "zones.battlefield.p1": { "includes": [{ "card": "Llanowar Elves" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
             "permanent.Llanowar Elves.tapped": true,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 510.1b: Unblocked Llanowar Elves (power 1) dealt 1 combat damage to p2. p2 life: 40 to 39. life_lost_this_turn for p2 is now 1 — spectacle condition satisfied (CR 702.137b). Mountain remains untapped (will be used for mana in postcombat main)."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority — advance to end_of_combat step."
         }
@@ -224,7 +275,10 @@
       "actions": [
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority in end_of_combat with empty stack — advance to postcombat_main phase."
         }
@@ -252,7 +306,9 @@
             "zones.hand.p1.count": 1,
             "players.p2.life": 39,
             "permanent.Mountain.tapped": true,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Mountain is now tapped. p1 has {R} in mana pool from Mountain. CR 702.137b: p2 lost life this turn (1 combat damage from Llanowar Elves). Spectacle condition is satisfied — p1 may cast Skewer the Critics for {R}."
         },
@@ -262,9 +318,16 @@
           "action": "cast_spell_spectacle",
           "card": "Skewer the Critics",
           "targets": [
-            { "type": "player", "player": "p2", "card": null, "controller": null }
+            {
+              "type": "player",
+              "player": "p2",
+              "card": null,
+              "controller": null
+            }
           ],
-          "mana_paid": { "red": 1 },
+          "mana_paid": {
+            "red": 1
+          },
           "mana_source": [],
           "cr_ref": "702.137a",
           "note": "CR 702.137a: p1 casts Skewer the Critics for its spectacle cost {R} rather than its normal mana cost {2R}. CR 702.137b: p2 (an opponent) lost life this turn (1 combat damage from Llanowar Elves) — spectacle condition satisfied. CR 118.9: The spectacle cost is an alternative cost; only one alternative cost may be applied. Harness action 'cast_spell_spectacle' maps to AltCostKind::Spectacle on Command::CastSpell. Target: p2 (any target per Skewer's target requirement). Mana paid: {R} (spectacle cost) instead of {2R} (normal cost)."
@@ -280,7 +343,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — top of stack (Skewer the Critics) resolves."
         },
@@ -290,7 +356,10 @@
           "resolution": [
             {
               "effect": "deal_damage",
-              "target": { "type": "player", "player": "p2" },
+              "target": {
+                "type": "player",
+                "player": "p2"
+              },
               "amount": 3,
               "card": null,
               "owner": null,
@@ -306,9 +375,23 @@
           "assertions": {
             "players.p2.life": 36,
             "players.p1.life": 40,
-            "zones.stack": { "is_empty": true },
-            "zones.graveyard.p1": { "includes": [{ "card": "Skewer the Critics" }] },
-            "zones.battlefield.p1": { "includes": [{ "card": "Llanowar Elves" }] },
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Skewer the Critics"
+                }
+              ]
+            },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
             "zones.hand.p1.count": 0
           },
           "note": "p2 life: 40 - 1 (combat damage from Llanowar Elves) - 3 (Skewer the Critics via spectacle) = 36. CR 702.137a: Spectacle allowed casting Skewer the Critics for {R} instead of {2R} because p2 (an opponent) lost life this turn (CR 702.137b). CR 118.9: Only one alternative cost was applied. Skewer the Critics is in p1's graveyard (resolved sorcery). Llanowar Elves and Mountain remain on p1's battlefield (both tapped)."

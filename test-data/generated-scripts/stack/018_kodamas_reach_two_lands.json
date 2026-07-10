@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "metadata": {
     "id": "script_stack_018",
-    "name": "Kodama's Reach \u2014 search for two basic lands (sorcery)",
+    "name": "Kodama's Reach — search for two basic lands (sorcery)",
     "description": "p1 casts Kodama's Reach ({2}{G}, Arcane sorcery). Same effect as Cultivate: search library for up to two basic lands, put one onto battlefield tapped and one into hand. Tests that the functional duplicate of Cultivate works identically.",
     "cr_sections_tested": [
       "601.2",
@@ -18,7 +18,7 @@
       "arcane"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Kodama's Reach oracle: 'Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle.' Cost {2}{G} (Arcane sorcery). Identical to Cultivate functionally. p1 finds Island and Swamp: Island onto battlefield tapped, Swamp to hand.",
@@ -132,7 +132,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "Both pass \u2014 Kodama's Reach resolves."
+          "note": "Both pass — Kodama's Reach resolves."
         },
         {
           "type": "stack_resolve",

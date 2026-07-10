@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "metadata": {
     "id": "script_replacement_006",
-    "name": "Commander dies with exile replacement \u2014 player chooses order (Case 28)",
+    "name": "Commander dies with exile replacement — player chooses order (Case 28)",
     "description": "p1 controls their commander on the battlefield. Rest in Peace (exile any card going to graveyard) is also active. The commander would die. Two replacements apply: commander zone-change (->command zone) and Rest in Peace (->exile). Per CR 616.1, p1 (the affected player) must choose the order. If p1 applies the commander replacement first, it goes to the command zone (then RiP no longer applies since it left a different way). If p1 applies RiP first, it goes to exile; then p1 may STILL apply the commander zone-change replacement from exile (CR 903.9 applies from exile as well). This is corner case #28 (analogous to Kalitas vs. commander).",
     "cr_sections_tested": [
       "614.1a",
@@ -21,7 +21,7 @@
       "player-choice"
     ],
     "confidence": "medium",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Pending harness support for Command::OrderReplacements. The scenario involves two non-self replacement effects competing on the same zone-change event. Per CR 616.1e, affected player chooses order. The test validates both orderings. Also pending: verify that after RiP fires (exile), the commander replacement can re-apply from exile per CR 903.9. See corner case #28.",
@@ -35,7 +35,8 @@
         "resolved_by": null,
         "resolved_date": null
       }
-    ]
+    ],
+    "retirement_reason": "SR-9c: `order_replacements` has no translation (see replacement-002): Command::OrderReplacements needs ReplacementIds the harness cannot resolve from a script. Unblocks when the harness can name and order replacement effects."
   },
   "initial_state": {
     "format": "commander",
@@ -117,7 +118,7 @@
   "script": [
     {
       "step": "precombat_main",
-      "step_note": "p2 kills p1's commander while Rest in Peace is active \u2014 two competing replacements",
+      "step_note": "p2 kills p1's commander while Rest in Peace is active — two competing replacements",
       "actions": [
         {
           "type": "assert_state",
@@ -177,7 +178,7 @@
               },
               "amount": 3,
               "cr_ref": "120.3",
-              "note": "3 damage to 1/1 \u2014 lethal."
+              "note": "3 damage to 1/1 — lethal."
             }
           ],
           "note": "Commander takes lethal damage."

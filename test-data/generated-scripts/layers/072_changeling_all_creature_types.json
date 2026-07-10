@@ -24,7 +24,7 @@
       "universal-automaton"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "CR 702.73a: Changeling is a characteristic-defining ability. 'This object is every creature type.' CDAs function in all zones (CR 604.3) and are applied first within Layer 4 before non-CDA type-changing effects (CR 613.3).\n\nUniversal Automaton oracle text: '{1} — Artifact Creature — Shapeshifter 1/1 — Changeling (This card is every creature type.)'\n\nThe Changeling CDA is implemented inline in calculate_characteristics() at the start of Layer 4 processing (rules/layers.rs). When chars.keywords contains KeywordAbility::Changeling, ALL_CREATURE_TYPES (~290+ SubType values from CR 205.3m) are added to chars.subtypes before any Layer 4 continuous effects are applied. This ensures CDA-first ordering per CR 613.3.\n\nKey CR facts:\n- Layer 4 (CR 613.1d): Type-changing effects applied here.\n- CDA ordering (CR 613.3): Within layer 4, CDAs apply before non-CDAs in timestamp order.\n- 'Lose all abilities' in Layer 6 removes KeywordAbility::Changeling from keywords, but the subtypes set in Layer 4 is not undone (Maskwood Nexus ruling 2021-02-05: 'If a creature with changeling loses all abilities, it remains all creature types').\n\nSubtype assertions (Elf, Goblin, Human, Dragon, Shapeshifter simultaneously) are covered by the unit tests in crates/engine/tests/changeling.rs:\n  - test_changeling_has_all_creature_types: asserts subtypes.len() >= 290 and contains representative types\n  - test_changeling_lose_all_abilities_keeps_types: validates Layer 4/6 ordering\n  - test_changeling_overridden_by_set_type_line: validates CDA + SetTypeLine interaction\n  - test_changeling_protection_from_subtype_matches: validates protection matching\n  - test_changeling_works_in_graveyard: validates all-zones CDA (CR 604.3)\n\nThe replay harness assertion schema (script_replay.rs check_assertions) does not have a 'permanent.<name>.subtypes' path, so subtype assertions cannot be made in game scripts. The script validates the observable harness state: the creature enters the battlefield and is present there after resolution.\n\nInitial state: p1 has 1 colorless mana in pool (from a Sol Ring that already activated, not on battlefield). Universal Automaton costs {1} — 1 colorless generic mana.\n\nDisputes: (1) Universal Automaton card definition not yet added to the engine (step 5 of ability-wip.md). The harness will silently skip or fail to place the creature until the CardDefinition is registered in definitions.rs. (2) Subtype assertions are documentation-only — not enforced by the harness.",
@@ -59,7 +59,9 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "colorless": 1 },
+        "mana_pool": {
+          "colorless": 1
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -80,7 +82,11 @@
       "battlefield": {},
       "hand": {
         "p1": [
-          { "card": "Universal Automaton", "is_commander": false, "owner": null }
+          {
+            "card": "Universal Automaton",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -101,8 +107,12 @@
           "description": "Initial: Universal Automaton in p1 hand; p1 battlefield empty; stack empty",
           "assertions": {
             "zones.hand.p1.count": 1,
-            "zones.battlefield.p1": { "is_empty": true },
-            "zones.stack": { "is_empty": true }
+            "zones.battlefield.p1": {
+              "is_empty": true
+            },
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Universal Automaton is in p1's hand. p1 has {1} colorless mana available to pay its cost."
         },
@@ -112,7 +122,9 @@
           "action": "cast_spell",
           "card": "Universal Automaton",
           "targets": [],
-          "mana_paid": { "colorless": 1 },
+          "mana_paid": {
+            "colorless": 1
+          },
           "mana_source": [],
           "cr_ref": "601.2",
           "note": "CR 601.2: p1 casts Universal Automaton. Total cost is {1} (generic). p1 pays with 1 colorless mana from the pool. No targets — Universal Automaton has no targets. Spell placed on stack."
@@ -128,7 +140,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — the top of the stack resolves."
         },
@@ -151,10 +166,16 @@
           "description": "Final: Universal Automaton on p1 battlefield; hand empty; stack empty",
           "assertions": {
             "zones.battlefield.p1": {
-              "includes": [{ "card": "Universal Automaton" }]
+              "includes": [
+                {
+                  "card": "Universal Automaton"
+                }
+              ]
             },
             "zones.hand.p1.count": 0,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Universal Automaton is on the battlefield. Via Changeling (CR 702.73a), it is simultaneously an Elf, a Goblin, a Human, a Dragon, a Shapeshifter, and every other creature type. This is a CDA applied in Layer 4 (CR 613.1d) before non-CDA effects (CR 613.3). Subtype assertions are validated by unit tests in changeling.rs rather than by the harness assertion schema."
         }

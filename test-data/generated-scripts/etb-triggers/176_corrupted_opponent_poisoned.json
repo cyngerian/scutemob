@@ -4,11 +4,24 @@
     "id": "script_etb_176",
     "name": "Corrupted ETB condition fires when opponent has 3+ poison counters",
     "description": "Tests CR 207.2c (Corrupted ability word): Vivisection Evangelist has an ETB triggered ability with intervening-if Condition::OpponentHasPoisonCounters(3). P2 starts with 3 poison counters. When Vivisection Evangelist enters the battlefield, fire_when_enters_triggered_effects checks the condition, finds that P2 has 3 poison counters (>= 3), and proceeds to execute the DestroyPermanent effect. Due to a known DSL gap (AbilityDefinition::Triggered has no targets field), the DeclaredTarget { index: 0 } resolves to an empty target set and the destroy no-ops silently. The script validates that (1) the card ETBs correctly, (2) the Corrupted condition check executes without panicking, and (3) the game state is consistent afterward. The positive path (condition met, trigger fires) is demonstrated here.",
-    "cr_sections_tested": ["207.2c", "603.2", "603.4", "601.2", "608.2"],
+    "cr_sections_tested": [
+      "207.2c",
+      "603.2",
+      "603.4",
+      "601.2",
+      "608.2"
+    ],
     "corner_case_ref": null,
-    "tags": ["etb-trigger", "corrupted", "poison", "intervening-if", "vivisection-evangelist", "ability-word"],
+    "tags": [
+      "etb-trigger",
+      "corrupted",
+      "poison",
+      "intervening-if",
+      "vivisection-evangelist",
+      "ability-word"
+    ],
     "confidence": "medium",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Corrupted is an ability word (CR 207.2c) that marks intervening-if conditions of the form 'if an opponent has N or more poison counters.' In the engine, this is Condition::OpponentHasPoisonCounters(3) on AbilityDefinition::Triggered. The condition is evaluated in fire_when_enters_triggered_effects (replacement.rs ~L950) before executing the effect. With P2 having 3 poison counters, the condition evaluates to true and the trigger effect runs. The effect is Effect::DestroyPermanent { target: DeclaredTarget { index: 0 } }. Because AbilityDefinition::Triggered has no targets vec in the DSL, the EffectContext is built with an empty targets vec. The resolve_targets helper returns an empty vec for DeclaredTarget { index: 0 } when ctx.targets is empty (effects/mod.rs line 2444: None => vec![]). DestroyPermanent with no resolved targets is a no-op -- Llanowar Elves survives. This documents both the working condition check and the known targeting DSL gap. Vivisection Evangelist mana cost: {3WB} = 3 generic + 1 white + 1 black. P2 starts with 3 poison counters in initial_state to satisfy the Corrupted condition. The inline ETB path fires immediately on resolution (not via the stack), so no trigger_placed action is needed. Dispute documents the targeting gap per the card def TODO comment.",
@@ -22,7 +35,8 @@
         "resolved_by": null,
         "resolved_date": null
       }
-    ]
+    ],
+    "retirement_reason": "SR-9c: Author-documented DSL gap: AbilityDefinition::Triggered has no targets field, so the Corrupted destroy effect resolves with no target and no-ops; the script asserts the wrong (gap) outcome. Unblocks when triggered-ability targets are threaded."
   },
   "initial_state": {
     "format": "commander",
@@ -93,9 +107,17 @@
           "description": "Initial: Vivisection Evangelist in p1 hand; P2 has 3 poison counters (Corrupted condition satisfied); Llanowar Elves on P2's battlefield.",
           "assertions": {
             "zones.hand.p1.count": 1,
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "players.p2.poison_counters": 3,
-            "zones.battlefield.p2": { "includes": [{ "card": "Llanowar Elves" }] }
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            }
           },
           "note": "P2's 3 poison counters satisfy the Corrupted intervening-if condition (CR 207.2c)."
         },
@@ -125,7 +147,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — stack resolves top object."
         },
@@ -148,12 +173,22 @@
           "description": "Final: Vivisection Evangelist on P1's battlefield; Llanowar Elves still on P2's battlefield (destroy no-op'd due to DSL gap); stack empty; P2 still has 3 poison counters.",
           "assertions": {
             "zones.battlefield.p1": {
-              "includes": [{ "card": "Vivisection Evangelist" }]
+              "includes": [
+                {
+                  "card": "Vivisection Evangelist"
+                }
+              ]
             },
             "zones.battlefield.p2": {
-              "includes": [{ "card": "Llanowar Elves" }]
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
             },
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "players.p2.poison_counters": 3
           },
           "note": "CR 207.2c: Corrupted condition was checked and satisfied (P2 had 3+ poison counters), confirming the intervening-if guard works correctly. The destroy effect no-op'd due to the known DSL gap. Llanowar Elves survives."

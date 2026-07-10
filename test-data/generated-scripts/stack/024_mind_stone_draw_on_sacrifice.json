@@ -4,11 +4,23 @@
     "id": "script_stack_024",
     "name": "Mind Stone — cast, tap for {C}, sacrifice to draw",
     "description": "p1 casts Mind Stone ({2}), taps it for {C} mana, then sacrifices it to draw a card. Tests Mind Stone's two modes: mana ability and card draw via sacrifice.",
-    "cr_sections_tested": ["601.2", "605.3", "608.2", "120.2", "701.14"],
+    "cr_sections_tested": [
+      "601.2",
+      "605.3",
+      "608.2",
+      "120.2",
+      "701.14"
+    ],
     "corner_case_ref": null,
-    "tags": ["mana-artifact", "mind-stone", "sacrifice", "draw", "activated-ability"],
+    "tags": [
+      "mana-artifact",
+      "mind-stone",
+      "sacrifice",
+      "draw",
+      "activated-ability"
+    ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Mind Stone oracle: '{T}: Add {C}.' and '{1}, {T}, Sacrifice Mind Stone: Draw a card.' Step 1: cast Mind Stone for {2}. Step 2: tap it for {C} (mana ability, no stack). Step 3: pay {1}, tap it (already tapped from step 2, but the activation cost taps it as part of the cost — note that tapping an already-tapped permanent is illegal; the second activation requires Mind Stone to be untapped). Actually for this script, we split the actions: first cast Mind Stone (resolves to battlefield), then in a later turn or after untap, sacrifice it. Let's simplify: cast it turn 1, and in the script show: cast → resolve → tap for mana (in a later step after untap implied). Actually the simplest version: just show cast + resolve + sacrifice draw. The mana ability tap can be in a separate earlier step.",
@@ -24,7 +36,9 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "colorless": 1 },
+        "mana_pool": {
+          "colorless": 1
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -44,7 +58,12 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Mind Stone", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Mind Stone",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ]
       },
       "hand": {},
@@ -53,7 +72,11 @@
       "command_zone": {},
       "library": {
         "p1": [
-          { "card": "Forest", "is_commander": false, "owner": null }
+          {
+            "card": "Forest",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "stack": []
@@ -69,9 +92,17 @@
           "type": "assert_state",
           "description": "Initial: Mind Stone on battlefield (untapped)",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Mind Stone" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Mind Stone"
+                }
+              ]
+            },
             "permanent.Mind Stone.tapped": false,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": null
         },
@@ -81,7 +112,9 @@
           "action": "activate_ability",
           "card": "Mind Stone",
           "targets": [],
-          "mana_paid": { "colorless": 1 },
+          "mana_paid": {
+            "colorless": 1
+          },
           "mana_source": [],
           "cr_ref": "608.2",
           "note": "p1 pays {1}, taps Mind Stone, and sacrifices it. Activated ability goes on the stack."
@@ -91,13 +124,20 @@
           "description": "Mind Stone sacrificed, ability on stack",
           "assertions": {
             "zones.stack.count": 1,
-            "zones.battlefield.p1": { "excludes": ["Mind Stone"] }
+            "zones.battlefield.p1": {
+              "excludes": [
+                "Mind Stone"
+              ]
+            }
           },
           "note": "Mind Stone sacrificed as cost; ability on stack."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "Both pass — Mind Stone ability resolves."
         },
@@ -119,9 +159,17 @@
           "type": "assert_state",
           "description": "After Mind Stone sacrifice: p1 has 1 card in hand, Mind Stone in graveyard",
           "assertions": {
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "zones.hand.p1.count": 1,
-            "zones.graveyard.p1": { "includes": [{ "card": "Mind Stone" }] }
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Mind Stone"
+                }
+              ]
+            }
           },
           "note": "Mind Stone in graveyard. p1 drew 1 card."
         }

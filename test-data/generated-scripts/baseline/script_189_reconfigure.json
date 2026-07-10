@@ -32,7 +32,7 @@
       "unattach"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "CR 702.151a: Reconfigure represents two sorcery-speed activated abilities. The harness (replay_harness.rs enrich_spec_from_def) expands AbilityDefinition::Reconfigure into two ActivatedAbility entries in order: (0) attach (AttachEquipment effect, targets a creature you control) and (1) unattach (DetachEquipment effect, no target). Both cost {2} generic for Lizard Blades. Neither ability is a mana ability, so both go on the stack and require priority passes to resolve. CR 702.151b: While attached (is_reconfigured=true on the GameObject), Lizard Blades is not a creature — Layer 4 removes the Creature card type. The +1/+1 bonus (two separate Static abilities — ModifyPower 1 and ModifyToughness 1, both layer 7c via PtModify) and double strike grant (Static ability, layer 6 Ability layer, AddKeyword(DoubleStrike), filter AttachedCreature) apply to the equipped creature. Initial state: Lizard Blades (1/1 Artifact Creature, Double strike) and Monastery Swiftspear (1/2 Haste, Prowess) on P1 battlefield. P1 mana pool has colorless:4 (covers two {2} activations). Mana_paid uses 'colorless':2 for generic {2}. ability_index 0 = attach (with target), ability_index 1 = unattach (no target needed). Stack assertions: each activation places the ability on stack (count=1), then resolves to empty. The script does not directly assert creature-type removal (not in the harness assertion schema), but tests that the flow activates and resolves correctly. Final state: stack empty, both Lizard Blades and Monastery Swiftspear on P1 battlefield.",
@@ -48,7 +48,9 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "colorless": 4 },
+        "mana_pool": {
+          "colorless": 4
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -68,8 +70,18 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Lizard Blades", "is_commander": false, "owner": null, "tapped": false },
-          { "card": "Monastery Swiftspear", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Lizard Blades",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          },
+          {
+            "card": "Monastery Swiftspear",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ]
       },
       "hand": {},
@@ -92,11 +104,17 @@
           "assertions": {
             "zones.battlefield.p1": {
               "includes": [
-                { "card": "Lizard Blades" },
-                { "card": "Monastery Swiftspear" }
+                {
+                  "card": "Lizard Blades"
+                },
+                {
+                  "card": "Monastery Swiftspear"
+                }
               ]
             },
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Lizard Blades is an Artifact Creature — Equipment Lizard 1/1 with Double strike and Reconfigure {2}. Monastery Swiftspear is a 1/2 Haste, Prowess creature. P1 has 4 colorless mana available (two {2} activations)."
         },
@@ -107,9 +125,16 @@
           "card": "Lizard Blades",
           "ability_index": 0,
           "targets": [
-            { "type": "permanent", "card": "Monastery Swiftspear", "controller": "p1", "player": null }
+            {
+              "type": "permanent",
+              "card": "Monastery Swiftspear",
+              "controller": "p1",
+              "player": null
+            }
           ],
-          "mana_paid": { "colorless": 2 },
+          "mana_paid": {
+            "colorless": 2
+          },
           "mana_source": [],
           "cr_ref": "702.151a",
           "note": "CR 702.151a: P1 activates Reconfigure attach ability (ability_index 0 — first ability expanded from AbilityDefinition::Reconfigure). Pays {2} generic. Targets Monastery Swiftspear (creature P1 controls). Ability placed on stack. Sorcery speed: legal in main phase with empty stack."
@@ -121,8 +146,12 @@
             "zones.stack.count": 1,
             "zones.battlefield.p1": {
               "includes": [
-                { "card": "Lizard Blades" },
-                { "card": "Monastery Swiftspear" }
+                {
+                  "card": "Lizard Blades"
+                },
+                {
+                  "card": "Monastery Swiftspear"
+                }
               ]
             }
           },
@@ -130,7 +159,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — top of stack resolves. CR 608.2: Reconfigure attach ability resolves. Effect::AttachEquipment fires: Lizard Blades attaches to Monastery Swiftspear (is_reconfigured=true on the GameObject). CR 702.151b: While attached, Lizard Blades is no longer a creature — Layer 4 removes Creature card type. CR 613.1f: Layer 6 static effect (AddKeyword DoubleStrike, filter AttachedCreature) now grants double strike to Monastery Swiftspear. CR 613.4c: Layer 7c static effects (ModifyPower+1, ModifyToughness+1) grant +1/+1 to Monastery Swiftspear."
         },
@@ -141,7 +173,11 @@
             {
               "effect": "attach_equipment",
               "equipment": "Lizard Blades",
-              "target": { "type": "permanent", "card": "Monastery Swiftspear", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "card": "Monastery Swiftspear",
+                "controller": "p1"
+              },
               "cr_ref": "702.151a",
               "note": "CR 702.151a: Reconfigure attach resolves. Lizard Blades attaches to Monastery Swiftspear. CR 702.151b: is_reconfigured set to true — Layer 4 removes Creature type from Lizard Blades. CR 613.4c: +1/+1 granted to Swiftspear (2/3). CR 613.1f: Double strike granted to Swiftspear."
             }
@@ -152,11 +188,17 @@
           "type": "assert_state",
           "description": "After Reconfigure attaches: stack empty; Lizard Blades and Monastery Swiftspear still on P1 battlefield",
           "assertions": {
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "zones.battlefield.p1": {
               "includes": [
-                { "card": "Lizard Blades" },
-                { "card": "Monastery Swiftspear" }
+                {
+                  "card": "Lizard Blades"
+                },
+                {
+                  "card": "Monastery Swiftspear"
+                }
               ]
             }
           },
@@ -175,7 +217,9 @@
           "card": "Lizard Blades",
           "ability_index": 1,
           "targets": [],
-          "mana_paid": { "colorless": 2 },
+          "mana_paid": {
+            "colorless": 2
+          },
           "mana_source": [],
           "cr_ref": "702.151a",
           "note": "CR 702.151a: P1 activates Reconfigure unattach ability (ability_index 1 — second ability expanded from AbilityDefinition::Reconfigure). Pays {2} generic. No target needed (DetachEquipment effect targets the source itself). Legal: Lizard Blades is currently attached (is_reconfigured=true). Sorcery speed: legal in main phase."
@@ -187,8 +231,12 @@
             "zones.stack.count": 1,
             "zones.battlefield.p1": {
               "includes": [
-                { "card": "Lizard Blades" },
-                { "card": "Monastery Swiftspear" }
+                {
+                  "card": "Lizard Blades"
+                },
+                {
+                  "card": "Monastery Swiftspear"
+                }
               ]
             }
           },
@@ -196,7 +244,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass — unattach ability resolves. CR 608.2: Effect::DetachEquipment fires: is_reconfigured set to false. CR 702.151b: Layer 4 effect no longer applies — Lizard Blades regains Creature card type. CR 613.4c / CR 613.1f: Static effects (AttachedCreature filter) no longer apply to Monastery Swiftspear — Swiftspear loses +1/+1 and double strike."
         },
@@ -217,11 +268,17 @@
           "type": "assert_state",
           "description": "Final state: stack empty; Lizard Blades unattached and a creature again; Monastery Swiftspear on battlefield; P1 and P2 both at 40 life",
           "assertions": {
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "zones.battlefield.p1": {
               "includes": [
-                { "card": "Lizard Blades" },
-                { "card": "Monastery Swiftspear" }
+                {
+                  "card": "Lizard Blades"
+                },
+                {
+                  "card": "Monastery Swiftspear"
+                }
               ]
             },
             "players.p1.life": 40,

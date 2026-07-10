@@ -18,7 +18,7 @@
       "flying"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Birds of Paradise oracle: '{T}: Add one mana of any color.' CR 605.1: Mana ability. p1 chooses to add {G}. After activation: Birds tapped, {G} in pool. The card has flying but that doesn't affect this interaction.",

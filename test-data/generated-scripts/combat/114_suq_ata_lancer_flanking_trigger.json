@@ -4,11 +4,34 @@
     "id": "script_combat_114",
     "name": "Flanking — Suq'Ata Lancer gives blocker -1/-1, kills blocker in combat",
     "description": "p1 controls Suq'Ata Lancer (2/2, Haste, Flanking). p2 controls Audacious Thief (2/2, no Flanking). p1 attacks with the Lancer targeting p2. p2 blocks with Audacious Thief. CR 702.25a: Flanking triggers during the declare blockers step — 'Whenever a creature without flanking blocks this creature, the blocking creature gets -1/-1 until end of turn.' The trigger goes on the stack; both players pass priority; the trigger resolves, giving Audacious Thief -1/-1 until end of turn, reducing it to 1/1. In the combat damage step, both creatures deal damage simultaneously (CR 510.1): Suq'Ata Lancer (power 2) deals 2 damage to the now-1/1 Audacious Thief; Audacious Thief (power 1 after -1/-1) deals 1 damage to Suq'Ata Lancer. SBA 704.5g: Audacious Thief has toughness 1 and received 2 damage (lethal) — it is destroyed. Suq'Ata Lancer has toughness 2 and received 1 damage (not lethal) — it survives. p2 takes no player damage (Lancer was blocked).",
-    "cr_sections_tested": ["702.25a", "508.1", "508.1f", "509.1", "509.1a", "509.1g", "509.1h", "510.1", "510.2", "704.5g", "704.3", "514.2"],
+    "cr_sections_tested": [
+      "702.25a",
+      "508.1",
+      "508.1f",
+      "509.1",
+      "509.1a",
+      "509.1g",
+      "509.1h",
+      "510.1",
+      "510.2",
+      "704.5g",
+      "704.3",
+      "514.2"
+    ],
     "corner_case_ref": null,
-    "tags": ["combat", "flanking", "triggered-ability", "declare-blockers", "minus-one-minus-one", "until-end-of-turn", "lethal-damage", "sba", "creature-dies"],
+    "tags": [
+      "combat",
+      "flanking",
+      "triggered-ability",
+      "declare-blockers",
+      "minus-one-minus-one",
+      "until-end-of-turn",
+      "lethal-damage",
+      "sba",
+      "creature-dies"
+    ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Suq'Ata Lancer oracle text (MCP verified): Creature — Human Knight, {2}{R}, 2/2, Haste, Flanking. CR 702.25a: 'Flanking is a triggered ability that triggers during the declare blockers step. Flanking means: Whenever this creature becomes blocked by a creature without flanking, the blocking creature gets -1/-1 until end of turn.' Audacious Thief oracle text (Available Cards list): 2/2, has no Flanking — legal blocker for this test and valid flanking trigger target. Audacious Thief's attack trigger ('When Audacious Thief attacks, draw a card, you lose 1 life') does NOT fire here because p2 controls Audacious Thief and it is blocking, not attacking. Turn 4 used to avoid summoning sickness on Suq'Ata Lancer (CR 302.6); however Haste means it could attack turn 1, but turn 4 keeps it consistent with other combat scripts. Flanking trigger fires at declare blockers step: at the moment p2 declares Audacious Thief as a blocker for Suq'Ata Lancer, the Flanking trigger is put on the stack. Both players pass priority; trigger resolves: Audacious Thief gets -1/-1 until end of turn, becoming 1/1. Combat damage is then simultaneous (CR 510.2): Suq'Ata Lancer (power 2) assigns 2 damage to Audacious Thief; Audacious Thief (power 1, post-flanking) assigns 1 damage to Suq'Ata Lancer. SBA 704.5g: Audacious Thief has toughness 1 and 2 damage marked (2 >= 1) → lethal → destroyed, goes to p2 graveyard. Suq'Ata Lancer has toughness 2 and 1 damage marked (1 < 2) → not lethal → survives. p2 life remains 40 (blocked attacker cannot deal player damage, CR 510.1c). At cleanup (CR 514.2), the -1/-1 flanking bonus would expire (Audacious Thief is dead so moot). Damage on Suq'Ata Lancer is also removed at cleanup.",
@@ -44,10 +67,20 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Suq'Ata Lancer", "tapped": false, "is_commander": false, "owner": null }
+          {
+            "card": "Suq'Ata Lancer",
+            "tapped": false,
+            "is_commander": false,
+            "owner": null
+          }
         ],
         "p2": [
-          { "card": "Audacious Thief", "tapped": false, "is_commander": false, "owner": null }
+          {
+            "card": "Audacious Thief",
+            "tapped": false,
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "hand": {},
@@ -68,13 +101,27 @@
           "type": "assert_state",
           "description": "Initial: Suq'Ata Lancer untapped on p1 battlefield; Audacious Thief untapped on p2 battlefield; life totals 40/40; stack empty",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Suq'Ata Lancer" }] },
-            "zones.battlefield.p2": { "includes": [{ "card": "Audacious Thief" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Suq'Ata Lancer"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Audacious Thief"
+                }
+              ]
+            },
             "permanent.Suq'Ata Lancer.tapped": false,
             "permanent.Audacious Thief.tapped": false,
             "players.p1.life": 40,
             "players.p2.life": 40,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Both creatures are untapped. Turn 4 — no summoning sickness (CR 302.6). Audacious Thief has no Flanking — it is a valid flanking trigger target when it blocks the Lancer."
         },
@@ -87,7 +134,11 @@
           "mana_paid": null,
           "mana_source": [],
           "attackers": [
-            { "card": "Suq'Ata Lancer", "target_player": "p2", "target_planeswalker": null }
+            {
+              "card": "Suq'Ata Lancer",
+              "target_player": "p2",
+              "target_planeswalker": null
+            }
           ],
           "blockers": [],
           "cr_ref": "508.1",
@@ -99,13 +150,18 @@
           "assertions": {
             "permanent.Suq'Ata Lancer.tapped": true,
             "permanent.Audacious Thief.tapped": false,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 508.1f: Suq'Ata Lancer tapped as part of attack declaration. No triggers fire at this point — Flanking triggers during declare blockers, not declare attackers."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority with empty stack — advance to DeclareBlockers step."
         }
@@ -125,7 +181,10 @@
           "mana_source": [],
           "attackers": [],
           "blockers": [
-            { "card": "Audacious Thief", "blocking": "Suq'Ata Lancer" }
+            {
+              "card": "Audacious Thief",
+              "blocking": "Suq'Ata Lancer"
+            }
           ],
           "cr_ref": "509.1",
           "note": "CR 509.1: p2 declares Audacious Thief as a blocker for Suq'Ata Lancer. CR 509.1a: Audacious Thief is untapped — legal blocker. CR 509.1g: Audacious Thief becomes a blocking creature. CR 509.1h: Suq'Ata Lancer becomes a blocked creature. CR 702.25a: Suq'Ata Lancer has Flanking; Audacious Thief has no Flanking — the Flanking triggered ability fires, placing one trigger on the stack: 'Audacious Thief gets -1/-1 until end of turn.'"
@@ -134,15 +193,30 @@
           "type": "assert_state",
           "description": "After declare_blockers: Flanking trigger on the stack (count 1), both creatures still on battlefield",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Suq'Ata Lancer" }] },
-            "zones.battlefield.p2": { "includes": [{ "card": "Audacious Thief" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Suq'Ata Lancer"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Audacious Thief"
+                }
+              ]
+            },
             "zones.stack.count": 1
           },
           "note": "CR 702.25a: One Flanking triggered ability is on the stack. Audacious Thief has no Flanking, so the trigger fires. The trigger will give Audacious Thief -1/-1 until end of turn when it resolves, reducing it from 2/2 to 1/1."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — the Flanking trigger (top of stack) resolves."
         },
@@ -152,7 +226,11 @@
           "resolution": [
             {
               "effect": "grant_bonus",
-              "target": { "type": "permanent", "card": "Audacious Thief", "controller": "p2" },
+              "target": {
+                "type": "permanent",
+                "card": "Audacious Thief",
+                "controller": "p2"
+              },
               "amount": null,
               "card": null,
               "owner": null,
@@ -166,15 +244,32 @@
           "type": "assert_state",
           "description": "After Flanking trigger resolves: stack empty, both creatures still on battlefield, Audacious Thief now effectively 1/1",
           "assertions": {
-            "zones.stack": { "is_empty": true },
-            "zones.battlefield.p1": { "includes": [{ "card": "Suq'Ata Lancer" }] },
-            "zones.battlefield.p2": { "includes": [{ "card": "Audacious Thief" }] }
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Suq'Ata Lancer"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Audacious Thief"
+                }
+              ]
+            }
           },
           "note": "Flanking trigger has resolved. Audacious Thief has a -1/-1 until-end-of-turn effect applied, making it 1/1. Both creatures remain on the battlefield entering combat damage."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority with empty stack — advance to CombatDamage step."
         }
@@ -200,7 +295,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority after combat damage resolves and SBAs have been applied. Stack is empty — advance to EndOfCombat step."
         },
@@ -210,10 +308,30 @@
           "assertions": {
             "players.p1.life": 40,
             "players.p2.life": 40,
-            "zones.battlefield.p1": { "includes": [{ "card": "Suq'Ata Lancer" }] },
-            "zones.battlefield.p2": { "excludes": [{ "card": "Audacious Thief" }] },
-            "zones.graveyard.p2": { "includes": [{ "card": "Audacious Thief" }] },
-            "zones.stack": { "is_empty": true }
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Suq'Ata Lancer"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "excludes": [
+                {
+                  "card": "Audacious Thief"
+                }
+              ]
+            },
+            "zones.graveyard.p2": {
+              "includes": [
+                {
+                  "card": "Audacious Thief"
+                }
+              ]
+            },
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 510.1c: Suq'Ata Lancer was blocked — it assigned all 2 damage to the blocker (Audacious Thief), not to p2. p2 life remains 40. Audacious Thief's toughness was reduced to 1 by Flanking; it received 2 damage (power 2 from Lancer) — lethal — SBA 704.5g destroyed it, moved to p2 graveyard. Suq'Ata Lancer received 1 damage (Audacious Thief's power 1 after -1/-1) against its 2 toughness — not lethal — Lancer remains on battlefield (tapped, with 1 damage counter removed at cleanup)."
         }

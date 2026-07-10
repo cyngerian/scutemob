@@ -4,11 +4,29 @@
     "id": "script_stack_073",
     "name": "Strike It Rich creates Treasure token; token tapped and sacrificed for mana",
     "description": "p1 casts Strike It Rich ({R} Sorcery), it resolves and creates a Treasure token on the battlefield per CR 111.10a. p1 then activates the Treasure's mana ability ({T}, Sacrifice this token: Add one mana of any color) by issuing a tap_for_mana command. The mana ability resolves immediately without using the stack (CR 605.3b). The Treasure token is tapped and sacrificed as a cost (CR 602.2c), moving to the graveyard, then ceasing to exist as a state-based action (CR 111.7). One colorless mana is added to p1's pool (any-color defaults to colorless per engine implementation).",
-    "cr_sections_tested": ["111.10a", "111.1", "111.5", "601.2", "608.2", "605.1a", "605.3b", "602.2c", "111.7", "704.5d"],
+    "cr_sections_tested": [
+      "111.10a",
+      "111.1",
+      "111.5",
+      "601.2",
+      "608.2",
+      "605.1a",
+      "605.3b",
+      "602.2c",
+      "111.7",
+      "704.5d"
+    ],
     "corner_case_ref": null,
-    "tags": ["treasure", "token", "mana-ability", "sacrifice", "flashback", "stack"],
+    "tags": [
+      "treasure",
+      "token",
+      "mana-ability",
+      "sacrifice",
+      "flashback",
+      "stack"
+    ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Strike It Rich is a Sorcery (not Instant) costing {R} (verified via MCP lookup_card). Its only effect is CreateToken with treasure_token_spec(1) per definitions.rs:2307-2314. The Treasure token has a mana ability (sacrifice_self: true, any_color: true, requires_tap: true) per ManaAbility::treasure() — CR 111.10a: '{T}, Sacrifice this token: Add one mana of any color.' Because this is a mana ability (CR 605.1a: no target, adds mana, not loyalty), it does NOT go on the stack and cannot be countered (CR 605.3b). The sacrifice is a cost paid at activation time (CR 602.2c), so the token is in the graveyard before any mana is added. The token then ceases to exist as a state-based action (CR 111.7 / 704.5d: tokens in non-battlefield zones cease to exist). The engine currently defaults 'any color' to colorless (consistent with AddManaAnyColor in effects/mod.rs and the ability-plan), so mana_pool ends with colorless: 1. The tap_for_mana action targets the Treasure token on the battlefield (ability_index 0 = the single mana ability). Strike It Rich then goes to p1's graveyard (cast normally, not via flashback, so it goes to graveyard not exile). Sorcery timing: p1 is active player in precombat main phase with an empty stack — valid sorcery window per CR 307.1.",
@@ -24,7 +42,9 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "red": 1 },
+        "mana_pool": {
+          "red": 1
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -44,12 +64,21 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Mountain", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Mountain",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ]
       },
       "hand": {
         "p1": [
-          { "card": "Strike It Rich", "is_commander": false, "owner": null }
+          {
+            "card": "Strike It Rich",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -70,7 +99,9 @@
           "description": "Initial state: Strike It Rich in p1 hand, battlefield empty (except Mountain), stack empty",
           "assertions": {
             "zones.hand.p1.count": 1,
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "zones.battlefield.p1.count": 1
           },
           "note": "p1 has {R} in pool from initial_state; Mountain is tapped implicitly by mana_pool setup"
@@ -81,7 +112,9 @@
           "action": "cast_spell",
           "card": "Strike It Rich",
           "targets": [],
-          "mana_paid": { "red": 1 },
+          "mana_paid": {
+            "red": 1
+          },
           "mana_source": [],
           "cr_ref": "601.2",
           "note": "CR 601.2: p1 casts Strike It Rich (Sorcery {R}); valid sorcery timing — active player, main phase, empty stack (CR 307.1). {R} paid from mana pool."
@@ -97,7 +130,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — top of stack resolves."
         },
@@ -107,7 +143,10 @@
           "resolution": [
             {
               "effect": "create_token",
-              "target": { "type": "player", "player": "p1" },
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
               "amount": 1,
               "card": "Treasure",
               "owner": "p1",
@@ -121,8 +160,16 @@
           "type": "assert_state",
           "description": "After resolution: Treasure token on p1's battlefield, Strike It Rich in p1 graveyard, stack empty",
           "assertions": {
-            "zones.stack": { "is_empty": true },
-            "zones.graveyard.p1": { "includes": [{ "card": "Strike It Rich" }] },
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Strike It Rich"
+                }
+              ]
+            },
             "zones.battlefield.p1.count": 2
           },
           "note": "Battlefield now has Mountain + Treasure token. Strike It Rich in graveyard (not exiled — normal cast, not flashback cast)."
@@ -149,7 +196,10 @@
           "actions": [
             {
               "action": "token_ceases_to_exist",
-              "target": { "card": "Treasure", "controller": "p1" },
+              "target": {
+                "card": "Treasure",
+                "controller": "p1"
+              },
               "cr_ref": "704.5d",
               "note": "CR 704.5d / CR 111.7: A token in a zone other than the battlefield ceases to exist as a state-based action. The Treasure token was moved to the graveyard as the sacrifice cost, so it now ceases to exist."
             }

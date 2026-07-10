@@ -4,11 +4,23 @@
     "id": "script_stack_093",
     "name": "Cloudfin Raptor evolve trigger adds +1/+1 counter",
     "description": "P1 controls a Cloudfin Raptor (0/1, Flying, Evolve). P1 casts Monastery Swiftspear (1/2), which has greater power and toughness than Cloudfin Raptor. The Evolve triggered ability goes onto the stack (CR 702.100a). Both players pass priority. The evolve trigger resolves and a +1/+1 counter is placed on Cloudfin Raptor. Final assertion: Cloudfin Raptor has 1 +1/+1 counter.",
-    "cr_sections_tested": ["702.100a", "702.100b", "601.2", "608.2", "116.3"],
+    "cr_sections_tested": [
+      "702.100a",
+      "702.100b",
+      "601.2",
+      "608.2",
+      "116.3"
+    ],
     "corner_case_ref": null,
-    "tags": ["evolve", "counter", "triggered-ability", "etb", "stack"],
+    "tags": [
+      "evolve",
+      "counter",
+      "triggered-ability",
+      "etb",
+      "stack"
+    ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "CR 702.100a: Evolve is 'Whenever a creature you control enters, if that creature's power is greater than this creature's power and/or that creature's toughness is greater than this creature's toughness, put a +1/+1 counter on this creature.' Cloudfin Raptor is 0/1. Monastery Swiftspear is 1/2. Power 1 > 0 AND toughness 2 > 1, so evolve triggers. After trigger resolves, Cloudfin Raptor should have 1 +1/+1 counter (becomes 1/2). Counter assertion uses the harness path 'permanent.Cloudfin Raptor.counters.plus_one_plus_one' (parse_counter_type maps 'plus_one_plus_one' to CounterType::PlusOnePlusOne). HARNESS FAILURE (engine gap, not script error): The harness placed Cloudfin Raptor on the battlefield but as a minimal creature object with no keyword abilities, because Cloudfin Raptor has no CardDefinition in crates/engine/src/cards/definitions.rs. The evolve trigger never fired (zones.stack.count was 0 after Swiftspear resolved; counter remained 0). The script is the correct CR ground truth. To make this script pass, add a CardDefinition for Cloudfin Raptor: Creature — Bird Mutant, mana cost {U}, P/T 0/1, abilities [KeywordAbility::Flying, KeywordAbility::Evolve].",
@@ -34,7 +46,9 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "red": 1 },
+        "mana_pool": {
+          "red": 1
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -70,7 +84,11 @@
       },
       "hand": {
         "p1": [
-          { "card": "Monastery Swiftspear", "is_commander": false, "owner": null }
+          {
+            "card": "Monastery Swiftspear",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -92,7 +110,9 @@
           "assertions": {
             "zones.battlefield.p1.count": 2,
             "zones.hand.p1.count": 1,
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "permanent.Cloudfin Raptor.counters.plus_one_plus_one": 0
           },
           "note": "Cloudfin Raptor is on battlefield with no counters. Monastery Swiftspear is in p1 hand ready to cast."
@@ -103,7 +123,9 @@
           "action": "cast_spell",
           "card": "Monastery Swiftspear",
           "targets": [],
-          "mana_paid": { "red": 1 },
+          "mana_paid": {
+            "red": 1
+          },
           "mana_source": [],
           "cr_ref": "601.2",
           "note": "CR 601.2: p1 casts Monastery Swiftspear for {R}. No targets needed."
@@ -119,7 +141,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — Monastery Swiftspear resolves."
         },
@@ -129,7 +154,11 @@
           "resolution": [
             {
               "effect": "enters_battlefield",
-              "target": { "type": "permanent", "card": "Monastery Swiftspear", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "card": "Monastery Swiftspear",
+                "controller": "p1"
+              },
               "amount": null,
               "card": null,
               "owner": null,
@@ -151,7 +180,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — evolve trigger resolves."
         },
@@ -161,7 +193,11 @@
           "resolution": [
             {
               "effect": "add_counter",
-              "target": { "type": "permanent", "card": "Cloudfin Raptor", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "card": "Cloudfin Raptor",
+                "controller": "p1"
+              },
               "amount": 1,
               "card": null,
               "owner": null,
@@ -175,12 +211,18 @@
           "type": "assert_state",
           "description": "Final: Cloudfin Raptor has 1 +1/+1 counter, stack empty",
           "assertions": {
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "zones.battlefield.p1.count": 3,
             "zones.battlefield.p1": {
               "includes": [
-                { "card": "Cloudfin Raptor" },
-                { "card": "Monastery Swiftspear" }
+                {
+                  "card": "Cloudfin Raptor"
+                },
+                {
+                  "card": "Monastery Swiftspear"
+                }
               ]
             },
             "permanent.Cloudfin Raptor.counters.plus_one_plus_one": 1

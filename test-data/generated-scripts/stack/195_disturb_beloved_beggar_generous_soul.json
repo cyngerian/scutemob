@@ -30,7 +30,7 @@
       "generous-soul"
     ],
     "confidence": "medium",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Beloved Beggar // Generous Soul (card_id: beloved-beggar-generous-soul) defined at crates/engine/src/cards/defs/beloved_beggar.rs. Front: {1}{W} Human Peasant 0/4; Disturb {4}{W}{W}. Back: Generous Soul 3/4 Flying Vigilance Spirit. Engine supports AltCostKind::Disturb in casting.rs: zone guard is bypassed for graveyard when cast_with_disturb is true, the StackObject sets is_cast_transformed = true (stack.rs line 331-332), and resolution.rs sets obj.is_transformed = true and obj.was_cast_disturbed = true. Replacement effect in replacement.rs lines 618-633: when was_cast_disturbed and the permanent would go to graveyard, exile it instead (CR 702.146b). Harness gap: the replay harness (replay_harness.rs) does not have a 'cast_spell_disturb' action string. The cast_spell_disturb action would need to call find_in_graveyard + AltCostKind::Disturb analogously to 'cast_spell_aftermath'. A dispute has been filed. Damage scenario: two Lightning Bolts deal 3+3=6 damage to Generous Soul (3/4). After the second bolt, 6 >= 4 toughness triggers the lethal damage SBA. The Disturb exile replacement fires instead of going to graveyard. Mana pool: generic 4, white 2 to pay Disturb cost exactly. P2 has {R} mana pre-loaded for each Lightning Bolt. Two separate turns are modeled: p1's turn for Disturb cast, then p2 acts in p2's turn postcombat main for the two bolts (mana reset avoided by giving p2 two red mana sources). For simplicity, both bolts are cast sequentially in the same phase with mana pre-loaded.",
@@ -44,7 +44,8 @@
         "resolved_by": null,
         "resolved_date": null
       }
-    ]
+    ],
+    "retirement_reason": "SR-9c: `cast_spell_disturb` has no translation arm (needs find_in_graveyard + AltCostKind::Disturb, like cast_spell_aftermath), so the Disturb cast is a no-op. Unblocks when the harness translates cast_spell_disturb."
   },
   "initial_state": {
     "format": "commander",
@@ -56,7 +57,10 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "white": 2, "colorless": 4 },
+        "mana_pool": {
+          "white": 2,
+          "colorless": 4
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -77,13 +81,25 @@
       "battlefield": {},
       "hand": {
         "p2": [
-          { "card": "Lightning Bolt", "is_commander": false, "owner": null },
-          { "card": "Lightning Bolt", "is_commander": false, "owner": null }
+          {
+            "card": "Lightning Bolt",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Lightning Bolt",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {
         "p1": [
-          { "card": "Beloved Beggar", "is_commander": false, "owner": null }
+          {
+            "card": "Beloved Beggar",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "exile": [],
@@ -102,10 +118,24 @@
           "type": "assert_state",
           "description": "Initial: Beloved Beggar in p1 graveyard; p1 has {4}{W}{W} in pool; p2 has 2 Lightning Bolts in hand",
           "assertions": {
-            "zones.graveyard.p1": { "includes": [{ "card": "Beloved Beggar" }] },
-            "zones.battlefield.p1": { "excludes": [{ "card": "Beloved Beggar" }] },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Beloved Beggar"
+                }
+              ]
+            },
+            "zones.battlefield.p1": {
+              "excludes": [
+                {
+                  "card": "Beloved Beggar"
+                }
+              ]
+            },
             "zones.hand.p2.count": 2,
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "players.p1.life": 40,
             "players.p2.life": 40
           },
@@ -117,7 +147,10 @@
           "action": "cast_spell_disturb",
           "card": "Beloved Beggar",
           "targets": [],
-          "mana_paid": { "white": 2, "colorless": 4 },
+          "mana_paid": {
+            "white": 2,
+            "colorless": 4
+          },
           "mana_source": [],
           "cr_ref": "702.146a",
           "note": "CR 702.146a: P1 casts Beloved Beggar from the graveyard by paying its Disturb cost {4}{W}{W} (an alternative cost per CR 118.9). The spell is placed on the stack with is_cast_transformed = true — it will enter the battlefield as its back face, Generous Soul. CR 601.2: card moves from graveyard to stack."
@@ -127,13 +160,20 @@
           "description": "After Disturb cast: Beloved Beggar on stack (count 1); no longer in p1 graveyard",
           "assertions": {
             "zones.stack.count": 1,
-            "zones.graveyard.p1": { "excludes": ["Beloved Beggar"] }
+            "zones.graveyard.p1": {
+              "excludes": [
+                "Beloved Beggar"
+              ]
+            }
           },
           "note": "Beloved Beggar is on the stack with is_cast_transformed = true. It is no longer in the graveyard. CR 601.2b: only one alternative cost may be applied."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — the Disturb spell resolves."
         },
@@ -143,7 +183,11 @@
           "resolution": [
             {
               "effect": "enter_battlefield",
-              "target": { "type": "permanent", "card": "Beloved Beggar", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "card": "Beloved Beggar",
+                "controller": "p1"
+              },
               "card": null,
               "owner": null,
               "cr_ref": "702.146b",
@@ -156,9 +200,21 @@
           "type": "assert_state",
           "description": "After resolution: Generous Soul (Beloved Beggar transformed) on p1 battlefield; p1 graveyard empty; stack empty",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Beloved Beggar" }] },
-            "zones.graveyard.p1": { "excludes": ["Beloved Beggar"] },
-            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Beloved Beggar"
+                }
+              ]
+            },
+            "zones.graveyard.p1": {
+              "excludes": [
+                "Beloved Beggar"
+              ]
+            },
+            "zones.stack": {
+              "is_empty": true
+            },
             "players.p1.life": 40,
             "players.p2.life": 40
           },
@@ -166,7 +222,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority with empty stack — advance to end step and then p2's turn."
         }
@@ -178,7 +237,10 @@
       "actions": [
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority in end step — advance to cleanup and then p2's untap step."
         }
@@ -194,16 +256,25 @@
           "action": "cast_spell",
           "card": "Lightning Bolt",
           "targets": [
-            { "type": "creature", "card": "Beloved Beggar", "controller": "p1" }
+            {
+              "type": "creature",
+              "card": "Beloved Beggar",
+              "controller": "p1"
+            }
           ],
-          "mana_paid": { "red": 1 },
+          "mana_paid": {
+            "red": 1
+          },
           "mana_source": [],
           "cr_ref": "601.2",
           "note": "CR 601.2: P2 casts Lightning Bolt targeting Generous Soul (engine refers to it as Beloved Beggar). P2 pays {R} from pool. The stack has 1 object."
         },
         {
           "type": "priority_round",
-          "players": ["p2", "p1"],
+          "players": [
+            "p2",
+            "p1"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — first Lightning Bolt resolves."
         },
@@ -213,7 +284,11 @@
           "resolution": [
             {
               "effect": "deal_damage",
-              "target": { "type": "creature", "card": "Beloved Beggar", "controller": "p1" },
+              "target": {
+                "type": "creature",
+                "card": "Beloved Beggar",
+                "controller": "p1"
+              },
               "amount": 3,
               "card": null,
               "owner": null,
@@ -232,9 +307,23 @@
           "type": "assert_state",
           "description": "After first Lightning Bolt: Generous Soul still on p1 battlefield (3 damage marked, not lethal); first Lightning Bolt in p2 graveyard",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Beloved Beggar" }] },
-            "zones.graveyard.p2": { "includes": [{ "card": "Lightning Bolt" }] },
-            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Beloved Beggar"
+                }
+              ]
+            },
+            "zones.graveyard.p2": {
+              "includes": [
+                {
+                  "card": "Lightning Bolt"
+                }
+              ]
+            },
+            "zones.stack": {
+              "is_empty": true
+            },
             "players.p1.life": 40,
             "players.p2.life": 40
           },
@@ -246,16 +335,25 @@
           "action": "cast_spell",
           "card": "Lightning Bolt",
           "targets": [
-            { "type": "creature", "card": "Beloved Beggar", "controller": "p1" }
+            {
+              "type": "creature",
+              "card": "Beloved Beggar",
+              "controller": "p1"
+            }
           ],
-          "mana_paid": { "red": 1 },
+          "mana_paid": {
+            "red": 1
+          },
           "mana_source": [],
           "cr_ref": "601.2",
           "note": "CR 601.2: P2 casts second Lightning Bolt targeting Generous Soul. P2 pays {R}. After this resolves, Generous Soul will have 6 total damage marked."
         },
         {
           "type": "priority_round",
-          "players": ["p2", "p1"],
+          "players": [
+            "p2",
+            "p1"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — second Lightning Bolt resolves."
         },
@@ -265,7 +363,11 @@
           "resolution": [
             {
               "effect": "deal_damage",
-              "target": { "type": "creature", "card": "Beloved Beggar", "controller": "p1" },
+              "target": {
+                "type": "creature",
+                "card": "Beloved Beggar",
+                "controller": "p1"
+              },
               "amount": 3,
               "card": null,
               "owner": null,
@@ -293,10 +395,26 @@
           "type": "assert_state",
           "description": "Final: Generous Soul exiled (NOT in graveyard); p1 battlefield empty; stack empty; both players at 40 life",
           "assertions": {
-            "zones.exile": { "includes": ["Beloved Beggar"] },
-            "zones.battlefield.p1": { "excludes": [{ "card": "Beloved Beggar" }] },
-            "zones.graveyard.p1": { "excludes": ["Beloved Beggar"] },
-            "zones.stack": { "is_empty": true },
+            "zones.exile": {
+              "includes": [
+                "Beloved Beggar"
+              ]
+            },
+            "zones.battlefield.p1": {
+              "excludes": [
+                {
+                  "card": "Beloved Beggar"
+                }
+              ]
+            },
+            "zones.graveyard.p1": {
+              "excludes": [
+                "Beloved Beggar"
+              ]
+            },
+            "zones.stack": {
+              "is_empty": true
+            },
             "players.p1.life": 40,
             "players.p2.life": 40
           },

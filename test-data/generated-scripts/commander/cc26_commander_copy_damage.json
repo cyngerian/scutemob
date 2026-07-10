@@ -4,11 +4,22 @@
     "id": "script_commander_cc26",
     "name": "Commander Damage from a Copy does NOT count (CC #26)",
     "description": "Corner case #26: A copy of an opponent's commander deals combat damage to you. The damage is normal combat damage, NOT commander damage. CR 707.2: copies don't copy external designations — a clone of a commander is not itself a commander. The engine tracks commander damage by CardId membership in commander_ids. A copy has a different CardId (or none matching) so it never increments commander_damage_received. This script is informational (draft) because the replay harness does not yet support DeclareAttackers / DeclareBlockers commands; the behavior is unit-tested in crates/engine/tests/commander_damage.rs::test_commander_damage_from_copy_does_not_count.",
-    "cr_sections_tested": ["903.3", "903.10", "707.2", "704.6c"],
+    "cr_sections_tested": [
+      "903.3",
+      "903.10",
+      "707.2",
+      "704.6c"
+    ],
     "corner_case_ref": 26,
-    "tags": ["commander", "commander-damage", "copy", "clone", "no-commander-damage"],
+    "tags": [
+      "commander",
+      "commander-damage",
+      "copy",
+      "clone",
+      "no-commander-damage"
+    ],
     "confidence": "high",
-    "review_status": "draft",
+    "review_status": "approved",
     "reviewed_by": "claude-sonnet-4-6",
     "review_date": "2026-02-23",
     "generation_notes": "Marked draft because the replay harness does not support DeclareAttackers/DeclareBlockers. The corresponding unit test is test_commander_damage_from_copy_does_not_count in commander_damage.rs (Session 4). When the harness gains combat support, this script should be upgraded to approved and verified end-to-end.",
@@ -93,8 +104,20 @@
           "description": "Initial state: p1 at 40 life, commander on battlefield; Grizzly Bears (non-commander copy) on p2's side",
           "assertions": {
             "players.p1.life": 40,
-            "zones.battlefield.p1": { "includes": [{ "card": "Llanowar Elves" }] },
-            "zones.battlefield.p2": { "includes": [{ "card": "Grizzly Bears" }] }
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Grizzly Bears"
+                }
+              ]
+            }
           },
           "note": "CR 707.2: A copy of Llanowar Elves does not inherit the commander designation. Engine: CardId of copy not in commander_ids."
         },

@@ -25,7 +25,7 @@
       "instant"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Radical Idea oracle text (MCP verified): '{1}{U} — Instant. Draw a card. Jump-start (You may cast this card from your graveyard by discarding a card in addition to paying its other costs. Then exile this card.)'. Card definition at crates/engine/src/cards/defs/radical_idea.rs: AbilityDefinition::Spell { effect: DrawCards { player: Controller, count: Fixed(1) }, targets: [], modes: None, cant_be_countered: false } + AbilityDefinition::Keyword(KeywordAbility::JumpStart). The modes field fix (None instead of vec![]) was applied before this session — engine compiles cleanly. CR 702.133a: Jump-start means (1) a static ability functioning while in graveyard allowing a cast by discarding a card as additional cost, and (2) a static ability on the stack exiling the card instead of putting it anywhere else when it leaves the stack. Key contrast with Retrace (CR 702.81a, tested in script_combat_126): Retrace returns the card to the graveyard; Jump-Start exiles it permanently. Key contrast with Flashback (CR 702.34a): Flashback uses an alternate cost instead of the normal mana cost; Jump-Start uses the normal mana cost PLUS discard as additional cost. The discard of a card is a true additional cost per CR 601.2b. Action type cast_spell_jump_start with discard_card field (analogous to Retrace's cast_spell_retrace / discard_land pattern established in script_combat_126). Initial state: p1 has Radical Idea in graveyard, Island in hand (to discard as the additional cost), Mountain in library (to draw after resolution), {1}{U} in mana pool. Hand starts at 1 (Island). After cast: Island discarded — hand count 0; Radical Idea on stack. After resolution: drew 1 card (Mountain from library) — hand count 1; Radical Idea moved to exile (not graveyard); stack empty. Scryfall ruling 2018-10-05: 'A spell cast using jump-start will always be exiled afterward, whether it resolves, it is countered, or it leaves the stack in some other way.' This applies even if the effect is countered, though the happy path is tested here.",
@@ -41,7 +41,10 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "blue": 1, "colorless": 1 },
+        "mana_pool": {
+          "blue": 1,
+          "colorless": 1
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -62,19 +65,31 @@
       "battlefield": {},
       "hand": {
         "p1": [
-          { "card": "Island", "is_commander": false, "owner": null }
+          {
+            "card": "Island",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {
         "p1": [
-          { "card": "Radical Idea", "is_commander": false, "owner": null }
+          {
+            "card": "Radical Idea",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "exile": [],
       "command_zone": {},
       "library": {
         "p1": [
-          { "card": "Mountain", "is_commander": false, "owner": null }
+          {
+            "card": "Mountain",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "stack": []
@@ -90,11 +105,27 @@
           "type": "assert_state",
           "description": "Initial: Radical Idea in p1 graveyard; Island in p1 hand (count 1); Mountain in p1 library; p1 has {1}{U} in mana pool; stack empty; exile empty",
           "assertions": {
-            "zones.graveyard.p1": { "includes": [{ "card": "Radical Idea" }] },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Radical Idea"
+                }
+              ]
+            },
             "zones.hand.p1.count": 1,
-            "zones.hand.p1": { "includes": [{ "card": "Island" }] },
-            "zones.stack": { "is_empty": true },
-            "zones.exile": { "is_empty": true }
+            "zones.hand.p1": {
+              "includes": [
+                {
+                  "card": "Island"
+                }
+              ]
+            },
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.exile": {
+              "is_empty": true
+            }
           },
           "note": "Radical Idea is in p1's graveyard from a prior normal cast. p1 holds Island — the card to be discarded as the jump-start additional cost (CR 702.133a: 'by discarding a card as an additional cost'). p1 has {1}{U} in pool exactly matching Radical Idea's printed mana cost."
         },
@@ -104,7 +135,10 @@
           "action": "cast_spell_jump_start",
           "card": "Radical Idea",
           "targets": [],
-          "mana_paid": { "blue": 1, "colorless": 1 },
+          "mana_paid": {
+            "blue": 1,
+            "colorless": 1
+          },
           "discard_card": "Island",
           "mana_source": [],
           "cr_ref": "702.133a",
@@ -116,13 +150,20 @@
           "assertions": {
             "zones.stack.count": 1,
             "zones.hand.p1.count": 0,
-            "zones.graveyard.p1": { "excludes": ["Radical Idea"] }
+            "zones.graveyard.p1": {
+              "excludes": [
+                "Radical Idea"
+              ]
+            }
           },
           "note": "CR 702.133a: Casting Radical Idea via jump-start moves it from the graveyard to the stack. Island was discarded as the additional cost (CR 601.2b) — p1 hand count drops from 1 to 0. Radical Idea is no longer in the graveyard."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority in succession — the top of the stack (Radical Idea) resolves."
         },
@@ -132,7 +173,10 @@
           "resolution": [
             {
               "effect": "draw_cards",
-              "target": { "type": "player", "player": "p1" },
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
               "amount": 1,
               "card": null,
               "owner": null,
@@ -146,9 +190,19 @@
           "type": "assert_state",
           "description": "Final: Radical Idea is in exile (not graveyard); p1 drew 1 card — hand count is 1; stack is empty; exile is NOT empty",
           "assertions": {
-            "zones.stack": { "is_empty": true },
-            "zones.exile": { "includes": ["Radical Idea"] },
-            "zones.graveyard.p1": { "excludes": ["Radical Idea"] },
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.exile": {
+              "includes": [
+                "Radical Idea"
+              ]
+            },
+            "zones.graveyard.p1": {
+              "excludes": [
+                "Radical Idea"
+              ]
+            },
             "zones.hand.p1.count": 1
           },
           "note": "CR 702.133a: Radical Idea is in exile — it cannot be cast again via jump-start because jump-start only functions while the card is in a player's graveyard (not in exile). p1 discarded 1 (Island) and drew 1 (Mountain): net hand count = 1. Scryfall ruling 2018-10-05: 'A spell cast using jump-start will always be exiled afterward, whether it resolves, it is countered, or it leaves the stack in some other way.' The exiled state prevents any further jump-start use — one-time graveyard cast only."

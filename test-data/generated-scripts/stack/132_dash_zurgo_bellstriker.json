@@ -35,11 +35,12 @@
       "declare-blockers"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Zurgo Bellstriker oracle text (MCP verified + engine def at crates/engine/src/cards/defs/zurgo_bellstriker.rs): {R}, Legendary Creature — Orc Warrior, 2/2. Dash {1}{R}. AbilityDefinition::Keyword(KeywordAbility::Dash) + AbilityDefinition::Dash { cost: ManaCost { generic: 1, red: 1 } }. The normal mana cost is {R}; the dash cost is {1}{R} (more expensive alternative cost, pays generic 1 + red 1 = 2 total mana). Dash is an alternative cost per CR 118.9 and CR 702.109a — when cast for the dash cost, the permanent gains haste and a delayed triggered ability is created to return it to its owner's hand at the beginning of the next end step. harness action: 'cast_spell_dash' (replay_harness.rs line 909) — finds the card in hand and sets cast_with_dash: true in CastSpell command. Mana paid: { generic: 1, red: 1 } = {1}{R}. Engine test (crates/engine/tests/dash.rs) confirms: after dash cast, was_dashed=true on stack object; after resolution, was_dashed=true on permanent, Haste keyword present. Haste means Zurgo can attack the turn it enters (CR 702.10b: summoning sickness does not apply). Turn 4 is used so the engine doesn't apply summoning sickness restrictions — but with haste this is moot per CR 702.10b. Starting phase is precombat_main (no mana clearing between main and combat). Initial mana_pool: { generic: 1, red: 1 } to pay dash cost exactly. After cast, pool is empty. Phase transitions: PreCombatMain -> BeginningOfCombat -> DeclareAttackers -> DeclareBlockers -> CombatDamage -> EndOfCombat -> PostCombatMain -> End. Each transition requires a priority_round with empty stack. Script adds explicit 'beginning_of_combat' step with a priority_round between precombat_main and declare_attackers, and 'end_of_combat' step between combat_damage and postcombat_main. Zurgo has haste: can be declared as attacker (CR 702.10b). P2 has no creatures — declares no blockers (CR 509.1h: Zurgo is unblocked). Combat damage step: Zurgo (2/2, unblocked) assigns 2 damage to P2 (CR 510.1b). P2 life: 40 to 38. No triggered abilities from damage. Advance through end_of_combat and postcombat_main priority rounds, then end step. At beginning of end step the DashReturnTrigger fires (CR 702.109a): placed on stack (CR 603.3). Both players pass priority; trigger resolves (CR 608.2): Zurgo is returned from battlefield to P1's hand (ObjectReturnedToHand event). Final assertions: Zurgo in P1 hand (count 1), NOT on battlefield, P2 at 38 life. Note: the 'can't block creatures with power 2 or greater' static ability is not yet implemented in the DSL — irrelevant to this scenario since Zurgo is attacking, not blocking.",
-    "disputes": []
+    "disputes": [],
+    "retirement_reason": "SR-9c: `assign_damage` is informational; the Dash attack's combat damage is never dealt. Unblocks when a damage-assignment Command exists."
   },
   "initial_state": {
     "format": "commander",
@@ -51,7 +52,10 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "generic": 1, "red": 1 },
+        "mana_pool": {
+          "generic": 1,
+          "red": 1
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -72,7 +76,11 @@
       "battlefield": {},
       "hand": {
         "p1": [
-          { "card": "Zurgo Bellstriker", "is_commander": false, "owner": null }
+          {
+            "card": "Zurgo Bellstriker",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -93,10 +101,18 @@
           "description": "Initial: Zurgo Bellstriker in P1 hand; no permanents on battlefield; P2 at 40 life; stack empty; P1 has {1}{R} in mana pool",
           "assertions": {
             "zones.hand.p1.count": 1,
-            "zones.battlefield.p1": { "excludes": [{ "card": "Zurgo Bellstriker" }] },
+            "zones.battlefield.p1": {
+              "excludes": [
+                {
+                  "card": "Zurgo Bellstriker"
+                }
+              ]
+            },
             "players.p1.life": 40,
             "players.p2.life": 40,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Zurgo Bellstriker (2/2 Dash {1}{R}) is in P1's hand. P1 has {1}{R} ready to pay the dash cost. No permanents in play."
         },
@@ -106,7 +122,10 @@
           "action": "cast_spell_dash",
           "card": "Zurgo Bellstriker",
           "targets": [],
-          "mana_paid": { "generic": 1, "red": 1 },
+          "mana_paid": {
+            "generic": 1,
+            "red": 1
+          },
           "mana_source": [],
           "cr_ref": "702.109a",
           "note": "CR 702.109a: P1 casts Zurgo Bellstriker for its dash cost {1}{R} (alternative cost, CR 118.9). A delayed triggered ability is created: at the beginning of the next end step, return Zurgo to its owner's hand. CR 601.2: Zurgo moves from hand to the stack."
@@ -122,7 +141,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — Zurgo Bellstriker (top of stack) resolves."
         },
@@ -132,7 +154,11 @@
           "resolution": [
             {
               "effect": "enter_battlefield",
-              "target": { "type": "permanent", "card": "Zurgo Bellstriker", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "card": "Zurgo Bellstriker",
+                "controller": "p1"
+              },
               "card": null,
               "owner": null,
               "cr_ref": "702.109a",
@@ -145,9 +171,17 @@
           "type": "assert_state",
           "description": "After resolution: Zurgo Bellstriker on P1 battlefield with haste; stack empty; life totals unchanged",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Zurgo Bellstriker" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Zurgo Bellstriker"
+                }
+              ]
+            },
             "zones.hand.p1.count": 0,
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "players.p1.life": 40,
             "players.p2.life": 40
           },
@@ -155,7 +189,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority with empty stack — advance from precombat_main to beginning_of_combat step."
         }
@@ -167,7 +204,10 @@
       "actions": [
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority in beginning_of_combat with empty stack — advance to declare_attackers step."
         }
@@ -186,7 +226,11 @@
           "mana_paid": null,
           "mana_source": [],
           "attackers": [
-            { "card": "Zurgo Bellstriker", "target_player": "p2", "target_planeswalker": null }
+            {
+              "card": "Zurgo Bellstriker",
+              "target_player": "p2",
+              "target_planeswalker": null
+            }
           ],
           "blockers": [],
           "cr_ref": "508.1",
@@ -197,13 +241,18 @@
           "description": "After declare_attackers: Zurgo tapped (attacking P2); stack empty",
           "assertions": {
             "permanent.Zurgo Bellstriker.tapped": true,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 508.1f: Zurgo Bellstriker tapped as part of the attack declaration. It is now an attacking creature targeting P2."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority — advance to declare_blockers step."
         }
@@ -228,7 +277,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority — advance to combat_damage step."
         }
@@ -244,7 +296,12 @@
           "action": "assign_damage",
           "card": "Zurgo Bellstriker",
           "targets": [
-            { "type": "player", "player": "p2", "card": null, "controller": null }
+            {
+              "type": "player",
+              "player": "p2",
+              "card": null,
+              "controller": null
+            }
           ],
           "mana_paid": null,
           "mana_source": [],
@@ -257,14 +314,25 @@
           "assertions": {
             "players.p2.life": 38,
             "players.p1.life": 40,
-            "zones.battlefield.p1": { "includes": [{ "card": "Zurgo Bellstriker" }] },
-            "zones.stack": { "is_empty": true }
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Zurgo Bellstriker"
+                }
+              ]
+            },
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 510.1b: Zurgo Bellstriker (power 2, unblocked) dealt 2 combat damage to P2. P2 life: 40 to 38. Zurgo has no combat damage trigger. Stack is empty."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority with empty stack — advance to end_of_combat step."
         }
@@ -276,7 +344,10 @@
       "actions": [
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority in end_of_combat with empty stack — advance to postcombat_main step."
         }
@@ -288,7 +359,10 @@
       "actions": [
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority in postcombat_main — advance to end step (beginning of ending phase)."
         }
@@ -314,14 +388,23 @@
           "description": "After dash return trigger fires: trigger on stack (count 1); Zurgo still on P1 battlefield",
           "assertions": {
             "zones.stack.count": 1,
-            "zones.battlefield.p1": { "includes": [{ "card": "Zurgo Bellstriker" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Zurgo Bellstriker"
+                }
+              ]
+            },
             "players.p2.life": 38
           },
           "note": "The DashReturnTrigger is on the stack. Zurgo is still on the battlefield — it will only be returned when the trigger resolves (Ruling 2015-02-25: returned only if still on battlefield when trigger resolves)."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — the DashReturnTrigger (top of stack) resolves."
         },
@@ -331,7 +414,11 @@
           "resolution": [
             {
               "effect": "return_to_hand",
-              "target": { "type": "permanent", "card": "Zurgo Bellstriker", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "card": "Zurgo Bellstriker",
+                "controller": "p1"
+              },
               "card": null,
               "owner": null,
               "cr_ref": "702.109a",
@@ -345,9 +432,23 @@
           "description": "Final: Zurgo Bellstriker in P1 hand (count 1); NOT on battlefield; P2 at 38 life; stack empty",
           "assertions": {
             "zones.hand.p1.count": 1,
-            "zones.hand.p1": { "includes": [{ "card": "Zurgo Bellstriker" }] },
-            "zones.battlefield.p1": { "excludes": [{ "card": "Zurgo Bellstriker" }] },
-            "zones.stack": { "is_empty": true },
+            "zones.hand.p1": {
+              "includes": [
+                {
+                  "card": "Zurgo Bellstriker"
+                }
+              ]
+            },
+            "zones.battlefield.p1": {
+              "excludes": [
+                {
+                  "card": "Zurgo Bellstriker"
+                }
+              ]
+            },
+            "zones.stack": {
+              "is_empty": true
+            },
             "players.p1.life": 40,
             "players.p2.life": 38
           },

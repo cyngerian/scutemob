@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "metadata": {
     "id": "script_stack_140",
-    "name": "Surge \u2014 Reckless Bushwhacker cast for surge cost",
+    "name": "Surge — Reckless Bushwhacker cast for surge cost",
     "description": "P1 casts Lightning Bolt (the enabling spell) targeting p2 to satisfy the surge condition. After Lightning Bolt resolves, p1 casts Reckless Bushwhacker for its surge cost {1}{R} instead of the normal {2}{R}, having cast another spell this turn. Reckless Bushwhacker enters the battlefield as a 2/1 with haste, and its ETB trigger fires because its surge cost was paid. This validates that (a) a previously resolved spell counts as 'cast another spell this turn' for surge eligibility, (b) the engine accepts the cast_spell_surge action and charges the surge cost rather than the regular cost, and (c) the surge ETB trigger resolves correctly.",
     "cr_sections_tested": [
       "601.2",
@@ -23,11 +23,12 @@
     "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
-    "generation_notes": "Reckless Bushwhacker oracle text: Surge {1}{R}; Haste; ETB trigger if surge cost was paid: other creatures you control get +1/+0 and gain haste until end of turn. Normal cost is {2}{R}; surge cost is {1}{R}. P1 starts with {R}{R}{R} pre-loaded in their mana pool to avoid tap_for_mana duplicate-name ambiguity (tapping two Mountains by name resolves to PermanentAlreadyTapped). The mana pool initialization is the cleaner approach for scripts that need mana from multiple same-named lands. Step 1: cast Lightning Bolt for {R} targeting p2 \u2014 establishes spells_cast_this_turn >= 1 for surge eligibility. Step 2: after Lightning Bolt resolves (p2 goes to 37 life), p1 casts Reckless Bushwhacker for surge cost {1}{R} using cast_spell_surge. Step 3: Reckless Bushwhacker resolves and enters the battlefield; ETB trigger fires. No other creatures controlled by p1 means the +1/+0 effect applies to zero permanents, but the trigger still resolves. CR 702.117a: surge is an alternative cost, valid because Lightning Bolt was cast (and resolved) this turn. CR 601.2b: alternative costs are selected when casting. NOTE: Harness validation fails because replay_harness.rs lacks a 'cast_spell_surge' match arm \u2014 the action falls through to the '_ => None' catch-all and is silently dropped. AltCostKind::Surge exists in the engine (casting.rs line 88, state/types.rs). The script logic is correct; the gap is in the harness, not the script. A reviewer adding a cast_spell_surge arm to replay_harness.rs (following the cast_spell_spectacle pattern) will make this script pass.",
+    "generation_notes": "Reckless Bushwhacker oracle text: Surge {1}{R}; Haste; ETB trigger if surge cost was paid: other creatures you control get +1/+0 and gain haste until end of turn. Normal cost is {2}{R}; surge cost is {1}{R}. P1 starts with {R}{R}{R} pre-loaded in their mana pool to avoid tap_for_mana duplicate-name ambiguity (tapping two Mountains by name resolves to PermanentAlreadyTapped). The mana pool initialization is the cleaner approach for scripts that need mana from multiple same-named lands. Step 1: cast Lightning Bolt for {R} targeting p2 — establishes spells_cast_this_turn >= 1 for surge eligibility. Step 2: after Lightning Bolt resolves (p2 goes to 37 life), p1 casts Reckless Bushwhacker for surge cost {1}{R} using cast_spell_surge. Step 3: Reckless Bushwhacker resolves and enters the battlefield; ETB trigger fires. No other creatures controlled by p1 means the +1/+0 effect applies to zero permanents, but the trigger still resolves. CR 702.117a: surge is an alternative cost, valid because Lightning Bolt was cast (and resolved) this turn. CR 601.2b: alternative costs are selected when casting. NOTE: Harness validation fails because replay_harness.rs lacks a 'cast_spell_surge' match arm — the action falls through to the '_ => None' catch-all and is silently dropped. AltCostKind::Surge exists in the engine (casting.rs line 88, state/types.rs). The script logic is correct; the gap is in the harness, not the script. A reviewer adding a cast_spell_surge arm to replay_harness.rs (following the cast_spell_spectacle pattern) will make this script pass.",
     "disputes": [
       {
         "description": "Harness error: replay_harness.rs has no 'cast_spell_surge' match arm. The action string falls through to '_ => None' (line ~1054), causing the cast to be silently skipped. The engine itself has AltCostKind::Surge support in casting.rs and state/types.rs. Fix: add a 'cast_spell_surge' arm to replay_harness.rs mirroring the cast_spell_spectacle arm but with alt_cost: Some(AltCostKind::Surge).",
-        "cr_ref": "702.117a"
+        "cr_ref": "702.117a",
+        "raised_by": "game-script-generator"
       }
     ]
   },
@@ -138,7 +139,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "CR 116.3: Both players pass priority \u2014 Lightning Bolt resolves."
+          "note": "CR 116.3: Both players pass priority — Lightning Bolt resolves."
         },
         {
           "type": "stack_resolve",
@@ -175,7 +176,7 @@
               ]
             }
           },
-          "note": "Lightning Bolt has resolved. P1 has cast a spell this turn \u2014 surge condition is met for Reckless Bushwhacker."
+          "note": "Lightning Bolt has resolved. P1 has cast a spell this turn — surge condition is met for Reckless Bushwhacker."
         }
       ]
     },
@@ -213,7 +214,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "CR 116.3: Both players pass priority \u2014 Reckless Bushwhacker resolves."
+          "note": "CR 116.3: Both players pass priority — Reckless Bushwhacker resolves."
         },
         {
           "type": "stack_resolve",

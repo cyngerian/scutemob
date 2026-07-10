@@ -26,7 +26,7 @@
       "graveyard-return"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Flame Jab oracle text (MCP verified + engine def confirmed at crates/engine/src/cards/defs/flame_jab.rs): {R}, Sorcery. 'Flame Jab deals 1 damage to any target. Retrace (You may cast this card from your graveyard by discarding a land card in addition to paying its other costs.)'. AbilityDefinition::Spell { effect: DealDamage { target: DeclaredTarget{0}, amount: Fixed(1) }, targets: [TargetAny] } and AbilityDefinition::Keyword(KeywordAbility::Retrace). CR 702.81a: 'Retrace' means 'You may cast this card from your graveyard by discarding a land card as an additional cost to cast it.' Casting follows CR 601.2b and 601.2f-h for additional costs. Schema field `discard_land` on PlayerAction (script_schema.rs line 272) specifies the land card name to discard as retrace additional cost. Action type is `cast_spell_retrace`. Wall of Omens: {1}{W}, Creature — Wall, 0/4, Defender, ETB draw. Available in engine Available Cards list. Used as target to avoid player life changes for clarity. After first cast: Wall of Omens has 1 damage marked (CR 120.3e). After second cast: 2 damage total. Wall of Omens toughness 4 means 2 damage total does NOT trigger lethal damage SBA (CR 704.5g requires damage >= toughness). Initial mana: P1 has {R}{R} (2 red) in the mana pool from two Mountains both pre-tapped in initial state. This avoids using tap_for_mana on duplicate-named permanents, which causes PermanentAlreadyTapped when the harness matches by name and picks the already-tapped Mountain first. P1 hand: [Plains, Island] (two lands for two retrace casts). No tap_for_mana actions needed. PermanentInitState does not have `owner` field — the JSON uses `is_commander`, `tapped`, etc. but no `owner` in PermanentInitState (only CardInZone has `owner`). The `discard_land` value is the card name string (not an ObjectId) per the schema field definition. Scryfall ruling 2008-08-01: 'When a retrace card you cast from your graveyard resolves, fails to resolve, or is countered, it is put back into your graveyard.' This is the key correctness property tested — Flame Jab must NOT go to exile. Fix note: initial attempt used Mountain (tapped) + Mountain (untapped) with a tap_for_mana for the second cast, but this caused PermanentAlreadyTapped because the harness resolves tap_for_mana by card name and picks the already-tapped Mountain. Resolution: both Mountains start tapped with 2 red pre-loaded in the mana pool, removing the duplicate-name ambiguity entirely.",
@@ -42,7 +42,9 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "red": 2 },
+        "mana_pool": {
+          "red": 2
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -62,22 +64,46 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Mountain", "is_commander": false, "tapped": true },
-          { "card": "Mountain", "is_commander": false, "tapped": true }
+          {
+            "card": "Mountain",
+            "is_commander": false,
+            "tapped": true
+          },
+          {
+            "card": "Mountain",
+            "is_commander": false,
+            "tapped": true
+          }
         ],
         "p2": [
-          { "card": "Wall of Omens", "is_commander": false, "tapped": false }
+          {
+            "card": "Wall of Omens",
+            "is_commander": false,
+            "tapped": false
+          }
         ]
       },
       "hand": {
         "p1": [
-          { "card": "Plains", "is_commander": false, "owner": null },
-          { "card": "Island", "is_commander": false, "owner": null }
+          {
+            "card": "Plains",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Island",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {
         "p1": [
-          { "card": "Flame Jab", "is_commander": false, "owner": null }
+          {
+            "card": "Flame Jab",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "exile": [],
@@ -96,12 +122,26 @@
           "type": "assert_state",
           "description": "Initial: Flame Jab in P1 graveyard; Plains and Island in P1 hand (count 2); Wall of Omens on P2 battlefield; P1 has {R}{R} in mana pool; life totals 40/40; stack empty",
           "assertions": {
-            "zones.graveyard.p1": { "includes": [{ "card": "Flame Jab" }] },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Flame Jab"
+                }
+              ]
+            },
             "zones.hand.p1.count": 2,
-            "zones.battlefield.p2": { "includes": [{ "card": "Wall of Omens" }] },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Wall of Omens"
+                }
+              ]
+            },
             "players.p1.life": 40,
             "players.p2.life": 40,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Flame Jab is in P1's graveyard — the prerequisite for Retrace (CR 702.81a: Retrace is a static ability that functions while the card is in a player's graveyard). P1 holds Plains and Island (two land cards for two retrace casts). P1 has {R}{R} in pool from two pre-tapped Mountains. Wall of Omens (0/4 Defender) is on P2's battlefield — a valid 'any target' for Flame Jab."
         },
@@ -111,9 +151,16 @@
           "action": "cast_spell_retrace",
           "card": "Flame Jab",
           "targets": [
-            { "type": "permanent", "card": "Wall of Omens", "controller": "p2", "player": null }
+            {
+              "type": "permanent",
+              "card": "Wall of Omens",
+              "controller": "p2",
+              "player": null
+            }
           ],
-          "mana_paid": { "red": 1 },
+          "mana_paid": {
+            "red": 1
+          },
           "discard_land": "Plains",
           "mana_source": [],
           "cr_ref": "702.81a",
@@ -125,14 +172,29 @@
           "assertions": {
             "zones.stack.count": 1,
             "zones.hand.p1.count": 1,
-            "zones.hand.p1": { "includes": [{ "card": "Island" }] },
-            "zones.graveyard.p1": { "excludes": [{ "card": "Flame Jab" }] }
+            "zones.hand.p1": {
+              "includes": [
+                {
+                  "card": "Island"
+                }
+              ]
+            },
+            "zones.graveyard.p1": {
+              "excludes": [
+                {
+                  "card": "Flame Jab"
+                }
+              ]
+            }
           },
           "note": "CR 702.81a: Casting Flame Jab via Retrace moves it from graveyard to stack (count 1). Plains was discarded as the additional retrace cost (CR 601.2b) — P1 hand count drops from 2 to 1. Island remains in hand for the second Retrace cast."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority in succession — the top of the stack (Flame Jab) resolves."
         },
@@ -142,7 +204,11 @@
           "resolution": [
             {
               "effect": "deal_damage",
-              "target": { "type": "permanent", "card": "Wall of Omens", "controller": "p2" },
+              "target": {
+                "type": "permanent",
+                "card": "Wall of Omens",
+                "controller": "p2"
+              },
               "amount": 1,
               "card": null,
               "owner": null,
@@ -156,9 +222,19 @@
           "type": "assert_state",
           "description": "After first resolution: Flame Jab back in P1 graveyard (not exile); exile is empty; stack empty; P2 life unchanged at 40; P1 hand has 1 card (Island)",
           "assertions": {
-            "zones.graveyard.p1": { "includes": [{ "card": "Flame Jab" }] },
-            "zones.exile": { "is_empty": true },
-            "zones.stack": { "is_empty": true },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Flame Jab"
+                }
+              ]
+            },
+            "zones.exile": {
+              "is_empty": true
+            },
+            "zones.stack": {
+              "is_empty": true
+            },
             "players.p2.life": 40,
             "players.p1.life": 40,
             "zones.hand.p1.count": 1
@@ -177,9 +253,16 @@
           "action": "cast_spell_retrace",
           "card": "Flame Jab",
           "targets": [
-            { "type": "permanent", "card": "Wall of Omens", "controller": "p2", "player": null }
+            {
+              "type": "permanent",
+              "card": "Wall of Omens",
+              "controller": "p2",
+              "player": null
+            }
           ],
-          "mana_paid": { "red": 1 },
+          "mana_paid": {
+            "red": 1
+          },
           "discard_land": "Island",
           "mana_source": [],
           "cr_ref": "702.81a",
@@ -191,13 +274,22 @@
           "assertions": {
             "zones.stack.count": 1,
             "zones.hand.p1.count": 0,
-            "zones.graveyard.p1": { "excludes": [{ "card": "Flame Jab" }] }
+            "zones.graveyard.p1": {
+              "excludes": [
+                {
+                  "card": "Flame Jab"
+                }
+              ]
+            }
           },
           "note": "CR 702.81a: Second Retrace cast moves Flame Jab from graveyard to stack. Island discarded as additional cost — P1 hand count drops to 0. Both land cards have been used as retrace costs across the two casts."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — the top of the stack (Flame Jab) resolves a second time."
         },
@@ -207,7 +299,11 @@
           "resolution": [
             {
               "effect": "deal_damage",
-              "target": { "type": "permanent", "card": "Wall of Omens", "controller": "p2" },
+              "target": {
+                "type": "permanent",
+                "card": "Wall of Omens",
+                "controller": "p2"
+              },
               "amount": 1,
               "card": null,
               "owner": null,
@@ -221,13 +317,29 @@
           "type": "assert_state",
           "description": "Final: Flame Jab back in P1 graveyard (second return); exile zone empty; stack empty; P1 hand empty (both lands discarded as retrace costs); P2 life still 40; Wall of Omens still on P2 battlefield (2 damage marked, toughness 4, not lethal)",
           "assertions": {
-            "zones.graveyard.p1": { "includes": [{ "card": "Flame Jab" }] },
-            "zones.exile": { "is_empty": true },
-            "zones.stack": { "is_empty": true },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Flame Jab"
+                }
+              ]
+            },
+            "zones.exile": {
+              "is_empty": true
+            },
+            "zones.stack": {
+              "is_empty": true
+            },
             "zones.hand.p1.count": 0,
             "players.p2.life": 40,
             "players.p1.life": 40,
-            "zones.battlefield.p2": { "includes": [{ "card": "Wall of Omens" }] }
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Wall of Omens"
+                }
+              ]
+            }
           },
           "note": "CR 702.81a: Flame Jab returned to P1's graveyard after its second resolution. Exile zone is empty — Retrace does NOT exile the card. P1 hand is empty (Plains and Island both used as retrace costs). Wall of Omens (0/4) survives with 2 damage marked — toughness 4 means the lethal threshold (CR 704.5g) is not reached. P2 life unchanged at 40 (all damage directed to the creature)."
         }

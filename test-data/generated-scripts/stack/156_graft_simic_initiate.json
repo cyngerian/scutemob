@@ -4,11 +4,27 @@
     "id": "script_stack_156",
     "name": "Graft 1 — Simic Initiate counter moves to entering creature",
     "description": "Tests the full Graft 1 lifecycle on Simic Initiate ({G}, 0/0 Human Mutant). Simic Initiate begins on the battlefield with 1 +1/+1 counter (placed by the Graft 1 static ability when it entered previously — CR 702.58a). p1 casts Bog Raiders ({2}{B}, 2/2 Zombie). Bog Raiders resolves and enters the battlefield. The Graft triggered ability (CR 702.58a) fires because Simic Initiate has a +1/+1 counter — GraftTrigger goes on the stack. After both players pass, the GraftTrigger resolves: the engine auto-accepts the 'you may' (always moves), removes the +1/+1 counter from Simic Initiate, and adds one to Bog Raiders (CR 702.58a). State-based actions are then checked (CR 704.3): Simic Initiate now has 0 base toughness and 0 counters — its effective toughness is 0, so it is destroyed and sent to the graveyard (CR 704.5f). Bog Raiders ends on the battlefield with 1 +1/+1 counter, effective 3/3. The intervening-if clause (CR 603.4) is exercised: the trigger checks at resolution that Simic Initiate still has a counter and Bog Raiders is still on the battlefield.",
-    "cr_sections_tested": ["702.58a", "603.4", "704.5f", "704.3", "601.2", "608.2", "116.3"],
+    "cr_sections_tested": [
+      "702.58a",
+      "603.4",
+      "704.5f",
+      "704.3",
+      "601.2",
+      "608.2",
+      "116.3"
+    ],
     "corner_case_ref": null,
-    "tags": ["graft", "counter", "trigger", "sba", "zero-toughness", "intervening-if", "simic-initiate"],
+    "tags": [
+      "graft",
+      "counter",
+      "trigger",
+      "sba",
+      "zero-toughness",
+      "intervening-if",
+      "simic-initiate"
+    ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Simic Initiate card definition (crates/engine/src/cards/defs/simic_initiate.rs): mana_cost {G} (green:1), types Creature — Human Mutant, power 0, toughness 0. Abilities: AbilityDefinition::Keyword(KeywordAbility::Graft(1)). Graft 1 has two parts per CR 702.58a: (1) static replacement — 'This permanent enters with 1 +1/+1 counter on it'; (2) triggered ability — 'Whenever another creature enters, if this permanent has a +1/+1 counter on it, you may move a +1/+1 counter from this permanent onto that creature.' To test the trigger (part 2) we need another creature to enter. Simic Initiate is placed in the initial state already on the battlefield with 1 +1/+1 counter (using the 'counters' field — verified in baseline/105_sharktocrab_adapt.json). Bog Raiders ({2}{B}, 2/2 Zombie, Swampwalk) is cast as the entering creature. Its definition in bog_raiders.rs: ManaCost { generic: 2, black: 1 } — so mana_paid is { colorless: 2, black: 1 }. The engine resolves GraftTrigger with auto-accept (resolution.rs line 2267: auto-accept — always moves the counter). Intervening-if (CR 603.4): the trigger has an intervening-if clause ('if this permanent has a +1/+1 counter on it') checked both when the trigger would go on the stack (it does — Simic Initiate has 1 counter) and at resolution (still true at resolution time — the counter has not been removed yet). After counter move: Simic Initiate has 0 +1/+1 counters, base 0/0 — effective toughness 0. CR 704.5f SBA fires: creature with toughness <= 0 is destroyed. Bog Raiders has 1 +1/+1 counter, base 2/2 — effective 3/3. The 'permanent.Simic Initiate.counters.plus_one_plus_one' assertion uses 'plus_one_plus_one' which IS supported by parse_counter_type() in the harness (confirmed in replay_harness.rs line 1558).",
@@ -24,7 +40,10 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "colorless": 2, "black": 1 },
+        "mana_pool": {
+          "colorless": 2,
+          "black": 1
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -49,13 +68,19 @@
             "is_commander": false,
             "owner": null,
             "tapped": false,
-            "counters": { "plus_one_plus_one": 1 }
+            "counters": {
+              "plus_one_plus_one": 1
+            }
           }
         ]
       },
       "hand": {
         "p1": [
-          { "card": "Bog Raiders", "is_commander": false, "owner": null }
+          {
+            "card": "Bog Raiders",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -76,11 +101,25 @@
           "description": "Initial: Simic Initiate on battlefield with 1 +1/+1 counter; Bog Raiders in p1 hand; stack empty",
           "assertions": {
             "zones.battlefield.p1.count": 1,
-            "zones.battlefield.p1": { "includes": [{ "card": "Simic Initiate" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Simic Initiate"
+                }
+              ]
+            },
             "permanent.Simic Initiate.counters.plus_one_plus_one": 1,
             "zones.hand.p1.count": 1,
-            "zones.hand.p1": { "includes": [{ "card": "Bog Raiders" }] },
-            "zones.stack": { "is_empty": true },
+            "zones.hand.p1": {
+              "includes": [
+                {
+                  "card": "Bog Raiders"
+                }
+              ]
+            },
+            "zones.stack": {
+              "is_empty": true
+            },
             "players.p1.life": 40,
             "players.p2.life": 40
           },
@@ -92,7 +131,10 @@
           "action": "cast_spell",
           "card": "Bog Raiders",
           "targets": [],
-          "mana_paid": { "colorless": 2, "black": 1 },
+          "mana_paid": {
+            "colorless": 2,
+            "black": 1
+          },
           "mana_source": [],
           "cr_ref": "601.2",
           "note": "CR 601.2: p1 casts Bog Raiders ({2}{B}); colorless:2 + black:1 paid from pool. Bog Raiders moves from hand to stack."
@@ -109,7 +151,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — Bog Raiders resolves (CR 608.2)."
         },
@@ -119,7 +164,11 @@
           "resolution": [
             {
               "effect": "enters_battlefield",
-              "target": { "type": "permanent", "card": "Bog Raiders", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "card": "Bog Raiders",
+                "controller": "p1"
+              },
               "amount": null,
               "card": null,
               "owner": null,
@@ -136,8 +185,12 @@
             "zones.battlefield.p1.count": 2,
             "zones.battlefield.p1": {
               "includes": [
-                { "card": "Simic Initiate" },
-                { "card": "Bog Raiders" }
+                {
+                  "card": "Simic Initiate"
+                },
+                {
+                  "card": "Bog Raiders"
+                }
               ]
             },
             "zones.stack.count": 1,
@@ -148,7 +201,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — GraftTrigger resolves (CR 608.2, 702.58a)."
         },
@@ -158,7 +214,11 @@
           "resolution": [
             {
               "effect": "move_counter",
-              "target": { "type": "permanent", "card": "Simic Initiate", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "card": "Simic Initiate",
+                "controller": "p1"
+              },
               "amount": 1,
               "card": null,
               "owner": null,
@@ -173,7 +233,10 @@
           "actions": [
             {
               "action": "creature_dies",
-              "target": { "card": "Simic Initiate", "controller": "p1" },
+              "target": {
+                "card": "Simic Initiate",
+                "controller": "p1"
+              },
               "cr_ref": "704.5f",
               "note": "CR 704.5f: Simic Initiate has toughness 0 or less (base 0/0 with 0 +1/+1 counters = effective 0/0). It is put into its owner's graveyard."
             }
@@ -184,11 +247,24 @@
           "type": "assert_state",
           "description": "Final: Simic Initiate in p1 graveyard; Bog Raiders on battlefield with 1 +1/+1 counter (effective 3/3); stack empty",
           "assertions": {
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "zones.battlefield.p1.count": 1,
-            "zones.battlefield.p1": { "includes": [{ "card": "Bog Raiders" }] },
-            "zones.battlefield.p1": { "excludes": [{ "card": "Simic Initiate" }] },
-            "zones.graveyard.p1": { "includes": [{ "card": "Simic Initiate" }] },
+            "zones.battlefield.p1": {
+              "excludes": [
+                {
+                  "card": "Simic Initiate"
+                }
+              ]
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Simic Initiate"
+                }
+              ]
+            },
             "permanent.Bog Raiders.counters.plus_one_plus_one": 1,
             "players.p1.life": 40,
             "players.p2.life": 40

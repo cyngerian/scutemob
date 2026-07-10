@@ -21,7 +21,7 @@
       "unblocked"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "CR 702.14b: Swampwalk is a landwalk ability, which is an evasion ability. CR 702.14c: A creature with swampwalk can't be blocked as long as the defending player controls at least one land with the subtype Swamp. p2 controls a Swamp (Basic Land — Swamp, confirmed by Scryfall oracle), which satisfies the condition. Hill Giant (3/3, Creature — Giant, no abilities) is controlled by p2 and would normally be a legal blocker for a 2/2 creature. However, CR 509.1b requires the defending player to check whether each chosen blocker obeys all restrictions. Because Bog Raiders has swampwalk and p2 controls a Swamp, any declaration of Hill Giant as a blocker for Bog Raiders violates the restriction — the declaration would be illegal (CR 509.1b). Bog Raiders is therefore an unblocked attacker. CR 510.1b: An unblocked creature assigns its combat damage to the player, planeswalker, or battle it's attacking. Bog Raiders (power 2) assigns 2 damage to p2, reducing p2's life from 40 to 38. Card definitions used: Bog Raiders ({2}{B}, Creature — Zombie 2/2, keyword Landwalk(BasicType(Swamp))) confirmed in definitions.rs line 1462. Swamp (Basic Land — Swamp, {T}: Add {B}) confirmed in definitions.rs line 474. Hill Giant is not in definitions.rs but is used only for the battlefield and is a recognized Scryfall oracle card (3/3, Creature — Giant, no abilities). All combat steps are documentary (turn_based_action) — the harness does not execute combat actions, consistent with scripts 004-009. The final assert_state checks initial life totals only (the life-total change is documented in the sba_check note as the expected CR outcome). A dispute is filed noting the harness cannot assert the life change after combat.",
@@ -35,7 +35,8 @@
         "resolved_by": null,
         "resolved_date": null
       }
-    ]
+    ],
+    "retirement_reason": "SR-9c: Names 'Hill Giant', which has no CardDefinition — the harness builds it as a typeless object, bypassing invariant #9 (every card must be defined before play). Retire (do not extend the undefined-card allowlist); unblocks when Hill Giant is authored."
   },
   "initial_state": {
     "format": "commander",
@@ -109,13 +110,19 @@
           "assertions": {
             "zones.battlefield.p1": {
               "includes": [
-                { "card": "Bog Raiders" }
+                {
+                  "card": "Bog Raiders"
+                }
               ]
             },
             "zones.battlefield.p2": {
               "includes": [
-                { "card": "Swamp" },
-                { "card": "Hill Giant" }
+                {
+                  "card": "Swamp"
+                },
+                {
+                  "card": "Hill Giant"
+                }
               ]
             },
             "players.p1.life": 40,
@@ -154,12 +161,16 @@
             "players.p2.life": 40,
             "zones.battlefield.p1": {
               "includes": [
-                { "card": "Bog Raiders" }
+                {
+                  "card": "Bog Raiders"
+                }
               ]
             },
             "zones.battlefield.p2": {
               "includes": [
-                { "card": "Swamp" }
+                {
+                  "card": "Swamp"
+                }
               ]
             }
           },

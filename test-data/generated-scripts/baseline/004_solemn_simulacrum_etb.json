@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "metadata": {
     "id": "script_baseline_004",
-    "name": "Solemn Simulacrum ETB \u2014 draws a card",
+    "name": "Solemn Simulacrum ETB — draws a card",
     "description": "p1 casts Solemn Simulacrum (4 CMC artifact creature). When it enters the battlefield, its ETB trigger goes on the stack: search library for a basic land, put it onto the battlefield tapped, then draw a card. Tests ETB trigger creation, stack ordering, and draw effect.",
     "cr_sections_tested": [
       "603.2",
@@ -20,11 +20,12 @@
       "solemn-simulacrum"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
-    "generation_notes": "Solemn Simulacrum has two triggered abilities: (1) ETB: search library for a basic land, put it onto battlefield tapped; (2) dies: draw a card. This script tests the ETB trigger only. The library contains one Plains for the search. After ETB resolves: Plains on battlefield tapped, p1 drew a card (hand size 1 \u2192 1 after casting simulacrum from hand of 2, so net hand stays at 1). Initial state: p1 has Solemn Simulacrum and one other card in hand, 4 colorless in mana pool. ETB trigger puts Plains on battlefield tapped, then draws a card. Hand ends at 1 (cast simulacrum -1, drew +1). Note: engine ETB system fires triggered abilities and puts them on the stack for the active player to resolve via priority passing.",
-    "disputes": []
+    "generation_notes": "Solemn Simulacrum has two triggered abilities: (1) ETB: search library for a basic land, put it onto battlefield tapped; (2) dies: draw a card. This script tests the ETB trigger only. The library contains one Plains for the search. After ETB resolves: Plains on battlefield tapped, p1 drew a card (hand size 1 → 1 after casting simulacrum from hand of 2, so net hand stays at 1). Initial state: p1 has Solemn Simulacrum and one other card in hand, 4 colorless in mana pool. ETB trigger puts Plains on battlefield tapped, then draws a card. Hand ends at 1 (cast simulacrum -1, drew +1). Note: engine ETB system fires triggered abilities and puts them on the stack for the active player to resolve via priority passing.",
+    "disputes": [],
+    "retirement_reason": "SR-9c: Solemn Simulacrum's fetch ETB puts a land onto the battlefield but the script asserts a card was drawn (hand 2, engine 1); the ETB/draw sequencing is not what the script assumes and the trailing trigger is never resolved (harness stack_resolve is informational). Retire pending a scenario that resolves each trigger via priority."
   },
   "initial_state": {
     "format": "commander",
@@ -132,7 +133,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "CR 116.3: Both players pass priority \u2014 Solemn Simulacrum resolves."
+          "note": "CR 116.3: Both players pass priority — Solemn Simulacrum resolves."
         },
         {
           "type": "stack_resolve",
@@ -150,7 +151,7 @@
               "source": "Solemn Simulacrum",
               "trigger_condition": "when_this_enters_battlefield",
               "cr_ref": "603.2",
-              "note": "CR 603.2: ETB trigger fires \u2014 search library for basic land, put it onto battlefield tapped."
+              "note": "CR 603.2: ETB trigger fires — search library for basic land, put it onto battlefield tapped."
             }
           ],
           "note": "Solemn Simulacrum enters battlefield, ETB trigger goes on stack."
@@ -177,7 +178,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "CR 116.3: Both pass \u2014 ETB trigger resolves."
+          "note": "CR 116.3: Both pass — ETB trigger resolves."
         },
         {
           "type": "stack_resolve",

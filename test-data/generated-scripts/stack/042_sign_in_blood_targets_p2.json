@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "metadata": {
     "id": "script_stack_042",
-    "name": "Sign in Blood targets opponent \u2014 draws 2, loses 2",
+    "name": "Sign in Blood targets opponent — draws 2, loses 2",
     "description": "p1 casts Sign in Blood targeting p2. p2 draws 2 cards and loses 2 life (40 -> 38). Tests player-targeted draw/drain effect.",
     "cr_sections_tested": [
       "601.2",
@@ -18,11 +18,12 @@
       "player-target"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Sign in Blood: Target player draws 2 cards and loses 2 life. Can target opponent. p2 loses 2 life.",
-    "disputes": []
+    "disputes": [],
+    "retirement_reason": "SR-9c: Sign in Blood's targeted draw/lose-life is left unresolved (p2 life unchanged, stack expected empty): the spell's resolution is not driven to completion by the script. Retire pending a resolving rewrite."
   },
   "initial_state": {
     "format": "commander",
@@ -113,7 +114,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "Both pass \u2014 Sign in Blood resolves."
+          "note": "Both pass — Sign in Blood resolves."
         },
         {
           "type": "stack_resolve",

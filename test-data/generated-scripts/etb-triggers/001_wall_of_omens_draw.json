@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "metadata": {
     "id": "script_etb_001",
-    "name": "Wall of Omens ETB \u2014 draw a card when it enters the battlefield",
+    "name": "Wall of Omens ETB — draw a card when it enters the battlefield",
     "description": "p1 casts Wall of Omens ({1}{W}). When it enters the battlefield, its ETB triggered ability triggers: p1 draws a card. Tests that a creature ETB trigger fires and resolves correctly. Wall of Omens is a 0/4 defender.",
     "cr_sections_tested": [
       "603.2",
@@ -18,7 +18,7 @@
       "defender"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Wall of Omens oracle: '{T}: Draw a card. When Wall of Omens enters the battlefield, draw a card.' Actually the ETB is the separate ability from the tap. p1 draws 1 when it ETBs. Starting hand count: 1 (Wall of Omens itself). After resolving, hand = 0 (was in hand, now on BF) + 1 from draw = 1.",
@@ -118,7 +118,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "Both pass \u2014 Wall of Omens resolves."
+          "note": "Both pass — Wall of Omens resolves."
         },
         {
           "type": "stack_resolve",
@@ -164,7 +164,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "Both pass \u2014 ETB trigger resolves."
+          "note": "Both pass — ETB trigger resolves."
         },
         {
           "type": "stack_resolve",

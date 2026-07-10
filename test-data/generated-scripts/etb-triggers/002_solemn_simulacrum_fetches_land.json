@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "metadata": {
     "id": "script_etb_002",
-    "name": "Solemn Simulacrum ETB \u2014 search library for basic land (enters tapped)",
+    "name": "Solemn Simulacrum ETB — search library for basic land (enters tapped)",
     "description": "p1 casts Solemn Simulacrum ({4}). When it enters the battlefield, p1 may search their library for a basic land card, put it onto the battlefield tapped, then shuffle. Tests the Solemn Simulacrum ETB trigger: fetch + tapped ETB for the land.",
     "cr_sections_tested": [
       "603.2",
@@ -18,7 +18,7 @@
       "fetch-land"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Solemn Simulacrum ETB: search library for basic land, put it onto battlefield tapped. The fetched land also ETBs tapped. After: Simulacrum + Forest (tapped) on battlefield.",
@@ -121,7 +121,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "Both pass \u2014 Solemn Simulacrum resolves."
+          "note": "Both pass — Solemn Simulacrum resolves."
         },
         {
           "type": "stack_resolve",
@@ -141,7 +141,7 @@
           "type": "trigger_placed",
           "controller": "p1",
           "cr_ref": "603.2",
-          "note": "CR 603.2: ETB trigger fires \u2014 search library for a basic land.",
+          "note": "CR 603.2: ETB trigger fires — search library for a basic land.",
           "source": "Solemn Simulacrum ETB",
           "trigger_condition": "Solemn Simulacrum ETB"
         },
@@ -167,7 +167,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "Both pass \u2014 ETB trigger resolves."
+          "note": "Both pass — ETB trigger resolves."
         },
         {
           "type": "stack_resolve",

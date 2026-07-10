@@ -4,18 +4,32 @@
     "id": "script_stack_095",
     "name": "Raffine's Informant ETB connive — nonland discard yields +1/+1 counter",
     "description": "P1 casts Raffine's Informant ({1}{W}, 2/1 Human Wizard). When it enters the battlefield, its ETB triggered ability fires causing it to connive (CR 701.50a). Connive draws a card then discards a card; if the discarded card is a nonland, the conniving creature gets a +1/+1 counter. P1's library top is Lightning Bolt (nonland). The connive trigger draws Lightning Bolt and P1 discards it. Since Lightning Bolt is a nonland card, Raffine's Informant receives a +1/+1 counter, becoming 3/2. This script verifies the full ETB-trigger-on-stack, connive-resolves, and counter-placement flow.",
-    "cr_sections_tested": ["601.2", "608.2", "116.3", "701.50a", "704.3"],
+    "cr_sections_tested": [
+      "601.2",
+      "608.2",
+      "116.3",
+      "701.50a",
+      "704.3"
+    ],
     "corner_case_ref": null,
-    "tags": ["stack", "etb-trigger", "connive", "counter", "draw", "discard"],
+    "tags": [
+      "stack",
+      "etb-trigger",
+      "connive",
+      "counter",
+      "draw",
+      "discard"
+    ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Raffine's Informant is NOT in the Available Cards list so MCP lookup was performed. Oracle text confirmed: 'When this creature enters, it connives.' — a single ETB triggered ability. CR 701.50a: connive = draw a card, discard a card, if nonland discarded put a +1/+1 counter on the conniving permanent. The connive is atomic (per the 2022-04-29 ruling: once the ability begins resolving no player may take actions until done). Initial state: P1 has {1}{W} in pool (representing two pre-tapped lands), Raffine's Informant in hand, Lightning Bolt on top of library, no other cards in hand. The draw during connive pulls Lightning Bolt; P1 then discards it (it is the only card in hand after draw). Lightning Bolt is a noncreature instant (nonland), so Raffine's Informant gets a +1/+1 counter. The creature's base P/T is 2/1, with one +1/+1 counter it becomes 3/2. The connive ETB trigger resolves in one stack_resolve step — no sub-steps for intermediate draw/discard because connive is atomic. After full resolution the stack is empty, Lightning Bolt is in P1's graveyard, and Raffine's Informant is on the battlefield with one +1/+1 counter (asserted via P/T becoming 3/2). HARNESS FAILURE: The engine does not have a CardDefinition for Raffine's Informant (it is not in the Available Cards list). The harness reported that after resolving the creature spell, Raffine's Informant ends up in the graveyard (not the battlefield) and the connive trigger never appears on the stack. This is an engine gap — the card definition must be authored in crates/engine/src/cards/definitions.rs before this script can pass. The script logic is correct per CR 701.50a and the card's oracle text.",
     "disputes": [
       {
         "description": "Harness error: Raffine's Informant has no CardDefinition in the engine. The card is not in the Available Cards list. Without a definition the engine cannot resolve the spell onto the battlefield or fire the connive ETB trigger. Assertion failures: 'zones.battlefield.p1 missing Raffine's Informant' and 'zones.stack.count expected 1 actual 0'. This is an engine gap — a CardDefinition for Raffine's Informant must be added to crates/engine/src/cards/definitions.rs (Connive ETB keyword ability) before this script can be approved.",
-        "cr_ref": "701.50a"
+        "cr_ref": "701.50a",
+        "raised_by": "game-script-generator"
       }
     ]
   },
@@ -29,7 +43,10 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "white": 1, "colorless": 1 },
+        "mana_pool": {
+          "white": 1,
+          "colorless": 1
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -50,7 +67,11 @@
       "battlefield": {},
       "hand": {
         "p1": [
-          { "card": "Raffine's Informant", "is_commander": false, "owner": null }
+          {
+            "card": "Raffine's Informant",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -58,7 +79,11 @@
       "command_zone": {},
       "library": {
         "p1": [
-          { "card": "Lightning Bolt", "is_commander": false, "owner": null }
+          {
+            "card": "Lightning Bolt",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "stack": []
@@ -75,7 +100,9 @@
           "description": "Initial: Raffine's Informant in P1 hand, Lightning Bolt on top of P1 library, stack empty",
           "assertions": {
             "zones.hand.p1.count": 1,
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "zones.library.p1.count": 1
           },
           "note": "Before casting: Raffine's Informant is in hand, Lightning Bolt is the top card of library ready to be drawn during connive."
@@ -86,7 +113,10 @@
           "action": "cast_spell",
           "card": "Raffine's Informant",
           "targets": [],
-          "mana_paid": { "white": 1, "colorless": 1 },
+          "mana_paid": {
+            "white": 1,
+            "colorless": 1
+          },
           "mana_source": [],
           "cr_ref": "601.2",
           "note": "CR 601.2: P1 casts Raffine's Informant paying {1}{W} from the mana pool. No targets declared at cast time — connive is an ETB triggered ability, not a mode or target chosen on cast."
@@ -102,7 +132,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — Raffine's Informant spell resolves."
         },
@@ -112,7 +145,11 @@
           "resolution": [
             {
               "effect": "enter_battlefield",
-              "target": { "type": "card", "card": "Raffine's Informant", "controller": "p1" },
+              "target": {
+                "type": "card",
+                "card": "Raffine's Informant",
+                "controller": "p1"
+              },
               "amount": null,
               "card": "Raffine's Informant",
               "owner": "p1",
@@ -126,14 +163,23 @@
           "type": "assert_state",
           "description": "After Raffine's Informant ETB: creature on battlefield, connive trigger on stack",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Raffine's Informant" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Raffine's Informant"
+                }
+              ]
+            },
             "zones.stack.count": 1
           },
           "note": "CR 701.50a: The ETB triggered ability 'When this creature enters, it connives' is now on the stack. P1 holds priority."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — the connive triggered ability resolves."
         },
@@ -143,7 +189,10 @@
           "resolution": [
             {
               "effect": "draw_cards",
-              "target": { "type": "player", "player": "p1" },
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
               "amount": 1,
               "card": null,
               "owner": null,
@@ -152,7 +201,10 @@
             },
             {
               "effect": "discard",
-              "target": { "type": "player", "player": "p1" },
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
               "amount": 1,
               "card": "Lightning Bolt",
               "owner": "p1",
@@ -161,7 +213,11 @@
             },
             {
               "effect": "add_counter",
-              "target": { "type": "card", "card": "Raffine's Informant", "controller": "p1" },
+              "target": {
+                "type": "card",
+                "card": "Raffine's Informant",
+                "controller": "p1"
+              },
               "amount": 1,
               "card": "Raffine's Informant",
               "owner": "p1",
@@ -175,10 +231,24 @@
           "type": "assert_state",
           "description": "Final state: Raffine's Informant on battlefield with +1/+1 counter (3/2), Lightning Bolt in graveyard, library empty, stack empty",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Raffine's Informant" }] },
-            "zones.graveyard.p1": { "includes": [{ "card": "Lightning Bolt" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Raffine's Informant"
+                }
+              ]
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Lightning Bolt"
+                }
+              ]
+            },
             "zones.library.p1.count": 0,
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "players.p1.life": 40,
             "players.p2.life": 40
           },

@@ -18,7 +18,7 @@
       "replacement-effect"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Aven Riftwatcher card definition (crates/engine/src/cards/defs/aven_riftwatcher.rs): mana_cost {2}{W}, types Creature — Bird Rebel Soldier, power 2, toughness 3. Abilities: AbilityDefinition::Keyword(Flying), AbilityDefinition::Vanishing { count: 3 }, AbilityDefinition::Triggered { WhenEntersBattlefield -> GainLife { Controller, Fixed(2) } }. CR 702.63a defines three abilities for Vanishing N: (1) static replacement — 'This permanent enters with N time counters on it'; (2) upkeep triggered — 'At the beginning of your upkeep, if this permanent has a time counter on it, remove a time counter from it' (intervening-if per CR 603.4); (3) triggered — 'When the last time counter is removed from this permanent, sacrifice it.' Script covers ability 1 (ETB counters via replacement effect in resolution.rs) and the ETB gain-2-life. ENGINE BEHAVIOR NOTE: The WhenEntersBattlefield trigger for Aven Riftwatcher uses fire_when_enters_triggered_effects() in replacement.rs, which calls execute_effect() INLINE during spell resolution — it does NOT queue the trigger onto the stack. This means after a single priority_round (both players pass), the spell resolves, the 3 time counters are placed, AND p1 immediately gains 2 life. The stack is empty and p1.life == 42 after the priority_round. This differs from triggers like Alela's (which watches OTHER permanents enter and queues normally on the stack). Mana: {2}{W} = colorless:2 + white:1. The LTB gain-2-life trigger is not yet implemented (WhenLeavesBattlefield not in DSL — aven_riftwatcher.rs TODO). The upkeep/sacrifice lifecycle is documented in the informational sections using stack_resolve (no-op in harness) and validated by unit tests: test_vanishing_etb_counters_on_cast, test_vanishing_upkeep_removes_counter, test_vanishing_sacrifice_on_last_counter in crates/engine/tests/vanishing.rs.",
@@ -50,7 +50,8 @@
         "resolved_by": null,
         "resolved_date": null
       }
-    ]
+    ],
+    "retirement_reason": "SR-9c: Author-documented: p1's life is unchanged and a trigger is left on the stack; the Vanishing/time-counter ETB lifegain sequence is not driven to completion. Retire pending a resolving rewrite."
   },
   "initial_state": {
     "format": "commander",
@@ -62,7 +63,10 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "colorless": 2, "white": 1 },
+        "mana_pool": {
+          "colorless": 2,
+          "white": 1
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -83,7 +87,11 @@
       "battlefield": {},
       "hand": {
         "p1": [
-          { "card": "Aven Riftwatcher", "is_commander": false, "owner": null }
+          {
+            "card": "Aven Riftwatcher",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -104,11 +112,25 @@
           "description": "Initial: Aven Riftwatcher in p1 hand; p1 at 40 life; battlefield empty; stack empty",
           "assertions": {
             "zones.hand.p1.count": 1,
-            "zones.hand.p1": { "includes": [{ "card": "Aven Riftwatcher" }] },
-            "zones.battlefield.p1": { "excludes": [{ "card": "Aven Riftwatcher" }] },
+            "zones.hand.p1": {
+              "includes": [
+                {
+                  "card": "Aven Riftwatcher"
+                }
+              ]
+            },
+            "zones.battlefield.p1": {
+              "excludes": [
+                {
+                  "card": "Aven Riftwatcher"
+                }
+              ]
+            },
             "players.p1.life": 40,
             "players.p2.life": 40,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Aven Riftwatcher ({2}{W}, 2/3 Bird, Flying, Vanishing 3, ETB gain 2 life) is in p1's hand. p1 has {2}{W} (colorless:2, white:1) in mana pool ready to cast."
         },
@@ -118,7 +140,10 @@
           "action": "cast_spell",
           "card": "Aven Riftwatcher",
           "targets": [],
-          "mana_paid": { "colorless": 2, "white": 1 },
+          "mana_paid": {
+            "colorless": 2,
+            "white": 1
+          },
           "mana_source": [],
           "cr_ref": "601.2",
           "note": "CR 601.2: p1 casts Aven Riftwatcher; {2}{W} paid from pool (colorless:2, white:1). Aven Riftwatcher moves from hand to stack. CR 702.63a ability 1: as the permanent enters the battlefield on resolution, the Vanishing 3 replacement effect will place 3 time counters on it."
@@ -134,7 +159,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — Aven Riftwatcher resolves (CR 608.2). CR 702.63a ability 1 (replacement): the permanent enters with 3 time counters. The WhenEntersBattlefield ability (gain 2 life) fires inline during resolution via fire_when_enters_triggered_effects() — it executes immediately without going on the stack, so p1 gains 2 life (40 -> 42) as part of this single resolution step. The stack is empty after this priority_round."
         },
@@ -144,7 +172,11 @@
           "resolution": [
             {
               "effect": "enter_battlefield",
-              "target": { "type": "permanent", "card": "Aven Riftwatcher", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "card": "Aven Riftwatcher",
+                "controller": "p1"
+              },
               "card": null,
               "owner": null,
               "cr_ref": "702.63a",
@@ -152,7 +184,10 @@
             },
             {
               "effect": "gain_life",
-              "target": { "type": "player", "player": "p1" },
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
               "amount": 2,
               "card": null,
               "owner": null,
@@ -166,11 +201,25 @@
           "type": "assert_state",
           "description": "Final: Aven Riftwatcher on p1 battlefield (3 time counters, not directly assertable — see disputes); p1 at 42 life; stack empty; p2 life unchanged",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Aven Riftwatcher" }] },
-            "zones.graveyard.p1": { "excludes": [{ "card": "Aven Riftwatcher" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Aven Riftwatcher"
+                }
+              ]
+            },
+            "zones.graveyard.p1": {
+              "excludes": [
+                {
+                  "card": "Aven Riftwatcher"
+                }
+              ]
+            },
             "players.p1.life": 42,
             "players.p2.life": 40,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 702.63a ability 1: Aven Riftwatcher entered with 3 time counters (validated by test_vanishing_etb_counters_on_cast). ETB gain-life executed inline during resolution: p1 at 42 (40+2). Aven Riftwatcher is on the battlefield and NOT in the graveyard (sacrifice happens after 3 upkeeps — see informational lifecycle below). Stack is empty."
         }
@@ -186,7 +235,11 @@
           "resolution": [
             {
               "effect": "remove_counter",
-              "target": { "type": "permanent", "card": "Aven Riftwatcher", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "card": "Aven Riftwatcher",
+                "controller": "p1"
+              },
               "amount": 1,
               "card": null,
               "owner": null,
@@ -202,7 +255,11 @@
           "resolution": [
             {
               "effect": "remove_counter",
-              "target": { "type": "permanent", "card": "Aven Riftwatcher", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "card": "Aven Riftwatcher",
+                "controller": "p1"
+              },
               "amount": 1,
               "card": null,
               "owner": null,
@@ -218,7 +275,11 @@
           "resolution": [
             {
               "effect": "remove_counter",
-              "target": { "type": "permanent", "card": "Aven Riftwatcher", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "card": "Aven Riftwatcher",
+                "controller": "p1"
+              },
               "amount": 1,
               "card": null,
               "owner": null,
@@ -234,7 +295,11 @@
           "resolution": [
             {
               "effect": "sacrifice",
-              "target": { "type": "permanent", "card": "Aven Riftwatcher", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "card": "Aven Riftwatcher",
+                "controller": "p1"
+              },
               "card": null,
               "owner": null,
               "cr_ref": "701.17a",

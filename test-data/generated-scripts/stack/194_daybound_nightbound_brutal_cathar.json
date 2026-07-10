@@ -4,11 +4,31 @@
     "id": "script_stack_194",
     "name": "Daybound/Nightbound — Brutal Cathar day/night cycle (assertion gap noted)",
     "description": "Tests CR 702.145 (Daybound/Nightbound) and CR 730.2 (day/night transitions). P1 casts Brutal Cathar during their precombat main phase on turn 1. The card's Daybound keyword causes the game to become Day (CR 702.145d). Both players pass priority through turn 1 with no additional spells cast. At the start of turn 2 (p2's turn), the untap step checks the incoming player's previous spells_cast_this_turn (which is 0 for p2 on their first turn), triggering a Day-to-Night transition (CR 730.2a) and transforming Brutal Cathar to Moonrage Brute. Then p1 casts Lightning Bolt and Brainstorm on turn 3, accumulating 2 spells. At the start of turn 4 (p2's turn), the untap step finds the incoming p2's spells_cast_this_turn still 0 (unchanged from their previous turn start), so no Night-to-Day transition fires. The script documents a harness limitation: zones.battlefield assertions use obj.characteristics.name (the stored front-face name), which is never updated when is_transformed changes, so transform assertions cannot be verified through the standard path.",
-    "cr_sections_tested": ["702.145", "702.145b", "702.145c", "702.145d", "702.145f", "730.2", "730.2a", "601.2", "608.2", "120.3", "605.3"],
+    "cr_sections_tested": [
+      "702.145",
+      "702.145b",
+      "702.145c",
+      "702.145d",
+      "702.145f",
+      "730.2",
+      "730.2a",
+      "601.2",
+      "608.2",
+      "120.3",
+      "605.3"
+    ],
     "corner_case_ref": null,
-    "tags": ["daybound", "nightbound", "transform", "double-faced-card", "werewolf", "brutal-cathar", "day-night"],
+    "tags": [
+      "daybound",
+      "nightbound",
+      "transform",
+      "double-faced-card",
+      "werewolf",
+      "brutal-cathar",
+      "day-night"
+    ],
     "confidence": "medium",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Brutal Cathar card_id: brutal-cathar-moonrage-brute. Front face: {2}{W} Human Soldier Werewolf 2/2, Daybound. Back face: Moonrage Brute Werewolf 3/3, Nightbound, FirstStrike. ETB exile-until-leaves is DSL gap, not wired. Day/Night logic: enforce_daybound_nightbound() runs when Brutal Cathar enters battlefield — sets day_night=Day (CR 702.145d). check_day_night_transition() runs at Untap step. The engine's reset_turn_state(new_active_player) saves the INCOMING player's spells_cast_this_turn as previous_turn_spells_cast before resetting it. For p2's first turn: p2.spells_cast_this_turn=0 (never cast) -> previous_turn_spells_cast=0 -> Day+0 -> Night fires at turn 2 Untap. This corresponds to CR 730.2a but tracks the incoming player's last turn, not the outgoing player's. For Night->Day (CR 730.2b), the incoming player's p2.spells_cast_this_turn would need to be >=2. Since p2 cast 0 spells on turn 2 (reset to 0 at turn 2 start), it stays 0, and Night->Day never fires on turn 4 start. Primary harness gap: zones.battlefield.p1 assertion uses obj.characteristics.name (stored value, always 'Brutal Cathar' on front face). calculate_characteristics() applies is_transformed to derive the back-face name dynamically, but does not write back to obj.characteristics. So after transform: is_transformed=true, obj.characteristics.name still='Brutal Cathar'. The assertion check reads the stored value and finds 'Brutal Cathar', not 'Moonrage Brute'. See disputes.",
@@ -43,7 +63,10 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "colorless": 2, "white": 1 },
+        "mana_pool": {
+          "colorless": 2,
+          "white": 1
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -63,15 +86,37 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Mountain", "is_commander": false, "owner": null, "tapped": false },
-          { "card": "Island", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Mountain",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          },
+          {
+            "card": "Island",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ]
       },
       "hand": {
         "p1": [
-          { "card": "Brutal Cathar", "is_commander": false, "owner": null },
-          { "card": "Lightning Bolt", "is_commander": false, "owner": null },
-          { "card": "Brainstorm", "is_commander": false, "owner": null }
+          {
+            "card": "Brutal Cathar",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Lightning Bolt",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Brainstorm",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -79,16 +124,48 @@
       "command_zone": {},
       "library": {
         "p1": [
-          { "card": "Forest", "is_commander": false, "owner": null },
-          { "card": "Forest", "is_commander": false, "owner": null },
-          { "card": "Forest", "is_commander": false, "owner": null },
-          { "card": "Forest", "is_commander": false, "owner": null },
-          { "card": "Forest", "is_commander": false, "owner": null }
+          {
+            "card": "Forest",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Forest",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Forest",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Forest",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Forest",
+            "is_commander": false,
+            "owner": null
+          }
         ],
         "p2": [
-          { "card": "Forest", "is_commander": false, "owner": null },
-          { "card": "Forest", "is_commander": false, "owner": null },
-          { "card": "Forest", "is_commander": false, "owner": null }
+          {
+            "card": "Forest",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Forest",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Forest",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "stack": []
@@ -105,7 +182,9 @@
           "description": "Initial state: Brutal Cathar in p1 hand, stack empty, not yet on battlefield",
           "assertions": {
             "zones.hand.p1.count": 3,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Starting position: Brutal Cathar not yet cast, day/night not yet established."
         },
@@ -115,7 +194,10 @@
           "action": "cast_spell",
           "card": "Brutal Cathar",
           "targets": [],
-          "mana_paid": { "colorless": 2, "white": 1 },
+          "mana_paid": {
+            "colorless": 2,
+            "white": 1
+          },
           "mana_source": [],
           "cr_ref": "601.2",
           "note": "CR 601.2: p1 casts Brutal Cathar {2}{W} from pre-loaded mana pool. ETB exile-until-leaves is a DSL gap and not wired; no ETB trigger fires."
@@ -131,7 +213,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both pass. Brutal Cathar resolves, enters battlefield, Day established (CR 702.145d)."
         },
@@ -156,9 +241,15 @@
           "type": "assert_state",
           "description": "Turn 1 after resolution: Brutal Cathar on p1 battlefield (front face, day_night=Day, is_transformed=false). Stack empty.",
           "assertions": {
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "zones.battlefield.p1": {
-              "includes": [{ "card": "Brutal Cathar" }]
+              "includes": [
+                {
+                  "card": "Brutal Cathar"
+                }
+              ]
             },
             "players.p1.life": 40,
             "players.p2.life": 40
@@ -173,7 +264,10 @@
       "actions": [
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "Turn 1 PreCombatMain: both pass — advance to BeginningOfCombat."
         }
@@ -185,19 +279,28 @@
       "actions": [
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "Turn 1 BeginningOfCombat: both pass — advance to DeclareAttackers."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "Turn 1 DeclareAttackers: no attackers. Both pass — CR 508.8 skip to EndOfCombat."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "Turn 1 EndOfCombat: both pass — advance to PostCombatMain."
         }
@@ -209,13 +312,19 @@
       "actions": [
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "Turn 1 PostCombatMain: both pass — advance to End step."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "Turn 1 End step: both pass — Cleanup auto-advances, turn advances to p2 (turn 2). reset_turn_state(p2): p2.spells_cast_this_turn=0 -> previous=0. Untap fires: previous=0 + Day -> Night (CR 730.2a). Brutal Cathar is_transformed becomes true. characteristics.name still 'Brutal Cathar' (see disputes)."
         }
@@ -230,7 +339,11 @@
           "description": "Turn 2 start: Brutal Cathar still appears by stored name (is_transformed=true, but obj.characteristics.name not updated). P2 at 40 life.",
           "assertions": {
             "zones.battlefield.p1": {
-              "includes": [{ "card": "Brutal Cathar" }]
+              "includes": [
+                {
+                  "card": "Brutal Cathar"
+                }
+              ]
             },
             "players.p2.life": 40
           },
@@ -238,19 +351,28 @@
         },
         {
           "type": "priority_round",
-          "players": ["p2", "p1"],
+          "players": [
+            "p2",
+            "p1"
+          ],
           "result": "all_pass",
           "note": "Turn 2 Upkeep: both pass — p2 auto-draws (Forest), priority in Draw step."
         },
         {
           "type": "priority_round",
-          "players": ["p2", "p1"],
+          "players": [
+            "p2",
+            "p1"
+          ],
           "result": "all_pass",
           "note": "Turn 2 Draw step (after p2 drew): both pass — advance to PreCombatMain."
         },
         {
           "type": "priority_round",
-          "players": ["p2", "p1"],
+          "players": [
+            "p2",
+            "p1"
+          ],
           "result": "all_pass",
           "note": "Turn 2 PreCombatMain: p2 casts nothing. Both pass — advance to BeginningOfCombat."
         }
@@ -262,19 +384,28 @@
       "actions": [
         {
           "type": "priority_round",
-          "players": ["p2", "p1"],
+          "players": [
+            "p2",
+            "p1"
+          ],
           "result": "all_pass",
           "note": "Turn 2 BeginningOfCombat: both pass — advance to DeclareAttackers."
         },
         {
           "type": "priority_round",
-          "players": ["p2", "p1"],
+          "players": [
+            "p2",
+            "p1"
+          ],
           "result": "all_pass",
           "note": "Turn 2 DeclareAttackers: no attackers. Both pass — skip to EndOfCombat."
         },
         {
           "type": "priority_round",
-          "players": ["p2", "p1"],
+          "players": [
+            "p2",
+            "p1"
+          ],
           "result": "all_pass",
           "note": "Turn 2 EndOfCombat: both pass — advance to PostCombatMain."
         }
@@ -286,13 +417,19 @@
       "actions": [
         {
           "type": "priority_round",
-          "players": ["p2", "p1"],
+          "players": [
+            "p2",
+            "p1"
+          ],
           "result": "all_pass",
           "note": "Turn 2 PostCombatMain: both pass — advance to End step."
         },
         {
           "type": "priority_round",
-          "players": ["p2", "p1"],
+          "players": [
+            "p2",
+            "p1"
+          ],
           "result": "all_pass",
           "note": "Turn 2 End step: both pass — Cleanup, turn advances to p1 (turn 3). reset_turn_state(p1): p1.spells=1 -> previous=1. Untap: previous=1, Night -> no change."
         }
@@ -304,13 +441,19 @@
       "actions": [
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "Turn 3 Upkeep: both pass — p1 auto-draws (Forest), priority in Draw step."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "Turn 3 Draw step (after p1 drew): both pass — advance to PreCombatMain."
         },
@@ -331,16 +474,26 @@
           "action": "cast_spell",
           "card": "Lightning Bolt",
           "targets": [
-            { "type": "player", "player": "p2", "card": null, "controller": null }
+            {
+              "type": "player",
+              "player": "p2",
+              "card": null,
+              "controller": null
+            }
           ],
-          "mana_paid": { "red": 1 },
+          "mana_paid": {
+            "red": 1
+          },
           "mana_source": [],
           "cr_ref": "601.2",
           "note": "CR 601.2: p1 casts Lightning Bolt ({R}) targeting p2. p1.spells_cast_this_turn=1."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "Both pass — Lightning Bolt resolves."
         },
@@ -350,7 +503,10 @@
           "resolution": [
             {
               "effect": "deal_damage",
-              "target": { "type": "player", "player": "p2" },
+              "target": {
+                "type": "player",
+                "player": "p2"
+              },
               "amount": 3,
               "card": null,
               "owner": null,
@@ -377,14 +533,19 @@
           "action": "cast_spell",
           "card": "Brainstorm",
           "targets": [],
-          "mana_paid": { "blue": 1 },
+          "mana_paid": {
+            "blue": 1
+          },
           "mana_source": [],
           "cr_ref": "601.2",
           "note": "CR 601.2: p1 casts Brainstorm ({U}). p1.spells_cast_this_turn=2."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "Both pass — Brainstorm resolves."
         },
@@ -411,15 +572,24 @@
           "assertions": {
             "players.p2.life": 37,
             "zones.battlefield.p1": {
-              "includes": [{ "card": "Brutal Cathar" }]
+              "includes": [
+                {
+                  "card": "Brutal Cathar"
+                }
+              ]
             },
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "p2 at 37. Brutal Cathar present by stored name (is_transformed=true; Night persists since previous=1 at turn 3 start). p1.spells_cast_this_turn=2 will be saved as previous at turn 4 start."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "Turn 3 PreCombatMain done: advance to BeginningOfCombat."
         }
@@ -431,19 +601,28 @@
       "actions": [
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "Turn 3 BeginningOfCombat: both pass — advance to DeclareAttackers."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "Turn 3 DeclareAttackers: no attackers. Both pass — skip to EndOfCombat."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "Turn 3 EndOfCombat: both pass — advance to PostCombatMain."
         }
@@ -455,13 +634,19 @@
       "actions": [
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "Turn 3 PostCombatMain: both pass — advance to End step."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "Turn 3 End step: both pass — Cleanup, turn advances to p2 (turn 4). reset_turn_state(p2): p2.spells=0 -> previous=0. Upkeep next."
         }
@@ -476,7 +661,11 @@
           "description": "Turn 4 start: Night persists (previous_turn_spells_cast=0 at turn 4 Untap). Brutal Cathar on battlefield (is_transformed=true, Moonrage Brute characteristics, but stored name is 'Brutal Cathar'). P2 at 37 life.",
           "assertions": {
             "zones.battlefield.p1": {
-              "includes": [{ "card": "Brutal Cathar" }]
+              "includes": [
+                {
+                  "card": "Brutal Cathar"
+                }
+              ]
             },
             "players.p2.life": 37
           },

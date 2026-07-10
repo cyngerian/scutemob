@@ -19,7 +19,7 @@
       "library-search"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Path to Exile oracle: 'Exile target creature. Its controller may search their library for a basic land card, put that card onto the battlefield tapped, then shuffle.' Cost {W}. After resolution: Llanowar Elves goes to exile zone, p2 may search library for basic land. If p2 searches, Plains enters battlefield tapped and library is shuffled. The 'may' means p2 can decline; in this script p2 chooses to search and finds a Forest. Initial: p1 has Path to Exile with {W} in pool; p2 has Llanowar Elves on battlefield and 1 Forest in library.",
@@ -148,7 +148,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "Both pass \u2014 Path to Exile resolves."
+          "note": "Both pass — Path to Exile resolves."
         },
         {
           "type": "stack_resolve",

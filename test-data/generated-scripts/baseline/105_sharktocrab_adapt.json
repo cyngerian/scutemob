@@ -4,15 +4,29 @@
     "id": "script_baseline_105",
     "name": "Sharktocrab Adapt 1 — counter placement and conditional no-op",
     "description": "Tests two key behaviors of the Adapt ability (CR 701.46a) using Sharktocrab. Phase 1: p1 controls Sharktocrab with no +1/+1 counters — p1 activates Adapt by paying {2}{G}{U} and tapping it. The Conditional effect checks SourceHasNoCountersOfType(PlusOnePlusOne), finds it true, and places 1 +1/+1 counter on Sharktocrab (it becomes a 5/5). Phase 2: p2 controls a Sharktocrab that was pre-placed in the initial state with 1 +1/+1 counter already on it. p1 passes priority to p2, then p2 activates Adapt. The Conditional finds the counter present (condition is false), resolves to Effect::Nothing, and no additional counter is placed. The creature remains a 5/5. This confirms that activation is always legal (per ruling 2019-01-25) but counter placement is gated at resolution time.",
-    "cr_sections_tested": ["602.2", "608.2", "701.46a", "121.1", "116.3"],
+    "cr_sections_tested": [
+      "602.2",
+      "608.2",
+      "701.46a",
+      "121.1",
+      "116.3"
+    ],
     "corner_case_ref": null,
-    "tags": ["adapt", "counter", "activated-ability", "conditional", "sharktocrab", "no-op"],
+    "tags": [
+      "adapt",
+      "counter",
+      "activated-ability",
+      "conditional",
+      "sharktocrab",
+      "no-op"
+    ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Sharktocrab card definition verified at crates/engine/src/cards/defs/sharktocrab.rs. Abilities: [Keyword(Adapt(1)), Activated { cost: Sequence([Mana({2}{G}{U}), Tap]), effect: Conditional { condition: SourceHasNoCountersOfType(PlusOnePlusOne), if_true: AddCounter { target: Source, count: 1 }, if_false: Nothing } }]. The Keyword entry is not a non-mana activated ability; the Activated entry is ability_index: 0. CR 701.46a: 'Adapt N means put N +1/+1 counters on this permanent unless it already has a +1/+1 counter on it.' Ruling 2019-01-25: activation is always legal; whether counters are placed is determined at resolution. Design: two separate Sharktocrab instances are used (one per player) to avoid object-identity ambiguity. p1 controls a fresh Sharktocrab (no counter, untapped) for Phase 1. p2 controls a pre-adapted Sharktocrab (1 counter pre-loaded via PermanentInitState.counters map, untapped) for Phase 2. Both are simultaneously on the battlefield. After Phase 1 resolves, the active player (p1) regains priority — p1 must pass priority before p2 can activate (CR 116.3). A priority_pass for p1 precedes p2's activation in Phase 2. Mana cost: {2}{G}{U} = colorless: 2, green: 1, blue: 1. Cost::Tap means the creature becomes tapped at activation time (CR 602.2c — costs paid before ability on stack). The 'owner' field is omitted from PermanentInitState (defaults to controller). Counter key format verified in parse_counter_type: 'plus_one_plus_one' maps to CounterType::PlusOnePlusOne. Unit tests: adapt.rs (test_adapt_basic_adds_counters, test_adapt_does_nothing_with_existing_counters) validate these behaviors exhaustively at the Rust level.",
-    "disputes": []
+    "disputes": [],
+    "retirement_reason": "SR-9c: Adapt's activated ability is left on the stack: the harness's stack_resolve does not resolve it, so 'stack empty' fails and no counter is placed. Unblocks when the scenario resolves the ability via priority passes."
   },
   "initial_state": {
     "format": "commander",
@@ -24,7 +38,11 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "colorless": 2, "green": 1, "blue": 1 },
+        "mana_pool": {
+          "colorless": 2,
+          "green": 1,
+          "blue": 1
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -33,7 +51,11 @@
       },
       "p2": {
         "life": 40,
-        "mana_pool": { "colorless": 2, "green": 1, "blue": 1 },
+        "mana_pool": {
+          "colorless": 2,
+          "green": 1,
+          "blue": 1
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -56,7 +78,9 @@
             "card": "Sharktocrab",
             "is_commander": false,
             "tapped": false,
-            "counters": { "plus_one_plus_one": 1 }
+            "counters": {
+              "plus_one_plus_one": 1
+            }
           }
         ]
       },
@@ -80,7 +104,9 @@
           "assertions": {
             "zones.battlefield.p1.count": 1,
             "zones.battlefield.p2.count": 1,
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "players.p1.life": 40,
             "players.p2.life": 40
           },
@@ -93,7 +119,11 @@
           "card": "Sharktocrab",
           "ability_index": 0,
           "targets": [],
-          "mana_paid": { "colorless": 2, "green": 1, "blue": 1 },
+          "mana_paid": {
+            "colorless": 2,
+            "green": 1,
+            "blue": 1
+          },
           "mana_source": [],
           "cr_ref": "602.2",
           "note": "CR 602.2: p1 activates p1's Sharktocrab's Adapt ability (ability_index 0 — the sole non-mana activated ability). Cost: {2}{G}{U} + tap. p1 pays {2}{G}{U} from pool and taps p1's Sharktocrab. Sharktocrab remains on the battlefield. The ability is placed on the stack."
@@ -110,7 +140,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — top of stack resolves."
         },
@@ -120,7 +153,11 @@
           "resolution": [
             {
               "effect": "add_counter",
-              "target": { "type": "permanent", "card": "Sharktocrab", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "card": "Sharktocrab",
+                "controller": "p1"
+              },
               "amount": 1,
               "card": null,
               "owner": null,
@@ -134,7 +171,9 @@
           "type": "assert_state",
           "description": "After Phase 1 resolution: stack empty; both Sharktocrab on battlefield; life totals unchanged",
           "assertions": {
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "zones.battlefield.p1.count": 1,
             "zones.battlefield.p2.count": 1,
             "players.p1.life": 40,
@@ -152,7 +191,9 @@
           "type": "assert_state",
           "description": "Before Phase 2: stack empty; p2's Sharktocrab untapped with 1 counter; p1 holds priority",
           "assertions": {
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "zones.battlefield.p1.count": 1,
             "zones.battlefield.p2.count": 1,
             "players.p1.life": 40,
@@ -172,7 +213,11 @@
           "card": "Sharktocrab",
           "ability_index": 0,
           "targets": [],
-          "mana_paid": { "colorless": 2, "green": 1, "blue": 1 },
+          "mana_paid": {
+            "colorless": 2,
+            "green": 1,
+            "blue": 1
+          },
           "mana_source": [],
           "cr_ref": "602.2",
           "note": "CR 602.2: p2 activates p2's Sharktocrab's Adapt ability. Per ruling 2019-01-25, activation is always legal regardless of counter state. p2 pays {2}{G}{U} and taps p2's Sharktocrab. The ability is placed on the stack."
@@ -189,7 +234,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — top of stack resolves."
         },
@@ -213,7 +261,9 @@
           "type": "assert_state",
           "description": "Final: stack empty; both Sharktocrab still on battlefield; life totals unchanged; no extra counter was placed on p2's Sharktocrab",
           "assertions": {
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "zones.battlefield.p1.count": 1,
             "zones.battlefield.p2.count": 1,
             "players.p1.life": 40,

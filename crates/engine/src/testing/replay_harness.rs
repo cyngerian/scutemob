@@ -1888,12 +1888,36 @@ pub fn translate_player_action(
                 method,
             })
         }
-        // CR 701.23a: Document a library search result in a script.
-        // The engine resolves SearchLibrary effects deterministically (minimum ObjectId
-        // matching the filter). This action is a documentation marker only — no Command
-        // is issued. When M10 adds interactive search (Command::SelectLibraryCard),
-        // this arm should issue that Command instead.
-        "search_library" => None,
+        // CR 701.28: Transform a double-faced permanent (Delver of Secrets, …).
+        // `Command::Transform` has existed since M8; this arm did not, so `transform`
+        // fell through to `_ => None` and every script using it silently no-op'd.
+        "transform" => Some(Command::Transform {
+            player,
+            permanent: find_on_battlefield(state, player, card_name?)?,
+        }),
+        // ── Informational actions ─────────────────────────────────────────────
+        //
+        // These name a game event the engine performs on its own; there is no
+        // `Command` to issue and none is missing. They are the script's prose, and
+        // `tests/scripts/run_all_scripts.rs` allowlists them by name
+        // (`ALLOWED_UNTRANSLATABLE_ACTIONS`) so that an action which is *not* on that
+        // list can never no-op in silence again.
+        //
+        // CR 701.23a: the engine resolves `SearchLibrary` deterministically (minimum
+        // `ObjectId` matching the filter). M10's interactive search will make this a
+        // real `Command::SelectLibraryCard`.
+        "search_library"
+        // CR 510.1a-d: combat damage is assigned and dealt by the engine when the
+        // combat damage step begins. A script records the assignment it expects; the
+        // assertions after it observe the damage the engine actually dealt.
+        | "assign_damage"
+        // CR 601.2b / 700.2: a choice the engine makes deterministically at resolution
+        // (which permanents to sacrifice to Annihilator, which mode to take). The
+        // script documents the choice; the assertions check the engine made it.
+        | "choose_option"
+        // CR 701.17a: sacrifice as a cost or effect happens inside the ability that
+        // demands it. There is no free-standing "sacrifice" command.
+        | "sacrifice" => None,
         // CR 701.54a: Manually trigger "the Ring tempts you" for the given player.
         // Used in scripts to test ring-temptation directly (without casting a spell).
         // Schema: { "action_type": "ring_tempts_you", "priority_player": "p1" }

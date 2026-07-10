@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "metadata": {
     "id": "script_stack_022",
-    "name": "Rhystic Study \u2014 trigger when opponent casts a spell without paying {1}",
+    "name": "Rhystic Study — trigger when opponent casts a spell without paying {1}",
     "description": "p1 controls Rhystic Study. p2 casts Llanowar Elves without paying the {1} for Rhystic Study. Rhystic Study's triggered ability fires and p1 draws a card. Tests the 'may pay {1}; if they don't' triggered draw mechanic.",
     "cr_sections_tested": [
       "603.2",
@@ -19,11 +19,12 @@
       "opponent-casts"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Rhystic Study oracle: 'Whenever an opponent casts a spell, you may draw a card unless that player pays {1}.' p2 casts Llanowar Elves ({G}) without paying the extra {1} for Rhystic Study. Rhystic Study's trigger fires; p1 draws 1. Note: the engine implements this as a triggered ability where the opposing player chooses whether to pay {1}. If they don't pay, p1 draws. The script models p2 choosing not to pay. Initial: p1 controls Rhystic Study on battlefield; p2 has Llanowar Elves in hand with {G} in pool; p1's library has 1 card.",
-    "disputes": []
+    "disputes": [],
+    "retirement_reason": "SR-9c: Rhystic Study's cast trigger is left on the stack and the following priority pass hits NotPriorityHolder because the script's APNAP sequence does not match the engine's after the trigger. Retire pending a trigger-resolving rewrite."
   },
   "initial_state": {
     "format": "commander",
@@ -141,7 +142,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "Both pass \u2014 Llanowar Elves resolves."
+          "note": "Both pass — Llanowar Elves resolves."
         },
         {
           "type": "stack_resolve",
@@ -186,7 +187,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "Both pass \u2014 Rhystic Study trigger resolves."
+          "note": "Both pass — Rhystic Study trigger resolves."
         },
         {
           "type": "stack_resolve",

@@ -20,11 +20,12 @@
       "destroy"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
-    "generation_notes": "Beast Within oracle: 'Destroy target permanent. Its controller creates a 3/3 green Beast creature token.' Cost {2}{G}. Targets any permanent \u2014 Sol Ring is an artifact permanent. After resolution: Sol Ring goes to p2's graveyard (indestructible check: Sol Ring has no indestructible), p2 gets a 3/3 Beast token. Beast Within goes to p1's graveyard. Initial: p1 has Beast Within with {2}{G} in pool; p2 has Sol Ring on battlefield (untapped).",
-    "disputes": []
+    "generation_notes": "Beast Within oracle: 'Destroy target permanent. Its controller creates a 3/3 green Beast creature token.' Cost {2}{G}. Targets any permanent — Sol Ring is an artifact permanent. After resolution: Sol Ring goes to p2's graveyard (indestructible check: Sol Ring has no indestructible), p2 gets a 3/3 Beast token. Beast Within goes to p1's graveyard. Initial: p1 has Beast Within with {2}{G} in pool; p2 has Sol Ring on battlefield (untapped).",
+    "disputes": [],
+    "retirement_reason": "SR-9c: Beast Within's 'destroy target permanent, its controller creates a 3/3 Beast' resolves with an unthreaded target (same ETB/effect empty-target DSL gap): Sol Ring survives and no Beast token is created. Unblocks when spell/effect targets are threaded to the token+destroy effect."
   },
   "initial_state": {
     "format": "commander",
@@ -143,7 +144,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "CR 116.3: Both pass \u2014 Beast Within resolves."
+          "note": "CR 116.3: Both pass — Beast Within resolves."
         },
         {
           "type": "stack_resolve",

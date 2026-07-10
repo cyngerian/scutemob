@@ -4,11 +4,28 @@
     "id": "script_combat_070",
     "name": "Undying — Young Wolf returns once (no +1/+1 counters), stays dead on second death (has +1/+1 counter)",
     "description": "P1 controls Young Wolf (1/1, Undying). P2 controls Bladetusk Boar (3/2, Intimidate) and Elvish Mystic (1/1). In the first combat, P2 attacks with Bladetusk Boar; P1 blocks with Young Wolf. Young Wolf (toughness 1) takes 3 damage — lethal — and dies. Bladetusk Boar (toughness 2) takes 1 damage — not lethal — survives. SBA 704.5g destroys Young Wolf. Undying triggers on Young Wolf (CR 702.93a): Young Wolf had no +1/+1 counters on it when it died, so it returns to the battlefield under P1's control with a +1/+1 counter on it (becoming 2/2). In the second combat (new turn), P2 attacks with Elvish Mystic; P1 blocks with the returned Young Wolf (now 2/2 with +1/+1 counter). Elvish Mystic (1/1) deals 1 damage to Young Wolf (toughness 2 — not lethal). Young Wolf (2/2) deals 2 damage to Elvish Mystic (toughness 1 — lethal). Elvish Mystic dies. Young Wolf survives. This script validates: undying trigger fires on first death, Young Wolf returns as 2/2, and undying suppression on second death due to +1/+1 counter. NOTE: Young Wolf CardDefinition is required for undying to fire; see disputes. Also, the second combat requires harness multi-turn support; see disputes.",
-    "cr_sections_tested": ["702.93a", "603.4", "400.7", "704.5g", "704.3", "510.1", "509.1", "508.1"],
+    "cr_sections_tested": [
+      "702.93a",
+      "603.4",
+      "400.7",
+      "704.5g",
+      "704.3",
+      "510.1",
+      "509.1",
+      "508.1"
+    ],
     "corner_case_ref": null,
-    "tags": ["combat", "undying", "triggered-ability", "counter", "intervening-if", "creature-dies", "sba"],
+    "tags": [
+      "combat",
+      "undying",
+      "triggered-ability",
+      "counter",
+      "intervening-if",
+      "creature-dies",
+      "sba"
+    ],
     "confidence": "medium",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Young Wolf oracle text (Scryfall verified via MCP lookup_card): 'Undying (When this creature dies, if it had no +1/+1 counters on it, return it to the battlefield under its owner's control with a +1/+1 counter on it.)' Type: Creature — Wolf. P/T: 1/1. Mana cost: {G}. Keywords: [Undying]. IMPORTANT: Young Wolf is NOT in the engine Available Cards list. This script requires a CardDefinition for Young Wolf before harness validation can pass. Without the CardDefinition, the engine treats Young Wolf as a vanilla creature — Undying never triggers and zone assertions about Young Wolf returning to the battlefield will fail. CR 702.93a: Undying is a triggered ability — 'When this permanent is put into a graveyard from the battlefield, if it had no +1/+1 counters on it, return it to the battlefield under its owner's control with a +1/+1 counter on it.' The 'if it had no +1/+1 counters on it' is an intervening-if clause (CR 603.4) — checked both when the trigger would trigger AND when the trigger resolves. First combat setup: P2's Bladetusk Boar has Intimidate (CR 702.13a: can only be blocked by artifact creatures and/or creatures that share a color with it). Young Wolf is green; Bladetusk Boar is red — they share no color. However, since P1 is the defending player and Young Wolf IS their creature, they CAN choose to block despite the evasion restriction IF the restriction is satisfied. Wait — Intimidate means the attacker can only be blocked by creatures that share a color with it OR are artifacts. Young Wolf is green, Bladetusk Boar is red — they share no color. Young Wolf is not an artifact. Therefore, Young Wolf CANNOT legally block Bladetusk Boar due to Intimidate. CORRECTION: Use Bog Raiders (2/2, Swampwalk) instead of Bladetusk Boar. P1 controls no Swamps so Swampwalk is irrelevant, and Bog Raiders has power 2 which is enough to kill Young Wolf (toughness 1). Bog Raiders is in the Available Cards list. First combat: Bog Raiders (power 2) deals 2 damage to Young Wolf (toughness 1) — lethal. Young Wolf (power 1) deals 1 damage to Bog Raiders (toughness 2) — not lethal. Young Wolf dies; Bog Raiders survives. Undying triggers on Young Wolf (had no +1/+1 counters). Young Wolf returns as 2/2 with +1/+1 counter. Second combat: P2 attacks with Elvish Mystic (1/1). P1 blocks with Young Wolf (now 2/2). Young Wolf (toughness 2) takes 1 damage — not lethal. Elvish Mystic (toughness 1) takes 2 damage — lethal. Elvish Mystic dies. Young Wolf survives. Undying suppression is documented in notes: if Young Wolf had died here, Undying would NOT trigger because Young Wolf now has a +1/+1 counter. CR 400.7: when Young Wolf returns from the graveyard to the battlefield via Undying, it becomes a new object. Pre-death counter capture: the engine captures pre_death_counters at the point of death (SBA or effect) — this is what Undying's intervening-if checks (last known information). Turn structure: combat 1 at turn 4 (P2 active). Second combat at turn 5 — harness multi-turn gap (see dispute). Priority round order: P2 is active player, so P2 passes first (CR 116.3).",
@@ -31,7 +48,8 @@
         "resolved_by": null,
         "resolved_date": null
       }
-    ]
+    ],
+    "retirement_reason": "SR-9c: No CardDefinition for Young Wolf; Undying never fires, and the scenario needs step advancement the harness cannot script (DeclareAttackers rejected outside its step). Unblocks when the card is authored."
   },
   "initial_state": {
     "format": "commander",
@@ -63,11 +81,26 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Young Wolf", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Young Wolf",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ],
         "p2": [
-          { "card": "Bog Raiders", "is_commander": false, "owner": null, "tapped": false },
-          { "card": "Elvish Mystic", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Bog Raiders",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          },
+          {
+            "card": "Elvish Mystic",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ]
       },
       "hand": {},
@@ -88,14 +121,31 @@
           "type": "assert_state",
           "description": "Initial: Young Wolf (1/1) on P1 battlefield (untapped); Bog Raiders (2/2) and Elvish Mystic (1/1) on P2 battlefield (untapped); life totals 40/40; stack empty",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Young Wolf" }] },
-            "zones.battlefield.p2": { "includes": [{ "card": "Bog Raiders" }, { "card": "Elvish Mystic" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Young Wolf"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Bog Raiders"
+                },
+                {
+                  "card": "Elvish Mystic"
+                }
+              ]
+            },
             "permanent.Young Wolf.tapped": false,
             "permanent.Bog Raiders.tapped": false,
             "permanent.Elvish Mystic.tapped": false,
             "players.p1.life": 40,
             "players.p2.life": 40,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Young Wolf (1/1, Undying) is untapped and free of summoning sickness (placed in initial state via builder). Bog Raiders (2/2, Swampwalk) is a legal attacker. P1 controls no Swamps, so Swampwalk does not restrict Young Wolf from blocking Bog Raiders."
         },
@@ -108,7 +158,11 @@
           "mana_paid": null,
           "mana_source": [],
           "attackers": [
-            { "card": "Bog Raiders", "target_player": "p1", "target_planeswalker": null }
+            {
+              "card": "Bog Raiders",
+              "target_player": "p1",
+              "target_planeswalker": null
+            }
           ],
           "blockers": [],
           "cr_ref": "508.1",
@@ -120,13 +174,18 @@
           "assertions": {
             "permanent.Bog Raiders.tapped": true,
             "permanent.Young Wolf.tapped": false,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 508.1f: Bog Raiders tapped upon attacking. No attack triggers (Bog Raiders has no triggered abilities). Stack is empty."
         },
         {
           "type": "priority_round",
-          "players": ["p2", "p1"],
+          "players": [
+            "p2",
+            "p1"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: P2 (active player) passes priority first, then P1 passes. Both pass with empty stack → advance to declare_blockers step."
         }
@@ -146,7 +205,10 @@
           "mana_source": [],
           "attackers": [],
           "blockers": [
-            { "card": "Young Wolf", "blocking": "Bog Raiders" }
+            {
+              "card": "Young Wolf",
+              "blocking": "Bog Raiders"
+            }
           ],
           "cr_ref": "509.1",
           "note": "CR 509.1: P1 (defending player) declares Young Wolf as a blocker for Bog Raiders. CR 509.1a: Young Wolf is untapped — legal blocker. P1 controls no Swamps so Swampwalk does not apply (CR 702.14a). CR 509.1g: Young Wolf becomes a blocking creature blocking Bog Raiders. CR 509.1h: Bog Raiders has exactly one creature declared as blocker — it becomes a blocked creature. Blockers do not tap upon blocking declaration."
@@ -155,16 +217,33 @@
           "type": "assert_state",
           "description": "After declare_blockers: Young Wolf is not tapped, Bog Raiders is blocked, stack empty",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Young Wolf" }] },
-            "zones.battlefield.p2": { "includes": [{ "card": "Bog Raiders" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Young Wolf"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Bog Raiders"
+                }
+              ]
+            },
             "permanent.Young Wolf.tapped": false,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Young Wolf remains untapped after blocking declaration. Bog Raiders is now a blocked creature. Stack is empty (no triggers from blocking)."
         },
         {
           "type": "priority_round",
-          "players": ["p2", "p1"],
+          "players": [
+            "p2",
+            "p1"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: P2 (active player) passes priority first, then P1. Both pass with empty stack in declare_blockers step → advance to combat damage step. Engine executes combat damage as a turn-based action: Bog Raiders (power 2) deals 2 damage to Young Wolf (toughness 1 — lethal); Young Wolf (power 1) deals 1 damage to Bog Raiders (toughness 2 — not lethal). Damage is simultaneous (CR 510.2). SBA 704.5g will destroy Young Wolf only; Bog Raiders survives."
         }
@@ -192,9 +271,27 @@
           "type": "assert_state",
           "description": "After SBAs: Young Wolf in graveyard; Bog Raiders still on P2 battlefield (1 damage marked, not lethal); P1 life still 40 (blocked attacker deals no player damage); Undying trigger on stack pending CardDefinition",
           "assertions": {
-            "zones.graveyard.p1": { "includes": [{ "card": "Young Wolf" }] },
-            "zones.battlefield.p1": { "excludes": [{ "card": "Young Wolf" }] },
-            "zones.battlefield.p2": { "includes": [{ "card": "Bog Raiders" }] },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Young Wolf"
+                }
+              ]
+            },
+            "zones.battlefield.p1": {
+              "excludes": [
+                {
+                  "card": "Young Wolf"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Bog Raiders"
+                }
+              ]
+            },
             "players.p1.life": 40,
             "players.p2.life": 40
           },
@@ -202,7 +299,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p2", "p1"],
+          "players": [
+            "p2",
+            "p1"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: P2 (active player) passes first, then P1. Once Young Wolf CardDefinition exists: Undying trigger resolves, returning Young Wolf to the battlefield with a +1/+1 counter (now 2/2). Without CardDefinition: stack is empty, no triggers fire."
         },
@@ -212,7 +312,12 @@
           "resolution": [
             {
               "effect": "return_to_battlefield",
-              "target": { "type": "permanent", "player": "p1", "card": "Young Wolf", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "player": "p1",
+                "card": "Young Wolf",
+                "controller": "p1"
+              },
               "amount": null,
               "card": "Young Wolf",
               "owner": "p1",
@@ -226,9 +331,23 @@
           "type": "assert_state",
           "description": "After Undying resolves (requires CardDefinition): Young Wolf back on P1 battlefield as 2/2 with +1/+1 counter; graveyard no longer contains Young Wolf; stack empty",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Young Wolf" }] },
-            "zones.graveyard.p1": { "excludes": [{ "card": "Young Wolf" }] },
-            "zones.stack": { "is_empty": true }
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Young Wolf"
+                }
+              ]
+            },
+            "zones.graveyard.p1": {
+              "excludes": [
+                {
+                  "card": "Young Wolf"
+                }
+              ]
+            },
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 702.93a: Young Wolf returned to battlefield with +1/+1 counter (effective P/T: 2/2). CR 400.7: new object. These assertions will only pass once the Young Wolf CardDefinition is authored with Undying."
         }
@@ -247,7 +366,11 @@
           "mana_paid": null,
           "mana_source": [],
           "attackers": [
-            { "card": "Elvish Mystic", "target_player": "p1", "target_planeswalker": null }
+            {
+              "card": "Elvish Mystic",
+              "target_player": "p1",
+              "target_planeswalker": null
+            }
           ],
           "blockers": [],
           "cr_ref": "508.1",
@@ -259,13 +382,18 @@
           "assertions": {
             "permanent.Elvish Mystic.tapped": true,
             "permanent.Young Wolf.tapped": false,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 508.1f: Elvish Mystic tapped upon attacking. No attack triggers. Stack is empty."
         },
         {
           "type": "priority_round",
-          "players": ["p2", "p1"],
+          "players": [
+            "p2",
+            "p1"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: P2 (active player) passes first, then P1. Both pass → advance to declare_blockers step."
         }
@@ -285,14 +413,20 @@
           "mana_source": [],
           "attackers": [],
           "blockers": [
-            { "card": "Young Wolf", "blocking": "Elvish Mystic" }
+            {
+              "card": "Young Wolf",
+              "blocking": "Elvish Mystic"
+            }
           ],
           "cr_ref": "509.1",
           "note": "CR 509.1: P1 declares Young Wolf (now 2/2 with +1/+1 counter) as a blocker for Elvish Mystic. CR 509.1a: Young Wolf is untapped — legal blocker. CR 509.1g: Young Wolf becomes a blocking creature. CR 509.1h: Elvish Mystic becomes a blocked creature."
         },
         {
           "type": "priority_round",
-          "players": ["p2", "p1"],
+          "players": [
+            "p2",
+            "p1"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: P2 (active player) passes first, then P1. Both pass → advance to combat damage step. Engine executes combat damage: Elvish Mystic (power 1) deals 1 damage to Young Wolf (effective toughness 2 after +1/+1 counter — not lethal); Young Wolf (effective power 2 after +1/+1 counter) deals 2 damage to Elvish Mystic (toughness 1 — lethal). Simultaneous (CR 510.2). Only Elvish Mystic dies."
         }
@@ -318,7 +452,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p2", "p1"],
+          "players": [
+            "p2",
+            "p1"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: P2 (active player) passes first, then P1. Both pass after combat damage and SBAs. No triggers on the stack (Elvish Mystic has no death triggers; Young Wolf survived). Stack is empty."
         },
@@ -326,13 +463,39 @@
           "type": "assert_state",
           "description": "Final state: Young Wolf on P1 battlefield as 2/2 with +1/+1 counter (survived combat with 1 damage marked); Elvish Mystic in P2 graveyard; Bog Raiders still on P2 battlefield; P1 at 40 life; P2 at 40 life; stack empty",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Young Wolf" }] },
-            "zones.graveyard.p1": { "excludes": [{ "card": "Young Wolf" }] },
-            "zones.graveyard.p2": { "includes": [{ "card": "Elvish Mystic" }] },
-            "zones.battlefield.p2": { "excludes": [{ "card": "Elvish Mystic" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Young Wolf"
+                }
+              ]
+            },
+            "zones.graveyard.p1": {
+              "excludes": [
+                {
+                  "card": "Young Wolf"
+                }
+              ]
+            },
+            "zones.graveyard.p2": {
+              "includes": [
+                {
+                  "card": "Elvish Mystic"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "excludes": [
+                {
+                  "card": "Elvish Mystic"
+                }
+              ]
+            },
             "players.p1.life": 40,
             "players.p2.life": 40,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Young Wolf (2/2 with +1/+1 counter, returned via Undying in first combat) survived the second combat — toughness 2 absorbed 1 damage from Elvish Mystic without dying. Elvish Mystic was destroyed (2 damage >= toughness 1). CR 702.93a: Young Wolf's Undying would NOT trigger on any future death because it now has a +1/+1 counter — the intervening-if clause fails (CR 603.4). P1 life is 40 (no unblocked attacker reached P1 in either combat). P2 life is 40 (no player damage was dealt). Assertions for zones.battlefield.p1 includes Young Wolf and zones.graveyard.p1 excludes Young Wolf depend on Young Wolf CardDefinition resolving the Undying trigger in the first combat — without it Young Wolf remains in the graveyard and these assertions fail."
         }

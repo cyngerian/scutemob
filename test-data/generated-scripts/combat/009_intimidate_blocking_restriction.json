@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "metadata": {
     "id": "script_combat_009",
-    "name": "Intimidate \u2014 artifact creature successfully blocks (positive case)",
+    "name": "Intimidate — artifact creature successfully blocks (positive case)",
     "description": "p1 controls Bladetusk Boar (3/2, red, Intimidate). p2 controls Memnite (1/1, colorless Artifact Creature). Bladetusk Boar attacks; Memnite legally blocks despite intimidate because CR 702.13b explicitly permits artifact creatures to block creatures with intimidate regardless of color. Combat damage resolves: Boar deals 3 damage to Memnite (lethal), Memnite deals 1 damage to Boar (non-lethal, toughness 2). Memnite is destroyed by SBA (CR 704.5g). Bladetusk Boar survives with 1 damage marked. Tests the artifact-creature exception to the intimidate blocking restriction. Note: combat steps are documentary (turn_based_action) — the harness does not execute combat; zone-change assertions are documented in sba_check notes.",
     "cr_sections_tested": [
       "702.13b",
@@ -21,7 +21,7 @@
       "evasion"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "CR 702.13b: A creature with intimidate can't be blocked except by artifact creatures and/or creatures that share a color with it. Memnite is a colorless artifact creature (Artifact Creature — Construct, {0}, 1/1, no color identity) and therefore falls into the explicit artifact-creature exception. The block is legal under CR 509.1b (no restriction violated). Combat damage: CR 510.1c — Boar (3 power) assigns all 3 damage to Memnite (its sole blocker); CR 510.1d — Memnite (1 power) assigns all 1 damage to Boar. Boar has toughness 2, so 1 damage is non-lethal. Memnite has toughness 1, so 3 damage is lethal. CR 704.5g: Memnite has damage >= toughness and is destroyed. Boar remains on battlefield with 1 damage marked (cleared at end of turn per CR 510.5). Bladetusk Boar card definition: {3}{R}, Creature — Boar, 3/2, red, keyword Intimidate. Memnite card definition: {0}, Artifact Creature — Construct, 1/1, colorless, no abilities. Harness validation: final assert scoped to life totals only (verifiable state) — combat turn_based_action steps are documentary; zone changes from combat damage are not executed by the harness (consistent with scripts 004-008). Dispute filed at step 0 action 4 (sba_check) noting that Memnite destruction cannot be harness-asserted.",
@@ -143,7 +143,10 @@
           "actions": [
             {
               "action": "creature_dies",
-              "target": { "card": "Memnite", "controller": "p2" },
+              "target": {
+                "card": "Memnite",
+                "controller": "p2"
+              },
               "cr_ref": "704.5g",
               "note": "CR 704.5g: Memnite has toughness 1 and 3 damage marked (>= toughness). Lethal damage — Memnite is destroyed and goes to p2's graveyard."
             }

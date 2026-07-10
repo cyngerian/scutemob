@@ -27,7 +27,7 @@
       "instant"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Torch the Tower (crates/engine/src/cards/defs/torch_the_tower.rs): mana_cost {R}, Instant, Bargain. Card definition uses AbilityDefinition::Keyword(KeywordAbility::Bargain) and AbilityDefinition::Spell { effect: Effect::Conditional { condition: Condition::WasBargained, if_true: DealDamage(Fixed(3)), if_false: DealDamage(Fixed(2)) }, targets: [TargetRequirement::TargetPermanent], ... }. Note: the oracle text also says 'the controller can't gain life this turn' when bargained, but that half is not yet implemented in the card def (CantGainLife effect variant missing) — only the 3-damage branch is tested here.\n\nBargain (CR 702.166a): optional additional cost — sacrifice an artifact, enchantment, or token as you cast the spell. This is an additional cost (CR 118.8), not an alternative cost, so the normal mana cost {R} is still paid. The engine validates the sacrificed object at casting.rs:1394-1408: checks is_artifact (CardType::Artifact in card_types), is_enchantment (CardType::Enchantment), or is_token (obj.is_token). AltCostKind is NOT used for Bargain — bargain_sacrifice is a separate Option<ObjectId> field on Command::CastSpell.\n\nWhy Sol Ring as the bargain sacrifice: Tokens placed in the initial_state battlefield via the harness are built with make_spec() + enrich_spec_from_def(). Since 'Treasure' has no CardDefinition in the registry, enrich_spec_from_def is a no-op and the resulting object has empty card_types and is_token=false. The engine's bargain validation would therefore reject it. Sol Ring IS a registered CardDefinition (CardType::Artifact), so enrich_spec_from_def correctly populates card_types=[Artifact] and the bargain validation passes. Sol Ring is a legal bargain sacrifice (artifact).\n\nHarness support: 'cast_spell_bargain' action type is implemented in replay_harness.rs translate_player_action(). The field 'bargain_sacrifice' in the JSON PlayerAction is deserialized as Option<String> (script_schema.rs:285) and resolved via find_on_battlefield(state, player, name) which matches obj.characteristics.name == name.\n\nScenario 1 target: Scroll Thief (1/3). 2 damage < 3 toughness — not lethal. No SBA needed.\nScenario 2 target: Bog Raiders (2/2). 3 damage >= 2 toughness — lethal, SBA 704.5g destroys it.\n\nMana: p1 starts with {red: 2} for both {R} casts.",
@@ -43,7 +43,9 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "red": 2 },
+        "mana_pool": {
+          "red": 2
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -63,17 +65,40 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Sol Ring", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Sol Ring",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ],
         "p2": [
-          { "card": "Scroll Thief", "is_commander": false, "owner": null, "tapped": false },
-          { "card": "Bog Raiders", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Scroll Thief",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          },
+          {
+            "card": "Bog Raiders",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ]
       },
       "hand": {
         "p1": [
-          { "card": "Torch the Tower", "is_commander": false, "owner": null },
-          { "card": "Torch the Tower", "is_commander": false, "owner": null }
+          {
+            "card": "Torch the Tower",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Torch the Tower",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -98,7 +123,9 @@
             "zones.battlefield.p2.count": 2,
             "players.p1.life": 40,
             "players.p2.life": 40,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "p1 has {R}{R} in pool. Sol Ring (artifact) is on p1's battlefield — will be used as bargain sacrifice in scenario 2. Scroll Thief (1/3) and Bog Raiders (2/2) are on p2's battlefield."
         },
@@ -108,9 +135,16 @@
           "action": "cast_spell",
           "card": "Torch the Tower",
           "targets": [
-            { "type": "permanent", "card": "Scroll Thief", "controller": "p2", "player": null }
+            {
+              "type": "permanent",
+              "card": "Scroll Thief",
+              "controller": "p2",
+              "player": null
+            }
           ],
-          "mana_paid": { "red": 1 },
+          "mana_paid": {
+            "red": 1
+          },
           "mana_source": [],
           "cr_ref": "601.2",
           "note": "CR 601.2: p1 casts Torch the Tower ({R}) without paying the bargain cost. No sacrifice is made. bargain_sacrifice is absent (None) — Condition::WasBargained will be false at resolution. Target is Scroll Thief controlled by p2."
@@ -121,13 +155,22 @@
           "assertions": {
             "zones.stack.count": 1,
             "zones.hand.p1.count": 1,
-            "zones.battlefield.p1": { "includes": [{ "card": "Sol Ring" }] }
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Sol Ring"
+                }
+              ]
+            }
           },
           "note": "No sacrifice was made — Sol Ring is still on p1's battlefield. The spell is on the stack with was_bargained=false."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — top of stack (Torch the Tower) resolves."
         },
@@ -137,7 +180,11 @@
           "resolution": [
             {
               "effect": "deal_damage",
-              "target": { "type": "permanent", "card": "Scroll Thief", "controller": "p2" },
+              "target": {
+                "type": "permanent",
+                "card": "Scroll Thief",
+                "controller": "p2"
+              },
               "amount": 2,
               "card": null,
               "owner": null,
@@ -151,10 +198,30 @@
           "type": "assert_state",
           "description": "After unbargained resolution: Scroll Thief still alive (2 damage < 3 toughness); no SBA; Torch the Tower in p1 graveyard; Sol Ring still on p1 battlefield",
           "assertions": {
-            "zones.stack": { "is_empty": true },
-            "zones.graveyard.p1": { "includes": [{ "card": "Torch the Tower" }] },
-            "zones.battlefield.p2": { "includes": [{ "card": "Scroll Thief" }] },
-            "zones.battlefield.p1": { "includes": [{ "card": "Sol Ring" }] },
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Torch the Tower"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Scroll Thief"
+                }
+              ]
+            },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Sol Ring"
+                }
+              ]
+            },
             "players.p1.life": 40,
             "players.p2.life": 40
           },
@@ -171,8 +238,20 @@
           "description": "Before bargained cast: p1 has 1 Torch the Tower in hand and Sol Ring on battlefield; Bog Raiders on p2 battlefield",
           "assertions": {
             "zones.hand.p1.count": 1,
-            "zones.battlefield.p1": { "includes": [{ "card": "Sol Ring" }] },
-            "zones.battlefield.p2": { "includes": [{ "card": "Bog Raiders" }] }
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Sol Ring"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Bog Raiders"
+                }
+              ]
+            }
           },
           "note": "p1 still has {R} in pool. Sol Ring (artifact) is on battlefield, available to sacrifice as the bargain cost."
         },
@@ -183,9 +262,16 @@
           "card": "Torch the Tower",
           "bargain_sacrifice": "Sol Ring",
           "targets": [
-            { "type": "permanent", "card": "Bog Raiders", "controller": "p2", "player": null }
+            {
+              "type": "permanent",
+              "card": "Bog Raiders",
+              "controller": "p2",
+              "player": null
+            }
           ],
-          "mana_paid": { "red": 1 },
+          "mana_paid": {
+            "red": 1
+          },
           "mana_source": [],
           "cr_ref": "702.166a",
           "note": "CR 702.166a: p1 pays the bargain cost by sacrificing Sol Ring (an artifact — satisfies CR 702.166a 'artifact, enchantment, or token') in addition to paying the normal mana cost {R}. CR 118.8: Bargain is an additional cost; the normal mana cost is still paid. Sol Ring is sacrificed at cast time. The stack object is created with was_bargained=true."
@@ -202,7 +288,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — top of stack (Torch the Tower) resolves."
         },
@@ -212,7 +301,11 @@
           "resolution": [
             {
               "effect": "deal_damage",
-              "target": { "type": "permanent", "card": "Bog Raiders", "controller": "p2" },
+              "target": {
+                "type": "permanent",
+                "card": "Bog Raiders",
+                "controller": "p2"
+              },
               "amount": 3,
               "card": null,
               "owner": null,
@@ -227,7 +320,10 @@
           "actions": [
             {
               "action": "creature_dies",
-              "target": { "card": "Bog Raiders", "controller": "p2" },
+              "target": {
+                "card": "Bog Raiders",
+                "controller": "p2"
+              },
               "cr_ref": "704.5g",
               "note": "CR 704.5g: Bog Raiders (2/2) has 3 damage marked on it, which is >= its toughness of 2. SBA destroys it and moves it to p2's graveyard."
             }
@@ -238,11 +334,31 @@
           "type": "assert_state",
           "description": "Final: Bog Raiders dead (in p2 graveyard); both Torch the Towers in p1 graveyard; Scroll Thief still alive on p2 battlefield; both players at 40 life",
           "assertions": {
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "zones.hand.p1.count": 0,
-            "zones.graveyard.p1": { "includes": [{ "card": "Torch the Tower" }] },
-            "zones.graveyard.p2": { "includes": [{ "card": "Bog Raiders" }] },
-            "zones.battlefield.p2": { "includes": [{ "card": "Scroll Thief" }] },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Torch the Tower"
+                }
+              ]
+            },
+            "zones.graveyard.p2": {
+              "includes": [
+                {
+                  "card": "Bog Raiders"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Scroll Thief"
+                }
+              ]
+            },
             "zones.battlefield.p2.count": 1,
             "players.p1.life": 40,
             "players.p2.life": 40

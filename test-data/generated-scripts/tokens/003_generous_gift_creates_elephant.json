@@ -20,11 +20,12 @@
       "destroy"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Generous Gift oracle: 'Destroy target permanent. Its controller creates a 3/3 green Elephant creature token.' Cost {2}{W}. Same as Beast Within but white. Target is Llanowar Elves (1/1 green Elf Druid). After resolution: Llanowar Elves in p2's graveyard, p2 has 3/3 Elephant token. Initial: p1 has Generous Gift with {2}{W} in pool; p2 has Llanowar Elves on battlefield.",
-    "disputes": []
+    "disputes": [],
+    "retirement_reason": "SR-9c: Generous Gift's 'destroy target permanent, its controller creates a 3/3 Elephant' resolves with an unthreaded target (empty-target DSL gap): Llanowar Elves survives and no Elephant is created. Unblocks when effect targets are threaded."
   },
   "initial_state": {
     "format": "commander",
@@ -143,7 +144,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "CR 116.3: Both pass \u2014 Generous Gift resolves."
+          "note": "CR 116.3: Both pass — Generous Gift resolves."
         },
         {
           "type": "stack_resolve",

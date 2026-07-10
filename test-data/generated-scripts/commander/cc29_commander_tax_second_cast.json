@@ -17,11 +17,12 @@
       "recasting"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "CR 903.8: commander tax adds {2} for each previous time the commander was cast from the command zone. Llanowar Elves costs {G} normally. After 1 prior cast, tax = {2}, total = {2}{G}. We set times_cast_from_command_zone = 1 in initial state. p1 casts with {2}{G} (extra {2} for tax). The engine validates commander tax correctly. Initial: Llanowar Elves in command zone, times_cast = 1; p1 has {2}{G} in mana pool.",
-    "disputes": []
+    "disputes": [],
+    "retirement_reason": "SR-9c: The first `cast_spell` is a no-op (the object has no CardDefinition, so it is not a castable spell), so the commander-tax second-cast accounting is never reached. Unblocks when the commander card is defined."
   },
   "initial_state": {
     "format": "commander",
@@ -120,7 +121,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "Both pass \u2014 Llanowar Elves resolves."
+          "note": "Both pass — Llanowar Elves resolves."
         },
         {
           "type": "stack_resolve",

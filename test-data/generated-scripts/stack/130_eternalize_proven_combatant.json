@@ -4,11 +4,28 @@
     "id": "script_stack_130",
     "name": "Eternalize Proven Combatant — exile from graveyard, create 4/4 Zombie token",
     "description": "p1 has Proven Combatant in the graveyard with {4}{U}{U} mana available. p1 activates eternalize on Proven Combatant (paying {4}{U}{U} and exiling the card as cost per CR 702.129a). The card is immediately exiled as part of paying the activation cost — before the ability is placed on the stack (CR 602.2c). After both players pass priority, the eternalize ability resolves, creating a 4/4 black Zombie Human Warrior token with no mana cost on p1's battlefield. The original Proven Combatant remains in exile.",
-    "cr_sections_tested": ["702.129", "702.129a", "602.2", "602.2c", "608.2", "111.1", "111.5", "116.3"],
+    "cr_sections_tested": [
+      "702.129",
+      "702.129a",
+      "602.2",
+      "602.2c",
+      "608.2",
+      "111.1",
+      "111.5",
+      "116.3"
+    ],
     "corner_case_ref": null,
-    "tags": ["eternalize", "graveyard", "token", "zombie", "warrior", "exile-as-cost", "black-token"],
+    "tags": [
+      "eternalize",
+      "graveyard",
+      "token",
+      "zombie",
+      "warrior",
+      "exile-as-cost",
+      "black-token"
+    ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Proven Combatant oracle text confirmed via MCP lookup: {U}, Creature — Human Warrior 1/1, Eternalize {4}{U}{U}. CR 702.129a: 'Eternalize [cost]' means '[Cost], Exile this card from your graveyard: Create a token that's a copy of this card, except it's black, it's 4/4, it has no mana cost, and it's a Zombie in addition to its other types. Activate only as a sorcery.' The eternalize cost includes both the mana cost ({4}{U}{U}) AND exiling the card from the graveyard. CR 602.2c: The exile is paid as an activation cost — the card is immediately exiled before the ability is placed on the stack. This is confirmed by the 2017-07-14 Scryfall ruling: 'Once you've activated an eternalize ability, the card is immediately exiled. Opponents can't try to stop the ability by exiling the card with an effect such as that of Crook of Condemnation.' The resulting token is a 4/4 black Zombie Human Warrior with no mana cost. Compared to embalm: eternalize always makes a 4/4 black token regardless of the original card's power/toughness, and the color is changed to black (not white). The original was blue (1/1); the token is black 4/4. CR 111.1 + 111.5: Tokens are created on the battlefield. The token copies the original except: (a) it's black instead of any other colors, (b) it's 4/4, (c) it has no mana cost, (d) it's a Zombie in addition to its other types (so Zombie Human Warrior). p1 mana pool: {colorless: 4, blue: 2} to pay the {4}{U}{U} cost. 'Activate only as a sorcery' is satisfied: precombat main phase, active player p1, empty stack. Action type 'eternalize_card' as specified by the caller.",
@@ -24,7 +41,10 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "colorless": 4, "blue": 2 },
+        "mana_pool": {
+          "colorless": 4,
+          "blue": 2
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -46,7 +66,11 @@
       "hand": {},
       "graveyard": {
         "p1": [
-          { "card": "Proven Combatant", "is_commander": false, "owner": null }
+          {
+            "card": "Proven Combatant",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "exile": [],
@@ -65,10 +89,26 @@
           "type": "assert_state",
           "description": "Initial: Proven Combatant in p1 graveyard, battlefield empty, stack empty, p1 has {4}{U}{U} in pool",
           "assertions": {
-            "zones.graveyard.p1": { "includes": [{ "card": "Proven Combatant" }] },
-            "zones.battlefield.p1": { "excludes": [{ "card": "Proven Combatant" }] },
-            "zones.exile": { "is_empty": true },
-            "zones.stack": { "is_empty": true }
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Proven Combatant"
+                }
+              ]
+            },
+            "zones.battlefield.p1": {
+              "excludes": [
+                {
+                  "card": "Proven Combatant"
+                }
+              ]
+            },
+            "zones.exile": {
+              "is_empty": true
+            },
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Proven Combatant is in the graveyard awaiting eternalize activation. p1 has {4}{U}{U} in pool to pay the eternalize cost."
         },
@@ -78,7 +118,10 @@
           "action": "eternalize_card",
           "card": "Proven Combatant",
           "targets": [],
-          "mana_paid": { "colorless": 4, "blue": 2 },
+          "mana_paid": {
+            "colorless": 4,
+            "blue": 2
+          },
           "mana_source": [],
           "cr_ref": "702.129a",
           "note": "CR 702.129a: p1 activates Eternalize {4}{U}{U} on Proven Combatant in the graveyard. Cost includes {4}{U}{U} mana and exiling Proven Combatant from the graveyard. CR 602.2c: The exile cost is paid at activation time — Proven Combatant immediately moves to exile before the ability is placed on the stack. 'Activate only as a sorcery' is legal: precombat main phase, active player, empty stack."
@@ -88,14 +131,29 @@
           "description": "After eternalize activation: Proven Combatant is in exile (cost paid), eternalize ability on stack (count 1), graveyard empty",
           "assertions": {
             "zones.stack.count": 1,
-            "zones.exile": { "includes": [{ "card": "Proven Combatant" }] },
-            "zones.graveyard.p1": { "excludes": [{ "card": "Proven Combatant" }] }
+            "zones.exile": {
+              "includes": [
+                {
+                  "card": "Proven Combatant"
+                }
+              ]
+            },
+            "zones.graveyard.p1": {
+              "excludes": [
+                {
+                  "card": "Proven Combatant"
+                }
+              ]
+            }
           },
           "note": "CR 602.2c: Proven Combatant was exiled as part of paying the activation cost — it is already in exile, not the graveyard. The eternalize activated ability is on the stack. Per the 2017-07-14 ruling: opponents cannot exile the card to stop the ability because it is already exiled."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority in succession — eternalize ability resolves from top of stack."
         },
@@ -105,7 +163,10 @@
           "resolution": [
             {
               "effect": "create_token",
-              "target": { "type": "player", "player": "p1" },
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
               "amount": 1,
               "card": "Proven Combatant",
               "owner": "p1",
@@ -119,12 +180,31 @@
           "type": "assert_state",
           "description": "Final: Proven Combatant token on p1 battlefield (is_token=true, 4/4 black Zombie Human Warrior), original in exile, stack empty",
           "assertions": {
-            "zones.stack": { "is_empty": true },
-            "zones.battlefield.p1": {
-              "includes": [{ "card": "Proven Combatant", "is_token": true }]
+            "zones.stack": {
+              "is_empty": true
             },
-            "zones.exile": { "includes": [{ "card": "Proven Combatant" }] },
-            "zones.graveyard.p1": { "excludes": [{ "card": "Proven Combatant" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Proven Combatant",
+                  "is_token": true
+                }
+              ]
+            },
+            "zones.exile": {
+              "includes": [
+                {
+                  "card": "Proven Combatant"
+                }
+              ]
+            },
+            "zones.graveyard.p1": {
+              "excludes": [
+                {
+                  "card": "Proven Combatant"
+                }
+              ]
+            },
             "players.p1.life": 40,
             "players.p2.life": 40
           },

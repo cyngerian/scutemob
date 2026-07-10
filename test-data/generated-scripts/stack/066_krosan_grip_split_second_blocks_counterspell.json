@@ -4,11 +4,25 @@
     "id": "script_stack_066",
     "name": "Krosan Grip — split second blocks counterspell, allows mana ability",
     "description": "P2 casts Krosan Grip (split second) targeting P1's Sol Ring. While Krosan Grip is on the stack, P1 activates Sol Ring's mana ability (allowed — mana abilities are exempt per CR 702.61b). P1 cannot cast Counterspell (blocked by split second per CR 702.61a — the Counterspell stays in hand throughout). After both players pass priority, Krosan Grip resolves and Sol Ring is destroyed. Tests the core split second interaction: mana abilities are permitted, all other spell/ability responses are locked out.",
-    "cr_sections_tested": ["601.2", "608.2", "605.3", "701.7a", "702.61a", "702.61b"],
+    "cr_sections_tested": [
+      "601.2",
+      "608.2",
+      "605.3",
+      "701.7a",
+      "702.61a",
+      "702.61b"
+    ],
     "corner_case_ref": null,
-    "tags": ["split-second", "stack", "instant", "mana-ability", "krosan-grip", "sol-ring"],
+    "tags": [
+      "split-second",
+      "stack",
+      "instant",
+      "mana-ability",
+      "krosan-grip",
+      "sol-ring"
+    ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Krosan Grip: {2G}, Instant, split second, destroy target permanent (engine approximates 'artifact or enchantment' as TargetPermanent). Sol Ring: {1}, Artifact, {T}: Add {C}{C} — a mana ability (CR 605.3), exempt from split second restriction (CR 702.61b). Counterspell stays in P1's hand because split second (CR 702.61a) blocks all non-mana spell casts and non-mana ability activations. The 'P1 cannot cast Counterspell' rule is documented via assert_state confirming Counterspell remains in hand and stack count stays at 1. P1 taps Sol Ring for 2 colorless mana before Grip resolves — this is legal under CR 702.61b. Sol Ring is then destroyed by Krosan Grip's DestroyPermanent effect (CR 701.7a). After resolution, Krosan Grip goes to P2's graveyard (it is P2's card) and Sol Ring goes to P1's graveyard (P1 owns Sol Ring). P2 pays {2}{G} = 1 generic (colorless) + 2 generic (colorless from Forest + Island) + 1 green. Using: 2 colorless from Forest + Island approximation; keeping initial_state minimal. Note: the harness does not have a 'blocked_action' step type — the split second blocking is verified by the assert_state showing Counterspell stays in P1's hand with stack.count still 1.",
@@ -33,7 +47,10 @@
       },
       "p2": {
         "life": 40,
-        "mana_pool": { "colorless": 2, "green": 1 },
+        "mana_pool": {
+          "colorless": 2,
+          "green": 1
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -44,15 +61,28 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Sol Ring", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Sol Ring",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ]
       },
       "hand": {
         "p1": [
-          { "card": "Counterspell", "is_commander": false, "owner": null }
+          {
+            "card": "Counterspell",
+            "is_commander": false,
+            "owner": null
+          }
         ],
         "p2": [
-          { "card": "Krosan Grip", "is_commander": false, "owner": null }
+          {
+            "card": "Krosan Grip",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -72,10 +102,18 @@
           "type": "assert_state",
           "description": "Initial: Sol Ring on P1 battlefield (untapped), Counterspell in P1 hand, Krosan Grip in P2 hand",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Sol Ring" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Sol Ring"
+                }
+              ]
+            },
             "zones.hand.p1.count": 1,
             "zones.hand.p2.count": 1,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": null
         },
@@ -90,9 +128,17 @@
           "action": "cast_spell",
           "card": "Krosan Grip",
           "targets": [
-            { "type": "permanent", "card": "Sol Ring", "controller": "p1", "player": null }
+            {
+              "type": "permanent",
+              "card": "Sol Ring",
+              "controller": "p1",
+              "player": null
+            }
           ],
-          "mana_paid": { "colorless": 2, "green": 1 },
+          "mana_paid": {
+            "colorless": 2,
+            "green": 1
+          },
           "mana_source": [],
           "cr_ref": "601.2",
           "note": "CR 601.2: P2 casts Krosan Grip ({2}{G}) targeting Sol Ring. Split second keyword is now active on the stack (CR 702.61a)."
@@ -129,7 +175,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority. Krosan Grip is the only object on the stack and resolves."
         },
@@ -139,7 +188,11 @@
           "resolution": [
             {
               "effect": "destroy_permanent",
-              "target": { "type": "permanent", "card": "Sol Ring", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "card": "Sol Ring",
+                "controller": "p1"
+              },
               "cr_ref": "701.7a",
               "note": "CR 701.7a: Krosan Grip destroys Sol Ring. Sol Ring moves from battlefield to P1's graveyard."
             }
@@ -150,10 +203,28 @@
           "type": "assert_state",
           "description": "Final: Sol Ring in P1 graveyard, Krosan Grip in P2 graveyard, Counterspell still in P1 hand, stack empty",
           "assertions": {
-            "zones.stack": { "is_empty": true },
-            "zones.battlefield.p1": { "excludes": ["Sol Ring"] },
-            "zones.graveyard.p1": { "includes": [{ "card": "Sol Ring" }] },
-            "zones.graveyard.p2": { "includes": [{ "card": "Krosan Grip" }] },
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "excludes": [
+                "Sol Ring"
+              ]
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Sol Ring"
+                }
+              ]
+            },
+            "zones.graveyard.p2": {
+              "includes": [
+                {
+                  "card": "Krosan Grip"
+                }
+              ]
+            },
             "zones.hand.p1.count": 1
           },
           "note": "Sol Ring destroyed by Krosan Grip. Counterspell was never cast — split second (CR 702.61a) prevented it. P1's mana pool may have the 2 colorless gained from Sol Ring's mana ability before it was destroyed."

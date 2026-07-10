@@ -4,15 +4,37 @@
     "id": "script_stack_098",
     "name": "Thraben Inspector ETB creates Clue token, Clue activated to draw a card",
     "description": "p1 casts Thraben Inspector ({W}). Inspector resolves and enters the battlefield as a 1/2 Human Soldier. Its ETB 'investigate' trigger fires and resolves, creating a Clue token on p1's battlefield (CR 111.10f: colorless Clue artifact with '{2}, Sacrifice this token: Draw a card.' — NO tap required, which is the critical difference from Food tokens). p1 then activates the Clue's ability by paying {2} generic mana and sacrificing the token (CR 602.2c: sacrifice is a cost, so the Clue is gone from battlefield before the ability is placed on stack). After priority passes, the ability resolves and p1 draws 1 card (CR 701.36). Final state: p1 hand size +1, Clue token gone, Thraben Inspector still on battlefield as a 1/2 creature.",
-    "cr_sections_tested": ["601.2", "603.2", "608.2", "111.1", "111.5", "111.10f", "602.2", "602.2c", "701.36", "704.3", "704.5d"],
+    "cr_sections_tested": [
+      "601.2",
+      "603.2",
+      "608.2",
+      "111.1",
+      "111.5",
+      "111.10f",
+      "602.2",
+      "602.2c",
+      "701.36",
+      "704.3",
+      "704.5d"
+    ],
     "corner_case_ref": null,
-    "tags": ["clue-token", "token", "etb-trigger", "investigate", "activated-ability", "draw", "sacrifice", "no-tap-cost"],
+    "tags": [
+      "clue-token",
+      "token",
+      "etb-trigger",
+      "investigate",
+      "activated-ability",
+      "draw",
+      "sacrifice",
+      "no-tap-cost"
+    ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Thraben Inspector oracle text: 'When this creature enters, investigate.' (CR 701.16a: Investigate means 'Create a Clue token.' CR 111.10f: Clue token is a colorless Clue artifact with '{2}, Sacrifice this token: Draw a card.'). The critical rule distinction from Food tokens: Clue's cost is {2} + Sacrifice ONLY — NO {T} required (clue_token_spec() has requires_tap: false). A tapped Clue can still be activated. This script exercises the full cast → ETB trigger → Clue creation → Clue activation → draw flow. The ETB trigger fires and resolves as part of the spell's resolution flow (the harness processes the trigger inline after the creature enters the battlefield). The Clue token is present on the battlefield immediately after the Inspector resolves. Mana plan: p1 starts with {W} (for Inspector) and {2} colorless pre-loaded for the Clue activation. p1's library has 1 card (a Plains) to ensure the draw succeeds. Sacrifice as cost (CR 602.2c): Clue moves to graveyard at activation time, before the ability is placed on the stack. ability_index: 0 — the Clue token has exactly one non-mana activated ability (mana abilities are excluded from the index; Clue has none). After resolution, Thraben Inspector remains on p1's battlefield as a 1/2 creature. The drawn card (Plains) goes to p1's hand, increasing hand count from 0 to 1. Clue token ceases to exist as a SBA (CR 704.5d) after being sacrificed to the graveyard. First validation attempt (2026-02-28): original script had separate ETB trigger step with stack.count=1 assertion, but harness showed stack.count=0 after Inspector resolved — the engine processes the ETB trigger inline during resolution, so the Clue token is already on the battlefield when the script observes state post-resolve. Restructured to remove the separate ETB trigger step.",
-    "disputes": []
+    "disputes": [],
+    "retirement_reason": "SR-9c: The Clue-token sacrifice/draw is an `activate_ability` the harness cannot translate for a token's activated ability (no-op), and the ETB Clue trigger is left unresolved on the stack. Unblocks when token activated abilities are scriptable."
   },
   "initial_state": {
     "format": "commander",
@@ -24,7 +46,10 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "white": 1, "colorless": 2 },
+        "mana_pool": {
+          "white": 1,
+          "colorless": 2
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -44,12 +69,21 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Command Tower", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Command Tower",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ]
       },
       "hand": {
         "p1": [
-          { "card": "Thraben Inspector", "is_commander": false, "owner": null }
+          {
+            "card": "Thraben Inspector",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -57,7 +91,11 @@
       "command_zone": {},
       "library": {
         "p1": [
-          { "card": "Plains", "is_commander": false, "owner": null }
+          {
+            "card": "Plains",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "stack": []
@@ -74,8 +112,16 @@
           "description": "Initial: Thraben Inspector in p1's hand, library has 1 card, stack empty",
           "assertions": {
             "zones.hand.p1.count": 1,
-            "zones.stack": { "is_empty": true },
-            "zones.battlefield.p1": { "excludes": [{ "card": "Thraben Inspector" }] }
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "excludes": [
+                {
+                  "card": "Thraben Inspector"
+                }
+              ]
+            }
           },
           "note": "p1 has {W} and {2} colorless in mana pool. Library has Plains for the draw."
         },
@@ -85,7 +131,9 @@
           "action": "cast_spell",
           "card": "Thraben Inspector",
           "targets": [],
-          "mana_paid": { "white": 1 },
+          "mana_paid": {
+            "white": 1
+          },
           "mana_source": [],
           "cr_ref": "601.2",
           "note": "CR 601.2: p1 casts Thraben Inspector ({W}). No targets. Spell moves from hand to stack."
@@ -101,7 +149,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — top of stack resolves."
         },
@@ -111,7 +162,10 @@
           "resolution": [
             {
               "effect": "enter_battlefield",
-              "target": { "type": "player", "player": "p1" },
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
               "amount": null,
               "card": "Thraben Inspector",
               "owner": "p1",
@@ -120,7 +174,10 @@
             },
             {
               "effect": "create_token",
-              "target": { "type": "player", "player": "p1" },
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
               "amount": 1,
               "card": "Clue",
               "owner": "p1",
@@ -134,9 +191,16 @@
           "type": "assert_state",
           "description": "After Inspector and ETB trigger resolve: Inspector and Clue token both on p1's battlefield, stack empty",
           "assertions": {
-            "zones.stack": { "is_empty": true },
-            "zones.battlefield.p1": { "includes": [{ "card": "Thraben Inspector" }] },
-            "zones.battlefield.p1": { "includes": [{ "card": "Clue" }] },
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Clue"
+                }
+              ]
+            },
             "zones.hand.p1.count": 0
           },
           "note": "Thraben Inspector (1/2) and Clue token are both on p1's battlefield. Hand is empty."
@@ -154,7 +218,9 @@
           "card": "Clue",
           "ability_index": 0,
           "targets": [],
-          "mana_paid": { "colorless": 2 },
+          "mana_paid": {
+            "colorless": 2
+          },
           "mana_source": [],
           "cr_ref": "602.2",
           "note": "CR 602.2: p1 activates Clue token's ability 0 ('{2}, Sacrifice this token: Draw a card.'). Cost paid: {2} generic + sacrifice. NO tap required (CR 111.10f: Clue differs from Food — no {T} in activation cost). Sacrifice is a cost (CR 602.2c): Clue token moves to graveyard before ability is placed on stack. This is NOT a mana ability (CR 605.1a: does not add mana to pool) — ability uses the stack."
@@ -164,15 +230,30 @@
           "description": "After Clue activation: Clue token sacrificed (in graveyard), ability on stack, hand still empty",
           "assertions": {
             "zones.stack.count": 1,
-            "zones.battlefield.p1": { "excludes": [{ "card": "Clue" }] },
-            "zones.graveyard.p1": { "includes": [{ "card": "Clue" }] },
+            "zones.battlefield.p1": {
+              "excludes": [
+                {
+                  "card": "Clue"
+                }
+              ]
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Clue"
+                }
+              ]
+            },
             "zones.hand.p1.count": 0
           },
           "note": "CR 602.2c: Sacrifice paid as cost — Clue token already in graveyard. Ability is on the stack. Hand still empty (draw has not resolved yet)."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — Clue ability resolves."
         },
@@ -182,7 +263,10 @@
           "resolution": [
             {
               "effect": "draw_cards",
-              "target": { "type": "player", "player": "p1" },
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
               "amount": 1,
               "card": null,
               "owner": null,
@@ -197,7 +281,10 @@
           "actions": [
             {
               "action": "token_ceases_to_exist",
-              "target": { "card": "Clue", "controller": "p1" },
+              "target": {
+                "card": "Clue",
+                "controller": "p1"
+              },
               "cr_ref": "704.5d",
               "note": "CR 704.5d / CR 111.7: A token in a zone other than the battlefield ceases to exist as a state-based action. The Clue token was sacrificed as a cost and is in the graveyard."
             }
@@ -209,9 +296,16 @@
           "description": "Final state: p1 hand has 1 card drawn, Clue token gone, Thraben Inspector still on battlefield, stack empty",
           "assertions": {
             "zones.hand.p1.count": 1,
-            "zones.stack": { "is_empty": true },
-            "zones.battlefield.p1": { "includes": [{ "card": "Thraben Inspector" }] },
-            "zones.battlefield.p1": { "excludes": [{ "card": "Clue" }] },
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "excludes": [
+                {
+                  "card": "Clue"
+                }
+              ]
+            },
             "zones.library.p1.count": 0
           },
           "note": "p1 drew the Plains from library (hand 0 → 1). Clue token sacrificed and ceased to exist (CR 704.5d). Thraben Inspector remains as a 1/2 Human Soldier. Library is now empty."

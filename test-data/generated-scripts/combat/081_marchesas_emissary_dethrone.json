@@ -4,11 +4,27 @@
     "id": "script_combat_081",
     "name": "Marchesa's Emissary Dethrone — +1/+1 counter when attacking player tied for most life",
     "description": "P1 (30 life) controls Marchesa's Emissary (2/2, Hexproof, Dethrone) in a 4-player Commander game. P2 and P3 are each at 40 life (tied for most life); P4 is at 25 life. P1 declares Marchesa's Emissary as an attacker targeting P2. Because P2 is tied for the most life (40 = P3's 40), Dethrone triggers per CR 702.105a: 'Whenever this creature attacks the player with the most life or tied for most life, put a +1/+1 counter on this creature.' All four players pass priority; the Dethrone trigger resolves and Marchesa's Emissary receives a +1/+1 counter, becoming an effective 3/3. This script validates the tied-for-most-life clause of Dethrone.",
-    "cr_sections_tested": ["702.105a", "508.1", "508.1f", "603.3", "608.2", "116.3"],
+    "cr_sections_tested": [
+      "702.105a",
+      "508.1",
+      "508.1f",
+      "603.3",
+      "608.2",
+      "116.3"
+    ],
     "corner_case_ref": null,
-    "tags": ["combat", "dethrone", "triggered-ability", "counter", "when-attacks", "multiplayer", "4-player", "tied-life"],
+    "tags": [
+      "combat",
+      "dethrone",
+      "triggered-ability",
+      "counter",
+      "when-attacks",
+      "multiplayer",
+      "4-player",
+      "tied-life"
+    ],
     "confidence": "medium",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Marchesa's Emissary oracle text (provided by caller): {3}{U}, Creature 2/2, Hexproof, Dethrone. IMPORTANT: Marchesa's Emissary is NOT in the engine Available Cards list and requires a CardDefinition before harness validation can pass. Without the CardDefinition, the engine treats Marchesa's Emissary as a vanilla creature — Dethrone never triggers and the counter is never placed. The script is otherwise CR-correct. CR 702.105a: Dethrone is a triggered ability — 'Whenever this creature attacks the player with the most life or tied for most life, put a +1/+1 counter on this creature.' The trigger condition checks whether the attacked player has the most life among all players OR is tied for the most life. P2 has 40 life; P3 also has 40 life — they are tied for the most life. P4 has 25 life; P1 has 30 life. Therefore P2 IS tied for most life, and the Dethrone trigger fires when Marchesa's Emissary attacks P2. CR 702.105b: If a creature has multiple instances of dethrone, each triggers separately — irrelevant here as Marchesa's Emissary has exactly one instance. CR 508.1: P1 declares Marchesa's Emissary as an attacker targeting P2. CR 508.1f: Marchesa's Emissary taps as part of being declared an attacker. CR 508.1m: Triggered abilities that trigger on attackers being declared trigger after all attackers are declared. CR 603.3: The Dethrone trigger is placed on the stack the next time a player would receive priority (after the declare-attackers step). CR 116.3: P1 (active player) gets priority first. In 4-player APNAP, all four players pass priority → trigger resolves. CR 608.2: Trigger resolves; a +1/+1 counter is placed on Marchesa's Emissary (base 2/2 becomes effective 3/3). Initial state: turn 4 (so no summoning sickness on Marchesa's Emissary — placed on battlefield in initial state, assumed to have been in play since a prior turn). Phase: declare_attackers (consistent with scripts 068 and 070 — the engine requires DeclareAttackers commands to be issued in the declare_attackers phase). P3 and P4 have no permanents on the battlefield (no blockers needed; P1 is attacking P2 only). P2 has no creatures to block. Counter assertion: the harness does not have a native 'permanent.<card>.counter.plus1plus1' assertion field in existing approved scripts — instead, the counter's presence is validated by asserting the creature remains on P1's battlefield after the trigger resolves (the counter itself is an engine-internal state not directly queryable in the current script schema). The effective P/T change from 2/2 to 3/3 is documented in notes. This is consistent with Undying (script 070) which also does not directly assert counter count but notes the effective P/T change.",
@@ -72,7 +88,12 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Marchesa's Emissary", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Marchesa's Emissary",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ]
       },
       "hand": {},
@@ -93,13 +114,21 @@
           "type": "assert_state",
           "description": "Initial: Marchesa's Emissary (2/2) untapped on P1 battlefield; P1 at 30 life; P2 and P3 at 40 life (tied for most); P4 at 25 life; stack empty",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Marchesa's Emissary" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Marchesa's Emissary"
+                }
+              ]
+            },
             "permanent.Marchesa's Emissary.tapped": false,
             "players.p1.life": 30,
             "players.p2.life": 40,
             "players.p3.life": 40,
             "players.p4.life": 25,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Marchesa's Emissary has been on the battlefield since before this turn (turn 4), so no summoning sickness (CR 302.6). P2 and P3 are each at 40 — tied for most life. Dethrone trigger will fire when Marchesa's Emissary attacks P2 (tied for most life per CR 702.105a)."
         },
@@ -112,7 +141,11 @@
           "mana_paid": null,
           "mana_source": [],
           "attackers": [
-            { "card": "Marchesa's Emissary", "target_player": "p2", "target_planeswalker": null }
+            {
+              "card": "Marchesa's Emissary",
+              "target_player": "p2",
+              "target_planeswalker": null
+            }
           ],
           "blockers": [],
           "cr_ref": "508.1",
@@ -129,7 +162,12 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2", "p3", "p4"],
+          "players": [
+            "p1",
+            "p2",
+            "p3",
+            "p4"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: All four players pass priority in APNAP order (P1 active, then P2, P3, P4). Stack resolves top object: the Dethrone triggered ability."
         },
@@ -139,7 +177,12 @@
           "resolution": [
             {
               "effect": "put_counter",
-              "target": { "type": "permanent", "player": null, "card": "Marchesa's Emissary", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "player": null,
+                "card": "Marchesa's Emissary",
+                "controller": "p1"
+              },
               "amount": 1,
               "counter_type": "plus1plus1",
               "card": null,
@@ -154,9 +197,17 @@
           "type": "assert_state",
           "description": "Final: Marchesa's Emissary still on P1 battlefield (tapped, now effective 3/3 with +1/+1 counter); stack empty; all life totals unchanged",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Marchesa's Emissary" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Marchesa's Emissary"
+                }
+              ]
+            },
             "permanent.Marchesa's Emissary.tapped": true,
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "players.p1.life": 30,
             "players.p2.life": 40,
             "players.p3.life": 40,

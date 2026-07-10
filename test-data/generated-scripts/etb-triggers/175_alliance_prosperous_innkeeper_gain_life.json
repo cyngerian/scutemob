@@ -22,7 +22,7 @@
       "prosperous-innkeeper"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Prosperous Innkeeper card definition (crates/engine/src/cards/defs/prosperous_innkeeper.rs) has two abilities: (1) WhenEntersBattlefield -> CreateToken(Treasure) and (2) WheneverCreatureEntersBattlefield filtered to controller=You -> GainLife(1). The engine sets exclude_self=true automatically for WheneverCreatureEntersBattlefield triggers. By placing Innkeeper in the initial battlefield state, the ETB Treasure trigger never fires, keeping the script focused on Alliance. P1 casts Llanowar Elves for {G} (1 green mana in pool). Elves resolves, enters battlefield, and triggers Innkeeper's Alliance ability. Both players pass priority; trigger resolves; p1 gains 1 life (40 -> 41). Previous script (failed attempt) cast the Innkeeper during the script, which required handling the Treasure ETB trigger, causing harness failures due to trigger_placed not being a recognized action type. This simplified script avoids that entirely.",
@@ -38,7 +38,9 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "green": 1 },
+        "mana_pool": {
+          "green": 1
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -58,12 +60,21 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Prosperous Innkeeper", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Prosperous Innkeeper",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ]
       },
       "hand": {
         "p1": [
-          { "card": "Llanowar Elves", "is_commander": false, "owner": null }
+          {
+            "card": "Llanowar Elves",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -84,11 +95,17 @@
           "description": "Initial: Prosperous Innkeeper on battlefield, Llanowar Elves in hand, p1 at 40 life",
           "assertions": {
             "zones.battlefield.p1": {
-              "includes": [{ "card": "Prosperous Innkeeper" }]
+              "includes": [
+                {
+                  "card": "Prosperous Innkeeper"
+                }
+              ]
             },
             "zones.hand.p1.count": 1,
             "players.p1.life": 40,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": null
         },
@@ -98,7 +115,9 @@
           "action": "cast_spell",
           "card": "Llanowar Elves",
           "targets": [],
-          "mana_paid": { "green": 1 },
+          "mana_paid": {
+            "green": 1
+          },
           "mana_source": [],
           "cr_ref": "601.2",
           "note": "CR 601.2: p1 casts Llanowar Elves for {G}. Card moves from hand to stack."
@@ -114,7 +133,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — Llanowar Elves resolves and enters the battlefield. Innkeeper's Alliance trigger fires."
         },
@@ -139,8 +161,12 @@
             "zones.stack.count": 1,
             "zones.battlefield.p1": {
               "includes": [
-                { "card": "Prosperous Innkeeper" },
-                { "card": "Llanowar Elves" }
+                {
+                  "card": "Prosperous Innkeeper"
+                },
+                {
+                  "card": "Llanowar Elves"
+                }
               ]
             },
             "players.p1.life": 40
@@ -149,7 +175,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "Both players pass priority — Alliance trigger resolves."
         },
@@ -159,7 +188,10 @@
           "resolution": [
             {
               "effect": "gain_life",
-              "target": { "type": "player", "player": "p1" },
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
               "amount": 1,
               "card": null,
               "owner": null,
@@ -174,11 +206,17 @@
           "description": "Final: p1 at 41 life, both creatures on battlefield, stack empty",
           "assertions": {
             "players.p1.life": 41,
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "zones.battlefield.p1": {
               "includes": [
-                { "card": "Prosperous Innkeeper" },
-                { "card": "Llanowar Elves" }
+                {
+                  "card": "Prosperous Innkeeper"
+                },
+                {
+                  "card": "Llanowar Elves"
+                }
               ]
             }
           },

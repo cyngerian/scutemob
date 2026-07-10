@@ -4,11 +4,31 @@
     "id": "script_combat_016",
     "name": "Declare blockers — blocked attacker and blocker both take lethal damage and die",
     "description": "p1 controls Llanowar Elves (1/1 Elf Druid) and p2 controls Elvish Mystic (1/1 Elf Druid). p1 declares Llanowar Elves as an attacker targeting p2. p2 declares Elvish Mystic as a blocker for Llanowar Elves. In the combat damage step both creatures deal 1 damage to each other (CR 510.1a). Both creatures have toughness 1 and receive 1 damage, triggering SBA 704.5g (lethal damage): both die and go to their owners' graveyards. p2 takes no damage (CR 510.1a: a blocked creature assigns damage to the blocking creature, not the player). This script is the first to exercise the declare_blockers harness action type with a real blocking pair and verifies that the SBA correctly destroys both creatures after simultaneous combat damage.",
-    "cr_sections_tested": ["508.1", "508.1a", "508.1f", "508.1k", "509.1", "509.1a", "509.1g", "509.1h", "510.1a", "510.2", "704.5g"],
+    "cr_sections_tested": [
+      "508.1",
+      "508.1a",
+      "508.1f",
+      "508.1k",
+      "509.1",
+      "509.1a",
+      "509.1g",
+      "509.1h",
+      "510.1a",
+      "510.2",
+      "704.5g"
+    ],
     "corner_case_ref": null,
-    "tags": ["combat", "declare-attackers", "declare-blockers", "blocked", "lethal-damage", "sba", "creature-dies"],
+    "tags": [
+      "combat",
+      "declare-attackers",
+      "declare-blockers",
+      "blocked",
+      "lethal-damage",
+      "sba",
+      "creature-dies"
+    ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Llanowar Elves oracle text (Scryfall verified): '{T}: Add {G}.' Type: Creature — Elf Druid. P/T: 1/1. No keywords. Elvish Mystic oracle text (Scryfall verified): '{T}: Add {G}.' Type: Creature — Elf Druid. P/T: 1/1. No keywords. Both creatures are 1/1 with no special keywords. Using different card names prevents ambiguity in find_on_battlefield_by_name (which returns the first match by ObjectId if names match). Initial state is set to DeclareAttackers step, turn 4, p1 active. The builder sets has_summoning_sickness: false for test-placed permanents (GameStateBuilder line 446). CR 508.1a: Llanowar Elves is untapped and free of summoning sickness — legal attacker. CR 508.1f: Llanowar Elves becomes tapped on declaring attack. CR 509.1a: p2 chooses Elvish Mystic as a blocker for Llanowar Elves. CR 509.1g: Elvish Mystic becomes a blocking creature. CR 509.1h: Llanowar Elves has one creature declared as blocker — it becomes a blocked creature. Priority flow: after declare_attackers, p1 gets priority (handle_declare_attackers resets priority to p1). Both pass → advance to DeclareBlockers → p1 gets priority. p2 issues declare_blockers (no priority required per CR 509.1 — defending players declare without priority). Both pass in DeclareBlockers → advance to CombatDamage. In CombatDamage, execute_turn_based_actions calls combat_damage_step: Llanowar Elves (power 1, blocked by Elvish Mystic) assigns 1 damage to Elvish Mystic (CR 510.1c); Elvish Mystic (power 1, blocking Llanowar Elves) assigns 1 damage to Llanowar Elves (CR 510.1d). CR 510.2: damage is simultaneous. SBA check (CR 704.5g): Llanowar Elves has toughness 1, damage 1 → lethal → destroyed, moved to p1's graveyard. Elvish Mystic has toughness 1, damage 1 → lethal → destroyed, moved to p2's graveyard. Both SBAs apply simultaneously in the same pass. p2 takes 0 damage (Llanowar Elves assigned all damage to the blocker, CR 510.1c). p2 life remains 40. Assertion notes: zones.graveyard.p1 includes Llanowar Elves; zones.graveyard.p2 includes Elvish Mystic; players.p2.life = 40 confirms no player damage from a blocked attacker.",
@@ -44,10 +64,20 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Llanowar Elves", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Llanowar Elves",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ],
         "p2": [
-          { "card": "Elvish Mystic", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Elvish Mystic",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ]
       },
       "hand": {},
@@ -68,13 +98,27 @@
           "type": "assert_state",
           "description": "Initial: Llanowar Elves on p1 battlefield (untapped), Elvish Mystic on p2 battlefield (untapped), life totals 40/40",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Llanowar Elves" }] },
-            "zones.battlefield.p2": { "includes": [{ "card": "Elvish Mystic" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Elvish Mystic"
+                }
+              ]
+            },
             "permanent.Llanowar Elves.tapped": false,
             "permanent.Elvish Mystic.tapped": false,
             "players.p1.life": 40,
             "players.p2.life": 40,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Both creatures are untapped and have no summoning sickness (placed in initial state via builder, which sets has_summoning_sickness: false). Legal attacker and blocker state."
         },
@@ -87,7 +131,11 @@
           "mana_paid": null,
           "mana_source": [],
           "attackers": [
-            { "card": "Llanowar Elves", "target_player": "p2", "target_planeswalker": null }
+            {
+              "card": "Llanowar Elves",
+              "target_player": "p2",
+              "target_planeswalker": null
+            }
           ],
           "blockers": [],
           "cr_ref": "508.1",
@@ -99,13 +147,18 @@
           "assertions": {
             "permanent.Llanowar Elves.tapped": true,
             "permanent.Elvish Mystic.tapped": false,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 508.1f: Llanowar Elves was tapped as part of the attack declaration. Elvish Mystic is not tapped (blockers do not tap unless they have a tap requirement, CR 509.1). Stack is empty — no attack triggers fire for Llanowar Elves (no abilities)."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority in succession with empty stack → advance to DeclareBlockers step. p1 receives priority as active player in DeclareBlockers."
         }
@@ -125,7 +178,10 @@
           "mana_source": [],
           "attackers": [],
           "blockers": [
-            { "card": "Elvish Mystic", "blocking": "Llanowar Elves" }
+            {
+              "card": "Elvish Mystic",
+              "blocking": "Llanowar Elves"
+            }
           ],
           "cr_ref": "509.1",
           "note": "CR 509.1: p2 declares Elvish Mystic as a blocker for Llanowar Elves. CR 509.1a: Elvish Mystic is untapped — legal blocker. CR 509.1g: Elvish Mystic becomes a blocking creature blocking Llanowar Elves. CR 509.1h: Llanowar Elves has exactly one creature declared as blocker — it becomes a blocked creature. Blockers do not tap as part of the blocking declaration (CR 509.1 — no tap step for blockers)."
@@ -134,16 +190,33 @@
           "type": "assert_state",
           "description": "After declare_blockers: both creatures on battlefield, Elvish Mystic not tapped, stack empty",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Llanowar Elves" }] },
-            "zones.battlefield.p2": { "includes": [{ "card": "Elvish Mystic" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Elvish Mystic"
+                }
+              ]
+            },
             "permanent.Elvish Mystic.tapped": false,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Elvish Mystic remains untapped after blocking declaration (blockers do not tap). No triggers fire for Elvish Mystic (no blocking trigger). Stack is empty."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority in succession with empty stack → advance to CombatDamage step. The engine executes combat damage as a turn-based action on entering CombatDamage: Llanowar Elves (power 1) deals 1 to Elvish Mystic (CR 510.1c); Elvish Mystic (power 1) deals 1 to Llanowar Elves (CR 510.1d). SBAs then destroy both creatures (CR 704.5g)."
         }
@@ -177,7 +250,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority after combat damage resolves and SBAs have been applied. Stack is empty → advance to EndOfCombat step."
         },
@@ -187,11 +263,37 @@
           "assertions": {
             "players.p2.life": 40,
             "players.p1.life": 40,
-            "zones.graveyard.p1": { "includes": [{ "card": "Llanowar Elves" }] },
-            "zones.graveyard.p2": { "includes": [{ "card": "Elvish Mystic" }] },
-            "zones.battlefield.p1": { "excludes": [{ "card": "Llanowar Elves" }] },
-            "zones.battlefield.p2": { "excludes": [{ "card": "Elvish Mystic" }] },
-            "zones.stack": { "is_empty": true }
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
+            "zones.graveyard.p2": {
+              "includes": [
+                {
+                  "card": "Elvish Mystic"
+                }
+              ]
+            },
+            "zones.battlefield.p1": {
+              "excludes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "excludes": [
+                {
+                  "card": "Elvish Mystic"
+                }
+              ]
+            },
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 510.1c: Llanowar Elves (blocked) assigned all 1 damage to the blocker (Elvish Mystic), not to p2. p2 life remains 40. Both creatures have lethal damage: SBA 704.5g destroyed both and moved them to their owners' graveyards."
         }

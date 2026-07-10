@@ -24,6 +24,7 @@ fn test_script_schema_round_trip_minimal() {
             review_date: None,
             generation_notes: None,
             disputes: vec![],
+            retirement_reason: None,
         },
         initial_state: InitialState {
             format: "commander".into(),

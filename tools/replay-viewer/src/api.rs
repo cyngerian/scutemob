@@ -690,6 +690,7 @@ fn review_status_str(status: &mtg_engine::testing::script_schema::ReviewStatus) 
     match status {
         ReviewStatus::PendingReview => "pending_review",
         ReviewStatus::Approved => "approved",
+        ReviewStatus::Retired => "retired",
         ReviewStatus::Disputed => "disputed",
         ReviewStatus::Corrected => "corrected",
     }

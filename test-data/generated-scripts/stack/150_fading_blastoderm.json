@@ -18,7 +18,7 @@
       "creature"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Blastoderm card definition (crates/engine/src/cards/defs/blastoderm.rs): mana_cost {2}{G}{G} (generic:2, green:2), types Creature — Beast, power 5, toughness 5. Abilities: AbilityDefinition::Keyword(KeywordAbility::Shroud), AbilityDefinition::Fading { count: 3 }. CR 702.32a defines two abilities for Fading N: (1) static replacement — 'This permanent enters with N fade counters on it'; (2) upkeep triggered — 'At the beginning of your upkeep, remove a fade counter from this permanent. If you can't, sacrifice the permanent.' Blastoderm has no ETB triggered ability, so the resolution is straightforward — the permanent enters with 3 fade counters and nothing else fires. Mana: {2}{G}{G} = colorless:2 + green:2. The harness does not support asserting counter counts via 'permanent.Blastoderm.counters.fade' because parse_counter_type() does not map 'fade' to CounterType::Fade (same gap as CounterType::Time for Vanishing/Suspend scripts). The presence of 3 fade counters on ETB is validated by unit tests in crates/engine/tests/fading.rs. The upkeep lifecycle (remove counter each upkeep; sacrifice on inability to remove) cannot be driven by a single harness script because the harness cannot advance turns to a later Upkeep step. Script scope is intentionally limited to cast + resolve + assert battlefield presence. Analogous to script_stack_149 (Vanishing 3 — Aven Riftwatcher).",
@@ -44,7 +44,10 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "colorless": 2, "green": 2 },
+        "mana_pool": {
+          "colorless": 2,
+          "green": 2
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -65,7 +68,11 @@
       "battlefield": {},
       "hand": {
         "p1": [
-          { "card": "Blastoderm", "is_commander": false, "owner": null }
+          {
+            "card": "Blastoderm",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -86,11 +93,25 @@
           "description": "Initial: Blastoderm in p1 hand; p1 at 40 life; battlefield empty; stack empty",
           "assertions": {
             "zones.hand.p1.count": 1,
-            "zones.hand.p1": { "includes": [{ "card": "Blastoderm" }] },
-            "zones.battlefield.p1": { "excludes": [{ "card": "Blastoderm" }] },
+            "zones.hand.p1": {
+              "includes": [
+                {
+                  "card": "Blastoderm"
+                }
+              ]
+            },
+            "zones.battlefield.p1": {
+              "excludes": [
+                {
+                  "card": "Blastoderm"
+                }
+              ]
+            },
             "players.p1.life": 40,
             "players.p2.life": 40,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Blastoderm ({2}{G}{G}, 5/5 Beast, Shroud, Fading 3) is in p1's hand. p1 has {2}{G}{G} (colorless:2, green:2) in mana pool ready to cast."
         },
@@ -100,7 +121,10 @@
           "action": "cast_spell",
           "card": "Blastoderm",
           "targets": [],
-          "mana_paid": { "colorless": 2, "green": 2 },
+          "mana_paid": {
+            "colorless": 2,
+            "green": 2
+          },
           "mana_source": [],
           "cr_ref": "601.2",
           "note": "CR 601.2: p1 casts Blastoderm; {2}{G}{G} paid from pool (colorless:2, green:2). Blastoderm moves from hand to stack. CR 702.32a ability 1: as the permanent enters the battlefield on resolution, the Fading 3 replacement effect will place 3 fade counters on it."
@@ -116,7 +140,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — Blastoderm resolves (CR 608.2). CR 702.32a ability 1 (replacement): the permanent enters with 3 fade counters. Blastoderm has no ETB triggered ability, so the stack is empty immediately after resolution."
         },
@@ -126,7 +153,11 @@
           "resolution": [
             {
               "effect": "enter_battlefield",
-              "target": { "type": "permanent", "card": "Blastoderm", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "card": "Blastoderm",
+                "controller": "p1"
+              },
               "card": null,
               "owner": null,
               "cr_ref": "702.32a",
@@ -139,11 +170,25 @@
           "type": "assert_state",
           "description": "Final: Blastoderm on p1 battlefield (with 3 fade counters, not directly assertable — see disputes); stack empty; both players at 40 life",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Blastoderm" }] },
-            "zones.graveyard.p1": { "excludes": [{ "card": "Blastoderm" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Blastoderm"
+                }
+              ]
+            },
+            "zones.graveyard.p1": {
+              "excludes": [
+                {
+                  "card": "Blastoderm"
+                }
+              ]
+            },
             "players.p1.life": 40,
             "players.p2.life": 40,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 702.32a ability 1: Blastoderm entered with 3 fade counters (to be validated by unit test). Blastoderm is on the battlefield and NOT in the graveyard (sacrifice happens only after 3 upkeeps if unable to remove — see informational lifecycle below). Stack is empty. Neither player's life total changed (Blastoderm has no ETB life effect)."
         }
@@ -159,7 +204,11 @@
           "resolution": [
             {
               "effect": "remove_counter",
-              "target": { "type": "permanent", "card": "Blastoderm", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "card": "Blastoderm",
+                "controller": "p1"
+              },
               "amount": 1,
               "card": null,
               "owner": null,
@@ -175,7 +224,11 @@
           "resolution": [
             {
               "effect": "remove_counter",
-              "target": { "type": "permanent", "card": "Blastoderm", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "card": "Blastoderm",
+                "controller": "p1"
+              },
               "amount": 1,
               "card": null,
               "owner": null,
@@ -191,7 +244,11 @@
           "resolution": [
             {
               "effect": "remove_counter",
-              "target": { "type": "permanent", "card": "Blastoderm", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "card": "Blastoderm",
+                "controller": "p1"
+              },
               "amount": 1,
               "card": null,
               "owner": null,
@@ -207,7 +264,11 @@
           "resolution": [
             {
               "effect": "sacrifice",
-              "target": { "type": "permanent", "card": "Blastoderm", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "card": "Blastoderm",
+                "controller": "p1"
+              },
               "card": null,
               "owner": null,
               "cr_ref": "701.17a",

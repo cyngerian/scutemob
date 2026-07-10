@@ -4,11 +4,21 @@
     "id": "script_stack_037",
     "name": "Rogue's Passage — target creature becomes unblockable this turn",
     "description": "p1 has Rogue's Passage and a Llanowar Elves on the battlefield. p1 activates Rogue's Passage to make Llanowar Elves unblockable this turn. Tests a land with an activated ability that grants evasion.",
-    "cr_sections_tested": ["608.2", "605.5", "702.4"],
+    "cr_sections_tested": [
+      "608.2",
+      "605.5",
+      "702.4"
+    ],
     "corner_case_ref": null,
-    "tags": ["evasion", "unblockable", "rogues-passage", "activated-ability", "until-end-of-turn"],
+    "tags": [
+      "evasion",
+      "unblockable",
+      "rogues-passage",
+      "activated-ability",
+      "until-end-of-turn"
+    ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Rogue's Passage oracle: '{4}, {T}: Target creature can't be blocked this turn.' Cost {4} + tap. This grants the targeted creature unblockable until end of turn. After activation: Llanowar Elves can't be blocked this combat. The ability is not a mana ability (CR 605.5) — it goes on the stack. Initial: p1 has {4} in pool, Rogue's Passage untapped on battlefield, Llanowar Elves on battlefield.",
@@ -24,7 +34,9 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "colorless": 4 },
+        "mana_pool": {
+          "colorless": 4
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -44,8 +56,18 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Rogue's Passage", "is_commander": false, "owner": null, "tapped": false },
-          { "card": "Llanowar Elves", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Rogue's Passage",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          },
+          {
+            "card": "Llanowar Elves",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ]
       },
       "hand": {},
@@ -66,9 +88,20 @@
           "type": "assert_state",
           "description": "Initial: Rogue's Passage and Llanowar Elves on p1 battlefield",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Rogue's Passage" }, { "card": "Llanowar Elves" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Rogue's Passage"
+                },
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
             "permanent.Rogue's Passage.tapped": false,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": null
         },
@@ -78,9 +111,15 @@
           "action": "activate_ability",
           "card": "Rogue's Passage",
           "targets": [
-            { "type": "permanent", "card": "Llanowar Elves", "controller": "p1" }
+            {
+              "type": "permanent",
+              "card": "Llanowar Elves",
+              "controller": "p1"
+            }
           ],
-          "mana_paid": { "colorless": 4 },
+          "mana_paid": {
+            "colorless": 4
+          },
           "mana_source": [],
           "cr_ref": "608.2",
           "note": "p1 pays {4}, taps Rogue's Passage, targets Llanowar Elves. Ability on stack."
@@ -96,7 +135,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "Both pass — ability resolves."
         },
@@ -106,7 +148,10 @@
           "resolution": [
             {
               "effect": "grant_until_end_of_turn",
-              "target": { "card": "Llanowar Elves", "controller": "p1" },
+              "target": {
+                "card": "Llanowar Elves",
+                "controller": "p1"
+              },
               "effect_description": "can't be blocked this turn",
               "cr_ref": "702.4",
               "note": "CR 702.4: Llanowar Elves can't be blocked this turn."
@@ -118,7 +163,9 @@
           "type": "assert_state",
           "description": "After activation: Llanowar Elves has can't-be-blocked evasion this turn",
           "assertions": {
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "permanent.Rogue's Passage.tapped": true
           },
           "note": "Rogue's Passage tapped. Llanowar Elves unblockable until end of turn."

@@ -4,11 +4,28 @@
     "id": "script_stack_078",
     "name": "Extort drains three opponents in four-player game",
     "description": "P1 controls Syndic of Tithes on the battlefield. P1 casts Harmonize ({2GG}). The Extort triggered ability (CR 702.101a) fires immediately — it goes onto the stack above Harmonize (LIFO, CR 405.5). When it resolves, the engine's deterministic always-pay fallback executes the drain: each of the three opponents (P2, P3, P4) loses 1 life (40->39) and P1 gains 3 life (equal to the total life lost, 40->43). Harmonize then resolves: P1 draws 3 cards. Final assertions: P1 at 43, P2/P3/P4 each at 39.",
-    "cr_sections_tested": ["601.2", "603.2", "603.3", "702.101a", "608.2", "118.2", "405.5", "116.3"],
+    "cr_sections_tested": [
+      "601.2",
+      "603.2",
+      "603.3",
+      "702.101a",
+      "608.2",
+      "118.2",
+      "405.5",
+      "116.3"
+    ],
     "corner_case_ref": null,
-    "tags": ["extort", "triggered-ability", "drain", "multiplayer", "four-player", "life-loss", "life-gain"],
+    "tags": [
+      "extort",
+      "triggered-ability",
+      "drain",
+      "multiplayer",
+      "four-player",
+      "life-loss",
+      "life-gain"
+    ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "CR 702.101a: Extort is a triggered ability — 'Whenever you cast a spell, you may pay {W/B}. If you do, each opponent loses 1 life and you gain life equal to the total life lost this way.' In deterministic (non-interactive) mode the engine always resolves the drain effect (always-pay fallback, no {W/B} optional cost prompt). Syndic of Tithes card definition: cid('syndic-of-tithes'), {1}{W}, 2/2 Human Cleric, AbilityDefinition::Keyword(KeywordAbility::Extort). The trigger event is TriggerEvent::ControllerCastsSpell, verified in rules/abilities.rs. builder.rs generates TriggeredAbilityDef from KeywordAbility::Extort at object construction. Harmonize {2GG} draws 3 cards with no life change, so it cleanly isolates the extort life-gain/loss math. P1 library has 3 cards to satisfy the draw-3 effect. Sequence: (1) P1 casts Harmonize — stack has 1 item; (2) Extort trigger fires — stack has 2 items (Harmonize bottom, trigger top); (3) all 4 players pass — trigger resolves: P2/P3/P4 each -1 life (39 each), P1 +3 life (43); (4) all 4 players pass — Harmonize resolves: P1 draws 3 (hand 0->3). In 4-player Commander each player starts at 40 life. life-gain = total life actually lost = 3 * 1 = 3. Final: P1=43, P2=P3=P4=39.",
@@ -24,7 +41,10 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "green": 2, "generic": 2 },
+        "mana_pool": {
+          "green": 2,
+          "generic": 2
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -62,12 +82,21 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Syndic of Tithes", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Syndic of Tithes",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ]
       },
       "hand": {
         "p1": [
-          { "card": "Harmonize", "is_commander": false, "owner": null }
+          {
+            "card": "Harmonize",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -75,9 +104,21 @@
       "command_zone": {},
       "library": {
         "p1": [
-          { "card": "Forest", "is_commander": false, "owner": null },
-          { "card": "Island", "is_commander": false, "owner": null },
-          { "card": "Plains", "is_commander": false, "owner": null }
+          {
+            "card": "Forest",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Island",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Plains",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "stack": []
@@ -93,9 +134,17 @@
           "type": "assert_state",
           "description": "Initial: Syndic of Tithes on P1 battlefield, Harmonize in P1 hand, all players at 40 life, stack empty",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Syndic of Tithes" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Syndic of Tithes"
+                }
+              ]
+            },
             "zones.hand.p1.count": 1,
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "players.p1.life": 40,
             "players.p2.life": 40,
             "players.p3.life": 40,
@@ -109,7 +158,10 @@
           "action": "cast_spell",
           "card": "Harmonize",
           "targets": [],
-          "mana_paid": { "green": 2, "generic": 2 },
+          "mana_paid": {
+            "green": 2,
+            "generic": 2
+          },
           "mana_source": [],
           "cr_ref": "601.2",
           "note": "CR 601.2: P1 casts Harmonize ({2GG}). {2GG} paid from pool. CR 603.2: Extort triggered ability (TriggerEvent::ControllerCastsSpell) fires immediately and is flushed to the stack above Harmonize (CR 405.5 LIFO)."
@@ -125,7 +177,12 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2", "p3", "p4"],
+          "players": [
+            "p1",
+            "p2",
+            "p3",
+            "p4"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: All four players pass priority. Top of stack (Extort trigger) resolves."
         },
@@ -186,7 +243,12 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2", "p3", "p4"],
+          "players": [
+            "p1",
+            "p2",
+            "p3",
+            "p4"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: All four players pass priority. Harmonize (top of stack) resolves."
         },
@@ -210,13 +272,21 @@
           "type": "assert_state",
           "description": "Final: stack empty, P1 at 43 life with 3 cards in hand, P2/P3/P4 each at 39 life, Harmonize in P1 graveyard",
           "assertions": {
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "players.p1.life": 43,
             "players.p2.life": 39,
             "players.p3.life": 39,
             "players.p4.life": 39,
             "zones.hand.p1.count": 3,
-            "zones.graveyard.p1": { "includes": [{ "card": "Harmonize" }] }
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Harmonize"
+                }
+              ]
+            }
           },
           "note": "Extort drain: each opponent (P2/P3/P4) lost 1 life; P1 gained 3 total. Harmonize drew 3 cards from P1's library. CR 702.101a confirmed: total life lost = 3, P1 gains 3."
         }

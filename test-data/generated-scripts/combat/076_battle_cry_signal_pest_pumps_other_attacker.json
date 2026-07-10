@@ -4,11 +4,28 @@
     "id": "script_combat_076",
     "name": "Battle Cry — Signal Pest pumps Llanowar Elves but not itself",
     "description": "p1 controls Signal Pest (0/1, Battle Cry) and a Llanowar Elves (1/1). Both attack p2. Signal Pest's Battle Cry triggered ability fires when it attacks (CR 702.91a). After the trigger resolves, Llanowar Elves gets +1/+0 until end of turn and becomes 2/1. Signal Pest does NOT receive the bonus — the oracle text reads 'each OTHER attacking creature'. p2 declares no blockers. In the combat damage step, Llanowar Elves (power 2, unblocked) deals 2 damage to p2 and Signal Pest (power 0, unblocked) deals 0 damage. p2 life goes from 40 to 38. At cleanup (CR 514.2) the +1/+0 bonus expires and Llanowar Elves returns to 1/1.",
-    "cr_sections_tested": ["508.1", "702.91a", "405.5", "608.2", "509.1", "510.1b", "514.2", "704.3"],
+    "cr_sections_tested": [
+      "508.1",
+      "702.91a",
+      "405.5",
+      "608.2",
+      "509.1",
+      "510.1b",
+      "514.2",
+      "704.3"
+    ],
     "corner_case_ref": null,
-    "tags": ["combat", "battle-cry", "triggered-ability", "pump", "until-end-of-turn", "signal-pest", "combat-damage"],
+    "tags": [
+      "combat",
+      "battle-cry",
+      "triggered-ability",
+      "pump",
+      "until-end-of-turn",
+      "signal-pest",
+      "combat-damage"
+    ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Signal Pest oracle text (engine Available Cards list): 0/1 artifact creature, KeywordAbility::BattleCry. CR 702.91a: 'Whenever this creature attacks, each other attacking creature gets +1/+0 until end of turn.' The word 'other' is critical — Signal Pest itself does not benefit from its own trigger. Llanowar Elves base P/T 1/1; with the Battle Cry bonus becomes 2/1 until end of turn. Signal Pest base P/T 0/1; no change from the trigger. Combat damage (CR 510.1b): Llanowar Elves (power 2) deals 2 damage unblocked + Signal Pest (power 0) deals 0 damage = 2 total damage to p2. P2 life: 40 - 2 = 38. Turn 4 is used to avoid summoning sickness (CR 302.6). The declare_attackers action triggers Battle Cry, placing one triggered ability on the stack; both players pass priority; the trigger resolves granting Llanowar Elves +1/+0. Then declare_blockers step proceeds with no blockers declared. CR 514.2: At cleanup, the until-end-of-turn +1/+0 bonus expires, restoring Llanowar Elves to 1/1. No SBAs apply (Signal Pest takes no damage and has toughness 1, Llanowar Elves takes no damage and has toughness 1 enhanced by +0 = 1 toughness, p2 has 38 life).",
@@ -44,8 +61,18 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Signal Pest", "tapped": false, "is_commander": false, "owner": null },
-          { "card": "Llanowar Elves", "tapped": false, "is_commander": false, "owner": null }
+          {
+            "card": "Signal Pest",
+            "tapped": false,
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Llanowar Elves",
+            "tapped": false,
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "hand": {},
@@ -66,12 +93,23 @@
           "type": "assert_state",
           "description": "Initial: Signal Pest and Llanowar Elves untapped on p1 battlefield; life totals 40/40; stack empty",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Signal Pest" }, { "card": "Llanowar Elves" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Signal Pest"
+                },
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
             "permanent.Signal Pest.tapped": false,
             "permanent.Llanowar Elves.tapped": false,
             "players.p1.life": 40,
             "players.p2.life": 40,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Both creatures are untapped. Turn 4 — no summoning sickness (CR 302.6). Stack is empty before attackers are declared."
         },
@@ -84,8 +122,16 @@
           "mana_paid": null,
           "mana_source": [],
           "attackers": [
-            { "card": "Signal Pest", "target_player": "p2", "target_planeswalker": null },
-            { "card": "Llanowar Elves", "target_player": "p2", "target_planeswalker": null }
+            {
+              "card": "Signal Pest",
+              "target_player": "p2",
+              "target_planeswalker": null
+            },
+            {
+              "card": "Llanowar Elves",
+              "target_player": "p2",
+              "target_planeswalker": null
+            }
           ],
           "blockers": [],
           "cr_ref": "508.1",
@@ -103,7 +149,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority. The Battle Cry trigger (top of stack) resolves."
         },
@@ -113,7 +162,11 @@
           "resolution": [
             {
               "effect": "grant_bonus",
-              "target": { "type": "permanent", "card": "Llanowar Elves", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "card": "Llanowar Elves",
+                "controller": "p1"
+              },
               "amount": null,
               "card": null,
               "owner": null,
@@ -127,14 +180,28 @@
           "type": "assert_state",
           "description": "After Battle Cry resolves: stack empty, both creatures still on battlefield tapped",
           "assertions": {
-            "zones.stack": { "is_empty": true },
-            "zones.battlefield.p1": { "includes": [{ "card": "Signal Pest" }, { "card": "Llanowar Elves" }] }
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Signal Pest"
+                },
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            }
           },
           "note": "Battle Cry trigger has resolved. Llanowar Elves has a +1/+0 until-end-of-turn bonus (effectively 2/1). Signal Pest remains 0/1."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority in DeclareAttackers with empty stack — advance to DeclareBlockers step."
         }
@@ -159,7 +226,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority with empty stack — advance to CombatDamage step. Llanowar Elves (power 2 with Battle Cry bonus) and Signal Pest (power 0) each deal damage to p2."
         }
@@ -176,7 +246,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority after CombatDamage resolves — advance to EndOfCombat step."
         },
@@ -186,10 +259,21 @@
           "assertions": {
             "players.p2.life": 38,
             "players.p1.life": 40,
-            "zones.battlefield.p1": { "includes": [{ "card": "Signal Pest" }, { "card": "Llanowar Elves" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Signal Pest"
+                },
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
             "permanent.Signal Pest.tapped": true,
             "permanent.Llanowar Elves.tapped": true,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 510.1b: Llanowar Elves (power 2 with Battle Cry +1/+0 bonus) dealt 2 combat damage to p2. Signal Pest (power 0) dealt 0 damage. Total: 2 damage. p2 life: 40 - 2 = 38. Both creatures remain on battlefield tapped. Llanowar Elves +1/+0 bonus persists until cleanup."
         }
@@ -205,8 +289,19 @@
           "assertions": {
             "players.p2.life": 38,
             "players.p1.life": 40,
-            "zones.battlefield.p1": { "includes": [{ "card": "Signal Pest" }, { "card": "Llanowar Elves" }] },
-            "zones.stack": { "is_empty": true }
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Signal Pest"
+                },
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 514.2: Until-end-of-turn effects end simultaneously in the cleanup step (turn-based action, does not use the stack). The Battle Cry +1/+0 bonus expires, restoring Llanowar Elves to its printed 1/1. Signal Pest remains 0/1. Both creatures remain on the battlefield (tapped). p2 retains 38 life."
         }

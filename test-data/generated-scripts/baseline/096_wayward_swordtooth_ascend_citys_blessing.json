@@ -4,11 +4,23 @@
     "id": "script_baseline_096",
     "name": "Wayward Swordtooth ETB grants city's blessing via Ascend",
     "description": "P1 controls exactly 9 permanents (7 Forests, Llanowar Elves, Elvish Mystic) and casts Wayward Swordtooth ({2}{G}{G}). When Wayward Swordtooth enters the battlefield as the 10th permanent, the Ascend static ability (CR 702.131b) is immediately satisfied — not using the stack — and P1 gains the city's blessing for the rest of the game. The test asserts that after resolution P1 has the city's blessing and that Wayward Swordtooth (a 5/5 Dinosaur) is on the battlefield.",
-    "cr_sections_tested": ["601.2", "608.2", "702.131b", "702.131c"],
+    "cr_sections_tested": [
+      "601.2",
+      "608.2",
+      "702.131b",
+      "702.131c"
+    ],
     "corner_case_ref": null,
-    "tags": ["ascend", "citys-blessing", "etb", "static-ability", "permanent-count", "dinosaur"],
+    "tags": [
+      "ascend",
+      "citys-blessing",
+      "etb",
+      "static-ability",
+      "permanent-count",
+      "dinosaur"
+    ],
     "confidence": "medium",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "CR 702.131b defines Ascend on a permanent as a static ability: 'Any time you control ten or more permanents and you don't have the city's blessing, you get the city's blessing for the rest of the game.' It does not use the stack and cannot be responded to (confirmed by Scryfall ruling 2018-01-19: 'Ascend on a permanent isn't a triggered ability and doesn't use the stack.'). P1 starts with 9 permanents: 7 Forests + Llanowar Elves + Elvish Mystic. Wayward Swordtooth costs {2}{G}{G}; P1 has {colorless:2, green:2} pre-loaded in the mana pool. When Wayward Swordtooth resolves and enters the battlefield as permanent #10, the static ability fires immediately and P1 gains the city's blessing. Assert: players.p1.has_citys_blessing = true, Wayward Swordtooth on battlefield (10 permanents total). DISPUTE: Wayward Swordtooth is not in the engine Available Cards list; the harness will return a missing-definition error until a CardDefinition is authored for this card (5/5 Dinosaur, Ascend static, additional land play, attack/block restriction without city's blessing). The script logic and CR citations are correct; validation is blocked on the card definition gap.",
@@ -34,7 +46,10 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "green": 2, "colorless": 2 },
+        "mana_pool": {
+          "green": 2,
+          "colorless": 2
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -54,20 +69,51 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Forest", "tapped": true },
-          { "card": "Forest", "tapped": true },
-          { "card": "Forest", "tapped": true },
-          { "card": "Forest", "tapped": false },
-          { "card": "Forest", "tapped": false },
-          { "card": "Forest", "tapped": false },
-          { "card": "Forest", "tapped": false },
-          { "card": "Llanowar Elves", "tapped": false },
-          { "card": "Elvish Mystic", "tapped": false }
+          {
+            "card": "Forest",
+            "tapped": true
+          },
+          {
+            "card": "Forest",
+            "tapped": true
+          },
+          {
+            "card": "Forest",
+            "tapped": true
+          },
+          {
+            "card": "Forest",
+            "tapped": false
+          },
+          {
+            "card": "Forest",
+            "tapped": false
+          },
+          {
+            "card": "Forest",
+            "tapped": false
+          },
+          {
+            "card": "Forest",
+            "tapped": false
+          },
+          {
+            "card": "Llanowar Elves",
+            "tapped": false
+          },
+          {
+            "card": "Elvish Mystic",
+            "tapped": false
+          }
         ]
       },
       "hand": {
         "p1": [
-          { "card": "Wayward Swordtooth", "is_commander": false, "owner": null }
+          {
+            "card": "Wayward Swordtooth",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -99,7 +145,10 @@
           "action": "cast_spell",
           "card": "Wayward Swordtooth",
           "targets": [],
-          "mana_paid": { "green": 2, "colorless": 2 },
+          "mana_paid": {
+            "green": 2,
+            "colorless": 2
+          },
           "mana_source": [],
           "cr_ref": "601.2",
           "note": "CR 601.2: p1 casts Wayward Swordtooth ({2}{G}{G}) from hand; no targets; mana paid from pool."
@@ -115,7 +164,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — stack resolves top object."
         },
@@ -125,7 +177,10 @@
           "resolution": [
             {
               "effect": "enter_battlefield",
-              "target": { "type": "player", "player": "p1" },
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
               "amount": null,
               "card": "Wayward Swordtooth",
               "owner": "p1",
@@ -134,7 +189,10 @@
             },
             {
               "effect": "gain_citys_blessing",
-              "target": { "type": "player", "player": "p1" },
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
               "amount": null,
               "card": null,
               "owner": null,
@@ -148,9 +206,17 @@
           "type": "assert_state",
           "description": "After resolution: Wayward Swordtooth on battlefield (p1 controls 10 permanents), p1 has city's blessing, stack empty",
           "assertions": {
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "zones.battlefield.p1.count": 10,
-            "zones.battlefield.p1": { "includes": [{ "card": "Wayward Swordtooth" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Wayward Swordtooth"
+                }
+              ]
+            },
             "players.p1.has_citys_blessing": true,
             "players.p2.has_citys_blessing": false
           },

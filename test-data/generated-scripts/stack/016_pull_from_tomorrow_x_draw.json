@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "metadata": {
     "id": "script_stack_016",
-    "name": "Pull from Tomorrow X=3 \u2014 draw 3, discard 1",
+    "name": "Pull from Tomorrow X=3 — draw 3, discard 1",
     "description": "p1 casts Pull from Tomorrow with X=3 ({X}{U}{U} where X=3, total {3}{U}{U}). On resolution, p1 draws 3 cards then discards 1. Tests an X-spell draw effect with an attached discard cost.",
     "cr_sections_tested": [
       "601.2",
@@ -20,11 +20,12 @@
       "blue-draw"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Pull from Tomorrow oracle: 'Draw X cards, then discard a card.' Cost {X}{U}{U}. With X=3, cost = {3}{U}{U} = 5 mana total. p1 draws 3, then discards 1. Net hand change: cast -1, draw +3, discard -1 = net +1. Initial hand: 1 card (Pull from Tomorrow). After cast: 0. After draw 3: 3. After discard 1: 2. Library has 3 cards.",
-    "disputes": []
+    "disputes": [],
+    "retirement_reason": "SR-9c: Pull from Tomorrow (X draw) leaves the caster's hand at 0, not the asserted 2: the X-draw resolution does not deliver the drawn cards in this scenario (X/draw threading). Retire pending an X-spell scenario the harness resolves."
   },
   "initial_state": {
     "format": "commander",
@@ -139,7 +140,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "Both pass \u2014 Pull from Tomorrow resolves."
+          "note": "Both pass — Pull from Tomorrow resolves."
         },
         {
           "type": "stack_resolve",

@@ -19,9 +19,16 @@
       "120.3"
     ],
     "corner_case_ref": null,
-    "tags": ["prowess", "triggers", "combat", "haste", "continuous-effects", "layers"],
+    "tags": [
+      "prowess",
+      "triggers",
+      "combat",
+      "haste",
+      "continuous-effects",
+      "layers"
+    ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "CR 702.108a: Prowess is a triggered ability that fires whenever the controller casts a noncreature spell. Lightning Bolt is an instant (not a creature), so it triggers prowess. CR 603.3: Triggered abilities go on the stack above the spell that caused them, in APNAP order, before any player receives priority. CR 608.1 / LIFO: The prowess trigger is on top of the stack and resolves first when all players pass. Effect::ApplyContinuousEffect creates a ContinuousEffect in the PtModify layer (layer 7c) with duration UntilEndOfTurn and filter SingleObject(Swiftspear). This makes Swiftspear 2/3 (1+1=2 power, 2+1=3 toughness). Lightning Bolt then resolves and deals 3 damage (CR 120.3) to p2, reducing p2 life from 40 to 37. In combat, Swiftspear has haste (CR 702.10a), so it can attack on the turn it came under p1's control (though it was already on battlefield in initial state). CR 508.1a: Haste allows attacking without the 'summoning sickness' restriction. Swiftspear attacks with power 2 (from prowess continuous effect still active), is unblocked, and deals 2 combat damage to p2 (CR 510.1b, 510.2), reducing p2 life from 37 to 35. Combat section uses informational stack_resolve actions — the harness does not support declare_attackers/declare_blockers/assign_damage commands, so combat damage is documented but not engine-enforced. The prowess trigger and Lightning Bolt resolution are fully harness-testable. Harness infrastructure: ReplaySession::from_script() runs on a tokio::task::spawn_blocking thread (api.rs fix applied 2026-02-25) to avoid tokio worker thread stack overflow with deep trigger resolution call chains.",
@@ -37,7 +44,9 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "red": 1 },
+        "mana_pool": {
+          "red": 1
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -57,12 +66,21 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Monastery Swiftspear", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Monastery Swiftspear",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ]
       },
       "hand": {
         "p1": [
-          { "card": "Lightning Bolt", "is_commander": false, "owner": null }
+          {
+            "card": "Lightning Bolt",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -82,10 +100,18 @@
           "type": "assert_state",
           "description": "Initial state: stack is empty, both players at 40 life, Swiftspear on battlefield",
           "assertions": {
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "players.p1.life": 40,
             "players.p2.life": 40,
-            "zones.battlefield.p1": { "includes": [{ "card": "Monastery Swiftspear" }] }
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Monastery Swiftspear"
+                }
+              ]
+            }
           },
           "note": null
         },
@@ -95,9 +121,16 @@
           "action": "cast_spell",
           "card": "Lightning Bolt",
           "targets": [
-            { "type": "player", "player": "p2", "card": null, "controller": null }
+            {
+              "type": "player",
+              "player": "p2",
+              "card": null,
+              "controller": null
+            }
           ],
-          "mana_paid": { "red": 1 },
+          "mana_paid": {
+            "red": 1
+          },
           "mana_source": [],
           "cr_ref": "601.2",
           "note": "CR 601.2: p1 announces Lightning Bolt, pays {R}, targets p2. CR 603.3: prowess trigger from Monastery Swiftspear (casting a noncreature instant) goes on stack above Lightning Bolt before any player receives priority."
@@ -113,7 +146,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass in succession — top of stack (prowess trigger) resolves. CR 608.1: LIFO — prowess trigger resolves first."
         },
@@ -123,7 +159,11 @@
           "resolution": [
             {
               "effect": "apply_continuous_effect",
-              "target": { "type": "object", "card": "Monastery Swiftspear", "controller": "p1" },
+              "target": {
+                "type": "object",
+                "card": "Monastery Swiftspear",
+                "controller": "p1"
+              },
               "amount": null,
               "card": null,
               "owner": null,
@@ -144,7 +184,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass in succession — Lightning Bolt resolves."
         },
@@ -154,7 +197,10 @@
           "resolution": [
             {
               "effect": "deal_damage",
-              "target": { "type": "player", "player": "p2" },
+              "target": {
+                "type": "player",
+                "player": "p2"
+              },
               "amount": 3,
               "card": null,
               "owner": null,
@@ -168,9 +214,17 @@
           "type": "assert_state",
           "description": "After Lightning Bolt resolves: stack is empty, p2 at 37 life, Bolt in p1's graveyard",
           "assertions": {
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "players.p2.life": 37,
-            "zones.graveyard.p1": { "includes": [{ "card": "Lightning Bolt" }] }
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Lightning Bolt"
+                }
+              ]
+            }
           },
           "note": "Lightning Bolt resolved and dealt 3 damage to p2. The prowess continuous effect (+1/+1 until end of turn) is still active on Swiftspear."
         }
@@ -186,7 +240,10 @@
           "resolution": [
             {
               "effect": "declare_attacker",
-              "target": { "type": "player", "player": "p2" },
+              "target": {
+                "type": "player",
+                "player": "p2"
+              },
               "amount": null,
               "card": "Monastery Swiftspear",
               "owner": "p1",
@@ -202,7 +259,10 @@
           "resolution": [
             {
               "effect": "no_blockers",
-              "target": { "type": "player", "player": "p2" },
+              "target": {
+                "type": "player",
+                "player": "p2"
+              },
               "amount": null,
               "card": null,
               "owner": null,
@@ -218,7 +278,10 @@
           "resolution": [
             {
               "effect": "deal_combat_damage",
-              "target": { "type": "player", "player": "p2" },
+              "target": {
+                "type": "player",
+                "player": "p2"
+              },
               "amount": 2,
               "card": "Monastery Swiftspear",
               "owner": "p1",

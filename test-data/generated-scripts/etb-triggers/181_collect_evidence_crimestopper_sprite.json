@@ -22,7 +22,7 @@
       "crimestopper-sprite"
     ],
     "confidence": "medium",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "CR 701.59a: To collect evidence N means to exile cards from your graveyard with total MV >= N as an additional cost. CR 701.59c: The ETB ability is linked to the additional cost via CR 607 — 'if evidence was collected' is only true when the optional additional cost was paid during casting. Graveyard cards chosen: Doom Blade (MV 2) + Wrath of God (MV 4) = total MV 6, exactly meeting the Collect Evidence 6 threshold. P1 mana pool pre-filled with {2}{U} (colorless: 2, blue: 1) to pay Crimestopper Sprite's base cost {2}{U}. The collect_evidence_cards field in the harness PlayerAction carries the names of graveyard cards to exile as cost payment. After cost payment but before the spell is placed on the stack the exiled cards move from graveyard to exile (CR 118.9). After resolution the engine sets evidence_collected: true on the resulting permanent per CR 701.59c. The ETB trigger targets no creature (none on battlefield), so the trigger fizzles. The evidence_collected assertion in the final assert_state is marked speculative — it tests a field the engine may not yet expose; a dispute is recorded for this.",
@@ -36,7 +36,8 @@
         "resolved_by": null,
         "resolved_date": null
       }
-    ]
+    ],
+    "retirement_reason": "SR-9c: Author-documented: collect-evidence exile and the evidence_collected state are not evaluable/executed here, leaving a trigger on the stack. Retire pending collect-evidence support."
   },
   "initial_state": {
     "format": "commander",
@@ -48,7 +49,10 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "colorless": 2, "blue": 1 },
+        "mana_pool": {
+          "colorless": 2,
+          "blue": 1
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -69,13 +73,25 @@
       "battlefield": {},
       "hand": {
         "p1": [
-          { "card": "Crimestopper Sprite", "is_commander": false, "owner": null }
+          {
+            "card": "Crimestopper Sprite",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {
         "p1": [
-          { "card": "Doom Blade", "is_commander": false, "owner": null },
-          { "card": "Wrath of God", "is_commander": false, "owner": null }
+          {
+            "card": "Doom Blade",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Wrath of God",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "exile": [],
@@ -95,14 +111,22 @@
           "description": "Initial: Crimestopper Sprite in p1 hand; Doom Blade and Wrath of God in p1 graveyard; exile zone empty; stack empty",
           "assertions": {
             "zones.hand.p1.count": 1,
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "zones.graveyard.p1": {
               "includes": [
-                { "card": "Doom Blade" },
-                { "card": "Wrath of God" }
+                {
+                  "card": "Doom Blade"
+                },
+                {
+                  "card": "Wrath of God"
+                }
               ]
             },
-            "zones.exile": { "is_empty": true }
+            "zones.exile": {
+              "is_empty": true
+            }
           },
           "note": "P1 has 2 graveyard cards with combined MV 6 (Doom Blade MV 2 + Wrath of God MV 4), exactly meeting the Collect Evidence 6 threshold per CR 701.59a."
         },
@@ -111,9 +135,15 @@
           "player": "p1",
           "action": "cast_spell_collect_evidence",
           "card": "Crimestopper Sprite",
-          "collect_evidence_cards": ["Doom Blade", "Wrath of God"],
+          "collect_evidence_cards": [
+            "Doom Blade",
+            "Wrath of God"
+          ],
           "targets": [],
-          "mana_paid": { "colorless": 2, "blue": 1 },
+          "mana_paid": {
+            "colorless": 2,
+            "blue": 1
+          },
           "mana_source": [],
           "cr_ref": "701.59a",
           "note": "CR 701.59a: P1 pays Collect Evidence 6 by exiling Doom Blade (MV 2) + Wrath of God (MV 4) = total MV 6 from graveyard as an additional cost. CR 601.2: base cost {2}{U} paid from mana pool. Exiled cards move from graveyard to exile as part of cost payment."
@@ -126,14 +156,22 @@
             "zones.hand.p1.count": 0,
             "zones.graveyard.p1": {
               "excludes": [
-                { "card": "Doom Blade" },
-                { "card": "Wrath of God" }
+                {
+                  "card": "Doom Blade"
+                },
+                {
+                  "card": "Wrath of God"
+                }
               ]
             },
             "zones.exile": {
               "includes": [
-                { "card": "Doom Blade" },
-                { "card": "Wrath of God" }
+                {
+                  "card": "Doom Blade"
+                },
+                {
+                  "card": "Wrath of God"
+                }
               ]
             }
           },
@@ -141,7 +179,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — Crimestopper Sprite spell resolves."
         },
@@ -165,20 +206,32 @@
           "assertions": {
             "zones.battlefield.p1": {
               "includes": [
-                { "card": "Crimestopper Sprite" }
+                {
+                  "card": "Crimestopper Sprite"
+                }
               ]
             },
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "zones.exile": {
               "includes": [
-                { "card": "Doom Blade" },
-                { "card": "Wrath of God" }
+                {
+                  "card": "Doom Blade"
+                },
+                {
+                  "card": "Wrath of God"
+                }
               ]
             },
             "zones.graveyard.p1": {
               "excludes": [
-                { "card": "Doom Blade" },
-                { "card": "Wrath of God" }
+                {
+                  "card": "Doom Blade"
+                },
+                {
+                  "card": "Wrath of God"
+                }
               ]
             }
           },

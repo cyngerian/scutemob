@@ -4,11 +4,26 @@
     "id": "script_stack_164",
     "name": "Champion — Changeling Hero exiles Llanowar Elves on ETB",
     "description": "p1 casts Changeling Hero ({3}{W}, 4/4 Shapeshifter with Changeling, Lifelink, and Champion a creature — CR 702.72a). p1 controls Llanowar Elves on the battlefield. Changeling Hero resolves and enters the battlefield. The Champion ETB triggered ability fires: ChampionETBTrigger goes on the stack. Both players pass priority. The trigger resolves — the engine auto-selects the first qualifying creature controlled by p1 that is not Changeling Hero itself (Llanowar Elves, per ChampionFilter::AnyCreature). Llanowar Elves is exiled (CR 406.2), and champion_exiled_card is recorded on Changeling Hero (CR 702.72a, CR 607.2a). Changeling Hero remains on the battlefield. The script asserts: (1) Changeling Hero enters the battlefield after resolution; (2) ChampionETBTrigger goes on the stack; (3) after trigger resolves, Llanowar Elves is in exile and NOT on the battlefield; (4) Changeling Hero is still on the battlefield (did not sacrifice itself); (5) stack is empty at end.",
-    "cr_sections_tested": ["702.72a", "601.2", "608.2", "116.3", "406.2", "704.3"],
+    "cr_sections_tested": [
+      "702.72a",
+      "601.2",
+      "608.2",
+      "116.3",
+      "406.2",
+      "704.3"
+    ],
     "corner_case_ref": null,
-    "tags": ["champion", "etb", "trigger", "exile", "changeling", "lifelink", "shapeshifter"],
+    "tags": [
+      "champion",
+      "etb",
+      "trigger",
+      "exile",
+      "changeling",
+      "lifelink",
+      "shapeshifter"
+    ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Changeling Hero card definition (crates/engine/src/cards/defs/changeling_hero.rs): mana_cost {3}{W} (generic:3, white:1), 4/4 Shapeshifter, abilities: [Keyword(Changeling), Keyword(Lifelink), Champion { filter: ChampionFilter::AnyCreature }]. Oracle text: 'Changeling. Champion a creature (When this enters, sacrifice it unless you exile another creature you control. When this leaves the battlefield, that card returns to the battlefield.) Lifelink.' CR 702.72a: 'Champion a [quality]' has two triggered abilities: (1) ETB — 'When this permanent enters, sacrifice it unless you exile another [quality] permanent you control'; (2) LTB — 'When this permanent leaves the battlefield, return the exiled card to the battlefield under its owner's control.' This script tests the ETB trigger only. The engine code is in resolution.rs (StackObjectKind::ChampionETBTrigger). It auto-selects candidates via `candidates.into_iter().next()` — the first qualifying permanent that (a) is not the champion itself, (b) is on the battlefield, (c) is controlled by the same controller, (d) is phased in, and (e) matches ChampionFilter::AnyCreature (has CardType::Creature). Llanowar Elves (1/1 creature) satisfies all conditions. After exile: state.move_object_to_zone(target_id, ZoneId::Exile) runs, and champion_obj.champion_exiled_card is set to Some(new_exile_id) (resolution.rs line 2827). Mana for cast: {3}{W} = colorless:3, white:1 in pool. The harness `stack_resolve` object name for the trigger is 'ChampionETBTrigger' (matching the StackObjectKind variant name, consistent with GraftTrigger / BackupTrigger naming convention). Since there IS a qualifying creature (Llanowar Elves), Changeling Hero is NOT sacrificed — it remains on the battlefield. No SBAs fire (Changeling Hero is 4/4, no damage marked). Life totals are unchanged (Lifelink only triggers when damage is dealt; no combat occurs here).",
@@ -24,7 +39,10 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "colorless": 3, "white": 1 },
+        "mana_pool": {
+          "colorless": 3,
+          "white": 1
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -44,12 +62,21 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Llanowar Elves", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Llanowar Elves",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ]
       },
       "hand": {
         "p1": [
-          { "card": "Changeling Hero", "is_commander": false, "owner": null }
+          {
+            "card": "Changeling Hero",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -70,10 +97,24 @@
           "description": "Initial: Changeling Hero in p1 hand; Llanowar Elves on p1 battlefield; p1 has {3}{W} in mana pool; stack empty",
           "assertions": {
             "zones.hand.p1.count": 1,
-            "zones.hand.p1": { "includes": [{ "card": "Changeling Hero" }] },
+            "zones.hand.p1": {
+              "includes": [
+                {
+                  "card": "Changeling Hero"
+                }
+              ]
+            },
             "zones.battlefield.p1.count": 1,
-            "zones.battlefield.p1": { "includes": [{ "card": "Llanowar Elves" }] },
-            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
+            "zones.stack": {
+              "is_empty": true
+            },
             "players.p1.life": 40,
             "players.p2.life": 40
           },
@@ -85,7 +126,10 @@
           "action": "cast_spell",
           "card": "Changeling Hero",
           "targets": [],
-          "mana_paid": { "colorless": 3, "white": 1 },
+          "mana_paid": {
+            "colorless": 3,
+            "white": 1
+          },
           "mana_source": [],
           "cr_ref": "601.2",
           "note": "CR 601.2: p1 casts Changeling Hero ({3}{W}); colorless:3 + white:1 paid from pool. Changeling Hero moves from hand to stack."
@@ -97,13 +141,22 @@
             "zones.stack.count": 1,
             "zones.hand.p1.count": 0,
             "zones.battlefield.p1.count": 1,
-            "zones.battlefield.p1": { "includes": [{ "card": "Llanowar Elves" }] }
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            }
           },
           "note": "Changeling Hero is on the stack awaiting resolution. Llanowar Elves is unaffected while the spell is on the stack."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — Changeling Hero resolves (CR 608.2)."
         },
@@ -113,7 +166,11 @@
           "resolution": [
             {
               "effect": "enters_battlefield",
-              "target": { "type": "permanent", "card": "Changeling Hero", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "card": "Changeling Hero",
+                "controller": "p1"
+              },
               "amount": null,
               "card": null,
               "owner": null,
@@ -130,8 +187,12 @@
             "zones.battlefield.p1.count": 2,
             "zones.battlefield.p1": {
               "includes": [
-                { "card": "Changeling Hero" },
-                { "card": "Llanowar Elves" }
+                {
+                  "card": "Changeling Hero"
+                },
+                {
+                  "card": "Llanowar Elves"
+                }
               ]
             },
             "zones.stack.count": 1,
@@ -141,7 +202,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — ChampionETBTrigger resolves (CR 608.2, 702.72a)."
         },
@@ -151,7 +215,11 @@
           "resolution": [
             {
               "effect": "exile_permanent",
-              "target": { "type": "permanent", "card": "Llanowar Elves", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "card": "Llanowar Elves",
+                "controller": "p1"
+              },
               "amount": null,
               "card": null,
               "owner": null,
@@ -165,14 +233,30 @@
           "type": "assert_state",
           "description": "Final: Changeling Hero on p1 battlefield; Llanowar Elves in exile (NOT on battlefield); stack empty; life totals unchanged",
           "assertions": {
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "zones.hand.p1.count": 0,
             "zones.battlefield.p1.count": 1,
             "zones.battlefield.p1": {
-              "includes": [{ "card": "Changeling Hero" }],
-              "excludes": [{ "card": "Llanowar Elves" }]
+              "includes": [
+                {
+                  "card": "Changeling Hero"
+                }
+              ],
+              "excludes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
             },
-            "zones.exile": { "includes": [{ "card": "Llanowar Elves" }] },
+            "zones.exile": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
             "players.p1.life": 40,
             "players.p2.life": 40
           },

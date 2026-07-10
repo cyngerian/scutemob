@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "metadata": {
     "id": "script_replacement_002",
-    "name": "Multiple replacement effects \u2014 player chooses order (CR 616.1)",
+    "name": "Multiple replacement effects — player chooses order (CR 616.1)",
     "description": "p1 controls a commander and Rest in Peace is active. The commander would die (via SBA). Two replacements apply: the commander zone-change replacement (die -> command zone) and Rest in Peace (die -> exile). The affected player (p1, the commander's owner) must order them via Command::OrderReplacements. Choosing the command-zone replacement first sends the commander to command zone; choosing RiP first sends it to exile and then the commander replacement optionally applies again from exile.",
     "cr_sections_tested": [
       "614.1a",
@@ -22,7 +22,7 @@
       "player-choice"
     ],
     "confidence": "medium",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Pending harness support for Command::OrderReplacements. The harness currently skips unknown player actions. When harness support is added, this script tests CR 616.1 player choice between two competing replacements. See corner case #18.",
@@ -36,7 +36,8 @@
         "resolved_by": null,
         "resolved_date": null
       }
-    ]
+    ],
+    "retirement_reason": "SR-9c: `order_replacements` has no translation: Command::OrderReplacements takes a Vec<ReplacementId> the harness cannot derive from a script (replacement effects have no stable script-visible names). Unblocks when the harness can name and order replacement effects."
   },
   "initial_state": {
     "format": "commander",
@@ -107,7 +108,7 @@
   "script": [
     {
       "step": "precombat_main",
-      "step_note": "p1 casts Rest in Peace, then their commander would die \u2014 two replacements compete",
+      "step_note": "p1 casts Rest in Peace, then their commander would die — two replacements compete",
       "actions": [
         {
           "type": "player_action",
@@ -179,7 +180,7 @@
               ]
             }
           },
-          "note": "Commander went to command zone; not in graveyard (RiP didn't apply). Note: harness currently skips order_replacements action \u2014 this script is pending_review."
+          "note": "Commander went to command zone; not in graveyard (RiP didn't apply). Note: harness currently skips order_replacements action — this script is pending_review."
         }
       ]
     }

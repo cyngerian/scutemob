@@ -4,11 +4,26 @@
     "id": "script_combat_186",
     "name": "Saddle — Quilled Charger saddled by a 2/2 creature, designation cleared at cleanup",
     "description": "P1 controls Quilled Charger (4/3 Porcupine Mount, Saddle 2) and Solemn Simulacrum (2/2). During P1's precombat main phase with an empty stack, P1 activates Saddle 2 by tapping Solemn Simulacrum (power 2 >= saddle threshold 2). The saddle ability goes on the stack (CR 702.171a: Saddle is an activated ability). After both players pass priority the ability resolves: Quilled Charger becomes saddled until end of turn (CR 702.171b). P1 then passes priority through all remaining steps to advance to the cleanup step of the same turn, where the saddled designation is cleared (CR 702.171b). A dispute notes that the assertion DSL does not expose the is_saddled flag, so the script verifies the interaction through observable side-effects: Solemn Simulacrum is tapped after activation, the saddle ability appears on the stack (count 1), and the stack empties after resolution.",
-    "cr_sections_tested": ["702.171a", "702.171b", "602.2", "405.5", "608.2", "116.3", "704.3"],
+    "cr_sections_tested": [
+      "702.171a",
+      "702.171b",
+      "602.2",
+      "405.5",
+      "608.2",
+      "116.3",
+      "704.3"
+    ],
     "corner_case_ref": null,
-    "tags": ["combat", "saddle", "mount", "activated-ability", "until-end-of-turn", "cleanup"],
+    "tags": [
+      "combat",
+      "saddle",
+      "mount",
+      "activated-ability",
+      "until-end-of-turn",
+      "cleanup"
+    ],
     "confidence": "medium",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Quilled Charger oracle text (card definition verified at crates/engine/src/cards/defs/quilled_charger.rs): 4/3 Porcupine Mount, Saddle 2 keyword (AbilityDefinition::Keyword(KeywordAbility::Saddle(2))). Card is in the Available Cards list as it exists in the engine. Solemn Simulacrum is used as the saddling creature (power 2 >= saddle threshold 2). Both are placed on the battlefield in initial_state at turn_number 4 so neither has summoning sickness (ruling: summoning sickness does not prevent saddling, same as Crew; but turn 4 avoids any ambiguity). The saddle_mount action in the replay harness uses the 'convoke' field for the list of saddling creature names (reuses the Crew pattern per replay_harness.rs:936-944). The 'card' field names the mount. After SaddleMount command is processed: (1) Solemn Simulacrum is tapped immediately as a cost (CR 602.2: costs paid at activation time); (2) the saddle ability is placed on the stack (CR 602.2a: activated abilities use the stack); (3) is_saddled remains false until the ability resolves (verified in saddle.rs unit test). After both players pass priority the ability resolves: Quilled Charger becomes saddled (is_saddled = true, CR 702.171a). The saddled designation lasts until end of turn (CR 702.171b). To advance to cleanup, the script passes priority through EndOfCombat (no combat in this scenario), PostcombatMain, and Ending phases using priority_rounds. At cleanup, the engine clears is_saddled per CR 702.171b. ASSERTION LIMITATION: The check_assertions harness (tests/script_replay.rs) only exposes 'permanent.<card>.tapped' and 'permanent.<card>.counters.<type>' for individual permanent state. The is_saddled boolean flag on GameObject is not accessible via the assertion DSL. A dispute records this gap. The script asserts the observable side-effects: Solemn Simulacrum tapped after activation, stack count = 1 after activation, stack is_empty after resolution. To confirm is_saddled behavior, see crates/engine/tests/saddle.rs test_saddle_basic_mount_becomes_saddled and test_saddle_cleared_at_cleanup. CR 702.171a: 'Saddle N means: Tap any number of other untapped creatures you control with total power N or greater: This permanent becomes saddled until end of turn. Activate only as a sorcery.' CR 702.171b: 'The saddled designation is cleared at the beginning of the cleanup step.'",
@@ -54,8 +69,18 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Quilled Charger", "is_commander": false, "owner": null, "tapped": false },
-          { "card": "Solemn Simulacrum", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Quilled Charger",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          },
+          {
+            "card": "Solemn Simulacrum",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ]
       },
       "hand": {},
@@ -78,13 +103,19 @@
           "assertions": {
             "zones.battlefield.p1": {
               "includes": [
-                { "card": "Quilled Charger" },
-                { "card": "Solemn Simulacrum" }
+                {
+                  "card": "Quilled Charger"
+                },
+                {
+                  "card": "Solemn Simulacrum"
+                }
               ]
             },
             "permanent.Quilled Charger.tapped": false,
             "permanent.Solemn Simulacrum.tapped": false,
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "players.p1.life": 40,
             "players.p2.life": 40
           },
@@ -95,7 +126,9 @@
           "player": "p1",
           "action": "saddle_mount",
           "card": "Quilled Charger",
-          "convoke": ["Solemn Simulacrum"],
+          "convoke": [
+            "Solemn Simulacrum"
+          ],
           "targets": [],
           "mana_paid": null,
           "mana_source": [],
@@ -114,7 +147,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: P1 holds priority after activation; p1 passes, then p2 passes. Stack resolves top object (saddle ability). CR 405.5: LIFO — saddle ability is the only stack object."
         },
@@ -124,7 +160,11 @@
           "resolution": [
             {
               "effect": "apply_continuous_effect",
-              "target": { "type": "permanent", "card": "Quilled Charger", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "card": "Quilled Charger",
+                "controller": "p1"
+              },
               "amount": null,
               "card": null,
               "owner": null,
@@ -138,13 +178,19 @@
           "type": "assert_state",
           "description": "After saddle ability resolves: stack is empty, Solemn Simulacrum remains tapped, Quilled Charger remains untapped on battlefield. Quilled Charger is now saddled (is_saddled = true — not assertable via DSL, see dispute).",
           "assertions": {
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "permanent.Solemn Simulacrum.tapped": true,
             "permanent.Quilled Charger.tapped": false,
             "zones.battlefield.p1": {
               "includes": [
-                { "card": "Quilled Charger" },
-                { "card": "Solemn Simulacrum" }
+                {
+                  "card": "Quilled Charger"
+                },
+                {
+                  "card": "Solemn Simulacrum"
+                }
               ]
             }
           },
@@ -152,7 +198,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority with empty stack in PreCombatMain → advance through BeginningOfCombat, DeclareAttackers, DeclareBlockers, CombatDamage, EndOfCombat, PostcombatMain, and into the Ending phase (since P1 does not declare any attackers). Priority rounds continue advancing the turn."
         }
@@ -164,7 +213,10 @@
       "actions": [
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority in the End step with an empty stack → advance to the Cleanup step. CR 702.171b: At the beginning of the Cleanup step, the saddled designation on Quilled Charger is cleared (is_saddled set to false). No triggered abilities from cleanup (no damage to clear, no hand size reduction needed here)."
         },
@@ -174,14 +226,20 @@
           "assertions": {
             "zones.battlefield.p1": {
               "includes": [
-                { "card": "Quilled Charger" },
-                { "card": "Solemn Simulacrum" }
+                {
+                  "card": "Quilled Charger"
+                },
+                {
+                  "card": "Solemn Simulacrum"
+                }
               ]
             },
             "permanent.Solemn Simulacrum.tapped": true,
             "players.p1.life": 40,
             "players.p2.life": 40,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 702.171b: The saddled designation is cleared at the beginning of the cleanup step. Quilled Charger's is_saddled flag is now false (not assertable via current DSL — see dispute). Solemn Simulacrum remains tapped; it will untap at the beginning of P1's next turn (CR 502.1). No combat occurred, so no damage was dealt and life totals remain 40/40. This verifies the full saddle lifecycle: activation → stack → resolution → saddled-until-cleanup → cleared."
         }

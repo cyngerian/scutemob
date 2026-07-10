@@ -18,9 +18,16 @@
       "605.3"
     ],
     "corner_case_ref": null,
-    "tags": ["miracle", "alternative-cost", "draw-step", "board-wipe", "terminus", "keyword"],
+    "tags": [
+      "miracle",
+      "alternative-cost",
+      "draw-step",
+      "board-wipe",
+      "terminus",
+      "keyword"
+    ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "CR 702.94a: Miracle is a static ability linked to a triggered ability. Terminus has Miracle {W} (miracle cost = 1 white mana). The script starts at turn 2 upkeep (turn_number: 2 avoids the CR 103.8 first-turn draw skip). p1 has ONE untapped Plains on the battlefield — this produces exactly {W} needed to pay the miracle cost. Mana pools empty on step transition (CR 500.4), so initial mana_pool is irrelevant; mana must come from tapping the Plains after the draw step begins. Both players pass priority in upkeep with empty stack: handle_all_passed → empty mana pools (CR 500.4) → advance_step (Upkeep → Draw) → enter_step(Draw) → execute_turn_based_actions → draw_for_turn (CR 504.1): Terminus moved from library to p1 hand, cards_drawn_this_turn incremented from 0 to 1, CardDrawn emitted. check_miracle_eligible: cards_drawn_this_turn == 1 AND Terminus has KeywordAbility::Miracle AND AbilityDefinition::Miracle{cost:{white:1}} → MiracleRevealChoiceRequired emitted. Priority granted to p1. p1 taps 1 Plains for {W} (mana ability, CR 605.3, no stack). p1 sends Command::ChooseMiracle{reveal:true}: handle_choose_miracle validates cards_drawn_this_turn == 1, queues PendingTrigger with is_miracle_trigger:true, flush_pending_triggers places MiracleTrigger on stack. CR 702.94b: Terminus stays in hand. p1 sends cast_spell_miracle: Command::CastSpell{cast_with_miracle:true}, pays {W}, Terminus moves to stack on top of MiracleTrigger. Stack count: 2. Both pass; Terminus resolves: Effect::DestroyPermanent{target:AllCreatures} destroys Llanowar Elves and Bog Raiders. SBA 704.5g: both creatures destroyed. Both pass; MiracleTrigger resolves as no-op (Terminus not in hand). Card definitions: Terminus ({4}{W}{W} Sorcery, Miracle {W}; effect approximates put-on-bottom-of-library as DestroyPermanent{AllCreatures}), Llanowar Elves (1/1), Bog Raiders (2/2). Grizzly Bears from caller prompt is NOT a valid engine card definition — replaced with Bog Raiders. Only one Plains used to avoid duplicate-name limitation in find_on_battlefield (which returns first ObjectId match — two Plains with same name would cause PermanentAlreadyTapped on second tap_for_mana).",
@@ -56,11 +63,23 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Plains", "is_commander": false, "tapped": false }
+          {
+            "card": "Plains",
+            "is_commander": false,
+            "tapped": false
+          }
         ],
         "p2": [
-          { "card": "Llanowar Elves", "is_commander": false, "tapped": false },
-          { "card": "Bog Raiders", "is_commander": false, "tapped": false }
+          {
+            "card": "Llanowar Elves",
+            "is_commander": false,
+            "tapped": false
+          },
+          {
+            "card": "Bog Raiders",
+            "is_commander": false,
+            "tapped": false
+          }
         ]
       },
       "hand": {},
@@ -69,7 +88,11 @@
       "command_zone": {},
       "library": {
         "p1": [
-          { "card": "Terminus", "is_commander": false, "owner": null }
+          {
+            "card": "Terminus",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "stack": []
@@ -86,15 +109,35 @@
           "description": "Initial: Terminus on top of p1 library, p1 hand empty, p2 has Llanowar Elves and Bog Raiders, 1 Plains untapped on p1 battlefield",
           "assertions": {
             "zones.hand.p1.count": 0,
-            "zones.battlefield.p1": { "includes": [{ "card": "Plains" }] },
-            "zones.battlefield.p2": { "includes": [{ "card": "Llanowar Elves" }, { "card": "Bog Raiders" }] },
-            "zones.stack": { "is_empty": true }
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Plains"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                },
+                {
+                  "card": "Bog Raiders"
+                }
+              ]
+            },
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Starting position: Terminus is p1's only library card; p1 hand is empty; p2 has two creatures; p1 has one untapped Plains."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority in upkeep with empty stack. handle_all_passed: stack empty → empty mana pools (CR 500.4) → advance_step (Upkeep → Draw) → enter_step(Draw) → draw_for_turn (CR 504.1): Terminus moved from library to p1 hand, cards_drawn_this_turn = 1, CardDrawn emitted. check_miracle_eligible fires: cards_drawn_this_turn == 1 AND Terminus has Miracle → MiracleRevealChoiceRequired emitted. Priority granted to p1 in Draw step."
         },
@@ -103,8 +146,16 @@
           "description": "After draw step fires: Terminus in p1 hand, library empty, stack still empty",
           "assertions": {
             "zones.hand.p1.count": 1,
-            "zones.hand.p1": { "includes": [{ "card": "Terminus" }] },
-            "zones.stack": { "is_empty": true }
+            "zones.hand.p1": {
+              "includes": [
+                {
+                  "card": "Terminus"
+                }
+              ]
+            },
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 504.1: Active player draws Terminus as the draw step's turn-based action. cards_drawn_this_turn is now 1. MiracleRevealChoiceRequired was emitted. Engine awaits Command::ChooseMiracle from p1."
         }
@@ -142,7 +193,13 @@
           "assertions": {
             "zones.stack.count": 1,
             "zones.hand.p1.count": 1,
-            "zones.hand.p1": { "includes": [{ "card": "Terminus" }] }
+            "zones.hand.p1": {
+              "includes": [
+                {
+                  "card": "Terminus"
+                }
+              ]
+            }
           },
           "note": "CR 702.94b: Terminus remains in hand while the miracle trigger is on the stack. MiracleTrigger is the only stack object."
         },
@@ -152,7 +209,9 @@
           "action": "cast_spell_miracle",
           "card": "Terminus",
           "targets": [],
-          "mana_paid": { "white": 1 },
+          "mana_paid": {
+            "white": 1
+          },
           "mana_source": [],
           "cr_ref": "601.2b",
           "note": "CR 601.2b: p1 casts Terminus from hand using the miracle alternative cost {W} instead of the normal cost {4}{W}{W}. cast_with_miracle:true; engine validates Terminus has AbilityDefinition::Miracle and cards_drawn_this_turn == 1. {W} paid from mana pool. Terminus moves from hand to stack on top of MiracleTrigger. CR 405.5: LIFO — Terminus resolves first."
@@ -168,7 +227,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority. Stack non-empty → resolve top object (Terminus)."
         },
@@ -178,7 +240,9 @@
           "resolution": [
             {
               "effect": "destroy_all_creatures",
-              "target": { "type": "all_creatures" },
+              "target": {
+                "type": "all_creatures"
+              },
               "amount": 0,
               "card": null,
               "owner": null,
@@ -193,13 +257,19 @@
           "actions": [
             {
               "action": "creature_dies",
-              "target": { "card": "Llanowar Elves", "controller": "p2" },
+              "target": {
+                "card": "Llanowar Elves",
+                "controller": "p2"
+              },
               "cr_ref": "704.5g",
               "note": "CR 704.5g: Llanowar Elves was destroyed by Terminus. Moves to p2's graveyard."
             },
             {
               "action": "creature_dies",
-              "target": { "card": "Bog Raiders", "controller": "p2" },
+              "target": {
+                "card": "Bog Raiders",
+                "controller": "p2"
+              },
               "cr_ref": "704.5g",
               "note": "CR 704.5g: Bog Raiders was destroyed by Terminus. Moves to p2's graveyard."
             }
@@ -210,12 +280,32 @@
           "type": "assert_state",
           "description": "After Terminus resolves + SBAs: both p2 creatures gone, Terminus in p1 graveyard, MiracleTrigger still on stack",
           "assertions": {
-            "zones.graveyard.p1": { "includes": [{ "card": "Terminus" }] },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Terminus"
+                }
+              ]
+            },
             "zones.battlefield.p2": {
-              "excludes": [{ "card": "Llanowar Elves" }, { "card": "Bog Raiders" }]
+              "excludes": [
+                {
+                  "card": "Llanowar Elves"
+                },
+                {
+                  "card": "Bog Raiders"
+                }
+              ]
             },
             "zones.graveyard.p2": {
-              "includes": [{ "card": "Llanowar Elves" }, { "card": "Bog Raiders" }]
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                },
+                {
+                  "card": "Bog Raiders"
+                }
+              ]
             },
             "zones.stack.count": 1
           },
@@ -223,7 +313,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority. MiracleTrigger (now top of stack) resolves."
         },
@@ -233,7 +326,10 @@
           "resolution": [
             {
               "effect": "miracle_trigger_no_op",
-              "target": { "type": "player", "player": "p1" },
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
               "amount": 0,
               "card": null,
               "owner": null,
@@ -247,10 +343,25 @@
           "type": "assert_state",
           "description": "Final: stack empty, Terminus in p1 graveyard, both p2 creatures in p2 graveyard, life totals unchanged",
           "assertions": {
-            "zones.stack": { "is_empty": true },
-            "zones.graveyard.p1": { "includes": [{ "card": "Terminus" }] },
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Terminus"
+                }
+              ]
+            },
             "zones.graveyard.p2": {
-              "includes": [{ "card": "Llanowar Elves" }, { "card": "Bog Raiders" }]
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                },
+                {
+                  "card": "Bog Raiders"
+                }
+              ]
             },
             "players.p1.life": 40,
             "players.p2.life": 40
