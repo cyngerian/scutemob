@@ -44,6 +44,17 @@ const EXPECTED_GROUPS: &[&str] = &[
     "scripts",
 ];
 
+/// Directories under `tests/` that Cargo does not treat as test targets (no
+/// `main.rs`), and that this gate must therefore not treat as groups.
+///
+/// `proptest-regressions/` is written by `proptest` the first time a property
+/// test fails, to persist the failing seed. Cargo ignores it. Without this
+/// exemption, one property-test failure produces *two* red tests — the real one
+/// and `every_expected_group_exists_and_has_a_module_root` — and the second
+/// buries the first. `tests/core/` has carried four proptest files since before
+/// this gate existed (SR-9b).
+const NON_GROUP_DIRS: &[&str] = &["proptest-regressions"];
+
 fn tests_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests")
 }
@@ -120,6 +131,7 @@ fn every_expected_group_exists_and_has_a_module_root() {
         .map(|e| e.expect("readable dir entry"))
         .filter(|e| e.path().is_dir())
         .map(|e| e.file_name().to_string_lossy().into_owned())
+        .filter(|name| !NON_GROUP_DIRS.contains(&name.as_str()))
         .collect();
     let expected: BTreeSet<String> = EXPECTED_GROUPS.iter().map(|s| s.to_string()).collect();
     assert_eq!(

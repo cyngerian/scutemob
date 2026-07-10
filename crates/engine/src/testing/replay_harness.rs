@@ -27,6 +27,24 @@ use im::OrdMap;
 /// - [`parse_counter_type`] — maps counter string → [`CounterType`]
 /// - [`translate_player_action`] — maps a script `PlayerAction` string → `Command`
 use std::collections::HashMap;
+// ── Determinism ───────────────────────────────────────────────────────────────
+/// Iterate a script's `HashMap<String, T>` in key order.
+///
+/// `InitialState`'s zone and player maps are `std::collections::HashMap`s, so
+/// their iteration order is seeded per map instance by `RandomState`. Two
+/// deserializations of the *same* JSON in the *same* process can iterate in
+/// different orders. Because [`build_initial_state`] assigns `ObjectId`s in
+/// insertion order, iterating one of these maps directly makes the built
+/// `GameState` nondeterministic: the same script yields different `ObjectId`
+/// assignments, hence a different `public_state_hash`, run to run.
+///
+/// Every loop over a script-supplied map must go through this function
+/// (SR-9b; `tests/scripts/harness_equivalence.rs` is the regression gate).
+fn sorted_zone_entries<T>(map: &HashMap<String, T>) -> Vec<(&String, &T)> {
+    let mut entries: Vec<(&String, &T)> = map.iter().collect();
+    entries.sort_by(|a, b| a.0.cmp(b.0));
+    entries
+}
 // ── Public API ────────────────────────────────────────────────────────────────
 /// Build a [`GameState`] from a [`GameScript`]'s initial state description.
 ///
@@ -75,9 +93,15 @@ pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, P
         cards.iter().map(|d| (d.name.clone(), d.clone())).collect();
     // Build registry (for spell effect execution during resolution).
     let registry = CardRegistry::new(cards); // returns Arc<CardRegistry>
+
+    // SR-9b: `init.turn_number` was declared by the schema and never read, so every
+    // script ran on turn 1 regardless of what it said. `entered_turn` and every
+    // "this turn" comparison read `turn.turn_number`, so a script that set up a
+    // turn-5 board was silently playing a different game than it described.
     let mut builder = GameStateBuilder::new()
         .at_step(step)
         .active_player(active)
+        .turn_number(init.turn_number.max(1))
         .with_registry(registry);
     // Add players with their initial life / mana.
     for name in &names {
@@ -92,7 +116,15 @@ pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, P
         enrich_spec_from_def(base, &defs)
     };
     // Add battlefield permanents (under each player's control).
-    for (ctrl_name, permanents) in &init.zones.battlefield {
+    //
+    // SR-9b: every zone map below is a `HashMap<String, _>`, whose iteration order
+    // is randomized per instance by `RandomState`. Objects are assigned `ObjectId`s
+    // in insertion order, so iterating these maps directly makes the resulting
+    // `GameState` — and therefore its hash, and therefore anything ObjectId-ordered
+    // downstream — differ between two builds of the *same* script in the *same*
+    // process. Sort the keys. `sorted_zone_entries` exists so no future zone loop
+    // forgets.
+    for (ctrl_name, permanents) in sorted_zone_entries(&init.zones.battlefield) {
         if let Some(&ctrl) = player_map.get(ctrl_name) {
             for perm in permanents {
                 let mut spec = make_spec(ctrl, &perm.card, ZoneId::Battlefield);
@@ -112,7 +144,7 @@ pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, P
         }
     }
     // Add hand cards.
-    for (owner_name, hand_cards) in &init.zones.hand {
+    for (owner_name, hand_cards) in sorted_zone_entries(&init.zones.hand) {
         if let Some(&owner) = player_map.get(owner_name) {
             for card in hand_cards {
                 let owner_pid = if let Some(o) = &card.owner {
@@ -125,7 +157,7 @@ pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, P
         }
     }
     // Add graveyard cards.
-    for (owner_name, gy_cards) in &init.zones.graveyard {
+    for (owner_name, gy_cards) in sorted_zone_entries(&init.zones.graveyard) {
         if let Some(&owner) = player_map.get(owner_name) {
             for card in gy_cards {
                 builder = builder.object(make_spec(owner, &card.card, ZoneId::Graveyard(owner)));
@@ -149,7 +181,7 @@ pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, P
         builder = builder.object(spec);
     }
     // Add library cards (top-to-bottom order).
-    for (owner_name, lib_cards) in &init.zones.library {
+    for (owner_name, lib_cards) in sorted_zone_entries(&init.zones.library) {
         if let Some(&owner) = player_map.get(owner_name) {
             for card in lib_cards {
                 builder = builder.object(make_spec(owner, &card.card, ZoneId::Library(owner)));
@@ -158,11 +190,11 @@ pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, P
     }
     let mut state = builder.build().unwrap();
     // Patch life totals, mana pools, and land plays (can't do these via builder).
-    for (name, pstate) in &init.players {
+    for (name, pstate) in sorted_zone_entries(&init.players) {
         if let Some(&pid) = player_map.get(name) {
             if let Some(ps) = state.players.get_mut(&pid) {
                 ps.life_total = pstate.life;
-                for (color_str, amount) in &pstate.mana_pool {
+                for (color_str, amount) in sorted_zone_entries(&pstate.mana_pool) {
                     if let Some(color) = parse_mana_color(color_str) {
                         ps.mana_pool.add(color, *amount);
                     }
@@ -197,7 +229,7 @@ pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, P
     // Register commanders: populate PlayerState::commander_ids from the script's
     // commander fields, then register zone-change replacement effects (CR 903.9).
     let mut any_commanders = false;
-    for (name, pstate) in &init.players {
+    for (name, pstate) in sorted_zone_entries(&init.players) {
         if let Some(&pid) = player_map.get(name) {
             for cmdr in [&pstate.commander, &pstate.partner_commander]
                 .into_iter()
@@ -322,7 +354,7 @@ pub fn translate_player_action(
         }
         "cast_spell" => {
             let card_id = find_in_hand(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             // CR 702.51: Resolve each convoke creature name to an ObjectId on the battlefield.
             let convoke_ids: Vec<crate::state::game_object::ObjectId> = convoke_names
                 .iter()
@@ -388,7 +420,7 @@ pub fn translate_player_action(
         // in the graveyard.
         "cast_spell_flashback" => {
             let card_id = find_in_graveyard(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             Some(Command::CastSpell {
                 player,
                 card: card_id,
@@ -411,7 +443,7 @@ pub fn translate_player_action(
         // The evoke cost (an alternative cost) is paid instead of the mana cost.
         "cast_spell_evoke" => {
             let card_id = find_in_hand(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             Some(Command::CastSpell {
                 player,
                 card: card_id,
@@ -434,7 +466,7 @@ pub fn translate_player_action(
         // The bestow cost (an alternative cost) is paid instead of the mana cost.
         "cast_spell_bestow" => {
             let card_id = find_in_hand(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             Some(Command::CastSpell {
                 player,
                 card: card_id,
@@ -458,7 +490,7 @@ pub fn translate_player_action(
         // replacement effect). Madness is auto-detected from the card's zone + keyword.
         "cast_spell_madness" => {
             let card_id = find_in_exile(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             Some(Command::CastSpell {
                 player,
                 card: card_id,
@@ -482,7 +514,7 @@ pub fn translate_player_action(
         // be on the stack (the player already chose to reveal via ChooseMiracle).
         "cast_spell_miracle" => {
             let card_id = find_in_hand(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             Some(Command::CastSpell {
                 player,
                 card: card_id,
@@ -506,7 +538,7 @@ pub fn translate_player_action(
         // The action uses the `escape` field: names of other cards to exile from graveyard.
         "cast_spell_escape" => {
             let card_id = find_in_graveyard(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             // Resolve escape exile card names to ObjectIds in the caster's graveyard.
             let exile_ids: Vec<crate::state::game_object::ObjectId> = escape_names
                 .iter()
@@ -571,7 +603,7 @@ pub fn translate_player_action(
             let source_id = find_on_battlefield(state, player, name)
                 .or_else(|| find_in_hand(state, player, name))
                 .or_else(|| find_in_graveyard(state, player, name))?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             // If the action specifies a discard_card_name (for Blood token activation),
             // resolve it to an ObjectId from the player's hand.
             let discard_card_id =
@@ -592,7 +624,7 @@ pub fn translate_player_action(
         // CR 606: Activate a loyalty ability on a planeswalker.
         "activate_loyalty_ability" => {
             let source_id = find_on_battlefield(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             Some(Command::ActivateLoyaltyAbility {
                 player,
                 source: source_id,
@@ -613,7 +645,7 @@ pub fn translate_player_action(
         // targets[0] is the attacking creature to pump.
         "activate_bloodrush" => {
             let card_id = find_in_hand(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             let target_id = target_list
                 .iter()
                 .find_map(|t| match t {
@@ -637,7 +669,7 @@ pub fn translate_player_action(
         // card_name is the name of the forecast card in the player's hand.
         "activate_forecast" => {
             let card_id = find_in_hand(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             Some(Command::ActivateForecast {
                 player,
                 card: card_id,
@@ -899,7 +931,7 @@ pub fn translate_player_action(
         // foretold_turn < current turn). Uses cast_with_foretell: true.
         "cast_spell_foretell" => {
             let card_id = find_foretold_in_exile(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             Some(Command::CastSpell {
                 player,
                 card: card_id,
@@ -934,7 +966,7 @@ pub fn translate_player_action(
         // Legal during the player's own main phase with empty stack.
         "cast_spell_plot" => {
             let card_id = find_plotted_in_exile(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             Some(Command::CastSpell {
                 player,
                 card: card_id,
@@ -961,7 +993,7 @@ pub fn translate_player_action(
             let card_id = find_in_hand(state, player, name)
                 .or_else(|| find_warped_in_exile(state, player, name))
                 .or_else(|| find_in_graveyard(state, player, name))?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             Some(Command::CastSpell {
                 player,
                 card: card_id,
@@ -985,7 +1017,7 @@ pub fn translate_player_action(
         // cost, optionally combined with a life payment (Force of Will).
         "cast_spell_pitch" => {
             let card_id = find_in_hand(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             let pitch_id = pitch_exile_card_name.and_then(|name| find_in_hand(state, player, name));
             Some(Command::CastSpell {
                 player,
@@ -1041,7 +1073,7 @@ pub fn translate_player_action(
         // After resolution the card returns to the graveyard normally (not exiled).
         "cast_spell_retrace" => {
             let card_id = find_in_graveyard(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             let land_name = discard_land_name?;
             let land_id = find_in_hand(state, player, land_name)?;
             Some(Command::CastSpell {
@@ -1068,7 +1100,7 @@ pub fn translate_player_action(
         // The card is exiled when it leaves the stack (resolves, countered, or fizzles).
         "cast_spell_jump_start" => {
             let card_id = find_in_graveyard(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             let discard_name = discard_card_name?;
             let discard_id = find_in_hand(state, player, discard_name)?;
             Some(Command::CastSpell {
@@ -1094,7 +1126,7 @@ pub fn translate_player_action(
         // when it leaves the stack. The card must have AbilityDefinition::Aftermath.
         "cast_spell_aftermath" => {
             let card_id = find_in_graveyard(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             Some(Command::CastSpell {
                 player,
                 card: card_id,
@@ -1118,7 +1150,7 @@ pub fn translate_player_action(
         // to alt_cost and can be combined with alternative costs like Flashback or Escape.
         "cast_spell_prototype" => {
             let card_id = find_in_hand(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             Some(Command::CastSpell {
                 player,
                 card: card_id,
@@ -1141,7 +1173,7 @@ pub fn translate_player_action(
         // The dash cost (an alternative cost) is paid instead of the mana cost.
         "cast_spell_dash" => {
             let card_id = find_in_hand(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             Some(Command::CastSpell {
                 player,
                 card: card_id,
@@ -1164,7 +1196,7 @@ pub fn translate_player_action(
         // The blitz cost (an alternative cost) is paid instead of the mana cost.
         "cast_spell_blitz" => {
             let card_id = find_in_hand(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             Some(Command::CastSpell {
                 player,
                 card: card_id,
@@ -1187,7 +1219,7 @@ pub fn translate_player_action(
         // The impending cost (an alternative cost) is paid instead of the mana cost.
         "cast_spell_impending" => {
             let card_id = find_in_hand(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             Some(Command::CastSpell {
                 player,
                 card: card_id,
@@ -1212,7 +1244,7 @@ pub fn translate_player_action(
         // spell's normal mana cost is still paid.
         "cast_spell_bargain" => {
             let card_id = find_in_hand(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             let bargain_sac_id =
                 bargain_sacrifice_name.and_then(|name| find_on_battlefield(state, player, name));
             Some(Command::CastSpell {
@@ -1247,7 +1279,7 @@ pub fn translate_player_action(
         // NOT reduce the mana cost (CR 701.59a).
         "cast_spell_collect_evidence" => {
             let card_id = find_in_hand(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             // CR 701.59a: Resolve each evidence card name to an ObjectId in the caster's graveyard.
             let evidence_ids: Vec<crate::state::game_object::ObjectId> = collect_evidence_names
                 .iter()
@@ -1278,7 +1310,7 @@ pub fn translate_player_action(
         // reduced by the sacrificed creature's mana value.
         "cast_spell_emerge" => {
             let card_id = find_in_hand(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             let emerge_sac_name = emerge_sacrifice_name?;
             let emerge_sac_id = find_on_battlefield(state, player, emerge_sac_name)?;
             Some(Command::CastSpell {
@@ -1307,7 +1339,7 @@ pub fn translate_player_action(
         // Precondition: an opponent of the casting player must have lost life this turn.
         "cast_spell_spectacle" => {
             let card_id = find_in_hand(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             Some(Command::CastSpell {
                 player,
                 card: card_id,
@@ -1328,7 +1360,7 @@ pub fn translate_player_action(
         }
         "cast_spell_surge" => {
             let card_id = find_in_hand(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             Some(Command::CastSpell {
                 player,
                 card: card_id,
@@ -1355,7 +1387,7 @@ pub fn translate_player_action(
         // the battlefield and sacrificed as the additional cost.
         "cast_spell_casualty" => {
             let card_id = find_in_hand(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             let casualty_sac_id =
                 casualty_sacrifice_name.and_then(|name| find_on_battlefield(state, player, name));
             Some(Command::CastSpell {
@@ -1391,7 +1423,7 @@ pub fn translate_player_action(
         // number of generic mana they pay.
         "cast_spell_assist" => {
             let card_id = find_in_hand(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             let assist_pid = assist_player_name.and_then(|name| players.get(name).copied());
             Some(Command::CastSpell {
                 player,
@@ -1425,7 +1457,7 @@ pub fn translate_player_action(
         // creates N copies of the original spell on resolution.
         "cast_spell_replicate" => {
             let card_id = find_in_hand(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             Some(Command::CastSpell {
                 player,
                 card: card_id,
@@ -1455,7 +1487,7 @@ pub fn translate_player_action(
         // onto the spell. Each named card must have the Splice ability and be in hand.
         "cast_spell_splice" => {
             let card_id = find_in_hand(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             // Resolve each splice card name to an ObjectId in the caster's hand.
             // Fail loudly if any declared splice card is not found — silently dropping
             // it would let a misspelled or absent card go undetected, causing the test
@@ -1545,7 +1577,7 @@ pub fn translate_player_action(
         // cost is added to the total mana cost. The spell must have KeywordAbility::Entwine.
         "cast_spell_entwine" => {
             let card_id = find_in_hand(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             Some(Command::CastSpell {
                 player,
                 card: card_id,
@@ -1570,7 +1602,7 @@ pub fn translate_player_action(
         // Mode 0 plus `escalate_modes` additional modes execute at resolution.
         "cast_spell_escalate" => {
             let card_id = find_in_hand(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             Some(Command::CastSpell {
                 player,
                 card: card_id,
@@ -1601,7 +1633,7 @@ pub fn translate_player_action(
         // The sacrifice and counter placement happen at resolution (ETB replacement), not here.
         "cast_spell_devour" => {
             let card_id = find_in_hand(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             // Resolve each devour creature name to an ObjectId on the battlefield.
             let devour_ids: Vec<crate::state::game_object::ObjectId> = convoke_names
                 .iter()
@@ -1639,7 +1671,7 @@ pub fn translate_player_action(
         // For "choose up to N": between 1 and N indices.
         "cast_spell_modal" => {
             let card_id = find_in_hand(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             Some(Command::CastSpell {
                 player,
                 card: card_id,
@@ -1664,7 +1696,7 @@ pub fn translate_player_action(
         // and must have KeywordAbility::Fuse and AbilityDefinition::Fuse.
         "cast_spell_fuse" => {
             let card_id = find_in_hand(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             Some(Command::CastSpell {
                 player,
                 card: card_id,
@@ -1689,7 +1721,7 @@ pub fn translate_player_action(
         // total mana cost. On ETB, a SquadTrigger creates N token copies of the creature.
         "cast_spell_squad" => {
             let card_id = find_in_hand(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             Some(Command::CastSpell {
                 player,
                 card: card_id,
@@ -1717,7 +1749,7 @@ pub fn translate_player_action(
         // 1 token copy of the creature except it's 1/1.
         "cast_spell_offspring" => {
             let card_id = find_in_hand(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             Some(Command::CastSpell {
                 player,
                 card: card_id,
@@ -1793,7 +1825,7 @@ pub fn translate_player_action(
         //   `targets`: optional target list
         "cast_spell_commander_free" => {
             let card_id = find_in_hand(state, player, card_name?)?;
-            let target_list = resolve_targets(targets, state, players);
+            let target_list = resolve_targets(targets, state, players)?;
             Some(Command::CastSpell {
                 player,
                 card: card_id,
@@ -3313,14 +3345,24 @@ pub fn enrich_spec_from_def(
     spec
 }
 // ── Private helpers ───────────────────────────────────────────────────────────
+/// Resolve a script action's target list to engine [`Target`](crate::state::Target)s.
+///
+/// Returns `None` if **any** target fails to resolve.
+///
+/// SR-9b: this used to `filter_map`, silently *dropping* an unresolvable target
+/// and handing the engine a shorter list. A `cast_spell` naming one permanent
+/// that is not on the battlefield therefore became a `CastSpell` with an empty
+/// `targets` vec — a targeted spell cast with no target at all (CR 601.2c) — and
+/// the script went green. Dropping a target is never what a script meant; a name
+/// that does not resolve is a broken script, and the action must not translate.
 fn resolve_targets(
     targets: &[ActionTarget],
     state: &GameState,
     players: &HashMap<String, PlayerId>,
-) -> Vec<crate::state::Target> {
+) -> Option<Vec<crate::state::Target>> {
     targets
         .iter()
-        .filter_map(|t| {
+        .map(|t| {
             match t.target_type.as_str() {
                 "player" => {
                     let pname = t.player.as_deref()?;
