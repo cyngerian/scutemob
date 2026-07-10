@@ -48,9 +48,9 @@ Full evidence (file:line) is in each task's ESM description — run
 | 10 | scutemob-62 | SR-10: Dependency & lint hygiene | S–M | **DONE 2026-07-10.** im→imbl migrated (704/705 refs ordered collections), rand 0.9, `[workspace.lints]` (non-vacuous), CastSpell boxed (`PROTOCOL_VERSION` 1→2). Chore C bakes toolchain-float into local builds → makes SR-11 more urgent. |
 | 11 | scutemob-63 | SR-11: Pin the Rust toolchain | S | **DONE 2026-07-10.** `rust-toolchain.toml` pins exact stable `1.95.0` (single source of truth); CI reads `channel` from it and verifies the installed rustc matches. Local `clippy -D warnings` is now an authoritative CI preview. |
 | 12 | scutemob-64 | SR-12: Unbypassable invariant-9 gate + marker anti-rot | M | **DONE 2026-07-10.** `start_game` now runs a completeness pre-game check (the choke point every assembly path shares); explicit opt-out `start_game_allowing_incomplete`. Deviation-language source scan guards Partial/KnownWrong; 6-entry reviewed allowlist. Fuzzer `random_deck` filters to Complete. |
-| 13 | scutemob-65 | SR-13: Damage-source characteristics must use LKI | M | Discovered during SR-4. Wither/infect "function no matter what zone" (CR 702.80c/702.90e) but the engine reads the source through a live lookup and treats a dead source as having neither. Real bug, not an assert. |
+| 13 | scutemob-65 | SR-13: Damage-source characteristics must use LKI | M | **DONE 2026-07-10.** `GameState.lki_objects` layer-resolved snapshot captured in `move_object_to_zone`; infect/wither/deathtouch/lifelink now apply from a dead source (CR 702.80c/702.90e). `HASH_SCHEMA_VERSION` 37 → 38. |
 | 14 | scutemob-66 | SR-14: Extend the SR-4 diagnostics vocabulary to the rest of `rules/` | M | **DONE 2026-07-10.** ~360 sites across the ten named `rules/` files classified impossible vs fizzle; two uncertain IMPOSSIBLE calls demoted to FIZZLE by the debug-assert suite. Record: `docs/sr-14-silent-failure-audit-rules.md`. |
-| 15 | scutemob-67 | SR-15: Catch-all audit for the *other* dispatch enums | M | Discovered during SR-5. The ~117 catch-alls SR-5 was sent to find are real but sit on `AbilityDefinition` (20), `ZoneId` (19), `ZoneChangeAction` (17), … — `AbilityDefinition` is a genuine dispatch table. Registry pattern from SR-5 transfers directly. |
+| 15 | scutemob-67 | SR-15: Catch-all audit for the *other* dispatch enums | M | **DONE 2026-07-10.** `state::ability_definition_registry` compile gate (68 variants: 64 Handled / 4 Marker) + trial-variant demo; `ZoneChangeAction` proven already compile-gated by construction. All ~26 `AbilityDefinition` catch-alls are benign projections. |
 | 16 | scutemob-68 | SR-16: `PendingTrigger` serde round-trip drops `kind`/`data`/`embedded_effect` | S–M | **DONE 2026-07-10.** Option (a): the three `#[serde(skip)]` fields are now serialized; `PendingTriggerKind` gained the derive. `HASH_SCHEMA_VERSION` 38 → 39 (serde shape change; hash stream unchanged). Round-trip gate `pending_trigger_serde_roundtrip`. `PROTOCOL_VERSION` untouched — `PendingTrigger` is inside `GameState`. **Closes the SR remediation track.** |
 
 Order is a recommendation, not a dependency chain. Hard constraints only:
@@ -720,7 +720,7 @@ Task-specific extras:
 _One entry per session, newest first. Format:_
 `- YYYY-MM-DD — SR-<N> (scutemob-<id>) — <status: done / in progress / blocked> — <one-line outcome + hazards + pointer for next session>`
 
-- 2026-07-10 — SR-16 (scutemob-68) — **done (in_review, awaiting /collect)** — **Closes the SR
+- 2026-07-10 — SR-16 (scutemob-68) — **done** (collected, merge `c93db34f`) — **Closes the SR
   remediation track (final task).** `PendingTrigger.{kind, data, embedded_effect}` were
   `#[serde(skip)]`, so a serialized-then-deserialized `GameState` coerced every pending keyword
   trigger to an anonymous `Normal` with no payload — silently. Chose **option (a)**: serialize the
@@ -737,7 +737,7 @@ _One entry per session, newest first. Format:_
   **Gates:** `cargo test --all` 0 failed, `clippy --all-targets -D warnings`, `fmt --all --check`,
   `build --workspace` — all green. **Next:** none — SR inventory is fully DONE (SR-1..16).
 
-- 2026-07-10 — SR-14 (scutemob-66) — **done (in_review, awaiting /collect)** — Extended the
+- 2026-07-10 — SR-14 (scutemob-66) — **done** (collected, merge `c93db34f`) — Extended the
   SR-4 `state::diagnostics` vocabulary to the ten named `rules/` files (abilities, casting,
   combat, sba, replacement, turn_actions, mana, copy, engine, lands). ~360 state-lookup /
   fallible-mutation sites classified impossible-absence (`expect_*`, asserts) vs
@@ -765,7 +765,7 @@ _One entry per session, newest first. Format:_
   file a new SR task if wanted. **Next:** SR-15 (`scutemob-67`, catch-all audit for the
   other dispatch enums) or SR-16 (`scutemob-68`, PendingTrigger serde round-trip).
 
-- 2026-07-10 — SR-12 (scutemob-64) — **done (in_review, awaiting /collect)** — Made the
+- 2026-07-10 — SR-12 (scutemob-64) — **done** (collected, merge `c93db34f`) — Made the
   invariant-9 marker gate unbypassable and added anti-rot for the Partial/KnownWrong classes.
   (a) `start_game` — the choke point the simulator, fuzzer, and any production caller all share
   (the builder is a field-by-field test utility with no single "assemble" method to guard) — now
@@ -787,7 +787,7 @@ _One entry per session, newest first. Format:_
   `fmt --all --check`, `build --workspace` all green on 1.95.0. **Next:** SR-13 (`scutemob-65`,
   damage-source characteristics via LKI), then SR-14+.
 
-- 2026-07-10 — SR-11 (scutemob-63) — **done (in_review, awaiting /collect)** — Pinned the Rust
+- 2026-07-10 — SR-11 (scutemob-63) — **done** (collected, merge `c93db34f`) — Pinned the Rust
   toolchain. The repo already had a tracked `rust-toolchain.toml` that said `channel = "stable"`
   — a pin in appearance only, since `stable` floats to the newest release, so CI (fresh fetch)
   and the dev box (last `rustup update`) diverge from the same file. Changed to `channel =
@@ -804,7 +804,7 @@ _One entry per session, newest first. Format:_
   `build --workspace` all green on 1.95.0. **Next:** SR-12 (`scutemob-64`, unbypassable invariant-9
   gate + marker anti-rot), then SR-13+.
 
-- 2026-07-10 — SR-10 (scutemob-62) — **done (in_review, awaiting /collect)** — Dependency & lint
+- 2026-07-10 — SR-10 (scutemob-62) — **done** (collected, merge `c93db34f`) — Dependency & lint
   hygiene, four independent chores, each its own revertable commit. (A) **im 15.1 → imbl 7.0**:
   migrated, not deferred — 704/705 `im::` refs are ordered collections (OrdSet/Vector/OrdMap) with
   imbl-identical internals, the lone `im::HashMap` is a comment; mechanical dep+path swap, zero API
