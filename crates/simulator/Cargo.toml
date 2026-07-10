@@ -30,3 +30,6 @@ serde_json = "1"
 
 [dev-dependencies]
 # Tests only
+
+[lints]
+workspace = true

@@ -14,3 +14,6 @@ serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["raw_value"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
 ureq = "3"
+
+[lints]
+workspace = true

@@ -9,3 +9,6 @@ build = "build.rs"
 # direct dependency here, not just a transitive one through the DSL types.
 im = { version = "15", features = ["serde"] }
 mtg-card-types = { path = "../card-types" }
+
+[lints]
+workspace = true
