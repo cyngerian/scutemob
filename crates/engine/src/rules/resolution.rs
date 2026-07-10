@@ -1196,7 +1196,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         // state may have changed since cast time (CR 608.3b).
                         for sac_id in &devour_sacrifice_ids {
                             let sac_id = *sac_id;
-                            // Validate: still on battlefield, still controlled by caster, still creature.
+                            // Validate: still on battlefield, still controlled by caster, still creature,
+                            // and still a legal sacrifice (CR 701.21a — cast-time already checked this,
+                            // but re-validate here per CR 608.3b in case state changed).
                             let still_valid = state
                                 .objects
                                 .get(&sac_id)
@@ -1208,7 +1210,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                             .card_types
                                             .contains(&CardType::Creature)
                                 })
-                                .unwrap_or(false);
+                                .unwrap_or(false)
+                                && !crate::effects::object_cant_be_sacrificed(state, sac_id);
                             if !still_valid {
                                 continue;
                             }
@@ -4245,8 +4248,14 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     }
                 } else {
                     // No qualifying target: sacrifice the champion (CR 702.72a).
+                    // CR 701.21a: a champion that can't be sacrificed is not sacrificed --
+                    // it stays on the battlefield (mirrors the Evoke/Blitz guards above).
+                    // Unreachable today (CantBeSacrificed is self-referential and no known
+                    // card combines Champion with it), wired for dispatch-chain completeness.
                     let source_info = state.objects.get(&source_object).and_then(|obj| {
-                        if obj.zone == ZoneId::Battlefield {
+                        if obj.zone == ZoneId::Battlefield
+                            && !crate::effects::object_cant_be_sacrificed(state, source_object)
+                        {
                             let pre_chars = crate::rules::layers::calculate_characteristics(
                                 state,
                                 source_object,

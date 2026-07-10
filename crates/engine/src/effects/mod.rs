@@ -7115,8 +7115,10 @@ pub fn make_token(
 /// board-wipe "sacrifice all creatures" (`effects/mod.rs`), activated-ability cost
 /// payment -- self and filtered (`abilities.rs`), Forage (`abilities.rs`), cast-time
 /// additional costs -- Emerge/Bargain/Casualty/SpellAdditionalCost/Devour (`casting.rs`),
-/// and the delayed self-sacrifice sites -- Evoke, Blitz, Encore, decayed end-of-combat,
-/// and the shared `DelayedTriggerAction::SacrificeObject` dispatch used by Mobilize,
+/// Devour's resolution-time re-validation and Champion's "no qualifying target"
+/// self-sacrifice (`resolution.rs`), and the delayed self-sacrifice sites -- Evoke,
+/// Blitz, Encore, decayed end-of-combat, and the shared
+/// `DelayedTriggerAction::SacrificeObject` dispatch used by Mobilize,
 /// Kiki-Jiki, and The Fire Crystal (`resolution.rs` / `turn_actions.rs`). Exploit's
 /// "you may sacrifice" is N/A: the engine unconditionally declines that choice today,
 /// so there is no sacrifice dispatch to guard there. Any NEW sacrifice dispatch site
