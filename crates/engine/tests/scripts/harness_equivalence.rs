@@ -88,6 +88,29 @@
 //! Also: `parse_step` has no arm for `"combat"`, which several scripts use as
 //! their `phase`; it falls through to the default. And `replay_script` silently
 //! skips any `ScriptAction` that `translate_player_action` cannot translate.
+//!
+//! # Demonstrated, not asserted
+//!
+//! Six perturbations were applied to `replay_harness.rs` and to the corpus, each
+//! verified to have actually changed the file before the suite was run (SR-9a's
+//! lesson: an attack that changes nothing "passes" every gate). Which tests fire:
+//!
+//! | Attack | Caught by |
+//! |---|---|
+//! | revert `sorted_zone_entries` on the battlefield loop | `build_initial_state_is_deterministic`, all three `equivalence_*` |
+//! | drop the `turn_number()` call | `initial_state_turn_number_is_honored`, all three `equivalence_*` |
+//! | `tap_for_mana` translates to `ability_index: 1` | `equivalence_bolt`, `scenarios_are_not_vacuous` |
+//! | `pass_priority` always passes for `PlayerId(1)` | all three `equivalence_*`, `scenarios_are_not_vacuous` |
+//! | `play_land` falls back to the battlefield | **only** the property test |
+//! | an approved script names an undefined card | `scripts_only_name_cards_that_have_definitions` |
+//!
+//! Two of those rows carry the file's real argument. The `play_land` fallback is
+//! invisible to every fixed scenario — it needs the *sequence* `[PlayLand Forest,
+//! PlayLand Forest]` before the harness and a direct test disagree, and that is
+//! what the property test generates. And `equivalence_equip` survives the
+//! `sorted_zone_entries` revert, because only one player has permanents in it, so
+//! map order cannot matter: a scenario proves nothing about the bug it cannot
+//! express.
 
 use std::collections::HashMap;
 
@@ -376,18 +399,18 @@ fn translate(
         &[], // escape
         false,
         false,
-        &[],   // enlist
-        None,  // attacker_name
-        None,  // discard_land
-        None,  // discard_card
-        None,  // bargain_sacrifice
-        None,  // emerge_sacrifice
-        None,  // casualty_sacrifice
-        None,  // assist_player
-        0,     // assist_amount
-        0,     // replicate_count
-        &[],   // splice
-        0,     // escalate_modes
+        &[],  // enlist
+        None, // attacker_name
+        None, // discard_land
+        None, // discard_card
+        None, // bargain_sacrifice
+        None, // emerge_sacrifice
+        None, // casualty_sacrifice
+        None, // assist_player
+        0,    // assist_amount
+        0,    // replicate_count
+        &[],  // splice
+        0,    // escalate_modes
         vec![],
         None,  // target_creature
         0,     // x_value
@@ -517,7 +540,9 @@ fn assert_equivalent(scenario: &Scenario, moves: &[Move]) {
     let harness = drive(harness_state, &players, moves, |m, s, p| {
         m.harness_command(s, p)
     });
-    let direct = drive(direct_state, &players, moves, |m, s, p| m.direct_command(s, p));
+    let direct = drive(direct_state, &players, moves, |m, s, p| {
+        m.direct_command(s, p)
+    });
 
     assert_eq!(
         harness.initial, direct.initial,
@@ -895,8 +920,10 @@ fn scripts_only_name_cards_that_have_definitions() {
 
     let known: std::collections::HashSet<String> =
         all_cards().iter().map(|d| d.name.clone()).collect();
-    let allow: std::collections::HashSet<&str> =
-        UNDEFINED_CARDS_IN_APPROVED_SCRIPTS.iter().copied().collect();
+    let allow: std::collections::HashSet<&str> = UNDEFINED_CARDS_IN_APPROVED_SCRIPTS
+        .iter()
+        .copied()
+        .collect();
 
     let root = std::path::Path::new("../../test-data/generated-scripts");
     assert!(
@@ -912,7 +939,10 @@ fn scripts_only_name_cards_that_have_definitions() {
         if !group.path().is_dir() {
             continue;
         }
-        for entry in std::fs::read_dir(group.path()).expect("read group").flatten() {
+        for entry in std::fs::read_dir(group.path())
+            .expect("read group")
+            .flatten()
+        {
             let path = entry.path();
             if path.extension().and_then(|e| e.to_str()) != Some("json") {
                 continue;

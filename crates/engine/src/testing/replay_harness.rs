@@ -93,6 +93,7 @@ pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, P
         cards.iter().map(|d| (d.name.clone(), d.clone())).collect();
     // Build registry (for spell effect execution during resolution).
     let registry = CardRegistry::new(cards); // returns Arc<CardRegistry>
+
     // SR-9b: `init.turn_number` was declared by the schema and never read, so every
     // script ran on turn 1 regardless of what it said. `entered_turn` and every
     // "this turn" comparison read `turn.turn_number`, so a script that set up a
