@@ -46,6 +46,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("'Create a token that's a copy of this creature, except it has haste and loses soulbond' — copy-token creation with..."),
         ..Default::default()
     }
 }

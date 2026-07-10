@@ -46,6 +46,7 @@ pub fn card() -> CardDefinition {
             },
             // TODO: "{1}{B}: Each player mills a card." — needs Effect::Mill with ForEach::EachPlayer.
         ],
+        completeness: Completeness::partial("Full Syr Konrad requires 3 separate trigger conditions: 1. Another creature dies (WheneverCreatureDies covers this but..."),
         ..Default::default()
     }
 }

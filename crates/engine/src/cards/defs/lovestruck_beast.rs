@@ -59,6 +59,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             }],
         }),
+        completeness: Completeness::partial("Attack restriction 'can't attack unless you control a 1/1 creature' — DSL gap: no..."),
         ..Default::default()
     }
 }

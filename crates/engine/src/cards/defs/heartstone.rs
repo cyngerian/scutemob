@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
             // TODO: activated abilities of creatures cost {1} less (applies globally, not just controller)
             //   (no EffectFilter::ActivatedAbilitiesOfCreatures + ReduceActivatedAbilityCost in DSL)
         ],
+        completeness: Completeness::partial("activated abilities of creatures cost {1} less (applies globally, not just controller) (no..."),
         ..Default::default()
     }
 }

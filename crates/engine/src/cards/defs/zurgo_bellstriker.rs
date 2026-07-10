@@ -37,5 +37,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+    completeness: Completeness::partial("static ability 'can't block creatures with power 2 or greater' — no CantBlock { filter: PowerGTE(2) } variant exists..."),
     }
 }

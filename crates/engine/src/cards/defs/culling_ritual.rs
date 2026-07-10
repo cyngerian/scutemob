@@ -31,6 +31,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("When variable-count mana generation with color choice is supported, add Effect::Choose wrapping AddMana(B) / AddMana(G)..."),
         ..Default::default()
     }
 }

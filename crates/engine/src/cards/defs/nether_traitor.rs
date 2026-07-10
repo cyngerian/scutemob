@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Shadow),
         ],
         // TODO: triggered ability from graveyard ("may pay {B}, return from graveyard")
+        completeness: Completeness::partial("DSL gap — triggered ability from graveyard zone not expressible, and mana-payment conditional ('you may pay {B}') not..."),
         ..Default::default()
     }
 }

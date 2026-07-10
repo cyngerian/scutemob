@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
             // TODO: Sacrifice: Remove all counters from target permanent — PB-5 (targeted)
             // Cost::SacrificeSelf available; blocked on targeted RemoveAllCounters effect
         ],
+        completeness: Completeness::partial("Sacrifice: Remove all counters from target permanent — PB-5 (targeted) Cost::SacrificeSelf available; blocked on..."),
         ..Default::default()
     }
 }

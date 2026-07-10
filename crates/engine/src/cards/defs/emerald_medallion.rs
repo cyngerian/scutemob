@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             exclude_self: false,
             colored_mana_reduction: None,
         }],
+        completeness: Completeness::inert("no abilities implemented"),
         ..Default::default()
     }
 }

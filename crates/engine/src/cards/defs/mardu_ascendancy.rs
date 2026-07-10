@@ -59,6 +59,7 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("Nontoken filter not yet in DSL for attack triggers — over-triggers on token attackers (including Goblin tokens created..."),
         ..Default::default()
     }
 }

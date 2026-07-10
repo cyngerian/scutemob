@@ -9,6 +9,7 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Sorcery]),
         oracle_text: "Draw cards equal to the number of cards in your hand plus one. You have no maximum hand size for the rest of the game.".to_string(),
         abilities: vec![],
+        completeness: Completeness::inert("no abilities implemented"),
         ..Default::default()
     }
 }

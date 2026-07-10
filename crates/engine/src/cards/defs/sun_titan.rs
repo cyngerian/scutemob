@@ -40,6 +40,7 @@ pub fn card() -> CardDefinition {
             // TODO: TriggerCondition::WhenAttacks not yet available for self-attack triggers.
             // When implemented, duplicate the above trigger with WhenAttacks condition.
         ],
+        completeness: Completeness::partial("TriggerCondition::WhenAttacks not yet available for self-attack triggers. When implemented, duplicate the above trigger..."),
         ..Default::default()
     }
 }

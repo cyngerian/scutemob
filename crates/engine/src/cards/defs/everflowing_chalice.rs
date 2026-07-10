@@ -32,6 +32,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("'This artifact enters with a charge counter on it for each time it was kicked.' — ETB-place-counters based on..."),
         ..Default::default()
     }
 }

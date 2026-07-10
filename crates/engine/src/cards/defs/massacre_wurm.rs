@@ -35,6 +35,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Whenever a creature an opponent controls dies, that player loses 2 life."
             // Blocked on PB-26: WheneverCreatureDies needs opponent controller filter.
         ],
+        completeness: Completeness::partial("'Whenever a creature an opponent controls dies, that player loses 2 life.' Blocked on PB-26: WheneverCreatureDies needs..."),
         ..Default::default()
     }
 }

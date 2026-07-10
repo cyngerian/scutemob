@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
             // you control). DSL lacks a triggered condition with subtype + nontoken + controller
             // filter. Per W5 policy, leaving empty to avoid wrong game state.
         ],
+        completeness: Completeness::partial("'Whenever another nontoken Elf is put into your graveyard from the battlefield' — WheneverCreatureDies is overbroad..."),
         ..Default::default()
     }
 }

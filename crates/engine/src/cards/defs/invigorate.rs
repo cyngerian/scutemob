@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::partial("DSL gap — alternative cost 'opponent gains 3 life' not in AltCostKind"),
         ..Default::default()
     }
 }

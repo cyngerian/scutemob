@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Instant]),
         oracle_text: "Kicker {1}{B} (You may pay an additional {1}{B} as you cast this spell.)\nExile target artifact or enchantment. If this spell was kicked, exile target nonland permanent instead.".to_string(),
         abilities: vec![],
+        completeness: Completeness::inert("DSL gap — Kicker changes the valid target set (artifact/enchantment vs nonland permanent). The `targets` field on..."),
         ..Default::default()
     }
 }

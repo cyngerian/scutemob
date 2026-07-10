@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             // resolution). TargetRequirement::TargetCardInGraveyard exists but conditional
             // effect based on card type at resolution not in DSL.
         ],
+        completeness: Completeness::partial("DSL gap — 'Exile target card from a graveyard' with conditional on creature card type (EffectTarget for graveyard card..."),
         ..Default::default()
     }
 }

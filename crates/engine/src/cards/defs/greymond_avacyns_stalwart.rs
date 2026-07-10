@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             // TODO: ETB choose-two modal ability grant (no ChooseAbility ETB in DSL)
             // TODO: Conditional +2/+2 static requiring count_threshold filter
         ],
+        completeness: Completeness::partial("DSL gap — 'As ... enters, choose from among' modal static grant is not expressible. No ChooseAbility ETB mechanism..."),
         ..Default::default()
     }
 }

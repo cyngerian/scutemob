@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             //   says sacrifice any Vampire, not specifically self). Removed to avoid
             //   wrong game state.
         ],
+        completeness: Completeness::partial("'Sacrifice a Vampire' (not self) + 'opponent lost life this turn' activation condition not expressible. SacrificeSelf..."),
         ..Default::default()
     }
 }

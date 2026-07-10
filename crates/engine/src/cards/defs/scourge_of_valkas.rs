@@ -40,6 +40,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("'Whenever this creature or another Dragon you control enters, it deals X damage to any target, where X is the number of..."),
         ..Default::default()
     }
 }

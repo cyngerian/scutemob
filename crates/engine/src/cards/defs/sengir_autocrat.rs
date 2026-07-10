@@ -62,6 +62,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("'When this creature leaves the battlefield, exile all Serf tokens' — WhenLeavesBattlefield trigger not in..."),
         ..Default::default()
     }
 }

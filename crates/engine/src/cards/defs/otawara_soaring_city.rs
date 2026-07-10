@@ -58,6 +58,7 @@ pub fn card() -> CardDefinition {
                 controller: PlayerTarget::Controller,
             },
         )],
+        completeness: Completeness::known_wrong("target filter approximated with 'non-land'; the printed filter differs"),
         ..Default::default()
     }
 }

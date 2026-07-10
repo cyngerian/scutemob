@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
             exclude_self: false,
             colored_mana_reduction: None,
         }],
+        completeness: Completeness::partial("'Whenever you counter a spell' trigger not in DSL"),
         ..Default::default()
     }
 }

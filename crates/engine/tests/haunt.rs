@@ -18,8 +18,9 @@
 
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
-    Effect, EffectAmount, GameEvent, GameState, GameStateBuilder, KeywordAbility, ObjectId,
-    ObjectSpec, PlayerId, PlayerTarget, StackObjectKind, Step, TriggerCondition, TypeLine, ZoneId,
+    Completeness, Effect, EffectAmount, GameEvent, GameState, GameStateBuilder, KeywordAbility,
+    ObjectId, ObjectSpec, PlayerId, PlayerTarget, StackObjectKind, Step, TriggerCondition,
+    TypeLine, ZoneId,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -116,6 +117,7 @@ fn haunt_creature_def() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+        completeness: Completeness::Complete,
     }
 }
 

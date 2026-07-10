@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Whenever enchanted creature attacks, you create a Treasure token" —
             // WhenEnchantedCreatureAttacks trigger does not exist in the DSL.
         ],
+        completeness: Completeness::partial("'Enchanted creature is goaded' — static goad applied to attached creature not expressible in DSL. Goad is an Effect..."),
         ..Default::default()
     }
 }

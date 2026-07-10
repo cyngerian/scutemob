@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — "this creature or another Vampire you control dies" trigger
             // with controller + subtype filter + optional mana payment at resolution.
         ],
+        completeness: Completeness::partial("DSL gap — 'this creature or another Vampire you control dies' trigger with controller + subtype filter + optional mana..."),
         ..Default::default()
     }
 }

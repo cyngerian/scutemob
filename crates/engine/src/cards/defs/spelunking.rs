@@ -37,6 +37,7 @@ pub fn card() -> CardDefinition {
             // for lands. Requires a replacement effect that modifies land ETB to remove the
             // tapped condition. This is a global ETB replacement and is deferred (PB-D territory).
         ],
+        completeness: Completeness::partial("Cave detection — 'if you put a Cave onto the battlefield this way, you gain 4 life' requires tracking which specific..."),
         ..Default::default()
     }
 }

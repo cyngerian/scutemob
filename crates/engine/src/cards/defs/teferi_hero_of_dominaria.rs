@@ -60,6 +60,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
+        completeness: Completeness::partial("Delayed trigger 'at the beginning of the next end step, untap up to two lands' is not expressible in DSL. Implementing..."),
         ..Default::default()
     }
 }

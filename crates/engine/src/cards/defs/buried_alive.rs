@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("'up to three' — SearchLibrary finds one card. Using one creature to graveyard as approximation"),
         ..Default::default()
     }
 }

@@ -57,6 +57,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
+        completeness: Completeness::partial("Chapter I/II need 'this Saga gains [ability]' (continuous effect granting activated ability)"),
         ..Default::default()
     }
 }

@@ -44,6 +44,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — "When Roalesk dies, proliferate, then proliferate again."
             // WhenThisDies trigger + Effect::Proliferate (twice).
         ],
+        completeness: Completeness::partial("DSL gap — 'When Roalesk dies, proliferate, then proliferate again.' WhenThisDies trigger + Effect::Proliferate (twice)"),
         ..Default::default()
     }
 }

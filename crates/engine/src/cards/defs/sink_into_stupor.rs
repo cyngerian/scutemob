@@ -30,6 +30,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("Should also target spells on the stack — no combined target variant"),
         ..Default::default()
     }
 }

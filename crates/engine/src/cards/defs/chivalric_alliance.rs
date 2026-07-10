@@ -58,6 +58,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("'with two or more creatures' condition not in DSL"),
         ..Default::default()
     }
 }

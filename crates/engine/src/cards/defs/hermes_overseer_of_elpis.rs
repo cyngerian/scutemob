@@ -63,6 +63,7 @@ pub fn card() -> CardDefinition {
             // WheneverCreatureYouControlAttacks fires per-creature (not per-combat),
             // and WheneverYouAttack has no subtype filter. Omitted per W5 policy.
         ],
+        completeness: Completeness::partial("(second ability): 'Whenever you attack with one or more Birds' requires a once-per-combat attack trigger gated on..."),
         ..Default::default()
     }
 }

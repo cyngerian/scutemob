@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             // WheneverYouGainLife trigger exists but there's no way to forward the
             // triggering amount to LoseLife. W5: omitted.
         ],
+        completeness: Completeness::partial("EffectAmount::TriggeringAmount (life gained this trigger) not in DSL"),
         ..Default::default()
     }
 }

@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("DSL gap — LayerModification::ModifyBoth(i32) takes a static i32, not EffectAmount. Implementing '+X/+X where X =..."),
         ..Default::default()
     }
 }

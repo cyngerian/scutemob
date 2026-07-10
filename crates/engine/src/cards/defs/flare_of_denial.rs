@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::partial("Alt cost — 'sacrifice a nontoken blue creature' as alternative to mana cost. Requires pitch-sacrifice alt cost..."),
         ..Default::default()
     }
 }

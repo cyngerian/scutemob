@@ -36,6 +36,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("DSL gap — 'Creatures with power less than ~'s power can't block creatures you control.' Dynamic blocking restriction..."),
         ..Default::default()
     }
 }

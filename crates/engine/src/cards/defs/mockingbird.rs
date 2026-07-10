@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
         ],
+        completeness: Completeness::partial("DSL gap — the ETB copy effect requires: 1. An optional ETB replacement that copies a target creature filtered by mana..."),
         ..Default::default()
     }
 }

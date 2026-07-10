@@ -65,6 +65,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("DSL gap — 'Whenever equipped creature dies, draw two cards' cannot be expressed faithfully...."),
         ..Default::default()
     }
 }

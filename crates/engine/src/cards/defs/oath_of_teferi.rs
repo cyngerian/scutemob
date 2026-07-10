@@ -35,6 +35,7 @@ pub fn card() -> CardDefinition {
             },
             // TODO: "activate loyalty abilities twice per turn" — no Permission for this.
         ],
+        completeness: Completeness::partial("'activate loyalty abilities twice per turn' — no Permission for this"),
         ..Default::default()
     }
 }

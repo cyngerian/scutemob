@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
             // one of your opponents" with life comparison intervening-if. Multiple DSL
             // gaps: trigger condition, life comparison, attacker draws, controller places counters.
         ],
+        completeness: Completeness::partial("DSL gap — complex multiplayer trigger: 'whenever a player attacks one of your opponents' with life comparison..."),
         ..Default::default()
     }
 }

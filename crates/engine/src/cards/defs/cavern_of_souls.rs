@@ -53,6 +53,7 @@ pub fn card() -> CardDefinition {
             // mana restriction is not yet expressible. Requires linking mana source to
             // spell uncounterability at resolution time. Deferred to future primitive.
         ],
+        completeness: Completeness::partial("'and that spell can't be countered' — uncounterability rider on the mana restriction is not yet expressible. Requires..."),
         ..Default::default()
     }
 }

@@ -36,6 +36,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::known_wrong("'with mana value X or less' filter is omitted, and the Equipment attach clause is not modeled"),
         ..Default::default()
     }
 }

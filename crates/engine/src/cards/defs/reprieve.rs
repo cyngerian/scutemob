@@ -14,6 +14,7 @@ pub fn card() -> CardDefinition {
         // to Hand (bounce-spell, not counter). Draw a card is expressible but partial without
         // the bounce makes this wrong game state (KI-2). Stripped per W6 policy.
         abilities: vec![],
+        completeness: Completeness::inert("'Return target spell to its owner's hand' — requires MoveZone from Stack to Hand (bounce-spell, not counter). Draw a..."),
         ..Default::default()
     }
 }

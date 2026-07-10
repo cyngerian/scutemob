@@ -49,6 +49,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("All three abilities require TriggerCondition::WheneverOpponentDiscards which does not exist in the DSL. Additionally..."),
         ..Default::default()
     }
 }

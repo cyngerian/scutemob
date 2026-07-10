@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Extort),
         ],
+        completeness: Completeness::partial("'Artifacts and creatures your opponents control enter tapped' — needs a global replacement effect for opponents'..."),
         ..Default::default()
     }
 }

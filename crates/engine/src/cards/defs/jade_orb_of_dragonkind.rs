@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
             },
             // TODO: mana-spend Dragon trigger (counter + hexproof) — DSL gap
         ],
+        completeness: Completeness::partial("'When you spend this mana to cast a Dragon creature spell' trigger — no mana-spend trigger mechanism in DSL...."),
         ..Default::default()
     }
 }

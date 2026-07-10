@@ -93,6 +93,7 @@ pub fn card() -> CardDefinition {
             },
         ],
         // TODO: static "can't counter creature/enchantment spells you control"
+        completeness: Completeness::partial("DSL gap — 'can't be countered' static for specific spell types not expressible (AbilityDefinition::Spell has..."),
         ..Default::default()
     }
 }

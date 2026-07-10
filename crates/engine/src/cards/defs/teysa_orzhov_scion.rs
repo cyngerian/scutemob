@@ -57,6 +57,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("Sacrifice ability — no DSL Cost variant for 'sacrifice N permanents of a given type' (only Cost::Sacrifice sacrifices..."),
         ..Default::default()
     }
 }

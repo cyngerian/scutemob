@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             // (The "at the beginning of your first main phase" trigger itself is now
             // available as TriggerCondition::AtBeginningOfFirstMainPhase — PB-AC6.)
         ],
+        completeness: Completeness::partial("triggered abilities carry a ModeSelection and resolve it (CR 700.2b), but the mode CHOICE is not player-declared..."),
         ..Default::default()
     }
 }

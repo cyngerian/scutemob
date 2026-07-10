@@ -31,6 +31,7 @@ pub fn card() -> CardDefinition {
                 },
             },
         ],
+        completeness: Completeness::partial("ETB land-play loop (put land, draw, repeat) — too complex for current DSL; deferred"),
         ..Default::default()
     }
 }

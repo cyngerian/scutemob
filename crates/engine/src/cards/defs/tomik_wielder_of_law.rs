@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Vigilance),
             // TODO: Attack-count trigger with 2+ threshold not expressible.
         ],
+        completeness: Completeness::partial("'Affinity for planeswalkers' — AffinityTarget::Planeswalkers not in enum"),
         ..Default::default()
     }
 }

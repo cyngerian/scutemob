@@ -32,6 +32,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — "Whenever Dwynen attacks, you gain 1 life for each attacking
             // Elf you control." Needs EffectAmount::AttackingCreatureCountWithSubtype.
         ],
+        completeness: Completeness::partial("DSL gap — 'Whenever Dwynen attacks, you gain 1 life for each attacking Elf you control.' Needs..."),
         ..Default::default()
     }
 }

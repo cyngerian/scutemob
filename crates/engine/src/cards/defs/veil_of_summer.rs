@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("Conditional draw ('if opponent cast blue/black this turn') — needs cast-tracking"),
         ..Default::default()
     }
 }

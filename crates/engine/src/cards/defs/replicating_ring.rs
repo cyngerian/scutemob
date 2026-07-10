@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
             },
             // TODO: upkeep night counter trigger + 8-counter token creation
         ],
+        completeness: Completeness::partial("Upkeep trigger with counter threshold + token creation of named artifact tokens with mana abilities. Implementing only..."),
         ..Default::default()
     }
 }

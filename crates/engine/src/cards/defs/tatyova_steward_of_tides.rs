@@ -90,6 +90,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("grant flying to land-creatures (continuous effect with card type filter) and landfall animate-land not in DSL"),
         ..Default::default()
     }
 }

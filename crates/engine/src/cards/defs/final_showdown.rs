@@ -82,6 +82,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::partial("(still, per PB-AC7 roster review): the ruling clarifies this is a non-target selection made on resolution ('The second..."),
         ..Default::default()
     }
 }

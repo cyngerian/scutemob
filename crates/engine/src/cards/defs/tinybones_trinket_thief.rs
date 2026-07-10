@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
         power: Some(1),
         toughness: Some(2),
         abilities: vec![],
+        completeness: Completeness::inert("First ability requires a game-state condition 'an opponent discarded a card this turn'..."),
         ..Default::default()
     }
 }

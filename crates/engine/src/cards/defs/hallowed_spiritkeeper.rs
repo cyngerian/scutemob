@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             // TODO: "When dies, create X Spirits where X = creature cards in graveyard"
             // — count-based token amount (EffectAmount::CreatureCardsInYourGraveyard) not in DSL
         ],
+        completeness: Completeness::partial("'When dies, create X Spirits where X = creature cards in graveyard' — count-based token amount..."),
         ..Default::default()
     }
 }

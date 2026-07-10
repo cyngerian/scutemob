@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — granting triggered abilities to other creatures. Static grant
             // of a triggered ability (GrantTriggeredAbility) not in DSL.
         ],
+        completeness: Completeness::partial("DSL gap — granting triggered abilities to other creatures. Static grant of a triggered ability (GrantTriggeredAbility)..."),
         ..Default::default()
     }
 }

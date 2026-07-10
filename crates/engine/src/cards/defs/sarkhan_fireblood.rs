@@ -59,6 +59,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
+        completeness: Completeness::partial("Optional discard-then-draw not in DSL. Using Nothing to avoid free draw"),
         ..Default::default()
     }
 }

@@ -42,6 +42,7 @@ pub fn card() -> CardDefinition {
             // DSL gaps: return_from_graveyard with historic filter; exile-self cost;
             // exile all graveyards effect not expressible.
         ],
+        completeness: Completeness::partial("{3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card from your graveyard to your hand, then..."),
         ..Default::default()
     }
 }

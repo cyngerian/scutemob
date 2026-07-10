@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
             // TODO: ETB-replacement clone (BecomeCopyOf + remove legendary + extra counter).
             // BecomeCopyOf exists but ETB-replacement clone choice not in DSL.
         ],
+        completeness: Completeness::partial("ETB-replacement clone (BecomeCopyOf + remove legendary + extra counter). BecomeCopyOf exists but ETB-replacement clone..."),
         ..Default::default()
     }
 }

@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             //   Also requires EffectAmount::LifeGainedThisEvent to cap the X cost,
             //   and a Cost::PayUpToX variant. Multiple DSL gaps. Omitted per W5 policy.
         ],
+        completeness: Completeness::partial("'Whenever you gain life, pay {X} up to the amount gained, draw X cards' — no TriggerCondition::WhenYouGainLife exists..."),
         ..Default::default()
     }
 }

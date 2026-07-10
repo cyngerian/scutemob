@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Instant]),
         oracle_text: "Cast this spell only before the combat damage step.\nTarget creature gains trample and gets +X/+0 until end of turn, where X is its power. At the beginning of the next end step, destroy that creature if it attacked this turn.".to_string(),
         abilities: vec![],
+        completeness: Completeness::inert("DSL gap — this card requires: 1. Timing restriction 'only before the combat damage step' (no DSL support). 2...."),
         ..Default::default()
     }
 }

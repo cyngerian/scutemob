@@ -37,6 +37,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Sacrifice five Treasures: Gain control of target creature for as long as
             // you control Kellogg." — see comment above.
         ],
+        completeness: Completeness::partial("'Sacrifice five Treasures: Gain control of target creature for as long as you control Kellogg.' — GainControl with..."),
         ..Default::default()
     }
 }

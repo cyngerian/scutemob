@@ -36,6 +36,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("(PB-37): approximation — oracle says 'an opponent' but WhenEnchantedCreatureDealsDamageToPlayer fires on damage to ANY..."),
         ..Default::default()
     }
 }

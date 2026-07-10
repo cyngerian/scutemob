@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — Ward(u32) only supports generic mana cost.
             // "Ward—Discard a card" requires a non-mana ward cost variant.
         ],
+        completeness: Completeness::partial("DSL gap — Ward(u32) only supports generic mana cost. 'Ward—Discard a card' requires a non-mana ward cost variant"),
         ..Default::default()
     }
 }

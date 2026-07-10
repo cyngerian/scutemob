@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
             // TODO: Return a Forest to hand: Untap target creature (once per turn)
             // — Cost::ReturnPermanentToHand not in DSL; Effect::UntapPermanent not in DSL
         ],
+        completeness: Completeness::partial("DSL gap — the activated ability (return Forest to hand: untap target creature, once per turn) requires a..."),
         ..Default::default()
     }
 }

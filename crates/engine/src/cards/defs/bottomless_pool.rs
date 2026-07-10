@@ -9,6 +9,7 @@ pub fn card() -> CardDefinition {
         types: types_sub(&[CardType::Enchantment], &["Room"]),
         oracle_text: "When you unlock this door, return up to one target creature to its owner's hand.\n(You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)".to_string(),
         abilities: vec![],
+        completeness: Completeness::inert("no abilities implemented"),
         ..Default::default()
     }
 }

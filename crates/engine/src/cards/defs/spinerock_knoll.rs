@@ -36,6 +36,7 @@ pub fn card() -> CardDefinition {
             //   if an opponent was dealt 7+ damage this turn.
             //   DSL gap: play-from-exile + damage-threshold condition.
         ],
+        completeness: Completeness::partial("Keyword — Hideaway 4"),
         ..Default::default()
     }
 }

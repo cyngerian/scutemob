@@ -36,6 +36,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::partial("The trample excess-damage clause ('if the creature you control has trample, excess damage is dealt to that creature's..."),
         ..Default::default()
     }
 }

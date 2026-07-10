@@ -20,7 +20,7 @@
 
 use mtg_engine::{
     process_command, AbilityDefinition, AttackTarget, CardDefinition, CardId, CardRegistry,
-    CardType, Command, Effect, EffectAmount, GameEvent, GameState, GameStateBuilder,
+    CardType, Command, Completeness, Effect, EffectAmount, GameEvent, GameState, GameStateBuilder,
     KeywordAbility, ObjectId, ObjectSpec, PlayerId, PlayerTarget, StackObjectKind, Step, TypeLine,
     ZoneId,
 };
@@ -135,6 +135,7 @@ fn cipher_instant_def() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+        completeness: Completeness::Complete,
     }
 }
 
@@ -929,6 +930,7 @@ fn test_cipher_multiple_encoded_cards_fire_separate_triggers() {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+        completeness: Completeness::Complete,
     };
     let card_id2 = def2.card_id.clone();
     let registry = CardRegistry::new(vec![def, def2]);

@@ -31,6 +31,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::partial("(M10+): Add interactive selection so player can choose a subset"),
         ..Default::default()
     }
 }

@@ -45,6 +45,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — end step trigger with "if a player lost 4+ life this turn"
             // intervening-if condition.
         ],
+        completeness: Completeness::partial("DSL gap — end step trigger with 'if a player lost 4+ life this turn' intervening-if condition"),
         ..Default::default()
     }
 }

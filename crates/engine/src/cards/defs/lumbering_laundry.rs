@@ -39,5 +39,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+    completeness: Completeness::partial("'{2}: look at face-down creatures you don't control' — no hidden-info peek effect primitive in DSL. Omitted"),
     }
 }

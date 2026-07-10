@@ -31,6 +31,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("DSL gap — Earthbend (keyword action) not in DSL. CR 605.1b / CR 106.12a: 'Whenever you tap a creature for mana, add..."),
         ..Default::default()
     }
 }

@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             // in DSL. Cannot implement the -1/-1 portion without the first part also being
             // present (they are linked). W5: omitted entirely.
         ],
+        completeness: Completeness::partial("The -1/-1 portion requires EffectAmount::CounterCountOf(target_controller, CounterType::Poison) — a dynamic amount..."),
         ..Default::default()
     }
 }

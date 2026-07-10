@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             // TODO: {1}{G/P}, {T}, Sacrifice a creature: search for creature with MV = sacrificed MV + 1
             //   (needs dynamic MV filter on SearchLibrary; Phyrexian mana cost gap; sacrifice-as-cost with reference)
         ],
+        completeness: Completeness::partial("{1}{G/P}, {T}, Sacrifice a creature: search for creature with MV = sacrificed MV + 1 (needs dynamic MV filter on..."),
         ..Default::default()
     }
 }

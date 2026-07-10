@@ -44,6 +44,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("'may draw' — optional draw, implementing as mandatory"),
         ..Default::default()
     }
 }

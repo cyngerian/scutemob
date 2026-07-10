@@ -34,6 +34,7 @@ pub fn card() -> CardDefinition {
             // "only once each turn" per-turn throttle is not expressible in the current DSL.
             // Deferred until trigger throttle support is added.
         ],
+        completeness: Completeness::partial("'Whenever one or more creatures your opponents control die, create a Treasure token. This ability triggers only once..."),
         ..Default::default()
     }
 }

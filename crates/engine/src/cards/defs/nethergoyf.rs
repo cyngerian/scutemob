@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
                 cost: ManaCost { generic: 2, black: 1, ..Default::default() },
             },
         ],
+        completeness: Completeness::partial("CDA for P/T = card types in graveyard. Needs EffectAmount::CardTypesInGraveyard. Using CdaPowerToughness stub"),
         ..Default::default()
     }
 }

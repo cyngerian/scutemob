@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
             // Omitted per W5 policy: wrong game state (e.g. buffing self or all creatures)
             // is worse than no implementation.
         ],
+        completeness: Completeness::partial("'that creature gets +2/+0 and gains haste until end of turn' requires Effect::ApplyContinuousEffect with..."),
         ..Default::default()
     }
 }

@@ -48,6 +48,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::known_wrong("oracle's 'activate only if' restriction is modeled as something else — the activation restriction is not enforced as printed"),
         ..Default::default()
     }
 }

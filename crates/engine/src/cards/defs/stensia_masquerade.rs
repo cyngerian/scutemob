@@ -46,6 +46,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("Madness {2}{R} — AltCostKind::Madness not in DSL"),
         ..Default::default()
     }
 }

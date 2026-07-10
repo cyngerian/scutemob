@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::SplitSecond),
             // TODO: DSL gap — untap + grant hexproof/reach + temporary tapped trigger not expressible.
         ],
+        completeness: Completeness::partial("DSL gap — the main spell effect (untap + grant hexproof/reach + tap trigger) is a complex instant-speed effect with..."),
         ..Default::default()
     }
 }

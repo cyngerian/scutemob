@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             // WhenDies trigger targeting all non-Elf creatures (EffectTarget with subtype
             // exclusion filter) not in DSL.
         ],
+        completeness: Completeness::partial("'When this creature dies, non-Elf creatures get -3/-3 until end of turn' — WhenDies trigger targeting all non-Elf..."),
         ..Default::default()
     }
 }

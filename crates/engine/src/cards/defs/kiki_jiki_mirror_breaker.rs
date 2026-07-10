@@ -45,6 +45,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("target filter lacks 'nonlegendary' restriction (TargetFilter has no nonlegendary bool)"),
         ..Default::default()
     }
 }

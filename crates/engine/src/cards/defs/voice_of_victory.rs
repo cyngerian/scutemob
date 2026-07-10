@@ -46,6 +46,7 @@ pub fn card() -> CardDefinition {
             },
             // TODO: "Opponents can't cast during your turn" stax restriction not in DSL.
         ],
+        completeness: Completeness::partial("'Opponents can't cast during your turn' stax restriction not in DSL"),
         ..Default::default()
     }
 }

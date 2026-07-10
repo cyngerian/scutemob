@@ -42,6 +42,7 @@ pub fn card() -> CardDefinition {
             // primitive exists the three-branch Landfall ability cannot be expressed without
             // producing wrong game state.
         ],
+        completeness: Completeness::partial("Blocker — per-ability 'this is the Nth time this ability has resolved this turn' tracking. Landfall trigger is covered..."),
         ..Default::default()
     }
 }

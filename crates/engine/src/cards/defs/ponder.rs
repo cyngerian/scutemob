@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("'Look at top 3, put back in any order, may shuffle' not in DSL. Implementing the draw only"),
         ..Default::default()
     }
 }

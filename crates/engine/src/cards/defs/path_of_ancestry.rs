@@ -34,6 +34,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("DSL gap — creature-type comparison + conditional scry on mana spend not expressible. Modeled as ETB tapped + any-color..."),
         ..Default::default()
     }
 }

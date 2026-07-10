@@ -46,6 +46,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::partial("Alternative cost (sacrifice nontoken green creature) — AltCostKind lacks a SacrificeCreature variant with..."),
         ..Default::default()
     }
 }

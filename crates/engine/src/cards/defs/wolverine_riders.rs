@@ -44,6 +44,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Whenever another Elf enters, gain life equal to toughness" —
             //   EffectAmount lacks toughness-of-entering-creature variant.
         ],
+        completeness: Completeness::partial("'Whenever another Elf enters, gain life equal to toughness' — EffectAmount lacks toughness-of-entering-creature variant"),
         ..Default::default()
     }
 }

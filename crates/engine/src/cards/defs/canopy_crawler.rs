@@ -29,5 +29,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+    completeness: Completeness::partial("activated ability — {T}: target creature gets +1/+1 until end of turn for each +1/+1 counter on this creature. Requires..."),
     }
 }

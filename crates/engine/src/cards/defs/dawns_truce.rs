@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Gift),
             // TODO: Hexproof + conditional indestructible not easily expressible.
         ],
+        completeness: Completeness::partial("Gift mechanic draw + hexproof/indestructible continuous effects complex for DSL"),
         ..Default::default()
     }
 }

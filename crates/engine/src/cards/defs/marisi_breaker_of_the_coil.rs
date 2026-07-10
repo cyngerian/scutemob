@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             // TODO: "goad each creature that player controls" — ForEach over DamagedPlayer's
             //   creatures requires TargetController::DamagedPlayer support. Deferred to PB-37.
         ],
+        completeness: Completeness::partial("'Your opponents can't cast spells during combat' — phase-scoped CantCast not in DSL"),
         ..Default::default()
     }
 }

@@ -51,6 +51,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("'you may' — optional create. Using mandatory. Note: 'Elf spell' needs subtype filter on spells (not yet in DSL). Using..."),
         ..Default::default()
     }
 }

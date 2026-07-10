@@ -60,6 +60,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::partial("the DSL has no way to attach a per-mode TargetRequirement to an individual Spree mode. A spell-level target would..."),
         ..Default::default()
     }
 }

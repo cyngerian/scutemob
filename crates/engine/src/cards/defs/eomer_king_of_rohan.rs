@@ -59,6 +59,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("ETB counter placement (X +1/+1 counters where X = other Humans you control) requires PermanentCount with subtype filter..."),
         ..Default::default()
     }
 }

@@ -32,6 +32,7 @@ pub fn card() -> CardDefinition {
             },
             AbilityDefinition::Cipher,
         ],
+        completeness: Completeness::partial("'tap or untap' requires player choice between tap/untap. Using TapPermanent as approximation (more common use case)"),
         ..Default::default()
     }
 }

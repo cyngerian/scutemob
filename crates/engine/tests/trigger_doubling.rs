@@ -13,9 +13,9 @@
 
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
-    Effect, EffectAmount, GameEvent, GameStateBuilder, ManaCost, ObjectSpec, PlayerId,
-    PlayerTarget, StackObjectKind, Step, TriggerCondition, TriggerDoubler, TriggerDoublerFilter,
-    TriggerEvent, TriggeredAbilityDef, TypeLine, ZoneId,
+    Completeness, Effect, EffectAmount, GameEvent, GameStateBuilder, ManaCost, ObjectSpec,
+    PlayerId, PlayerTarget, StackObjectKind, Step, TriggerCondition, TriggerDoubler,
+    TriggerDoublerFilter, TriggerEvent, TriggeredAbilityDef, TypeLine, ZoneId,
 };
 
 fn p1() -> PlayerId {
@@ -83,6 +83,7 @@ fn panharmonicon_def(id: &str, name: &str) -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+        completeness: Completeness::Complete,
     }
 }
 
@@ -154,6 +155,7 @@ fn test_panharmonicon_doubles_etb_trigger() {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+        completeness: Completeness::Complete,
     };
     let entering_card_id = entering_def.card_id.clone();
 
@@ -324,6 +326,7 @@ fn test_two_panharmonicons_triple_triggers() {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+        completeness: Completeness::Complete,
     };
     let entering_card_id = entering_def.card_id.clone();
 
@@ -499,6 +502,7 @@ fn test_panharmonicon_removal_doesnt_cancel_already_triggered() {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+        completeness: Completeness::Complete,
     };
     let entering_card_id = entering_def.card_id.clone();
 
@@ -661,6 +665,7 @@ fn test_panharmonicon_registration_via_resolution() {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+        completeness: Completeness::Complete,
     };
     let entering_card_id = entering_def.card_id.clone();
 
@@ -850,6 +855,7 @@ fn test_panharmonicon_doubles_self_etb_trigger() {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+        completeness: Completeness::Complete,
     };
     let self_etb_card_id = self_etb_def.card_id.clone();
 
@@ -1004,6 +1010,7 @@ fn test_panharmonicon_does_not_double_enchantment_etb() {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+        completeness: Completeness::Complete,
     };
     let enchantment_card_id = enchantment_def.card_id.clone();
 
@@ -1144,6 +1151,7 @@ fn test_any_permanent_etb_doubler_doubles_enchantment() {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+        completeness: Completeness::Complete,
     };
 
     let enchantment_entering = CardDefinition {
@@ -1173,6 +1181,7 @@ fn test_any_permanent_etb_doubler_doubles_enchantment() {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+        completeness: Completeness::Complete,
     };
     let ench_card_id = enchantment_entering.card_id.clone();
 
@@ -1308,6 +1317,7 @@ fn test_land_etb_doubler_doubles_landfall_not_creature() {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+        completeness: Completeness::Complete,
     };
     let land_card_id = land_def.card_id.clone();
 
@@ -1338,6 +1348,7 @@ fn test_land_etb_doubler_doubles_landfall_not_creature() {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+        completeness: Completeness::Complete,
     };
     let creature_card_id = creature_def.card_id.clone();
 
@@ -1578,6 +1589,7 @@ fn test_panharmonicon_doubles_carddef_etb_trigger() {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+        completeness: Completeness::Complete,
     };
     let creature_card_id = creature_with_carddef_etb.card_id.clone();
 

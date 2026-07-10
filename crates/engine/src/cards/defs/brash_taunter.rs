@@ -45,6 +45,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("WhenDealtDamage trigger redirecting that amount to a target opponent requires a targeted_trigger with a damage-amount..."),
         ..Default::default()
     }
 }

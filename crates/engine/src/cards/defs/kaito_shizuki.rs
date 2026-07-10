@@ -50,6 +50,7 @@ pub fn card() -> CardDefinition {
             // wrong game state.
             // ENGINE-BLOCKED: −7 emblem with combat damage → search library. Not expressible.
         ],
+        completeness: Completeness::partial("'if Kaito Shizuki entered this turn, he phases out' — needs an entered-this-turn condition on an end-step trigger plus..."),
         ..Default::default()
     }
 }

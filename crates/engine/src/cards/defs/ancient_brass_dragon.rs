@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
             // budget not expressible. Roll infrastructure exists (Effect::RollDice) but
             // the reanimation selection requires M10 interactive player choice.
         ],
+        completeness: Completeness::partial("DSL gap — variable-count graveyard reanimation with total mana value constraint based on dice roll result. The d20 roll..."),
         ..Default::default()
     }
 }

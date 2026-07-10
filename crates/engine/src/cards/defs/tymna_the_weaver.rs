@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             // (The "at the beginning of your postcombat main phase" trigger itself is now
             // available as TriggerCondition::AtBeginningOfPostcombatMain — PB-AC6.)
         ],
+        completeness: Completeness::partial("the life payment and draw count both scale with the number of opponents dealt combat damage this turn. No 'opponents..."),
         ..Default::default()
     }
 }

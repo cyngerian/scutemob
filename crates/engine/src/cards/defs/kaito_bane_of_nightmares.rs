@@ -92,6 +92,7 @@ pub fn card() -> CardDefinition {
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
         cant_be_countered: false,
+        completeness: Completeness::partial("Ninjutsu cost activated ability — ninjutsu is handled by the keyword engine and doesn't need a separate activated..."),
         ..Default::default()
     }
 }

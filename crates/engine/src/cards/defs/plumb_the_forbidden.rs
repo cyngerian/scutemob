@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("'Sacrifice creatures' additional cost + 'copy for each sacrificed' not in DSL. Implementing the base effect only (1..."),
         ..Default::default()
     }
 }

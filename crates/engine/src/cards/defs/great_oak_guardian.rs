@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             // player controls and untapping them requires a targeted_trigger with
             // ForEach over controlled creatures — not in DSL.
         ],
+        completeness: Completeness::partial("ETB targeted buff to all creatures a player controls (targeted_trigger gap)"),
         ..Default::default()
     }
 }

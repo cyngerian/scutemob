@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Instant]),
         oracle_text: "Exile target artifact or enchantment. If you cast this spell during your main phase, you may exile up to one other target artifact or enchantment.".to_string(),
         abilities: vec![],
+        completeness: Completeness::inert("DSL gap — 'if cast during your main phase' conditional second exile target is not expressible. The second target is..."),
         ..Default::default()
     }
 }

@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
             // absent from the DSL. WheneverCreatureDies covers only creatures; applying it
             // here would miss artifact deaths and produce incorrect game state.
         ],
+        completeness: Completeness::partial("'Whenever another creature or artifact you control dies' — there is no TriggerCondition covering both creatures AND..."),
         ..Default::default()
     }
 }

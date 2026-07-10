@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("DSL gap — 'pay X life as additional cost' is not expressible in SpellAdditionalCost (no PayLife or PayXLife variant)...."),
         ..Default::default()
     }
 }

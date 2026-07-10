@@ -33,6 +33,7 @@ pub fn card() -> CardDefinition {
             // TODO: Attack trigger creates tokens per-opponent — DSL lacks per-target token
             // creation for "each opponent" attack triggers. Deferred.
         ],
+        completeness: Completeness::partial("Attack trigger creates tokens per-opponent — DSL lacks per-target token creation for 'each opponent' attack triggers...."),
         ..Default::default()
     }
 }

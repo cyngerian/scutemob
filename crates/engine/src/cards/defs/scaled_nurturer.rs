@@ -29,6 +29,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("'When you spend this mana to cast a Dragon creature spell, you gain 2 life.' DSL gap: no 'when you spend this mana to..."),
         ..Default::default()
     }
 }

@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
             },
             AbilityDefinition::Keyword(KeywordAbility::Flying),
         ],
+        completeness: Completeness::partial("DSL gap — mutate trigger omitted. 'Whenever this creature mutates, exile the top card of each opponent's library face..."),
         ..Default::default()
     }
 }

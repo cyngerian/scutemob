@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             cant_be_countered: false,
         }],
         // TODO: AdditionalCost::DiscardCard not wired to Spell definition yet.
+        completeness: Completeness::partial("AdditionalCost::DiscardCard not wired to Spell definition yet"),
         ..Default::default()
     }
 }

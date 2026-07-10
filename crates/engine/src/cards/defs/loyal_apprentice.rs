@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             //   (Effect::Sequence with CreateToken then ApplyContinuousEffect targeting the
             //   newly created token is not supported). W5 policy: no approximation.
         ],
+        completeness: Completeness::partial("Lieutenant ability — requires intervening-if Condition::YouControlYourCommander which does not exist in DSL. Also token..."),
         ..Default::default()
     }
 }

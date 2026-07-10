@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             // variant exists for giving poison counters to players. Omitted until
             // Effect::GivePlayerPoisonCounters is added.
         ],
+        completeness: Completeness::partial("DSL gap — no Effect variant to give poison counters to players directly. 'Each player gets a poison counter' requires a..."),
         ..Default::default()
     }
 }

@@ -45,6 +45,7 @@ pub fn card() -> CardDefinition {
             },
             // TODO: "+1/+0 per attacking Goblin" — count-based pump not in DSL.
         ],
+        completeness: Completeness::partial("'Other Goblins must attack' forced-attack restriction not in DSL"),
         ..Default::default()
     }
 }

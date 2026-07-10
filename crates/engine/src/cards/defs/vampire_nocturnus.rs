@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             // is black, this creature and other Vampire creatures you control get +2/+1 and
             // have flying." Needs Condition::TopCardOfLibraryIsColor + self-inclusive tribal filter.
         ],
+        completeness: Completeness::partial("DSL gap — 'Play with the top card of your library revealed.' Hidden info reveal not in DSL"),
         ..Default::default()
     }
 }

@@ -35,6 +35,7 @@ pub fn card() -> CardDefinition {
             // (e.g. combat tricks/instants cast between Landfall and the new combat would see
             // stale tap state) — stays fully blocked.
         ],
+        completeness: Completeness::partial("dynamic +1/+0 per attack count per creature this turn. Needs per-creature attack tracking + dynamic LayerModification..."),
         ..Default::default()
     }
 }

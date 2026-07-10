@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
             // that applies "can't be countered" to a target spell on the stack. No
             // Effect::MakeSpellUncounterable variant exists.
         ],
+        completeness: Completeness::partial("'{R/G}: Target spell can't be countered' — needs an activated ability that applies 'can't be countered' to a target..."),
         ..Default::default()
     }
 }

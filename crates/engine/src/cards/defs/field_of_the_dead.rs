@@ -34,6 +34,7 @@ pub fn card() -> CardDefinition {
             // seven or more lands with different names, create a 2/2 black Zombie creature token.
             // DSL gap: count_threshold (cannot count lands with different names).
         ],
+        completeness: Completeness::partial("Triggered — Whenever this land or another land you control enters, if you control seven or more lands with different..."),
         ..Default::default()
     }
 }

@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
             // Temur: cast-trigger mill 4 (approximable with WheneverYouCastSpell trigger).
             // Sultai: play lands from graveyard (BLOCKED — no PlayerPermission for this).
         ],
+        completeness: Completeness::partial("'Choose Temur or Sultai' on ETB — siege mode choice. Temur: cast-trigger mill 4 (approximable with WheneverYouCastSpell..."),
         ..Default::default()
     }
 }

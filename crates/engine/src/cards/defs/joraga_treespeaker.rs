@@ -35,6 +35,7 @@ pub fn card() -> CardDefinition {
             // TODO: Level-dependent abilities and P/T changes (Level 1-4: 1/2 + {T}: Add {G}{G};
             //       Level 5+: 1/4 + grant Elves "{T}: Add {G}{G}") not expressible in DSL.
         ],
+        completeness: Completeness::partial("Level up mechanic not in DSL — no LevelUp keyword or level-based ability gating. Implementing only the base body and..."),
         ..Default::default()
     }
 }

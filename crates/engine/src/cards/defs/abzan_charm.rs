@@ -72,6 +72,7 @@ pub fn card() -> CardDefinition {
             }),
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("approximated — add 2 counters to a single target creature. See inline comment on mode 2 below for the missing..."),
         ..Default::default()
     }
 }

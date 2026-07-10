@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             // bitfield tracks commander status but there is no trigger hook for it.
             // Omitted per W5 policy.
         ],
+        completeness: Completeness::partial("'Whenever a commander you control enters or attacks, proliferate' — no TriggerCondition for 'when a commander you..."),
         ..Default::default()
     }
 }

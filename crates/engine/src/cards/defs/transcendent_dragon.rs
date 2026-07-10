@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             // (Condition::WasCast) + counter-to-exile + PlayExiledCard. Without intervening-if,
             // this would fire on reanimation/flicker (KI-2). Stripped per W6 policy.
         ],
+        completeness: Completeness::partial("'When this creature enters, if you cast it, counter target spell.' + exile-instead + free cast from exile. Requires 'if..."),
         ..Default::default()
     }
 }

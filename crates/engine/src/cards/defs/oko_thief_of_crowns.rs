@@ -96,6 +96,7 @@ pub fn card() -> CardDefinition {
                 ],
             },
         ],
+        completeness: Completeness::known_wrong("targets any permanent; the printed 'artifact or creature' filters are omitted on both abilities"),
         ..Default::default()
     }
 }

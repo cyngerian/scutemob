@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
             // TODO: For Mirrodin! + equipped attack trigger not expressible.
             AbilityDefinition::Keyword(KeywordAbility::Equip),
         ],
+        completeness: Completeness::partial("'For Mirrodin!' — ETB token + auto-attach not expressible"),
         ..Default::default()
     }
 }

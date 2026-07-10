@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::known_wrong("counters and draws immediately; the delayed next-upkeep draws for both players are not modelled"),
         ..Default::default()
     }
 }

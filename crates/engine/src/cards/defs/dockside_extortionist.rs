@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("'X = artifacts + enchantments opponents control' — count-based EffectAmount not in DSL. Using fixed 3 as approximation"),
         ..Default::default()
     }
 }

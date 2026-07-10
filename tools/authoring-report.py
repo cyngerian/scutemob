@@ -137,22 +137,59 @@ def all_face_slugs(name: str) -> set[str]:
     return out
 
 
+# SR-2: the `completeness:` marker on each CardDefinition is the single source of
+# truth, shared with the deck-build gate (`rules::commander::validate_deck` →
+# `DeckViolation::IncompleteCard`). A def with no marker is `Completeness::Complete`
+# by Default. The old heuristic — `re.search(r"abilities:\s*vec!\[\s*\]", text)` —
+# also matched a nested `mana_abilities: vec![]` or a back face's empty ability list,
+# so it filed ~50 fully-implemented cards under "empty".
+MARKER_RE = re.compile(r"\bcompleteness:\s*Completeness::(\w+)")
+MARKER_BUCKETS = {"inert": "empty", "partial": "todo", "known_wrong": "todo"}
+
+# A TODO marker either opens a comment line (`// TODO ...`) or introduces a clause
+# mid-line (`// Counter the spell. TODO: untap up to four lands`). It is NOT the word
+# "TODO" in prose — `// Authored 2026-04-12 (PB-N stale-TODO sweep)` marks a def whose
+# TODOs were *removed*. Requiring line-start or a following colon separates the two.
+# Kept identical to the predicate the SR-2 marker sweep used.
+TODO_LINE_RE = re.compile(
+    r"^\s*//\s*(?:TODO|ENGINE-BLOCKED)\b|^\s*//.*?(?<![\w-])(?:TODO|ENGINE-BLOCKED)\s*:"
+)
+
+
+def has_todo_comment(text: str) -> bool:
+    return any(TODO_LINE_RE.match(ln) for ln in text.splitlines())
+
+
 def classify_file(path: Path) -> tuple[str, list[str]]:
     """Return (bucket, todo_lines).
     Bucket ∈ {empty, todo, clean}."""
     text = path.read_text(encoding="utf-8", errors="replace")
     # Both `// TODO` and `// ENGINE-BLOCKED` mark an incomplete clause. Workers
     # have used either marker; counting only TODO silently inflates "clean".
-    todos = [
-        ln.strip()
-        for ln in text.splitlines()
-        if re.match(r"\s*//\s*(?:TODO|ENGINE-BLOCKED)\b", ln)
-    ]
-    if re.search(r"abilities:\s*vec!\[\s*\]\s*,", text):
-        return "empty", todos
-    if todos:
-        return "todo", todos
-    return "clean", todos
+    todos = [ln.strip() for ln in text.splitlines() if TODO_LINE_RE.match(ln)]
+    m = MARKER_RE.search(text)
+    marker = m.group(1) if m else "Complete"
+    return MARKER_BUCKETS.get(marker, "clean"), todos
+
+
+def marker_disagreements(files: list[Path]) -> list[tuple[str, str]]:
+    """Defs whose `completeness` marker contradicts their comments.
+
+    The marker is authoritative, so a mismatch means a def drifted: either a TODO was
+    resolved and the marker was left behind, or a clause was carved out and the marker
+    was never added. Reported, not auto-corrected.
+    """
+    out = []
+    for f in files:
+        text = f.read_text(encoding="utf-8", errors="replace")
+        m = MARKER_RE.search(text)
+        marker = m.group(1) if m else "Complete"
+        has_todo = has_todo_comment(text)
+        if marker == "Complete" and has_todo:
+            out.append((f.stem, "marked Complete but has a TODO / ENGINE-BLOCKED comment"))
+        elif marker == "partial" and not has_todo:
+            out.append((f.stem, "marked partial but has no TODO / ENGINE-BLOCKED comment"))
+    return out
 
 
 def classify_todo(line: str) -> str:
@@ -497,6 +534,23 @@ def main() -> int:
         out.append("")
 
     # Recent commits
+    # SR-2: marker drift. The `completeness` marker gates deck building, so a def whose
+    # marker disagrees with its own comments is either falsely playable or falsely banned.
+    disagreements = marker_disagreements(files)
+    if disagreements:
+        out.append("## ⚠ Completeness-marker drift")
+        out.append("")
+        out.append(
+            f"{len(disagreements)} defs whose `completeness:` marker contradicts their comments. "
+            "The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale."
+        )
+        out.append("")
+        for slug, why in disagreements[:40]:
+            out.append(f"- `{slug}` — {why}")
+        if len(disagreements) > 40:
+            out.append(f"- …and {len(disagreements) - 40} more")
+        out.append("")
+
     out.append("## Recent card-touching commits")
     out.append("")
     out.append("```")

@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
             //   power less than Lena's power — requires dynamic power comparison in filter.
             //   DSL lacks this conditional filter. W5 policy: omitted.
         ],
+        completeness: Completeness::partial("ETB creates variable count tokens (one per nontoken creature you control). EffectAmount::Fixed only; no..."),
         ..Default::default()
     }
 }

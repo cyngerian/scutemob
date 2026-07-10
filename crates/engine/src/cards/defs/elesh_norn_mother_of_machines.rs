@@ -36,6 +36,7 @@ pub fn card() -> CardDefinition {
                 additional_triggers: 1,
             },
         ],
+        completeness: Completeness::partial("DSL gap — 'Permanents entering don't cause abilities of permanents your opponents control to trigger.'..."),
         ..Default::default()
     }
 }

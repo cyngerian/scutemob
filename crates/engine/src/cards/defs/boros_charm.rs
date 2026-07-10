@@ -54,6 +54,7 @@ pub fn card() -> CardDefinition {
             }),
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("`EffectFilter`/`ContinuousEffectDef` has no catch-all 'all permanents you control' variant — only type-scoped variants..."),
         ..Default::default()
     }
 }

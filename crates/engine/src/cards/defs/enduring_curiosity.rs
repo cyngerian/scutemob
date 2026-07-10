@@ -35,6 +35,7 @@ pub fn card() -> CardDefinition {
             },
             // TODO: Glimmer death return mechanic (becomes non-creature enchantment) not in DSL.
         ],
+        completeness: Completeness::partial("Death return as enchantment-only — Glimmer mechanic not in DSL"),
         ..Default::default()
     }
 }

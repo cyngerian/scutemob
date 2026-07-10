@@ -34,6 +34,7 @@ pub fn card() -> CardDefinition {
             // exploit-specific triggers. The search-library effect tied to exploit sacrifice
             // cannot be expressed in the DSL.
         ],
+        completeness: Completeness::partial("TriggerCondition::WhenThisExploitsACreature does not exist in the DSL. The 'when this creature exploits a creature'..."),
         ..Default::default()
     }
 }

@@ -43,6 +43,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("'any number of' Goblin cards and 'put them on top in any order' — SearchLibrary fetches a single card deterministically..."),
         ..Default::default()
     }
 }

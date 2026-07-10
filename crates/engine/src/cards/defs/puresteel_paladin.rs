@@ -42,6 +42,7 @@ pub fn card() -> CardDefinition {
             },
             // TODO: Metalcraft equip cost reduction not expressible.
         ],
+        completeness: Completeness::partial("'Equipment enters' trigger — WheneverPermanentEntersBattlefield with Equipment subtype filter. TargetFilter has..."),
         ..Default::default()
     }
 }

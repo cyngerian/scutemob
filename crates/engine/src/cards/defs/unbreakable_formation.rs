@@ -33,6 +33,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::partial("DSL gap — Addendum: 'if during main phase' condition check for +1/+1 counters + vigilance grant...."),
         ..Default::default()
     }
 }

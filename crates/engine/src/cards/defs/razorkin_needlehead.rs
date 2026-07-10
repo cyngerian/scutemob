@@ -48,6 +48,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("'Whenever an opponent draws a card, this creature deals 1 damage to them.' DSL gap: no WheneverOpponentDrawsCard..."),
         ..Default::default()
     }
 }

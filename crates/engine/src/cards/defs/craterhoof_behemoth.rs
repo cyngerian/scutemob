@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Haste),
         ],
         // TODO: ETB trigger — mass trample grant + dynamic +X/+X (needs LayerModification with EffectAmount)
+        completeness: Completeness::partial("DSL gap — mass trample grant + dynamic +X/+X continuous effect. PermanentCount is now available for X, but..."),
         ..Default::default()
     }
 }

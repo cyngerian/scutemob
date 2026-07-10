@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             // Class mechanics are partially supported (PB-15) but these specific level
             // abilities need more DSL primitives.
         ],
+        completeness: Completeness::partial("DSL gap — Class levels with begin-combat trigger (Level 1), conditional ward grant (Level 2), counter doubling..."),
         ..Default::default()
     }
 }

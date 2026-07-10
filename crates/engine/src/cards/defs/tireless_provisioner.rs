@@ -32,6 +32,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("Player choice 'Food or Treasure' not in DSL"),
         ..Default::default()
     }
 }

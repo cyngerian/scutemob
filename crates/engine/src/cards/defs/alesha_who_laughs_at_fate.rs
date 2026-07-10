@@ -43,6 +43,7 @@ pub fn card() -> CardDefinition {
             // wrong targets — wrong game state.
             // (The intervening-if is now available: Condition::YouAttackedThisTurn — PB-AC6.)
         ],
+        completeness: Completeness::partial("the Raid reanimation targets a creature card in your graveyard with 'mana value less than or equal to Alesha's power'...."),
         ..Default::default()
     }
 }

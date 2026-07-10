@@ -42,6 +42,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::known_wrong("'target opponent' is approximated as DeclaredTarget { index: 0 }"),
         ..Default::default()
     }
 }

@@ -35,5 +35,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+    completeness: Completeness::partial("Valiant needs 'targeted by a spell or ability YOU control'. PB-AC6's WhenBecomesTarget.by_opponent is a bool — false..."),
     }
 }

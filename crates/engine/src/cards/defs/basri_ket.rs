@@ -106,6 +106,7 @@ pub fn card() -> CardDefinition {
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
         cant_be_countered: false,
+        completeness: Completeness::partial("Delayed triggered abilities (scoped to the current turn) are not yet fully supported via DSL. This is a known gap"),
         ..Default::default()
     }
 }

@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
             // triggered ability. BecomeCopyOf infrastructure exists but ETB-replacement
             // clone choice is not expressible in the current DSL.
         ],
+        completeness: Completeness::partial("'enter as a copy of any creature' — needs ETB replacement effect with BecomeCopyOf + add Illusion subtype + add..."),
         ..Default::default()
     }
 }

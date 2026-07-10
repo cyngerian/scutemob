@@ -87,6 +87,7 @@ pub fn card() -> CardDefinition {
             },
             AbilityDefinition::Keyword(KeywordAbility::Equip),
         ],
+        completeness: Completeness::partial("Protection from green and blue on equipped creature — multi-color protection grant not in LayerModification"),
         ..Default::default()
     }
 }

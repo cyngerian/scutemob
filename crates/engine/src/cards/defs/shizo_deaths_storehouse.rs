@@ -46,6 +46,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("add legendary filter when available"),
         ..Default::default()
     }
 }

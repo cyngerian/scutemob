@@ -49,6 +49,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("DSL gap — there is no effect variant for untapping a specific permanent (self), and WheneverCreatureEntersBattlefield..."),
         ..Default::default()
     }
 }

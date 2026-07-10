@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
             // Requires a token-only EffectFilter (EffectFilter::TokenCreatures) for
             // the static ability grant. Not yet expressible in the DSL.
         ],
+        completeness: Completeness::partial("'Creature tokens you control have vigilance and lifelink.' Requires a token-only EffectFilter..."),
         ..Default::default()
     }
 }

@@ -18,9 +18,9 @@
 
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
-    ContinuousEffect, ETBSuppressFilter, Effect, EffectAmount, EffectDuration, EffectFilter,
-    EffectId, EffectLayer, GameStateBuilder, LayerModification, ManaCost, ObjectSpec, PlayerId,
-    PlayerTarget, Step, TriggerCondition, TypeLine, ZoneId,
+    Completeness, ContinuousEffect, ETBSuppressFilter, Effect, EffectAmount, EffectDuration,
+    EffectFilter, EffectId, EffectLayer, GameStateBuilder, LayerModification, ManaCost, ObjectSpec,
+    PlayerId, PlayerTarget, Step, TriggerCondition, TypeLine, ZoneId,
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -74,6 +74,7 @@ fn etb_draw_creature_def() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+        completeness: Completeness::Complete,
     }
 }
 
@@ -110,6 +111,7 @@ fn torpor_orb_def() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+        completeness: Completeness::Complete,
     }
 }
 
@@ -155,6 +157,7 @@ fn etb_gain_life_enchantment_def() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+        completeness: Completeness::Complete,
     }
 }
 

@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("'Untap up to four lands' — requires untap-N permanents with land filter and 'up to' choice"),
         ..Default::default()
     }
 }

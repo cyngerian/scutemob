@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Trample),
             // TODO: ETB trigger — sacrifice self unless you sacrifice creatures totaling power 12+
         ],
+        completeness: Completeness::partial("DSL gap — ETB 'sacrifice unless you sacrifice creatures with total power >= 12' requires a conditional sacrifice with a..."),
         ..Default::default()
     }
 }

@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
             // DSL gap: Cost::ReturnPermanentToHand (with filter for lands you control)
             // does not exist. A combined mana + return-land cost is not expressible.
         ],
+        completeness: Completeness::partial("'{1}, Return a land you control to its owner's hand: Create a 1/1 blue Illusion creature token with flying.' DSL gap:..."),
         ..Default::default()
     }
 }

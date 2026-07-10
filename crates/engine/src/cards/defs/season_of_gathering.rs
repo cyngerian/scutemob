@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
         //   5. Mode 2: DrawCards where count = greatest power among creatures you control (dynamic count).
         // None of these combinations are currently expressible together in the DSL.
         abilities: vec![],
+        completeness: Completeness::inert("Season of Gathering uses Phyrexian mana ({P}) as a mode budget (up to 5 {P} total, repeatable modes). This requires: 1...."),
         ..Default::default()
     }
 }

@@ -32,6 +32,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Each creature you control can block an additional creature each combat"
             // requires combat rules infrastructure for additional blockers.
         ],
+        completeness: Completeness::partial("DSL gap — 'Each creature you control can block an additional creature each combat.' (additional blocker assignment not..."),
         ..Default::default()
     }
 }

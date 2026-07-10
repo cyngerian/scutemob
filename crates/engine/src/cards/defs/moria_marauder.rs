@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Whenever a Goblin or Orc you control deals combat damage to a player"
             // DSL gap: no subtype-filtered combat damage trigger for other creatures you control.
         ],
+        completeness: Completeness::partial("Trigger condition 'whenever a Goblin or Orc you control deals combat damage to a player' requires a subtype-filtered..."),
         ..Default::default()
     }
 }

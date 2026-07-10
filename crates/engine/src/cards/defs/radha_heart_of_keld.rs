@@ -42,6 +42,7 @@ pub fn card() -> CardDefinition {
             // (e.g., ModifyBothDynamic(EffectAmount)). ModifyBoth only supports fixed i32.
             // Deferred — the play-from-top and conditional first strike abilities are implemented.
         ],
+        completeness: Completeness::partial("'{4}{R}{G}: Radha gets +X/+X until end of turn, where X is the number of lands you control.' Requires a dynamic P/T..."),
         ..Default::default()
     }
 }

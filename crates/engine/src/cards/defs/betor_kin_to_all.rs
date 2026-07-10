@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             // TODO: Toughness-threshold tiered effects not expressible.
         ],
+        completeness: Completeness::partial("Conditional toughness-threshold end step trigger too complex for DSL"),
         ..Default::default()
     }
 }

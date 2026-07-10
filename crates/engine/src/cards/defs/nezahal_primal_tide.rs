@@ -64,6 +64,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::known_wrong("'discard three cards' approximated as three separate DiscardCard costs in a Sequence"),
         ..Default::default()
     }
 }

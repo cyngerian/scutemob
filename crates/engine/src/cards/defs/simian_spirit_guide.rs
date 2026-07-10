@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("Cost::ExileFromHand does not exist. Same gap as Elvish Spirit Guide"),
         ..Default::default()
     }
 }

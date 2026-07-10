@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — "whenever one or more Dragons you control deal combat damage"
             // trigger with look-top-3 + optional return-to-hand effect not expressible.
         ],
+        completeness: Completeness::partial("DSL gap — conditional hexproof 'as long as it entered this turn' requires a duration-tracked continuous effect tied to..."),
         ..Default::default()
     }
 }

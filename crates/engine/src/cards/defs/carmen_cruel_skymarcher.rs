@@ -47,6 +47,7 @@ pub fn card() -> CardDefinition {
             },
             // TODO: Attack trigger returning GY permanent with power-based MV filter not expressible.
         ],
+        completeness: Completeness::partial("Attack trigger returning GY permanent with power-based MV filter not expressible"),
         ..Default::default()
     }
 }

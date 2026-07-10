@@ -9,8 +9,8 @@
 
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
-    Effect, EffectAmount, GameEvent, GameState, GameStateBuilder, KeywordAbility, ManaColor,
-    ManaCost, ObjectId, ObjectSpec, PlayerId, PlayerTarget, Step, TypeLine, ZoneId,
+    Completeness, Effect, EffectAmount, GameEvent, GameState, GameStateBuilder, KeywordAbility,
+    ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerId, PlayerTarget, Step, TypeLine, ZoneId,
 };
 
 fn p1() -> PlayerId {
@@ -76,6 +76,7 @@ fn storm_sorcery_def() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+        completeness: Completeness::Complete,
     }
 }
 

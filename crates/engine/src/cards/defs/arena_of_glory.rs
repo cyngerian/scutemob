@@ -46,6 +46,7 @@ pub fn card() -> CardDefinition {
             // activation cost itself (Cost::Exert) is implemented (PB-AC5), but the
             // mana-spend-conditional-haste rider has no DSL primitive (see file header).
         ],
+        completeness: Completeness::partial("{R}, {T}, Exert this land: Add {R}{R}. If that mana is spent on a creature spell, it gains haste until end of turn. The..."),
         ..Default::default()
     }
 }

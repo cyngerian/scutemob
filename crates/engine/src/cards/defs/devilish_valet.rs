@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
         ],
         // TODO: Alliance trigger — "double this creature's power until EOT"
         // (requires LayerModification for multiplicative power change)
+        completeness: Completeness::partial("DSL gap — 'double this creature's power' continuous effect not expressible (no LayerModification for power doubling)"),
         ..Default::default()
     }
 }

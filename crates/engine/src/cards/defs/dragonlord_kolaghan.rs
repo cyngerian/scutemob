@@ -35,6 +35,7 @@ pub fn card() -> CardDefinition {
             // TODO: triggered — opponent casts a spell with same name as a card in their graveyard → loses 10 life.
             // DSL gap: no TriggerCondition checking opponent's graveyard for name match.
         ],
+        completeness: Completeness::partial("DSL gap — the triggered ability requires checking the opponent's graveyard for a name match, which is not supported by..."),
         ..Default::default()
     }
 }

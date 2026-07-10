@@ -13,6 +13,7 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Artifact]),
         oracle_text: "If this artifact would enter, you may discard a land card instead. If you do, put this artifact onto the battlefield. If you don't, put it into its owner's graveyard.\n{T}: Add one mana of any color.".to_string(),
         abilities: vec![],
+        completeness: Completeness::inert("ETB replacement effect requiring discard-a-land-or-go-to-graveyard is a DSL gap (ReplacementModification has no..."),
         ..Default::default()
     }
 }

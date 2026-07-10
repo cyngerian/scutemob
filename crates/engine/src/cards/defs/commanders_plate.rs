@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — "Equip commander {3}" variant equip cost.
             AbilityDefinition::Keyword(KeywordAbility::Equip),
         ],
+        completeness: Completeness::partial("DSL gap — dynamic protection from colors not in commander's color identity"),
         ..Default::default()
     }
 }

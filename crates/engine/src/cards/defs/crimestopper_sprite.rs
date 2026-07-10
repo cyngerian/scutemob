@@ -60,5 +60,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+    completeness: Completeness::partial("add CounterType::Stun + stun-counter replacement effect and replace the if_true branch below with: Effect::AddCounter {..."),
     }
 }

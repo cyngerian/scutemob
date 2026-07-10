@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
             // equipped creature. Ability copying not in DSL.
             AbilityDefinition::Keyword(KeywordAbility::Equip),
         ],
+        completeness: Completeness::partial("DSL gap — triggered ability that copies activated abilities of equipped creature. Ability copying not in DSL"),
         ..Default::default()
     }
 }

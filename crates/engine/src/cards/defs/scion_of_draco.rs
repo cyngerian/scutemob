@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             // TODO: color-conditional keyword grant to creatures you control
         ],
         self_cost_reduction: Some(SelfCostReduction::BasicLandTypes { per: 2 }),
+        completeness: Completeness::partial("DSL gap — static ability: 'Each creature you control has vigilance if it's white, hexproof if it's blue, lifelink if..."),
         ..Default::default()
     }
 }

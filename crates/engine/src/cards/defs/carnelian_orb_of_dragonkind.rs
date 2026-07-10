@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
             },
             // TODO: mana-spend Dragon trigger (haste grant) — DSL gap
         ],
+        completeness: Completeness::partial("Mana-spend Dragon trigger (haste grant) — no mana-spend trigger in DSL. Implementing only the base {T}: Add {R} ability"),
         ..Default::default()
     }
 }

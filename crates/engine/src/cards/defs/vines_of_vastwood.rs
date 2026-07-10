@@ -48,6 +48,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::partial("'can't be the target of spells or abilities opponents control' is functionally Hexproof for one turn — no..."),
         ..Default::default()
     }
 }

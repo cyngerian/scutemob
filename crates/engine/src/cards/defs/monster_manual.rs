@@ -60,6 +60,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             }],
         }),
+        completeness: Completeness::inert("Main activated ability — '{1}{G}, {T}: put creature from hand onto battlefield' — requires TargetCardInHand DSL variant..."),
         ..Default::default()
     }
 }

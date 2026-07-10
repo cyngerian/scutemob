@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
             // controls." — requires reflexive trigger ("when you do") fired by a discard within
             // the combat damage trigger. DSL gap: no reflexive trigger support.
         ],
+        completeness: Completeness::partial("DSL gap — 'when you do' reflexive trigger: the combat damage trigger allows discarding a creature card, and only when..."),
         ..Default::default()
     }
 }

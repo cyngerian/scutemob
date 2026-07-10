@@ -32,6 +32,7 @@ pub fn card() -> CardDefinition {
             // DSL gap: EffectAmount/ForEach variant for artifacts controlled by the damaged
             // player does not exist. Implementing partial (1 token) would be wrong game state.
         ],
+        completeness: Completeness::partial("'Create a Treasure token for each artifact that player controls.' DSL gap: EffectAmount/ForEach variant for artifacts..."),
         ..Default::default()
     }
 }

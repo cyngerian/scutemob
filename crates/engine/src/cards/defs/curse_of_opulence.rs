@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Whenever enchanted player is attacked" trigger not in DSL.
             // TODO: Gold token spec not a helper function.
         ],
+        completeness: Completeness::partial("'Enchant player' not in EnchantTarget enum"),
         ..Default::default()
     }
 }

@@ -41,6 +41,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("Complex ETB condition 'if none were cast or no mana spent' not in DSL. Using generic creature ETB as approximation"),
         ..Default::default()
     }
 }

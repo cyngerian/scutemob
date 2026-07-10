@@ -42,6 +42,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("EffectAmount::PowerOf(EffectTarget::TriggeringCreature) — the triggering creature's power is needed for the damage..."),
         ..Default::default()
     }
 }

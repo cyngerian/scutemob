@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Enchantment]),
         oracle_text: "Whenever a creature you control with flying enters, it gains haste until end of turn.\nWhenever a Dragon you control enters, it deals X damage to any target, where X is the number of Dragons you control.".to_string(),
         abilities: vec![],
+        completeness: Completeness::inert("DSL gap — both triggered abilities require complex filtering: 1. 'Whenever a creature you control with flying enters'..."),
         ..Default::default()
     }
 }

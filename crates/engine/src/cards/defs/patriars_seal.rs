@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
             },
             // TODO: {1}, {T}: Untap target legendary creature (TargetFilter lacks has_supertype)
         ],
+        completeness: Completeness::partial("'{1}, {T}: Untap target legendary creature' — TargetFilter lacks has_supertype field for legendary filtering...."),
         ..Default::default()
     }
 }

@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("{3}, {T}, Pay life equal to # colors in commander color identity: Draw a card — life payment scaled to commander color..."),
         ..Default::default()
     }
 }

@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
             // TODO: "creature becomes tapped" trigger not in TriggerCondition.
             // TODO: "untap all during other players' untap step" static not in DSL.
         ],
+        completeness: Completeness::partial("'creature becomes tapped' trigger not in TriggerCondition"),
         ..Default::default()
     }
 }

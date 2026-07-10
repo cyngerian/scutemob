@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
         ],
+        completeness: Completeness::partial("Sacrifice: target player dealt combat damage can't cast noncreature — PB-5+PB-13 Cost::SacrificeSelf available; blocked..."),
         ..Default::default()
     }
 }

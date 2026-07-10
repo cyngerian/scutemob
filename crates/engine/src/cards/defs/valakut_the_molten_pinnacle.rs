@@ -36,6 +36,7 @@ pub fn card() -> CardDefinition {
             // DSL gap: WheneverPermanentEntersBattlefield with subtype filter + intervening-if
             // count condition + "any target" targeting.
         ],
+        completeness: Completeness::partial("Triggered — Whenever a Mountain you control enters, if you control at least five other Mountains, deal 3 damage to any..."),
         ..Default::default()
     }
 }

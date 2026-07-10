@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
         toughness: Some(3),
         // TODO: Power comparison triggers + greatest-power mana not expressible.
         abilities: vec![],
+        completeness: Completeness::inert("Both abilities require dynamic power comparisons not in DSL"),
         ..Default::default()
     }
 }

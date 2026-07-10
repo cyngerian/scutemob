@@ -45,6 +45,7 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("DSL gap — static '+1/+1 for each Elf you control' count-based continuous effect on the enchanted creature. No..."),
         ..Default::default()
     }
 }

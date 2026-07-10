@@ -63,6 +63,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("'Whenever Hammer of Nazahn or another Equipment you control enters, you may attach that Equipment to target creature..."),
         ..Default::default()
     }
 }

@@ -46,6 +46,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::known_wrong("filter mana ability fixed to the {W}{B} mode; the other CR 605.1a modes are unavailable"),
         ..Default::default()
     }
 }

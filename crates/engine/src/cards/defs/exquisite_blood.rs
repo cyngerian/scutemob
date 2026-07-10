@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             // Also needs EffectAmount::TriggeringAmount for "that much life".
             // W5: omitted to avoid wrong game state.
         ],
+        completeness: Completeness::partial("TriggerCondition::WheneverOpponentLosesLife does not exist in the DSL. Also needs EffectAmount::TriggeringAmount for..."),
         ..Default::default()
     }
 }

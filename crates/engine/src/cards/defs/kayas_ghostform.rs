@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
             // Also: "When enchanted permanent dies or is exiled, return it" needs a
             // trigger on attached permanent's zone change + return from GY/exile.
         ],
+        completeness: Completeness::partial("DSL gap — 'Enchant creature or planeswalker' (not just creature). Also: 'When enchanted permanent dies or is exiled..."),
         ..Default::default()
     }
 }

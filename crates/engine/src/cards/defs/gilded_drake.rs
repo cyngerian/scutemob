@@ -51,6 +51,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("'If you don't or can't make an exchange, sacrifice this creature.' — there is no Condition variant expressing whether..."),
         ..Default::default()
     }
 }

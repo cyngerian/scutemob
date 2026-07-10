@@ -51,6 +51,7 @@ pub fn card() -> CardDefinition {
             },
             // TODO: "Whenever a creature token you control leaves" trigger not in DSL.
         ],
+        completeness: Completeness::partial("'Whenever a creature token you control leaves' trigger not in DSL"),
         ..Default::default()
     }
 }

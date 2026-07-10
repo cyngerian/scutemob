@@ -49,6 +49,7 @@ pub fn card() -> CardDefinition {
             // DSL gap: triggered from graveyard zone with subtype filter, return-to-battlefield
             // attached mechanic. Deferred.
         ],
+        completeness: Completeness::partial("Graveyard-return trigger (when a Ninja enters, return from GY to battlefield attached). DSL gap: return_from_graveyard..."),
         ..Default::default()
     }
 }

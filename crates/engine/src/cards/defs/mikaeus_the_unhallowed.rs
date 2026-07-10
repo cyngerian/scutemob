@@ -46,6 +46,7 @@ pub fn card() -> CardDefinition {
                 },
             },
         ],
+        completeness: Completeness::partial("'Whenever a Human deals damage to you, destroy it.' Blocked: trigger on damage-by-subtype not in DSL. CR 613.4c (Layer..."),
         ..Default::default()
     }
 }

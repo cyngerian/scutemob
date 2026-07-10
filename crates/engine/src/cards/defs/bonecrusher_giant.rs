@@ -69,6 +69,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             }],
         }),
+        completeness: Completeness::partial("(1): the effect must deal 2 damage to 'that spell's controller'. Effect::DealDamage takes an EffectTarget, and..."),
         ..Default::default()
     }
 }

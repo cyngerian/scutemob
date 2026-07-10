@@ -46,6 +46,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("Static — 'Creatures you control are every creature type' — DSL lacks a 'grant all subtypes / changeling' layer..."),
         ..Default::default()
     }
 }

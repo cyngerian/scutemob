@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
             // TODO: activated abilities of creatures you control cost {2} less
             //   (no EffectFilter::ActivatedAbilitiesOfCreaturesYouControl + ReduceActivatedAbilityCost)
         ],
+        completeness: Completeness::partial("activated abilities of creatures you control cost {2} less (no EffectFilter::ActivatedAbilitiesOfCreaturesYouControl +..."),
         ..Default::default()
     }
 }

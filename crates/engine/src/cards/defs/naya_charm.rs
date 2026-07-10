@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Instant]),
         oracle_text: "Choose one —\n• Naya Charm deals 3 damage to target creature.\n• Return target card from a graveyard to its owner's hand.\n• Tap all creatures target player controls.".to_string(),
         abilities: vec![],
+        completeness: Completeness::inert("DSL gap — Mode 3 ('Tap all creatures target player controls') requires TapPermanent targeting creatures filtered by a..."),
         ..Default::default()
     }
 }

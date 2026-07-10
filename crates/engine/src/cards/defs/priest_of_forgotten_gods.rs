@@ -16,6 +16,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Tap, Sacrifice two other creatures" cost — sacrificing self instead of
             //   two others is wrong game state. Complex multi-target effect not expressible.
         ],
+        completeness: Completeness::partial("'Tap, Sacrifice two other creatures' cost — sacrificing self instead of two others is wrong game state. Complex..."),
         ..Default::default()
     }
 }

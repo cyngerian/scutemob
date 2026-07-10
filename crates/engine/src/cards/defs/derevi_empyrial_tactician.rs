@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             // zone" is a special activated ability from the command zone that bypasses casting.
             // No ActivateFromCommandZone mechanism exists.
         ],
+        completeness: Completeness::partial("DSL gap — 'When Derevi enters and whenever a creature you control deals combat damage to a player' is a dual-trigger..."),
         ..Default::default()
     }
 }

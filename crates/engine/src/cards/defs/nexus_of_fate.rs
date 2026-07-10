@@ -34,6 +34,7 @@ pub fn card() -> CardDefinition {
         ],
         // CR 614.1a: Shuffle into library instead of going to graveyard on resolution.
         self_shuffle_on_resolution: true,
+        completeness: Completeness::partial("CR 614.1a — 'from anywhere' graveyard replacement (discard, mill, counter) needs full replacement infrastructure for..."),
         ..Default::default()
     }
 }

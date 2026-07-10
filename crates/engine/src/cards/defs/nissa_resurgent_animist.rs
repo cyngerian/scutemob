@@ -43,6 +43,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("'second time this ability has resolved this turn' conditional — no per-ability resolution counter exists. Only the mana..."),
         ..Default::default()
     }
 }

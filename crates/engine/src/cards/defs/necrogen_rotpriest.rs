@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
             // TODO: activated — {1}{B}{G}: target creature you control with toxic gains deathtouch until end of turn.
             // DSL gap: no TargetFilter::CreatureYouControlWithKeyword(Toxic).
         ],
+        completeness: Completeness::partial("DSL gap — 'whenever a creature you control with toxic deals combat damage to a player' requires..."),
         ..Default::default()
     }
 }

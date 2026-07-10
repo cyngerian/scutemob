@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("Rebound keyword — not yet in the DSL KeywordAbility enum. Implementing the flicker effect only; Rebound self-exile and..."),
         ..Default::default()
     }
 }

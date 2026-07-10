@@ -30,6 +30,7 @@ pub fn card() -> CardDefinition {
             // -- but the per-color-per-Dragon counter placement it depends on still is, so
             // the whole trigger remains omitted.
         ],
+        completeness: Completeness::partial("DSL gap — upkeep trigger with per-color counter placement on Dragons (put a +1/+1 counter on a Dragon you control OF..."),
         ..Default::default()
     }
 }

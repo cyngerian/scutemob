@@ -34,6 +34,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("approximation — oracle says 'its controller' (the creature's controller) draws a card, but PlayerTarget::Controller..."),
         ..Default::default()
     }
 }

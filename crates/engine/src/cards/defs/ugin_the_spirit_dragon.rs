@@ -67,6 +67,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
+        completeness: Completeness::partial("'mana value X or less' filter — TargetFilter has no dynamic MV <= X predicate"),
         ..Default::default()
     }
 }

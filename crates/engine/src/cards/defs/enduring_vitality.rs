@@ -36,6 +36,7 @@ pub fn card() -> CardDefinition {
             // TODO: die-return-as-enchantment (Enduring cycle mechanic — zone-change
             // replacement + type change not yet in DSL)
         ],
+        completeness: Completeness::partial("die-return-as-enchantment (Enduring cycle mechanic — zone-change replacement + type change not yet in DSL)"),
         ..Default::default()
     }
 }

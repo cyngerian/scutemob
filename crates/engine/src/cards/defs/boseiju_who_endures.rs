@@ -101,6 +101,7 @@ pub fn card() -> CardDefinition {
                 controller: PlayerTarget::Controller,
             },
         )],
+        completeness: Completeness::partial("Target filter should restrict to 'artifact, enchantment, or nonbasic land' — needs has_card_types OR semantics combined..."),
         ..Default::default()
     }
 }

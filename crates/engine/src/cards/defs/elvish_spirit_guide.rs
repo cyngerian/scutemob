@@ -31,6 +31,7 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("Cost::ExileFromHand does not exist. The ability should be activatable from hand (activation_zone: Some(Zone::Hand))..."),
         ..Default::default()
     }
 }

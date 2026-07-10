@@ -35,6 +35,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::partial("(M10+): Add Aura placement choice so Auras can attach to valid targets"),
         ..Default::default()
     }
 }

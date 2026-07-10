@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             // EffectFilter::TriggeringCreature in ContinuousEffectDef. Both gaps must be filled
             // before this ability can be expressed without producing wrong game state.
         ],
+        completeness: Completeness::partial("DSL gap — EffectAmount has no variant for 'count of other attacking creatures that share a creature type with the..."),
         ..Default::default()
     }
 }

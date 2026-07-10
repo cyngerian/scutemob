@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-10 05:51 UTC  
-**Git:** `43043ef4` on `feat/pb-ac9-misc-mana`  
+**Generated:** 2026-07-10 07:46 UTC  
+**Git:** `98a7a6a7` on `feat/sr-2-registry-gate-for-invariant-9-completeness-markers-dupl`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,19 +25,19 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 194 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **108%** (1,763 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 56.2% | 983 | +1 |
-| With TODO markers | 583 | -1 |
-| Empty `abilities: vec![]` placeholders | 182 | · |
-| Total TODO lines across all defs | 1,038 | -1 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 57.6% | 1,006 | · |
+| With TODO markers | 674 | · |
+| Empty `abilities: vec![]` placeholders | 68 | · |
+| Total TODO lines across all defs | 1,048 | · |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 569 |
-| last 30 days | 0 | 569 |
-| last 90 days | 13 | 654 |
-| last 1 year | 1,773 | 1,295 |
+| last 7 days | 0 | 1,161 |
+| last 30 days | 0 | 1,161 |
+| last 90 days | 7 | 1,207 |
+| last 1 year | 1,773 | 1,597 |
 
 ## Bonus defs outside the plan
 
@@ -66,30 +66,30 @@ are blocked on engine primitives.
 
 | Group | Auth / Total | % | Clean | TODO | Empty |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `combat-keyword` | 187 / 187 | 100% | 80 | 98 | 9 |
-| `draw` | 163 / 169 | 96% | 72 | 66 | 25 |
-| `token-create` | 145 / 155 | 94% | 24 | 54 | 67 |
-| `land-etb-tapped` | 138 / 138 | 100% | 116 | 20 | 2 |
+| `combat-keyword` | 187 / 187 | 100% | 77 | 102 | 8 |
+| `draw` | 163 / 169 | 96% | 69 | 83 | 11 |
+| `token-create` | 145 / 155 | 94% | 68 | 77 | 0 |
+| `land-etb-tapped` | 138 / 138 | 100% | 118 | 20 | 0 |
 | `other` | 108 / 131 | 82% | 66 | 42 | 0 |
-| `modal-choice` | 68 / 105 | 65% | 33 | 35 | 0 |
-| `mana-land` | 92 / 92 | 100% | 74 | 15 | 3 |
-| `body-only` | 55 / 70 | 79% | 24 | 9 | 22 |
-| `removal-destroy` | 56 / 56 | 100% | 33 | 16 | 7 |
+| `modal-choice` | 68 / 105 | 65% | 31 | 37 | 0 |
+| `mana-land` | 92 / 92 | 100% | 63 | 28 | 1 |
+| `body-only` | 55 / 70 | 79% | 26 | 10 | 19 |
+| `removal-destroy` | 56 / 56 | 100% | 35 | 19 | 2 |
 | `counters-plus` | 49 / 49 | 100% | 21 | 28 | 0 |
-| `land-fetch` | 45 / 45 | 100% | 28 | 16 | 1 |
+| `land-fetch` | 45 / 45 | 100% | 27 | 17 | 1 |
 | `attack-trigger` | 6 / 34 | 18% | 2 | 4 | 0 |
-| `death-trigger` | 34 / 34 | 100% | 19 | 14 | 1 |
+| `death-trigger` | 34 / 34 | 100% | 15 | 18 | 1 |
 | `mana-artifact` | 34 / 34 | 100% | 22 | 10 | 2 |
-| `activated-tap` | 2 / 27 | 7% | 1 | 1 | 0 |
+| `activated-tap` | 2 / 27 | 7% | 0 | 2 | 0 |
 | `pump-buff` | 27 / 27 | 100% | 16 | 11 | 0 |
 | `cant-restriction` | 25 / 25 | 100% | 16 | 9 | 0 |
-| `removal-damage-target` | 23 / 23 | 100% | 6 | 12 | 5 |
+| `removal-damage-target` | 23 / 23 | 100% | 8 | 13 | 2 |
 | `activated-sacrifice` | 3 / 19 | 16% | 1 | 2 | 0 |
 | `mana-creature` | 19 / 19 | 100% | 14 | 5 | 0 |
-| `graveyard-recursion` | 18 / 18 | 100% | 8 | 10 | 0 |
+| `graveyard-recursion` | 18 / 18 | 100% | 7 | 11 | 0 |
 | `removal-damage-each` | 17 / 17 | 100% | 11 | 6 | 0 |
-| `counter` | 16 / 16 | 100% | 8 | 4 | 4 |
-| `removal-exile` | 13 / 14 | 93% | 5 | 2 | 6 |
+| `counter` | 16 / 16 | 100% | 6 | 6 | 4 |
+| `removal-exile` | 13 / 14 | 93% | 5 | 4 | 4 |
 | `untap-phase` | 1 / 13 | 8% | 0 | 1 | 0 |
 | `cost-reduction` | 12 / 12 | 100% | 4 | 0 | 8 |
 | `opponent-punish` | 12 / 12 | 100% | 3 | 9 | 0 |
@@ -98,13 +98,13 @@ are blocked on engine primitives.
 | `removal-bounce` | 10 / 10 | 100% | 6 | 3 | 1 |
 | `static-enchantment` | 0 / 8 | 0% | 0 | 0 | 0 |
 | `discard-effect` | 0 / 7 | 0% | 0 | 0 | 0 |
-| `scry-surveil` | 7 / 7 | 100% | 4 | 2 | 1 |
+| `scry-surveil` | 7 / 7 | 100% | 3 | 4 | 0 |
 | `aura` | 6 / 6 | 100% | 3 | 2 | 1 |
 | `etb-trigger` | 6 / 6 | 100% | 1 | 5 | 0 |
 | `lifedrain` | 6 / 6 | 100% | 2 | 2 | 2 |
 | `sacrifice-outlet` | 1 / 6 | 17% | 1 | 0 | 0 |
 | `lifegain` | 5 / 5 | 100% | 3 | 0 | 2 |
-| `mana-other` | 5 / 5 | 100% | 1 | 2 | 2 |
+| `mana-other` | 5 / 5 | 100% | 2 | 3 | 0 |
 | `removal-minus` | 4 / 4 | 100% | 2 | 1 | 1 |
 | `exile-play` | 0 / 1 | 0% | 0 | 0 | 0 |
 | `protection` | 1 / 1 | 100% | 0 | 1 | 0 |
@@ -122,12 +122,12 @@ you which kind of next-step work would unblock the group.
 
 #### `static-enchantment` — 0 / 8 (0%), authored split: 0 clean / 0 todo / 0 empty — **unwritten**
 
-#### `activated-tap` — 2 / 27 (7%), authored split: 1 clean / 1 todo / 0 empty — **unwritten**
+#### `activated-tap` — 2 / 27 (7%), authored split: 0 clean / 2 todo / 0 empty — **engine-blocked**
 
 | Card | Slug | Bucket |
 | --- | --- | --- |
 | Fauna Shaman | `fauna_shaman` | todo |
-| Maze of Ith | `maze_of_ith` | clean |
+| Maze of Ith | `maze_of_ith` | todo |
 
 #### `untap-phase` — 1 / 13 (8%), authored split: 0 clean / 1 todo / 0 empty — **engine-blocked**
 
@@ -169,10 +169,10 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 628 | -1 |
-| DSL gap (unspecified) | 133 | · |
+| OTHER (unclassified) | 635 | · |
+| DSL gap (unspecified) | 134 | · |
 | attack trigger (self / generic) | 27 | · |
-| TriggerCondition::* missing variant | 17 | · |
+| TriggerCondition::* missing variant | 18 | · |
 | dynamic hexproof / protection | 17 | · |
 | Cost::* missing variant | 17 | · |
 | sacrifice as cost | 16 | · |
@@ -188,10 +188,10 @@ the next thing to triage when the classifier table is grown.
 | per-opponent upkeep | 6 | · |
 | devotion | 5 | · |
 | conditional static / grant | 5 | · |
+| delayed triggers | 5 | · |
 | equipment grants ability | 5 | · |
 | X-scaled tokens | 4 | · |
 | count-threshold static | 4 | · |
-| delayed triggers | 4 | · |
 | untap-all / untap trigger | 4 | · |
 | noncombat-damage prevent | 4 | · |
 
@@ -199,29 +199,30 @@ _…and 30 more buckets totaling 55 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 628 
+Showing 12 of 635 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
 
 ```
 abstergo_entertainment: // TODO: {3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card
-bonecrusher_giant: // ENGINE-BLOCKED(1): the effect must deal 2 damage to "that spell's controller".
-delney_streetwise_lookout: // TODO: Power-conditional blocking restriction — "can't be blocked by
-everflowing_chalice: // TODO: "This artifact enters with a charge counter on it for each time it was kicked." —
-go_for_the_throat: // TODO: "nonartifact creature" — no exclude_card_types on TargetFilter.
+bloodchief_ascension: // TODO: Both abilities are complex — end-step conditional counter placement needs
+deadly_tempest: // TODO: The "each player loses life equal to creatures they controlled" requires
+esper_sentinel: // TODO: Opponent-cast trigger with noncreature filter, once-per-turn,
+gnarlroot_trapper: // TODO: {T}: Target attacking Elf you control gains deathtouch until end of turn.
 jeskas_will: // TODO: Mode 1 needs mana-scaled-by-opponent-hand-count.
 marisi_breaker_of_the_coil: // TODO: "goad each creature that player controls" — ForEach over DamagedPlayer's creatures
-otharri_suns_glory: // TODO: "{2}{R}{W}, Tap an untapped Rebel you control: Return this card from your
-roiling_dragonstorm: // TODO: "When a Dragon you control enters, return this to hand" —
+out_of_the_tombs: // TODO: Upkeep counter + mill scaling with counter count not expressible.
+ruthless_technomancer: // ENGINE-BLOCKED (activated ability): "{2}{B}, Sacrifice X artifacts: Return target
 smugglers_surprise: // TODO: Spree mode 2 — put up to two creature cards from hand onto battlefield.
 teferi_master_of_time: // TODO: Effect::PhaseOut not yet implemented. Placeholder preserves oracle index order.
-tymna_the_weaver: // ENGINE-BLOCKED: the life payment and draw count both scale with the number of
+tyvar_jubilant_brawler: // TODO: static — creatures you control can activate abilities as though they had haste
 ```
 
 ## Recent card-touching commits
 
 ```
+98a7a6a7 SR-2: registry gate for invariant #9 — completeness markers + duplicate CardId detection
 b9397215 W6-cards: PB-AC9 backfill HIGH — Reforge the Soul stale Miracle marker
 52a2b6f2 W6-prim: PB-AC9 — WheelHand + SetNoMaximumHandSize + token-doubling completeness
 91885e98 W6-prim: PB-AC8 review fixes — 2 MEDIUM + 2 LOW closed
@@ -246,7 +247,6 @@ d771b795 W6-prim: PB-AC3 card-review fixes — 4 HIGH wrong-game-state resolutio
 507a476f W6-prim: PB-AC2 backfill — 12 clean + 8 partial card defs
 34bee37c W6-prim: PB-AC1 backfill — re-author cards unblocked by untap/counter/once-per-turn
 19b1f364 W6-prim: PB-AC1 implement — counter / untap / once-per-turn primitives
-a1ed95a6 W5-cards: scutemob-42 — address 3 LOW review findings (batch 2)
 ```
 
 ## Missing card-defs sidecar

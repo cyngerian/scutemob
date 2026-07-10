@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             // TODO: DSL gap — ETB command zone manipulation not expressible.
         ],
+        completeness: Completeness::partial("DSL gap — the ETB triggered ability involves command zone manipulation (put commander from command zone to battlefield..."),
         ..Default::default()
     }
 }

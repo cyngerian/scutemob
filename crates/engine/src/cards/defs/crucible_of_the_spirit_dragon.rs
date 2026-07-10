@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
             // Spend this mana only to cast Dragon spells or activate abilities of Dragons.
             // DSL gap: X-removal cost + variable mana output + mana restriction not expressible.
         ],
+        completeness: Completeness::partial("{1}, {T}: Put a storage counter on this land. DSL gap: no Effect::AddCounter targeting self with CounterType::Storage"),
         ..Default::default()
     }
 }

@@ -34,6 +34,7 @@ pub fn card() -> CardDefinition {
             activation_zone: None,
             once_per_turn: false,
         }],
+        completeness: Completeness::partial("The conditional untap ('if you control four or more lands, untap that land') requires (a) a..."),
         ..Default::default()
     }
 }

@@ -48,6 +48,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("'Whenever one or more tokens you control enter, create a 1/1 black Vampire Rogue creature token with lifelink. This..."),
         ..Default::default()
     }
 }

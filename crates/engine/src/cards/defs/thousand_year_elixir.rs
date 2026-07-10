@@ -29,6 +29,7 @@ pub fn card() -> CardDefinition {
             },
         ],
         // TODO: static ability — "activate creature abilities as though they had haste"
+        completeness: Completeness::partial("DSL gap — static ability 'creatures you control may activate abilities as though they had haste' not expressible (no..."),
         ..Default::default()
     }
 }

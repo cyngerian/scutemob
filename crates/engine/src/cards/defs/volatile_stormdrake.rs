@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
             // hexproof variant not representable as KeywordAbility::Hexproof (which is total).
             // TODO: ETB trigger exchanging control and energy counter mechanics not in DSL.
         ],
+        completeness: Completeness::partial("'hexproof from activated and triggered abilities' is a partial protection variant not in DSL ETB exchange-control and..."),
         ..Default::default()
     }
 }

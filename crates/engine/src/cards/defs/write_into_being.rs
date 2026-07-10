@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::partial("Full oracle text requires 'look at top 2 cards, choose which to manifest, put the other on top or bottom' — interactive..."),
         ..Default::default()
     }
 }

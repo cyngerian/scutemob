@@ -9,6 +9,7 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Instant]),
         oracle_text: "Until end of turn, target creature loses all abilities and becomes a red Weird with base power and toughness 0/1.\nFuse (You may cast one or both halves of this card from your hand.)".to_string(),
         abilities: vec![],
+        completeness: Completeness::inert("no abilities implemented"),
         ..Default::default()
     }
 }

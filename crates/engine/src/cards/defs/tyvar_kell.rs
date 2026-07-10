@@ -98,6 +98,7 @@ pub fn card() -> CardDefinition {
             },
         ],
         starting_loyalty: Some(3),
+        completeness: Completeness::partial("(static ability): 'Elves you control have '{T}: Add {B}'' requires granting a mana ability via a continuous layer..."),
         ..Default::default()
     }
 }

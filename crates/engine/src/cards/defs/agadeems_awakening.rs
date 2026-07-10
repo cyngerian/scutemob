@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
             // and each-different-mana-value uniqueness constraint. Neither is expressible in the
             // current DSL. Deferred until dynamic MV filter and multi-target GY selection are added.
         ],
+        completeness: Completeness::partial("'Return creature cards from your graveyard with different mana values X or less.' Requires: multi-target graveyard..."),
         ..Default::default()
     }
 }

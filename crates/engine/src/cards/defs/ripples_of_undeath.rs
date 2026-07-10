@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
             // (The "at the beginning of your first main phase" trigger itself is now
             // available as TriggerCondition::AtBeginningOfFirstMainPhase — PB-AC6.)
         ],
+        completeness: Completeness::partial("'mill three cards. Then you may pay {1} and 3 life. If you do, put a card from among those cards into your hand.' The..."),
         ..Default::default()
     }
 }

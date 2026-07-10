@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
             // targeting restriction ("targets you or a creature you control"). TargetSpell
             // doesn't support this filter. Complex interaction.
         ],
+        completeness: Completeness::partial("'{U}, Sacrifice ~: Counter target spell or ability that targets you or a creature you control.' — requires..."),
         ..Default::default()
     }
 }

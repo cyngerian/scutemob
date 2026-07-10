@@ -38,6 +38,7 @@ pub fn card() -> CardDefinition {
             },
             // TODO: combat damage triggers (remove/add point counters, 10+ = lose game)
         ],
+        completeness: Completeness::partial("Complex triggered abilities — combat damage triggers with point counter tracking and 'loses the game' win condition...."),
         ..Default::default()
     }
 }

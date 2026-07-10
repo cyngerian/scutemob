@@ -14,6 +14,7 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Sorcery]),
         oracle_text: "Repeat the following process X times. Each opponent loses 3 life unless that player sacrifices a nonland permanent of their choice or discards a card.".to_string(),
         abilities: vec![],
+        completeness: Completeness::inert("Complex repeated choice — each opponent independently chooses to sacrifice/discard/ lose 3 life, X times. Needs player..."),
         ..Default::default()
     }
 }

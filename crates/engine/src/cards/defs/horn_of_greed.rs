@@ -37,6 +37,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("'that player' — DrawCards always targets Controller (the Horn's controller), not the player who played the land. Needs..."),
         ..Default::default()
     }
 }

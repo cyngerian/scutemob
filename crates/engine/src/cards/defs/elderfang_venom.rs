@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Whenever an Elf you control dies, each opponent loses 1 life and you gain
             // 1 life." Blocked on PB-26: WheneverCreatureDies needs subtype filter (Elf only).
         ],
+        completeness: Completeness::partial("'Whenever an Elf you control dies, each opponent loses 1 life and you gain 1 life.' Blocked on PB-26:..."),
         ..Default::default()
     }
 }

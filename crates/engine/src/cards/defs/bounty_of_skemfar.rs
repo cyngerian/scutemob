@@ -33,6 +33,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::known_wrong("oracle's 'up to one land + up to one Elf card' is routed through a single approximate search"),
         ..Default::default()
     }
 }

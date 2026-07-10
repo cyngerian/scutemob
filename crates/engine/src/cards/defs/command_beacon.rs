@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
             // — Cost::Sequence([Cost::Tap, Cost::SacrificeThis]) is expressible;
             // blocked on Effect to move a card from command zone to hand
         ],
+        completeness: Completeness::partial("{T}, Sacrifice: Put your commander into your hand from the command zone — Cost::Sequence([Cost::Tap..."),
         ..Default::default()
     }
 }

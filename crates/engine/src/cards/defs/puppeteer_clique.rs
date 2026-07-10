@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
             // is not yet in the DSL.
             AbilityDefinition::Keyword(KeywordAbility::Persist),
         ],
+        completeness: Completeness::partial("ETB reanimate from opponent's GY — DSL gap (no MoveFrom graveyard to battlefield under your control with haste grant)...."),
         ..Default::default()
     }
 }

@@ -64,6 +64,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::partial("TokenSpec uses fixed i32 for power/toughness; dynamic X/X (cards in hand) requires a new TokenSpec variant (e.g...."),
         ..Default::default()
     }
 }

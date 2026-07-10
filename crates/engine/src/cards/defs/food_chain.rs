@@ -32,6 +32,7 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("Multiple DSL gaps: 1. Cost::ExileCreatureYouControl does not exist (only SacrificeSelf, SacrificeCreature). 2. 'X = 1 +..."),
         ..Default::default()
     }
 }

@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
             // TODO: ETB — look at top 5, may reveal Elf/Warrior/Tyvar to hand, rest to bottom.
             // DSL gap: no look-at-top-N-choose-one with multi-subtype OR filter.
         ],
+        completeness: Completeness::partial("ETB 'look at top 5, may reveal [subtype or name] to hand' pattern. DSL gap: SearchLibrary / PutOnLibrary has no 'look..."),
         ..Default::default()
     }
 }

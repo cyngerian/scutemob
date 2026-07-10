@@ -54,6 +54,7 @@ pub fn card() -> CardDefinition {
             // PB-AC6's Condition::YouAttackedThisTurn is a bool and is insufficient: it cannot
             // express a total-power threshold, and it is scoped to the turn, not the combat.
         ],
+        completeness: Completeness::partial("Pack tactics — 'if you attacked with creatures with total power 6 or greater this combat' needs..."),
         ..Default::default()
     }
 }

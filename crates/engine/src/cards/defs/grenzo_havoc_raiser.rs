@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
             // Mode 1 (Goad) works but needs per-creature trigger + target from damaged player.
             // Mode 2 (impulse-draw from opponent) needs PlayExiledCard from opponent's library.
         ],
+        completeness: Completeness::partial("Per-creature combat damage trigger with modal choice. Mode 1 (Goad) works but needs per-creature trigger + target from..."),
         ..Default::default()
     }
 }

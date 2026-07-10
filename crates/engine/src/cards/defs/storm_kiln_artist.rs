@@ -48,6 +48,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::known_wrong("Magecraft triggers on cast only; the printed 'or copy' half does not trigger"),
         ..Default::default()
     }
 }

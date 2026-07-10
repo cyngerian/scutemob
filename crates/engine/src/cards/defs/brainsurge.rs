@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::partial("'put two cards from hand on top of library' — interactive card selection deferred to M10. Approximated as DrawCards(4)..."),
         ..Default::default()
     }
 }

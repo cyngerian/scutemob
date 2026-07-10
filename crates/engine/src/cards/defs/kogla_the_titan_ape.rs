@@ -95,6 +95,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::known_wrong("'defending player controls' is approximated as 'an opponent' — no defender tracking"),
         ..Default::default()
     }
 }

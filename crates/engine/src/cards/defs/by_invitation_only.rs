@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::partial("'Choose a number' — interactive number choice deferred to M10. Approximated as SacrificePermanents(EachPlayer, 1) as a..."),
         ..Default::default()
     }
 }

@@ -38,6 +38,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("ENGINE-BLOCKED — 'Whenever this creature deals combat damage to a player, gain control of all artifacts that player..."),
         ..Default::default()
     }
 }

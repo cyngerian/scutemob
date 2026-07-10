@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             // implemented and ready to attach once the destroy-filter gap closes, but is
             // intentionally NOT added here alone — per W6 policy, no partial authoring.
         ],
+        completeness: Completeness::partial("'Destroy all creatures that entered this turn.' DSL gap: DestroyAll TargetFilter has no entered-this-turn predicate...."),
         ..Default::default()
     }
 }

@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Flash),
             // TODO: Mold Earth triggered ability — needs TriggerCondition::WheneverOpponentGetsLandWithoutPlaying (or equivalent)
         ],
+        completeness: Completeness::partial("'lands enter under opponent's control without being played' trigger condition not expressible in current DSL — no..."),
         ..Default::default()
     }
 }

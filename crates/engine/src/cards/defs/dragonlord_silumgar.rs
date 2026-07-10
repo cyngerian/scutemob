@@ -43,6 +43,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::known_wrong("'for as long as you control Dragonlord Silumgar' is approximated — control does not revert when Silumgar leaves"),
         ..Default::default()
     }
 }

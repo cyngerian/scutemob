@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Instant]),
         oracle_text: "Exile target artifact or creature. Its controller creates a 4/4 blue and red Elemental creature token.".to_string(),
         abilities: vec![],
+        completeness: Completeness::inert("Token should go to the controller of the exiled permanent, not the spell caster. Effect::CreateToken always creates for..."),
         ..Default::default()
     }
 }

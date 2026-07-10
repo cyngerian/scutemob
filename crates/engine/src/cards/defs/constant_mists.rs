@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::partial("Buyback cost is 'sacrifice a land' not mana. AbilityDefinition::Buyback only accepts ManaCost. When Buyback supports..."),
         ..Default::default()
     }
 }

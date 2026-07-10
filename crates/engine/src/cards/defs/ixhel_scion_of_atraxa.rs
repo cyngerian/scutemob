@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
             // TODO: Corrupted end-step trigger — per-opponent conditional exile + play-from-exile.
             // DSL gap: no ForEach over opponents with intervening-if, no play-exiled-card tracking.
         ],
+        completeness: Completeness::partial("Corrupted trigger — 'each opponent who has 3+ poison counters exiles top card face down; you may look at and play those..."),
         ..Default::default()
     }
 }

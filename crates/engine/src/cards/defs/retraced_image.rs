@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::partial("Interactive — requires revealing a hand card and checking if any permanent on the battlefield shares its name. No..."),
         ..Default::default()
     }
 }

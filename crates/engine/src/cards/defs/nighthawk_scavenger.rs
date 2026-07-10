@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Deathtouch),
             AbilityDefinition::Keyword(KeywordAbility::Lifelink),
         ],
+        completeness: Completeness::partial("DSL gap — CDA 'Nighthawk Scavenger's power is equal to 1 plus the number of card types among cards in your opponents'..."),
         ..Default::default()
     }
 }

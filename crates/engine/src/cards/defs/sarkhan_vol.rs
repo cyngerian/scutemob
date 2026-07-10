@@ -76,6 +76,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
+        completeness: Completeness::partial("ApplyContinuousEffect to all creatures you control not wired to DSL"),
         ..Default::default()
     }
 }

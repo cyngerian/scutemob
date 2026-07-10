@@ -30,6 +30,7 @@ pub fn card() -> CardDefinition {
             // - EffectAmount::CastSpellManaValue (mana value of the triggering spell)
             // - TargetFilter::NonCommander (target that isn't a commander)
         ],
+        completeness: Completeness::partial("DSL gap — triggered ability fires on casting Adventure or Dragon spells and deals damage equal to the spell's mana..."),
         ..Default::default()
     }
 }

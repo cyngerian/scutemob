@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("'pay X life' additional cost + -X/-X scaled by life paid. Needs XValue-based life payment and negative ModifyBoth"),
         ..Default::default()
     }
 }

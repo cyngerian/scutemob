@@ -42,6 +42,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("'Whenever you sacrifice a creature' trigger not in DSL"),
         ..Default::default()
     }
 }

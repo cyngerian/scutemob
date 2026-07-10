@@ -29,6 +29,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("TriggerCondition::ControllerCastsSpell exists but 'gain 1 life for each spell you've cast this turn' needs a..."),
         ..Default::default()
     }
 }

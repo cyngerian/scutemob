@@ -51,6 +51,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("'any target' means player or creature — using each opponent as approximation"),
         ..Default::default()
     }
 }

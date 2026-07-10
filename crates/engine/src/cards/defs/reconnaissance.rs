@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
             // The untap portion is expressible (Effect::UntapPermanent) but remove-from-combat
             // is not.
         ],
+        completeness: Completeness::partial("DSL gap — {0} activated ability that removes a target attacking creature from combat (Effect::RemoveFromCombat) does..."),
         ..Default::default()
     }
 }

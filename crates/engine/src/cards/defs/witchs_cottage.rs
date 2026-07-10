@@ -36,6 +36,7 @@ pub fn card() -> CardDefinition {
             },
             // TODO: Triggered — When this land enters untapped, you may put target creature card from your graveyard on top of your library.
         ],
+        completeness: Completeness::partial("Triggered — When this land enters untapped, you may put target creature card from your graveyard on top of your library"),
         ..Default::default()
     }
 }

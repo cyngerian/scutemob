@@ -9,6 +9,7 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Instant]),
         oracle_text: "Target creature you control gains protection from the color of your choice until end of turn.".to_string(),
         abilities: vec![],
+        completeness: Completeness::inert("no abilities implemented"),
         ..Default::default()
     }
 }

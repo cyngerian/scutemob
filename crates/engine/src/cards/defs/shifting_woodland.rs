@@ -63,6 +63,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("TargetFilter lacks 'permanent card' constraint. Currently allows instants/sorceries as targets. Oracle says 'target..."),
         ..Default::default()
     }
 }

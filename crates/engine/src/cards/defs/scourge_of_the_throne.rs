@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — "first time each turn" attack trigger with most-life condition
             // + untap all attacking creatures + additional combat phase.
         ],
+        completeness: Completeness::partial("DSL gap — 'first time each turn' attack trigger with most-life condition + untap all attacking creatures + additional..."),
         ..Default::default()
     }
 }

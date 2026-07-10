@@ -37,6 +37,7 @@ pub fn card() -> CardDefinition {
             // Equip {2}
             AbilityDefinition::Keyword(KeywordAbility::Equip),
         ],
+        completeness: Completeness::partial("DSL gap — 'Whenever equipped creature attacks' trigger condition (WhenEquippedCreatureAttacks) does not exist...."),
         ..Default::default()
     }
 }

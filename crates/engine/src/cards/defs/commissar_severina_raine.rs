@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             //   EffectAmount lacks AttackingCreatureCount. Attack trigger exists.
             // TODO: "Sacrifice another creature" — Cost::SacrificeOther not in DSL.
         ],
+        completeness: Completeness::partial("'Each opponent loses X where X = other attacking creatures' — EffectAmount lacks AttackingCreatureCount. Attack trigger..."),
         ..Default::default()
     }
 }

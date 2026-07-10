@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             // type-filtered (non-Human) creature-you-control condition. No such trigger
             // condition exists in the DSL.
         ],
+        completeness: Completeness::partial("DSL gap — 'Whenever one or more non-Human creatures you control deal combat damage to a player' requires a..."),
         ..Default::default()
     }
 }

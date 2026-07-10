@@ -15,7 +15,7 @@
 
 use mtg_engine::{
     calculate_characteristics, process_command, AbilityDefinition, AttackTarget, CardDefinition,
-    CardId, CardRegistry, CardType, Command, GameEvent, GameState, GameStateBuilder,
+    CardId, CardRegistry, CardType, Command, Completeness, GameEvent, GameState, GameStateBuilder,
     KeywordAbility, ObjectId, ObjectSpec, PlayerId, Step, TypeLine, ZoneId,
 };
 
@@ -389,6 +389,7 @@ fn test_702_25b_flanking_multiple_instances() {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+        completeness: Completeness::Complete,
     };
 
     let registry = CardRegistry::new(vec![double_flanking_def]);

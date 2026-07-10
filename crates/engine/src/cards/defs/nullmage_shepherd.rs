@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
         //       ...
         //   }
         abilities: vec![],
+        completeness: Completeness::inert("The activated ability cost requires tapping N other permanents you control (Cost::TapCreatures(4) or similar). No such..."),
         ..Default::default()
     }
 }

@@ -106,6 +106,7 @@ pub fn card() -> CardDefinition {
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
         cant_be_countered: false,
+        completeness: Completeness::partial("'Reveal top N and sort into different zones by card type' is a complex effect. Known DSL gap. Partial: Scry 4 as..."),
         ..Default::default()
     }
 }

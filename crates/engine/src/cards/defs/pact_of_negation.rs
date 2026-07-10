@@ -14,6 +14,7 @@ pub fn card() -> CardDefinition {
         // {0}-cost unconditional counter without the upkeep payment is game-breaking (KI-2).
         // Stripped per W6 policy until delayed triggers are in DSL.
         abilities: vec![],
+        completeness: Completeness::inert("Counter target spell + delayed upkeep trigger 'pay {3}{U}{U} or lose the game.' {0}-cost unconditional counter without..."),
         ..Default::default()
     }
 }

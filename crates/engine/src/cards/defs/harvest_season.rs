@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
             // Cannot express "search for up to X" where X is a dynamic battlefield count.
             // Omitted per W5 policy (partial impl would fix X at a wrong value).
         ],
+        completeness: Completeness::partial("X = number of tapped creatures you control — EffectAmount::CountTappedCreaturesYouControl does not exist. This is a..."),
         ..Default::default()
     }
 }

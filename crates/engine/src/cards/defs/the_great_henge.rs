@@ -66,6 +66,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("SelfCostReduction::GreatestPowerAmongCreatures — DSL has TotalPowerOfCreatures (Ghalta) but not greatest-power. Cost..."),
         ..Default::default()
     }
 }

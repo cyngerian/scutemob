@@ -73,6 +73,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::known_wrong("upkeep ability removes a +1/+1 counter unconditionally; oracle says 'you MAY remove'"),
         ..Default::default()
     }
 }

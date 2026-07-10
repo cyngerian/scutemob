@@ -42,6 +42,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("PlayerTarget::TargetController when available (wrong in multiplayer when opponent's creature is destroyed — token goes..."),
         ..Default::default()
     }
 }

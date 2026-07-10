@@ -59,5 +59,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+    completeness: Completeness::partial("DSL gap — exile-face-down + play-from-exile + any-color mana spending. Complex exile-play mechanic not expressible"),
     }
 }

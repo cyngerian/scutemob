@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
         // TODO: Opponent-cast trigger with noncreature filter, once-per-turn,
         //   and conditional pay-or-draw. Not expressible in current DSL.
         abilities: vec![],
+        completeness: Completeness::inert("Opponent-cast trigger with noncreature filter, once-per-turn, and conditional pay-or-draw. Not expressible in current..."),
         ..Default::default()
     }
 }

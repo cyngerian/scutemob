@@ -77,6 +77,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
+        completeness: Completeness::partial("Combat damage trigger + bounce + double loyalty activation not expressible. +1: Up to one target creature can't attack..."),
         ..Default::default()
     }
 }

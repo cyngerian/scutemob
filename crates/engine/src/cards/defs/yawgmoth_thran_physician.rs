@@ -41,6 +41,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("'Sacrifice another creature' — Cost::SacrificeOtherCreature not in DSL. Leaving the sacrifice ability with TODO"),
         ..Default::default()
     }
 }

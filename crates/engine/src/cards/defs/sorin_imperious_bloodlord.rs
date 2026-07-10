@@ -76,6 +76,7 @@ pub fn card() -> CardDefinition {
             // TODO: Interactive hand selection by creature subtype ("Vampire creature card from
             // your hand") is not expressible in the DSL. Omitted per W5 policy.
         ],
+        completeness: Completeness::partial("'If it's a Vampire, put a +1/+1 counter on it' — requires Condition::TargetHasSubtype(SubType('Vampire')) which is not..."),
         ..Default::default()
     }
 }

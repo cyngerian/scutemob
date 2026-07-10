@@ -35,6 +35,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("'For each Elf you control' — count-based token creation not in DSL. Using fixed 3 as approximation"),
         ..Default::default()
     }
 }

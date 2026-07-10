@@ -77,6 +77,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
+        completeness: Completeness::partial("EffectAmount lacks 'greatest power among creatures you control' variant"),
         ..Default::default()
     }
 }

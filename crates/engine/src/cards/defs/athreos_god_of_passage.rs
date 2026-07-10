@@ -48,6 +48,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Whenever another creature you own dies, return it to your hand unless
             // target opponent pays 3 life." DSL gap: no opponent-pays-life alternative.
         ],
+        completeness: Completeness::partial("'Whenever another creature you own dies, return it to your hand unless target opponent pays 3 life.' Requires a death..."),
         ..Default::default()
     }
 }

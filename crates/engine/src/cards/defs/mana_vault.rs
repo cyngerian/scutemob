@@ -42,6 +42,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::partial("'At the beginning of your draw step, if this artifact is tapped, it deals 1 damage to you.' — there is no..."),
         ..Default::default()
     }
 }

@@ -55,6 +55,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("SacrificePermanents filter is available (PB-SFT), but Effect::AddCounter to a Player target is a silent no-op (resolver..."),
         ..Default::default()
     }
 }

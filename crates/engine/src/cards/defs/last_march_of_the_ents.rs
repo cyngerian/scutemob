@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: true,
             },
         ],
+        completeness: Completeness::partial("'Draw cards equal to greatest toughness' — needs EffectAmount::GreatestToughnessAmongCreaturesYouControl"),
         ..Default::default()
     }
 }

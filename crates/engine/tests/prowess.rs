@@ -14,8 +14,8 @@
 use mtg_engine::state::CardType;
 use mtg_engine::{
     calculate_characteristics, process_command, AbilityDefinition, CardDefinition, CardId,
-    CardRegistry, Command, GameEvent, GameStateBuilder, KeywordAbility, ManaColor, ManaCost,
-    ObjectSpec, PlayerId, Step, Target, TypeLine, ZoneId,
+    CardRegistry, Command, Completeness, GameEvent, GameStateBuilder, KeywordAbility, ManaColor,
+    ManaCost, ObjectSpec, PlayerId, Step, Target, TypeLine, ZoneId,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -132,6 +132,7 @@ fn creature_spell_def() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+        completeness: Completeness::Complete,
     }
 }
 
@@ -166,6 +167,7 @@ fn artifact_creature_def() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+        completeness: Completeness::Complete,
     }
 }
 

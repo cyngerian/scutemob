@@ -36,6 +36,7 @@ pub fn card() -> CardDefinition {
                 },
             },
         ],
+        completeness: Completeness::partial("activated — {T}: deal damage equal to power to target creature with flying. DSL gap: no EffectAmount::PowerOf(Source)..."),
         ..Default::default()
     }
 }

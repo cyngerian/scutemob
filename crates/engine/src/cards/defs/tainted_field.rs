@@ -23,7 +23,8 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
             // {T}: Add {W} or {B}. Activate only if you control a Swamp.
-            // Modeled as producing {W} (first option); engine lacks mana choice.
+            // The "or" is modeled as two separate activated abilities, one per color;
+            // the player chooses by activating one. First option: {W}.
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
                 effect: Effect::AddMana {

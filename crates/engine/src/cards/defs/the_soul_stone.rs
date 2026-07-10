@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("'Harness The Soul Stone' is a custom Infinity Stone mechanic (digital-only?). The ∞ ability (at beginning of upkeep..."),
         ..Default::default()
     }
 }

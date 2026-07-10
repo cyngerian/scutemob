@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
             // TODO: Renew — graveyard activated ability with exile-self cost and keyword counter
             // placement not supported in DSL.
         ],
+        completeness: Completeness::partial("Renew activated ability cannot be expressed — it activates from the graveyard (not battlefield), costs exile-self, and..."),
         ..Default::default()
     }
 }

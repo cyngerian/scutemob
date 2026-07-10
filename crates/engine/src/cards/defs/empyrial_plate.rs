@@ -15,6 +15,7 @@ pub fn card() -> CardDefinition {
             // takes fixed i32, not EffectAmount. Needs dynamic LayerModification.
             AbilityDefinition::Keyword(KeywordAbility::Equip),
         ],
+        completeness: Completeness::partial("DSL gap — dynamic +1/+1 per card in hand. LayerModification::ModifyBoth takes fixed i32, not EffectAmount. Needs..."),
         ..Default::default()
     }
 }

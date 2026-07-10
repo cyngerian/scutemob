@@ -66,6 +66,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
+        completeness: Completeness::partial("Static 'no more than one creature can attack The Eternal Wanderer' — attack restriction keyed on a specific..."),
         ..Default::default()
     }
 }

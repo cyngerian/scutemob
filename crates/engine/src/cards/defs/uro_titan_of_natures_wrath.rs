@@ -31,6 +31,7 @@ pub fn card() -> CardDefinition {
                 details: None,
             },
         ],
+        completeness: Completeness::partial("'Sacrifice unless it escaped' ETB — needs cast_alt_cost check. Missing sacrifice means hardcast Uro stays as 6/6..."),
         ..Default::default()
     }
 }

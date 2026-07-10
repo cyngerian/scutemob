@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::partial("'Then discard two cards' + 'untap up to three lands' not expressible. Implementing draw only"),
         ..Default::default()
     }
 }

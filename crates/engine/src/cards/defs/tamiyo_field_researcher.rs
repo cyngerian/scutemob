@@ -59,6 +59,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
+        completeness: Completeness::partial("Grant combat-damage draw trigger to targets — not expressible"),
         ..Default::default()
     }
 }

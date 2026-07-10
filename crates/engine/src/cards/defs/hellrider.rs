@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
             // W5 policy until AttackTargetOf(EffectTarget::TriggeringCreature) or equivalent
             // is added to PlayerTarget.
         ],
+        completeness: Completeness::partial("DSL gap — the damage target is 'the player or planeswalker IT'S attacking' (the combat attack assignment of the..."),
         ..Default::default()
     }
 }

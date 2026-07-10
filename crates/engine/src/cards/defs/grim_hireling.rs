@@ -35,6 +35,7 @@ pub fn card() -> CardDefinition {
             // TODO: "{B}, Sacrifice X Treasures: Target creature gets -X/-X" — X-cost
             //   activated ability with variable sacrifice count not expressible in DSL.
         ],
+        completeness: Completeness::partial("'{B}, Sacrifice X Treasures: Target creature gets -X/-X' — X-cost activated ability with variable sacrifice count is..."),
         ..Default::default()
     }
 }

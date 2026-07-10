@@ -36,6 +36,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Lands you control are every basic land type" — layer 4 static.
             //   DSL gap: no LayerModification::AddAllBasicLandTypes variant.
         ],
+        completeness: Completeness::partial("'If this card is in your opening hand, begin the game with it on the battlefield' — no..."),
         ..Default::default()
     }
 }

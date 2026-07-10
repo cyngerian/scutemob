@@ -44,6 +44,7 @@ pub fn card() -> CardDefinition {
         ],
         power: Some(3),
         toughness: Some(5),
+        completeness: Completeness::partial("Meld trigger (Phyrexian Dragon Engine + Mishra meld) — Meld not yet in DSL. This is the sole remaining blocker for this..."),
         ..Default::default()
     }
 }

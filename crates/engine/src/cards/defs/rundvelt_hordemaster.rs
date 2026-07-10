@@ -24,6 +24,7 @@ Whenever Rundvelt Hordemaster or another Goblin you control dies, exile the top 
             // TODO: DSL gap — death trigger with controller filter (Goblin you control)
             // + exile top card + conditional cast permission.
         ],
+        completeness: Completeness::partial("DSL gap — death trigger with controller filter (Goblin you control) + exile top card + conditional cast permission"),
         ..Default::default()
     }
 }

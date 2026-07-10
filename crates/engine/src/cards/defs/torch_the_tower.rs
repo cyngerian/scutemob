@@ -38,6 +38,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::partial("also apply 'controller can't gain life this turn' — no CantGainLife effect variant exists in the DSL yet. When..."),
         ..Default::default()
     }
 }

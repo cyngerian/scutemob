@@ -53,5 +53,6 @@ creature dies, each opponent loses 2 life and you gain 2 life."
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+    completeness: Completeness::Complete,
     }
 }

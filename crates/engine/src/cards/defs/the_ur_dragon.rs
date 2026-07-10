@@ -35,6 +35,7 @@ pub fn card() -> CardDefinition {
             exclude_self: true,
             colored_mana_reduction: None,
         }],
+        completeness: Completeness::partial("attack trigger — draw X cards where X = number of attacking Dragons, then put a permanent from hand onto the battlefield"),
         ..Default::default()
     }
 }

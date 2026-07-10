@@ -52,6 +52,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
+        completeness: Completeness::partial("'Activate on any player's turn' — instant-speed loyalty not in DSL"),
         ..Default::default()
     }
 }

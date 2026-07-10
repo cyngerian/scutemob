@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
         types: types_sub(&[CardType::Kindred, CardType::Enchantment], &["Goblin"]),
         oracle_text: "Whenever another Goblin you control is put into a graveyard from the battlefield, you may have this enchantment deal 1 damage to target player or planeswalker.".to_string(),
         abilities: vec![],
+        completeness: Completeness::inert("DSL gap — The triggered ability requires filtering creature deaths by subtype (Goblin) AND controller (you) AND..."),
         ..Default::default()
     }
 }

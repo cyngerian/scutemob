@@ -52,6 +52,7 @@ pub fn card() -> CardDefinition {
             exclude_self: false,
             colored_mana_reduction: None,
         }],
+        completeness: Completeness::known_wrong("'you may put that card into your hand' implemented as a mandatory draw"),
         ..Default::default()
     }
 }

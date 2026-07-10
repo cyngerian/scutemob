@@ -46,6 +46,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("DSL gap — 'If in opening hand, begin game on battlefield' (Leyline). CR 605.1b / CR 106.12a: 'Whenever you tap a..."),
         ..Default::default()
     }
 }

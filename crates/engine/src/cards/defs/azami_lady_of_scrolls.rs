@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
             // TODO: Tap an untapped Wizard you control: Draw a card.
             //   (Cost enum lacks TapAnotherCreatureWithSubtype variant)
         ],
+        completeness: Completeness::partial("Tap an untapped Wizard you control: Draw a card. (Cost enum lacks TapAnotherCreatureWithSubtype variant)"),
         ..Default::default()
     }
 }

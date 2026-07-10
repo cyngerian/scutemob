@@ -54,6 +54,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("'except it has this ability' — retained ability after copy not yet expressible. Currently the copy overwrites all..."),
         ..Default::default()
     }
 }

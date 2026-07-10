@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Whenever a player attacks with 3+ creatures" trigger not in DSL.
             // TODO: "Whenever a player attacks with 5+ creatures" trigger not in DSL.
         ],
+        completeness: Completeness::partial("'Whenever a player attacks with 3+ creatures' trigger not in DSL"),
         ..Default::default()
     }
 }

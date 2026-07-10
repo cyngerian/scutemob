@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — "Whenever cards are put into exile from library/graveyard"
             // trigger condition does not exist.
         ],
+        completeness: Completeness::partial("DSL gap — attack trigger that exiles top card + grants play permission. Effect::PlayExiledCard exists but 'exile top..."),
         ..Default::default()
     }
 }

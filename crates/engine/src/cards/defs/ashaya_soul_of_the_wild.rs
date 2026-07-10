@@ -49,6 +49,7 @@ pub fn card() -> CardDefinition {
             // other types" — no nontoken-scoped EffectFilter exists yet. See file-header
             // comment for full disposition.
         ],
+        completeness: Completeness::partial("'Nontoken creatures you control are Forest lands in addition to their other types' — EffectFilter has no..."),
         ..Default::default()
     }
 }

@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             // Condition::EquippedCreatureIsTapped + EffectFilter::TappedCreaturesYouControl.
             AbilityDefinition::Keyword(KeywordAbility::Equip),
         ],
+        completeness: Completeness::partial("DSL gap — conditional statics based on tapped state of equipped creature, affecting tapped/untapped subsets of your..."),
         ..Default::default()
     }
 }

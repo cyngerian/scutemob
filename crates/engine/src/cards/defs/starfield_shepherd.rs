@@ -38,6 +38,7 @@ pub fn card() -> CardDefinition {
             // with max_mana_value ≤ 1. Two-filter OR semantics and mana value ceiling both
             // missing from TargetFilter. DSL gap (separate primitive from PB-AC5's Warp).
         ],
+        completeness: Completeness::partial("ETB — search for 'basic Plains OR creature with MV ≤ 1'. TargetFilter cannot express: (1) basic Plains subtype filter..."),
         ..Default::default()
     }
 }

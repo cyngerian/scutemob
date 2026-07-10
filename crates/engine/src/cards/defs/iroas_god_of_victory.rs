@@ -58,6 +58,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Prevent all damage that would be dealt to attacking creatures you control."
             // DSL gap: no blanket damage prevention replacement for attacking creatures.
         ],
+        completeness: Completeness::partial("'Prevent all damage that would be dealt to attacking creatures you control.' is a blanket prevention replacement effect..."),
         ..Default::default()
     }
 }

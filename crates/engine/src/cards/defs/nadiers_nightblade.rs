@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
         power: Some(1),
         toughness: Some(3),
         abilities: vec![],
+        completeness: Completeness::inert("'Whenever a token you control leaves the battlefield' — no trigger condition for token-specific zone changes. Using..."),
         ..Default::default()
     }
 }

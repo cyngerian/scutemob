@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Lifelink),
         ],
+        completeness: Completeness::partial("DSL gap — the activated ability requires 'protection from the color of your choice', which is a player-interactive..."),
         ..Default::default()
     }
 }

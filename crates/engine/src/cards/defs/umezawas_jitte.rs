@@ -89,6 +89,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::partial("(PB-37): Oracle says 'deals combat damage' (any target), not just to players. Needs..."),
         ..Default::default()
     }
 }

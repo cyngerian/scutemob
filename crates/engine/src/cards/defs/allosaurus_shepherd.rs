@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             // Needs Layer 7b SetBasePowerToughness + Layer 4 AddSubtype on
             // CreaturesYouControlWithSubtype(Elf), both UntilEndOfTurn.
         ],
+        completeness: Completeness::partial("'Green spells you control can't be countered' — static anti-counter effect not in DSL"),
         ..Default::default()
     }
 }

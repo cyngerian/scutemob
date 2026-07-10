@@ -46,6 +46,7 @@ pub fn card() -> CardDefinition {
                 },
             },
         ],
+        completeness: Completeness::partial("DSL gap — no EffectFilter for 'all other Goblins any player controls'. AllCreaturesWithSubtype includes the source..."),
         ..Default::default()
     }
 }
