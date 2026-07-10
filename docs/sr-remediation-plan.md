@@ -221,6 +221,7 @@ _One entry per session, newest first. Format:_
   on the feature branch at commit `d5b023ae`. Any commits after that are
   docs-only — verify with `git diff d5b023ae..HEAD -- .github/`, which is empty.
   The push-to-`main` trigger is what merging this branch exercises — confirm
-  that run goes green at collection.
+  that run goes green at collection. *(Collector 2026-07-10: confirmed — merge
+  `e9742dc2` push run `29076083859` on main completed green.)*
   **Next session:** SR-2 (`scutemob-54`, registry gate) — it now has a working
   machine gate behind it, which was the entire point of doing SR-1 first.
