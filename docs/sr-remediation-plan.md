@@ -38,7 +38,7 @@ Full evidence (file:line) is in each task's ESM description — run
 | 3 | scutemob-55 | SR-3: Seal GameState | M–L | **DONE 2026-07-10.** Invariant #3 machine-enforced. CI gained `cargo build --workspace` — do not drop it. |
 | 4 | scutemob-56 | SR-4: Silent-failure sweep | M–L | **DONE 2026-07-10.** 398 sites classified; `state::diagnostics` vocabulary added. Follow-ups: `scutemob-65` (SR-13), `scutemob-66` (SR-14). |
 | 5 | scutemob-57 | SR-5: KeywordAbility catch-all audit | M | **DONE 2026-07-10.** Premise was a misattribution — see the gotcha. `state::keyword_registry` is the compile gate. Follow-up: `scutemob-67` (SR-15). |
-| 6 | scutemob-58 | SR-6: Extract card-defs crate | M | Wide blast radius. Coordinate with card authoring (collision rules). |
+| 6 | scutemob-58 | SR-6: Extract card-defs crate | M | **DONE 2026-07-10.** Three crates now: `card-types` ← `card-defs` ← `engine`. Engine edits leave the defs `Fresh`. Card-authoring paths moved — see the gotcha. |
 | 7 | scutemob-59 | SR-7: PendingTrigger → TriggerData cutover | M | Requires HASH_SCHEMA_VERSION bump; read `state/hash.rs` header first. |
 | 8 | scutemob-60 | SR-8: Protocol versioning policy | M | Hard blocker before M10's first networked client. Design + implement. |
 | 9 | scutemob-61 | SR-9: Test infra consolidation | L | Three sub-items (binaries / equivalence test / script triage). **Split into 2–3 ESM subtasks at dispatch time.** |
@@ -289,9 +289,57 @@ Task-specific extras:
      MCP server; CR text is authoritative over card rulings. All 18 marker keywords'
      citations were verified against rule text and matched their `types.rs` doc
      comments.
-- **SR-6:** the defs import `crate::cards::helpers::*` — the DSL types and
-  helpers prelude must move (or re-export) cleanly for defs to compile in the
-  new crate. `build.rs` moves with the defs.
+- **SR-6: DONE (2026-07-10).** The briefed hazard (defs import
+  `crate::cards::helpers::*`; the prelude must move or re-export cleanly) was real and
+  took about ten minutes. What actually mattered:
+  1. **The task's own justifying document specified a layout that cannot work.**
+     `docs/mtg-engine-card-pipeline.md` had `card-defs` depending on `engine` "for the
+     DSL types". A crate rebuilds whenever a dependency changes, so defs stacked *above*
+     the engine would recompile on every rules edit — the exact cost the split exists to
+     remove. The DSL had to move *below* the engine into a third crate (`card-types`).
+     **The arrow direction is the entire mechanism; the crate count is not.** Second SR
+     task running whose brief was wrong in a load-bearing way (cf. SR-5's misattributed
+     enum) — check the premise before building what it implies.
+  2. **The closure is what makes it possible, so measure it first.** `helpers.rs` reaches
+     into 11 `state/` modules. All 11 turned out to be pure data: zero `GameState`
+     references, zero `pub(crate)` members, zero inherent impls outside their own files.
+     Three greps decided the whole design. Had even one held a `GameState` method, the
+     split would have needed a trait or a much bigger cut. (`hash.rs` impls `StateHash for
+     <moved type>` ~100 times — not an orphan violation, because `StateHash` is local.)
+  3. **Module re-exports made a 287-file refactor a 2-file refactor.** `pub use
+     mtg_card_types::state::{game_object, types, …};` in the engine's `state/mod.rs` keeps
+     every `crate::state::game_object::X` path resolving. `rules/` and `effects/` were not
+     touched at all. Symmetrically, `pub(crate) use mtg_card_types::{cards, state};` in
+     `card-defs/src/lib.rs` keeps `use crate::cards::helpers::*;` resolving, so **all 1,749
+     def files moved with zero content edits** (git records pure renames).
+  4. **`all_cards()` was not the only consumer of `defs`.** 14 test files reach individual
+     card modules as `cards::defs::hardened_scales::card()`. Re-export the whole `defs`
+     module, not just the collector. A `grep 'defs::' src/` misses this; it only shows up
+     in `tests/`.
+  5. **A file move silently breaks every non-compiled path reference.** The compiler found
+     nothing here — but `include_str!` targets, the SR-5 registry's declared site strings,
+     four Python tools, the TUI dashboard parser, seven `.claude/agents/` prompts and three
+     skills all named the old directory. **The write-targets are the dangerous ones**: an
+     authoring agent told to create `crates/engine/src/cards/defs/<slug>.rs` gets no error;
+     `build.rs` simply never sees the card. Grep for the old path across *every* file type,
+     not just `*.rs`, and sort the hits into live instructions (fix) vs historical records
+     (leave — rewriting a PB review falsifies it).
+  6. **`git mv` breaks `git log -- <path>` and therefore any tool that mines history.**
+     `tools/authoring-report.py` attributes each card to its earliest add commit. Post-move,
+     **all 1,748** were attributed to the SR-6 commit; the activity table read
+     "1,749 cards added this week." Fixed with `--follow` (per-file, single pathspec) and
+     with `-M` plus *both* pathspecs (windowed queries), so the move reads as renames rather
+     than additions. Verify by re-running the tool **after** committing the move — before the
+     commit it reports zeros and looks like a different bug.
+  7. **SR-5's registry needed re-anchoring, not just repointing.** Its site paths were
+     crate-relative, and `src/state/dungeon.rs` stopped naming a unique file the moment a
+     second crate had a `src/state/`. Paths are now workspace-relative and the scan spans
+     `engine` + `card-types`; `card-defs` is excluded by being outside every scan root
+     (stronger than the old path filter). Demonstrated adversarially, per SR-5's own lesson:
+     dropping the `card-types` scan root, admitting `card-defs`, and staling one declared
+     site each fail the suite — and the per-root non-vacuity assertion is what catches the
+     first. A cross-crate derived set needs a *per-root* denominator guard, not just a
+     total-count guard.
 - **SR-9(b):** the equivalence test's whole point is that
   `enrich_spec_from_def` shadow-implements object construction — if hashes
   diverge, the harness is wrong until proven otherwise, not the engine.
@@ -300,6 +348,50 @@ Task-specific extras:
 
 _One entry per session, newest first. Format:_
 `- YYYY-MM-DD — SR-<N> (scutemob-<id>) — <status: done / in progress / blocked> — <one-line outcome + hazards + pointer for next session>`
+
+- 2026-07-10 — SR-6 (scutemob-58) — **done** — Card definitions now compile in isolation
+  from the engine. Three crates where there was one: `crates/card-types`
+  (`mtg-card-types` — `cards/{card_definition,helpers,registry}.rs` plus the 11 pure-data
+  `state/` modules the DSL closes over) sits at the **bottom**; `crates/card-defs`
+  (`mtg-card-defs` — 1,749 def files + `build.rs` discovery) depends on card-types **only,
+  never on the engine**; `crates/engine` depends on both and re-exports them. Touching
+  `crates/engine/src/rules/sba.rs` and running `cargo check -p mtg-engine -v` now reports
+  `Fresh mtg-card-defs`; wall clock 7s → 2–3s with `CARGO_INCREMENTAL=0`, 2–3s → 0–1s
+  incremental. Control verified: touching `card-types` correctly marks the defs dirty.
+  3129 tests pass — identical to baseline, 313 suites. All four gates clean; replay-viewer
+  and TUI built explicitly. **Zero content edits to the 1,749 def files, and zero edits to
+  `rules/` or `effects/`** — both fall out of module re-exports (`pub use
+  mtg_card_types::state::{game_object, …}` in the engine; `pub(crate) use
+  mtg_card_types::{cards, state}` in card-defs, so `use crate::cards::helpers::*;` still
+  resolves).
+  **Hazards discovered:** all seven written up in the SR-6 gotcha above — chiefly
+  (a) **the pipeline doc that justified this task specified an impossible layout**
+  (`card-defs` depending on `engine`), which would have delivered none of the promised
+  isolation; the DSL had to go *below* the engine. Doc corrected. (b) The dependency
+  **closure** (11 state modules, all pure data, no `GameState`, no `pub(crate)`, no outside
+  inherent impls) is what made the cut viable, and three greps established it before any
+  code moved. (c) `all_cards()` is not the only consumer of `defs` — 14 test files reach
+  `cards::defs::<card>::card()`, visible only in `tests/`. (d) **`git mv` silently destroyed
+  `tools/authoring-report.py`'s provenance**: without `--follow`, all 1,748 cards attributed
+  to the SR-6 commit and the activity table read "1,749 added this week." Windowed queries
+  now pass `-M` + both pathspecs. **Re-run history-mining tools after committing a move, not
+  before.** (e) SR-5's registry site paths were crate-relative and stopped being unique;
+  now workspace-relative, scanning two crates, with a per-root non-vacuity guard.
+  **Caught by `/review`, not by me:** seven `.claude/agents/` prompts and three
+  `.claude/skills/` still directed card authoring at `crates/engine/src/cards/defs/`. These
+  are **write** targets — `build.rs` no longer scans that directory, so an authoring agent
+  would have created a card that never registers and never compiles, with no error anywhere.
+  Fourth consecutive SR task where the review found the gap in the *gate* rather than a bug
+  in the code; the pattern this time is that a compiler cannot see a path in a prompt.
+  `primitive-impl-runner.md` also still said "Register the card in `defs/mod.rs`" — wrong
+  since the W2 split, unrelated to SR-6, and now removed. Deliberately left stale:
+  `memory/` PB plans/reviews (137 files), generated-script `generation_notes` (52), and
+  closed-issue tables — those are records, not instructions.
+  **Next session:** SR-7 (`scutemob-59`, PendingTrigger → TriggerData; read `state/hash.rs`
+  header first and bump `HASH_SCHEMA_VERSION`) — note `state/{stack,stubs}.rs` now live in
+  `crates/card-types`, so `PendingTrigger` and `TriggerData` are both there while `hash.rs`
+  stays in the engine. Or SR-11 (`scutemob-63`, pin the toolchain) as cheap filler; the
+  workspace just gained two crates, so a toolchain float now reddens CI across three.
 
 - 2026-07-10 — SR-5 (scutemob-57) — **done** — A new `KeywordAbility` variant can no
   longer be silently inert. New `crates/engine/src/state/keyword_registry.rs`:
