@@ -672,6 +672,28 @@ Task-specific extras:
 _One entry per session, newest first. Format:_
 `- YYYY-MM-DD — SR-<N> (scutemob-<id>) — <status: done / in progress / blocked> — <one-line outcome + hazards + pointer for next session>`
 
+- 2026-07-10 — SR-12 (scutemob-64) — **done (in_review, awaiting /collect)** — Made the
+  invariant-9 marker gate unbypassable and added anti-rot for the Partial/KnownWrong classes.
+  (a) `start_game` — the choke point the simulator, fuzzer, and any production caller all share
+  (the builder is a field-by-field test utility with no single "assemble" method to guard) — now
+  scans `state.objects` and refuses any object whose `card_id` resolves to a **known but
+  non-Complete** registry def (`GameStateError::IncompleteCardsInGame`). Scope is deliberately
+  narrow: an unknown `card_id` (empty/absent registry) passes, so the hundreds of naked-object
+  tests are untouched. Explicit opt-out `start_game_allowing_incomplete` (a distinct symbol, not
+  a flag). The suite surfaced **exactly one** legitimate opt-out: `test_leyline_opening_hand`
+  drives Leyline (marked `known-wrong`) through pre-game placement on purpose — switched to the
+  opt-out. The fuzzer's `random_deck` was silently drawing from all 742 non-Complete cards; now
+  filtered to `is_complete()`, so the gate forced the fuzzer to become correct.
+  (b) `tests/core/completeness_deviation_scan.rs` scans def source for deviation language
+  (`simplif|modeled/modelled as|deviation|approximat`) and requires a non-Complete marker or a
+  reviewed 6-entry allowlist. Of 136 matches, 130 already carry markers; the 6 exempt are all
+  false positives ("modeled as" for a faithful decomposition, "not an approximation", "fixes the
+  previous approximation") — documented per entry, and guarded so a stale/redundant entry fails.
+  Denominator guards on the scan (>1500 files) and both detectors (≥50 / ≥700). **Gates:**
+  `cargo test --all` (3195 passed / 0 failed, +10), `clippy --all-targets -D warnings`,
+  `fmt --all --check`, `build --workspace` all green on 1.95.0. **Next:** SR-13 (`scutemob-65`,
+  damage-source characteristics via LKI), then SR-14+.
+
 - 2026-07-10 — SR-11 (scutemob-63) — **done (in_review, awaiting /collect)** — Pinned the Rust
   toolchain. The repo already had a tracked `rust-toolchain.toml` that said `channel = "stable"`
   — a pin in appearance only, since `stable` floats to the newest release, so CI (fresh fetch)
