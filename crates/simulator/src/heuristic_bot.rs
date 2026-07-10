@@ -123,7 +123,7 @@ impl Bot for HeuristicBot {
             .map(|(_, idx)| *idx)
             .collect();
 
-        let chosen_idx = top_actions[self.rng.gen_range(0..top_actions.len())];
+        let chosen_idx = top_actions[self.rng.random_range(0..top_actions.len())];
         action_to_command(&mut self.rng, state, player, &legal[chosen_idx])
     }
 

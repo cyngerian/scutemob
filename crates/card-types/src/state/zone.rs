@@ -139,7 +139,7 @@ impl Zone {
         if let Zone::Ordered(v) = self {
             let mut items: Vec<ObjectId> = v.iter().copied().collect();
             for i in (1..items.len()).rev() {
-                let j = rng.gen_range(0..=i);
+                let j = rng.random_range(0..=i);
                 items.swap(i, j);
             }
             *v = Vector::from(items);

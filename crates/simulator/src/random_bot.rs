@@ -41,7 +41,7 @@ impl Bot for RandomBot {
             .iter()
             .find(|a| matches!(a, LegalAction::DeclareAttackers { .. }));
         if let Some(LegalAction::DeclareAttackers { eligible, targets }) = attack_action {
-            if !eligible.is_empty() && self.rng.gen_bool(0.8) {
+            if !eligible.is_empty() && self.rng.random_bool(0.8) {
                 let attackers = self.choose_attackers(state, eligible, targets);
                 return Command::DeclareAttackers {
                     player,
@@ -52,7 +52,7 @@ impl Bot for RandomBot {
             }
         }
 
-        let idx = self.rng.gen_range(0..legal.len());
+        let idx = self.rng.random_range(0..legal.len());
         action_to_command(&mut self.rng, state, player, &legal[idx])
     }
 
@@ -78,14 +78,14 @@ impl Bot for RandomBot {
             return Vec::new();
         }
         // Attack with a random subset of eligible creatures
-        let count = self.rng.gen_range(1..=eligible.len());
+        let count = self.rng.random_range(1..=eligible.len());
         let mut shuffled = eligible.to_vec();
         shuffled.shuffle(&mut self.rng);
         shuffled
             .into_iter()
             .take(count)
             .map(|id| {
-                let target = targets[self.rng.gen_range(0..targets.len())].clone();
+                let target = targets[self.rng.random_range(0..targets.len())].clone();
                 (id, target)
             })
             .collect()
@@ -103,8 +103,8 @@ impl Bot for RandomBot {
         // Block with ~50% of eligible creatures
         let mut blocks = Vec::new();
         for &blocker in eligible {
-            if self.rng.gen_bool(0.5) {
-                let attacker = attackers[self.rng.gen_range(0..attackers.len())];
+            if self.rng.random_bool(0.5) {
+                let attacker = attackers[self.rng.random_range(0..attackers.len())];
                 blocks.push((blocker, attacker));
             }
         }
@@ -184,14 +184,14 @@ pub(crate) fn action_to_command(
                     exert_choices: Vec::new(),
                 };
             }
-            let count = rng.gen_range(0..=eligible.len());
+            let count = rng.random_range(0..=eligible.len());
             let mut shuffled = eligible.clone();
             shuffled.shuffle(rng);
             let attackers: Vec<(ObjectId, AttackTarget)> = shuffled
                 .into_iter()
                 .take(count)
                 .map(|id| {
-                    let target = targets[rng.gen_range(0..targets.len())].clone();
+                    let target = targets[rng.random_range(0..targets.len())].clone();
                     (id, target)
                 })
                 .collect();
@@ -209,8 +209,8 @@ pub(crate) fn action_to_command(
             // Block with random subset
             let mut blocks = Vec::new();
             for &blocker in eligible {
-                if rng.gen_bool(0.4) && !attackers.is_empty() {
-                    let attacker = attackers[rng.gen_range(0..attackers.len())];
+                if rng.random_bool(0.4) && !attackers.is_empty() {
+                    let attacker = attackers[rng.random_range(0..attackers.len())];
                     blocks.push((blocker, attacker));
                 }
             }

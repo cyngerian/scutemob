@@ -94,7 +94,7 @@ fn main() {
             .ok();
     }
 
-    let base_seed = cli.seed.unwrap_or_else(|| rand::thread_rng().gen());
+    let base_seed = cli.seed.unwrap_or_else(|| rand::rng().random());
     let registry = build_registry();
     let cards = all_cards();
 
