@@ -41,7 +41,10 @@ Full evidence (file:line) is in each task's ESM description — run
 | 6 | scutemob-58 | SR-6: Extract card-defs crate | M | **DONE 2026-07-10.** Three crates now: `card-types` ← `card-defs` ← `engine`. Engine edits leave the defs `Fresh`. Card-authoring paths moved — see the gotcha. |
 | 7 | scutemob-59 | SR-7: PendingTrigger → TriggerData cutover | M | **DONE 2026-07-10.** `HASH_SCHEMA_VERSION` 36 → 37. `PendingTrigger::blank` is now the only way to build one, enforced by `tests/pending_trigger_shape.rs`. |
 | 8 | scutemob-60 | SR-8: Protocol versioning policy | M | **DONE 2026-07-10.** Strict lockstep; `Envelope`/`PROTOCOL_VERSION` in `rules/protocol.rs`. The M10 blocker is cleared. Policy: `docs/mtg-engine-protocol-versioning.md`. |
-| 9 | scutemob-61 | SR-9: Test infra consolidation | L | Three sub-items (binaries / equivalence test / script triage). **Split into 2–3 ESM subtasks at dispatch time.** |
+| 9 | scutemob-61 | SR-9: Test infra consolidation | L | **SPLIT 2026-07-10** into `scutemob-69` (SR-9a binaries), `scutemob-70` (SR-9b equivalence test), `scutemob-71` (SR-9c script triage). Umbrella closes when all three land. |
+| 9a | scutemob-69 | SR-9a: Consolidate 291 integration-test binaries | M | Sub-item (a) of SR-9. 291 links dominate test-build time (46s warm). |
+| 9b | scutemob-70 | SR-9b: Harness-vs-direct equivalence property test | M | Sub-item (b) of SR-9. Same scenario, same final hash. Gotcha SR-9(b) below applies. |
+| 9c | scutemob-71 | SR-9c: Golden-script corpus triage | M | Sub-item (c) of SR-9. 95/271 approved; pending_review silently skipped. |
 | 10 | scutemob-62 | SR-10: Dependency & lint hygiene | S–M | Four independent chores; safe filler work between larger tasks. |
 | 11 | scutemob-63 | SR-11: Pin the Rust toolchain | S | Discovered during SR-1. CI floats to newest stable; new lints redden CI with no commit, and the local clippy gate can't reproduce them. Pairs well with SR-10. |
 | 12 | scutemob-64 | SR-12: Unbypassable invariant-9 gate + marker anti-rot | M | Discovered during SR-2 review. `GameStateBuilder`/`start_game` skip `validate_deck`; only the Inert marker class has a rot guard. |
