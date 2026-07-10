@@ -18,6 +18,7 @@ pub mod miracle;
 pub mod plot;
 pub mod priority;
 pub mod protection;
+pub mod protocol;
 pub mod replacement;
 pub mod resolution;
 pub mod sba;
@@ -28,6 +29,10 @@ pub use command::Command;
 pub use engine::process_command;
 pub use events::{GameEvent, LossReason};
 pub use layers::calculate_characteristics;
+pub use protocol::{
+    decode, decode_replay_log, encode, encode_replay_log, Envelope, ProtocolError, ReplayLog,
+    PROTOCOL_SCHEMA_FINGERPRINT, PROTOCOL_VERSION,
+};
 // ── Shared targeting helpers ──────────────────────────────────────────────────
 /// CR 702.11a / CR 702.18a / CR 702.16b: Validate that a target is not protected by
 /// hexproof, shroud, or protection from the source.

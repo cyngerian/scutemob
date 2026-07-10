@@ -24,6 +24,10 @@ pub use rules::engine::{
 };
 pub use rules::events::{CombatDamageAssignment, CombatDamageTarget};
 pub use rules::layers::calculate_characteristics;
+pub use rules::protocol::{
+    decode, decode_replay_log, encode, encode_replay_log, Envelope, ProtocolError, ReplayLog,
+    PROTOCOL_SCHEMA_FINGERPRINT, PROTOCOL_VERSION,
+};
 pub use rules::sba::check_and_apply_sbas;
 pub use rules::{Command, GameEvent, LossReason};
 pub use state::builder::register_commander_zone_replacements;
