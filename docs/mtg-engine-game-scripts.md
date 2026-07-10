@@ -973,7 +973,7 @@ replay harness can inspect.
 
 Automatically discover and run all approved scripts:
 
-**Location**: `crates/engine/tests/run_all_scripts.rs`
+**Location**: `crates/engine/tests/scripts/run_all_scripts.rs` (module of the `scripts` test target — see `docs/sr-9a-test-consolidation.md`)
 
 ```rust
 use std::fs;
