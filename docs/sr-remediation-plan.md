@@ -33,7 +33,7 @@ Full evidence (file:line) is in each task's ESM description — run
 
 | Order | ESM ID | Task | Size | Notes |
 |-------|--------|------|------|-------|
-| 1 | scutemob-53 | SR-1: Revive CI | S | Do first. Everything after benefits from a working gate. |
+| 1 | scutemob-53 | SR-1: Revive CI | S | **DONE 2026-07-10.** CI green; every later task now has a machine gate. |
 | 2 | scutemob-54 | SR-2: Registry gate (invariant #9) | M | Supersedes archived scutemob-48. Do before any further card-authoring waves. |
 | 3 | scutemob-55 | SR-3: Seal GameState | M–L | Wide blast radius (tui, replay-viewer, simulator, network, testing). See collision rules below. |
 | 4 | scutemob-56 | SR-4: Silent-failure sweep | M–L | Mechanical but large; classification work. Can run any time after SR-1. |
@@ -43,6 +43,7 @@ Full evidence (file:line) is in each task's ESM description — run
 | 8 | scutemob-60 | SR-8: Protocol versioning policy | M | Hard blocker before M10's first networked client. Design + implement. |
 | 9 | scutemob-61 | SR-9: Test infra consolidation | L | Three sub-items (binaries / equivalence test / script triage). **Split into 2–3 ESM subtasks at dispatch time.** |
 | 10 | scutemob-62 | SR-10: Dependency & lint hygiene | S–M | Four independent chores; safe filler work between larger tasks. |
+| 11 | scutemob-63 | SR-11: Pin the Rust toolchain | S | Discovered during SR-1. CI floats to newest stable; new lints redden CI with no commit, and the local clippy gate can't reproduce them. Pairs well with SR-10. |
 
 Order is a recommendation, not a dependency chain. Hard constraints only:
 
@@ -148,12 +149,31 @@ Task-specific extras:
 
 ## Gotchas inherited from the review (read before the relevant task)
 
-- **SR-1:** the two historical CI runs failed at `cargo fmt --check` (fmt is
-  clean as of 2026-07-10). Clippy and tests have *never* run in CI — expect
-  first-run surprises from the Ubuntu runner (missing system libs in tool
-  crates, runtime). Fallback: gate on `cargo test -p mtg-engine` first. The raw
-  `actions/cache` of `target/` will blow the 10 GB cache budget — replace with
-  `Swatinem/rust-cache@v2` once green.
+- **SR-1: DONE (2026-07-10).** CI is live and green. The predicted first-run
+  surprises were real but not the ones predicted — no missing system libs. What
+  actually bit, in order:
+  1. **Toolchain float.** `dtolnay/rust-toolchain@stable` resolves to the newest
+     stable (1.97.0 on 2026-07-07); this dev box is on 1.95.0. Six clippy
+     findings across 3 files were invisible locally. **A clean local
+     `cargo clippy -- -D warnings` does not mean CI is green.** To reproduce CI
+     exactly: `rustup toolchain install 1.97.0` then `cargo +1.97.0 clippy
+     --all-targets -- -D warnings`. Filed as `scutemob-63` (SR-11) — pin the
+     toolchain.
+  2. **Disk exhaustion.** `cargo test --all` links ~300 test binaries; with
+     debuginfo, `target/` is 68 GB and overruns the runner's 89 GB. It fails as
+     `ld terminated with signal 7 [Bus error]` + an LLVM "file a bug" banner;
+     the true cause is one line earlier, `No space left on device (os error 28)`.
+     Fixed with `CARGO_PROFILE_{DEV,TEST}_DEBUG=0` (68 GB → 5.0 GB) plus a
+     free-disk-space step. **Any future CI job that adds a build must keep
+     debuginfo off**, or it will resurrect this in a form that looks like a
+     compiler bug.
+  3. `gh workflow run` immediately after `git push` can dispatch against the
+     *previous* SHA — a run that silently re-tests old code. Poll
+     `gh api repos/<o>/<r>/commits/<branch> --jq .sha` until it matches local
+     `HEAD` before dispatching, and always check the run's `headSha`.
+
+  The fallback (`cargo test -p mtg-engine`) was not needed: the full
+  `cargo test --all` runs green, 3090 passed / 0 failed, ~13 min wall clock.
 - **SR-1 scope cap (user direction, 2026-07-10): keep CI cheap.** One Ubuntu
   job, fmt + clippy + tests, nothing more. No OS matrix, no nightly benchmark
   runs, no Tauri builds — long/expensive Actions are worthless this far from
@@ -184,4 +204,21 @@ Task-specific extras:
 _One entry per session, newest first. Format:_
 `- YYYY-MM-DD — SR-<N> (scutemob-<id>) — <status: done / in progress / blocked> — <one-line outcome + hazards + pointer for next session>`
 
-- (no sessions yet)
+- 2026-07-10 — SR-1 (scutemob-53) — **done** — CI revived and green for the first
+  time in project history (run `29075466877`: fmt + clippy + 3090 tests, 0 failed).
+  `ci.yml` now triggers on `main` (push + PR) and `workflow_dispatch`; raw
+  `actions/cache` replaced with `Swatinem/rust-cache@v2`; `timeout-minutes: 45`;
+  concurrency group with `cancel-in-progress`. Getting there required fixing 6
+  real clippy findings only visible on CI's rustc 1.97.0 (local is 1.95.0) and
+  a disk-exhaustion failure that masquerades as an LLVM/linker crash — both
+  written up in the SR-1 gotcha above; read it before touching CI.
+  **Hazards discovered:** (a) the local clippy gate is only as authoritative as
+  the local toolchain — filed `scutemob-63` (SR-11) to pin it, and until that
+  lands, treat a green local clippy as necessary but not sufficient; (b) the
+  `git push` → `gh workflow run` race can test a stale SHA.
+  **Note for the collector:** AC 4432 asks for a green run *on main via push*.
+  A worker cannot push to main, so the green run above was `workflow_dispatch`
+  on the feature branch at the identical tree. The push-to-`main` trigger is
+  what merging this branch exercises — confirm that run goes green at collection.
+  **Next session:** SR-2 (`scutemob-54`, registry gate) — it now has a working
+  machine gate behind it, which was the entire point of doing SR-1 first.

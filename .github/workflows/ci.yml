@@ -14,12 +14,13 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  # This workspace links ~300 test binaries. With debuginfo on, target/ is ~68 GB
-  # locally — far past the ~14 GB free on ubuntu-latest, and the first CI run to
-  # reach `cargo test` died with "No space left on device" (surfacing as
-  # `ld terminated with signal 7 [Bus error]`). Debuginfo is the bulk of that, and
-  # CI only needs pass/fail, not debuggable binaries. Panic messages survive; only
-  # symbolized backtraces are lost.
+  # This workspace links ~300 test binaries. With debuginfo on, target/ measures
+  # 68 GB locally; a clippy --all-targets pass followed by `cargo test --all`
+  # exhausted the runner's 89 GB and died with "No space left on device" (which
+  # surfaced misleadingly as `ld terminated with signal 7 [Bus error]` plus an
+  # LLVM "please file a bug" banner). Debuginfo is the bulk of it: same suite,
+  # same toolchain, debuginfo off => 5.0 GB. CI needs pass/fail, not debuggable
+  # binaries. Panic messages survive; only symbolized backtraces are lost.
   CARGO_PROFILE_DEV_DEBUG: 0
   CARGO_PROFILE_TEST_DEBUG: 0
 
@@ -31,8 +32,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Reclaims ~25 GB of preinstalled toolchains this project never uses.
-      # Needed even with debuginfo off — the margin is otherwise uncomfortably thin.
+      # Reclaims ~25 GB of preinstalled toolchains this project never uses
+      # (measured: 89 GB free -> 114 GB). Headroom, not the actual fix — the
+      # debuginfo settings above are what brought target/ back under budget.
       - name: Free disk space
         run: |
           df -h /
