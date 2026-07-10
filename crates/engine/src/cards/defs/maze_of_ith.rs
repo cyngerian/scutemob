@@ -34,6 +34,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::known_wrong("targets any creature; the printed 'attacking creature' restriction is not enforced"),
         ..Default::default()
     }
 }

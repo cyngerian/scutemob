@@ -32,6 +32,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::known_wrong("modeled as a stack-using activated ability; CR 605.1a makes it a mana ability, so opponents can respond and it can't be activated while casting"),
         ..Default::default()
     }
 }

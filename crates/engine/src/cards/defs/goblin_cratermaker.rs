@@ -57,6 +57,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::known_wrong("mode-1 target filter is 'any nonland permanent'; the printed 'colorless' constraint is not expressible in TargetFilter"),
         ..Default::default()
     }
 }

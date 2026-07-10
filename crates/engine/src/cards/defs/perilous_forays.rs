@@ -41,6 +41,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::known_wrong("search filter requires the basic supertype, so nonbasic lands with basic land types are not findable"),
         ..Default::default()
     }
 }

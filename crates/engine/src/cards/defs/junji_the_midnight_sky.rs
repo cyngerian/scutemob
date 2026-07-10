@@ -86,6 +86,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::known_wrong("graveyard target is not filtered to exclude Dragons as the oracle requires"),
         ..Default::default()
     }
 }

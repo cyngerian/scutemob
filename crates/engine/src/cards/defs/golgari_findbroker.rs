@@ -39,6 +39,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::known_wrong("Battle is not in the CardType enum, so the permanent-card filter does not exclude Battles"),
         ..Default::default()
     }
 }

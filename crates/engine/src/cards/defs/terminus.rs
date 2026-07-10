@@ -34,6 +34,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
+        completeness: Completeness::known_wrong("destroys all creatures instead of putting them on the bottom of their owners' libraries"),
         ..Default::default()
     }
 }

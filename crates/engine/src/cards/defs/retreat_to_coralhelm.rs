@@ -55,6 +55,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::known_wrong("'tap or untap' is modeled as 'untap' only — the tap mode is unavailable"),
         ..Default::default()
     }
 }

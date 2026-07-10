@@ -35,6 +35,7 @@ pub fn card() -> CardDefinition {
             },
             AbilityDefinition::Keyword(KeywordAbility::Equip),
         ],
+        completeness: Completeness::known_wrong("'you may draw two cards, then discard' implemented as a mandatory draw"),
         ..Default::default()
     }
 }

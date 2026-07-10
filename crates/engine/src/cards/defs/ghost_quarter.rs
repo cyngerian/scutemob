@@ -60,6 +60,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::known_wrong("'may search' is modeled as an unconditional search — the controller cannot decline"),
         ..Default::default()
     }
 }

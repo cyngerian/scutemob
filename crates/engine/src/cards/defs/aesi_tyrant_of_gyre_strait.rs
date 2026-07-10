@@ -43,6 +43,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        completeness: Completeness::known_wrong("'you may draw' implemented as a mandatory draw"),
         ..Default::default()
     }
 }
