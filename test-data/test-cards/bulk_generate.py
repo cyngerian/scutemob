@@ -9,7 +9,7 @@ Reads _authoring_plan.json to identify cards in 5 template groups:
   - mana-creature: creatures with tap-for-mana
 
 Uses SQLite card data for oracle text, types, subtypes, mana cost, P/T.
-Generates one .rs file per card in crates/engine/src/cards/defs/.
+Generates one .rs file per card in crates/card-defs/src/defs/.
 
 Usage:
     python3 test-data/test-cards/bulk_generate.py
@@ -27,7 +27,7 @@ from pathlib import Path
 
 # Paths relative to project root
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-DEFS_DIR = PROJECT_ROOT / "crates" / "engine" / "src" / "cards" / "defs"
+DEFS_DIR = PROJECT_ROOT / "crates" / "card-defs" / "src" / "defs"
 PLAN_FILE = PROJECT_ROOT / "test-data" / "test-cards" / "_authoring_plan.json"
 DB_FILE = PROJECT_ROOT / "cards.sqlite"
 LOG_FILE = PROJECT_ROOT / "test-data" / "test-cards" / "_bulk_generate_log.json"
