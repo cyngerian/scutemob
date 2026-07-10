@@ -60,7 +60,7 @@ impl<P: LegalActionProvider> GameDriver<P> {
             }
         };
 
-        let mut prev_turn = state.turn.turn_number;
+        let mut prev_turn = state.turn().turn_number;
         let mut pass_count: u32 = 0;
         let max_consecutive_passes = 500; // Safety: break infinite pass loops
 
@@ -71,7 +71,7 @@ impl<P: LegalActionProvider> GameDriver<P> {
                 return GameResult {
                     seed,
                     winner,
-                    turn_count: state.turn.turn_number,
+                    turn_count: state.turn().turn_number,
                     total_commands,
                     violations,
                     error: None,
@@ -79,11 +79,11 @@ impl<P: LegalActionProvider> GameDriver<P> {
             }
 
             // Check turn limit
-            if state.turn.turn_number > self.max_turns {
+            if state.turn().turn_number > self.max_turns {
                 return GameResult {
                     seed,
                     winner: None,
-                    turn_count: state.turn.turn_number,
+                    turn_count: state.turn().turn_number,
                     total_commands,
                     violations,
                     error: Some(GameDriverError::MaxTurnsReached(self.max_turns)),
@@ -95,11 +95,11 @@ impl<P: LegalActionProvider> GameDriver<P> {
                 return GameResult {
                     seed,
                     winner: None,
-                    turn_count: state.turn.turn_number,
+                    turn_count: state.turn().turn_number,
                     total_commands,
                     violations,
                     error: Some(GameDriverError::InfiniteLoop {
-                        turn: state.turn.turn_number,
+                        turn: state.turn().turn_number,
                     }),
                 };
             }
@@ -109,25 +109,25 @@ impl<P: LegalActionProvider> GameDriver<P> {
                 return GameResult {
                     seed,
                     winner: None,
-                    turn_count: state.turn.turn_number,
+                    turn_count: state.turn().turn_number,
                     total_commands,
                     violations,
                     error: Some(GameDriverError::InfiniteLoop {
-                        turn: state.turn.turn_number,
+                        turn: state.turn().turn_number,
                     }),
                 };
             }
 
             // Determine acting player
             let acting_player =
-                if let Some(pending) = state.pending_commander_zone_choices.iter().next() {
+                if let Some(pending) = state.pending_commander_zone_choices().iter().next() {
                     pending.0
-                } else if let Some(priority) = state.turn.priority_holder {
+                } else if let Some(priority) = state.turn().priority_holder {
                     priority
                 } else {
                     // No one has priority and no pending choices — pass to advance
                     // This can happen between steps; issue PassPriority for active player
-                    let active = state.turn.active_player;
+                    let active = state.turn().active_player;
                     let cmd = Command::PassPriority { player: active };
                     match process_command(state.clone(), cmd) {
                         Ok((new_state, _events)) => {
@@ -141,7 +141,7 @@ impl<P: LegalActionProvider> GameDriver<P> {
                             return GameResult {
                                 seed,
                                 winner: None,
-                                turn_count: state.turn.turn_number,
+                                turn_count: state.turn().turn_number,
                                 total_commands,
                                 violations,
                                 error: Some(GameDriverError::EngineError(format!("{:?}", e))),
@@ -170,12 +170,12 @@ impl<P: LegalActionProvider> GameDriver<P> {
                         return GameResult {
                             seed,
                             winner: None,
-                            turn_count: state.turn.turn_number,
+                            turn_count: state.turn().turn_number,
                             total_commands,
                             violations,
                             error: Some(GameDriverError::NoLegalActions {
                                 player: acting_player,
-                                turn: state.turn.turn_number,
+                                turn: state.turn().turn_number,
                             }),
                         };
                     }
@@ -225,7 +225,7 @@ impl<P: LegalActionProvider> GameDriver<P> {
                             let new_violations = invariants::check_all(&new_state, Some(prev_turn));
                             violations.extend(new_violations);
                         }
-                        prev_turn = new_state.turn.turn_number;
+                        prev_turn = new_state.turn().turn_number;
                         state = new_state;
                         command_count += 1;
                         total_commands += 1;
@@ -247,7 +247,7 @@ impl<P: LegalActionProvider> GameDriver<P> {
                                 return GameResult {
                                     seed,
                                     winner: None,
-                                    turn_count: state.turn.turn_number,
+                                    turn_count: state.turn().turn_number,
                                     total_commands,
                                     violations,
                                     error: Some(GameDriverError::EngineError(format!(

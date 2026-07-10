@@ -392,7 +392,7 @@ fn evaluate_assertions(
                 ["players", name, "life"] => {
                     let v = players
                         .get(*name)
-                        .and_then(|pid| state.players.get(pid))
+                        .and_then(|pid| state.players().get(pid))
                         .map(|p| serde_json::json!(p.life_total))
                         .unwrap_or(serde_json::Value::Null);
                     let ok = &v == expected;
@@ -402,7 +402,7 @@ fn evaluate_assertions(
                 ["players", name, "poison_counters"] => {
                     let v = players
                         .get(*name)
-                        .and_then(|pid| state.players.get(pid))
+                        .and_then(|pid| state.players().get(pid))
                         .map(|p| serde_json::json!(p.poison_counters))
                         .unwrap_or(serde_json::Value::Null);
                     let ok = &v == expected;
@@ -414,7 +414,7 @@ fn evaluate_assertions(
                 ["players", target, "commander_damage_received", source] => {
                     let total = players
                         .get(*target)
-                        .and_then(|tpid| state.players.get(tpid))
+                        .and_then(|tpid| state.players().get(tpid))
                         .and_then(|p| {
                             players.get(*source).map(|spid| {
                                 p.commander_damage_received
@@ -433,7 +433,7 @@ fn evaluate_assertions(
                 ["zones", "hand", player, "count"] => {
                     if let Some(&pid) = players.get(*player) {
                         let count = state
-                            .objects
+                            .objects()
                             .values()
                             .filter(|o| o.zone == ZoneId::Hand(pid))
                             .count();
@@ -446,15 +446,15 @@ fn evaluate_assertions(
                 }
 
                 ["zones", "stack", "count"] => {
-                    let v = serde_json::json!(state.stack_objects.len());
+                    let v = serde_json::json!(state.stack_objects().len());
                     let ok = &v == expected;
                     (v, ok)
                 }
 
                 // ── Zone membership (includes/excludes/is_empty) ──────────────
                 ["zones", "stack"] => {
-                    let is_empty = state.stack_objects.is_empty();
-                    let count = state.stack_objects.len();
+                    let is_empty = state.stack_objects().is_empty();
+                    let count = state.stack_objects().len();
                     let v = serde_json::json!({ "count": count, "is_empty": is_empty });
                     let ok = check_stack_assertion(is_empty, count, expected);
                     (v, ok)
@@ -464,7 +464,7 @@ fn evaluate_assertions(
                 ["zones", "battlefield", player] => {
                     let names = if let Some(&pid) = players.get(*player) {
                         state
-                            .objects
+                            .objects()
                             .values()
                             .filter(|o| o.zone == ZoneId::Battlefield && o.controller == pid)
                             .map(|o| o.characteristics.name.clone())
@@ -479,7 +479,7 @@ fn evaluate_assertions(
                 ["zones", "graveyard", player] => {
                     let names = if let Some(&pid) = players.get(*player) {
                         state
-                            .objects
+                            .objects()
                             .values()
                             .filter(|o| o.zone == ZoneId::Graveyard(pid))
                             .map(|o| o.characteristics.name.clone())
@@ -494,7 +494,7 @@ fn evaluate_assertions(
                 // Exile is a shared zone (no per-player ZoneId).
                 ["zones", "exile"] => {
                     let names: Vec<String> = state
-                        .objects
+                        .objects()
                         .values()
                         .filter(|o| o.zone == ZoneId::Exile)
                         .map(|o| o.characteristics.name.clone())
@@ -506,7 +506,7 @@ fn evaluate_assertions(
                 ["zones", "library", player, "count"] => {
                     if let Some(&pid) = players.get(*player) {
                         let count = state
-                            .objects
+                            .objects()
                             .values()
                             .filter(|o| o.zone == ZoneId::Library(pid))
                             .count();
@@ -522,7 +522,7 @@ fn evaluate_assertions(
                 // Card names may contain spaces; splitn(5, '.') preserves spaces in the name segment.
                 ["permanent", name, "tapped"] => {
                     let v = state
-                        .objects
+                        .objects()
                         .values()
                         .find(|o| o.characteristics.name == *name && o.zone == ZoneId::Battlefield)
                         .map(|o| serde_json::json!(o.status.tapped))

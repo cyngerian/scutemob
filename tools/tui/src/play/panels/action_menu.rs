@@ -47,7 +47,7 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                         mtg_engine::AttackTarget::Player(pid) => {
                             let life = app
                                 .state
-                                .players
+                                .players()
                                 .get(pid)
                                 .map(|p| p.life_total)
                                 .unwrap_or(0);

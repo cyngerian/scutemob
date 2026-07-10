@@ -152,7 +152,7 @@ impl LegalActionProvider for StubProvider {
 
         // Handle pending commander zone choices first
         if let Some((_pending_player, obj_id)) = state
-            .pending_commander_zone_choices
+            .pending_commander_zone_choices()
             .iter()
             .find(|(p, _)| *p == player)
         {
@@ -162,14 +162,14 @@ impl LegalActionProvider for StubProvider {
         }
 
         // Mulligan phase
-        if state.turn.is_first_turn_of_game && state.turn.turn_number == 0 {
+        if state.turn().is_first_turn_of_game && state.turn().turn_number == 0 {
             actions.push(LegalAction::TakeMulligan);
             actions.push(LegalAction::KeepHand);
             return actions;
         }
 
         // Check if this player has priority
-        if state.turn.priority_holder != Some(player) {
+        if state.turn().priority_holder != Some(player) {
             return actions;
         }
 
@@ -178,9 +178,9 @@ impl LegalActionProvider for StubProvider {
         // The human player can still quit via 'q'.)
         actions.push(LegalAction::PassPriority);
 
-        let is_main_phase = matches!(state.turn.step, Step::PreCombatMain | Step::PostCombatMain);
-        let stack_empty = state.stack_objects.is_empty();
-        let is_active = state.turn.active_player == player;
+        let is_main_phase = matches!(state.turn().step, Step::PreCombatMain | Step::PostCombatMain);
+        let stack_empty = state.stack_objects().is_empty();
+        let is_active = state.turn().active_player == player;
 
         // Play lands: hand lands, main phase, stack empty, active player,
         // land plays remaining
@@ -216,7 +216,7 @@ impl LegalActionProvider for StubProvider {
                     .contains(&KeywordAbility::Flash);
 
                 // CR 601.3b: Check if player has an active flash grant for this spell.
-                let has_flash_grant = state.flash_grants.iter().any(|g| {
+                let has_flash_grant = state.flash_grants().iter().any(|g| {
                     if g.player != player {
                         return false;
                     }
@@ -226,7 +226,7 @@ impl LegalActionProvider for StubProvider {
                     if matches!(g.duration, EffectDuration::WhileSourceOnBattlefield) {
                         if let Some(src) = g.source {
                             let on_bf = state
-                                .objects
+                                .objects()
                                 .get(&src)
                                 .map(|o| matches!(o.zone, ZoneId::Battlefield))
                                 .unwrap_or(false);
@@ -295,7 +295,7 @@ impl LegalActionProvider for StubProvider {
 
         // Declare attackers: untapped creatures without summoning sickness
         // (unless haste) during DeclareAttackers step when active player
-        if state.turn.step == Step::DeclareAttackers && is_active && stack_empty {
+        if state.turn().step == Step::DeclareAttackers && is_active && stack_empty {
             let mut eligible = Vec::new();
             let mut targets = Vec::new();
 
@@ -340,8 +340,8 @@ impl LegalActionProvider for StubProvider {
         }
 
         // Declare blockers: untapped creatures during DeclareBlockers step
-        if state.turn.step == Step::DeclareBlockers && stack_empty {
-            if let Some(ref combat) = state.combat {
+        if state.turn().step == Step::DeclareBlockers && stack_empty {
+            if let Some(ref combat) = state.combat() {
                 if !combat.attackers.is_empty() {
                     let mut eligible = Vec::new();
                     let mut attacker_ids: Vec<ObjectId> = Vec::new();
@@ -429,7 +429,7 @@ impl LegalActionProvider for StubProvider {
                 }
                 // Look up card definition for loyalty abilities.
                 if let Some(ref cid) = obj.card_id {
-                    if let Some(def) = state.card_registry.get(cid.clone()) {
+                    if let Some(def) = state.card_registry().get(cid.clone()) {
                         let loyalty_count = obj
                             .counters
                             .get(&CounterType::Loyalty)
@@ -476,7 +476,7 @@ impl LegalActionProvider for StubProvider {
         // priority and an attacking creature exists (instant speed, no stack restriction).
         {
             // Collect attacking creature IDs once.
-            let attacking: Vec<ObjectId> = if let Some(ref combat) = state.combat {
+            let attacking: Vec<ObjectId> = if let Some(ref combat) = state.combat() {
                 combat.attackers.keys().copied().collect()
             } else {
                 Vec::new()
@@ -489,7 +489,7 @@ impl LegalActionProvider for StubProvider {
                     let has_bloodrush = obj
                         .card_id
                         .as_ref()
-                        .and_then(|cid| state.card_registry.get(cid.clone()))
+                        .and_then(|cid| state.card_registry().get(cid.clone()))
                         .map(|def| {
                             def.abilities
                                 .iter()
@@ -505,7 +505,7 @@ impl LegalActionProvider for StubProvider {
                     let bloodrush_cost = obj
                         .card_id
                         .as_ref()
-                        .and_then(|cid| state.card_registry.get(cid.clone()))
+                        .and_then(|cid| state.card_registry().get(cid.clone()))
                         .and_then(|def| {
                             def.abilities.iter().find_map(|a| {
                                 if let AbilityDefinition::Bloodrush { cost, .. } = a {
@@ -627,7 +627,7 @@ impl LegalActionProvider for StubProvider {
                     let mutate_cost = obj
                         .card_id
                         .as_ref()
-                        .and_then(|cid| state.card_registry.get(cid.clone()))
+                        .and_then(|cid| state.card_registry().get(cid.clone()))
                         .and_then(|def| {
                             def.abilities.iter().find_map(|a| {
                                 if let AbilityDefinition::MutateCost { cost } = a {
@@ -677,7 +677,7 @@ impl LegalActionProvider for StubProvider {
             let card_def = obj
                 .card_id
                 .as_ref()
-                .and_then(|cid| state.card_registry.get(cid.clone()));
+                .and_then(|cid| state.card_registry().get(cid.clone()));
 
             match face_down_kind {
                 FaceDownKind::Morph | FaceDownKind::Megamorph => {
@@ -801,7 +801,7 @@ impl LegalActionProvider for StubProvider {
                 let card_def = obj
                     .card_id
                     .as_ref()
-                    .and_then(|cid| state.card_registry.get(cid.clone()));
+                    .and_then(|cid| state.card_registry().get(cid.clone()));
 
                 let has_morph = card_def.as_ref().map(|def| {
                     def.abilities.iter().any(|a| {
@@ -887,11 +887,11 @@ fn can_afford(state: &GameState, player: PlayerId, cost: &mtg_engine::ManaCost) 
 /// Mirrors check_activate_restrictions in rules/abilities.rs. Only objects on the
 /// battlefield are affected (zone-scope fix from Finding 3).
 fn is_ability_restricted_by_stax(state: &GameState, player: PlayerId, source: ObjectId) -> bool {
-    let active_player = state.turn.active_player;
+    let active_player = state.turn().active_player;
 
     // Source must be on the battlefield for restrictions to apply (Finding 3).
     let source_on_battlefield = state
-        .objects
+        .objects()
         .get(&source)
         .map(|o| o.zone == ZoneId::Battlefield)
         .unwrap_or(false);
@@ -914,9 +914,9 @@ fn is_ability_restricted_by_stax(state: &GameState, player: PlayerId, source: Ob
             })
             .unwrap_or(false);
 
-    for restriction in state.restrictions.iter() {
+    for restriction in state.restrictions().iter() {
         let restriction_source_on_bf = state
-            .objects
+            .objects()
             .get(&restriction.source)
             .map(|o| o.zone == ZoneId::Battlefield)
             .unwrap_or(false);
@@ -955,12 +955,12 @@ fn is_ability_restricted_by_stax(state: &GameState, player: PlayerId, source: Ob
 fn is_cast_restricted_by_stax(state: &GameState, player: PlayerId) -> bool {
     use mtg_engine::GameRestriction;
 
-    let active_player = state.turn.active_player;
+    let active_player = state.turn().active_player;
 
-    for restriction in state.restrictions.iter() {
+    for restriction in state.restrictions().iter() {
         // Skip restrictions whose source is no longer on the battlefield.
         let source_on_bf = state
-            .objects
+            .objects()
             .get(&restriction.source)
             .map(|o| matches!(o.zone, mtg_engine::ZoneId::Battlefield))
             .unwrap_or(false);
@@ -974,7 +974,7 @@ fn is_cast_restricted_by_stax(state: &GameState, player: PlayerId) -> bool {
         match &restriction.restriction {
             GameRestriction::MaxSpellsPerTurn { max } => {
                 let spells_cast = state
-                    .players
+                    .players()
                     .get(&player)
                     .map(|ps| ps.spells_cast_this_turn)
                     .unwrap_or(0);
@@ -998,8 +998,8 @@ fn is_cast_restricted_by_stax(state: &GameState, player: PlayerId) -> bool {
             GameRestriction::OpponentsCanOnlyCastAtSorcerySpeed => {
                 if player != controller {
                     let is_own_main = active_player == player
-                        && matches!(state.turn.step, Step::PreCombatMain | Step::PostCombatMain);
-                    let stack_empty = state.stack_objects.is_empty();
+                        && matches!(state.turn().step, Step::PreCombatMain | Step::PostCombatMain);
+                    let stack_empty = state.stack_objects().is_empty();
                     if !is_own_main || !stack_empty {
                         return true;
                     }

@@ -14,6 +14,9 @@ pub mod replacement_effect;
 pub mod stack;
 pub mod stubs;
 pub mod targeting;
+/// Escape hatches for tests — see the module docs. Not compiled in production builds.
+#[cfg(any(test, feature = "test-util"))]
+pub mod test_util;
 pub mod turn;
 pub mod types;
 pub mod zone;
@@ -68,44 +71,44 @@ pub use zone::{Zone, ZoneId, ZoneType};
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GameState {
     /// Current turn/phase/step/priority state.
-    pub turn: TurnState,
+    pub(crate) turn: TurnState,
     /// All players indexed by PlayerId.
-    pub players: OrdMap<PlayerId, PlayerState>,
+    pub(crate) players: OrdMap<PlayerId, PlayerState>,
     /// All zones indexed by ZoneId.
-    pub zones: OrdMap<ZoneId, Zone>,
+    pub(crate) zones: OrdMap<ZoneId, Zone>,
     /// All game objects indexed by ObjectId.
-    pub objects: OrdMap<ObjectId, GameObject>,
+    pub(crate) objects: OrdMap<ObjectId, GameObject>,
     /// Active continuous effects (CR 611). Applied via the layer system.
-    pub continuous_effects: Vector<ContinuousEffect>,
+    pub(crate) continuous_effects: Vector<ContinuousEffect>,
     /// Delayed triggers waiting for conditions (CR 603.7).
-    pub delayed_triggers: Vector<DelayedTrigger>,
+    pub(crate) delayed_triggers: Vector<DelayedTrigger>,
     /// Active replacement effects (CR 614).
-    pub replacement_effects: Vector<ReplacementEffect>,
+    pub(crate) replacement_effects: Vector<ReplacementEffect>,
     /// Monotonic counter for generating ReplacementIds.
-    pub next_replacement_id: u64,
+    pub(crate) next_replacement_id: u64,
     /// Zone changes waiting for player choice among replacement effects (CR 616.1).
     /// SBA loop skips objects with pending entries; resolved by `OrderReplacements`.
-    pub pending_zone_changes: Vector<PendingZoneChange>,
+    pub(crate) pending_zone_changes: Vector<PendingZoneChange>,
     /// Commanders awaiting the owner's zone-return choice (CR 903.9a).
     ///
     /// Each entry is `(owner, object_id)`. The SBA skips commanders already in
     /// this list so the choice event is not re-emitted every SBA pass.
     /// Cleared when the owner sends `ReturnCommanderToCommandZone` or
     /// `LeaveCommanderInZone`.
-    pub pending_commander_zone_choices: Vector<(PlayerId, ObjectId)>,
+    pub(crate) pending_commander_zone_choices: Vector<(PlayerId, ObjectId)>,
     /// Prevention shield counters: remaining capacity for `PreventDamage(n)` effects (CR 615.7).
     /// Keyed by ReplacementId. When a counter reaches 0 the corresponding ReplacementEffect
     /// is removed from `replacement_effects`. `PreventAllDamage` effects need no counter.
-    pub prevention_counters: im::OrdMap<ReplacementId, u32>,
+    pub(crate) prevention_counters: im::OrdMap<ReplacementId, u32>,
     /// Triggered abilities waiting to be put on the stack.
-    pub pending_triggers: Vector<PendingTrigger>,
+    pub(crate) pending_triggers: Vector<PendingTrigger>,
     /// Active trigger-doubling effects (Panharmonicon-style, CR 603.2d).
     ///
     /// When a trigger that matches any doubler's filter is about to be queued,
     /// it is queued `additional_triggers` additional times. Entries are added
     /// when a permanent with a trigger-doubling ability enters the battlefield
     /// and removed when that permanent leaves.
-    pub trigger_doublers: Vector<TriggerDoubler>,
+    pub(crate) trigger_doublers: Vector<TriggerDoubler>,
     /// Active ETB trigger suppression effects (Torpor Orb-style, CR 614.16a).
     ///
     /// When a creature matching any suppressor's filter would have its ETB triggered
@@ -113,7 +116,7 @@ pub struct GameState {
     /// added when a permanent with `AbilityDefinition::SuppressCreatureETBTriggers`
     /// enters the battlefield and cleaned up when that permanent leaves.
     #[serde(default)]
-    pub etb_suppressors: Vector<ETBSuppressor>,
+    pub(crate) etb_suppressors: Vector<ETBSuppressor>,
     /// Active game restrictions (stax effects, CR 604).
     ///
     /// Static abilities that prevent players from taking certain actions (casting spells,
@@ -121,21 +124,21 @@ pub struct GameState {
     /// and combat.rs. Registered when a permanent with `AbilityDefinition::StaticRestriction`
     /// enters the battlefield; cleaned up when that permanent leaves.
     #[serde(default)]
-    pub restrictions: Vector<ActiveRestriction>,
+    pub(crate) restrictions: Vector<ActiveRestriction>,
     /// Active flash grants (cast-as-though-flash permissions, CR 601.3b).
     ///
     /// Allows players to cast certain spells at instant speed. Checked at casting-validation
     /// time in casting.rs. Registered by Effect::GrantFlash or AbilityDefinition::StaticFlashGrant.
     /// Cleaned up by duration expiry or source leaving battlefield.
     #[serde(default)]
-    pub flash_grants: Vector<FlashGrant>,
+    pub(crate) flash_grants: Vector<FlashGrant>,
     /// Active play-from-top-of-library permissions (CR 601.3, CR 305.1).
     ///
     /// Allows players to play lands and/or cast spells from the top of their library.
     /// Registered by AbilityDefinition::StaticPlayFromTop when the source permanent enters.
     /// Cleaned up when the source permanent leaves the battlefield (in reset_turn_state).
     #[serde(default)]
-    pub play_from_top_permissions: Vector<crate::state::stubs::PlayFromTopPermission>,
+    pub(crate) play_from_top_permissions: Vector<crate::state::stubs::PlayFromTopPermission>,
     /// Active play-from-graveyard permissions (CR 601.3, CR 305.1).
     ///
     /// Allows players to play lands and/or cast spells from their graveyard.
@@ -144,13 +147,13 @@ pub struct GameState {
     /// Cleaned up when the source permanent leaves the battlefield. Emblem-sourced
     /// permissions are permanent (emblems never leave the command zone).
     #[serde(default)]
-    pub play_from_graveyard_permissions: Vector<crate::state::stubs::PlayFromGraveyardPermission>,
+    pub(crate) play_from_graveyard_permissions: Vector<crate::state::stubs::PlayFromGraveyardPermission>,
     /// Stack objects (spells and abilities on the stack).
-    pub stack_objects: Vector<StackObject>,
+    pub(crate) stack_objects: Vector<StackObject>,
     /// Current combat state, if in a combat phase.
-    pub combat: Option<CombatState>,
+    pub(crate) combat: Option<CombatState>,
     /// Monotonic counter for generating ObjectIds and timestamps.
-    pub timestamp_counter: u64,
+    pub(crate) timestamp_counter: u64,
     /// Tracks state hash occurrences for mandatory infinite loop detection (CR 104.4b).
     ///
     /// Maps a truncated game-state hash (u64) to the number of times that hash has
@@ -159,9 +162,9 @@ pub struct GameState {
     ///
     /// Excluded from `public_state_hash` — this is metadata, not game state.
     /// See `rules/loop_detection.rs` for the detection algorithm.
-    pub loop_detection_hashes: im::OrdMap<u64, u32>,
+    pub(crate) loop_detection_hashes: im::OrdMap<u64, u32>,
     /// Append-only event log for triggers that look back at history.
-    pub history: Vector<GameEvent>,
+    pub(crate) history: Vector<GameEvent>,
     /// CR 702.69a: Global count of permanents put into a graveyard from the battlefield
     /// this turn, across all players and including tokens.
     ///
@@ -173,7 +176,7 @@ pub struct GameState {
     /// Tokens count: they briefly exist in the graveyard (CR 704.5d) before ceasing to
     /// exist as an SBA. The increment happens before any subsequent SBA check.
     #[serde(default)]
-    pub permanents_put_into_graveyard_this_turn: u32,
+    pub(crate) permanents_put_into_graveyard_this_turn: u32,
     /// CR 702.30a: Pending echo payment choices.
     ///
     /// When a KeywordTrigger (Echo) resolves, the controller must choose to pay or sacrifice.
@@ -183,7 +186,7 @@ pub struct GameState {
     /// Only one echo payment can be pending at a time (triggers resolve one at a time
     /// from the stack), but using `Vector` is consistent with other pending-choice patterns.
     #[serde(default)]
-    pub pending_echo_payments: im::Vector<(PlayerId, ObjectId, ManaCost)>,
+    pub(crate) pending_echo_payments: im::Vector<(PlayerId, ObjectId, ManaCost)>,
     /// CR 702.24a: Pending cumulative upkeep payment choices.
     ///
     /// When a KeywordTrigger (CumulativeUpkeep) resolves (after adding the age counter), the
@@ -191,7 +194,7 @@ pub struct GameState {
     /// `Command::PayCumulativeUpkeep` is received for each entry.
     /// Each entry is `(player, permanent_id, per_counter_cost)`.
     #[serde(default)]
-    pub pending_cumulative_upkeep_payments: im::Vector<(
+    pub(crate) pending_cumulative_upkeep_payments: im::Vector<(
         PlayerId,
         ObjectId,
         crate::state::types::CumulativeUpkeepCost,
@@ -203,14 +206,14 @@ pub struct GameState {
     /// `Command::PayRecover` is received for each entry.
     /// Each entry is `(player, recover_card_id, recover_cost)`.
     #[serde(default)]
-    pub pending_recover_payments: im::Vector<(PlayerId, ObjectId, ManaCost)>,
+    pub(crate) pending_recover_payments: im::Vector<(PlayerId, ObjectId, ManaCost)>,
     /// CR 702.57b: Cards that have activated their forecast ability this turn.
     ///
     /// Keyed by CardId (not ObjectId) since the card stays in hand and retains
     /// its identity. Reset at the start of each turn in `reset_turn_state`.
     /// Each forecast ability can be activated at most once per turn (CR 702.57b).
     #[serde(default)]
-    pub forecast_used_this_turn: im::OrdSet<crate::state::player::CardId>,
+    pub(crate) forecast_used_this_turn: im::OrdSet<crate::state::player::CardId>,
     /// CR 730.1: Current day/night designation of the game.
     ///
     /// `None` = neither day nor night (game start, default).
@@ -224,7 +227,7 @@ pub struct GameState {
     /// Also set immediately when a Daybound or Nightbound permanent enters the
     /// battlefield while neither day nor night (CR 702.145d/g).
     #[serde(default)]
-    pub day_night: Option<DayNight>,
+    pub(crate) day_night: Option<DayNight>,
     /// CR 730.2: The number of spells cast by the previous turn's active player.
     ///
     /// Captured at the end of each turn (in `reset_turn_state`) from the active
@@ -233,7 +236,7 @@ pub struct GameState {
     /// - Day → Night if previous player cast 0 spells (CR 730.2a)
     /// - Night → Day if previous player cast 2+ spells (CR 730.2b)
     #[serde(default)]
-    pub previous_turn_spells_cast: u32,
+    pub(crate) previous_turn_spells_cast: u32,
     /// CR 309.4: Per-player dungeon tracking.
     ///
     /// Maps `PlayerId` → `DungeonState` for each player currently exploring a dungeon.
@@ -242,7 +245,7 @@ pub struct GameState {
     ///
     /// Empty at game start — no player has a dungeon in the command zone.
     #[serde(default)]
-    pub dungeon_state: OrdMap<PlayerId, dungeon::DungeonState>,
+    pub(crate) dungeon_state: OrdMap<PlayerId, dungeon::DungeonState>,
     /// CR 725.1: Which player currently has the initiative.
     ///
     /// `None` = no player has the initiative (game start, or initiative was never taken).
@@ -251,7 +254,7 @@ pub struct GameState {
     /// Only one player can have the initiative at a time (CR 725.3). Taking the
     /// initiative also causes the taker to venture into The Undercity (CR 725.2).
     #[serde(default)]
-    pub has_initiative: Option<PlayerId>,
+    pub(crate) has_initiative: Option<PlayerId>,
     /// CR 724.1: The monarch is a designation a player can have.
     ///
     /// `None` = no player is the monarch (game start, or monarch left the game
@@ -261,42 +264,481 @@ pub struct GameState {
     /// Only one player can be the monarch at a time (CR 724.3).
     /// Inherent triggers (CR 724.2): EOT draw + combat damage steals.
     #[serde(default)]
-    pub monarch: Option<PlayerId>,
+    pub(crate) monarch: Option<PlayerId>,
     /// CR 305.2: Static "additional land play" sources from permanents on the battlefield.
     ///
     /// Each entry records a permanent that grants its controller one or more extra land
     /// plays per turn. Applied in `reset_turn_state` to increment `land_plays_remaining`.
     /// Cleaned up when the source permanent leaves the battlefield.
     #[serde(default)]
-    pub additional_land_play_sources: im::Vector<crate::state::stubs::AdditionalLandPlaySource>,
+    pub(crate) additional_land_play_sources: im::Vector<crate::state::stubs::AdditionalLandPlaySource>,
     /// CR 615.1: When true, all combat damage is prevented for the rest of the turn.
     ///
     /// Set by Effect::PreventAllCombatDamage. Reset in `reset_turn_state` at turn start.
     #[serde(default)]
-    pub prevent_all_combat_damage: bool,
+    pub(crate) prevent_all_combat_damage: bool,
     /// CR 615: Objects whose combat damage OUTPUT is prevented this turn.
     ///
     /// Set by Effect::PreventCombatDamageFromOrTo with `prevent_from: true`.
     /// Reset in `reset_turn_state` at turn start.
     #[serde(default)]
-    pub combat_damage_prevented_from: im::OrdSet<ObjectId>,
+    pub(crate) combat_damage_prevented_from: im::OrdSet<ObjectId>,
     /// CR 615: Objects whose combat damage INPUT is prevented this turn.
     ///
     /// Set by Effect::PreventCombatDamageFromOrTo with `prevent_to: true`.
     /// Reset in `reset_turn_state` at turn start.
     #[serde(default)]
-    pub combat_damage_prevented_to: im::OrdSet<ObjectId>,
+    pub(crate) combat_damage_prevented_to: im::OrdSet<ObjectId>,
     /// Card definitions registry: maps CardId → CardDefinition.
     ///
     /// Static data, never changes during a game. Held as `Arc` so state clones
     /// share the registry without copying it. Excluded from state hashing and
     /// serialization (reconstructed from the card database on load).
     #[serde(skip)]
-    pub card_registry: Arc<CardRegistry>,
+    pub(crate) card_registry: Arc<CardRegistry>,
 }
+/// Read-only accessors for every [`GameState`] field.
+///
+/// The fields themselves are `pub(crate)` (SR-3). Outside the engine crate,
+/// `GameState` is an immutable view: the only sanctioned way to change it is to
+/// submit a [`Command`](crate::rules::commands::Command) through
+/// `process_command`, which is what makes architecture invariant #3 ("all player
+/// actions are Commands") a machine guarantee rather than a convention.
+///
+/// Mutable access exists only behind the `test-util` feature — see the
+/// [`escape hatch`](GameState#escape-hatches) block below.
+impl GameState {
+    /// Read-only access to the `turn` field.
+    pub fn turn(&self) -> &TurnState {
+        &self.turn
+    }
+
+    /// Read-only access to the `players` field.
+    pub fn players(&self) -> &OrdMap<PlayerId, PlayerState> {
+        &self.players
+    }
+
+    /// Read-only access to the `zones` field.
+    pub fn zones(&self) -> &OrdMap<ZoneId, Zone> {
+        &self.zones
+    }
+
+    /// Read-only access to the `objects` field.
+    pub fn objects(&self) -> &OrdMap<ObjectId, GameObject> {
+        &self.objects
+    }
+
+    /// Read-only access to the `continuous_effects` field.
+    pub fn continuous_effects(&self) -> &Vector<ContinuousEffect> {
+        &self.continuous_effects
+    }
+
+    /// Read-only access to the `delayed_triggers` field.
+    pub fn delayed_triggers(&self) -> &Vector<DelayedTrigger> {
+        &self.delayed_triggers
+    }
+
+    /// Read-only access to the `replacement_effects` field.
+    pub fn replacement_effects(&self) -> &Vector<ReplacementEffect> {
+        &self.replacement_effects
+    }
+
+    /// Read-only access to the `pending_zone_changes` field.
+    pub fn pending_zone_changes(&self) -> &Vector<PendingZoneChange> {
+        &self.pending_zone_changes
+    }
+
+    /// Read-only access to the `pending_commander_zone_choices` field.
+    pub fn pending_commander_zone_choices(&self) -> &Vector<(PlayerId, ObjectId)> {
+        &self.pending_commander_zone_choices
+    }
+
+    /// Read-only access to the `prevention_counters` field.
+    pub fn prevention_counters(&self) -> &im::OrdMap<ReplacementId, u32> {
+        &self.prevention_counters
+    }
+
+    /// Read-only access to the `pending_triggers` field.
+    pub fn pending_triggers(&self) -> &Vector<PendingTrigger> {
+        &self.pending_triggers
+    }
+
+    /// Read-only access to the `trigger_doublers` field.
+    pub fn trigger_doublers(&self) -> &Vector<TriggerDoubler> {
+        &self.trigger_doublers
+    }
+
+    /// Read-only access to the `etb_suppressors` field.
+    pub fn etb_suppressors(&self) -> &Vector<ETBSuppressor> {
+        &self.etb_suppressors
+    }
+
+    /// Read-only access to the `restrictions` field.
+    pub fn restrictions(&self) -> &Vector<ActiveRestriction> {
+        &self.restrictions
+    }
+
+    /// Read-only access to the `flash_grants` field.
+    pub fn flash_grants(&self) -> &Vector<FlashGrant> {
+        &self.flash_grants
+    }
+
+    /// Read-only access to the `play_from_top_permissions` field.
+    pub fn play_from_top_permissions(&self) -> &Vector<PlayFromTopPermission> {
+        &self.play_from_top_permissions
+    }
+
+    /// Read-only access to the `play_from_graveyard_permissions` field.
+    pub fn play_from_graveyard_permissions(&self) -> &Vector<PlayFromGraveyardPermission> {
+        &self.play_from_graveyard_permissions
+    }
+
+    /// Read-only access to the `stack_objects` field.
+    pub fn stack_objects(&self) -> &Vector<StackObject> {
+        &self.stack_objects
+    }
+
+    /// Read-only access to the `combat` field.
+    pub fn combat(&self) -> &Option<CombatState> {
+        &self.combat
+    }
+
+    /// Read-only access to the `loop_detection_hashes` field.
+    pub fn loop_detection_hashes(&self) -> &im::OrdMap<u64, u32> {
+        &self.loop_detection_hashes
+    }
+
+    /// Read-only access to the `history` field.
+    pub fn history(&self) -> &Vector<GameEvent> {
+        &self.history
+    }
+
+    /// Read-only access to the `pending_echo_payments` field.
+    pub fn pending_echo_payments(&self) -> &im::Vector<(PlayerId, ObjectId, ManaCost)> {
+        &self.pending_echo_payments
+    }
+
+    /// Read-only access to the `pending_cumulative_upkeep_payments` field.
+    pub fn pending_cumulative_upkeep_payments(&self) -> &im::Vector<(PlayerId, ObjectId, CumulativeUpkeepCost)> {
+        &self.pending_cumulative_upkeep_payments
+    }
+
+    /// Read-only access to the `pending_recover_payments` field.
+    pub fn pending_recover_payments(&self) -> &im::Vector<(PlayerId, ObjectId, ManaCost)> {
+        &self.pending_recover_payments
+    }
+
+    /// Read-only access to the `forecast_used_this_turn` field.
+    pub fn forecast_used_this_turn(&self) -> &im::OrdSet<CardId> {
+        &self.forecast_used_this_turn
+    }
+
+    /// Read-only access to the `dungeon_state` field.
+    pub fn dungeon_state(&self) -> &OrdMap<PlayerId, DungeonState> {
+        &self.dungeon_state
+    }
+
+    /// Read-only access to the `additional_land_play_sources` field.
+    pub fn additional_land_play_sources(&self) -> &im::Vector<AdditionalLandPlaySource> {
+        &self.additional_land_play_sources
+    }
+
+    /// Read-only access to the `combat_damage_prevented_from` field.
+    pub fn combat_damage_prevented_from(&self) -> &im::OrdSet<ObjectId> {
+        &self.combat_damage_prevented_from
+    }
+
+    /// Read-only access to the `combat_damage_prevented_to` field.
+    pub fn combat_damage_prevented_to(&self) -> &im::OrdSet<ObjectId> {
+        &self.combat_damage_prevented_to
+    }
+
+    /// Read-only access to the `card_registry` field.
+    pub fn card_registry(&self) -> &Arc<CardRegistry> {
+        &self.card_registry
+    }
+
+    /// Read-only access to the `next_replacement_id` field.
+    ///
+    /// Named `_counter` to avoid colliding with the `next_replacement_id()`
+    /// generator method, which allocates a fresh id.
+    pub fn next_replacement_id_counter(&self) -> u64 {
+        self.next_replacement_id
+    }
+
+    /// Read-only access to the `timestamp_counter` field.
+    pub fn timestamp_counter(&self) -> u64 {
+        self.timestamp_counter
+    }
+
+    /// Read-only access to the `permanents_put_into_graveyard_this_turn` field.
+    pub fn permanents_put_into_graveyard_this_turn(&self) -> u32 {
+        self.permanents_put_into_graveyard_this_turn
+    }
+
+    /// Read-only access to the `previous_turn_spells_cast` field.
+    pub fn previous_turn_spells_cast(&self) -> u32 {
+        self.previous_turn_spells_cast
+    }
+
+    /// Read-only access to the `day_night` field.
+    pub fn day_night(&self) -> Option<DayNight> {
+        self.day_night
+    }
+
+    /// Read-only access to the `has_initiative` field.
+    pub fn has_initiative(&self) -> Option<PlayerId> {
+        self.has_initiative
+    }
+
+    /// Read-only access to the `monarch` field.
+    pub fn monarch(&self) -> Option<PlayerId> {
+        self.monarch
+    }
+
+    /// Read-only access to the `prevent_all_combat_damage` field.
+    pub fn prevent_all_combat_damage(&self) -> bool {
+        self.prevent_all_combat_damage
+    }
+
+}
+
+/// # Escape hatches
+///
+/// Mutable access to [`GameState`] internals, compiled **only** under
+/// `cfg(test)` or the `test-util` cargo feature.
+///
+/// ## Why this exists
+///
+/// Tests and benchmarks must be able to construct arbitrary mid-game positions
+/// (a creature with damage marked, a specific combat state, a stack mid-resolution)
+/// that no legal sequence of `Command`s can reach cheaply. That is a legitimate
+/// need, but it must not be reachable from shipping code, or architecture
+/// invariant #3 degrades back into a convention.
+///
+/// ## The guarantee
+///
+/// `test-util` is off in any production build. The engine's own integration
+/// tests and benches turn it on via a self dev-dependency in `Cargo.toml`:
+///
+/// ```toml
+/// [dev-dependencies]
+/// mtg-engine = { path = ".", features = ["test-util"] }
+/// ```
+///
+/// `cargo build --workspace` is the gate that proves the seal: it does not build
+/// dev-dependencies, so `test-util` is off and none of these methods exist. If a
+/// production consumer (tui, replay-viewer, simulator, network) ever reaches for
+/// one, that build fails.
+///
+/// **Caveat:** under `--all-targets` (i.e. `cargo test --all`, `cargo clippy
+/// --all-targets`) cargo unifies features across the workspace, so `test-util`
+/// *is* enabled for every crate in that profile. Those commands therefore cannot
+/// detect a production consumer using an escape hatch — only
+/// `cargo build --workspace` can. Keep it in the gate list.
+///
+/// ## Preferred alternatives
+///
+/// Reach for [`GameStateBuilder`] first: it is the documented, always-public
+/// constructor for setting up a game position. These hatches are for the cases
+/// it cannot express.
+#[cfg(any(test, feature = "test-util"))]
+impl GameState {
+    /// Escape hatch: mutable access to `turn`. See [module docs](GameState#escape-hatches).
+    pub fn turn_mut(&mut self) -> &mut TurnState {
+        &mut self.turn
+    }
+
+    /// Escape hatch: mutable access to `players`. See [module docs](GameState#escape-hatches).
+    pub fn players_mut(&mut self) -> &mut OrdMap<PlayerId, PlayerState> {
+        &mut self.players
+    }
+
+    /// Escape hatch: mutable access to `zones`. See [module docs](GameState#escape-hatches).
+    pub fn zones_mut(&mut self) -> &mut OrdMap<ZoneId, Zone> {
+        &mut self.zones
+    }
+
+    /// Escape hatch: mutable access to `objects`. See [module docs](GameState#escape-hatches).
+    pub fn objects_mut(&mut self) -> &mut OrdMap<ObjectId, GameObject> {
+        &mut self.objects
+    }
+
+    /// Escape hatch: mutable access to `continuous_effects`. See [module docs](GameState#escape-hatches).
+    pub fn continuous_effects_mut(&mut self) -> &mut Vector<ContinuousEffect> {
+        &mut self.continuous_effects
+    }
+
+    /// Escape hatch: mutable access to `delayed_triggers`. See [module docs](GameState#escape-hatches).
+    pub fn delayed_triggers_mut(&mut self) -> &mut Vector<DelayedTrigger> {
+        &mut self.delayed_triggers
+    }
+
+    /// Escape hatch: mutable access to `replacement_effects`. See [module docs](GameState#escape-hatches).
+    pub fn replacement_effects_mut(&mut self) -> &mut Vector<ReplacementEffect> {
+        &mut self.replacement_effects
+    }
+
+    /// Escape hatch: mutable access to `pending_zone_changes`. See [module docs](GameState#escape-hatches).
+    pub fn pending_zone_changes_mut(&mut self) -> &mut Vector<PendingZoneChange> {
+        &mut self.pending_zone_changes
+    }
+
+    /// Escape hatch: mutable access to `pending_commander_zone_choices`. See [module docs](GameState#escape-hatches).
+    pub fn pending_commander_zone_choices_mut(&mut self) -> &mut Vector<(PlayerId, ObjectId)> {
+        &mut self.pending_commander_zone_choices
+    }
+
+    /// Escape hatch: mutable access to `prevention_counters`. See [module docs](GameState#escape-hatches).
+    pub fn prevention_counters_mut(&mut self) -> &mut im::OrdMap<ReplacementId, u32> {
+        &mut self.prevention_counters
+    }
+
+    /// Escape hatch: mutable access to `pending_triggers`. See [module docs](GameState#escape-hatches).
+    pub fn pending_triggers_mut(&mut self) -> &mut Vector<PendingTrigger> {
+        &mut self.pending_triggers
+    }
+
+    /// Escape hatch: mutable access to `trigger_doublers`. See [module docs](GameState#escape-hatches).
+    pub fn trigger_doublers_mut(&mut self) -> &mut Vector<TriggerDoubler> {
+        &mut self.trigger_doublers
+    }
+
+    /// Escape hatch: mutable access to `etb_suppressors`. See [module docs](GameState#escape-hatches).
+    pub fn etb_suppressors_mut(&mut self) -> &mut Vector<ETBSuppressor> {
+        &mut self.etb_suppressors
+    }
+
+    /// Escape hatch: mutable access to `restrictions`. See [module docs](GameState#escape-hatches).
+    pub fn restrictions_mut(&mut self) -> &mut Vector<ActiveRestriction> {
+        &mut self.restrictions
+    }
+
+    /// Escape hatch: mutable access to `flash_grants`. See [module docs](GameState#escape-hatches).
+    pub fn flash_grants_mut(&mut self) -> &mut Vector<FlashGrant> {
+        &mut self.flash_grants
+    }
+
+    /// Escape hatch: mutable access to `play_from_top_permissions`. See [module docs](GameState#escape-hatches).
+    pub fn play_from_top_permissions_mut(&mut self) -> &mut Vector<PlayFromTopPermission> {
+        &mut self.play_from_top_permissions
+    }
+
+    /// Escape hatch: mutable access to `play_from_graveyard_permissions`. See [module docs](GameState#escape-hatches).
+    pub fn play_from_graveyard_permissions_mut(&mut self) -> &mut Vector<PlayFromGraveyardPermission> {
+        &mut self.play_from_graveyard_permissions
+    }
+
+    /// Escape hatch: mutable access to `stack_objects`. See [module docs](GameState#escape-hatches).
+    pub fn stack_objects_mut(&mut self) -> &mut Vector<StackObject> {
+        &mut self.stack_objects
+    }
+
+    /// Escape hatch: mutable access to `combat`. See [module docs](GameState#escape-hatches).
+    pub fn combat_mut(&mut self) -> &mut Option<CombatState> {
+        &mut self.combat
+    }
+
+    /// Escape hatch: mutable access to `loop_detection_hashes`. See [module docs](GameState#escape-hatches).
+    pub fn loop_detection_hashes_mut(&mut self) -> &mut im::OrdMap<u64, u32> {
+        &mut self.loop_detection_hashes
+    }
+
+    /// Escape hatch: mutable access to `history`. See [module docs](GameState#escape-hatches).
+    pub fn history_mut(&mut self) -> &mut Vector<GameEvent> {
+        &mut self.history
+    }
+
+    /// Escape hatch: mutable access to `pending_echo_payments`. See [module docs](GameState#escape-hatches).
+    pub fn pending_echo_payments_mut(&mut self) -> &mut im::Vector<(PlayerId, ObjectId, ManaCost)> {
+        &mut self.pending_echo_payments
+    }
+
+    /// Escape hatch: mutable access to `pending_cumulative_upkeep_payments`. See [module docs](GameState#escape-hatches).
+    pub fn pending_cumulative_upkeep_payments_mut(&mut self) -> &mut im::Vector<(PlayerId, ObjectId, CumulativeUpkeepCost)> {
+        &mut self.pending_cumulative_upkeep_payments
+    }
+
+    /// Escape hatch: mutable access to `pending_recover_payments`. See [module docs](GameState#escape-hatches).
+    pub fn pending_recover_payments_mut(&mut self) -> &mut im::Vector<(PlayerId, ObjectId, ManaCost)> {
+        &mut self.pending_recover_payments
+    }
+
+    /// Escape hatch: mutable access to `forecast_used_this_turn`. See [module docs](GameState#escape-hatches).
+    pub fn forecast_used_this_turn_mut(&mut self) -> &mut im::OrdSet<CardId> {
+        &mut self.forecast_used_this_turn
+    }
+
+    /// Escape hatch: mutable access to `dungeon_state`. See [module docs](GameState#escape-hatches).
+    pub fn dungeon_state_mut(&mut self) -> &mut OrdMap<PlayerId, DungeonState> {
+        &mut self.dungeon_state
+    }
+
+    /// Escape hatch: mutable access to `additional_land_play_sources`. See [module docs](GameState#escape-hatches).
+    pub fn additional_land_play_sources_mut(&mut self) -> &mut im::Vector<AdditionalLandPlaySource> {
+        &mut self.additional_land_play_sources
+    }
+
+    /// Escape hatch: mutable access to `combat_damage_prevented_from`. See [module docs](GameState#escape-hatches).
+    pub fn combat_damage_prevented_from_mut(&mut self) -> &mut im::OrdSet<ObjectId> {
+        &mut self.combat_damage_prevented_from
+    }
+
+    /// Escape hatch: mutable access to `combat_damage_prevented_to`. See [module docs](GameState#escape-hatches).
+    pub fn combat_damage_prevented_to_mut(&mut self) -> &mut im::OrdSet<ObjectId> {
+        &mut self.combat_damage_prevented_to
+    }
+
+    /// Escape hatch: mutable access to `card_registry`. See [module docs](GameState#escape-hatches).
+    pub fn card_registry_mut(&mut self) -> &mut Arc<CardRegistry> {
+        &mut self.card_registry
+    }
+
+    /// Escape hatch: mutable access to `next_replacement_id`. See [module docs](GameState#escape-hatches).
+    pub fn next_replacement_id_counter_mut(&mut self) -> &mut u64 {
+        &mut self.next_replacement_id
+    }
+
+    /// Escape hatch: mutable access to `timestamp_counter`. See [module docs](GameState#escape-hatches).
+    pub fn timestamp_counter_mut(&mut self) -> &mut u64 {
+        &mut self.timestamp_counter
+    }
+
+    /// Escape hatch: mutable access to `permanents_put_into_graveyard_this_turn`. See [module docs](GameState#escape-hatches).
+    pub fn permanents_put_into_graveyard_this_turn_mut(&mut self) -> &mut u32 {
+        &mut self.permanents_put_into_graveyard_this_turn
+    }
+
+    /// Escape hatch: mutable access to `previous_turn_spells_cast`. See [module docs](GameState#escape-hatches).
+    pub fn previous_turn_spells_cast_mut(&mut self) -> &mut u32 {
+        &mut self.previous_turn_spells_cast
+    }
+
+    /// Escape hatch: mutable access to `day_night`. See [module docs](GameState#escape-hatches).
+    pub fn day_night_mut(&mut self) -> &mut Option<DayNight> {
+        &mut self.day_night
+    }
+
+    /// Escape hatch: mutable access to `has_initiative`. See [module docs](GameState#escape-hatches).
+    pub fn has_initiative_mut(&mut self) -> &mut Option<PlayerId> {
+        &mut self.has_initiative
+    }
+
+    /// Escape hatch: mutable access to `monarch`. See [module docs](GameState#escape-hatches).
+    pub fn monarch_mut(&mut self) -> &mut Option<PlayerId> {
+        &mut self.monarch
+    }
+
+    /// Escape hatch: mutable access to `prevent_all_combat_damage`. See [module docs](GameState#escape-hatches).
+    pub fn prevent_all_combat_damage_mut(&mut self) -> &mut bool {
+        &mut self.prevent_all_combat_damage
+    }
+
+}
+
 impl GameState {
     /// Generates the next unique ObjectId, incrementing the timestamp counter.
-    pub fn next_object_id(&mut self) -> ObjectId {
+    pub(crate) fn next_object_id(&mut self) -> ObjectId {
         self.timestamp_counter += 1;
         ObjectId(self.timestamp_counter)
     }
@@ -305,7 +747,7 @@ impl GameState {
         self.timestamp_counter
     }
     /// Generates the next unique ReplacementId, incrementing the counter.
-    pub fn next_replacement_id(&mut self) -> ReplacementId {
+    pub(crate) fn next_replacement_id(&mut self) -> ReplacementId {
         let id = ReplacementId(self.next_replacement_id);
         self.next_replacement_id += 1;
         id
@@ -317,7 +759,7 @@ impl GameState {
             .ok_or(GameStateError::PlayerNotFound(id))
     }
     /// Look up a mutable player by ID.
-    pub fn player_mut(&mut self, id: PlayerId) -> Result<&mut PlayerState, GameStateError> {
+    pub(crate) fn player_mut(&mut self, id: PlayerId) -> Result<&mut PlayerState, GameStateError> {
         self.players
             .get_mut(&id)
             .ok_or(GameStateError::PlayerNotFound(id))
@@ -329,7 +771,7 @@ impl GameState {
             .ok_or(GameStateError::ObjectNotFound(id))
     }
     /// Look up a mutable game object by ID.
-    pub fn object_mut(&mut self, id: ObjectId) -> Result<&mut GameObject, GameStateError> {
+    pub(crate) fn object_mut(&mut self, id: ObjectId) -> Result<&mut GameObject, GameStateError> {
         self.objects
             .get_mut(&id)
             .ok_or(GameStateError::ObjectNotFound(id))
@@ -338,15 +780,9 @@ impl GameState {
     pub fn zone(&self, id: &ZoneId) -> Result<&Zone, GameStateError> {
         self.zones.get(id).ok_or(GameStateError::ZoneNotFound(*id))
     }
-    /// Look up a mutable zone by ID.
-    pub fn zone_mut(&mut self, id: &ZoneId) -> Result<&mut Zone, GameStateError> {
-        self.zones
-            .get_mut(id)
-            .ok_or(GameStateError::ZoneNotFound(*id))
-    }
     /// Add a new game object to a zone, assigning it a fresh ObjectId and timestamp.
     /// Returns the assigned ObjectId.
-    pub fn add_object(
+    pub(crate) fn add_object(
         &mut self,
         mut object: GameObject,
         zone_id: ZoneId,
@@ -385,7 +821,7 @@ impl GameState {
     /// The old ObjectId is retired. A new ObjectId is assigned. Status, counters,
     /// attachments, and controller are reset. Returns the new ObjectId and a
     /// snapshot of the old object (for trigger processing).
-    pub fn move_object_to_zone(
+    pub(crate) fn move_object_to_zone(
         &mut self,
         object_id: ObjectId,
         to: ZoneId,
@@ -878,7 +1314,7 @@ impl GameState {
     /// Identical to `move_object_to_zone` but inserts the new object at
     /// position 0 (the bottom) instead of appending to the back (the top).
     /// For unordered zones, behaves the same as `move_object_to_zone`.
-    pub fn move_object_to_bottom_of_zone(
+    pub(crate) fn move_object_to_bottom_of_zone(
         &mut self,
         object_id: ObjectId,
         to: ZoneId,
