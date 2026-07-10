@@ -147,14 +147,23 @@
 - **`game-script-generator` stale binary validation**: The generator validates scripts using the
   running replay-viewer binary, not the compiled library. If card definitions were added after
   the binary was last built, the binary won't find them and validation will fail with
-  `InvalidCommand`. Always validate scripts via `cargo test -p mtg-engine --test run_all_scripts`
+  `InvalidCommand`. Always validate scripts via `cargo test -p mtg-engine --test scripts run_all_scripts`
   which uses the library directly. Approve the script if library tests pass.
 - **`game-script-generator` SCRIPT_FILTER**: When the HTTP server is DOWN, the agent uses
-  `SCRIPT_FILTER=<script_name_without_ext> ~/.cargo/bin/cargo test --test run_all_scripts -- --nocapture`
-  (run from workspace root, e.g. `SCRIPT_FILTER=103 ~/.cargo/bin/cargo test -p mtg-engine --test run_all_scripts`).
-  This runs ONLY the named script. Do NOT use `cargo test --test script_replay` — that only runs 4 unit tests,
+  `SCRIPT_FILTER=<script_name_without_ext> ~/.cargo/bin/cargo test --test scripts run_all_scripts -- --nocapture`
+  (run from workspace root, e.g. `SCRIPT_FILTER=103 ~/.cargo/bin/cargo test -p mtg-engine --test scripts run_all_scripts`).
+  This runs ONLY the named script. Do NOT use `--test scripts script_replay` — that only runs 4 unit tests,
   not the JSON scripts. Do NOT start or build the replay-viewer HTTP server — it causes OOM
   kills (SIGKILL/137) from the Sonnet agent context.
+- **Integration tests are nine targets, not 297 (SR-9a).** `crates/engine/tests/*.rs` became
+  `crates/engine/tests/<group>/{main.rs, *.rs}`; the former per-file binary is now a **module**
+  inside its group. So `--test run_all_scripts` is now `--test scripts run_all_scripts`, and
+  `--test layers` is `--test rules layers::` (keep the `::` — a bare `layers` also substring-matches
+  `layer_correctness`). Group table and the rule for where a new test file goes:
+  `docs/sr-9a-test-consolidation.md`. **Never add a top-level `tests/*.rs`** — each one is another
+  link on every test build, and `tests/no_stray_test_binaries.rs` fails the suite if you do. That
+  same gate fails if a file sits in a group dir without a `mod` line in the group's `main.rs`,
+  because such a file is not compiled and its tests silently disappear.
 - **Discriminant chains after Type Consolidation**: AbilityDefinition has ~55 variants (down from 64 — old per-ability alt-cost variants like Flashback, Embalm, Eternalize, etc. are now `AltCastAbility`). StackObjectKind has ~20 variants (down from 62 — most trigger variants are now `KeywordTrigger`). New abilities should add `TriggerData` variants (not SOK variants) and `AltCastAbility` entries (not AbilDef variants). **Still verify discriminant chains from previous batch before implementing** — the planner gets these wrong ~every batch.
   **Escalate CR is 702.120** (not 702.121 = Melee — a common confusion).
 - **`tools/replay-viewer/src/view_model.rs` has TWO exhaustive matches** that need updating for every new ability: (1) `StackObjectKind` match in `stack_kind_info()` — add arm for every new SOK variant; (2) `KeywordAbility` match in the keyword display function — add arm for every new KW variant. The `ability-impl-runner` misses the `KeywordAbility` match ~50% of the time. Always run `cargo build --workspace` (not just `-p mtg-engine`) after implement/fix phases to catch compile errors in the replay-viewer. Confirmed pattern from Outlast (B9).

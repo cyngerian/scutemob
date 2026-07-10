@@ -7,7 +7,7 @@
 //! ## Running
 //!
 //! ```
-//! cargo test -p mtg-engine --test run_all_scripts
+//! cargo test -p mtg-engine --test scripts run_all_scripts
 //! ```
 //!
 //! Scripts that don't deserialize are silently skipped (they may belong to a
@@ -80,7 +80,7 @@ fn run_all_approved_scripts() {
 
     // Optional filter: SCRIPT_FILTER=<substring> runs only scripts whose path or id
     // contains the substring. Used by agents to validate a single new script quickly:
-    //   SCRIPT_FILTER=015_declare_attackers cargo test --test run_all_scripts
+    //   SCRIPT_FILTER=015_declare_attackers cargo test --test scripts run_all_scripts
     // When SCRIPT_FILTER is set, pending_review scripts are also included so agents
     // can validate before approving.
     let filter = env::var("SCRIPT_FILTER").ok();

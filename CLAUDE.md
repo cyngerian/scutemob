@@ -28,7 +28,7 @@
   accessors, gated on the `test-util` feature (self dev-dependency). **`cargo build
   --workspace` is the only gate that proves the seal** — `test --all` and `clippy
   --all-targets` enable `test-util` workspace-wide via feature unification. It is a CI step.
-- **Tests**: **3134 passing**; build/clippy/fmt clean
+- **Tests**: **3167 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
 - **CI**: **LIVE and green** since 2026-07-10 (SR-1, merge `e9742dc2`) — single Ubuntu job (fmt + clippy + `build --workspace` + full tests) on push/PR to main + workflow_dispatch; rust-cache@v2, 45m timeout. Caveat: CI rustc floats to latest stable (1.97.0) vs local 1.95.0 — new lints can redden CI with no code change until SR-11 (`scutemob-63`) pins the toolchain. SR remediation track ACTIVE: `docs/sr-remediation-plan.md` (tasks `scutemob-53..64`, SR-1/SR-2/SR-3 done).
 - **Abilities**: ~199 validated; 42/42 P1; 17/17 P2; 40/40 P3; 95/95 P4 implemented (9 permanent-n/a; 1 deferred: Banding)
 - **Primitives**: PB-0..PB-37 + named-letter chain (PB-A/B/E/J/M/S/X/Q/Q4/N/D/P/L/T/SFT/CC-{W,B,C,A}/TS/LKI-CC/CD/LKI-Power/EWC/XS/XS-E/XA/EAT/XA2/EWC-D) all DONE. PB-Q2/Q3/Q5 reserved.
@@ -92,7 +92,30 @@
   `Effect` variant is a wire change and most PBs will bump `PROTOCOL_VERSION`**; it stops at
   `GameState`, which is why this and `HASH_SCHEMA_VERSION` stay separate. `PROTOCOL_VERSION` is
   **1**. Policy: `docs/mtg-engine-protocol-versioning.md`. **This was M10's hard blocker.**
-- **Last Updated**: 2026-07-10 (SR-8 — protocol versioning: strict lockstep + a fingerprint that
+- **Integration tests are 9 targets, not 297 binaries (SR-9a).** `crates/engine/tests/*.rs` became
+  `crates/engine/tests/<group>/{main.rs, *.rs}` — `core`, `rules`, `combat`, `casting`,
+  `primitives`, `scripts`, `mechanics_{a_d,e_l,m_z}`. Every file moved verbatim; a former
+  per-file binary is now a **module**, so `--test run_all_scripts` is `--test scripts
+  run_all_scripts` and `--test layers` is `--test rules layers::` (keep the `::`). Warm rebuild
+  after an engine edit **34.2s → 11.1s**, `target/` **19 GB → 2.2 GB**. **Never add a top-level
+  `tests/*.rs`** — each is another link on every test build, and `tests/no_stray_test_binaries.rs`
+  fails the suite. That gate also fails when a file sits in a group dir with no `mod` line in the
+  group's `main.rs` — such a file is not compiled and its tests silently cease to exist
+  (demonstrated: `--test combat` reports `ok. 69 passed` with six tests missing) — and, because
+  that check is textual, it additionally requires a group's `main.rs` to contain **nothing but
+  `//!` docs and bare `mod x;` lines** and group dirs to be flat. Layout and the rule for where a
+  new test file goes: `docs/sr-9a-test-consolidation.md`.
+- **Last Updated**: 2026-07-10 (SR-9a — 297 integration-test binaries → 9 targets; warm test-build
+  34.2s → 11.1s, `target/` 19 GB → 2.2 GB, test count unmoved (3162 → 3167, the +5 being the new
+  gate's own). The gate, `tests/no_stray_test_binaries.rs`, exists because a dropped `mod` line
+  converts a test file into a text file and the suite goes green with less coverage than it had
+  yesterday — shown, not asserted, across eight attacks. **Seventh consecutive SR task whose review
+  findings were holes in the gate, not bugs in the code**: the declaration check was textual, so
+  `#[cfg(…)] mod foo;`, `#[path]`, and a nested subdir all satisfied it while deleting coverage.
+  Fixed by shrinking the grammar — a group `main.rs` may hold nothing but `//!` docs and bare
+  `mod x;`. The demonstration had a hole too: the first attack deleted a `mod` line for a module
+  that was in a different group, so `sed` matched nothing and the gate "passed" an attack that
+  never happened. Earlier same day: SR-8 — protocol versioning: strict lockstep + a fingerprint that
   makes the version number machine-checked rather than remembered. Two under-inclusion holes were
   found by the gate's own denominator guards while they were being written (a `pub type` alias on
   the wire; a rustfmt-wrapped `#[derive]` that silently dropped a type's serde config out of the

@@ -411,12 +411,12 @@ After writing the script JSON file, validate it against the harness **before fin
 Run only the new script via `SCRIPT_FILTER`:
 ```bash
 SCRIPT_FILTER="<script_filename_without_extension>" \
-  ~/.cargo/bin/cargo test --test run_all_scripts -- --nocapture 2>&1 | tail -15
+  ~/.cargo/bin/cargo test --test scripts run_all_scripts -- --nocapture 2>&1 | tail -15
 ```
 For example, for a script named `015_declare_attackers_unblocked.json`, use:
 ```bash
 SCRIPT_FILTER=015_declare_attackers_unblocked \
-  ~/.cargo/bin/cargo test --test run_all_scripts -- --nocapture 2>&1 | tail -15
+  ~/.cargo/bin/cargo test --test scripts run_all_scripts -- --nocapture 2>&1 | tail -15
 ```
 This uses incremental compilation (fast, ~5-10s) and runs ONLY the new script — not all 70+ scripts. It works for `pending_review` scripts too.
 

@@ -23,7 +23,7 @@
 //! Tests:
 //!   (a) PB-CC-C T5 regression — `test_modify_power_dynamic_x_locked_at_resolution`
 //!       passes UNMODIFIED after PB-CC-C-followup engine changes.
-//!       (Confirmed by `cargo test --test primitive_pb_cc_c`; no code here.)
+//!       (Confirmed by `cargo test --test primitives primitive_pb_cc_c::`; no code here.)
 //!   (b) `test_cda_modify_power_toughness_re_evaluates_after_counter_mutation`
 //!   (c) `test_vishgraz_scales_with_opponent_poison_counters`
 //!   (d) `test_exuberant_fuseling_power_scales_with_oil_counters`

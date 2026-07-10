@@ -216,7 +216,7 @@ error[E0004]: non-exhaustive patterns: `&KeywordAbility::TrialVariantDoNotShip` 
 (and `tools/replay-viewer/src/view_model.rs` once the engine compiles.)
 
 **Stage 2 — satisfy every compile error; classify it as a `Marker`; forget
-`all_keywords()`.** Builds clean. `cargo test --test keyword_registry`:
+`all_keywords()`.** Builds clean. `cargo test --test core keyword_registry::`:
 
 ```
 test all_keywords_covers_every_variant ... FAILED

@@ -41,8 +41,8 @@ Full evidence (file:line) is in each task's ESM description — run
 | 6 | scutemob-58 | SR-6: Extract card-defs crate | M | **DONE 2026-07-10.** Three crates now: `card-types` ← `card-defs` ← `engine`. Engine edits leave the defs `Fresh`. Card-authoring paths moved — see the gotcha. |
 | 7 | scutemob-59 | SR-7: PendingTrigger → TriggerData cutover | M | **DONE 2026-07-10.** `HASH_SCHEMA_VERSION` 36 → 37. `PendingTrigger::blank` is now the only way to build one, enforced by `tests/pending_trigger_shape.rs`. |
 | 8 | scutemob-60 | SR-8: Protocol versioning policy | M | **DONE 2026-07-10.** Strict lockstep; `Envelope`/`PROTOCOL_VERSION` in `rules/protocol.rs`. The M10 blocker is cleared. Policy: `docs/mtg-engine-protocol-versioning.md`. |
-| 9 | scutemob-61 | SR-9: Test infra consolidation | L | **SPLIT 2026-07-10** into `scutemob-69` (SR-9a binaries), `scutemob-70` (SR-9b equivalence test), `scutemob-71` (SR-9c script triage). Umbrella closes when all three land. |
-| 9a | scutemob-69 | SR-9a: Consolidate 291 integration-test binaries | M | Sub-item (a) of SR-9. 291 links dominate test-build time (46s warm). |
+| 9 | scutemob-61 | SR-9: Test infra consolidation | L | **SPLIT 2026-07-10** into `scutemob-69` (SR-9a), `scutemob-70` (SR-9b), `scutemob-71` (SR-9c). Umbrella closes when all three land. |
+| 9a | scutemob-69 | SR-9a: Consolidate 291 integration-test binaries | M | **DONE 2026-07-10.** 297 binaries → 9 targets; warm test-build 34.2s→11.1s; `target/` 19GB→2.2GB. |
 | 9b | scutemob-70 | SR-9b: Harness-vs-direct equivalence property test | M | Sub-item (b) of SR-9. Same scenario, same final hash. Gotcha SR-9(b) below applies. |
 | 9c | scutemob-71 | SR-9c: Golden-script corpus triage | M | Sub-item (c) of SR-9. 95/271 approved; pending_review silently skipped. |
 | 10 | scutemob-62 | SR-10: Dependency & lint hygiene | S–M | Four independent chores; safe filler work between larger tasks. |
@@ -454,6 +454,14 @@ Task-specific extras:
      (a new `SCAN_ROOTS` / `PROTOCOL_ROOTS` / `EXTERNAL_TYPES` entry) moves the digest because
      coverage grew, not because the wire did. Written down in both `protocol.rs` and the doc,
      because otherwise it is indistinguishable from cheating.
+- **SR-9(a): DONE (2026-07-10).** `crates/engine/tests/*.rs` is now
+  `crates/engine/tests/<group>/{main.rs, *.rs}` — 9 targets, not 297 binaries. A former
+  per-file binary is a **module**: `--test run_all_scripts` → `--test scripts run_all_scripts`,
+  `--test layers` → `--test rules layers::` (keep the `::`; a bare `layers` substring-matches
+  `layer_correctness`). Never add a top-level `tests/*.rs` —
+  `tests/no_stray_test_binaries.rs` fails the suite. Layout:
+  `docs/sr-9a-test-consolidation.md`. Also: `/tmp` on this box is a 16 GB **tmpfs** — never
+  point a cargo `target/` at it.
 - **SR-9(b):** the equivalence test's whole point is that
   `enrich_spec_from_def` shadow-implements object construction — if hashes
   diverge, the harness is wrong until proven otherwise, not the engine.
@@ -462,6 +470,71 @@ Task-specific extras:
 
 _One entry per session, newest first. Format:_
 `- YYYY-MM-DD — SR-<N> (scutemob-<id>) — <status: done / in progress / blocked> — <one-line outcome + hazards + pointer for next session>`
+
+- 2026-07-10 — SR-9a (scutemob-69) — **done** — The 297 top-level `crates/engine/tests/*.rs`
+  files are now **9 test targets** (`core`, `rules`, `combat`, `casting`, `primitives`, `scripts`,
+  `mechanics_{a_d,e_l,m_z}`), each a `tests/<group>/main.rs` module root. Every file moved
+  **verbatim** — no test body was edited. Layout, the rule for where a new test file goes, and all
+  measurements: `docs/sr-9a-test-consolidation.md`.
+  **Numbers** (`CARGO_INCREMENTAL=0`, before-tree = a worktree of `abe14f76` with its own
+  cold-built target, so the comparison is apples-to-apples): warm rebuild after touching
+  `engine/src/lib.rs` **34.2 s → 11.1 s** (median of 3); cold `cargo test --all --no-run`
+  **39.8 s → 24.0 s**; `target/` **19 GB → 2.2 GB**. 3162 → 3167 tests (the +5 are the new gate's
+  own), 0 failed, 4 ignored, 316 suites → 29. All four verification gates clean.
+  **Read the shape of the before-column, not the median**: 22.6 / 34.2 / 38.2 s — each successive
+  warm rebuild was *slower*, reproducibly, across two independent measurement passes. It is not
+  thermals. Relinking 297 test binaries rewrites ~18 GB of executables per rebuild and writeback
+  never catches up. After: 15.0 / 11.0 / 11.1 s, the normal page-cache warm-up shape. The 8.6×
+  disk reduction is the same fact as the speedup, and it is the fact CI cares about — SR-1's
+  `Bus error` was this, at 68 GB, on a 89 GB runner.
+  **New gate:** `tests/no_stray_test_binaries.rs` (5 tests, the only top-level test file, and it
+  exists to stay the only one). **Demonstrated adversarially, eight attacks** — three of which are
+  the reason the gate is not decoration, because in each the ordinary suite reports success while
+  coverage evaporates: with `combat/melee_stub.rs` present but not `mod`-declared,
+  `cargo test --test combat` prints `ok. 75 passed; 0 failed` while an `assert!(false)` inside it is
+  never compiled; deleting `mod combat_harness;` prints `ok. 69 passed; 0 failed` while **six real
+  tests silently cease to exist**; and `#[cfg(feature = "never")] mod combat_harness;` does the same
+  while leaving the `mod` line right there to read. A `mod` line is one easily-lost token and losing
+  it converts a test file into a text file. All now fail loudly, naming the file. (`mod ghost;` with
+  no file is caught by `rustc` anyway — recorded as such, because a demo that stops at a compile
+  error measures the compiler, not the gate.)
+  **Hazards discovered:**
+  (a) **`include_str!` is file-relative, not manifest-relative.** Three tests
+  (`keyword_registry`, `pending_trigger_shape`, `pb_ac9_wheel_and_misc`) reach into sibling crates'
+  sources and needed one more `../`. `env!("CARGO_MANIFEST_DIR")` paths and `run_all_scripts.rs`'s
+  cwd-relative `Path::new("../../test-data/…")` did **not** move. rustc catches the former; nothing
+  would have caught a silent mis-resolution.
+  (b) **A crate root and a module differ for `dead_code`.** `pub` items unused at a test crate's
+  root are reachable; the same items one level down inside `mod` are dead. Surfaced exactly once, on
+  `AssertionMismatch` — whose fields are read only through the `include!` copy that
+  `run_all_scripts` makes of `script_replay.rs`. That `include!` is now pointless duplication inside
+  one binary (it compiles `script_replay.rs` twice and runs its 4 unit tests twice); removing it
+  would drop 4 tests from the count, and the acceptance criterion is that the count not move, so it
+  is written up as a wart rather than fixed.
+  (c) **Do not put a cargo `target/` under `/tmp` on this box** — `/tmp` is a **16 GB tmpfs**. A
+  throwaway comparison worktree there filled it, the cold build died at 31.6 s with ENOSPC and
+  `rc=0` (output was piped to `/dev/null`), and every subsequent `Bash` tool call failed silently
+  because the harness could not write its own output file. Nearly banked a fabricated "31.6 s cold
+  build" number. Use `/home/skydude/…` for scratch worktrees.
+  **`/review` (Opus) returned 3/3 PASS, 0 HIGH, 0 MEDIUM, 4 LOW — and for the seventh consecutive
+  SR task every substantive finding was a hole in the *gate*, not a bug in the code.** The
+  declaration check was textual, so three distinct ways to satisfy it while still deleting coverage
+  survived: `#[cfg(feature = "never")] mod foo;` (declared, compiled out — verified: `--test combat`
+  → `ok. 69 passed`), `#[path = "elsewhere.rs"] mod foo;`, and a nested `<group>/sub/foo.rs` that a
+  one-level directory read never sees. A fourth, `pub mod foo;`, failed the *wrong* test with a
+  misleading message. Fixed not by teaching the parser each attack but by shrinking the grammar:
+  `group_main_rs_declares_modules_and_nothing_else` forbids everything that is not a bare `mod x;`,
+  and `group_dirs_are_flat` forbids the nesting. Each fix was verified by re-running its attack.
+  **And the pattern generalized one level further: the hole was also in the *demonstration*.**
+  Attack 3 as first written deleted `mod melee;` from `combat/main.rs`, where no such module exists
+  (melee is in `mechanics_m_z`); `sed` matched nothing, exited 0, and the gate "passed" the attack.
+  A demo that passes because it attacked nothing is indistinguishable from a gate that works. Next
+  SR author: after writing the attack, assert that the attack *changed something* before you trust
+  that surviving it means anything.
+  **Next session:** SR-9b (`scutemob-70`, harness-vs-direct equivalence) or SR-9c (`scutemob-71`,
+  golden-script triage). SR-9b now has an obvious home — `tests/scripts/` — and should note that
+  `run_all_scripts`'s `include!` of `script_replay.rs` is the shadow-implementation seam it is
+  chartered to cross-validate.
 
 - 2026-07-10 — SR-8 (scutemob-60) — **done** — The M10 blocker is cleared: `Command` /
   `GameEvent` / replay-log streams now carry a version tag, and the version tag is itself

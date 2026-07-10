@@ -37,7 +37,12 @@ use mtg_engine::{process_command, Command, GameState, PlayerId, ZoneId};
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /// Describes a single assertion failure.
+///
+/// The fields are read only by `run_all_scripts`, which pulls this file in via
+/// `include!` rather than as a sibling module — so in *this* copy of the module
+/// they look unread. Same reason `ReplayResult` below carries the attribute.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct AssertionMismatch {
     pub path: String,
     pub expected: serde_json::Value,
