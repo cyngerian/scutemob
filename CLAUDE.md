@@ -28,7 +28,7 @@
   accessors, gated on the `test-util` feature (self dev-dependency). **`cargo build
   --workspace` is the only gate that proves the seal** — `test --all` and `clippy
   --all-targets` enable `test-util` workspace-wide via feature unification. It is a CI step.
-- **Tests**: **3178 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
+- **Tests**: **3185 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
 - **CI**: **LIVE and green** since 2026-07-10 (SR-1, merge `e9742dc2`) — single Ubuntu job (fmt + clippy + `build --workspace` + full tests) on push/PR to main + workflow_dispatch; rust-cache@v2, 45m timeout. Caveat: CI rustc floats to latest stable (1.97.0) vs local 1.95.0 — new lints can redden CI with no code change until SR-11 (`scutemob-63`) pins the toolchain. SR remediation track ACTIVE: `docs/sr-remediation-plan.md` (tasks `scutemob-53..64`, SR-1/SR-2/SR-3 done).
 - **Abilities**: ~199 validated; 42/42 P1; 17/17 P2; 40/40 P3; 95/95 P4 implemented (9 permanent-n/a; 1 deferred: Banding)
 - **Primitives**: PB-0..PB-37 + named-letter chain (PB-A/B/E/J/M/S/X/Q/Q4/N/D/P/L/T/SFT/CC-{W,B,C,A}/TS/LKI-CC/CD/LKI-Power/EWC/XS/XS-E/XA/EAT/XA2/EWC-D) all DONE. PB-Q2/Q3/Q5 reserved.
@@ -107,6 +107,23 @@
   new test file goes: `docs/sr-9a-test-consolidation.md`. Note `tests/proptest-regressions/` is
   **not** a test group (`NON_GROUP_DIRS`) — `proptest` writes it on its first failure and the group
   check would otherwise redden a second time and bury the real failure.
+- **The golden-script corpus is triaged and cannot skip silently (SR-9c).** The 271 scripts in
+  `test-data/generated-scripts/` are now **210 `approved` / 61 `retired` / 0 `pending_review`**.
+  `ReviewStatus::Retired` carries a **required `retirement_reason`**; a retired script is excluded from the
+  run but printed, never absent. `tests/scripts/run_all_scripts.rs` **partitions** the discovered set
+  (`approved + retired == discovered`) and fails on a `pending_review`/`disputed`/`corrected` script, a file
+  that doesn't deserialize (`discover_scripts` no longer swallows the `Err` — six scripts had been invisible
+  since written), an approved script with zero `assert_state`, or one using an untranslatable
+  `player_action` outside a **dead-entry-guarded allowlist** (`search_library`, `assign_damage`,
+  `choose_option`, `sacrifice`). The replay *checker* (`script_replay.rs`) was itself largely vacuous:
+  an unrecognized assertion path returned "no mismatch" (**244** assertions unchecked) and `zones.stack`
+  was tested against a hardcoded empty list (**583** `is_empty:true` always passed). Both are now real —
+  an unknown path is a hard mismatch, `zones.stack` reads the live depth, power/toughness read through
+  `calculate_characteristics`. **A new assertion path must be implemented in `check_assertions`, not just
+  written in a script** — an unimplemented path now fails, it does not pass. The 61 retirements are a
+  worklist: each names the one missing `CardDefinition`, primitive, or un-wired harness `Command` (combat
+  damage assignment, mulligan, commander-zone cast, craft, disturb, order-replacements) that would
+  un-retire it.
 - **The script regime and the direct-`Command` regime cross-validate (SR-9b).**
   `tests/scripts/harness_equivalence.rs` expresses a scenario twice — as a JSON `initial_state` +
   action strings, and as `GameStateBuilder` + `Command` literals — and requires the same **fingerprint**
@@ -126,7 +143,21 @@
   `initial_state` fields the harness ignores. **Only 6 of `translate_player_action`'s 60+ `Command`
   shapes are cross-validated**; the alt-cost translations (convoke, delve, escape, kicker, casualty,
   splice, escalate, modal, mutate, ninjutsu…) are not. Adding a scenario is cheap.
-- **Last Updated**: 2026-07-10 (SR-9b — the JSON-script regime and the hand-written `Command` regime
+- **Last Updated**: 2026-07-10 (SR-9c — the golden-script corpus is triaged (94→**210 approved**, **61
+  retired** with recorded reasons, **0 pending**) and can no longer skip silently. This closes SR-9. The
+  corpus's green was fiction: `run_all_scripts` dropped 175 `pending_review` scripts without a count, six
+  scripts never deserialized (`review_status: draft`; `disputes[]` missing `raised_by`) and had been
+  invisible since written, and the replay checker passed **244** unimplemented-path and **583**
+  `zones.stack: is_empty` assertions **vacuously** (the stack path was checked against a hardcoded empty
+  list). All closed by `tests/scripts/run_all_scripts.rs`, which partitions `approved + retired ==
+  discovered` and gates pending/undeserializable/vacuous/reason-less scripts, plus a hardened
+  `script_replay.rs` where an unknown assertion path is a mismatch, not a pass. New `ReviewStatus::Retired`
+  + required `retirement_reason`. Only **one** approved failure was *fixed* rather than retired: `stack/050`
+  now asserts `zones.stack.count == 1` (Solemn Simulacrum's dies trigger belongs on the stack, CR 603.3);
+  `stack/170` and `cc31` were retired rather than edited to match a possibly-wrong engine. The 61
+  retirements each name the one missing card/primitive/harness-Command that would un-retire it — a ready
+  worklist for the authoring campaign. Ninth consecutive SR task whose sharpest finding was a hole in a
+  *checker*, not engine code. 3185 tests. Earlier same day: SR-9b — the JSON-script regime and the hand-written `Command` regime
   now cross-validate. Four divergences, all the harness's, as gotcha SR-9(b) predicted. The load-bearing
   one: **`build_initial_state` was not deterministic** — `RandomState` seeds each `HashMap` instance
   separately, `ObjectId`s are handed out in insertion order, so two deserializations of the same JSON in

@@ -41,10 +41,10 @@ Full evidence (file:line) is in each task's ESM description — run
 | 6 | scutemob-58 | SR-6: Extract card-defs crate | M | **DONE 2026-07-10.** Three crates now: `card-types` ← `card-defs` ← `engine`. Engine edits leave the defs `Fresh`. Card-authoring paths moved — see the gotcha. |
 | 7 | scutemob-59 | SR-7: PendingTrigger → TriggerData cutover | M | **DONE 2026-07-10.** `HASH_SCHEMA_VERSION` 36 → 37. `PendingTrigger::blank` is now the only way to build one, enforced by `tests/pending_trigger_shape.rs`. |
 | 8 | scutemob-60 | SR-8: Protocol versioning policy | M | **DONE 2026-07-10.** Strict lockstep; `Envelope`/`PROTOCOL_VERSION` in `rules/protocol.rs`. The M10 blocker is cleared. Policy: `docs/mtg-engine-protocol-versioning.md`. |
-| 9 | scutemob-61 | SR-9: Test infra consolidation | L | **SPLIT 2026-07-10** into `scutemob-69` (SR-9a), `scutemob-70` (SR-9b), `scutemob-71` (SR-9c). Umbrella closes when all three land. |
+| 9 | scutemob-61 | SR-9: Test infra consolidation | L | **DONE 2026-07-10** — all three sub-items landed (SR-9a/9b/9c). Umbrella closed. |
 | 9a | scutemob-69 | SR-9a: Consolidate 291 integration-test binaries | M | **DONE 2026-07-10.** 297 binaries → 9 targets; warm test-build 34.2s→11.1s; `target/` 19GB→2.2GB. |
 | 9b | scutemob-70 | SR-9b: Harness-vs-direct equivalence property test | M | **DONE 2026-07-10.** `tests/scripts/harness_equivalence.rs`. Four harness divergences found and fixed/pinned; `build_initial_state` was **nondeterministic**. |
-| 9c | scutemob-71 | SR-9c: Golden-script corpus triage | M | Sub-item (c) of SR-9. 95/271 approved; pending_review silently skipped. **SR-9b hands it a list** — see its session-log entry. |
+| 9c | scutemob-71 | SR-9c: Golden-script corpus triage | M | **DONE 2026-07-10.** 94→**210 approved**, **61 retired** (each with a recorded reason), **0 pending**. Six scripts didn't even deserialize; the replay checker passed 244 unimplemented-path + 583 `zones.stack` assertions vacuously — all closed. Gate: `run_all_scripts.rs`. |
 | 10 | scutemob-62 | SR-10: Dependency & lint hygiene | S–M | Four independent chores; safe filler work between larger tasks. |
 | 11 | scutemob-63 | SR-11: Pin the Rust toolchain | S | Discovered during SR-1. CI floats to newest stable; new lints redden CI with no commit, and the local clippy gate can't reproduce them. Pairs well with SR-10. |
 | 12 | scutemob-64 | SR-12: Unbypassable invariant-9 gate + marker anti-rot | M | Discovered during SR-2 review. `GameStateBuilder`/`start_game` skip `validate_deck`; only the Inert marker class has a rot guard. |
@@ -479,11 +479,88 @@ Task-specific extras:
   target (CR 601.2c) — it now returns `None`. And a determinism fixture with a **one-owner** zone map
   tests nothing: a one-key `HashMap` has exactly one iteration order, so the gate silently becomes a
   no-op. `determinism_fixture_has_two_owners_in_every_zone_map` guards that.
+- **SR-9(c): DONE (2026-07-10).** The corpus was 271 scripts, **94 approved and 175 silently skipped**
+  (`run_all_scripts` filtered to `review_status == Approved` and dropped the rest without a count).
+  Triaged to **210 approved / 61 retired / 0 pending**. The skip was not the only silent hole — the
+  *checker itself* was largely vacuous:
+  - **An unrecognized assertion path returned "no mismatch."** 244 assertions across the corpus were
+    spelled in paths `check_assertions` never implemented (`zones.battlefield.<p>.count`, `zones.exile`,
+    `zones.hand.<p>`, `permanent.<c>.power`, …) and were simply *not checked*. An unknown path is now a
+    hard `AssertionMismatch`; every path the corpus uses is implemented (power/toughness read through
+    `calculate_characteristics`, never the pre-layers printed value).
+  - **`zones.stack` was checked against a hardcoded empty list.** All **583** `"zones.stack": {"is_empty":
+    true}` assertions passed unconditionally — `names.is_empty()` on an always-empty `&[]`. It now reads
+    the real stack length. This alone turned three previously-"approved" scripts red (they asserted an
+    empty stack where a dies/ETB trigger legitimately sits, CR 603.3).
+  - **`includes` + `excludes` on one assertion dropped the `excludes` half** (early `return`); a malformed
+    list entry became the empty card name `""` and silently "wasn't found." Both fixed.
+  - **A `player_action` the harness could not translate ran as a no-op with no record.** Nine such action
+    names were live in approved/pending scripts (`assign_damage`, `choose_option`, `cast_spell_from_command_zone`,
+    `transform`, `activate_craft`, `cast_spell_disturb`, `order_replacements`, `sacrifice`, `mulligan_decision`).
+    `translate_player_action` now emits `ReplayResult::ActionNotTranslated`; `transform` was wired to its
+    existing `Command::Transform`; the genuinely-informational ones (`assign_damage`, `choose_option`,
+    `sacrifice`, `search_library`) are an **allowlist with a dead-entry guard**.
+  - **Six scripts never deserialized at all** — two carried `review_status: draft` (not a variant) and four
+    had `disputes[]` entries missing the required `raised_by`. They had been invisible since written;
+    `discover_scripts` used to swallow the `Err`. It now panics naming the file and the serde error.
+  The gate (`tests/scripts/run_all_scripts.rs`) **partitions** the discovered set: `no_script_is_awaiting_triage`
+  (no `pending_review`/`disputed`/`corrected` may persist), `retired_scripts_carry_a_reason`,
+  `every_approved_script_asserts_something`, `the_corpus_is_fully_accounted_for` (`approved + retired ==
+  discovered`, printing each retirement reason), and `approved_scripts_only_use_allowlisted_untranslatable_actions`.
+  Retirement is a first-class status: `ReviewStatus::Retired` + a required `retirement_reason`. The 61
+  retirements are all blocked on real, out-of-scope gaps — missing `CardDefinition`s (invariant #9),
+  un-translated alt-cost/combat-damage Commands (SR-9b: only 6 of 60 command shapes cross-validated), the
+  empty-target ETB DSL gap, and the informational `stack_resolve` that leaves triggers unresolved — each
+  named in the script's own `retirement_reason`. **Adversarial demo** (`adversarial_demo.sh`, 7 attacks,
+  each asserted to change a file first): pending script, undeserializable file, reason-less retirement,
+  vacuous approved script, un-allowlisted untranslatable action, unimplemented assertion path, and a
+  reverted `zones.stack` fix — all seven reddened exactly their intended gate. **Only fix, not retire, one
+  currently-approved failure**: `stack/050` correctly re-asserted as `zones.stack.count == 1` (Solemn
+  Simulacrum's dies trigger, CR 603.3). `stack/170` (tribute) and `cc31` (commander damage) were retired
+  rather than "fixed to match the engine," because matching a possibly-wrong engine would bless a bug and
+  `cc31` is inexpressible (it fakes combat damage via `stack_resolve` and pre-seeds
+  `commander_damage_received`, an init field the harness has never read).
 
 ## Session Log
 
 _One entry per session, newest first. Format:_
 `- YYYY-MM-DD — SR-<N> (scutemob-<id>) — <status: done / in progress / blocked> — <one-line outcome + hazards + pointer for next session>`
+
+- 2026-07-10 — SR-9c (scutemob-71) — **done** — Golden-script corpus triaged: 94→**210 approved**,
+  **61 retired** (each with a recorded `retirement_reason`), **0 pending**. This closes SR-9 (the
+  umbrella `scutemob-61`). The headline is not the triage — it is that the corpus's green was *fiction*.
+  `run_all_scripts` filtered to `Approved` and silently dropped the other 175; **six** scripts never even
+  deserialized (`review_status: draft`, `disputes[]` missing `raised_by`) and had been invisible since
+  written; and the replay checker itself passed **244** assertions against unimplemented paths and **583**
+  `zones.stack: is_empty` assertions **vacuously** (checked against a hardcoded empty `&[]`, so
+  `names.is_empty()` was always true). All closed: unknown assertion path is now a hard mismatch, every
+  path the corpus uses is implemented (power/toughness through `calculate_characteristics`), `zones.stack`
+  reads the real depth, `includes`+`excludes` both fire, and an untranslatable `player_action` emits
+  `ReplayResult::ActionNotTranslated` instead of a silent no-op. New `ReviewStatus::Retired` + required
+  `retirement_reason`; new gate `tests/scripts/run_all_scripts.rs` **partitions** the corpus
+  (`approved + retired == discovered`) and fails on any pending / undeserializable / vacuous / reason-less
+  script, or an approved script using an un-allowlisted untranslatable action (allowlist has a dead-entry
+  guard). **Consistent with the seven-SR-in-a-row pattern, the sharpest finding was a hole in a *checker*,
+  not a bug in engine code** — the vacuous `zones.stack` and unknown-path passes meant a large fraction of
+  the "passing" corpus asserted nothing. **Only one currently-approved failure was fixed rather than
+  retired**: `stack/050` now asserts `zones.stack.count == 1` (Solemn Simulacrum's dies trigger, CR 603.3),
+  because that trigger *belongs* on the stack; `stack/170` (tribute) and `cc31` (commander damage) were
+  retired precisely so a possibly-wrong engine behaviour is investigated, not blessed by editing the
+  script to match it. The 61 retirements are all blocked on out-of-SR-9c-scope gaps: missing
+  `CardDefinition`s (invariant #9), un-translated alt-cost/combat-damage Commands (SR-9b flagged only 6 of
+  60 command shapes cross-validated — combat-damage assignment, mulligan, commander-zone casts, craft,
+  disturb, order-replacements all still un-wired), the empty-target ETB DSL gap, and the informational
+  `stack_resolve` that leaves a spell's follow-on trigger unresolved. **Adversarial demo**
+  (`crates/engine/tests/scripts/adversarial_demo.sh`, seven attacks, each asserted to change a file first):
+  all seven reddened exactly their gate. **First demo run "survived" five attacks — because the runner used
+  `cargo test <bare-name> -- --exact` and the tests are namespaced `run_all_scripts::<name>`, so the filter
+  matched 0 tests and cargo exited 0.** SR-9a/9b's lesson restated: an attack that runs nothing reads as
+  "survived," so the runner now treats "0 tests ran" as a distinct `NO TARGET` error. **Gates:** 3178 →
+  **3185 tests** (+7, the new gate's own), 0 failed; clippy `--all-targets -D warnings`, `fmt --check`,
+  `build --workspace` all clean. **Next session:** SR-9 is closed; the SR track continues at SR-10
+  (`scutemob-62`, lint/dependency hygiene) and SR-11 (`scutemob-63`, pin the toolchain). Worth someone's
+  time inside the card-authoring campaign, not the SR track: the 61 retirements are a ready-made worklist —
+  each names the one missing card, primitive, or harness command that would un-retire it.
 
 - 2026-07-10 — SR-9b (scutemob-70) — **done** — The JSON-script regime and the hand-written
   `Command` regime now cross-validate. `crates/engine/tests/scripts/harness_equivalence.rs` (8 tests,
