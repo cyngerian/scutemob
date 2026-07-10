@@ -10,6 +10,7 @@
 //! - `Command::ActivateAbility` with `x_value` pays x_count * x_value in mana (CR 107.3k)
 //! - `{X}{X}` (x_count: 2) costs 2 * x_value mana (CR 107.3a)
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     all_cards, card_name_to_id, enrich_spec_from_def, process_command, CardDefinition, CardId,
     CardRegistry, CardType, Command, CounterType, GameEvent, GameStateBuilder, ManaColor, ManaCost,
@@ -91,7 +92,7 @@ fn cast_x_spell(
     state.turn_mut().priority_holder = Some(caster);
     process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: caster,
             card: card_id,
             targets: vec![],
@@ -107,7 +108,7 @@ fn cast_x_spell(
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell(x_value={}) failed: {:?}", x_value, e))
 }

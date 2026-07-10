@@ -15,6 +15,7 @@
 //! - Multiple instances of affinity are cumulative (CR 702.41b).
 //! - Artifact creatures count as artifacts for affinity (ruling).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     process_command, AffinityTarget, CardId, CardType, Command, GameState, GameStateBuilder,
     KeywordAbility, ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerId, Step, SubType, SuperType,
@@ -109,7 +110,7 @@ fn cast_spell(
 ) -> Result<(GameState, Vec<mtg_engine::GameEvent>), mtg_engine::GameStateError> {
     process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player,
             card,
             targets: vec![],
@@ -125,7 +126,7 @@ fn cast_spell(
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
 }
 
@@ -551,7 +552,7 @@ fn test_affinity_combined_with_improvise() {
 
     let (state, events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -567,7 +568,7 @@ fn test_affinity_combined_with_improvise() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect(
         "Affinity + Improvise: should succeed — affinity reduces {6} to {2}, improvise taps 2 more",

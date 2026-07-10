@@ -158,6 +158,7 @@
 //! seven SR tasks before this one: the author checks that the gate fires on the
 //! thing he was thinking about, and never enumerates what it is not pointed at.
 
+use mtg_engine::rules::command::CastSpellData;
 use std::collections::HashMap;
 
 use mtg_engine::state::combat::AttackTarget;
@@ -350,23 +351,25 @@ impl Move {
                 source: on_battlefield(state, player, land)?,
                 ability_index: 0,
             }),
-            Move::CastSpell { card, targets, .. } => Some(Command::CastSpell {
-                player,
-                card: in_hand(state, player, card)?,
-                targets: resolve(targets, state, players)?,
-                convoke_creatures: vec![],
-                improvise_artifacts: vec![],
-                delve_cards: vec![],
-                kicker_times: 0,
-                alt_cost: None,
-                prototype: false,
-                modes_chosen: vec![],
-                x_value: 0,
-                hybrid_choices: vec![],
-                phyrexian_life_payments: vec![],
-                face_down_kind: None,
-                additional_costs: vec![],
-            }),
+            Move::CastSpell { card, targets, .. } => {
+                Some(Command::CastSpell(Box::new(CastSpellData {
+                    player,
+                    card: in_hand(state, player, card)?,
+                    targets: resolve(targets, state, players)?,
+                    convoke_creatures: vec![],
+                    improvise_artifacts: vec![],
+                    delve_cards: vec![],
+                    kicker_times: 0,
+                    alt_cost: None,
+                    prototype: false,
+                    modes_chosen: vec![],
+                    x_value: 0,
+                    hybrid_choices: vec![],
+                    phyrexian_life_payments: vec![],
+                    face_down_kind: None,
+                    additional_costs: vec![],
+                })))
+            }
             Move::ActivateAbility {
                 source,
                 index,

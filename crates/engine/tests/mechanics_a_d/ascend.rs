@@ -20,6 +20,7 @@
 //! - Ascend on a spell grants the blessing at resolution, not cast time (CR 702.131a).
 //! - Token permanents count toward the 10-permanent threshold.
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     process_command, CardRegistry, CardType, Command, GameEvent, GameState, GameStateBuilder,
     KeywordAbility, ManaCost, ObjectSpec, PlayerId, Step, ZoneId,
@@ -505,7 +506,7 @@ fn test_ascend_instant_sorcery_on_resolution() {
     // Cast the sorcery.
     let (state, _cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -521,7 +522,7 @@ fn test_ascend_instant_sorcery_on_resolution() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("CastSpell should succeed");
 

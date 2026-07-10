@@ -16,6 +16,7 @@
 //! - A creature with power > N is accepted (power >= N, not power == N).
 
 use mtg_engine::cards::card_definition::{EffectAmount, PlayerTarget};
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
     Effect, GameEvent, GameStateBuilder, KeywordAbility, ManaColor, ManaCost, ObjectSpec, PlayerId,
@@ -232,7 +233,7 @@ fn test_casualty_basic_copy() {
     // Cast Casualty Bolt while sacrificing the 1/1 soldier token.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -251,7 +252,7 @@ fn test_casualty_basic_copy() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell with Casualty 1 (1/1 token) failed: {:?}", e));
 
@@ -384,7 +385,7 @@ fn test_casualty_power_threshold() {
     // Attempt to sacrifice a creature with power 1 for Casualty 2 -- must be rejected.
     let result = process_command(
         state.clone(),
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -403,7 +404,7 @@ fn test_casualty_power_threshold() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_err(),
@@ -413,7 +414,7 @@ fn test_casualty_power_threshold() {
     // Sacrificing a creature with power 2 (== N) should be accepted.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -432,7 +433,7 @@ fn test_casualty_power_threshold() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_ok(),
@@ -451,7 +452,7 @@ fn test_casualty_optional_no_sacrifice() {
     // Cast without providing a sacrifice.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -467,7 +468,7 @@ fn test_casualty_optional_no_sacrifice() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell without casualty should succeed: {:?}", e));
 
@@ -507,7 +508,7 @@ fn test_casualty_not_a_creature() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -526,7 +527,7 @@ fn test_casualty_not_a_creature() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -550,7 +551,7 @@ fn test_casualty_wrong_controller() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -569,7 +570,7 @@ fn test_casualty_wrong_controller() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -622,7 +623,7 @@ fn test_casualty_no_keyword_sacrifice_ignored() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -641,7 +642,7 @@ fn test_casualty_no_keyword_sacrifice_ignored() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     // RC-1: Unclaimed sacrifice is silently ignored.
@@ -666,7 +667,7 @@ fn test_casualty_copy_is_not_cast() {
     // Cast with casualty.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -685,7 +686,7 @@ fn test_casualty_copy_is_not_cast() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell with Casualty failed: {:?}", e));
 
@@ -727,7 +728,7 @@ fn test_casualty_higher_power_accepted() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -746,7 +747,7 @@ fn test_casualty_higher_power_accepted() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -768,7 +769,7 @@ fn test_casualty_creature_not_on_battlefield() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -787,7 +788,7 @@ fn test_casualty_creature_not_on_battlefield() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(

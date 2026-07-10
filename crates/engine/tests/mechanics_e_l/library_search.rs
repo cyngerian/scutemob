@@ -5,6 +5,7 @@
 //! combinations for tutor effects.
 
 use mtg_engine::cards::card_definition::{LibraryPosition, PlayerTarget, ZoneTarget};
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::turn::Step;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
@@ -64,7 +65,7 @@ fn tutor_spell(name: &str, card_id: &str, filter: TargetFilter, to: ZoneTarget) 
 }
 
 fn default_cast(player: PlayerId, card: ObjectId) -> Command {
-    Command::CastSpell {
+    Command::CastSpell(Box::new(CastSpellData {
         player,
         card,
         targets: vec![],
@@ -80,7 +81,7 @@ fn default_cast(player: PlayerId, card: ObjectId) -> Command {
         additional_costs: vec![],
         hybrid_choices: vec![],
         phyrexian_life_payments: vec![],
-    }
+    }))
 }
 
 fn find_by_name(state: &GameState, name: &str) -> ObjectId {

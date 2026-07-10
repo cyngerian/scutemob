@@ -15,6 +15,7 @@
 //! - Tests 5 and 8 are MANDATORY full-dispatch tests (memory/conventions.md).
 //! - Hash test defends against PB-S H1 regression.
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     calculate_characteristics, process_command, CardId, CardRegistry, CardType, Color, Command,
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, GameEvent, GameState,
@@ -58,7 +59,7 @@ fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent
 fn cast_spell(state: GameState, player: PlayerId, card_id: ObjectId) -> GameState {
     let (s, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player,
             card: card_id,
             targets: vec![],
@@ -74,7 +75,7 @@ fn cast_spell(state: GameState, player: PlayerId, card_id: ObjectId) -> GameStat
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
             face_down_kind: None,
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
     s

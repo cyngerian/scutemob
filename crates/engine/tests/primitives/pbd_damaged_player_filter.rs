@@ -10,6 +10,7 @@
 //! - CR 603.3d: If a trigger has no legal target, it is put on the stack but its effect
 //!   does nothing (treated as having been countered on resolution when targets are illegal).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     all_cards, process_command, AbilityDefinition, AttackTarget, CardDefinition, CardId,
     CardRegistry, CardType, Command, Effect, ForEachTarget, GameStateBuilder, ObjectSpec, PlayerId,
@@ -310,7 +311,7 @@ fn test_damaged_player_spell_casting_rejects_filter() {
     // The casting.rs DamagedPlayer arm returns false → the target fails validation.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: instant_id,
             targets: vec![Target::Object(target_id)],
@@ -326,7 +327,7 @@ fn test_damaged_player_spell_casting_rejects_filter() {
             phyrexian_life_payments: vec![],
             face_down_kind: None,
             additional_costs: vec![],
-        },
+        })),
     );
 
     // The cast must fail (InvalidTarget or equivalent) — DamagedPlayer filter blocks all targets.

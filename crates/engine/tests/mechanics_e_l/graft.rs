@@ -17,6 +17,7 @@
 //! - Moving all counters off a 0/0 graft creature causes SBA destruction (CR 704.5f).
 //! - Re-check at resolution: if source loses counter before trigger resolves, trigger fizzles (CR 603.4).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
     CounterType, GameEvent, GameState, GameStateBuilder, KeywordAbility, ManaColor, ManaCost,
@@ -70,7 +71,7 @@ fn cast_and_resolve(
     let card_id = find_object(&state, card_name);
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: caster,
             card: card_id,
             targets: vec![],
@@ -86,7 +87,7 @@ fn cast_and_resolve(
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell '{}' failed: {:?}", card_name, e));
 

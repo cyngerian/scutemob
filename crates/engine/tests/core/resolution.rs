@@ -3,6 +3,7 @@
 //! M3-C: all-pass → resolve top, LIFO order, graveyard/battlefield destination,
 //! priority reset after resolution, and countering.
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::rules::resolution::counter_stack_object;
 use mtg_engine::rules::{process_command, Command, GameEvent};
 use mtg_engine::state::turn::Step;
@@ -62,7 +63,7 @@ fn test_608_1_sorcery_resolves_to_graveyard() {
     // Cast the sorcery.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -78,7 +79,7 @@ fn test_608_1_sorcery_resolves_to_graveyard() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
     assert_eq!(state.stack_objects().len(), 1);
@@ -145,7 +146,7 @@ fn test_608_1_instant_resolves_to_graveyard() {
         .unwrap();
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: card_id,
             targets: vec![],
@@ -161,7 +162,7 @@ fn test_608_1_instant_resolves_to_graveyard() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -212,7 +213,7 @@ fn test_608_3a_creature_enters_battlefield() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -228,7 +229,7 @@ fn test_608_3a_creature_enters_battlefield() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -294,7 +295,7 @@ fn test_608_3a_artifact_enters_battlefield() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -310,7 +311,7 @@ fn test_608_3a_artifact_enters_battlefield() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -356,7 +357,7 @@ fn test_608_1_priority_goes_to_active_player_after_resolution() {
         .unwrap();
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: card_id,
             targets: vec![],
@@ -372,7 +373,7 @@ fn test_608_1_priority_goes_to_active_player_after_resolution() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -439,7 +440,7 @@ fn test_608_1_lifo_resolves_top_first() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: sorcery_id,
             targets: vec![],
@@ -455,7 +456,7 @@ fn test_608_1_lifo_resolves_top_first() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
     assert_eq!(state.stack_objects().len(), 1);
@@ -463,7 +464,7 @@ fn test_608_1_lifo_resolves_top_first() {
     // Now cast the instant on top of the sorcery.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: instant_id,
             targets: vec![],
@@ -479,7 +480,7 @@ fn test_608_1_lifo_resolves_top_first() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
     assert_eq!(state.stack_objects().len(), 2);
@@ -580,7 +581,7 @@ fn test_counter_stack_object_spell_to_graveyard() {
 
     let (mut state, events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -596,7 +597,7 @@ fn test_counter_stack_object_spell_to_graveyard() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -665,7 +666,7 @@ fn test_counter_stack_object_permanent_to_graveyard_not_battlefield() {
 
     let (mut state, events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -681,7 +682,7 @@ fn test_counter_stack_object_permanent_to_graveyard_not_battlefield() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -739,7 +740,7 @@ fn test_608_flash_creature_resolves_to_battlefield() {
     // p1 can cast at instant speed (Flash).
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -755,7 +756,7 @@ fn test_608_flash_creature_resolves_to_battlefield() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 

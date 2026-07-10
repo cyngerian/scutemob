@@ -19,6 +19,7 @@
 //! - Full lifecycle: hand cast -> graveyard -> aftermath cast -> exile.
 
 use mtg_engine::cards::card_definition::{EffectAmount, ForEachTarget, PlayerTarget};
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::types::AltCostKind;
 use mtg_engine::state::CardType;
 use mtg_engine::{
@@ -222,7 +223,7 @@ fn test_aftermath_basic_cast_first_half_from_hand() {
     // p1 casts Cut (first half) from hand normally — no aftermath flag.
     let (state, cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![Target::Object(creature_id)],
@@ -238,7 +239,7 @@ fn test_aftermath_basic_cast_first_half_from_hand() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("CR 709.3: casting first half of aftermath card from hand should succeed");
 
@@ -329,7 +330,7 @@ fn test_aftermath_cast_second_half_from_graveyard() {
     // p1 casts Ribbons (aftermath half) from graveyard.
     let (state, cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -345,7 +346,7 @@ fn test_aftermath_cast_second_half_from_graveyard() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("CR 702.127a: aftermath half should be castable from graveyard");
 
@@ -436,7 +437,7 @@ fn test_aftermath_exile_on_resolution() {
     // Cast the aftermath half (Ribbons) from graveyard.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -452,7 +453,7 @@ fn test_aftermath_exile_on_resolution() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -554,7 +555,7 @@ fn test_aftermath_exile_on_counter() {
     // p1 casts Ribbons from graveyard via aftermath.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: aftermath_id,
             targets: vec![],
@@ -570,7 +571,7 @@ fn test_aftermath_exile_on_counter() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -595,7 +596,7 @@ fn test_aftermath_exile_on_counter() {
     // p2 casts Counterspell targeting Ribbons.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: counter_id,
             targets: vec![Target::Object(spell_on_stack)],
@@ -611,7 +612,7 @@ fn test_aftermath_exile_on_counter() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -697,7 +698,7 @@ fn test_aftermath_cannot_cast_second_half_from_hand() {
     // Attempt to cast aftermath half from hand — must fail.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -713,7 +714,7 @@ fn test_aftermath_cannot_cast_second_half_from_hand() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -773,7 +774,7 @@ fn test_aftermath_cannot_cast_second_half_without_flag() {
     // Try to cast from graveyard without setting any graveyard-casting flag — must fail.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -789,7 +790,7 @@ fn test_aftermath_cannot_cast_second_half_without_flag() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -861,7 +862,7 @@ fn test_aftermath_first_half_goes_to_graveyard() {
     // Cast Cut (first half) from hand — no aftermath flag.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![Target::Object(creature_id)],
@@ -877,7 +878,7 @@ fn test_aftermath_first_half_goes_to_graveyard() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -956,7 +957,7 @@ fn test_aftermath_pays_aftermath_cost() {
     // Cast aftermath half — should succeed with {2}{B}{B}.
     let (state, cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -972,7 +973,7 @@ fn test_aftermath_pays_aftermath_cost() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("CR 702.127a: aftermath cast with {{2}}{{B}}{{B}} should succeed");
 
@@ -1043,7 +1044,7 @@ fn test_aftermath_card_without_aftermath_in_graveyard_fails() {
     // Attempt to cast Lightning Bolt from graveyard as aftermath — must fail.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![Target::Player(p2)],
@@ -1059,7 +1060,7 @@ fn test_aftermath_card_without_aftermath_in_graveyard_fails() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -1128,7 +1129,7 @@ fn test_aftermath_uses_aftermath_effect() {
     // Cast Ribbons (aftermath half) — no targets needed.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -1144,7 +1145,7 @@ fn test_aftermath_uses_aftermath_effect() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -1232,7 +1233,7 @@ fn test_aftermath_full_lifecycle() {
     // Cast Cut from hand.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![Target::Object(creature_id)],
@@ -1248,7 +1249,7 @@ fn test_aftermath_full_lifecycle() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("CR 709.3: first half should cast from hand");
 
@@ -1302,7 +1303,7 @@ fn test_aftermath_full_lifecycle() {
     // Cast Ribbons from graveyard.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_in_graveyard,
             targets: vec![],
@@ -1318,7 +1319,7 @@ fn test_aftermath_full_lifecycle() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("CR 702.127a: aftermath half should be castable from graveyard");
 
@@ -1402,7 +1403,7 @@ fn test_aftermath_insufficient_mana_rejected() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -1418,7 +1419,7 @@ fn test_aftermath_insufficient_mana_rejected() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(

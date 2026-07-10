@@ -29,7 +29,7 @@ pub use rules::protocol::{
     PROTOCOL_SCHEMA_FINGERPRINT, PROTOCOL_VERSION,
 };
 pub use rules::sba::check_and_apply_sbas;
-pub use rules::{Command, GameEvent, LossReason};
+pub use rules::{CastSpellData, Command, GameEvent, LossReason};
 pub use state::builder::register_commander_zone_replacements;
 pub use state::hash::HASH_SCHEMA_VERSION;
 pub use state::types::ALL_CREATURE_TYPES;

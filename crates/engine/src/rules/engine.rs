@@ -6,7 +6,7 @@
 use super::abilities;
 use super::casting;
 use super::combat;
-use super::command::Command;
+use super::command::{CastSpellData, Command};
 use super::commander;
 use super::events::GameEvent;
 use super::foretell;
@@ -101,23 +101,24 @@ pub fn process_command(
             check_and_flush_triggers(&mut state, &mut events);
             all_events.extend(events);
         }
-        Command::CastSpell {
-            player,
-            card,
-            targets,
-            convoke_creatures,
-            improvise_artifacts,
-            delve_cards,
-            kicker_times,
-            alt_cost,
-            prototype,
-            modes_chosen,
-            x_value,
-            hybrid_choices,
-            phyrexian_life_payments,
-            face_down_kind,
-            additional_costs,
-        } => {
+        Command::CastSpell(cast) => {
+            let CastSpellData {
+                player,
+                card,
+                targets,
+                convoke_creatures,
+                improvise_artifacts,
+                delve_cards,
+                kicker_times,
+                alt_cost,
+                prototype,
+                modes_chosen,
+                x_value,
+                hybrid_choices,
+                phyrexian_life_payments,
+                face_down_kind,
+                additional_costs,
+            } = *cast;
             validate_player_active(&state, player)?;
             // CR 104.4b: casting a spell is a meaningful player choice; reset loop detection.
             loop_detection::reset_loop_detection(&mut state);

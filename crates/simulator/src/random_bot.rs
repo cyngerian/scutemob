@@ -3,6 +3,7 @@
 //! Seeded RNG for reproducibility. Biased toward attacking (80/20)
 //! to ensure games progress toward a conclusion.
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     AdditionalCost, AltCostKind, AttackTarget, Command, GameState, ObjectId, PlayerId,
 };
@@ -137,7 +138,7 @@ pub(crate) fn action_to_command(
             player,
             card: *card,
         },
-        LegalAction::CastSpell { card, .. } => Command::CastSpell {
+        LegalAction::CastSpell { card, .. } => Command::CastSpell(Box::new(CastSpellData {
             player,
             card: *card,
             targets: Vec::new(),
@@ -153,7 +154,7 @@ pub(crate) fn action_to_command(
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
         LegalAction::TapForMana {
             source,
             ability_index,
@@ -260,7 +261,7 @@ pub(crate) fn action_to_command(
         LegalAction::CastWithMutate {
             card,
             mutate_target,
-        } => Command::CastSpell {
+        } => Command::CastSpell(Box::new(CastSpellData {
             player,
             card: *card,
             targets: Vec::new(),
@@ -279,29 +280,31 @@ pub(crate) fn action_to_command(
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
         LegalAction::TurnFaceUp { permanent, method } => Command::TurnFaceUp {
             player,
             permanent: *permanent,
             method: method.clone(),
         },
-        LegalAction::CastMorphFaceDown { card, .. } => Command::CastSpell {
-            player,
-            card: *card,
-            targets: Vec::new(),
-            convoke_creatures: Vec::new(),
-            improvise_artifacts: Vec::new(),
-            delve_cards: Vec::new(),
-            kicker_times: 0,
-            alt_cost: Some(AltCostKind::Morph),
-            prototype: false,
-            modes_chosen: Vec::new(),
-            x_value: 0,
-            face_down_kind: None,
-            additional_costs: vec![],
-            hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
-        },
+        LegalAction::CastMorphFaceDown { card, .. } => {
+            Command::CastSpell(Box::new(CastSpellData {
+                player,
+                card: *card,
+                targets: Vec::new(),
+                convoke_creatures: Vec::new(),
+                improvise_artifacts: Vec::new(),
+                delve_cards: Vec::new(),
+                kicker_times: 0,
+                alt_cost: Some(AltCostKind::Morph),
+                prototype: false,
+                modes_chosen: Vec::new(),
+                x_value: 0,
+                face_down_kind: None,
+                additional_costs: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
+            }))
+        }
         LegalAction::ActivateLoyaltyAbility {
             source,
             ability_index,

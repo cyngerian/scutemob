@@ -14,6 +14,7 @@
 //! - Card without Prototype ability cannot be cast with prototype: true (CR 702.160a).
 //! - SBAs apply to prototype P/T (CR 704.5f).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::test_util;
 use mtg_engine::state::types::AltCostKind;
 use mtg_engine::{
@@ -201,7 +202,7 @@ fn test_prototype_basic_cast() {
     // Cast as prototyped spell.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -217,7 +218,7 @@ fn test_prototype_basic_cast() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell with prototype failed: {:?}", e));
 
@@ -317,7 +318,7 @@ fn test_prototype_normal_cast() {
     // Cast without prototype.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -333,7 +334,7 @@ fn test_prototype_normal_cast() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell normally failed: {:?}", e));
 
@@ -426,7 +427,7 @@ fn test_prototype_color_change() {
     let card_id = find_object(&state, "Blitz Automaton");
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -442,7 +443,7 @@ fn test_prototype_color_change() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
     let (state, _) = pass_all(state, &[p1, p2]);
@@ -509,7 +510,7 @@ fn test_prototype_mana_value() {
     let card_id = find_object(&state, "Blitz Automaton");
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -525,7 +526,7 @@ fn test_prototype_mana_value() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
     let (state, _) = pass_all(state, &[p1, p2]);
@@ -591,7 +592,7 @@ fn test_prototype_leaves_battlefield_resumes_normal() {
     let card_id = find_object(&state, "Blitz Automaton");
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -607,7 +608,7 @@ fn test_prototype_leaves_battlefield_resumes_normal() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
     let (state, _) = pass_all(state, &[p1, p2]);
@@ -836,7 +837,7 @@ fn test_prototype_retains_keyword_ability() {
     let card_id = find_object(&state, "Haste Automaton");
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -852,7 +853,7 @@ fn test_prototype_retains_keyword_ability() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
     let (state, _) = pass_all(state, &[p1, p2]);
@@ -918,7 +919,7 @@ fn test_prototype_negative_not_prototype_keyword() {
     // Attempting prototype: true on a card without Prototype ability should fail.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -934,7 +935,7 @@ fn test_prototype_negative_not_prototype_keyword() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -1043,7 +1044,7 @@ fn test_prototype_stack_characteristics() {
     let card_id = find_object(&state, "Blitz Automaton");
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -1059,7 +1060,7 @@ fn test_prototype_stack_characteristics() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 

@@ -273,12 +273,14 @@ impl PlayApp {
         }
 
         // Auto-tap mana before casting spells
-        if let Command::CastSpell { player, card, .. } = &cmd {
-            if let Ok(obj) = self.state.object(*card) {
+        if let Command::CastSpell(cast) = &cmd {
+            if let Ok(obj) = self.state.object(cast.card) {
                 if let Some(ref cost) = obj.characteristics.mana_cost {
-                    if let Some(tap_cmds) =
-                        mtg_simulator::mana_solver::solve_mana_payment(&self.state, *player, cost)
-                    {
+                    if let Some(tap_cmds) = mtg_simulator::mana_solver::solve_mana_payment(
+                        &self.state,
+                        cast.player,
+                        cost,
+                    ) {
                         for tap_cmd in tap_cmds {
                             self.execute_command(tap_cmd)?;
                         }

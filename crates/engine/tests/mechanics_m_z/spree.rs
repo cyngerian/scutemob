@@ -11,6 +11,7 @@
 //! - CR 700.2d: Duplicate mode indices are rejected.
 //! - CR 118.8d: Mana value equals printed mana cost only (not affected by mode costs).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::CardType;
 use mtg_engine::Effect;
 use mtg_engine::{
@@ -237,7 +238,7 @@ fn test_spree_single_mode_adds_mode_cost() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -253,7 +254,7 @@ fn test_spree_single_mode_adds_mode_cost() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("cast with mode 0 failed: {:?}", e));
 
@@ -301,7 +302,7 @@ fn test_spree_two_modes_adds_both_costs() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -317,7 +318,7 @@ fn test_spree_two_modes_adds_both_costs() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("cast with modes [0,1] failed: {:?}", e));
 
@@ -364,7 +365,7 @@ fn test_spree_all_three_modes() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -380,7 +381,7 @@ fn test_spree_all_three_modes() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("cast with all 3 modes failed: {:?}", e));
 
@@ -423,7 +424,7 @@ fn test_spree_zero_modes_rejected() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -439,7 +440,7 @@ fn test_spree_zero_modes_rejected() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_err(),
@@ -473,7 +474,7 @@ fn test_spree_insufficient_mana_rejected() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -489,7 +490,7 @@ fn test_spree_insufficient_mana_rejected() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_err(),
@@ -515,7 +516,7 @@ fn test_spree_duplicate_mode_rejected() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -531,7 +532,7 @@ fn test_spree_duplicate_mode_rejected() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_err(),
@@ -561,7 +562,7 @@ fn test_spree_mode_order_ascending() {
     // Supply modes in reverse index order [2, 0].
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -577,7 +578,7 @@ fn test_spree_mode_order_ascending() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("cast with modes [2,0] failed: {:?}", e));
 
@@ -657,7 +658,7 @@ fn test_spree_non_spree_spell_unchanged() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -673,7 +674,7 @@ fn test_spree_non_spree_spell_unchanged() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_ok(),
@@ -736,7 +737,7 @@ fn cast_insatiable_avarice(
     let spell_id = find_object(&state, "Insatiable Avarice");
     process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -752,7 +753,7 @@ fn cast_insatiable_avarice(
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
 }
 

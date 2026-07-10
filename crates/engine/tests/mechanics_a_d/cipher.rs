@@ -18,6 +18,7 @@
 //! - Copies of cipher spells do NOT trigger encoding (CR 702.99a: "represented by a card").
 //! - Blocked creature deals no player damage -- cipher trigger does not fire (CR 510.1c).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     process_command, AbilityDefinition, AttackTarget, CardDefinition, CardId, CardRegistry,
     CardType, Command, Completeness, Effect, EffectAmount, GameEvent, GameState, GameStateBuilder,
@@ -74,7 +75,7 @@ fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent
 fn cast_spell(state: GameState, player: PlayerId, card: ObjectId) -> (GameState, Vec<GameEvent>) {
     process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player,
             card,
             targets: vec![],
@@ -90,7 +91,7 @@ fn cast_spell(state: GameState, player: PlayerId, card: ObjectId) -> (GameState,
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e))
 }

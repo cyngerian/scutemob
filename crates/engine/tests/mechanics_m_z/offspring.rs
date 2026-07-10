@@ -17,6 +17,7 @@
 //! - If the source leaves the battlefield before the trigger resolves, the token IS still
 //!   created (ruling 2024-07-26 LKI -- different from Squad's skip behavior).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::test_util;
 use mtg_engine::AdditionalCost;
 use mtg_engine::{
@@ -197,7 +198,7 @@ fn cast_offspring(
 ) -> (mtg_engine::GameState, Vec<GameEvent>) {
     process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: caster,
             card: card_id,
             targets: vec![],
@@ -217,7 +218,7 @@ fn cast_offspring(
             },
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| {
         panic!(
@@ -423,7 +424,7 @@ fn test_offspring_rejected_without_keyword() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -439,7 +440,7 @@ fn test_offspring_rejected_without_keyword() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(

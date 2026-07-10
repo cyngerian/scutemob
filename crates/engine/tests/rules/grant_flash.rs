@@ -19,6 +19,7 @@
 //! - CR 101.2: OpponentsCanOnlyCastAtSorcerySpeed restriction overrides flash grants
 
 use mtg_engine::cards::card_definition::{EffectAmount, PlayerTarget};
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::stubs::{ActiveRestriction, FlashGrant};
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Color,
@@ -68,7 +69,7 @@ fn advance_to_next_turn(mut state: GameState, players: &[PlayerId]) -> (GameStat
 
 /// Build a CastSpell command with only required fields; rest are defaults.
 fn cast_spell_cmd(player: PlayerId, card: ObjectId) -> Command {
-    Command::CastSpell {
+    Command::CastSpell(Box::new(CastSpellData {
         player,
         card,
         targets: vec![],
@@ -84,7 +85,7 @@ fn cast_spell_cmd(player: PlayerId, card: ObjectId) -> Command {
         phyrexian_life_payments: vec![],
         face_down_kind: None,
         additional_costs: vec![],
-    }
+    }))
 }
 
 // ── Card definitions ───────────────────────────────────────────────────────────

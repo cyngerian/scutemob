@@ -25,7 +25,7 @@ pub mod sba;
 pub mod suspend;
 pub mod turn_actions;
 pub mod turn_structure;
-pub use command::Command;
+pub use command::{CastSpellData, Command};
 pub use engine::process_command;
 pub use events::{GameEvent, LossReason};
 pub use layers::calculate_characteristics;

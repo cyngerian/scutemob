@@ -7,6 +7,7 @@
 //! - Acererak bounces to hand when Tomb of Annihilation not completed (CR 603.4 intervening-if)
 //! - TakeTheInitiative forces venture into Undercity (CR 725.2, CR 701.49d)
 
+use mtg_engine::rules::command::CastSpellData;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -98,7 +99,7 @@ fn test_nadaar_enters_ventures() {
     // Cast Nadaar.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: nadaar_id,
             targets: vec![],
@@ -114,7 +115,7 @@ fn test_nadaar_enters_ventures() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("casting Nadaar should succeed");
 
@@ -388,7 +389,7 @@ fn test_acererak_bounces_without_tomb() {
     // Cast Acererak.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: acererak_id,
             targets: vec![],
@@ -404,7 +405,7 @@ fn test_acererak_bounces_without_tomb() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("casting Acererak should succeed");
 
@@ -525,7 +526,7 @@ fn test_acererak_stays_after_tomb_completed() {
     // Cast Acererak.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: acererak_id,
             targets: vec![],
@@ -541,7 +542,7 @@ fn test_acererak_stays_after_tomb_completed() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("casting Acererak should succeed");
 
@@ -649,7 +650,7 @@ fn test_initiative_take_ventures_undercity() {
     // Cast Seasoned Dungeoneer.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: dungeoneer_id,
             targets: vec![],
@@ -665,7 +666,7 @@ fn test_initiative_take_ventures_undercity() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("casting Seasoned Dungeoneer should succeed");
 

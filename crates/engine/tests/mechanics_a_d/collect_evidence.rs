@@ -16,6 +16,7 @@
 //! - Cards must be in the caster's graveyard, not on the battlefield or opponent's graveyard.
 
 use mtg_engine::cards::card_definition::{Condition, EffectAmount, PlayerTarget};
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::AdditionalCost;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
@@ -291,7 +292,7 @@ fn test_collect_evidence_basic_exile_from_graveyard() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -309,7 +310,7 @@ fn test_collect_evidence_basic_exile_from_graveyard() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -354,7 +355,7 @@ fn test_collect_evidence_over_threshold_allowed() {
     // Should succeed: 3+4=7 >= 6
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -372,7 +373,7 @@ fn test_collect_evidence_over_threshold_allowed() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_ok(),
@@ -393,7 +394,7 @@ fn test_collect_evidence_under_threshold_rejected() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -411,7 +412,7 @@ fn test_collect_evidence_under_threshold_rejected() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_err(),
@@ -435,7 +436,7 @@ fn test_collect_evidence_not_collected_optional() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -451,7 +452,7 @@ fn test_collect_evidence_not_collected_optional() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -489,7 +490,7 @@ fn test_collect_evidence_insufficient_single_card_rejected() {
     // MV 4 < threshold 6 -- should fail.
     let fail_result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -505,7 +506,7 @@ fn test_collect_evidence_insufficient_single_card_rejected() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         fail_result.is_err(),
@@ -558,7 +559,7 @@ fn test_collect_evidence_mandatory_without_cards_rejected() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -574,7 +575,7 @@ fn test_collect_evidence_mandatory_without_cards_rejected() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_err(),
@@ -594,7 +595,7 @@ fn test_collect_evidence_duplicate_card_rejected() {
     // Provide the same ObjectId twice.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -612,7 +613,7 @@ fn test_collect_evidence_duplicate_card_rejected() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_err(),
@@ -642,7 +643,7 @@ fn test_collect_evidence_card_not_in_graveyard_rejected() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -658,7 +659,7 @@ fn test_collect_evidence_card_not_in_graveyard_rejected() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_err(),
@@ -680,7 +681,7 @@ fn test_collect_evidence_opponents_graveyard_rejected() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -698,7 +699,7 @@ fn test_collect_evidence_opponents_graveyard_rejected() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_err(),
@@ -747,7 +748,7 @@ fn test_collect_evidence_spell_without_ability_rejected() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -763,7 +764,7 @@ fn test_collect_evidence_spell_without_ability_rejected() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_err(),
@@ -816,7 +817,7 @@ fn test_collect_evidence_mana_not_reduced() {
     // Should fail: not enough mana ({W} only, needs {2}{W}).
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -832,7 +833,7 @@ fn test_collect_evidence_mana_not_reduced() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_err(),

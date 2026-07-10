@@ -27,6 +27,7 @@
 
 use mtg_engine::effects::{execute_effect, EffectContext};
 use mtg_engine::rules::abilities::{check_triggers, flush_pending_triggers};
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::test_util;
 use mtg_engine::{
     all_cards, enrich_spec_from_def, process_command, CardDefinition, CardId, CardRegistry,
@@ -131,7 +132,7 @@ fn cast_spell(
     state.turn_mut().priority_holder = Some(player);
     process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player,
             card: card_id,
             targets,
@@ -147,7 +148,7 @@ fn cast_spell(
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell({}) failed: {:?}", name, e))
 }

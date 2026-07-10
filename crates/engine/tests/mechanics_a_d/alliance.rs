@@ -13,6 +13,7 @@
 //! - Tokens count: a creature token entering under your control triggers Alliance
 //!   (per Gala Greeters ruling 2022-04-29 — verified via the creature_only=true filter).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Color,
     Command, ETBTriggerFilter, Effect, EffectAmount, GameEvent, GameState, GameStateBuilder,
@@ -150,7 +151,7 @@ fn cast_creature(
 
     process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player,
             card: card_id,
             targets: vec![],
@@ -166,7 +167,7 @@ fn cast_creature(
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("CastSpell failed")
 }
@@ -511,7 +512,7 @@ fn test_alliance_does_not_fire_on_noncreature_permanent_etb() {
 
     let (state, _cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: artifact_id,
             targets: vec![],
@@ -527,7 +528,7 @@ fn test_alliance_does_not_fire_on_noncreature_permanent_etb() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("CastSpell (Sol Ring) failed");
 

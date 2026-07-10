@@ -11,6 +11,7 @@
 //! - CR 701.3c: New timestamp on reattach (layer ordering).
 //! - CR 602.5d: Sorcery-speed means active player's main phase, empty stack.
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::test_util;
 use mtg_engine::state::{
     ActivatedAbility, ActivationCost, ContinuousEffect, EffectId, GameStateError,
@@ -350,7 +351,7 @@ fn test_equip_sorcery_speed_stack_not_empty() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: instant_id,
             targets: vec![],
@@ -366,7 +367,7 @@ fn test_equip_sorcery_speed_stack_not_empty() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 

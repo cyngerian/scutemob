@@ -16,6 +16,7 @@
 //! being countered after firing. Non-creature permanents are unaffected when
 //! `ETBSuppressFilter::CreaturesOnly` is used.
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
     Completeness, ContinuousEffect, ETBSuppressFilter, Effect, EffectAmount, EffectDuration,
@@ -234,7 +235,7 @@ fn test_ig1_layer6_remove_all_abilities_suppresses_etb_trigger() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1(),
             card: card_id,
             targets: vec![],
@@ -250,7 +251,7 @@ fn test_ig1_layer6_remove_all_abilities_suppresses_etb_trigger() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -332,7 +333,7 @@ fn test_ig1_without_layer6_effect_etb_trigger_fires_normally() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1(),
             card: card_id,
             targets: vec![],
@@ -348,7 +349,7 @@ fn test_ig1_without_layer6_effect_etb_trigger_fires_normally() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -432,7 +433,7 @@ fn test_ig2_torpor_orb_suppresses_creature_etb() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1(),
             card: orb_id,
             targets: vec![],
@@ -448,7 +449,7 @@ fn test_ig2_torpor_orb_suppresses_creature_etb() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -488,7 +489,7 @@ fn test_ig2_torpor_orb_suppresses_creature_etb() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1(),
             card: creature_id,
             targets: vec![],
@@ -504,7 +505,7 @@ fn test_ig2_torpor_orb_suppresses_creature_etb() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -586,7 +587,7 @@ fn test_ig2_torpor_orb_does_not_suppress_non_creature_etb() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1(),
             card: orb_id,
             targets: vec![],
@@ -602,7 +603,7 @@ fn test_ig2_torpor_orb_does_not_suppress_non_creature_etb() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -629,7 +630,7 @@ fn test_ig2_torpor_orb_does_not_suppress_non_creature_etb() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1(),
             card: enc_id,
             targets: vec![],
@@ -645,7 +646,7 @@ fn test_ig2_torpor_orb_does_not_suppress_non_creature_etb() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -731,7 +732,7 @@ fn test_ig2_removing_torpor_orb_restores_etb_triggers() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1(),
             card: orb_id,
             targets: vec![],
@@ -747,7 +748,7 @@ fn test_ig2_removing_torpor_orb_restores_etb_triggers() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -807,7 +808,7 @@ fn test_ig2_removing_torpor_orb_restores_etb_triggers() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1(),
             card: creature_id,
             targets: vec![],
@@ -823,7 +824,7 @@ fn test_ig2_removing_torpor_orb_restores_etb_triggers() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 

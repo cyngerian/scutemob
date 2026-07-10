@@ -26,6 +26,7 @@
 //! `CardDefinition` / `TriggeredAbilityDef` fixtures, not the shipped cards.
 
 use mtg_engine::effects::{check_condition, execute_effect, matches_filter, EffectContext};
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::game_object::{ActivatedAbility, ActivationCost};
 use mtg_engine::state::CardType;
 use mtg_engine::{
@@ -504,7 +505,7 @@ fn test_becomes_target_self_by_spell() {
 
         let (state, _) = process_command(
             state,
-            Command::CastSpell {
+            Command::CastSpell(Box::new(CastSpellData {
                 player: p2,
                 card: spell_id,
                 targets: vec![Target::Object(creature_id)],
@@ -520,7 +521,7 @@ fn test_becomes_target_self_by_spell() {
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            },
+            })),
         )
         .unwrap();
 
@@ -693,7 +694,7 @@ fn test_becomes_target_scope_you_control() {
         let before_life = life_total(&state, p1);
         let (state, _) = process_command(
             state,
-            Command::CastSpell {
+            Command::CastSpell(Box::new(CastSpellData {
                 player: p2,
                 card: spell_id,
                 targets: vec![Target::Object(target_id)],
@@ -709,7 +710,7 @@ fn test_becomes_target_scope_you_control() {
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            },
+            })),
         )
         .unwrap();
         let (state, _) = pass_all(state, &[p2, p1]);
@@ -729,7 +730,7 @@ fn test_becomes_target_scope_you_control() {
         let before_life = life_total(&state, p1);
         let (state, _) = process_command(
             state,
-            Command::CastSpell {
+            Command::CastSpell(Box::new(CastSpellData {
                 player: p2,
                 card: spell_id,
                 targets: vec![Target::Object(target_id)],
@@ -745,7 +746,7 @@ fn test_becomes_target_scope_you_control() {
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            },
+            })),
         )
         .unwrap();
         let (state, _) = pass_all(state, &[p2, p1]);
@@ -826,7 +827,7 @@ fn test_becomes_target_by_opponent_gate() {
         let before_life = life_total(&state, p1);
         let (state, _) = process_command(
             state,
-            Command::CastSpell {
+            Command::CastSpell(Box::new(CastSpellData {
                 player: p1,
                 card: spell_id,
                 targets: vec![Target::Object(target_id)],
@@ -842,7 +843,7 @@ fn test_becomes_target_by_opponent_gate() {
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            },
+            })),
         )
         .unwrap();
         let (state, _) = pass_all(state, &[p1, p2]);
@@ -862,7 +863,7 @@ fn test_becomes_target_by_opponent_gate() {
         let before_life = life_total(&state, p1);
         let (state, _) = process_command(
             state,
-            Command::CastSpell {
+            Command::CastSpell(Box::new(CastSpellData {
                 player: p2,
                 card: spell_id,
                 targets: vec![Target::Object(target_id)],
@@ -878,7 +879,7 @@ fn test_becomes_target_by_opponent_gate() {
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            },
+            })),
         )
         .unwrap();
         let (state, _) = pass_all(state, &[p2, p1]);
@@ -953,7 +954,7 @@ fn test_becomes_target_fires_at_announcement_not_resolution() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: spell_id,
             targets: vec![Target::Object(creature_id)],
@@ -969,7 +970,7 @@ fn test_becomes_target_fires_at_announcement_not_resolution() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 

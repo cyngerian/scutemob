@@ -4390,7 +4390,7 @@ pub fn handle_cast_spell(
                 object_id: ev_id,
                 new_exile_id,
                 pre_lba_counters: imbl::OrdMap::new(), // graveyard→exile: no battlefield counters
-                pre_lba_power: None,                 // graveyard→exile: no battlefield power
+                pre_lba_power: None,                   // graveyard→exile: no battlefield power
             });
         }
     }
@@ -5405,7 +5405,7 @@ fn apply_escape_exile_cost(
             object_id: id,
             new_exile_id,
             pre_lba_counters: imbl::OrdMap::new(), // graveyard→exile: no battlefield counters
-            pre_lba_power: None,                 // graveyard→exile: no battlefield power
+            pre_lba_power: None,                   // graveyard→exile: no battlefield power
         });
     }
     Ok(())
@@ -5711,7 +5711,7 @@ fn apply_delve_reduction(
             object_id: id,
             new_exile_id,
             pre_lba_counters: imbl::OrdMap::new(), // graveyard→exile: no battlefield counters
-            pre_lba_power: None,                 // graveyard→exile: no battlefield power
+            pre_lba_power: None,                   // graveyard→exile: no battlefield power
         });
     }
     // If the original cost was Some, return Some(reduced); if it was None, return None.

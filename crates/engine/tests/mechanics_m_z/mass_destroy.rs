@@ -9,6 +9,7 @@
 
 use mtg_engine::cards::card_definition::PlayerTarget;
 use mtg_engine::effects::{execute_effect, EffectContext};
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     all_cards, process_command, CardRegistry, CardType, Command, Effect, EffectAmount,
     EffectDuration, GameEvent, GameState, GameStateBuilder, KeywordAbility, ManaColor, ManaCost,
@@ -748,7 +749,7 @@ fn test_fumigate_card_integration() {
     // Cast Fumigate.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: fumigate_id,
             targets: vec![],
@@ -764,7 +765,7 @@ fn test_fumigate_card_integration() {
             phyrexian_life_payments: vec![],
             face_down_kind: None,
             additional_costs: vec![],
-        },
+        })),
     )
     .unwrap();
 

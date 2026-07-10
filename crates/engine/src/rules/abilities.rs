@@ -2203,7 +2203,7 @@ pub fn handle_embalm_card(
         object_id: card,
         new_exile_id: exile_id,
         pre_lba_counters: imbl::OrdMap::new(), // graveyard→exile: no battlefield counters
-        pre_lba_power: None,                 // graveyard→exile: no battlefield power to snapshot
+        pre_lba_power: None,                   // graveyard→exile: no battlefield power to snapshot
     });
     // 10. Push the embalm ability onto the stack as EmbalmAbility.
     //     We store source_card_id (the registry key) instead of the ObjectId
@@ -2376,7 +2376,7 @@ pub fn handle_eternalize_card(
         object_id: card,
         new_exile_id: exile_id,
         pre_lba_counters: imbl::OrdMap::new(), // graveyard→exile: no battlefield counters
-        pre_lba_power: None,                 // graveyard→exile: no battlefield power to snapshot
+        pre_lba_power: None,                   // graveyard→exile: no battlefield power to snapshot
     });
     // 10. Push the eternalize ability onto the stack as EternalizeAbility.
     //     We store source_card_id (the registry key) instead of the ObjectId
@@ -2552,7 +2552,7 @@ pub fn handle_encore_card(
         object_id: card,
         new_exile_id: exile_id,
         pre_lba_counters: imbl::OrdMap::new(), // graveyard→exile: no battlefield counters
-        pre_lba_power: None,                 // graveyard→exile: no battlefield power to snapshot
+        pre_lba_power: None,                   // graveyard→exile: no battlefield power to snapshot
     });
     // 10. Push the encore ability onto the stack as EncoreAbility.
     //     We store source_card_id (the registry key) instead of the ObjectId
@@ -8588,7 +8588,7 @@ pub fn handle_scavenge_card(
         object_id: card,
         new_exile_id: exile_id,
         pre_lba_counters: imbl::OrdMap::new(), // graveyard→exile: no battlefield counters
-        pre_lba_power: None,                 // graveyard→exile: no battlefield power to snapshot
+        pre_lba_power: None,                   // graveyard→exile: no battlefield power to snapshot
     });
     // 11. Push the ScavengeAbility onto the stack with the target creature.
     // MR-TC-25: use trigger_default; override targets with the scavenge target.

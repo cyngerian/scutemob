@@ -10,6 +10,7 @@
 
 use imbl::Vector;
 use mtg_engine::cards::card_definition::GiftType;
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::rules::engine::process_command;
 use mtg_engine::{
     AbilityDefinition, AdditionalCost, CardDefinition, CardId, CardRegistry, CardType, Command,
@@ -347,7 +348,7 @@ fn cast_extra_turn_spell(
 ) -> (GameState, Vec<GameEvent>) {
     process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player,
             card: card_obj_id,
             targets: vec![],
@@ -363,7 +364,7 @@ fn cast_extra_turn_spell(
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e))
 }
@@ -377,7 +378,7 @@ fn cast_gift_extra_turn(
 ) -> (GameState, Vec<GameEvent>) {
     process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player,
             card: card_obj_id,
             targets: vec![],
@@ -395,7 +396,7 @@ fn cast_gift_extra_turn(
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell (gift) failed: {:?}", e))
 }

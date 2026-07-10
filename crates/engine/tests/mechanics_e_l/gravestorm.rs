@@ -14,6 +14,7 @@
 //! - Counter resets to 0 at the start of each new turn (CR 702.69a "this turn").
 //! - Counter includes permanents from ALL players (ruling 2024-02-02).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::test_util;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
@@ -57,7 +58,7 @@ fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent
 fn cast_spell(state: GameState, player: PlayerId, card: ObjectId) -> (GameState, Vec<GameEvent>) {
     process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player,
             card,
             targets: vec![],
@@ -73,7 +74,7 @@ fn cast_spell(state: GameState, player: PlayerId, card: ObjectId) -> (GameState,
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e))
 }

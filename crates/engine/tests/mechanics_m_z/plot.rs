@@ -20,6 +20,7 @@
 //! - Plot free-cast cannot combine with other alt costs (CR 118.9a)
 //! - CR 400.7: new ObjectId after zone change
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::test_util;
 use mtg_engine::state::types::AltCostKind;
 use mtg_engine::{
@@ -391,7 +392,7 @@ fn test_plot_cannot_cast_same_turn() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: exile_id,
             targets: vec![],
@@ -407,7 +408,7 @@ fn test_plot_cannot_cast_same_turn() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -456,7 +457,7 @@ fn test_plot_cast_from_exile_on_later_turn() {
     // Cast it for free via Plot.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: exile_id,
             targets: vec![],
@@ -472,7 +473,7 @@ fn test_plot_cast_from_exile_on_later_turn() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -535,7 +536,7 @@ fn test_plot_free_cast_costs_zero() {
     // Player has NO mana -- should still succeed because free-cast costs zero.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: exile_id,
             targets: vec![],
@@ -551,7 +552,7 @@ fn test_plot_free_cast_costs_zero() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -742,7 +743,7 @@ fn test_plot_free_cast_requires_sorcery_timing() {
     // Try to cast during Upkeep -- should fail (CR 702.170d: "during their main phase").
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: exile_id,
             targets: vec![],
@@ -758,7 +759,7 @@ fn test_plot_free_cast_requires_sorcery_timing() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -989,7 +990,7 @@ fn test_plot_mutual_exclusion_not_plotted_card() {
     // Attempt to cast with AltCostKind::Plot but card is not plotted.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: exile_id,
             targets: vec![],
@@ -1005,7 +1006,7 @@ fn test_plot_mutual_exclusion_not_plotted_card() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -1126,7 +1127,7 @@ fn test_plot_mana_value_unchanged_on_stack() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: exile_id,
             targets: vec![],
@@ -1142,7 +1143,7 @@ fn test_plot_mana_value_unchanged_on_stack() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -1258,7 +1259,7 @@ fn test_plot_free_cast_requires_empty_stack() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: exile_id,
             targets: vec![],
@@ -1274,7 +1275,7 @@ fn test_plot_free_cast_requires_empty_stack() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -1320,7 +1321,7 @@ fn test_plot_free_cast_requires_own_turn() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: exile_id,
             targets: vec![],
@@ -1336,7 +1337,7 @@ fn test_plot_free_cast_requires_own_turn() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -1389,7 +1390,7 @@ fn test_plot_normal_cast_still_works() {
     // Cast with no alt_cost (normal cast by paying mana cost).
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -1405,7 +1406,7 @@ fn test_plot_normal_cast_still_works() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -1451,7 +1452,7 @@ fn test_plot_cast_postcombat_main_phase() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: exile_id,
             targets: vec![],
@@ -1467,7 +1468,7 @@ fn test_plot_cast_postcombat_main_phase() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -1569,7 +1570,7 @@ fn test_plot_turn_tracking_boundary() {
     // Should fail: same turn as plotted.
     let result = process_command(
         state.clone(),
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: exile_id,
             targets: vec![],
@@ -1585,7 +1586,7 @@ fn test_plot_turn_tracking_boundary() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_err(),
@@ -1596,7 +1597,7 @@ fn test_plot_turn_tracking_boundary() {
     state.turn_mut().turn_number = 4;
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: exile_id,
             targets: vec![],
@@ -1612,7 +1613,7 @@ fn test_plot_turn_tracking_boundary() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_ok(),

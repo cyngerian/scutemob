@@ -14,6 +14,7 @@
 //! - Undaunted counts opponents in multiplayer — scales with player count.
 
 use mtg_engine::process_command;
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     AffinityTarget, CardId, CardType, Command, GameState, GameStateBuilder, KeywordAbility,
     ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerId, Step, SuperType, ZoneId,
@@ -73,7 +74,7 @@ fn cast_spell(
 ) -> Result<(GameState, Vec<mtg_engine::GameEvent>), mtg_engine::GameStateError> {
     process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player,
             card,
             targets: vec![],
@@ -89,7 +90,7 @@ fn cast_spell(
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
 }
 

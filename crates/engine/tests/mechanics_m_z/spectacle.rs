@@ -18,6 +18,7 @@
 //! - Multiplayer: ANY opponent losing life enables spectacle (CR 702.137a).
 //! - Commander tax applies on top of spectacle cost (CR 118.9d).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::types::AltCostKind;
 use mtg_engine::{
     process_command, register_commander_zone_replacements, AbilityDefinition, CardDefinition,
@@ -171,7 +172,7 @@ fn test_spectacle_basic_cast_after_opponent_life_loss() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -187,7 +188,7 @@ fn test_spectacle_basic_cast_after_opponent_life_loss() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -235,7 +236,7 @@ fn test_spectacle_rejected_when_no_opponent_lost_life() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -251,7 +252,7 @@ fn test_spectacle_rejected_when_no_opponent_lost_life() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -288,7 +289,7 @@ fn test_spectacle_normal_cast_without_spectacle() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -304,7 +305,7 @@ fn test_spectacle_normal_cast_without_spectacle() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -353,7 +354,7 @@ fn test_spectacle_no_keyword_rejects() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -369,7 +370,7 @@ fn test_spectacle_no_keyword_rejects() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -411,7 +412,7 @@ fn test_spectacle_valid_cast_with_preconditions_met() {
     // mana pool covers the spectacle cost {1}{R}.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -427,7 +428,7 @@ fn test_spectacle_valid_cast_with_preconditions_met() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_ok(),
@@ -548,7 +549,7 @@ fn test_spectacle_life_lost_counter_not_set_for_infect() {
     // Spectacle cast should be REJECTED because no opponent has lost life this turn.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -564,7 +565,7 @@ fn test_spectacle_life_lost_counter_not_set_for_infect() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -641,7 +642,7 @@ fn test_spectacle_multiplayer_any_opponent_enables() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -657,7 +658,7 @@ fn test_spectacle_multiplayer_any_opponent_enables() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -698,7 +699,7 @@ fn test_spectacle_own_life_loss_does_not_enable() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -714,7 +715,7 @@ fn test_spectacle_own_life_loss_does_not_enable() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -794,7 +795,7 @@ fn test_spectacle_life_lost_counter_tracks_lose_life_effect() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -810,7 +811,7 @@ fn test_spectacle_life_lost_counter_tracks_lose_life_effect() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -936,7 +937,7 @@ fn test_spectacle_commander_tax_applies() {
     // Cast the commander from the command zone with spectacle.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: cmd_obj_id,
             targets: vec![],
@@ -952,7 +953,7 @@ fn test_spectacle_commander_tax_applies() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(

@@ -5990,7 +5990,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         object_id: card_id,
                         new_exile_id,
                         pre_lba_counters: imbl::OrdMap::new(), // library→exile: no battlefield counters
-                        pre_lba_power: None,                 // library→exile: no battlefield power
+                        pre_lba_power: None, // library→exile: no battlefield power
                     });
                 }
             }

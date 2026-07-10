@@ -18,6 +18,7 @@
 //! - WhilePaired CEs grant effects to both creatures while paired.
 //! - No trigger fires if no other unpaired creature exists (CR 702.95a intervening-if).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::test_util;
 use mtg_engine::{
     calculate_characteristics, check_and_apply_sbas, process_command, AbilityDefinition,
@@ -72,7 +73,7 @@ fn cast_and_resolve(
     let card_id = find_object(&state, card_name);
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: caster,
             card: card_id,
             targets: vec![],
@@ -88,7 +89,7 @@ fn cast_and_resolve(
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell '{}' failed: {:?}", card_name, e));
 

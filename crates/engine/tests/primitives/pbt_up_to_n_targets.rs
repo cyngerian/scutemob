@@ -19,6 +19,7 @@
 //!   ALL targets become illegal. If some remain, the spell resolves for those.
 //! - CR 400.7: Objects that move zones become new objects with new identity.
 
+use mtg_engine::rules::command::CastSpellData;
 use std::sync::Arc;
 
 use mtg_engine::cards::card_definition::{
@@ -72,7 +73,7 @@ fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent
 }
 
 fn cast_spell(player: PlayerId, card: ObjectId, targets: Vec<Target>) -> Command {
-    Command::CastSpell {
+    Command::CastSpell(Box::new(CastSpellData {
         player,
         card,
         targets,
@@ -88,7 +89,7 @@ fn cast_spell(player: PlayerId, card: ObjectId, targets: Vec<Target>) -> Command
         additional_costs: vec![],
         hybrid_choices: vec![],
         phyrexian_life_payments: vec![],
-    }
+    }))
 }
 
 /// Build a destroy spell with UpToN targeting artifacts.

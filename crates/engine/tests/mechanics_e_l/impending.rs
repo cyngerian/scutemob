@@ -20,6 +20,7 @@
 //! - Commander tax applies on top of impending cost (CR 118.9d / CR 903.8).
 //! - Multiplayer: only CONTROLLER'S end step triggers counter removal (CR 702.176a).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::types::{AltCostKind, SuperType};
 use mtg_engine::{
     calculate_characteristics, process_command, AbilityDefinition, CardDefinition, CardId,
@@ -177,7 +178,7 @@ fn test_impending_basic_cast() {
     // Cast with impending cost.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -193,7 +194,7 @@ fn test_impending_basic_cast() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell with impending failed: {:?}", e));
 
@@ -279,7 +280,7 @@ fn test_impending_not_a_creature_while_counters() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -295,7 +296,7 @@ fn test_impending_not_a_creature_while_counters() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -481,7 +482,7 @@ fn test_impending_normal_cast() {
     // Cast for normal cost — no alt_cost.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -497,7 +498,7 @@ fn test_impending_normal_cast() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("Normal CastSpell failed: {:?}", e));
 
@@ -772,7 +773,7 @@ fn test_impending_alt_cost_exclusivity() {
     // Attempt to cast with impending alt_cost on a card that doesn't have impending.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -788,7 +789,7 @@ fn test_impending_alt_cost_exclusivity() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -895,7 +896,7 @@ fn test_impending_commander_tax() {
 
     let result = process_command(
         state.clone(),
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -911,7 +912,7 @@ fn test_impending_commander_tax() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     // Should fail: insufficient mana (need {3}{G}{G} but only have {1}{G}{G}).
@@ -938,7 +939,7 @@ fn test_impending_commander_tax() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -954,7 +955,7 @@ fn test_impending_commander_tax() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(

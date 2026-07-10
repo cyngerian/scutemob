@@ -16,6 +16,7 @@
 //! and queues the EchoTrigger. This avoids the need to pass through Draw (which would
 //! fail with an empty library).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
     GameEvent, GameState, GameStateBuilder, KeywordAbility, ManaColor, ManaCost, ObjectId,
@@ -209,7 +210,7 @@ fn test_echo_etb_sets_pending() {
     // Cast the creature.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -225,7 +226,7 @@ fn test_echo_etb_sets_pending() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("CastSpell should succeed");
 

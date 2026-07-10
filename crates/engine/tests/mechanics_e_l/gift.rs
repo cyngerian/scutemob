@@ -16,6 +16,7 @@
 //! - Multiplayer: only the chosen opponent receives the gift (not all opponents).
 
 use mtg_engine::cards::card_definition::GiftType;
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     process_command, AbilityDefinition, AdditionalCost, CardDefinition, CardId, CardRegistry,
     CardType, Command, Condition, Effect, EffectAmount, GameEvent, GameStateBuilder,
@@ -338,7 +339,7 @@ fn cast_spell_with_gift(
 ) -> Result<(mtg_engine::GameState, Vec<GameEvent>), mtg_engine::GameStateError> {
     process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player,
             card: card_id,
             targets: vec![],
@@ -358,7 +359,7 @@ fn cast_spell_with_gift(
             },
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
 }
 

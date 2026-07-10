@@ -22,6 +22,7 @@
 //! - `#[serde(default)]` keeps pre-PB-XS-E serialized states round-tripping with
 //!   `exclude_self = false`.
 
+use mtg_engine::rules::command::CastSpellData;
 use std::collections::HashMap;
 
 use mtg_engine::{
@@ -112,7 +113,7 @@ fn cast_creature(
 
     process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player,
             card: card_id,
             targets: vec![],
@@ -128,7 +129,7 @@ fn cast_creature(
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("CastSpell failed")
 }
@@ -578,7 +579,7 @@ fn test_pbxse_permanent_trigger_excludes_self_on_own_etb() {
 
     let (state, _cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p(1),
             card: card_id,
             targets: vec![],
@@ -594,7 +595,7 @@ fn test_pbxse_permanent_trigger_excludes_self_on_own_etb() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("CastSpell failed");
     let (state, resolution_events) = pass_all(state, &[p(1), p(2)]);
@@ -690,7 +691,7 @@ fn test_pbxse_permanent_trigger_fires_when_another_red_permanent_enters() {
 
     let (state, _cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p(1),
             card: goblin_card_id,
             targets: vec![],
@@ -706,7 +707,7 @@ fn test_pbxse_permanent_trigger_fires_when_another_red_permanent_enters() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("CastSpell failed");
     let (state, _resolution_events) = pass_all(state, &[p(1), p(2)]);

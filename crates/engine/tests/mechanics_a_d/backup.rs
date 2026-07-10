@@ -14,6 +14,7 @@
 //! - If target leaves battlefield before resolution, trigger fizzles (CR 608.2b).
 //! - Multiple Backup instances on one card each trigger separately.
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::test_util;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
@@ -68,7 +69,7 @@ fn cast_and_resolve(
     let card_id = find_object(&state, card_name);
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: caster,
             card: card_id,
             targets: vec![],
@@ -84,7 +85,7 @@ fn cast_and_resolve(
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell '{}' failed: {:?}", card_name, e));
 

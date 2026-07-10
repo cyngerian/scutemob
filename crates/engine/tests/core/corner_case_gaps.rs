@@ -4,6 +4,7 @@
 //! in the corner-case audit). Each test documents the relevant CR citation
 //! and the specific interaction it validates.
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::rules::{process_command, Command, GameEvent};
 use mtg_engine::state::test_util;
 use mtg_engine::state::turn::Step;
@@ -73,7 +74,7 @@ fn test_cc23_flicker_kills_spell_fizzles_no_dies_trigger() {
     // CR 601.2c: target is validated at cast time (creature is on battlefield → legal).
     let (mut state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: kill_spell_id,
             targets: vec![Target::Object(original_creature_id)],
@@ -89,7 +90,7 @@ fn test_cc23_flicker_kills_spell_fizzles_no_dies_trigger() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
     assert_eq!(

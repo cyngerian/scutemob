@@ -16,6 +16,7 @@
 use mtg_engine::cards::card_definition::{
     Condition, ForEachTarget, TargetController, TargetFilter,
 };
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::types::AltCostKind;
 use mtg_engine::state::{CardType, ManaPool, SuperType};
 use mtg_engine::{
@@ -206,7 +207,7 @@ fn test_702_96_normal_cast_targets_single() {
     // Cast normally, targeting Sol Ring.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![mtg_engine::state::targeting::Target::Object(sol_ring_id)],
@@ -222,7 +223,7 @@ fn test_702_96_normal_cast_targets_single() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("Normal CastSpell failed: {:?}", e));
 
@@ -314,7 +315,7 @@ fn test_702_96_overloaded_cast_destroys_all_matching() {
     // Cast with overload (no targets).
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -330,7 +331,7 @@ fn test_702_96_overloaded_cast_destroys_all_matching() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("Overloaded CastSpell failed: {:?}", e));
 
@@ -416,7 +417,7 @@ fn test_702_96_overloaded_no_targets_cannot_fizzle() {
     // Cast with overload.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -432,7 +433,7 @@ fn test_702_96_overloaded_no_targets_cannot_fizzle() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("Overloaded CastSpell failed: {:?}", e));
 
@@ -504,7 +505,7 @@ fn test_702_96_overloaded_bypasses_hexproof() {
     // Cast with overload — no targets (the hexproof artifact is not targeted).
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -520,7 +521,7 @@ fn test_702_96_overloaded_bypasses_hexproof() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("Overloaded CastSpell failed: {:?}", e));
 
@@ -601,7 +602,7 @@ fn test_702_96_alternative_cost_exclusivity_with_evoke() {
     // Attempt to cast with both evoke AND overload — must fail.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -617,7 +618,7 @@ fn test_702_96_alternative_cost_exclusivity_with_evoke() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -666,7 +667,7 @@ fn test_702_96_pays_overload_cost() {
     // Attempt overload with insufficient mana — must fail.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -682,7 +683,7 @@ fn test_702_96_pays_overload_cost() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -734,7 +735,7 @@ fn test_702_96_no_targets_allowed_when_overloaded() {
     // Attempt to cast overloaded WITH a target — should fail.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![mtg_engine::state::targeting::Target::Object(artifact_id)],
@@ -750,7 +751,7 @@ fn test_702_96_no_targets_allowed_when_overloaded() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -816,7 +817,7 @@ fn test_702_96_condition_was_overloaded_false_when_not_overloaded() {
     // Cast normally, targeting only Sol Ring.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![mtg_engine::state::targeting::Target::Object(sol_ring_id)],
@@ -832,7 +833,7 @@ fn test_702_96_condition_was_overloaded_false_when_not_overloaded() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("Normal cast failed: {:?}", e));
 
@@ -977,7 +978,7 @@ fn test_702_96_commander_tax_applies_to_overload_cost() {
     // Cast with overload from command zone.
     let (new_state, events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_obj_id,
             targets: vec![],
@@ -993,7 +994,7 @@ fn test_702_96_commander_tax_applies_to_overload_cost() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| {
         panic!(
@@ -1146,7 +1147,7 @@ fn test_702_96_commander_tax_overload_insufficient_mana_rejected() {
     // Attempt overload cast with insufficient mana — must fail.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_obj_id,
             targets: vec![],
@@ -1162,7 +1163,7 @@ fn test_702_96_commander_tax_overload_insufficient_mana_rejected() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -1257,7 +1258,7 @@ fn test_702_96_overloaded_hits_all_opponents_multiplayer() {
     // Cast with overload (no targets).
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -1273,7 +1274,7 @@ fn test_702_96_overloaded_hits_all_opponents_multiplayer() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("4-player overloaded CastSpell failed: {:?}", e));
 

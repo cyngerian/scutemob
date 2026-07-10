@@ -12,6 +12,7 @@
 //! - Eminence: modifier applies from the command zone as well as battlefield.
 //! - Self-cost-reduction: spell is cheaper based on game state at cast time.
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::{ActivatedAbility, ActivationCost};
 use mtg_engine::{
     process_command, CardDefinition, CardId, CardRegistry, CardType, Color, Command,
@@ -46,7 +47,7 @@ fn cast_spell(
 ) -> Result<(mtg_engine::GameState, Vec<mtg_engine::GameEvent>), mtg_engine::GameStateError> {
     process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player,
             card,
             targets: vec![],
@@ -62,7 +63,7 @@ fn cast_spell(
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
 }
 

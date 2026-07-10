@@ -3,6 +3,7 @@
 //! Covers:
 //! - Activated ability remove-counter cost: validation, payment, error cases
 //! - Spell additional sacrifice cost: card def configuration and casting validation
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::{ActivatedAbility, ActivationCost};
 use mtg_engine::{
     enrich_spec_from_def, process_command, AdditionalCost, CardDefinition, CardId, CardRegistry,
@@ -440,7 +441,7 @@ fn test_spell_sacrifice_cost_creature() {
 
     let (state2, events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: vr_id,
             targets: vec![],
@@ -459,7 +460,7 @@ fn test_spell_sacrifice_cost_creature() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("Village Rites with creature sacrifice should succeed (CR 118.8)");
 
@@ -518,7 +519,7 @@ fn test_spell_sacrifice_cost_missing() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: vr_id,
             targets: vec![],
@@ -534,7 +535,7 @@ fn test_spell_sacrifice_cost_missing() {
             additional_costs: vec![], // no sacrifice
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         matches!(result, Err(GameStateError::InvalidCommand(_))),
@@ -579,7 +580,7 @@ fn test_spell_sacrifice_cost_wrong_type() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: vr_id,
             targets: vec![],
@@ -598,7 +599,7 @@ fn test_spell_sacrifice_cost_wrong_type() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         matches!(result, Err(GameStateError::InvalidCommand(_))),

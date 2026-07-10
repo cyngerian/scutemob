@@ -25,6 +25,7 @@
 //! - CR 608.2b: partial illegal target skips only that mode; full illegal fizzles the spell.
 //! - `mode_targets: None` (legacy modal spells) behave exactly as before AC4.
 
+use mtg_engine::rules::command::CastSpellData;
 use std::sync::Arc;
 
 use mtg_engine::cards::card_definition::{
@@ -84,7 +85,7 @@ fn cast_modal(
     targets: Vec<Target>,
     modes_chosen: Vec<usize>,
 ) -> Command {
-    Command::CastSpell {
+    Command::CastSpell(Box::new(CastSpellData {
         player,
         card,
         targets,
@@ -100,7 +101,7 @@ fn cast_modal(
         additional_costs: vec![],
         hybrid_choices: vec![],
         phyrexian_life_payments: vec![],
-    }
+    }))
 }
 
 /// "Modal Strike" — Instant, no mana cost (mana payment is orthogonal to this batch).
@@ -850,7 +851,7 @@ fn test_700_2c_702_120a_escalate_with_mode_targets_rejected_at_cast() {
     // left empty) — this is exactly the ambiguous combination Finding 1 identified.
     let result = process_command(
         state.clone(),
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![Target::Object(creature_id)],
@@ -866,7 +867,7 @@ fn test_700_2c_702_120a_escalate_with_mode_targets_rejected_at_cast() {
             additional_costs: vec![AdditionalCost::EscalateModes { count: 1 }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     let err = result.expect_err(
         "Finding 1 (MEDIUM): Escalate + ModeSelection.mode_targets must be rejected at cast \
@@ -885,7 +886,7 @@ fn test_700_2c_702_120a_escalate_with_mode_targets_rejected_at_cast() {
     // combination, not a defect in the base `mode_targets` path.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![Target::Object(creature_id)],
@@ -901,7 +902,7 @@ fn test_700_2c_702_120a_escalate_with_mode_targets_rejected_at_cast() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("without Escalate paid, the same mode_targets spell must cast normally");
     let (state, _) = pass_all(state, &[p1, p2]);

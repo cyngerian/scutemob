@@ -7,6 +7,7 @@
 //! - Protection from card type (CR 702.16a): instants, planeswalkers
 //! - Protection from subtype (CR 702.16a): Wizards
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     process_command, AttackTarget, BlockingExceptionFilter, CardType, Command, GameStateBuilder,
     KeywordAbility, ManaColor, ManaCost, ObjectSpec, PlayerId, ProtectionQuality, Step, ZoneId,
@@ -390,7 +391,7 @@ fn test_grant_player_protection_prevents_targeting() {
     let bolt_id = find_object(&state, "Lightning Bolt");
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: bolt_id,
             targets: vec![mtg_engine::Target::Player(p1)],
@@ -406,7 +407,7 @@ fn test_grant_player_protection_prevents_targeting() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -458,7 +459,7 @@ fn test_protection_from_card_type_blocks_instants() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: instant_id,
             targets: vec![mtg_engine::Target::Object(creature_id)],
@@ -474,7 +475,7 @@ fn test_protection_from_card_type_blocks_instants() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(

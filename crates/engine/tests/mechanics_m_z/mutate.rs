@@ -18,6 +18,7 @@
 //!   a separate object in the destination zone.
 //! - CR 729.2c: ETB triggers do NOT fire on merge (same object, not new entry).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::game_object::{Characteristics, TriggerEvent, TriggeredAbilityDef};
 use mtg_engine::state::test_util;
 use mtg_engine::state::types::{AltCostKind, FaceDownKind};
@@ -220,7 +221,7 @@ fn test_mutate_resolution_basic_merge() {
     // CR 702.140a: Cast the beast for its mutate cost targeting the Wolf.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: beast_id,
             targets: vec![],
@@ -239,7 +240,7 @@ fn test_mutate_resolution_basic_merge() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell with mutate failed: {:?}", e));
 
@@ -406,7 +407,7 @@ fn test_mutate_validation_rejects_human_target() {
     // CR 702.140a: Should be rejected — Human is not a valid mutate target.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: beast_id,
             targets: vec![],
@@ -425,7 +426,7 @@ fn test_mutate_validation_rejects_human_target() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -500,7 +501,7 @@ fn test_mutate_resolution_illegal_target_fallback() {
     // Cast with mutate targeting the wolf.
     let (mut state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: beast_id,
             targets: vec![],
@@ -519,7 +520,7 @@ fn test_mutate_resolution_illegal_target_fallback() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell with mutate failed: {:?}", e));
 
@@ -741,7 +742,7 @@ fn test_mutate_trigger_fires() {
     // Cast with mutate targeting the wolf, placing beast on top.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: beast_id,
             targets: vec![],
@@ -760,7 +761,7 @@ fn test_mutate_trigger_fires() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell with mutate failed: {:?}", e));
 
@@ -864,7 +865,7 @@ fn test_mutate_under_uses_target_characteristics() {
     // CR 729.2: mutate_on_top=false — spell goes underneath.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: beast_id,
             targets: vec![],
@@ -883,7 +884,7 @@ fn test_mutate_under_uses_target_characteristics() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell with mutate (under) failed: {:?}", e));
 
@@ -1004,7 +1005,7 @@ fn test_mutate_gemrazer_trigger_queued_after_merge() {
     // CR 702.140a: Cast Gemrazer for its mutate cost targeting the wolf.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: gemrazer_id,
             targets: vec![],
@@ -1023,7 +1024,7 @@ fn test_mutate_gemrazer_trigger_queued_after_merge() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell with mutate (Gemrazer) failed: {:?}", e));
 
@@ -1405,7 +1406,7 @@ fn test_mutate_onto_face_down_creature_accepted() {
     // check passes (no Human subtype visible = not Human). The spell goes on the stack.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: hand_beast_id,
             targets: vec![],
@@ -1424,7 +1425,7 @@ fn test_mutate_onto_face_down_creature_accepted() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     // CR 708.2: Face-down creature has no visible Human subtype, so mutate IS legal.
     // The engine checks current visible characteristics, not printed characteristics.
@@ -1514,7 +1515,7 @@ fn test_mutate_stack_object_has_mutate_additional_cost() {
     // Cast the beast for its mutate cost targeting the Wolf.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: beast_id,
             targets: vec![],
@@ -1533,7 +1534,7 @@ fn test_mutate_stack_object_has_mutate_additional_cost() {
             face_down_kind: None,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell with mutate failed: {:?}", e));
 

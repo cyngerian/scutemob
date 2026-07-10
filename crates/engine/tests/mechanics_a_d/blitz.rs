@@ -19,6 +19,7 @@
 //! - Attempting to cast a non-blitz card with blitz cost is rejected (CR 702.152a).
 //! - Commander tax applies on top of blitz cost (CR 118.9d).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::test_util;
 use mtg_engine::state::types::AltCostKind;
 use mtg_engine::state::types::SuperType;
@@ -192,7 +193,7 @@ fn test_blitz_basic_cast_with_blitz_cost() {
     // Cast with blitz.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -208,7 +209,7 @@ fn test_blitz_basic_cast_with_blitz_cost() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell with blitz failed: {:?}", e));
 
@@ -300,7 +301,7 @@ fn test_blitz_normal_cast_no_sacrifice_no_draw() {
     // Cast normally (no blitz).
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -316,7 +317,7 @@ fn test_blitz_normal_cast_no_sacrifice_no_draw() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("Normal CastSpell failed: {:?}", e));
 
@@ -386,7 +387,7 @@ fn test_blitz_sacrifice_at_end_step() {
     // Cast with blitz.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -402,7 +403,7 @@ fn test_blitz_sacrifice_at_end_step() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell with blitz failed: {:?}", e));
 
@@ -485,7 +486,7 @@ fn test_blitz_draw_card_on_death() {
     // Cast with blitz.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -501,7 +502,7 @@ fn test_blitz_draw_card_on_death() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell with blitz failed: {:?}", e));
 
@@ -621,7 +622,7 @@ fn test_blitz_draw_on_sacrifice_at_end_step() {
     // Cast with blitz.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -637,7 +638,7 @@ fn test_blitz_draw_on_sacrifice_at_end_step() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell with blitz failed: {:?}", e));
 
@@ -739,7 +740,7 @@ fn test_blitz_creature_left_battlefield_before_end_step() {
     // Cast with blitz.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -755,7 +756,7 @@ fn test_blitz_creature_left_battlefield_before_end_step() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell with blitz failed: {:?}", e));
 
@@ -846,7 +847,7 @@ fn test_blitz_card_without_blitz_rejected() {
     // Attempt to cast with blitz — should fail because card has no blitz.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -862,7 +863,7 @@ fn test_blitz_card_without_blitz_rejected() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -919,7 +920,7 @@ fn test_blitz_alternative_cost_exclusivity() {
     // Here we test: a card WITH blitz cannot be cast with Evoke alt_cost.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -935,7 +936,7 @@ fn test_blitz_alternative_cost_exclusivity() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -1040,7 +1041,7 @@ fn test_blitz_commander_tax_applies() {
 
     let result_insufficient = process_command(
         state.clone(),
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: cmd_obj_id,
             targets: vec![],
@@ -1056,7 +1057,7 @@ fn test_blitz_commander_tax_applies() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result_insufficient.is_err(),
@@ -1072,7 +1073,7 @@ fn test_blitz_commander_tax_applies() {
 
     let result_sufficient = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: cmd_obj_id,
             targets: vec![],
@@ -1088,7 +1089,7 @@ fn test_blitz_commander_tax_applies() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result_sufficient.is_ok(),

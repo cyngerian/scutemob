@@ -19,6 +19,7 @@
 //! card definitions themselves are not modified in this implement phase.
 
 use mtg_engine::effects::{execute_effect, EffectContext};
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::test_util;
 use mtg_engine::{
     AbilityDefinition, CardDefinition, CardEffectTarget, CardId, CardRegistry, CardType, Command,
@@ -1041,7 +1042,7 @@ fn test_counter_unless_pays_noncreature_filter() {
 
     let legal_result = mtg_engine::process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: piercer_id,
             targets: vec![Target::Object(noncreature_id)],
@@ -1057,7 +1058,7 @@ fn test_counter_unless_pays_noncreature_filter() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         legal_result.is_ok(),
@@ -1102,7 +1103,7 @@ fn test_counter_unless_pays_noncreature_filter() {
 
     let illegal_result = mtg_engine::process_command(
         state2,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: piercer2_id,
             targets: vec![Target::Object(creature_id)],
@@ -1118,7 +1119,7 @@ fn test_counter_unless_pays_noncreature_filter() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         illegal_result.is_err(),

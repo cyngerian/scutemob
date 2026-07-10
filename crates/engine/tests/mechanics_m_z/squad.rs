@@ -18,6 +18,7 @@
 //! - If the permanent loses the Squad keyword before the trigger fires, no tokens are
 //!   created (ruling 2022-10-07 intervening-if check on battlefield).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::AdditionalCost;
 use mtg_engine::{
     calculate_characteristics, process_command, AbilityDefinition, CardDefinition, CardId,
@@ -197,7 +198,7 @@ fn cast_squad(
 ) -> (mtg_engine::GameState, Vec<GameEvent>) {
     process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: caster,
             card: card_id,
             targets: vec![],
@@ -217,7 +218,7 @@ fn cast_squad(
             },
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell(squad_count={}) failed: {:?}", squad_count, e))
 }
@@ -425,7 +426,7 @@ fn test_squad_rejected_without_keyword() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -441,7 +442,7 @@ fn test_squad_rejected_without_keyword() {
             additional_costs: vec![AdditionalCost::Squad { count: 1 }], // trying to pay squad cost on non-squad creature
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(

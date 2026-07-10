@@ -15,6 +15,7 @@
 //! and queues the Vanishing counter-removal trigger. This avoids the need to pass through Draw
 //! (which would fail with an empty library).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
     CounterType, GameEvent, GameState, GameStateBuilder, KeywordAbility, ManaCost, ObjectId,
@@ -267,7 +268,7 @@ fn test_vanishing_etb_counters_on_cast() {
     // Cast the spell.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -283,7 +284,7 @@ fn test_vanishing_etb_counters_on_cast() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("CastSpell should succeed");
 

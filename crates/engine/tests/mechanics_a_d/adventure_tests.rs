@@ -16,6 +16,7 @@
 
 use mtg_engine::cards::card_definition::EffectTarget as CardEffectTarget;
 use mtg_engine::cards::card_definition::{PlayerTarget, ZoneTarget};
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::targeting::Target;
 use mtg_engine::{
     process_command, AbilityDefinition, AltCostKind, CardDefinition, CardFace, CardId,
@@ -156,7 +157,7 @@ fn test_adventure_cast_adventure_half_from_hand() {
     // Cast as Adventure.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: giant_id,
             alt_cost: Some(AltCostKind::Adventure),
@@ -172,7 +173,7 @@ fn test_adventure_cast_adventure_half_from_hand() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("Cast as Adventure from hand should succeed");
 
@@ -228,7 +229,7 @@ fn test_adventure_exile_on_resolution() {
     // Cast as Adventure.
     let (mut state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: giant_id,
             alt_cost: Some(AltCostKind::Adventure),
@@ -244,7 +245,7 @@ fn test_adventure_exile_on_resolution() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("Cast as Adventure from hand should succeed");
 
@@ -305,7 +306,7 @@ fn test_adventure_cast_creature_from_exile() {
 
     let (mut state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: giant_id,
             alt_cost: Some(AltCostKind::Adventure),
@@ -321,7 +322,7 @@ fn test_adventure_cast_creature_from_exile() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("Cast as Adventure should succeed");
 
@@ -350,7 +351,7 @@ fn test_adventure_cast_creature_from_exile() {
 
     let (mut state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: exiled_id,
             alt_cost: None, // Normal cast — NOT an adventure
@@ -366,7 +367,7 @@ fn test_adventure_cast_creature_from_exile() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("Cast creature from exile should succeed (CR 715.3d)");
 
@@ -457,7 +458,7 @@ fn test_adventure_countered_goes_to_graveyard() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: giant_id,
             alt_cost: Some(AltCostKind::Adventure),
@@ -473,7 +474,7 @@ fn test_adventure_countered_goes_to_graveyard() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("Cast as Adventure should succeed");
 
@@ -506,7 +507,7 @@ fn test_adventure_countered_goes_to_graveyard() {
 
     let (mut state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: counter_id,
             alt_cost: None,
@@ -522,7 +523,7 @@ fn test_adventure_countered_goes_to_graveyard() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("Cast counterspell should succeed");
 
@@ -574,7 +575,7 @@ fn test_adventure_cannot_recast_as_adventure_from_exile() {
 
     let (mut state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: giant_id,
             alt_cost: Some(AltCostKind::Adventure),
@@ -590,7 +591,7 @@ fn test_adventure_cannot_recast_as_adventure_from_exile() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("Cast as Adventure should succeed");
 
@@ -612,7 +613,7 @@ fn test_adventure_cannot_recast_as_adventure_from_exile() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: exiled_id,
             alt_cost: Some(AltCostKind::Adventure),
@@ -628,7 +629,7 @@ fn test_adventure_cannot_recast_as_adventure_from_exile() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -782,7 +783,7 @@ fn test_search_library_only() {
 
     let (mut state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: tutor_id,
             alt_cost: None,
@@ -798,7 +799,7 @@ fn test_search_library_only() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("casting tutor should succeed");
 
@@ -871,7 +872,7 @@ fn test_search_library_and_graveyard() {
 
     let (mut state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: tutor_id,
             alt_cost: None,
@@ -887,7 +888,7 @@ fn test_search_library_and_graveyard() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("casting tutor should succeed");
 
@@ -975,7 +976,7 @@ fn test_search_graveyard_still_shuffles_library() {
 
     let (mut state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: tutor_id,
             alt_cost: None,
@@ -991,7 +992,7 @@ fn test_search_graveyard_still_shuffles_library() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("casting tutor should succeed");
 

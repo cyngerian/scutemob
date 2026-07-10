@@ -701,7 +701,9 @@ impl GameState {
     }
 
     /// Escape hatch: mutable access to `pending_echo_payments`. See [module docs](GameState#escape-hatches).
-    pub fn pending_echo_payments_mut(&mut self) -> &mut imbl::Vector<(PlayerId, ObjectId, ManaCost)> {
+    pub fn pending_echo_payments_mut(
+        &mut self,
+    ) -> &mut imbl::Vector<(PlayerId, ObjectId, ManaCost)> {
         &mut self.pending_echo_payments
     }
 

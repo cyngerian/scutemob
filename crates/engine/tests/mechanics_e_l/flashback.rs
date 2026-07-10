@@ -18,6 +18,7 @@
 //! - Insufficient flashback mana is rejected (CR 601.2f-h).
 
 use mtg_engine::cards::card_definition::{EffectAmount, PlayerTarget};
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::types::AltCostKind;
 use mtg_engine::state::CardType;
 use mtg_engine::{
@@ -241,7 +242,7 @@ fn test_flashback_basic_cast_from_graveyard() {
     // p1 casts Think Twice from graveyard via flashback.
     let (state, cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -257,7 +258,7 @@ fn test_flashback_basic_cast_from_graveyard() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -342,7 +343,7 @@ fn test_flashback_exile_on_resolution() {
     // Cast from graveyard via flashback.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -358,7 +359,7 @@ fn test_flashback_exile_on_resolution() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -460,7 +461,7 @@ fn test_flashback_exile_on_counter() {
     // p1 casts Think Twice from graveyard via flashback.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: flashback_id,
             targets: vec![],
@@ -476,7 +477,7 @@ fn test_flashback_exile_on_counter() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -504,7 +505,7 @@ fn test_flashback_exile_on_counter() {
     // p2 casts Counterspell targeting Think Twice's card object on the stack.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: counter_id,
             targets: vec![Target::Object(spell_card_on_stack)],
@@ -520,7 +521,7 @@ fn test_flashback_exile_on_counter() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -605,7 +606,7 @@ fn test_flashback_sorcery_timing_from_graveyard() {
     // p1 tries to cast Faithless Looting via flashback during p2's turn (sorcery speed — invalid).
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -621,7 +622,7 @@ fn test_flashback_sorcery_timing_from_graveyard() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -673,7 +674,7 @@ fn test_flashback_non_flashback_card_cannot_cast_from_graveyard() {
     // Try to cast from graveyard — should fail (no flashback keyword).
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![Target::Player(p2)],
@@ -689,7 +690,7 @@ fn test_flashback_non_flashback_card_cannot_cast_from_graveyard() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -757,7 +758,7 @@ fn test_flashback_pays_flashback_cost_not_mana_cost() {
     // Cast from graveyard via flashback — should succeed with {2}{U}.
     let (state, cast_events) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -773,7 +774,7 @@ fn test_flashback_pays_flashback_cost_not_mana_cost() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("CR 702.34a: flashback cast with {2}{U} should succeed");
 
@@ -846,7 +847,7 @@ fn test_flashback_normal_hand_cast_not_exiled() {
     // Cast from hand (normal cast, not flashback).
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -862,7 +863,7 @@ fn test_flashback_normal_hand_cast_not_exiled() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -946,7 +947,7 @@ fn test_flashback_cast_with_flashback_flag_set_on_stack() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -962,7 +963,7 @@ fn test_flashback_cast_with_flashback_flag_set_on_stack() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -1029,7 +1030,7 @@ fn test_flashback_insufficient_flashback_mana_rejected() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -1045,7 +1046,7 @@ fn test_flashback_insufficient_flashback_mana_rejected() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -1105,7 +1106,7 @@ fn test_flashback_mana_value_unchanged() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -1121,7 +1122,7 @@ fn test_flashback_mana_value_unchanged() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 

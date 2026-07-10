@@ -20,6 +20,7 @@
 //! - Instants can be cast from exile at instant speed (ruling 2021-02-05)
 //! - CR 400.7: new ObjectId after zone change
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::types::AltCostKind;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
@@ -391,7 +392,7 @@ fn test_foretell_cannot_cast_same_turn() {
     // Attempt to cast it on the same turn (turn 5) — must fail.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: exile_id,
             targets: vec![],
@@ -407,7 +408,7 @@ fn test_foretell_cannot_cast_same_turn() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -496,7 +497,7 @@ fn test_foretell_cast_from_exile_on_later_turn() {
     // Cast from exile for foretell cost -- should succeed.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: exile_id,
             targets: vec![],
@@ -512,7 +513,7 @@ fn test_foretell_cast_from_exile_on_later_turn() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -868,7 +869,7 @@ fn test_foretell_mutual_exclusion_with_escape() {
     // CR 118.9a: Cannot use an alt cost that isn't valid for this card/zone.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: exile_id,
             targets: vec![],
@@ -884,7 +885,7 @@ fn test_foretell_mutual_exclusion_with_escape() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -967,7 +968,7 @@ fn test_foretell_mutual_exclusion_with_evoke() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: exile_id,
             targets: vec![],
@@ -986,7 +987,7 @@ fn test_foretell_mutual_exclusion_with_evoke() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -1068,7 +1069,7 @@ fn test_foretell_sorcery_timing_restriction() {
     // Cast sorcery at instant speed (during opponent's turn) -- must fail.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: exile_id,
             targets: vec![],
@@ -1084,7 +1085,7 @@ fn test_foretell_sorcery_timing_restriction() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -1166,7 +1167,7 @@ fn test_foretell_instant_timing() {
     // An instant should cast just fine during opponent's turn (ruling 2021-02-05).
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: exile_id,
             targets: vec![],
@@ -1182,7 +1183,7 @@ fn test_foretell_instant_timing() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -1390,7 +1391,7 @@ fn test_foretell_card_requires_cast_with_foretell_flag() {
     // Attempt to cast without cast_with_foretell: true -- must fail (card is in exile, not hand).
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: exile_id,
             targets: vec![],
@@ -1406,7 +1407,7 @@ fn test_foretell_card_requires_cast_with_foretell_flag() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -1517,7 +1518,7 @@ fn test_foretell_requires_is_foretold_flag() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -1533,7 +1534,7 @@ fn test_foretell_requires_is_foretold_flag() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(

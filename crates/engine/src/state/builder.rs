@@ -380,7 +380,8 @@ impl GameStateBuilder {
             // interactive payment is deferred to M10+.
             let mut triggered_abilities: Vec<TriggeredAbilityDef> =
                 spec.triggered_abilities.into_iter().collect();
-            let spec_keywords: imbl::OrdSet<KeywordAbility> = spec.keywords.iter().cloned().collect();
+            let spec_keywords: imbl::OrdSet<KeywordAbility> =
+                spec.keywords.iter().cloned().collect();
             for kw in spec.keywords.iter() {
                 if let KeywordAbility::Ward(cost_n) = kw {
                     triggered_abilities.push(TriggeredAbilityDef {

@@ -21,6 +21,7 @@
 //! depends on stable-sort insertion order rather than distinct timestamps. This
 //! test locks that behavior in as a regression guard.
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     calculate_characteristics, enrich_spec_from_def, process_command, CardDefinition, CardId,
     CardRegistry, CardType, Command, CounterType, GameEvent, GameState, GameStateBuilder,
@@ -80,7 +81,7 @@ fn cast_spell(
 ) -> Result<(GameState, Vec<GameEvent>), mtg_engine::GameStateError> {
     process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player,
             card,
             targets,
@@ -96,7 +97,7 @@ fn cast_spell(
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
 }
 

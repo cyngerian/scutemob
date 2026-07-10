@@ -21,6 +21,7 @@
 use mtg_engine::cards::card_definition::{
     ContinuousEffectDef as CardContinuousEffectDef, EffectAmount, PlayerTarget,
 };
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::stubs::PlayFromTopPermission;
 use mtg_engine::state::test_util;
 use mtg_engine::{
@@ -95,7 +96,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 }
 
 fn cast_spell(player: PlayerId, card: ObjectId) -> Command {
-    Command::CastSpell {
+    Command::CastSpell(Box::new(CastSpellData {
         player,
         card,
         targets: vec![],
@@ -111,11 +112,11 @@ fn cast_spell(player: PlayerId, card: ObjectId) -> Command {
         phyrexian_life_payments: vec![],
         face_down_kind: None,
         additional_costs: vec![],
-    }
+    }))
 }
 
 fn cast_spell_pay_life(player: PlayerId, card: ObjectId) -> Command {
-    Command::CastSpell {
+    Command::CastSpell(Box::new(CastSpellData {
         player,
         card,
         targets: vec![],
@@ -131,7 +132,7 @@ fn cast_spell_pay_life(player: PlayerId, card: ObjectId) -> Command {
         phyrexian_life_payments: vec![],
         face_down_kind: None,
         additional_costs: vec![],
-    }
+    }))
 }
 
 // ── Card definitions ───────────────────────────────────────────────────────────
@@ -1248,7 +1249,7 @@ fn test_play_from_top_bolas_citadel_x_is_zero() {
     let creature_id = find_object(&state, "Test X Creature");
 
     // Attempting to specify x_value > 0 with PayLifeForManaValue must be rejected.
-    let bad_cast = Command::CastSpell {
+    let bad_cast = Command::CastSpell(Box::new(CastSpellData {
         player: p1,
         card: creature_id,
         targets: vec![],
@@ -1264,7 +1265,7 @@ fn test_play_from_top_bolas_citadel_x_is_zero() {
         phyrexian_life_payments: vec![],
         face_down_kind: None,
         additional_costs: vec![],
-    };
+    }));
     let result = process_command(state.clone(), bad_cast);
     assert!(
         result.is_err(),
@@ -1272,7 +1273,7 @@ fn test_play_from_top_bolas_citadel_x_is_zero() {
     );
 
     // x_value = 0 with PayLifeForManaValue must succeed (pays life = mana value 2).
-    let good_cast = Command::CastSpell {
+    let good_cast = Command::CastSpell(Box::new(CastSpellData {
         player: p1,
         card: creature_id,
         targets: vec![],
@@ -1288,7 +1289,7 @@ fn test_play_from_top_bolas_citadel_x_is_zero() {
         phyrexian_life_payments: vec![],
         face_down_kind: None,
         additional_costs: vec![],
-    };
+    }));
     let initial_life = state.player(p1).unwrap().life_total;
     let (state2, _events) = process_command(state, good_cast)
         .expect("x_value=0 with PayLifeForManaValue should succeed");

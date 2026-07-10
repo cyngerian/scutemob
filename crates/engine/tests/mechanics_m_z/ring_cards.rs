@@ -4,6 +4,7 @@
 //! - Call of the Ring resolves to the battlefield with correct abilities
 //! - ring_tempts_you harness action translates to Command::TheRingTemptsYou (CR 701.54a)
 
+use mtg_engine::rules::command::CastSpellData;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -88,7 +89,7 @@ fn test_call_of_the_ring_resolves_to_battlefield() {
     // Cast Call of the Ring.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: cotr_id,
             targets: vec![],
@@ -104,7 +105,7 @@ fn test_call_of_the_ring_resolves_to_battlefield() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("casting Call of the Ring should succeed");
 

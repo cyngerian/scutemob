@@ -15,9 +15,6 @@ use serde::{Deserialize, Serialize};
 /// All player actions are Commands. There is no way to change game state
 /// except through the Command enum. This enables networking, replay, and
 /// deterministic testing.
-// CastSpell has many optional fields (additional costs, alt costs, splice, etc.)
-// making it large by design; the size difference vs. PassPriority is expected.
-#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Command {
     /// The player passes priority (CR 117.3d).
@@ -52,53 +49,12 @@ pub enum Command {
     /// Casting speed:
     /// - Instants and spells with Flash may be cast any time the player has priority.
     /// - All other spells require sorcery speed (active player, main phase, empty stack).
-    CastSpell {
-        player: PlayerId,
-        card: ObjectId,
-        /// Targets announced at cast time (CR 601.2c). Empty for non-targeting spells.
-        targets: Vec<Target>,
-        /// CR 702.51: Creatures to tap for convoke cost reduction.
-        convoke_creatures: Vec<ObjectId>,
-        /// CR 702.126: Artifacts to tap for improvise cost reduction.
-        #[serde(default)]
-        improvise_artifacts: Vec<ObjectId>,
-        /// CR 702.66: Cards in the caster's graveyard to exile for delve cost reduction.
-        delve_cards: Vec<ObjectId>,
-        /// CR 702.33d: Number of times to pay the kicker cost.
-        #[serde(default)]
-        kicker_times: u32,
-        /// CR 118.9 / CR 702: Which alternative casting cost is being used, if any.
-        #[serde(default)]
-        alt_cost: Option<AltCostKind>,
-        /// CR 702.160 / CR 718.3: If true, the spell is cast as a prototyped spell.
-        /// IMPORTANT: Prototype is NOT an alternative cost (CR 118.9, ruling 2022-10-14).
-        #[serde(default)]
-        prototype: bool,
-        /// CR 700.2a / 601.2b: Mode indices chosen for a modal spell.
-        #[serde(default)]
-        modes_chosen: Vec<usize>,
-        /// CR 107.3m: The value chosen for X in the spell's mana cost. 0 for non-X spells.
-        #[serde(default)]
-        x_value: u32,
-        /// CR 107.4e: For each hybrid pip in the resolved cost, how it was paid.
-        /// Length must match total hybrid pips after cost calculation.
-        /// Empty = default to first color option for each hybrid pip.
-        #[serde(default)]
-        hybrid_choices: Vec<crate::state::game_object::HybridManaPayment>,
-        /// CR 107.4f: For each Phyrexian pip, true = pay 2 life; false = pay mana.
-        /// Length must match total Phyrexian pips after cost calculation.
-        /// Empty = default to paying with mana for each pip.
-        #[serde(default)]
-        phyrexian_life_payments: Vec<bool>,
-        /// CR 702.37c / 702.168b: Which face-down variant is being used when casting face-down.
-        #[serde(default)]
-        face_down_kind: Option<FaceDownKind>,
-        /// Consolidated additional costs (RC-1 type consolidation).
-        /// All additional-cost data (sacrifice, discard, exile-from-zone, assist,
-        /// replicate, squad, escalate, splice, entwine, fuse, offspring, gift, mutate).
-        #[serde(default)]
-        additional_costs: Vec<AdditionalCost>,
-    },
+    ///
+    /// The payload is boxed ([`CastSpellData`]) so this one large command does not
+    /// inflate the size of every `Command` value or every replay-log entry
+    /// (clippy::large_enum_variant). A boxed newtype variant wrapping a struct is
+    /// serde-identical on the wire to the former struct variant.
+    CastSpell(Box<CastSpellData>),
     /// Activate a non-mana activated ability (CR 602).
     ///
     /// Unlike `TapForMana` (which resolves immediately), activated abilities
@@ -621,4 +577,60 @@ pub enum Command {
         /// The target level (N). The Class must currently be at level N-1.
         target_level: u32,
     },
+}
+
+/// Payload of [`Command::CastSpell`] (CR 601).
+///
+/// Boxed inside the variant so that this one large, optional-field-heavy command
+/// does not size every `Command` value or every replay-log entry
+/// (clippy::large_enum_variant). Field semantics are unchanged from the former
+/// inline struct variant, and — because a boxed newtype variant wrapping a struct
+/// serializes identically to a struct variant — the wire bytes are unchanged too.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CastSpellData {
+    pub player: PlayerId,
+    pub card: ObjectId,
+    /// Targets announced at cast time (CR 601.2c). Empty for non-targeting spells.
+    pub targets: Vec<Target>,
+    /// CR 702.51: Creatures to tap for convoke cost reduction.
+    pub convoke_creatures: Vec<ObjectId>,
+    /// CR 702.126: Artifacts to tap for improvise cost reduction.
+    #[serde(default)]
+    pub improvise_artifacts: Vec<ObjectId>,
+    /// CR 702.66: Cards in the caster's graveyard to exile for delve cost reduction.
+    pub delve_cards: Vec<ObjectId>,
+    /// CR 702.33d: Number of times to pay the kicker cost.
+    #[serde(default)]
+    pub kicker_times: u32,
+    /// CR 118.9 / CR 702: Which alternative casting cost is being used, if any.
+    #[serde(default)]
+    pub alt_cost: Option<AltCostKind>,
+    /// CR 702.160 / CR 718.3: If true, the spell is cast as a prototyped spell.
+    /// IMPORTANT: Prototype is NOT an alternative cost (CR 118.9, ruling 2022-10-14).
+    #[serde(default)]
+    pub prototype: bool,
+    /// CR 700.2a / 601.2b: Mode indices chosen for a modal spell.
+    #[serde(default)]
+    pub modes_chosen: Vec<usize>,
+    /// CR 107.3m: The value chosen for X in the spell's mana cost. 0 for non-X spells.
+    #[serde(default)]
+    pub x_value: u32,
+    /// CR 107.4e: For each hybrid pip in the resolved cost, how it was paid.
+    /// Length must match total hybrid pips after cost calculation.
+    /// Empty = default to first color option for each hybrid pip.
+    #[serde(default)]
+    pub hybrid_choices: Vec<crate::state::game_object::HybridManaPayment>,
+    /// CR 107.4f: For each Phyrexian pip, true = pay 2 life; false = pay mana.
+    /// Length must match total Phyrexian pips after cost calculation.
+    /// Empty = default to paying with mana for each pip.
+    #[serde(default)]
+    pub phyrexian_life_payments: Vec<bool>,
+    /// CR 702.37c / 702.168b: Which face-down variant is being used when casting face-down.
+    #[serde(default)]
+    pub face_down_kind: Option<FaceDownKind>,
+    /// Consolidated additional costs (RC-1 type consolidation).
+    /// All additional-cost data (sacrifice, discard, exile-from-zone, assist,
+    /// replicate, squad, escalate, splice, entwine, fuse, offspring, gift, mutate).
+    #[serde(default)]
+    pub additional_costs: Vec<AdditionalCost>,
 }

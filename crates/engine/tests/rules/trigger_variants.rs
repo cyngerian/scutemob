@@ -10,6 +10,7 @@
 //! - G-14: WheneverYouGainLife dispatch
 //! - G-15: WhenYouCastThisSpell
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardEffectTarget, CardId, CardRegistry,
     CardType, Command, CounterType, Effect, EffectAmount, GameEvent, GameState, GameStateBuilder,
@@ -51,7 +52,7 @@ fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent
 fn cast_spell(state: GameState, player: PlayerId, card: ObjectId) -> (GameState, Vec<GameEvent>) {
     process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player,
             card,
             targets: vec![],
@@ -67,7 +68,7 @@ fn cast_spell(state: GameState, player: PlayerId, card: ObjectId) -> (GameState,
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("CastSpell failed")
 }

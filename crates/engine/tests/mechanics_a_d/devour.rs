@@ -15,6 +15,7 @@
 //! - Only controller's own creatures can be sacrificed (CR 702.82a + multiplayer).
 //! - Cannot sacrifice the creature being cast.
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
     CounterType, GameEvent, GameStateBuilder, KeywordAbility, ManaCost, ObjectId, ObjectSpec,
@@ -91,7 +92,7 @@ fn cast_devour_creature(
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: caster,
             card: card_id,
             targets: vec![],
@@ -114,7 +115,7 @@ fn cast_devour_creature(
             },
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
     state
@@ -624,7 +625,7 @@ fn test_devour_only_own_creatures() {
 
     let result = process_command(
         mana_state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: devour_id,
             targets: vec![],
@@ -643,7 +644,7 @@ fn test_devour_only_own_creatures() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -702,7 +703,7 @@ fn test_devour_cannot_sacrifice_self() {
 
     let result = process_command(
         mana_state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: devour_id,
             targets: vec![],
@@ -721,7 +722,7 @@ fn test_devour_cannot_sacrifice_self() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(

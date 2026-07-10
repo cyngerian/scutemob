@@ -16,6 +16,7 @@
 //! - Permanent cast without bargain has `was_bargained = false` after entering battlefield (CR 702.166b).
 
 use mtg_engine::cards::card_definition::{Condition, EffectAmount, PlayerTarget};
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
     Effect, GameEvent, GameStateBuilder, KeywordAbility, ManaColor, ManaCost, ObjectSpec, PlayerId,
@@ -243,7 +244,7 @@ fn test_bargain_basic_instant_with_sacrifice() {
     // Cast Bargain Instant while sacrificing the creature token.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -262,7 +263,7 @@ fn test_bargain_basic_instant_with_sacrifice() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell with bargain (token) failed: {:?}", e));
 
@@ -315,7 +316,7 @@ fn test_bargain_basic_instant_without_sacrifice() {
     // Cast Bargain Instant without bargaining.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -331,7 +332,7 @@ fn test_bargain_basic_instant_without_sacrifice() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell without bargain failed: {:?}", e));
 
@@ -391,7 +392,7 @@ fn test_bargain_sacrifice_artifact() {
     // Sacrificing an artifact should succeed.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -410,7 +411,7 @@ fn test_bargain_sacrifice_artifact() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell bargaining with artifact failed: {:?}", e));
 
@@ -447,7 +448,7 @@ fn test_bargain_sacrifice_enchantment() {
     // Sacrificing an enchantment should succeed.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -466,7 +467,7 @@ fn test_bargain_sacrifice_enchantment() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell bargaining with enchantment failed: {:?}", e));
 
@@ -505,7 +506,7 @@ fn test_bargain_sacrifice_creature_token() {
     // Sacrificing a creature token should succeed — tokens qualify even if not artifact/enchantment.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -524,7 +525,7 @@ fn test_bargain_sacrifice_creature_token() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell bargaining with creature token failed: {:?}", e));
 
@@ -556,7 +557,7 @@ fn test_bargain_sacrifice_invalid_creature() {
     // Attempting to sacrifice a non-token creature should be rejected.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -575,7 +576,7 @@ fn test_bargain_sacrifice_invalid_creature() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -611,7 +612,7 @@ fn test_bargain_sacrifice_opponent_permanent() {
     // Attempting to sacrifice an opponent's artifact should be rejected.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -630,7 +631,7 @@ fn test_bargain_sacrifice_opponent_permanent() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -699,7 +700,7 @@ fn test_bargain_no_keyword_sacrifice_ignored() {
     // RC-1: This is silently ignored — the sacrifice is not performed.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -718,7 +719,7 @@ fn test_bargain_no_keyword_sacrifice_ignored() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     // Spell casts successfully; the unclaimed sacrifice is ignored.
@@ -783,7 +784,7 @@ fn test_bargain_permanent_etb_was_bargained() {
     // Cast the bargain artifact while bargaining.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -802,7 +803,7 @@ fn test_bargain_permanent_etb_was_bargained() {
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell bargain artifact failed: {:?}", e));
 
@@ -880,7 +881,7 @@ fn test_bargain_permanent_etb_not_bargained() {
     // Cast the bargain artifact WITHOUT bargaining.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![],
@@ -896,7 +897,7 @@ fn test_bargain_permanent_etb_not_bargained() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap_or_else(|e| panic!("CastSpell without bargain failed: {:?}", e));
 

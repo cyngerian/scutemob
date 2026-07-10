@@ -9,6 +9,7 @@
 //! - CR 704.5m / 303.4c: SBA removes an Aura attached to an illegal object.
 //! - CR 702.5a: Enchant Permanent allows any permanent type.
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::test_util;
 use mtg_engine::{
     calculate_characteristics, process_command, start_game, CardType, Command,
@@ -82,7 +83,7 @@ fn test_702_5_enchant_creature_targets_creature_valid() {
     // Cast succeeds — creature target matches "Enchant creature".
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: aura_id,
             targets: vec![Target::Object(creature_id)],
@@ -98,7 +99,7 @@ fn test_702_5_enchant_creature_targets_creature_valid() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_ok(),
@@ -136,7 +137,7 @@ fn test_702_5_enchant_creature_rejects_land_target() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: aura_id,
             targets: vec![Target::Object(land_id)],
@@ -152,7 +153,7 @@ fn test_702_5_enchant_creature_rejects_land_target() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_err(),
@@ -190,7 +191,7 @@ fn test_702_5_enchant_land_targets_land_valid() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: aura_id,
             targets: vec![Target::Object(land_id)],
@@ -206,7 +207,7 @@ fn test_702_5_enchant_land_targets_land_valid() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_ok(),
@@ -242,7 +243,7 @@ fn test_702_5_aura_attaches_to_target_on_resolution() {
     // Cast the Aura targeting the creature.
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: aura_id,
             targets: vec![Target::Object(creature_id)],
@@ -258,7 +259,7 @@ fn test_702_5_aura_attaches_to_target_on_resolution() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("CastSpell should succeed");
 
@@ -421,7 +422,7 @@ fn test_702_5_enchant_permanent_accepts_any_permanent() {
 
         let result = process_command(
             state,
-            Command::CastSpell {
+            Command::CastSpell(Box::new(CastSpellData {
                 player: p1,
                 card: aura_id,
                 targets: vec![Target::Object(creature_id)],
@@ -437,7 +438,7 @@ fn test_702_5_enchant_permanent_accepts_any_permanent() {
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            },
+            })),
         );
         assert!(
             result.is_ok(),
@@ -466,7 +467,7 @@ fn test_702_5_enchant_permanent_accepts_any_permanent() {
 
         let result = process_command(
             state,
-            Command::CastSpell {
+            Command::CastSpell(Box::new(CastSpellData {
                 player: p1,
                 card: aura_id,
                 targets: vec![Target::Object(land_id)],
@@ -482,7 +483,7 @@ fn test_702_5_enchant_permanent_accepts_any_permanent() {
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            },
+            })),
         );
         assert!(
             result.is_ok(),
@@ -516,7 +517,7 @@ fn test_702_5_enchant_casting_rejected_without_target() {
     // Cast with no targets — should fail.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: aura_id,
             targets: vec![],
@@ -532,7 +533,7 @@ fn test_702_5_enchant_casting_rejected_without_target() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_err(),
@@ -573,7 +574,7 @@ fn test_303_4a_aura_target_must_be_on_battlefield() {
     // Casting the Aura targeting a graveyard creature should be rejected.
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: aura_id,
             targets: vec![Target::Object(creature_id)],
@@ -589,7 +590,7 @@ fn test_303_4a_aura_target_must_be_on_battlefield() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_err(),
@@ -629,7 +630,7 @@ fn test_702_5_aura_fizzles_when_target_killed() {
     // Cast the Aura targeting the creature on the battlefield — succeeds.
     let (mut state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: aura_id,
             targets: vec![Target::Object(creature_id)],
@@ -645,7 +646,7 @@ fn test_702_5_aura_fizzles_when_target_killed() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("CastSpell should succeed");
 
@@ -800,7 +801,7 @@ fn test_enchant_filtered_land_subtype_cast_time_legal() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: aura_id,
             targets: vec![Target::Object(mountain_id)],
@@ -816,7 +817,7 @@ fn test_enchant_filtered_land_subtype_cast_time_legal() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_ok(),
@@ -856,7 +857,7 @@ fn test_enchant_filtered_land_subtype_cast_time_illegal() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: aura_id,
             targets: vec![Target::Object(forest_id)],
@@ -872,7 +873,7 @@ fn test_enchant_filtered_land_subtype_cast_time_illegal() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     match result {
         Err(GameStateError::InvalidTarget(_)) => {}
@@ -912,7 +913,7 @@ fn test_enchant_filtered_controller_cast_time_legal() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: aura_id,
             targets: vec![Target::Object(mountain_id)],
@@ -928,7 +929,7 @@ fn test_enchant_filtered_controller_cast_time_legal() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_ok(),
@@ -969,7 +970,7 @@ fn test_enchant_filtered_controller_cast_time_illegal() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: aura_id,
             targets: vec![Target::Object(mountain_id)],
@@ -985,7 +986,7 @@ fn test_enchant_filtered_controller_cast_time_illegal() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     match result {
         Err(GameStateError::InvalidTarget(_)) => {}
@@ -1025,7 +1026,7 @@ fn test_enchant_filtered_basic_land_legal() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: aura_id,
             targets: vec![Target::Object(plains_id)],
@@ -1041,7 +1042,7 @@ fn test_enchant_filtered_basic_land_legal() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     assert!(
         result.is_ok(),
@@ -1085,7 +1086,7 @@ fn test_enchant_filtered_basic_land_illegal_nonbasic() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: aura_id,
             targets: vec![Target::Object(dual_id)],
@@ -1101,7 +1102,7 @@ fn test_enchant_filtered_basic_land_illegal_nonbasic() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
     match result {
         Err(GameStateError::InvalidTarget(_)) => {}
@@ -1273,7 +1274,7 @@ fn test_enchant_filtered_disjunction_forest_or_plains() {
         let land_id = find_object(&state, "Test Forest");
         let result = process_command(
             state,
-            Command::CastSpell {
+            Command::CastSpell(Box::new(CastSpellData {
                 player: p1,
                 card: aura_id,
                 targets: vec![Target::Object(land_id)],
@@ -1289,7 +1290,7 @@ fn test_enchant_filtered_disjunction_forest_or_plains() {
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            },
+            })),
         );
         assert!(
             result.is_ok(),
@@ -1315,7 +1316,7 @@ fn test_enchant_filtered_disjunction_forest_or_plains() {
         let land_id = find_object(&state, "Test Plains");
         let result = process_command(
             state,
-            Command::CastSpell {
+            Command::CastSpell(Box::new(CastSpellData {
                 player: p1,
                 card: aura_id,
                 targets: vec![Target::Object(land_id)],
@@ -1331,7 +1332,7 @@ fn test_enchant_filtered_disjunction_forest_or_plains() {
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            },
+            })),
         );
         assert!(
             result.is_ok(),
@@ -1357,7 +1358,7 @@ fn test_enchant_filtered_disjunction_forest_or_plains() {
         let land_id = find_object(&state, "Test Mountain");
         let result = process_command(
             state,
-            Command::CastSpell {
+            Command::CastSpell(Box::new(CastSpellData {
                 player: p1,
                 card: aura_id,
                 targets: vec![Target::Object(land_id)],
@@ -1373,7 +1374,7 @@ fn test_enchant_filtered_disjunction_forest_or_plains() {
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            },
+            })),
         );
         match result {
             Err(GameStateError::InvalidTarget(_)) => {}
@@ -1417,7 +1418,7 @@ fn test_enchant_filtered_nonbasic_land() {
         let land_id = find_object(&state, "Basic Mountain");
         let result = process_command(
             state,
-            Command::CastSpell {
+            Command::CastSpell(Box::new(CastSpellData {
                 player: p1,
                 card: aura_id,
                 targets: vec![Target::Object(land_id)],
@@ -1433,7 +1434,7 @@ fn test_enchant_filtered_nonbasic_land() {
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            },
+            })),
         );
         match result {
             Err(GameStateError::InvalidTarget(_)) => {}
@@ -1462,7 +1463,7 @@ fn test_enchant_filtered_nonbasic_land() {
         let land_id = find_object(&state, "Nonbasic Dual");
         let result = process_command(
             state,
-            Command::CastSpell {
+            Command::CastSpell(Box::new(CastSpellData {
                 player: p1,
                 card: aura_id,
                 targets: vec![Target::Object(land_id)],
@@ -1478,7 +1479,7 @@ fn test_enchant_filtered_nonbasic_land() {
                 additional_costs: vec![],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
-            },
+            })),
         );
         assert!(
             result.is_ok(),

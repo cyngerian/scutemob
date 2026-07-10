@@ -12,6 +12,7 @@
 //!   the beginning of the controller's most recent turn (CR 302.6)
 //! - Vigilance: attacker doesn't tap (CR 702.20) — tested in combat.rs
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::{ActivatedAbility, ActivationCost};
 use mtg_engine::{
     all_cards, calculate_characteristics, check_and_apply_sbas, process_command, AttackTarget,
@@ -418,7 +419,7 @@ fn test_702_18_shroud_prevents_targeting() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: bolt_id,
             targets: vec![mtg_engine::Target::Object(target_id)],
@@ -434,7 +435,7 @@ fn test_702_18_shroud_prevents_targeting() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -487,7 +488,7 @@ fn test_702_11_hexproof_blocks_opponent_targeting() {
 
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: bolt_id,
             targets: vec![mtg_engine::Target::Object(target_id)],
@@ -503,7 +504,7 @@ fn test_702_11_hexproof_blocks_opponent_targeting() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -558,7 +559,7 @@ fn test_702_11d_player_hexproof_blocks_opponent_spell_targeting() {
     // P2 tries to target P1 (who has hexproof from Crystal Barricade)
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: bolt_id,
             targets: vec![mtg_engine::Target::Player(p1)],
@@ -574,7 +575,7 @@ fn test_702_11d_player_hexproof_blocks_opponent_spell_targeting() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -626,7 +627,7 @@ fn test_702_11d_player_hexproof_allows_self_targeting() {
     // P1 targets themselves — should succeed despite player hexproof
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: heal_id,
             targets: vec![mtg_engine::Target::Player(p1)],
@@ -642,7 +643,7 @@ fn test_702_11d_player_hexproof_allows_self_targeting() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -696,7 +697,7 @@ fn test_702_11d_player_hexproof_lost_when_source_leaves() {
     // P2 targets P1 — should succeed because the hexproof source is in graveyard
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2,
             card: bolt_id,
             targets: vec![mtg_engine::Target::Player(p1)],
@@ -712,7 +713,7 @@ fn test_702_11d_player_hexproof_lost_when_source_leaves() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(
@@ -1337,7 +1338,7 @@ fn test_cc22_hexproof_does_not_block_global_effects() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: wrath_id,
             targets: vec![], // no targets — global effect
@@ -1353,7 +1354,7 @@ fn test_cc22_hexproof_does_not_block_global_effects() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .expect("casting Wrath of God failed");
 

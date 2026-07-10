@@ -10,6 +10,7 @@
 //! - Multiple stax effects stacking
 
 use mtg_engine::cards::card_definition::AbilityDefinition;
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::stubs::ActiveRestriction;
 use mtg_engine::{
     process_command, AttackTarget, CardDefinition, CardId, CardRegistry, CardType, Command, Effect,
@@ -48,7 +49,7 @@ fn instant_def(name: &str, card_id: &str) -> CardDefinition {
 }
 
 fn cast_cmd(player: PlayerId, card: ObjectId) -> Command {
-    Command::CastSpell {
+    Command::CastSpell(Box::new(CastSpellData {
         player,
         card,
         targets: vec![],
@@ -64,7 +65,7 @@ fn cast_cmd(player: PlayerId, card: ObjectId) -> Command {
         additional_costs: vec![],
         hybrid_choices: vec![],
         phyrexian_life_payments: vec![],
-    }
+    }))
 }
 
 /// Helper: find object by name.
@@ -388,7 +389,7 @@ fn test_restriction_drannith_blocks_graveyard_cast() {
     let gy_spell = find_by_name(&state, "GY Spell");
     let result = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p2(),
             card: gy_spell,
             targets: vec![],
@@ -404,7 +405,7 @@ fn test_restriction_drannith_blocks_graveyard_cast() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     );
 
     assert!(result.is_err(), "Drannith should block non-hand casting");

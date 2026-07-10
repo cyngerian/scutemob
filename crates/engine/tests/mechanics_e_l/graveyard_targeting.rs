@@ -8,6 +8,7 @@ use mtg_engine::cards::card_definition::{
     AbilityDefinition, CardDefinition, Effect, EffectTarget, PlayerTarget, TargetFilter,
     TargetRequirement, TypeLine, ZoneTarget,
 };
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::rules::{process_command, Command, GameEvent};
 use mtg_engine::state::game_object::ManaCost;
 use mtg_engine::state::turn::Step;
@@ -82,7 +83,7 @@ fn return_from_gy_spell(
 }
 
 fn default_cast(player: PlayerId, card: ObjectId, targets: Vec<Target>) -> Command {
-    Command::CastSpell {
+    Command::CastSpell(Box::new(CastSpellData {
         player,
         card,
         targets,
@@ -98,7 +99,7 @@ fn default_cast(player: PlayerId, card: ObjectId, targets: Vec<Target>) -> Comma
         additional_costs: vec![],
         hybrid_choices: vec![],
         phyrexian_life_payments: vec![],
-    }
+    }))
 }
 
 // ---------------------------------------------------------------------------

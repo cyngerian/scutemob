@@ -12,6 +12,7 @@
 //! - No counter placed when permanent left the battlefield before connive resolves (CR 701.50c).
 //! - "Whenever this creature connives" trigger fires via TriggerEvent::SourceConnives (CR 701.50b).
 
+use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::CardType;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardEffectTarget, CardId, CardRegistry,
@@ -175,7 +176,7 @@ fn test_connive_basic_nonland_discard_adds_counter() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![Target::Object(creature_id)],
@@ -191,7 +192,7 @@ fn test_connive_basic_nonland_discard_adds_counter() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -304,7 +305,7 @@ fn test_connive_land_discard_no_counter() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![Target::Object(creature_id)],
@@ -320,7 +321,7 @@ fn test_connive_land_discard_no_counter() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -420,7 +421,7 @@ fn test_connive_n_multiple_draws_and_discards() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![Target::Object(creature_id)],
@@ -436,7 +437,7 @@ fn test_connive_n_multiple_draws_and_discards() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -528,7 +529,7 @@ fn test_connive_empty_library_still_connives() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![Target::Object(creature_id)],
@@ -544,7 +545,7 @@ fn test_connive_empty_library_still_connives() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -635,7 +636,7 @@ fn test_connive_etb_trigger_on_creature() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: card_id,
             targets: vec![],
@@ -651,7 +652,7 @@ fn test_connive_etb_trigger_on_creature() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -762,7 +763,7 @@ fn test_connive_self_trigger_fires_on_connive() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![Target::Object(creature_id)],
@@ -778,7 +779,7 @@ fn test_connive_self_trigger_fires_on_connive() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
@@ -921,7 +922,7 @@ fn test_connive_creature_left_battlefield_no_counter() {
 
     let (state, _) = process_command(
         state,
-        Command::CastSpell {
+        Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
             targets: vec![Target::Object(creature_id)],
@@ -937,7 +938,7 @@ fn test_connive_creature_left_battlefield_no_counter() {
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
-        },
+        })),
     )
     .unwrap();
 
