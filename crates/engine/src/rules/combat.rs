@@ -121,6 +121,26 @@ pub fn handle_declare_attackers(
                         "a player cannot attack themselves".into(),
                     ));
                 }
+                // CR 508.1c / PB-AC8: CantAttackOwner -- keys on the attacker's OWNER,
+                // not its controller (Alexios, Deimos of Kosmos changes control every
+                // upkeep; it still can't attack the player who owns it).
+                if *pid == obj.owner {
+                    let restricted = state.restrictions.iter().any(|r| {
+                        r.source == *attacker_id
+                            && matches!(r.restriction, GameRestriction::CantAttackOwner)
+                            && state
+                                .objects
+                                .get(&r.source)
+                                .map(|o| o.zone == ZoneId::Battlefield)
+                                .unwrap_or(false)
+                    });
+                    if restricted {
+                        return Err(GameStateError::InvalidCommand(format!(
+                            "Creature {:?} can't attack its owner (CR 508.1c)",
+                            attacker_id
+                        )));
+                    }
+                }
                 let target_player = state
                     .players
                     .get(pid)
@@ -357,8 +377,34 @@ pub fn handle_declare_attackers(
             let has_defender = chars.keywords.contains(&KeywordAbility::Defender);
             let is_tapped = obj.status.tapped;
             let has_sickness = obj.has_summoning_sickness;
-            let cannot_attack =
-                (is_tapped && !has_vigilance) || (has_sickness && !has_haste) || has_defender;
+            // CR 508.1d: a requirement is obeyed only to the extent it doesn't
+            // violate a restriction. If this creature has CantAttackOwner (CR
+            // 508.1c) and its owner is the only legal opposing player left, it
+            // has no legal attack target at all -- it is not "able" to attack,
+            // so the must-attack requirement does not force it. (Alexios.)
+            let has_cant_attack_owner = state.restrictions.iter().any(|r| {
+                r.source == *obj_id
+                    && matches!(r.restriction, GameRestriction::CantAttackOwner)
+                    && state
+                        .objects
+                        .get(&r.source)
+                        .map(|o| o.zone == ZoneId::Battlefield)
+                        .unwrap_or(false)
+            });
+            let no_legal_target = has_cant_attack_owner
+                && !state.players.keys().any(|pid| {
+                    *pid != player
+                        && *pid != obj.owner
+                        && state
+                            .players
+                            .get(pid)
+                            .map(|p| !p.has_lost && !p.has_conceded)
+                            .unwrap_or(false)
+                });
+            let cannot_attack = (is_tapped && !has_vigilance)
+                || (has_sickness && !has_haste)
+                || has_defender
+                || no_legal_target;
             if !cannot_attack {
                 return Err(GameStateError::InvalidCommand(format!(
                     "Creature {:?} must attack each combat if able (CR 508.1d)",

@@ -2268,6 +2268,27 @@ pub enum Effect {
     /// Cards exiled by replacement effects during step 2 are NOT returned in step 3
     /// (only step-1 exiled cards are returned). CR 101.4, 701.21a.
     LivingDeath,
+    /// CR 104.2b / CR 104.1: the effect's controller wins the game.
+    ///
+    /// No `condition` field by design (PB-AC8): gating comes from the ability's
+    /// own `intervening_if` (CR 603.4, re-checked at resolution) or from wrapping
+    /// this in `Effect::Conditional`. Adding a second condition mechanism here
+    /// would duplicate `check_condition` for no roster card that needs it.
+    ///
+    /// CR 104.1: the game ends immediately when a player wins. Commander does
+    /// NOT use the limited-range-of-influence option (CR 801: that's for
+    /// Emperor / 5+-player variants), so CR 104.3h/801.14 ("each opponent in
+    /// range loses, game continues") do NOT apply -- winning simply ends the
+    /// game, eliminating every other player still in it.
+    ///
+    /// CR 104.3f: a player who would win and lose simultaneously loses instead
+    /// -- this effect is a no-op if the controller has already lost.
+    ///
+    /// CR 704.5: winning-by-effect is NOT a state-based action. This effect
+    /// marks every other still-active player `has_lost` atomically at
+    /// resolution; the engine's existing post-resolution game-over poll
+    /// finalizes with `GameEvent::GameOver { winner }`.
+    WinGame,
 }
 // ── Effect Targets ────────────────────────────────────────────────────────────
 /// Where a delayed trigger returns an exiled object to (CR 610.3).

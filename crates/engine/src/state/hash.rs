@@ -284,7 +284,16 @@
 ///   No new mutable/runtime GameState/PlayerState/GameObject fields this batch — both
 ///   additions are enum-variant/trigger-field payloads covered by hash-distinguishes
 ///   tests, not mutation-verified runtime-field tests (see pb-plan-AC7.md Risks).
-pub const HASH_SCHEMA_VERSION: u8 = 34;
+/// - 35: PB-AC8 (2026-07-09) — Static restrictions + win effect. New
+///   `GameRestriction::CantAttackOwner` (disc 9, CR 508.1c — self-referential,
+///   keyed on owner not controller) + `GameRestriction::CantBeSacrificed` (disc 10,
+///   CR 701.21a — full 11-site sacrifice-dispatch chain) + `Effect::WinGame` (disc
+///   90, CR 104.1/104.2b/104.3f — no payload; gating via existing intervening_if /
+///   Effect::Conditional) + `LossReason::OpponentWonGame` (disc 5). No new mutable
+///   GameState/PlayerState/GameObject fields — WinGame reuses existing
+///   `PlayerState.has_lost` (no `has_won` field: see pb-plan-AC8.md design note,
+///   `active_players()` would not shrink from a won-but-not-lost flag).
+pub const HASH_SCHEMA_VERSION: u8 = 35;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -1092,6 +1101,8 @@ impl HashInto for LossReason {
             LossReason::PoisonCounters => 2u8.hash_into(hasher),
             LossReason::CommanderDamage => 3u8.hash_into(hasher),
             LossReason::Conceded => 4u8.hash_into(hasher),
+            // PB-AC8: CR 104.1 -- a player loses because an opponent won the game.
+            LossReason::OpponentWonGame => 5u8.hash_into(hasher),
         }
     }
 }
@@ -1898,6 +1909,9 @@ impl HashInto for GameRestriction {
                 max.hash_into(hasher);
             }
             OpponentsCanOnlyCastAtSorcerySpeed => 8u8.hash_into(hasher),
+            // PB-AC8: CantAttackOwner (CR 508.1c), CantBeSacrificed (CR 701.21a).
+            CantAttackOwner => 9u8.hash_into(hasher),
+            CantBeSacrificed => 10u8.hash_into(hasher),
         }
     }
 }
@@ -6179,6 +6193,12 @@ impl HashInto for Effect {
                 89u8.hash_into(hasher);
                 target.hash_into(hasher);
                 cost.hash_into(hasher);
+            }
+            // PB-AC8: WinGame (discriminant 90) — CR 104.1 / 104.2b / 104.3f.
+            // No payload: gating is via intervening_if / Effect::Conditional, not
+            // a field on this variant (see PB-AC8 plan design note).
+            Effect::WinGame => {
+                90u8.hash_into(hasher);
             }
         }
     }

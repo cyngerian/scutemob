@@ -2944,8 +2944,14 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         } => {
             let controller = stack_obj.controller;
             // Check if the source is still on the battlefield (CR 400.7).
+            // PB-AC8 / CR 701.21a: a "can't be sacrificed" permanent evoked is not
+            // actually sacrificed -- it stays on the battlefield (edge case; no
+            // known card combines Evoke with a can't-be-sacrificed grant, wired
+            // for dispatch-chain completeness).
             let source_info = state.objects.get(&source_object).and_then(|obj| {
-                if obj.zone == ZoneId::Battlefield {
+                if obj.zone == ZoneId::Battlefield
+                    && !crate::effects::object_cant_be_sacrificed(state, source_object)
+                {
                     let pre_chars =
                         crate::rules::layers::calculate_characteristics(state, source_object);
                     let lki_power = pre_chars

@@ -619,6 +619,22 @@ pub enum GameRestriction {
     /// CR 307.5: "only as a sorcery" = must have priority, main phase, empty stack.
     /// CR 101.2: restriction overrides permission — this beats flash grants.
     OpponentsCanOnlyCastAtSorcerySpeed,
+    /// "~ can't attack you." / "~ can't attack its owner." (CR 508.1c)
+    /// (Alexios, Deimos of Kosmos)
+    ///
+    /// Self-referential restriction: the affected object IS `ActiveRestriction.source`.
+    /// Keys on the object's OWNER, not its controller — a creature whose control
+    /// changes (e.g. Alexios) still can't attack the player who originally owns it.
+    /// PB-AC8.
+    CantAttackOwner,
+    /// "~ can't be sacrificed." (CR 701.21a)
+    /// (Alexios, Deimos of Kosmos)
+    ///
+    /// Self-referential restriction: the affected object IS `ActiveRestriction.source`.
+    /// This is NOT indestructible — it only prevents sacrifice (an effect telling the
+    /// controller to sacrifice it does nothing for this permanent; a cost that can only
+    /// be paid by sacrificing it can't be paid). PB-AC8.
+    CantBeSacrificed,
 }
 /// An active restriction in the game, registered from a static ability of a
 /// permanent on the battlefield.

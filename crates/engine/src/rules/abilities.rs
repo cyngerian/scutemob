@@ -617,6 +617,13 @@ pub fn handle_activate_ability(
     }
     // Pay sacrifice cost (CR 602.2c). Move source to graveyard before pushing to stack.
     if ability_cost.sacrifice_self {
+        // PB-AC8 / CR 701.21a: a "can't be sacrificed" source can't pay a
+        // sacrifice-self cost -- the ability simply cannot be activated this way.
+        if crate::effects::object_cant_be_sacrificed(state, source) {
+            return Err(GameStateError::InvalidCommand(
+                "sacrifice cost: this permanent can't be sacrificed (CR 701.21a)".into(),
+            ));
+        }
         let (
             is_creature,
             owner,
@@ -750,6 +757,13 @@ pub fn handle_activate_ability(
                     "sacrifice cost: you must control the permanent to sacrifice (CR 602.2)".into(),
                 ));
             }
+            // PB-AC8 / CR 701.21a: a "can't be sacrificed" permanent is not a legal
+            // choice to pay a sacrifice-another cost.
+            if crate::effects::object_cant_be_sacrificed(state, sac_id) {
+                return Err(GameStateError::InvalidCommand(
+                    "sacrifice cost: this permanent can't be sacrificed (CR 701.21a)".into(),
+                ));
+            }
             // Validate the permanent matches the sacrifice filter using layer-resolved characteristics.
             let chars = crate::rules::layers::calculate_characteristics(state, sac_id)
                 .unwrap_or_else(|| sac_obj.characteristics.clone());
@@ -872,7 +886,12 @@ pub fn handle_activate_ability(
             .objects
             .iter()
             .filter_map(|(&id, obj)| {
-                if obj.zone == ZoneId::Battlefield && obj.controller == player && obj.is_phased_in()
+                if obj.zone == ZoneId::Battlefield
+                    && obj.controller == player
+                    && obj.is_phased_in()
+                    // PB-AC8 / CR 701.21a: a "can't be sacrificed" Food is not an
+                    // eligible forage target.
+                    && !crate::effects::object_cant_be_sacrificed(state, id)
                 {
                     // Use layer-resolved characteristics to respect continuous effects.
                     let chars = crate::rules::layers::calculate_characteristics(state, id)

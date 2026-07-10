@@ -1487,13 +1487,21 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
     // CR 402.2: Recompute no_max_hand_size from the battlefield. A player has
     // no maximum hand size if they control a permanent with KeywordAbility::NoMaxHandSize
     // (e.g. Thought Vessel, Reliquary Tower).
-    let has_no_max = state.objects.values().any(|obj| {
+    //
+    // PB-AC8 bug fix (W3-LC pattern): must use layer-resolved characteristics, not
+    // `obj.characteristics.keywords` directly -- a permanent that GAINS NoMaxHandSize
+    // via `LayerModification::AddKeyword` (e.g. Wrenn and Seven's emblem proxy,
+    // `wrenn_and_seven.rs`) has the keyword invisible to a base-characteristics scan.
+    let has_no_max = state.objects.iter().any(|(id, obj)| {
         obj.zone == ZoneId::Battlefield
             && obj.controller == active
-            && obj
-                .characteristics
-                .keywords
-                .contains(&crate::state::types::KeywordAbility::NoMaxHandSize)
+            && super::layers::calculate_characteristics(state, *id)
+                .map(|chars| {
+                    chars
+                        .keywords
+                        .contains(&crate::state::types::KeywordAbility::NoMaxHandSize)
+                })
+                .unwrap_or(false)
     });
     if let Some(ps) = state.players.get_mut(&active) {
         ps.no_max_hand_size = has_no_max;

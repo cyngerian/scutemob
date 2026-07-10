@@ -957,7 +957,7 @@ fn test_spell_subtype_filter_none_matches_all() {
 #[test]
 fn test_hash_schema_version_is_34() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 34u8,
+        HASH_SCHEMA_VERSION, 35u8,
         "PB-AC7 bumped HASH_SCHEMA_VERSION 33->34. If you bumped again, update this test."
     );
 }
