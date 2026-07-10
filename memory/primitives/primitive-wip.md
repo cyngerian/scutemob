@@ -215,7 +215,7 @@ Per **CR 704.5, winning-by-effect is NOT an SBA**: do *not* splice into `sba.rs`
 - [x] Review backfill (card-batch-reviewer) → `memory/card-authoring/review-pb-ac8-backfill.md` — 1 HIGH (stale marker), 1 MEDIUM (Simic win-con unreachable, accepted), 1 LOW (oracle text drift) — all resolved or accepted
 - [x] Final gates: build --workspace / test --all (3062) / clippy -D warnings / fmt --check — all clean
 - [x] authoring-report rerun — clean 970 → 973 (+3), 55.5% → 55.7%; delta posted as task comment
-- [ ] `/review`, satisfy criteria 4403-4406, close
+- [x] `/review` — all 4 criteria PASS; 2 dispatch-completeness gaps found (Champion, Devour re-validation) and closed; criteria 4403-4406 satisfied
 
 ## Outcome
 
