@@ -14,15 +14,15 @@
 > Detailed PB-by-PB handoffs, hazards, and seed inventories live in `memory/workstream-state.md`.
 > Worker sessions: append detail there, not here. CLAUDE.md tracks current snapshot only.
 
-- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage 970/1,748 = 55.5% per `tools/authoring-report.py`)
-- **Tests**: **3035 passing**; build/clippy/fmt clean
+- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage 973/1,748 = 55.7% per `tools/authoring-report.py`)
+- **Tests**: **3062 passing**; build/clippy/fmt clean
 - **Abilities**: ~199 validated; 42/42 P1; 17/17 P2; 40/40 P3; 95/95 P4 implemented (9 permanent-n/a; 1 deferred: Banding)
 - **Primitives**: PB-0..PB-37 + named-letter chain (PB-A/B/E/J/M/S/X/Q/Q4/N/D/P/L/T/SFT/CC-{W,B,C,A}/TS/LKI-CC/CD/LKI-Power/EWC/XS/XS-E/XA/EAT/XA2/EWC-D) all DONE. PB-Q2/Q3/Q5 reserved.
-- **Last shipped**: **PB-AC7** (`scutemob-50`, merge `2f214906`) — `LayerModification::{SetCreatureTypes, SetCardTypes}` (Layer 4, disc 30/31, CR 205.1a incl. correlated-subtype removal via 6 CR-205.3 subtype-set statics + `correlated_card_types()`) + `WheneverYouCastSpell.spell_subtype_filter` (Aura/Equipment/Vehicle); CR 613.8 payload-aware `depends_on` arms. LoseAbilities + one-shot Layer-4 override verified already-expressible, NOT re-added. Review 1 HIGH + 2 MEDIUM fixed. Backfill: 5 clean (Kenrith's Transformation, Eaten by Piranhas, Darksteel Mutation, Sram, Leaf-Crowned Visionary) + 2 PARTIAL narrowed. Prior: PB-AC6 (`scutemob-49`, phase/opponent conditions), PB-AC5 (`scutemob-47`), PB-AC4..AC1 (`scutemob-46..43`). Next: PB-AC8 (static restrictions, win-cons, no-max-hand). Registry-gate debt: `scutemob-48` (invariant #9, backlog).
+- **Last shipped**: **PB-AC8** (`scutemob-51`, merge `a2aea440`) — `GameRestriction::CantAttackOwner` + `CantBeSacrificed` (guarded at cost-payment AND delayed-trigger self-sacrifice choke points) + `Effect::WinGame` with verified multiplayer semantics (CR 104.3h corrected from brief; mandatory 4p test). NoMaximumHandSize + MustAttack(self) verified already-existing, NOT re-added; MustAttack group form deferred (0 yield). Review 0 HIGH / 2 MEDIUM fixed (incl. CantBeSacrificed half-wired — the feedback_verify_full_chain failure mode). Backfill: 3 clean (Nezahal, Toski, Curiosity Crafter — all mis-triaged, blocked only by stale markers). Prior: PB-AC7 (`scutemob-50`, Layer-4 type-setting), PB-AC6..AC1 (`scutemob-49..43`). Next: PB-AC9 (misc & mana) — last in chain. Registry-gate debt: `scutemob-48` (invariant #9, backlog).
 - **Open primitive seeds**: OOS-XA2-1/2/4/5, OOS-EWCD-1..3, OOS-EAT-1..3, OOS-XS-E-2; older OOS-XS-1/3/4, OOS-LKI-Power-1/4/5, OOS-LKI-1..4, OOS-TS-1..4 — all 0-yield defensives or card-gated; high-confidence backlog exhausted. (OOS-XA-3/XA2-3 RESOLVED by `scutemob-30`; OOS-LKI-Power-3 shipped.) Full list: `memory/primitives/pb-retriage-CC.md`.
 - **Known issues**: 0 HIGH; 2 MEDIUM (pre-M8 deferred to M10+); **6 LOW open** (4 M10-gated: MR-M8-11, MR-B16-04/05/06; 2 permanent perf: MR-M1-18, MR-M6-14). Full: `docs/mtg-engine-milestone-reviews.md`.
 - **Strategic Review**: `docs/mtg-engine-strategic-review.md` (2026-03-07) — decouple M11 from M10, split M10, downscope M12, web-vs-Tauri decision pending
-- **Last Updated**: 2026-07-09 (PB-AC7 collected — 3035 tests, clean coverage 55.5%)
+- **Last Updated**: 2026-07-09 (PB-AC8 collected — 3062 tests, clean coverage 55.7%)
 
 ### What Exists (M0-M9.5 + Engine Core Complete + all P3/P4 abilities)
 
