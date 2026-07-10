@@ -202,10 +202,13 @@ has.
   the stack must still deal poison. SR-4 classified these as fizzles — `None` *is* a
   legal state to observe there — and left the semantics alone rather than silently
   widening scope. The fix is an LKI snapshot, not an assertion.
-- **`scutemob-66` (SR-14)** — the same vocabulary applied to the rest of `rules/`.
-  Unswept `calculate_characteristics` call sites: `abilities.rs` 71, `casting.rs` 36,
-  `combat.rs` 21, `sba.rs` 15, `replacement.rs` 14, `turn_actions.rs` 12, `mana.rs` 9,
-  `layers.rs` 7, `engine.rs` 5, `copy.rs` 3, `continuous_effect.rs` 3, `lands.rs` 2.
+- **`scutemob-66` (SR-14) — DONE 2026-07-10.** The same vocabulary applied to the ten
+  named `rules/` files (`abilities`, `casting`, `combat`, `sba`, `replacement`,
+  `turn_actions`, `mana`, `copy`, `engine`, `lands`). ~360 sites classified; two uncertain
+  IMPOSSIBLE verdicts were demoted to FIZZLE by the debug-assert suite
+  (`queue_carddef_etb_triggers`, `has_split_second_on_stack`). Record:
+  `docs/sr-14-silent-failure-audit-rules.md`. (`layers.rs` and `continuous_effect.rs` were
+  outside SR-14's criteria and remain unswept.)
 
 ## Method (reusable)
 

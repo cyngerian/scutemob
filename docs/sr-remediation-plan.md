@@ -49,7 +49,7 @@ Full evidence (file:line) is in each task's ESM description — run
 | 11 | scutemob-63 | SR-11: Pin the Rust toolchain | S | **DONE 2026-07-10.** `rust-toolchain.toml` pins exact stable `1.95.0` (single source of truth); CI reads `channel` from it and verifies the installed rustc matches. Local `clippy -D warnings` is now an authoritative CI preview. |
 | 12 | scutemob-64 | SR-12: Unbypassable invariant-9 gate + marker anti-rot | M | **DONE 2026-07-10.** `start_game` now runs a completeness pre-game check (the choke point every assembly path shares); explicit opt-out `start_game_allowing_incomplete`. Deviation-language source scan guards Partial/KnownWrong; 6-entry reviewed allowlist. Fuzzer `random_deck` filters to Complete. |
 | 13 | scutemob-65 | SR-13: Damage-source characteristics must use LKI | M | Discovered during SR-4. Wither/infect "function no matter what zone" (CR 702.80c/702.90e) but the engine reads the source through a live lookup and treats a dead source as having neither. Real bug, not an assert. |
-| 14 | scutemob-66 | SR-14: Extend the SR-4 diagnostics vocabulary to the rest of `rules/` | M | Discovered during SR-4, which scoped to its two named files. ~200 unswept `calculate_characteristics` sites; method is written up in `docs/sr-4-silent-failure-audit.md`. |
+| 14 | scutemob-66 | SR-14: Extend the SR-4 diagnostics vocabulary to the rest of `rules/` | M | **DONE 2026-07-10.** ~360 sites across the ten named `rules/` files classified impossible vs fizzle; two uncertain IMPOSSIBLE calls demoted to FIZZLE by the debug-assert suite. Record: `docs/sr-14-silent-failure-audit-rules.md`. |
 | 15 | scutemob-67 | SR-15: Catch-all audit for the *other* dispatch enums | M | Discovered during SR-5. The ~117 catch-alls SR-5 was sent to find are real but sit on `AbilityDefinition` (20), `ZoneId` (19), `ZoneChangeAction` (17), … — `AbilityDefinition` is a genuine dispatch table. Registry pattern from SR-5 transfers directly. |
 | 16 | scutemob-68 | SR-16: `PendingTrigger` serde round-trip drops `kind`/`data`/`embedded_effect` | S–M | Discovered during SR-7. Three `#[serde(skip)]` fields mean a serialized pending keyword trigger deserializes as an anonymous `Normal` trigger with no payload. Harmless today; load-bearing for M10 state sync and for rewind/replay. |
 
@@ -666,11 +666,54 @@ Task-specific extras:
      >1500 files, the deviation detector asserts ≥50 hits, and the marker detector asserts ≥700 —
      without these an absence-shaped gate ("no offenders") passes vacuously if the path is wrong
      or a needle typo stops matching.
+- **SR-14: DONE (2026-07-10).** Extended SR-4's `state::diagnostics` vocabulary to the ten
+  named `rules/` files; ~360 sites. Full record: `docs/sr-14-silent-failure-audit-rules.md`.
+  Two lessons for any future sweep of this shape:
+  1. **Bias-to-fizzle + a real suite is not optional, it is the mechanism.** Both of the two
+     verdicts the classifiers flagged as uncertain-IMPOSSIBLE fired debug asserts and were
+     correct as FIZZLE (`queue_carddef_etb_triggers` new_id; `has_split_second_on_stack`
+     Spell source outliving its object). A function *parameter* named like a live id (`new_id`)
+     is not automatically live — check whether the function itself already tolerates absence
+     (it had three `unwrap_or` fallbacks), which is a louder signal than the name.
+  2. **The disjoint-borrow hazard recurs and self-review misses it.** Parallel classifiers
+     were forbidden to run cargo (shared target dir), so the *only* place a
+     `state.expect_object_mut(id)`-vs-`card_registry`-borrow conflict shows up is the
+     coordinator's central `cargo build --workspace`. One did slip through
+     (`activate_loyalty_ability`, E0502) and was fixed to `debug_assert_object_live!` + raw
+     `get_mut`. Budget a compile-and-fix pass after any fan-out that edits `_mut` sites.
 
 ## Session Log
 
 _One entry per session, newest first. Format:_
 `- YYYY-MM-DD — SR-<N> (scutemob-<id>) — <status: done / in progress / blocked> — <one-line outcome + hazards + pointer for next session>`
+
+- 2026-07-10 — SR-14 (scutemob-66) — **done (in_review, awaiting /collect)** — Extended the
+  SR-4 `state::diagnostics` vocabulary to the ten named `rules/` files (abilities, casting,
+  combat, sba, replacement, turn_actions, mana, copy, engine, lands). ~360 state-lookup /
+  fallible-mutation sites classified impossible-absence (`expect_*`, asserts) vs
+  expected-fizzle (`lki_*` / kept-`calculate_characteristics`, CR-cited). Method reused
+  verbatim: lands.rs done by hand as a template + compile check, then nine parallel
+  classifier-editors (one per file), then one central compile + full suite. **Two things
+  worth carrying forward.** (1) *The suite is the adjudicator, and it adjudicated.* Two
+  IMPOSSIBLE verdicts both classifiers had explicitly flagged as uncertain fired debug
+  asserts: `replacement.rs::queue_carddef_etb_triggers` (a caller-supplied `new_id` the
+  function already tolerates absent — 3 sites → `lki_object`, CR 400.7) and
+  `casting.rs::has_split_second_on_stack` (a `Spell` stack entry outlives its source object
+  on a free/plotted cast — CR 400.7/113.7a). Bias-to-fizzle plus a real suite is the whole
+  safety mechanism; do not skip either. (2) *The disjoint-borrow hazard recurs and a
+  classifier can miss it:* `engine.rs::activate_loyalty_ability` needed
+  `debug_assert_object_live!` + raw `get_mut` because `def`/`effect` hold a `card_registry`
+  borrow — the agent wrote `expect_object_mut` and it surfaced as an E0502 on the first
+  `cargo build --workspace`, not in any agent's self-review (agents were forbidden to run
+  cargo to avoid target-dir contention, so the central compile is the only place borrow
+  errors show up). Also retired a stale `MR-M4-01` "player may have been removed" comment in
+  `sba.rs` — ground truth 1 (no `players.remove` anywhere) says otherwise. **Gates:**
+  `cargo test --all` 3201 passed / 0 failed (debug asserts ON), `clippy --all-targets -D
+  warnings`, `fmt --all --check`, `build --workspace` — all green on 1.95.0. Record:
+  `docs/sr-14-silent-failure-audit-rules.md`. **Left open (noted, not widened):** a mana.rs
+  SR-13-style LKI *semantics* gap (`mana_source_matches` on a tap-and-sacrifice source) —
+  file a new SR task if wanted. **Next:** SR-15 (`scutemob-67`, catch-all audit for the
+  other dispatch enums) or SR-16 (`scutemob-68`, PendingTrigger serde round-trip).
 
 - 2026-07-10 — SR-12 (scutemob-64) — **done (in_review, awaiting /collect)** — Made the
   invariant-9 marker gate unbypassable and added anti-rot for the Partial/KnownWrong classes.
