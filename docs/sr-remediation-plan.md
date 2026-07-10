@@ -39,7 +39,7 @@ Full evidence (file:line) is in each task's ESM description — run
 | 4 | scutemob-56 | SR-4: Silent-failure sweep | M–L | **DONE 2026-07-10.** 398 sites classified; `state::diagnostics` vocabulary added. Follow-ups: `scutemob-65` (SR-13), `scutemob-66` (SR-14). |
 | 5 | scutemob-57 | SR-5: KeywordAbility catch-all audit | M | **DONE 2026-07-10.** Premise was a misattribution — see the gotcha. `state::keyword_registry` is the compile gate. Follow-up: `scutemob-67` (SR-15). |
 | 6 | scutemob-58 | SR-6: Extract card-defs crate | M | **DONE 2026-07-10.** Three crates now: `card-types` ← `card-defs` ← `engine`. Engine edits leave the defs `Fresh`. Card-authoring paths moved — see the gotcha. |
-| 7 | scutemob-59 | SR-7: PendingTrigger → TriggerData cutover | M | Requires HASH_SCHEMA_VERSION bump; read `state/hash.rs` header first. |
+| 7 | scutemob-59 | SR-7: PendingTrigger → TriggerData cutover | M | **DONE 2026-07-10.** `HASH_SCHEMA_VERSION` 36 → 37. `PendingTrigger::blank` is now the only way to build one, enforced by `tests/pending_trigger_shape.rs`. |
 | 8 | scutemob-60 | SR-8: Protocol versioning policy | M | Hard blocker before M10's first networked client. Design + implement. |
 | 9 | scutemob-61 | SR-9: Test infra consolidation | L | Three sub-items (binaries / equivalence test / script triage). **Split into 2–3 ESM subtasks at dispatch time.** |
 | 10 | scutemob-62 | SR-10: Dependency & lint hygiene | S–M | Four independent chores; safe filler work between larger tasks. |
@@ -48,6 +48,7 @@ Full evidence (file:line) is in each task's ESM description — run
 | 13 | scutemob-65 | SR-13: Damage-source characteristics must use LKI | M | Discovered during SR-4. Wither/infect "function no matter what zone" (CR 702.80c/702.90e) but the engine reads the source through a live lookup and treats a dead source as having neither. Real bug, not an assert. |
 | 14 | scutemob-66 | SR-14: Extend the SR-4 diagnostics vocabulary to the rest of `rules/` | M | Discovered during SR-4, which scoped to its two named files. ~200 unswept `calculate_characteristics` sites; method is written up in `docs/sr-4-silent-failure-audit.md`. |
 | 15 | scutemob-67 | SR-15: Catch-all audit for the *other* dispatch enums | M | Discovered during SR-5. The ~117 catch-alls SR-5 was sent to find are real but sit on `AbilityDefinition` (20), `ZoneId` (19), `ZoneChangeAction` (17), … — `AbilityDefinition` is a genuine dispatch table. Registry pattern from SR-5 transfers directly. |
+| 16 | scutemob-68 | SR-16: `PendingTrigger` serde round-trip drops `kind`/`data`/`embedded_effect` | S–M | Discovered during SR-7. Three `#[serde(skip)]` fields mean a serialized pending keyword trigger deserializes as an anonymous `Normal` trigger with no payload. Harmless today; load-bearing for M10 state sync and for rewind/replay. |
 
 Order is a recommendation, not a dependency chain. Hard constraints only:
 
@@ -340,6 +341,61 @@ Task-specific extras:
      site each fail the suite — and the per-root non-vacuity assertion is what catches the
      first. A cross-crate derived set needs a *per-root* denominator guard, not just a
      total-count guard.
+- **SR-7: DONE (2026-07-10).** The briefed hazard (a bump of `HASH_SCHEMA_VERSION`, per the
+  `state/hash.rs` header) was real and cost about five minutes. What actually mattered:
+  1. **The migration was already finished; only the corpse remained.** All 13 legacy
+     fields were `None` at **every one of their 33 construction sites** and were **read
+     nowhere** outside `hash.rs` — `grep -rn '\.poisonous_n\b'` returns zero. The payloads
+     had long since moved into `PendingTrigger.data`, which `flush_pending_triggers` reads
+     and threads into `StackObjectKind::KeywordTrigger { keyword, data }`. So the task was
+     a pure deletion with **zero behavior change**, and the risk was never "will the
+     trigger still fire" but "will I delete a field that is secretly live." **Establish
+     write-only-ness with a read-grep before touching anything** — it converts a scary
+     refactor into a mechanical one, exactly as SR-4's ground-truth pass did.
+  2. **The copy-paste literal is what kept the corpse warm.** 32 sites hand-spelled all 28
+     fields, so every field added since the `blank()` helper existed propagated itself into
+     32 more `None`s, and no field could ever be removed by a compiler error. That is why a
+     "mid-migration" state persisted across many PBs. The 32 sites are now
+     `..PendingTrigger::blank(source, controller, kind)` (nine of them collapsed to a bare
+     `blank(..)` call because they overrode nothing); the four rules files shrank by ~850
+     lines. **Prefer a `blank()`-style base to an all-fields literal precisely because it
+     makes deletion possible, not because it is shorter.**
+  3. **Do the 32-site edit with a script, then prove nothing was lost.** A regex over
+     `^\s*(field): None,$` deleted the initializers; a brace-depth parser rewrote the
+     literals. The safety net was a second script that re-read the *pre-change* files,
+     extracted every field whose value differed from `blank()`'s default, and asserted each
+     such value still appears in the post-change file. Compiling proves the code is
+     well-formed, not that an override survived. (Two mechanical defects the compiler *did*
+     catch: `impl PendingTrigger {` and `-> PendingTrigger {` both look like literals to a
+     naive `PendingTrigger\s*\{` scan, and `ability_index: ability_index` tripped clippy's
+     `redundant_field_names` at three sites.)
+  4. **Deleting a resolution arm compiles with zero errors.** Verified adversarially:
+     removing the entire `StackObjectKind::KeywordTrigger { keyword: Enlist, data:
+     TriggerData::CombatEnlist { .. } }` arm from `resolution.rs` leaves `cargo check`
+     completely green — the match has a catch-all — and the trigger silently resolves as a
+     no-op. This is SR-5's hazard one enum over, and it is the reason
+     `replacement_trigger_data_variants_are_still_consumed` exists: the *justification* for
+     deleting the 13 fields is that their `TriggerData` variants have live consumers, so
+     that justification is now itself a test. (Renaming a variant, by contrast, *is* a
+     compile error — so the gate must be phrased against deletion, not against renaming.)
+  5. **Only 11 of the 13 fields were hashed.** `haunt_source_object_id` and
+     `haunt_source_card_id` were never fed to the hasher — a pre-existing determinism hole
+     that was harmless only because both were always `None`. Deleting them made it moot.
+     **When you remove fields from a `HashInto` impl, diff the impl against the struct
+     rather than assuming they agree**; nothing enforces that they do.
+  6. Per SR-5's lesson, all four new gates were demonstrated adversarially rather than
+     existentially — re-add a field, hand-roll a literal, smuggle a literal into the one
+     excluded file, blind the scanner, orphan a consumer. Five attacks, five distinct
+     failures. The scanner-blinding attack is the one that matters: it fires the
+     non-vacuity guard (`checked >= 30`), without which an absence-shaped assertion passes
+     forever.
+  7. **Left deliberately open:** `PendingTrigger` derives `Serialize`/`Deserialize`, but
+     `kind`, `data` and `embedded_effect` are all `#[serde(skip)]`. A serialized-then-
+     deserialized `GameState` therefore loses every keyword trigger's identity *and*
+     payload, silently. Harmless today (triggers are flushed before priority, so a
+     serialized state never carries a pending one in practice), but it is a live trap for
+     M10 networking and for rewind/replay. Filed as `scutemob-68` (SR-16) rather than
+     widened into this task.
 - **SR-9(b):** the equivalence test's whole point is that
   `enrich_spec_from_def` shadow-implements object construction — if hashes
   diverge, the harness is wrong until proven otherwise, not the engine.
@@ -348,6 +404,71 @@ Task-specific extras:
 
 _One entry per session, newest first. Format:_
 `- YYYY-MM-DD — SR-<N> (scutemob-<id>) — <status: done / in progress / blocked> — <one-line outcome + hazards + pointer for next session>`
+
+- 2026-07-10 — SR-7 (scutemob-59) — **done** — The `PendingTrigger` → `TriggerData` cutover
+  is finished and can no longer un-finish itself. All 13 per-keyword `Option` fields deleted
+  (`ingest_target_player`, `flanking_blocker_id`, `rampage_n`, `renown_n`, `poisonous_n`,
+  `poisonous_target_player`, `enlist_enlisted_creature`, `recover_cost`, `recover_card`,
+  `cipher_encoded_card_id`, `cipher_encoded_object_id`, `haunt_source_object_id`,
+  `haunt_source_card_id`); the struct is 29 fields → 16, all of which are either identity or
+  *generic* trigger context. **Zero behavior change, and this was verifiable up front:** every
+  one of the 13 was `None` at all 33 construction sites and read at zero sites outside
+  `hash.rs`. The payloads already travelled in `PendingTrigger.data`. `HASH_SCHEMA_VERSION`
+  36 → 37 (removal-only: 11 of the 13 were hashed, so the byte stream shortens; the two
+  `haunt_*` never were, a pre-existing hole made moot by deletion). 28 sentinel tests bumped.
+  All 32 hand-rolled literals now build on `..PendingTrigger::blank(source, controller, kind)`
+  — nine collapsed to a bare `blank(..)` call, having overridden nothing — and the four rules
+  files shrank by ~850 lines net. 3134 tests pass (3129 baseline + 5 new), 314 suites. All four
+  verification gates clean; `cargo build --workspace` explicitly re-run.
+  **New gate:** `crates/engine/tests/pending_trigger_shape.rs` (5 tests). `PendingTrigger`'s field set is
+  pinned against the struct declaration parsed out of `stubs.rs` (so re-adding a keyword field
+  is a test failure that names the field and points at `TriggerData`); every
+  `PendingTrigger { .. }` literal under `engine/src`, `card-types/src` and `engine/tests` must
+  contain `..PendingTrigger::blank(`; `stubs.rs` — the one file excluded from that scan — is
+  pinned to exactly one literal, `blank()`'s own body; and each of the 10 replacement
+  `TriggerData` variants is asserted still present in *both* `abilities.rs`
+  (`flush_pending_triggers`) and `resolution.rs` (`resolve_stack_object`).
+  **Hazards discovered:** all seven written up in the SR-7 gotcha above — chiefly
+  (a) **the copy-paste literal was the disease, not a symptom.** 32 sites spelling all 28
+  fields meant every new field propagated itself into 32 more `None`s and no field could ever
+  be removed by a compiler error; that is exactly how a "mid-migration" state survived many PBs.
+  (b) **Deleting a `resolution.rs` arm compiles with zero errors** — verified by actually
+  deleting the Enlist arm — because the `StackObjectKind` match has a catch-all. So the claim
+  that justified this whole deletion ("the `TriggerData` variants have live consumers") is now
+  itself a test rather than a thing I checked once. This is SR-5's hazard one enum over, and it
+  confirms `scutemob-67` (SR-15) is pointed at something real. (c) The struct and its `HashInto`
+  impl were **already out of sync** and nothing enforced agreement.
+  **Demonstrated adversarially** (per SR-5's lesson), seven attacks, seven distinct failures:
+  re-add `poisonous_n` → field-set gate; hand-roll a literal in `turn_actions.rs` → literal
+  gate; smuggle a literal into the excluded `stubs.rs` → the exclusion's own pin; blind the
+  scanner → the `checked >= 30` non-vacuity guard (an absence-shaped assertion passes forever
+  without it); delete the Enlist resolution arm → the consumer gate; **hand-roll via `Self { .. }`
+  inside `impl PendingTrigger`** → the fifth test, added after review; **a raw string containing
+  an unbalanced `"` plus a fake literal** → no longer a spurious red. Renaming a variant, by
+  contrast, is a compile error, so the gates are deliberately phrased against *deletion*.
+  **`/review` (Opus) returned 4/4 PASS, 0 HIGH, 0 MEDIUM, 3 LOW** — and, for the fifth SR task
+  running, all three LOWs were holes in the *gate*, none a bug in the code. Two were closed:
+  (i) Gate 2 keys on the token `PendingTrigger`, so a `Self { .. }` literal inside an `impl`
+  block was invisible — now forbidden by `no_pending_trigger_impl_block_uses_a_self_literal`,
+  which pins the impl-block count at 2 so it cannot itself go vacuous; (ii)
+  `strip_comments_and_strings` did not understand raw strings, so an unescaped `"` inside
+  `r#"…"#` desynced quote-blanking and left a phantom literal visible (verified: the old
+  stripper does surface one). The third is documented in the test rather than fixed:
+  `replacement_trigger_data_variants_are_still_consumed` is string-presence, not reachability,
+  so a producer-only mention would satisfy it. Making it precise means parsing match arms; the
+  regression it actually catches — an arm deleted outright — is caught today.
+  **Deliberately not closed:** `scutemob-68` (SR-16) — `PendingTrigger`'s `kind`, `data` and
+  `embedded_effect` are all `#[serde(skip)]`, so a serialized pending keyword trigger
+  deserializes as an anonymous `Normal` trigger with no payload, silently. Harmless today
+  (triggers flush before priority) but a live trap for M10 state sync and for the rewind/replay
+  history invariant #9 rests on. A semantics decision, not a sweep — it did not belong here.
+  **Note for the collector:** 26 `.claude/skills/*/SKILL.md` files were already deleted in this
+  worktree when the session started. They are ESM-provisioned, they are not mine, and I left
+  them unstaged — worth checking whether worktree provisioning dropped them.
+  **Next session:** SR-8 (`scutemob-60`, protocol versioning) — it is the hard blocker before
+  M10, and SR-7 just moved `HASH_SCHEMA_VERSION` again, which is the closest thing the project
+  has to a wire-version policy today. Or SR-11 (`scutemob-63`, pin the toolchain) as cheap
+  filler.
 
 - 2026-07-10 — SR-6 (scutemob-58) — **done** — Card definitions now compile in isolation
   from the engine. Three crates where there was one: `crates/card-types`

@@ -2,7 +2,7 @@
 //!
 //! These exist so GameState can compile with all fields from the architecture
 //! doc. Each type will be fully fleshed out in its respective milestone.
-use super::game_object::{ManaCost, ObjectId};
+use super::game_object::ObjectId;
 use super::player::PlayerId;
 use super::stack::TriggerData;
 use serde::{Deserialize, Serialize};
@@ -123,17 +123,18 @@ pub enum PendingTriggerKind {
     // EchoUpkeep: migrated to KeywordTrigger
     // CumulativeUpkeep: migrated to KeywordTrigger
     /// CR 702.59a: Recover trigger -- fired when a creature enters the card owner's
-    /// graveyard from the battlefield. Carries recover_cost and recover_card for
-    /// flush_pending_triggers to build the RecoverTrigger stack entry.
+    /// graveyard from the battlefield. `data` carries `TriggerData::DeathRecover`
+    /// (recover card + cost) for flush_pending_triggers to build the RecoverTrigger
+    /// stack entry.
     Recover,
     /// CR 702.58a: Graft trigger -- fired when another creature enters the
     /// battlefield while this permanent has a +1/+1 counter on it.
-    /// Carries graft_entering_creature for flush_pending_triggers to build the
+    /// `data` carries `TriggerData::ETBGraft` for flush_pending_triggers to build the
     /// GraftTrigger stack entry.
     Graft,
     /// CR 702.165a: Backup trigger -- fired when this creature enters the battlefield.
-    /// Carries backup_abilities (keyword abilities to grant, locked at trigger time per
-    /// CR 702.165d) and backup_n (number of +1/+1 counters to place).
+    /// `data` carries `TriggerData::ETBBackup`: the keyword abilities to grant (locked
+    /// at trigger time per CR 702.165d) and the number of +1/+1 counters to place.
     Backup,
     /// CR 702.72a: Champion ETB trigger -- "sacrifice it unless you exile
     /// another [object] you control."
@@ -143,12 +144,13 @@ pub enum PendingTriggerKind {
     ChampionLTB,
     /// CR 702.95a: Soulbond self-ETB trigger -- fired when the soulbond creature
     /// enters the battlefield (first sentence of CR 702.95a). The soulbond creature
-    /// is the source; soulbond_pair_target carries the auto-selected partner.
+    /// is the source; `data`'s `TriggerData::ETBSoulbond` carries the auto-selected
+    /// partner.
     SoulbondSelfETB,
     /// CR 702.95a: Soulbond other-ETB trigger -- fired when another creature enters
     /// while an unpaired soulbond creature is already on the battlefield (second
-    /// sentence of CR 702.95a). The soulbond creature is the source;
-    /// soulbond_pair_target carries the entering creature.
+    /// sentence of CR 702.95a). The soulbond creature is the source; `data`'s
+    /// `TriggerData::ETBSoulbond` carries the entering creature.
     SoulbondOtherETB,
     /// CR 702.156a: Ravenous draw trigger -- "When this permanent enters, if X is 5
     /// or more, draw a card." X is the value chosen at cast time (CR 107.3m).
@@ -188,13 +190,14 @@ pub enum PendingTriggerKind {
     ///
     /// Fired in the CreatureDied handler when the dead creature had KeywordAbility::Haunt.
     /// Also fired during instant/sorcery resolution for spell Haunt.
-    /// Carries `haunt_source_card_id` for the HauntExileTrigger SOK.
+    /// `data` carries `TriggerData::DeathHauntExile` for the HauntExileTrigger SOK.
     HauntExile,
     /// CR 702.55c: Haunted creature dies trigger -- fires the haunt card's effect
     /// from exile when the creature it haunts dies.
     ///
     /// Fired in the CreatureDied handler when an exiled card has a matching haunting_target.
-    /// Carries `haunt_source_object_id` for the HauntedCreatureDiesTrigger SOK.
+    /// `data` carries `TriggerData::DeathHauntedCreatureDies` for the
+    /// HauntedCreatureDiesTrigger SOK.
     HauntedCreatureDies,
     /// CR 708.8 / CR 702.37e: "When this permanent is turned face up" triggered ability.
     ///
@@ -304,85 +307,16 @@ pub struct PendingTrigger {
     /// [effect on defending player]" trigger. `None` for all other trigger types.
     #[serde(default)]
     pub defending_player_id: Option<PlayerId>,
-    /// CR 702.115a: The player dealt combat damage (whose library top card is exiled).
-    ///
-    /// Only meaningful when `kind == PendingTriggerKind::Ingest`.
-    #[serde(default)]
-    pub ingest_target_player: Option<PlayerId>,
-    /// CR 702.25a: The blocking creature that gets -1/-1 until end of turn.
-    ///
-    /// Only meaningful when `kind == PendingTriggerKind::Flanking`.
-    #[serde(default)]
-    pub flanking_blocker_id: Option<ObjectId>,
-    /// CR 702.23a: The N value of the Rampage keyword (e.g., 2 for Rampage 2).
-    ///
-    /// Only meaningful when `kind == PendingTriggerKind::Rampage`.
-    #[serde(default)]
-    pub rampage_n: Option<u32>,
-    /// CR 702.112a: The N value from "Renown N" -- how many +1/+1 counters
-    /// to place on the creature when the trigger resolves.
-    ///
-    /// Only meaningful when `kind == PendingTriggerKind::Renown`.
-    #[serde(default)]
-    pub renown_n: Option<u32>,
-    /// CR 702.70a: The N value from "Poisonous N" -- how many poison counters
-    /// to give the damaged player when the trigger resolves.
-    ///
-    /// Only meaningful when `kind == PendingTriggerKind::Poisonous`.
-    #[serde(default)]
-    pub poisonous_n: Option<u32>,
-    /// CR 702.70a: The player dealt combat damage (who receives poison counters).
-    ///
-    /// Only meaningful when `kind == PendingTriggerKind::Poisonous`.
-    #[serde(default)]
-    pub poisonous_target_player: Option<PlayerId>,
-    /// CR 702.154a: The ObjectId of the creature tapped for the enlist cost.
-    ///
-    /// Only meaningful when `kind == PendingTriggerKind::Enlist`. Used at resolution
-    /// time to read the enlisted creature's power for the +X/+0 bonus.
-    #[serde(default)]
-    pub enlist_enlisted_creature: Option<ObjectId>,
+    // Per-keyword payload fields (SR-7, 2026-07-10): REMOVED. Ingest, Flanking,
+    // Rampage, Renown, Poisonous, Enlist, Recover, Cipher and Haunt each used to
+    // carry their own `Option` field here. Their state now lives in the `data`
+    // field below as the corresponding `TriggerData` variant, which is what
+    // `flush_pending_triggers` reads. See `TriggerData` in `state/stack.rs`.
+    //
     // echo_cost: REMOVED — echo cost is read from KeywordAbility::Echo in the object's abilities
     // at KeywordTrigger (Echo) resolution time; no need to carry it in PendingTrigger.
     // cumulative_upkeep_cost: REMOVED — cumulative upkeep cost is read from KeywordAbility at
     // KeywordTrigger (CumulativeUpkeep) resolution time; no need to carry it in PendingTrigger.
-    /// CR 702.59a: The recover cost to pay (from AbilityDefinition::Recover { cost }).
-    ///
-    /// Only meaningful when `kind == PendingTriggerKind::Recover`.
-    /// Carries the recover cost from trigger queueing to stack object creation.
-    #[serde(default)]
-    pub recover_cost: Option<ManaCost>,
-    /// CR 702.59a: The ObjectId of the Recover card in the graveyard.
-    ///
-    /// Only meaningful when `kind == PendingTriggerKind::Recover`.
-    /// Carries the recover card id from trigger queueing to stack object creation.
-    #[serde(default)]
-    pub recover_card: Option<ObjectId>,
-    /// CR 702.99a: The CardId of the encoded cipher card.
-    ///
-    /// Only meaningful when `kind == PendingTriggerKind::CipherCombatDamage`.
-    /// Carried through to `flush_pending_triggers` to build the `CipherTrigger` SOK.
-    #[serde(default)]
-    pub cipher_encoded_card_id: Option<crate::state::player::CardId>,
-    /// CR 702.99a: The ObjectId of the exiled cipher card.
-    ///
-    /// Only meaningful when `kind == PendingTriggerKind::CipherCombatDamage`.
-    /// Used at resolution to verify the encoded card still exists in exile (CR 702.99c).
-    #[serde(default)]
-    pub cipher_encoded_object_id: Option<ObjectId>,
-    /// CR 702.55a/c: The ObjectId of the haunt card (for HauntExile: in graveyard;
-    /// for HauntedCreatureDies: in exile). Used to build the SOK at flush time.
-    ///
-    /// Only meaningful when `kind == PendingTriggerKind::HauntExile` or
-    /// `kind == PendingTriggerKind::HauntedCreatureDies`.
-    #[serde(default)]
-    pub haunt_source_object_id: Option<ObjectId>,
-    /// CR 702.55a: The CardId of the haunt card (for registry lookup).
-    ///
-    /// Only meaningful when `kind == PendingTriggerKind::HauntExile` or
-    /// `kind == PendingTriggerKind::HauntedCreatureDies`.
-    #[serde(default)]
-    pub haunt_source_card_id: Option<crate::state::player::CardId>,
     /// CR 510.3a: The player dealt combat damage (for combat damage triggers).
     /// Used at flush/resolution time to populate EffectContext::damaged_player.
     /// None for all other trigger types.
@@ -393,9 +327,17 @@ pub struct PendingTrigger {
     /// 0 for all other trigger types.
     #[serde(default)]
     pub combat_damage_amount: u32,
-    /// Unified per-trigger payload. Replaces per-variant Option fields for
-    /// trigger kinds that carry structured data. When `Some(TriggerData::X)`,
-    /// `flush_pending_triggers` reads this field instead of the legacy per-field Options.
+    /// Unified per-trigger payload — the *only* place a trigger kind's structured
+    /// state lives (SR-7 completed the cutover; the per-keyword `Option` fields
+    /// that used to shadow this are gone).
+    ///
+    /// `flush_pending_triggers` (rules/abilities.rs) matches on `kind`, reads the
+    /// matching `TriggerData` variant out of here, and threads it into
+    /// `StackObjectKind::KeywordTrigger { keyword, data }`, which is what
+    /// `resolve_stack_object` then matches on. A kind that carries state and
+    /// leaves this `None` therefore fizzles silently — `crates/engine/tests/
+    /// pending_trigger_shape.rs::replacement_trigger_data_variants_are_still_consumed`
+    /// pins each variant to a live consumer in both of those files.
     ///
     /// Not serialized (same as `kind`) — triggers are transient within a turn.
     #[serde(skip)]
@@ -441,6 +383,12 @@ pub struct PendingTrigger {
 impl PendingTrigger {
     /// Construct a PendingTrigger with all Option fields as `None` and default values.
     ///
+    /// **This is the only supported way to build a `PendingTrigger`.** Spelling out
+    /// the field list at a call site means every future field addition has to be
+    /// hand-propagated to every site; `crates/engine/tests/pending_trigger_shape.rs`
+    /// fails the build if a literal in `crates/engine/src/` omits the
+    /// `..PendingTrigger::blank(..)` base.
+    ///
     /// Use struct update syntax to override specific fields:
     /// ```ignore
     /// PendingTrigger {
@@ -465,19 +413,6 @@ impl PendingTrigger {
             triggering_player: None,
             exalted_attacker_id: None,
             defending_player_id: None,
-            ingest_target_player: None,
-            flanking_blocker_id: None,
-            rampage_n: None,
-            renown_n: None,
-            poisonous_n: None,
-            poisonous_target_player: None,
-            enlist_enlisted_creature: None,
-            recover_cost: None,
-            recover_card: None,
-            cipher_encoded_card_id: None,
-            cipher_encoded_object_id: None,
-            haunt_source_object_id: None,
-            haunt_source_card_id: None,
             damaged_player: None,
             combat_damage_amount: 0,
             data: None,
