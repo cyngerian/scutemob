@@ -130,14 +130,14 @@ device`, was one line earlier (see the SR-1 gotcha in
 `docs/sr-remediation-plan.md`). The `CARGO_PROFILE_{DEV,TEST}_DEBUG=0` workaround
 in `.github/workflows/ci.yml` stays, but the pressure behind it is now ~9× lower.
 
-**Test count is unchanged**: 3162 passing before, 3165 after — the three added
+**Test count is unchanged**: 3162 passing before, 3167 after — the five added
 tests are the gate's own. 0 failed and 4 ignored, both before and after. Suite
 count drops from 316 to 29, which is the whole point.
 
 ## The gate
 
 `tests/no_stray_test_binaries.rs` is the only top-level test file, and it exists
-to keep itself the only one. Three tests:
+to keep itself the only one. Five tests:
 
 - `no_top_level_test_binaries` — any `tests/*.rs` other than the gate fails.
   Re-fragmentation happens one file at a time and is otherwise invisible.
@@ -150,26 +150,42 @@ to keep itself the only one. Three tests:
   to exist, and the suite goes green with less coverage than it had yesterday.
   That is the exact failure this consolidation could have introduced, so it is
   machine-checked in both directions (undeclared file, and declared-but-missing).
+- `group_main_rs_declares_modules_and_nothing_else` — the check above is
+  *textual*, and a textual check has holes: `#[cfg(feature = "never")] mod foo;`
+  reads as declared and compiles to nothing; `#[path = "elsewhere.rs"] mod foo;`
+  declares `foo` while never compiling `foo.rs`; an inline `mod foo { … }` does
+  the same. Rather than teach the parser each attack, a group's `main.rs` may
+  contain nothing but `//!` docs and bare `mod x;` lines. The grammar is small
+  on purpose.
+- `group_dirs_are_flat` — the declaration check reads one directory level, so a
+  file at `tests/<group>/sub/foo.rs` would be invisible to it.
+
+The last two exist because the first review of this change went looking for ways
+to satisfy the gate while still doing the bad thing, and found three.
 
 ### Demonstrated, not assumed
 
-Four attacks were run against the gate before it was trusted. The middle two are
-the interesting ones: **the ordinary test suite goes green while coverage
-disappears.**
+Eight attacks were run against the gate before it was trusted. Read the middle
+column: **the ordinary test suite goes green while coverage disappears.**
 
 | Attack | Without the gate | With the gate |
 |--------|------------------|---------------|
 | Add a top-level `tests/stray_check.rs` | builds and passes; the tree is one file more fragmented and nothing said so | `no_top_level_test_binaries` fails, naming the file |
-| Add `combat/melee_stub.rs` containing `assert!(false)`, no `mod` line | **`cargo test --test combat` → `ok. 75 passed; 0 failed`.** The failing test was never compiled. | `every_module_file_is_declared_in_its_group` fails, naming `melee_stub` |
-| Delete `mod combat_harness;` from `combat/main.rs` | **`cargo test --test combat` → `ok. 69 passed; 0 failed`.** Six tests silently ceased to exist; the count is the only trace, and nobody reads the count. | same test fails, naming `combat_harness` |
-| Add `mod ghost;` with no `ghost.rs` | `rustc` catches this one on its own | gate also fails (`declares modules with no file`) — it runs first because its binary does not depend on the edited `main.rs` |
+| Add `combat/melee_stub.rs` containing `assert!(false)`, no `mod` line | **`--test combat` → `ok. 75 passed; 0 failed`.** The failing test was never compiled. | `every_module_file_is_declared_in_its_group` fails, naming `melee_stub` |
+| Delete `mod combat_harness;` from `combat/main.rs` | **`--test combat` → `ok. 69 passed; 0 failed`.** Six tests silently ceased to exist. | same test fails, naming `combat_harness` |
+| `#[cfg(feature = "never")] mod combat_harness;` | **`--test combat` → `ok. 69 passed; 0 failed`.** Same six tests gone, and the line is still *there* to read. | `group_main_rs_declares_modules_and_nothing_else` fails on the attribute |
+| `#[path = "combat.rs"] mod combat_harness;` | `combat_harness.rs` is declared and never compiled | same test fails on the attribute |
+| `pub mod combat_harness;` | harmless, but the textual parser misread it as undeclared and failed the *wrong* test | same test fails with a message that names the actual problem |
+| `mkdir combat/sub; combat/sub/foo.rs` | invisible to a one-level directory read | `group_dirs_are_flat` fails |
+| Add `mod ghost;` with no `ghost.rs` | `rustc` catches this one on its own | gate also fails (`declares modules with no file`) |
 
-The third row is the whole reason this file exists. A `mod` line is one
-easily-lost token, and losing it converts a test file into a text file.
+Rows three and four are the whole reason this file exists. A `mod` line is one
+easily-lost token, and losing it converts a test file into a text file — while
+the suite reports success.
 
-The fourth row is honest bookkeeping: `rustc` already rejects a phantom module,
-so that half of the check is defensive rather than load-bearing. It is kept
-because it costs nothing and it makes the invariant symmetric.
+The last row is honest bookkeeping: `rustc` already rejects a phantom module, so
+that half of the check is defensive rather than load-bearing. A demonstration
+that stops at a compile error measures the compiler, not the gate.
 
 ### What the gate does not cover
 
@@ -182,11 +198,17 @@ pointed at*), the omissions, deliberately:
 - **Unit tests in `src/`.** `#[cfg(test)] mod tests` compiles into the library's
   own test binary and costs one link total. Untouched, unwatched.
 - **`benches/`.** One target, `harness = false`. Untouched.
+- **`[[test]]` sections in `Cargo.toml`.** Cargo's `autotests` discovery is what
+  the gate models. Hand-declaring a test target bypasses it entirely. Nobody has,
+  and the manifest is short enough to read.
+- **Anything *inside* a module file.** A `#[cfg(…)]` on the tests within
+  `combat_harness.rs`, or a `#[test]` deleted outright, is out of scope for a
+  structural gate. That is what review and the test count are for.
 - **Group *membership*.** Nothing stops someone dropping a keyword test into
   `core/`. The gate checks that every file is compiled, not that it is filed
-  sensibly. That is a taste question and it is left to review.
-- **A `#[test]` deleted from inside a module.** Out of scope for any structural
-  gate; that is what code review and the test count are for.
+  sensibly. A taste question, left to review.
+- **Symlinks.** `is_dir()` follows them, so a symlinked group dir would pass.
+  There is no plausible reason for one to exist here.
 
 ## Two warts, deliberately left
 

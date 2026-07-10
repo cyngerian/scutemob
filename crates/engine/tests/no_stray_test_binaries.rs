@@ -9,10 +9,16 @@
 //! next to the group dirs re-fragments the tree one file at a time and nothing
 //! complains; and — worse — moving a file *into* a group dir without adding its
 //! `mod` line to that group's `main.rs` compiles clean while silently deleting
-//! every test in it. Both are caught here.
+//! every test in it. `cargo test --test combat` will cheerfully print
+//! `ok. 69 passed; 0 failed` with six tests missing. All of that is caught here.
 //!
-//! Layout and the rule for where a new test file goes:
-//! `docs/sr-9a-test-consolidation.md`.
+//! The declaration check is textual, so three of these tests exist only to keep
+//! the text honest: a `main.rs` may hold nothing but `//!` docs and bare `mod x;`
+//! lines, group dirs are flat, and the group set on disk equals `EXPECTED_GROUPS`.
+//! Each closes a way to satisfy the check while still deleting coverage.
+//!
+//! Layout, the rule for where a new test file goes, and the eight attacks these
+//! five tests were validated against: `docs/sr-9a-test-consolidation.md`.
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -53,12 +59,25 @@ fn module_files(group: &str) -> BTreeSet<String> {
         .collect()
 }
 
-/// `mod foo;` declarations in `tests/<group>/main.rs`.
-fn declared_modules(group: &str) -> BTreeSet<String> {
+/// Lines of `tests/<group>/main.rs` that are neither blank nor `//!` doc comment.
+fn main_rs_code_lines(group: &str) -> Vec<String> {
     let main = fs::read_to_string(tests_dir().join(group).join("main.rs"))
         .unwrap_or_else(|e| panic!("group `{group}` has no main.rs: {e}"));
     main.lines()
-        .filter_map(|l| l.trim().strip_prefix("mod "))
+        .map(|l| l.trim().to_string())
+        .filter(|l| !l.is_empty() && !l.starts_with("//!"))
+        .collect()
+}
+
+/// `mod foo;` declarations in `tests/<group>/main.rs`.
+///
+/// Only matches the bare form. That is not laziness — `group_main_rs_declares_modules_and
+/// _nothing_else` separately forbids every other form, so anything this function fails to
+/// see is already a hard error. See that test for why.
+fn declared_modules(group: &str) -> BTreeSet<String> {
+    main_rs_code_lines(group)
+        .iter()
+        .filter_map(|l| l.strip_prefix("mod "))
         .filter_map(|l| l.strip_suffix(';'))
         .map(|n| n.trim().to_string())
         .collect()
@@ -108,6 +127,63 @@ fn every_expected_group_exists_and_has_a_module_root() {
         "the group dirs on disk do not match EXPECTED_GROUPS; update this list and \
          docs/sr-9a-test-consolidation.md together"
     );
+}
+
+/// A group's `main.rs` is a module list and nothing else.
+///
+/// Without this, `every_module_file_is_declared_in_its_group` is a *textual* check
+/// and several ways to satisfy it while still deleting coverage survive:
+///
+/// - `#[cfg(feature = "never")] mod foo;` — declared to this file's parser, compiled
+///   out by rustc. The tests vanish and the gate says "all declared".
+/// - `#[path = "elsewhere.rs"] mod foo;` — `foo.rs` is declared *and* never compiled.
+/// - `mod foo { … }` — an inline module named after a file that is not compiled.
+/// - `pub mod foo;` — parses as undeclared here, so it fails *the wrong test* with a
+///   confusing message.
+///
+/// Rather than teach the parser each attack, forbid everything that is not a bare
+/// `mod x;`. The grammar of these files is small on purpose.
+#[test]
+fn group_main_rs_declares_modules_and_nothing_else() {
+    for group in EXPECTED_GROUPS {
+        for line in main_rs_code_lines(group) {
+            let is_bare_mod_decl = line
+                .strip_prefix("mod ")
+                .and_then(|rest| rest.strip_suffix(';'))
+                .is_some_and(|name| {
+                    !name.is_empty()
+                        && name
+                            .chars()
+                            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+                });
+            assert!(
+                is_bare_mod_decl,
+                "tests/{group}/main.rs must contain only `//!` docs and bare `mod x;` lines, \
+                 but has: `{line}`\n\
+                 Attributes, `pub mod`, `#[path]`, and inline `mod x {{ … }}` are all ways to \
+                 look declared while not being compiled. See docs/sr-9a-test-consolidation.md."
+            );
+        }
+    }
+}
+
+/// Group dirs are flat. `module_files` reads one level, so a `tests/<group>/sub/foo.rs`
+/// would be invisible to the declaration check below — undeclared, uncompiled, unnoticed.
+#[test]
+fn group_dirs_are_flat() {
+    for group in EXPECTED_GROUPS {
+        let nested: Vec<String> = fs::read_dir(tests_dir().join(group))
+            .expect("group dir is readable")
+            .map(|e| e.expect("readable dir entry"))
+            .filter(|e| e.path().is_dir())
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .collect();
+        assert!(
+            nested.is_empty(),
+            "tests/{group}/ has subdirectories {nested:?}; the declaration check only sees \
+             the top level of a group, so files under them would silently not be compiled"
+        );
+    }
 }
 
 /// The one that matters. A `.rs` file inside a group dir with no `mod` line in

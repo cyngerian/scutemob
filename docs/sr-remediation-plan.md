@@ -476,7 +476,7 @@ _One entry per session, newest first. Format:_
   **Numbers** (`CARGO_INCREMENTAL=0`, before-tree = a worktree of `abe14f76` with its own
   cold-built target, so the comparison is apples-to-apples): warm rebuild after touching
   `engine/src/lib.rs` **34.2 s → 11.1 s** (median of 3); cold `cargo test --all --no-run`
-  **39.8 s → 24.0 s**; `target/` **19 GB → 2.2 GB**. 3162 → 3165 tests (the +3 are the new gate's
+  **39.8 s → 24.0 s**; `target/` **19 GB → 2.2 GB**. 3162 → 3167 tests (the +5 are the new gate's
   own), 0 failed, 4 ignored, 316 suites → 29. All four verification gates clean.
   **Read the shape of the before-column, not the median**: 22.6 / 34.2 / 38.2 s — each successive
   warm rebuild was *slower*, reproducibly, across two independent measurement passes. It is not
@@ -484,15 +484,17 @@ _One entry per session, newest first. Format:_
   never catches up. After: 15.0 / 11.0 / 11.1 s, the normal page-cache warm-up shape. The 8.6×
   disk reduction is the same fact as the speedup, and it is the fact CI cares about — SR-1's
   `Bus error` was this, at 68 GB, on a 89 GB runner.
-  **New gate:** `tests/no_stray_test_binaries.rs` (3 tests, the only top-level test file, and it
-  exists to stay the only one). **Demonstrated adversarially, four attacks** — and two of them are
-  the reason the gate is not decoration: with `combat/melee_stub.rs` present but not `mod`-declared,
+  **New gate:** `tests/no_stray_test_binaries.rs` (5 tests, the only top-level test file, and it
+  exists to stay the only one). **Demonstrated adversarially, eight attacks** — three of which are
+  the reason the gate is not decoration, because in each the ordinary suite reports success while
+  coverage evaporates: with `combat/melee_stub.rs` present but not `mod`-declared,
   `cargo test --test combat` prints `ok. 75 passed; 0 failed` while an `assert!(false)` inside it is
   never compiled; deleting `mod combat_harness;` prints `ok. 69 passed; 0 failed` while **six real
-  tests silently cease to exist**. A `mod` line is one easily-lost token and losing it converts a
-  test file into a text file. Both now fail loudly, naming the file. (`mod ghost;` with no file is
-  caught by `rustc` anyway — recorded as such, because a demo that stops at a compile error measures
-  the compiler, not the gate.)
+  tests silently cease to exist**; and `#[cfg(feature = "never")] mod combat_harness;` does the same
+  while leaving the `mod` line right there to read. A `mod` line is one easily-lost token and losing
+  it converts a test file into a text file. All now fail loudly, naming the file. (`mod ghost;` with
+  no file is caught by `rustc` anyway — recorded as such, because a demo that stops at a compile
+  error measures the compiler, not the gate.)
   **Hazards discovered:**
   (a) **`include_str!` is file-relative, not manifest-relative.** Three tests
   (`keyword_registry`, `pending_trigger_shape`, `pb_ac9_wheel_and_misc`) reach into sibling crates'
@@ -511,11 +513,21 @@ _One entry per session, newest first. Format:_
   `rc=0` (output was piped to `/dev/null`), and every subsequent `Bash` tool call failed silently
   because the harness could not write its own output file. Nearly banked a fabricated "31.6 s cold
   build" number. Use `/home/skydude/…` for scratch worktrees.
-  **First SR task in seven whose `/review` did not find a hole in the gate** — but the pattern held
-  in spirit: the hole was in the *demonstration*. Attack 3 as first written deleted `mod melee;` from
-  `combat/main.rs`, where no such module exists (melee is in `mechanics_m_z`); `sed` matched nothing,
-  exited 0, and the gate "passed" the attack. A demo that passes because it attacked nothing is
-  indistinguishable from a gate that works. Rerun against a module that was actually there.
+  **`/review` (Opus) returned 3/3 PASS, 0 HIGH, 0 MEDIUM, 4 LOW — and for the seventh consecutive
+  SR task every substantive finding was a hole in the *gate*, not a bug in the code.** The
+  declaration check was textual, so three distinct ways to satisfy it while still deleting coverage
+  survived: `#[cfg(feature = "never")] mod foo;` (declared, compiled out — verified: `--test combat`
+  → `ok. 69 passed`), `#[path = "elsewhere.rs"] mod foo;`, and a nested `<group>/sub/foo.rs` that a
+  one-level directory read never sees. A fourth, `pub mod foo;`, failed the *wrong* test with a
+  misleading message. Fixed not by teaching the parser each attack but by shrinking the grammar:
+  `group_main_rs_declares_modules_and_nothing_else` forbids everything that is not a bare `mod x;`,
+  and `group_dirs_are_flat` forbids the nesting. Each fix was verified by re-running its attack.
+  **And the pattern generalized one level further: the hole was also in the *demonstration*.**
+  Attack 3 as first written deleted `mod melee;` from `combat/main.rs`, where no such module exists
+  (melee is in `mechanics_m_z`); `sed` matched nothing, exited 0, and the gate "passed" the attack.
+  A demo that passes because it attacked nothing is indistinguishable from a gate that works. Next
+  SR author: after writing the attack, assert that the attack *changed something* before you trust
+  that surviving it means anything.
   **Next session:** SR-9b (`scutemob-70`, harness-vs-direct equivalence) or SR-9c (`scutemob-71`,
   golden-script triage). SR-9b now has an obvious home — `tests/scripts/` — and should note that
   `run_all_scripts`'s `include!` of `script_replay.rs` is the shadow-implementation seam it is
