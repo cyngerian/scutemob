@@ -1,45 +1,39 @@
-//! SR-5 — the machine gate that stops a new `KeywordAbility` variant from being
+//! SR-15 — the machine gate that stops a new `AbilityDefinition` variant from being
 //! silently inert.
 //!
-//! `state::keyword_registry::handling` is an exhaustive match, so a new variant is
-//! already a *compile* error. These tests close the two holes a compile error
-//! cannot: that the variant list `all_keywords()` is complete, and that every
-//! declaration in the registry still describes the source tree.
+//! `state::ability_definition_registry::handling` is an exhaustive match, so a new
+//! variant is already a *compile* error. These tests close the two holes a compile
+//! error cannot: that the variant list `all_ability_definitions()` is complete, and
+//! that every declaration in the registry still describes the source tree.
 //!
-//! Audit: `docs/sr-5-keyword-catchall-audit.md`.
+//! Sibling of `keyword_registry.rs` (SR-5); the stripper and site-scan machinery are
+//! deliberately the same, proven code. Audit:
+//! `docs/sr-15-dispatch-enum-catchall-audit.md`.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
-use mtg_engine::state::keyword_registry::{all_keywords, handling, KeywordHandling};
-use mtg_engine::state::types::KeywordAbility;
+use mtg_engine::cards::card_definition::AbilityDefinition;
+use mtg_engine::state::ability_definition_registry::{
+    all_ability_definitions, handling, AbilityHandling,
+};
 
 /// Crate source trees the site scan walks, workspace-relative.
 ///
-/// `crates/card-defs/` is *not* scanned: a card definition naming a keyword is
-/// card data, not engine behavior. Before SR-6 the defs lived under
-/// `crates/engine/src/cards/defs/` and were skipped by a path filter; now they
-/// are simply outside every scan root, which is a stronger form of the same
-/// exclusion. `site_scan_is_not_vacuous` asserts they never reappear.
+/// `crates/card-defs/` is *not* scanned: a card definition naming a variant is card
+/// data, not engine behavior. (`site_scan_is_not_vacuous` asserts it never reappears.)
 const SCAN_ROOTS: &[&str] = &["crates/engine/src", "crates/card-types/src"];
 
-/// Files that mention `KeywordAbility::<V>` without dispatching on it, and so are
-/// excluded from the site scan:
+/// Files that mention `AbilityDefinition::<V>` without dispatching on it:
 ///
-/// * `card-types/src/state/types.rs` — the declaration itself.
-/// * `engine/src/state/hash.rs` — a mechanical discriminant table (CR-agnostic; it
-///   assigns every variant a byte for state hashing). It is exhaustive, so it is a
-///   second compile gate, but naming a keyword there is not handling it.
-/// * `engine/src/state/keyword_registry.rs` — this registry.
-/// * `engine/src/state/ability_definition_registry.rs` — SR-15's sibling registry.
-///   Its `all_ability_definitions()` builds one representative of every
-///   `AbilityDefinition` variant, and the `Keyword(..)` representative names a
-///   keyword (`KeywordAbility::Flying`) as a throwaway sample, not as dispatch —
-///   exactly why this file excludes *itself* above.
+/// * `card-types/src/cards/card_definition.rs` — the declaration itself.
+/// * `engine/src/state/hash.rs` — a mechanical discriminant table (assigns each
+///   variant a byte for state hashing). Exhaustive, so a second compile gate, but
+///   naming a variant there is not handling it.
+/// * `engine/src/state/ability_definition_registry.rs` — this registry.
 const EXCLUDED: &[&str] = &[
-    "crates/card-types/src/state/types.rs",
+    "crates/card-types/src/cards/card_definition.rs",
     "crates/engine/src/state/hash.rs",
-    "crates/engine/src/state/keyword_registry.rs",
     "crates/engine/src/state/ability_definition_registry.rs",
 ];
 
@@ -53,14 +47,8 @@ fn workspace_root() -> PathBuf {
 }
 
 /// Blank out comments, string literals, and char literals so that a later `contains`
-/// cannot match a keyword named only in prose.
-///
-/// A doc comment that says "see `KeywordAbility::Flying`" must not count as a
-/// dispatch site — otherwise the anti-rot direction of these tests is vacuous.
-///
-/// Blanking is char-for-char (newlines survive), so positions in the result line up
-/// with `src` only for ASCII input. Nothing depends on that: callers search and slice
-/// entirely within the returned string and never map an index back onto `src`.
+/// cannot match a variant named only in prose or a string. (Same proven code as
+/// `keyword_registry.rs`; see its docs.)
 fn strip_comments_and_literals(src: &str) -> String {
     let b: Vec<char> = src.chars().collect();
     let mut out: Vec<char> = b.clone();
@@ -83,7 +71,6 @@ fn strip_comments_and_literals(src: &str) -> String {
             blank(&mut out, i, j, &b);
             i = j;
         } else if c == '/' && i + 1 < n && b[i + 1] == '*' {
-            // Rust block comments nest.
             let mut depth = 1;
             let mut j = i + 2;
             while j < n && depth > 0 {
@@ -100,7 +87,6 @@ fn strip_comments_and_literals(src: &str) -> String {
             blank(&mut out, i, j, &b);
             i = j;
         } else if c == 'r' && i + 1 < n && (b[i + 1] == '"' || b[i + 1] == '#') {
-            // Raw string: r"..." / r#"..."# / r##"..."## ...
             let mut hashes = 0;
             let mut j = i + 1;
             while j < n && b[j] == '#' {
@@ -140,8 +126,6 @@ fn strip_comments_and_literals(src: &str) -> String {
             blank(&mut out, i, j.min(n), &b);
             i = j;
         } else if c == '\'' {
-            // A char literal is 'x' or '\x'. A lifetime (`'static`) has no closing
-            // quote in that window, so leave it alone.
             if i + 2 < n && b[i + 1] == '\\' {
                 let mut j = i + 2;
                 while j < n && b[j] != '\'' {
@@ -197,7 +181,7 @@ fn scanned_files() -> Vec<String> {
 /// `variant name -> set of workspace-relative files whose *code* names it`.
 fn actual_sites() -> BTreeMap<String, BTreeSet<String>> {
     let root = workspace_root();
-    let names: Vec<String> = all_keywords().iter().map(variant_name).collect();
+    let names: Vec<String> = all_ability_definitions().iter().map(variant_name).collect();
     let mut map: BTreeMap<String, BTreeSet<String>> =
         names.iter().map(|n| (n.clone(), BTreeSet::new())).collect();
 
@@ -205,12 +189,12 @@ fn actual_sites() -> BTreeMap<String, BTreeSet<String>> {
         let src = std::fs::read_to_string(root.join(&file)).expect("readable source");
         let code = strip_comments_and_literals(&src);
         for name in &names {
-            let needle = format!("KeywordAbility::{name}");
+            let needle = format!("AbilityDefinition::{name}");
             let mut from = 0;
             while let Some(hit) = code[from..].find(&needle) {
                 let end = from + hit + needle.len();
-                // Reject a prefix match: `KeywordAbility::Flash` inside
-                // `KeywordAbility::Flashback`.
+                // Reject a prefix match: `AbilityDefinition::Static` inside
+                // `AbilityDefinition::StaticRestriction`.
                 let boundary = code[end..]
                     .chars()
                     .next()
@@ -228,26 +212,29 @@ fn actual_sites() -> BTreeMap<String, BTreeSet<String>> {
     map
 }
 
-/// `Ward(2)` -> `Ward`. `Debug` is derived, so the variant name is the prefix.
-fn variant_name(kw: &KeywordAbility) -> String {
-    let dbg = format!("{kw:?}");
+/// `Cycling { cost }` -> `Cycling`. `Debug` is derived, so the variant name is the
+/// prefix before the first `(`, ` `, or `{`.
+fn variant_name(a: &AbilityDefinition) -> String {
+    let dbg = format!("{a:?}");
     dbg.split(['(', ' ', '{'])
         .next()
         .expect("non-empty")
         .to_string()
 }
 
-/// Variant names as declared in `state/types.rs`, parsed from the source embedded
-/// at compile time.
+/// Variant names as declared in `cards/card_definition.rs`, parsed from the source
+/// embedded at compile time.
 ///
-/// Rust cannot enumerate an enum's variants, so `all_keywords()` is hand-written
-/// and could silently drift. This re-derives the truth from the declaration.
+/// Rust cannot enumerate an enum's variants, so `all_ability_definitions()` is
+/// hand-written and could silently drift. This re-derives the truth from the
+/// declaration. Field-level `#[serde(default)]` attributes sit *inside* variant
+/// braces (depth > 0) and so never confuse the depth-0 name scan below.
 fn declared_variants() -> BTreeSet<String> {
-    const TYPES_RS: &str = include_str!("../../../card-types/src/state/types.rs");
-    let code = strip_comments_and_literals(TYPES_RS);
+    const DEF_RS: &str = include_str!("../../../card-types/src/cards/card_definition.rs");
+    let code = strip_comments_and_literals(DEF_RS);
     let start = code
-        .find("pub enum KeywordAbility {")
-        .expect("KeywordAbility declaration");
+        .find("pub enum AbilityDefinition {")
+        .expect("AbilityDefinition declaration");
     let open = start + code[start..].find('{').expect("open brace");
 
     let mut depth = 0usize;
@@ -266,10 +253,8 @@ fn declared_variants() -> BTreeSet<String> {
         }
     }
 
-    // Inside the enum body, a variant name is the identifier that opens each
-    // comma-separated item at nesting depth 0. The body has no attributes (checked
-    // by `declared_variants_parser_is_not_vacuous`), and doc comments are already
-    // blanked, so this needs no other special cases.
+    // A variant name is the identifier that opens each comma-separated item at
+    // nesting depth 0 inside the enum body. Doc comments are already blanked.
     let body = &code[open + 1..end];
     let mut names = BTreeSet::new();
     let mut depth = 0usize;
@@ -297,95 +282,89 @@ fn declared_variants() -> BTreeSet<String> {
     names
 }
 
-/// `all_keywords()` must name every variant the enum declares — no more, no fewer.
+/// `all_ability_definitions()` must name every variant the enum declares — no more,
+/// no fewer.
 ///
-/// This is the test-failure half of the SR-5 gate. The compile-error half lives in
+/// This is the test-failure half of the SR-15 gate. The compile-error half lives in
 /// `handling()`. Together: a new variant cannot compile until it is classified, and
 /// once classified it cannot be omitted from the list the other tests iterate.
 #[test]
-fn all_keywords_covers_every_variant() {
+fn all_ability_definitions_covers_every_variant() {
     let declared = declared_variants();
-    let listed: BTreeSet<String> = all_keywords().iter().map(variant_name).collect();
+    let listed: BTreeSet<String> = all_ability_definitions().iter().map(variant_name).collect();
 
     let missing: Vec<_> = declared.difference(&listed).collect();
     let extra: Vec<_> = listed.difference(&declared).collect();
 
     assert!(
         missing.is_empty(),
-        "KeywordAbility variants declared in state/types.rs but absent from \
-         keyword_registry::all_keywords(): {missing:?}. Add them, and classify them \
-         in handling()."
+        "AbilityDefinition variants declared in cards/card_definition.rs but absent \
+         from ability_definition_registry::all_ability_definitions(): {missing:?}. Add \
+         them, and classify them in handling()."
     );
     assert!(
         extra.is_empty(),
-        "keyword_registry::all_keywords() names variants that no longer exist: {extra:?}"
+        "all_ability_definitions() names variants that no longer exist: {extra:?}"
     );
 }
 
-/// Guards `all_keywords_covers_every_variant` against a parser that silently finds
-/// nothing. A test that compares two empty sets always passes.
+/// Guards `all_ability_definitions_covers_every_variant` against a parser that
+/// silently finds nothing. A test comparing two empty sets always passes.
 #[test]
 fn declared_variants_parser_is_not_vacuous() {
     let declared = declared_variants();
     assert!(
-        declared.len() > 100,
-        "the state/types.rs parser found only {} variants — it is broken, and the \
+        declared.len() > 60,
+        "the card_definition.rs parser found only {} variants — it is broken, and the \
          completeness test it feeds is vacuous",
         declared.len()
     );
-    // Anchors spanning the whole declaration: first, last, payload-carrying, and
-    // the two whose names are prefixes of other variants.
+    // Anchors spanning the whole declaration: first, last, unit variants, and the two
+    // whose names are prefixes of other variants (`Static`/`StaticRestriction`,
+    // `Morph`/`Megamorph`).
     for anchor in [
-        "Deathtouch",
-        "Flash",
-        "Flashback",
-        "Flying",
-        "ProtectionFrom",
-        "Ward",
-        "Exert",
+        "Activated",
+        "Static",
+        "StaticRestriction",
+        "Cipher",
+        "OpeningHand",
+        "Morph",
+        "Megamorph",
+        "CastSelfFromGraveyard",
     ] {
         assert!(
             declared.contains(anchor),
             "parser missed the known variant {anchor}"
         );
     }
-    // The parser assumes no `#[..]` attributes sit between variants.
-    const TYPES_RS: &str = include_str!("../../../card-types/src/state/types.rs");
-    let code = strip_comments_and_literals(TYPES_RS);
-    let start = code.find("pub enum KeywordAbility {").expect("declaration");
-    let open = start + code[start..].find('{').expect("open brace");
-    let close = open + code[open..].find("\n}").expect("closing brace");
-    assert!(
-        !code[open..close].contains('#'),
-        "KeywordAbility gained an attribute on a variant; declared_variants() must learn to skip it"
-    );
 }
 
-/// The comment stripper must actually blank prose, or the site scan below would
-/// count a doc comment as a dispatch site and the anti-rot check would be vacuous.
+/// The comment stripper must actually blank prose and strings, or the site scan would
+/// count a doc comment or a `panic!("...AbilityDefinition::X...")` string as a
+/// dispatch site and the anti-rot check would be vacuous.
 #[test]
 fn comment_stripper_blanks_prose_and_strings() {
     let src = r#"
-/// See KeywordAbility::Flying for details.
-let s = "KeywordAbility::Haste";
-/* KeywordAbility::Trample */
-let real = KeywordAbility::Menace;
+/// See AbilityDefinition::Cycling for details.
+let s = "AbilityDefinition::Kicker";
+/* AbilityDefinition::Evoke */
+let real = AbilityDefinition::Cipher;
 "#;
     let code = strip_comments_and_literals(src);
     assert!(
-        !code.contains("KeywordAbility::Flying"),
+        !code.contains("AbilityDefinition::Cycling"),
         "doc comment survived"
     );
     assert!(
-        !code.contains("KeywordAbility::Haste"),
+        !code.contains("AbilityDefinition::Kicker"),
         "string literal survived"
     );
     assert!(
-        !code.contains("KeywordAbility::Trample"),
+        !code.contains("AbilityDefinition::Evoke"),
         "block comment survived"
     );
     assert!(
-        code.contains("KeywordAbility::Menace"),
+        code.contains("AbilityDefinition::Cipher"),
         "real code was blanked"
     );
     assert_eq!(
@@ -400,29 +379,30 @@ let real = KeywordAbility::Menace;
 ///
 /// This is the anti-rot check, and it runs in both directions:
 ///
-/// * delete the last read of a keyword → its `Handled` entry is now a lie → fail
+/// * delete the last read of a variant → its `Handled` entry is now a lie → fail
 /// * add a read in a file not listed → fail
-/// * start branching on a `Marker` keyword → fail (it is no longer a marker)
-/// * stop branching on a `Handled` keyword entirely → fail (it is now inert, and
-///   the registry must say so deliberately)
+/// * start branching on a `Marker` variant → fail (it is no longer a marker)
+/// * stop branching on a `Handled` variant entirely → fail (it is now inert, and the
+///   registry must say so deliberately)
 #[test]
 fn registry_sites_match_the_source_tree() {
     let actual = actual_sites();
     let mut problems = Vec::new();
 
-    for keyword in all_keywords() {
-        let name = variant_name(&keyword);
+    for ability in all_ability_definitions() {
+        let name = variant_name(&ability);
         let found = &actual[&name];
-        match handling(&keyword) {
-            KeywordHandling::Handled { sites } => {
-                // Without this, `Handled { sites: &[] }` on a keyword nothing reads
+        match handling(&ability) {
+            AbilityHandling::Handled { sites } => {
+                // Without this, `Handled { sites: &[] }` on a variant nothing reads
                 // would satisfy the equality below ({} == {}) and pass — the one way
-                // to declare a keyword handled while leaving it inert.
+                // to declare a variant handled while leaving it inert.
                 assert!(
                     !sites.is_empty(),
-                    "{name}: declared Handled with no sites. A keyword no engine code \
+                    "{name}: declared Handled with no sites. A variant no engine code \
                      reads is not handled — classify it as a Marker (and justify that \
-                     in docs/sr-5-keyword-catchall-audit.md), or give it real dispatch."
+                     in docs/sr-15-dispatch-enum-catchall-audit.md), or give it real \
+                     dispatch."
                 );
                 let declared: BTreeSet<String> = sites.iter().map(|s| (*s).to_string()).collect();
                 if declared != *found {
@@ -431,7 +411,7 @@ fn registry_sites_match_the_source_tree() {
                     ));
                 }
             }
-            KeywordHandling::Marker { carrier, cr } => {
+            AbilityHandling::Marker { carrier, cr } => {
                 assert!(!carrier.is_empty(), "{name}: Marker with an empty carrier");
                 assert!(!cr.is_empty(), "{name}: Marker with no CR citation");
                 if !found.is_empty() {
@@ -446,19 +426,15 @@ fn registry_sites_match_the_source_tree() {
 
     assert!(
         problems.is_empty(),
-        "keyword_registry is out of date with the source tree:\n  {}",
+        "ability_definition_registry is out of date with the source tree:\n  {}",
         problems.join("\n  ")
     );
 }
 
 /// The site scan must find real files. If `scanned_files()` returned nothing (a bad
-/// path, a moved crate root), `registry_sites_match_the_source_tree` would demand
-/// that every keyword be a Marker — and would have failed loudly. This asserts the
-/// scan's denominator directly anyway.
-///
-/// Since SR-6 the denominator spans two crates, so it is asserted per-root: a typo
-/// in either `SCAN_ROOTS` entry that still named an existing directory would
-/// otherwise shrink the scan silently.
+/// path, a moved crate root), `registry_sites_match_the_source_tree` would demand that
+/// every variant be a Marker — and would have failed loudly. This asserts the scan's
+/// denominator directly anyway, per-root.
 #[test]
 fn site_scan_is_not_vacuous() {
     let files = scanned_files();
@@ -467,66 +443,41 @@ fn site_scan_is_not_vacuous() {
         "site scan found only {} source files",
         files.len()
     );
-
-    // Each scan root must actually contribute. `crates/card-types/` earns its place
-    // in the scan because `state/dungeon.rs` dispatches on keywords.
-    assert!(files.contains(&"crates/engine/src/rules/combat.rs".to_string()));
-    assert!(files.contains(&"crates/card-types/src/state/dungeon.rs".to_string()));
     for scan_root in SCAN_ROOTS {
         assert!(
             files.iter().any(|f| f.starts_with(scan_root)),
             "scan root {scan_root} contributed no files"
         );
     }
-
     // Card definitions are data, not dispatch. They must never enter the scan.
     assert!(!files.iter().any(|f| f.starts_with("crates/card-defs/")));
 
     let actual = actual_sites();
     assert!(
-        actual["Flying"].contains("crates/engine/src/rules/combat.rs"),
-        "Flying should dispatch in combat.rs; the scan found {:?}",
-        actual["Flying"]
+        actual["Spell"].contains("crates/engine/src/rules/casting.rs"),
+        "Spell should dispatch in casting.rs; the scan found {:?}",
+        actual["Spell"]
     );
 }
 
-/// A `Marker` keyword is a claim that the rules text is implemented elsewhere. Keep
-/// the set of them small and deliberate: an unreviewed keyword silently joining this
-/// class is exactly the failure SR-5 exists to prevent.
+/// A `Marker` variant is a claim that the rules text is implemented elsewhere (by a
+/// `KeywordAbility` twin). Keep the set of them small and deliberate: an unreviewed
+/// variant silently joining this class is exactly the failure SR-15 exists to prevent.
 #[test]
-fn marker_keywords_are_the_reviewed_set() {
-    const REVIEWED: &[&str] = &[
-        "Adapt",
-        "Bestow",
-        "Buyback",
-        "Cleave",
-        "Cloak",
-        "Craft",
-        "Discover",
-        "Disturb",
-        "Emerge",
-        "Equip",
-        "Fortify",
-        "Kicker",
-        "Manifest",
-        "Outlast",
-        "Overload",
-        "Prototype",
-        "Transform",
-        "Transmute",
-    ];
+fn marker_abilities_are_the_reviewed_set() {
+    const REVIEWED: &[&str] = &["CumulativeUpkeep", "Echo", "Fading", "Vanishing"];
 
-    let markers: BTreeSet<String> = all_keywords()
+    let markers: BTreeSet<String> = all_ability_definitions()
         .iter()
-        .filter(|k| matches!(handling(k), KeywordHandling::Marker { .. }))
+        .filter(|a| matches!(handling(a), AbilityHandling::Marker { .. }))
         .map(variant_name)
         .collect();
     let reviewed: BTreeSet<String> = REVIEWED.iter().map(|s| (*s).to_string()).collect();
 
     assert_eq!(
         markers, reviewed,
-        "the set of marker-only keywords changed. Each entry means \"this keyword \
-         needs no engine dispatch\" — justify the change in \
-         docs/sr-5-keyword-catchall-audit.md before editing this list."
+        "the set of marker-only AbilityDefinition variants changed. Each entry means \
+         \"this variant carries no dispatch; a KeywordAbility twin does\" — justify the \
+         change in docs/sr-15-dispatch-enum-catchall-audit.md before editing this list."
     );
 }
