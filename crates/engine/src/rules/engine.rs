@@ -1571,6 +1571,10 @@ fn handle_all_passed(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateE
         // CR 608.1: Stack is non-empty — resolve the top object.
         let resolve_events = resolution::resolve_top_of_stack(state)?;
         events.extend(resolve_events);
+        // SR-13: once the stack and pending-trigger queue are both empty, no ability
+        // can still reference a departed damage source, so drop the LKI snapshots
+        // captured in `move_object_to_zone` (a no-op unless both are drained).
+        state.maybe_clear_lki_objects();
         // CR 104.1 / PB-AC8: a resolving effect (e.g. Effect::WinGame) may end the
         // game immediately, independent of any SBA (CR 704.5: winning-by-effect is
         // NOT a state-based action -- this is not an SBA check, it's the same
@@ -1581,6 +1585,9 @@ fn handle_all_passed(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateE
         }
     } else {
         // Stack is empty — advance step or turn.
+        // SR-13: with the stack empty at a priority boundary (and no pending trigger),
+        // no departed source's LKI can be needed; drop any lingering snapshots.
+        state.maybe_clear_lki_objects();
         // Empty mana pools at step transition (CR 500.4)
         let mana_events = turn_actions::empty_all_mana_pools(state);
         events.extend(mana_events);

@@ -1405,6 +1405,9 @@ pub fn clear_damage(state: &mut GameState) {
 }
 /// Reset per-turn state for a player starting their turn.
 pub fn reset_turn_state(state: &mut GameState, player: PlayerId) {
+    // SR-13: hard per-turn bound on LKI snapshots — the stack is empty at a turn
+    // boundary, so no departed source's last-known information can still be needed.
+    state.maybe_clear_lki_objects();
     // CR 730.2a/b: Before resetting spells_cast_this_turn, save it as the
     // "previous turn's spell count" for day/night transition checking.
     // This is checked at the NEXT player's untap step (CR 730.2).

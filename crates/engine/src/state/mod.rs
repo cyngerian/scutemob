@@ -197,6 +197,25 @@ pub struct GameState {
         Vector<crate::state::stubs::PlayFromGraveyardPermission>,
     /// Stack objects (spells and abilities on the stack).
     pub(crate) stack_objects: Vector<StackObject>,
+    /// CR 113.7a / 608.2h / 702.80c / 702.90e: last-known-information snapshots of
+    /// objects that left the battlefield while the stack was non-empty, keyed by the
+    /// object's (now-retired) `ObjectId`.
+    ///
+    /// The stored `GameObject`'s `characteristics` field holds the object's
+    /// **layer-resolved** characteristics as they last existed on the battlefield
+    /// (not the usual base characteristics), captured via `calculate_characteristics`
+    /// immediately before the object was removed. This lets a damage source that has
+    /// changed zones (CR 400.7) still apply wither / infect / deathtouch / lifelink
+    /// when its damage ability finally resolves, because "the wither/infect rules
+    /// function no matter what zone an object … deals damage from" (CR 702.80c /
+    /// 702.90e) and the effect must use the source's last known information
+    /// (CR 608.2h / 113.7a) once it is no longer in its expected zone.
+    ///
+    /// Populated in `move_object_to_zone` / `move_object_to_bottom_of_zone`; cleared
+    /// when the stack empties (`handle_all_passed`). `ObjectId`s are monotonic
+    /// (`next_object_id`), so a stale entry can never be matched by a different object.
+    #[serde(default)]
+    pub(crate) lki_objects: OrdMap<ObjectId, GameObject>,
     /// Current combat state, if in a combat phase.
     pub(crate) combat: Option<CombatState>,
     /// Monotonic counter for generating ObjectIds and timestamps.
@@ -449,6 +468,30 @@ impl GameState {
     /// Read-only access to the `combat` field.
     pub fn combat(&self) -> &Option<CombatState> {
         &self.combat
+    }
+
+    /// CR 113.7a / 608.2h: last-known-information snapshot of an object that has left
+    /// the battlefield, keyed by its retired `ObjectId`. Returns `None` if no snapshot
+    /// was captured for `id` (the object never left the battlefield with the stack
+    /// non-empty, or the snapshot was already cleared). The returned object's
+    /// `characteristics` are layer-resolved as they last existed on the battlefield.
+    /// See the `lki_objects` field docs.
+    pub(crate) fn lki_object_snapshot(&self, id: ObjectId) -> Option<&GameObject> {
+        self.lki_objects.get(&id)
+    }
+
+    /// SR-13: drop last-known-information snapshots once nothing can reference them —
+    /// the stack AND the pending-trigger queue are both empty, so no on-stack ability and
+    /// no about-to-be-flushed trigger can still need a departed source's LKI. Safe to
+    /// call at any priority or turn boundary; a no-op unless both queues are drained. See
+    /// the `lki_objects` field docs.
+    pub(crate) fn maybe_clear_lki_objects(&mut self) {
+        if !self.lki_objects.is_empty()
+            && self.stack_objects.is_empty()
+            && self.pending_triggers.is_empty()
+        {
+            self.lki_objects = OrdMap::new();
+        }
     }
 
     /// Read-only access to the `loop_detection_hashes` field.
@@ -876,6 +919,42 @@ impl GameState {
         self.objects.insert(id, object);
         Ok(id)
     }
+    /// SR-13: capture a last-known-information snapshot of an object about to leave a
+    /// zone, so a damage ability still on the stack can read its source's wither /
+    /// infect / deathtouch / lifelink after the source is gone.
+    ///
+    /// CR 702.80c / 702.90e: wither and infect "function no matter what zone an object …
+    /// deals damage from." CR 608.2h / 113.7a: an effect that needs information about
+    /// its source (here, the source's keywords) uses the source's last known
+    /// information once it is no longer in its expected zone.
+    ///
+    /// Only battlefield-leaves are captured. The snapshot's `characteristics` are
+    /// **layer-resolved** (via `calculate_characteristics` while the object is still
+    /// present), so keywords granted by continuous effects (e.g. Tainted Strike's
+    /// infect, Basilisk Collar's deathtouch/lifelink) are preserved, matching the live
+    /// read path. `next_object_id` is monotonic, so the retired id can never collide
+    /// with a future object; the map is cleared once nothing can reference it — the
+    /// stack and pending-trigger queue are both empty (`maybe_clear_lki_objects`, called
+    /// from `rules::engine::handle_all_passed` and `reset_turn_state`).
+    ///
+    /// The capture is deliberately NOT gated on a non-empty stack: a damage ability can
+    /// still be a *pending* trigger (queued, not yet on the stack) when its source dies
+    /// to the same event — e.g. a creature dealt lethal combat damage whose "deals
+    /// damage" trigger fires from that damage. At the SBA that kills it the stack may be
+    /// empty; the trigger is put on the stack only afterward. Capturing on every
+    /// battlefield-leave covers that case; the clear condition keeps the map bounded.
+    ///
+    /// Must be called BEFORE the object is removed from `self.objects`.
+    fn capture_lki_snapshot(&mut self, object_id: ObjectId, from: ZoneId, old_object: &GameObject) {
+        if from != ZoneId::Battlefield {
+            return;
+        }
+        if let Some(chars) = crate::rules::layers::calculate_characteristics(self, object_id) {
+            let mut snapshot = old_object.clone();
+            snapshot.characteristics = chars;
+            self.lki_objects.insert(object_id, snapshot);
+        }
+    }
     /// Move a game object from its current zone to a new zone.
     ///
     /// Implements CR 400.7: "An object that moves from one zone to another becomes
@@ -902,6 +981,10 @@ impl GameState {
             .ok_or(GameStateError::ObjectNotFound(object_id))?
             .clone();
         let from = old_object.zone;
+        // SR-13: snapshot last-known information before the object is removed, so a
+        // damage ability still on the stack can read its source's keywords once the
+        // source is gone (CR 113.7a / 608.2h / 702.80c / 702.90e).
+        self.capture_lki_snapshot(object_id, from, &old_object);
         // Remove from old zone
         let from_zone = self
             .zones
@@ -1392,6 +1475,8 @@ impl GameState {
             .ok_or(GameStateError::ObjectNotFound(object_id))?
             .clone();
         let from = old_object.zone;
+        // SR-13: snapshot last-known information before removal (CR 113.7a / 608.2h).
+        self.capture_lki_snapshot(object_id, from, &old_object);
         // Remove from old zone.
         let from_zone = self
             .zones

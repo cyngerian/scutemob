@@ -321,7 +321,16 @@
 ///   even though no game state changed. Removal-only: no new hashed state, no
 ///   discriminant renumbering, and old serialized states still deserialize (serde
 ///   ignores unknown fields).
-pub const HASH_SCHEMA_VERSION: u8 = 37;
+/// - 38: SR-13 (2026-07-10) — new `GameState.lki_objects: OrdMap<ObjectId, GameObject>`
+///   holding last-known-information snapshots of damage sources that left the
+///   battlefield while the stack was non-empty (CR 113.7a / 608.2h / 702.80c /
+///   702.90e), so a source's wither/infect/deathtouch/lifelink still resolves after
+///   the source is gone (CR 400.7). Hashed into `public_state_hash` (dead battlefield
+///   permanents are public info). The map is empty except transiently while an
+///   ability outlives its source, and is cleared when the stack empties, so most
+///   states hash identically to before; the version bump is for the states that do
+///   carry a snapshot.
+pub const HASH_SCHEMA_VERSION: u8 = 38;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -7046,6 +7055,12 @@ impl GameState {
         }
         for id in self.combat_damage_prevented_to.iter() {
             id.hash_into(&mut hasher);
+        }
+        // SR-13: LKI snapshots of departed damage sources (CR 113.7a / 608.2h).
+        // Public info (dead battlefield permanents); iterated in OrdMap key order.
+        for (id, obj) in self.lki_objects.iter() {
+            id.hash_into(&mut hasher);
+            obj.hash_into(&mut hasher);
         }
         *hasher.finalize().as_bytes()
     }

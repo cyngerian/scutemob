@@ -327,6 +327,7 @@ impl GameStateBuilder {
             play_from_top_permissions: imbl::Vector::new(),
             play_from_graveyard_permissions: imbl::Vector::new(),
             stack_objects: Vector::new(),
+            lki_objects: OrdMap::new(),
             combat: None,
             timestamp_counter: 0,
             loop_detection_hashes: OrdMap::new(),

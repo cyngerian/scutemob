@@ -287,10 +287,18 @@ fn execute_effect_inner(
                         events.extend(prev_events);
                         if final_dmg > 0 {
                             // CR 702.90b / CR 120.3b: check source for infect.
-                            let source_has_infect =
-                                crate::rules::layers::calculate_characteristics(state, ctx.source)
-                                    .map(|c| c.keywords.contains(&KeywordAbility::Infect))
-                                    .unwrap_or(false);
+                            // CR 702.15a: check source for lifelink.
+                            // SR-13 (CR 702.90e / 608.2h / 113.7a): read via LKI so a source
+                            // that has left its zone still applies infect / lifelink.
+                            let source_chars = damage_source_characteristics(state, ctx.source);
+                            let source_has_infect = source_chars
+                                .as_ref()
+                                .map(|c| c.keywords.contains(&KeywordAbility::Infect))
+                                .unwrap_or(false);
+                            let source_has_lifelink = source_chars
+                                .as_ref()
+                                .map(|c| c.keywords.contains(&KeywordAbility::Lifelink))
+                                .unwrap_or(false);
                             if source_has_infect {
                                 // CR 120.3b: infect damage to a player gives poison counters
                                 // instead of causing life loss (CR 702.90b).
@@ -328,6 +336,22 @@ fn execute_effect_inner(
                                     player: p,
                                     amount: final_dmg,
                                 });
+                            }
+                            // CR 702.15a/b: Lifelink — the source's controller gains life equal
+                            // to the damage dealt, whether or not that damage was infect poison.
+                            if source_has_lifelink {
+                                if let Some(controller_id) =
+                                    damage_source_controller(state, ctx.source)
+                                {
+                                    if let Some(ps) = state.expect_player_mut(controller_id) {
+                                        ps.life_total += final_dmg as i32;
+                                        ps.life_gained_this_turn += final_dmg;
+                                    }
+                                    events.push(GameEvent::LifeGained {
+                                        player: controller_id,
+                                        amount: final_dmg,
+                                    });
+                                }
                             }
                         }
                     }
@@ -384,10 +408,12 @@ fn execute_effect_inner(
                                 // CR 120.3d/e: check source for wither and/or infect keyword.
                                 // CR 702.80a: wither applies to damage dealt to creatures.
                                 // CR 702.90c: infect also places -1/-1 counters on creatures.
-                                // CR 702.80c / CR 702.90e: both function from any zone.
-                                let source_chars = crate::rules::layers::calculate_characteristics(
-                                    state, ctx.source,
-                                );
+                                // CR 702.2b: deathtouch marks the creature as having taken
+                                // lethal damage. CR 702.15a: lifelink gains the controller life.
+                                // CR 702.80c / CR 702.90e: wither/infect function from any zone.
+                                // SR-13 (CR 608.2h / 113.7a): read via LKI so a source that has
+                                // left its zone still applies all four keywords.
+                                let source_chars = damage_source_characteristics(state, ctx.source);
                                 let source_has_wither = source_chars
                                     .as_ref()
                                     .map(|c| c.keywords.contains(&KeywordAbility::Wither))
@@ -395,6 +421,14 @@ fn execute_effect_inner(
                                 let source_has_infect = source_chars
                                     .as_ref()
                                     .map(|c| c.keywords.contains(&KeywordAbility::Infect))
+                                    .unwrap_or(false);
+                                let source_has_deathtouch = source_chars
+                                    .as_ref()
+                                    .map(|c| c.keywords.contains(&KeywordAbility::Deathtouch))
+                                    .unwrap_or(false);
+                                let source_has_lifelink = source_chars
+                                    .as_ref()
+                                    .map(|c| c.keywords.contains(&KeywordAbility::Lifelink))
                                     .unwrap_or(false);
                                 if let Some(obj) = state.lki_object_mut(id) {
                                     if source_has_wither || source_has_infect {
@@ -422,6 +456,27 @@ fn execute_effect_inner(
                                     } else {
                                         // CR 120.3e: normal damage marking.
                                         obj.damage_marked += final_dmg;
+                                    }
+                                    // CR 702.2b: deathtouch — any nonzero damage from a source
+                                    // with deathtouch is lethal; flag it for the SBA check.
+                                    if source_has_deathtouch {
+                                        obj.deathtouch_damage = true;
+                                    }
+                                }
+                                // CR 702.15a/b: Lifelink — the source's controller gains life
+                                // equal to the damage dealt (any damage, not just combat).
+                                if source_has_lifelink {
+                                    if let Some(controller_id) =
+                                        damage_source_controller(state, ctx.source)
+                                    {
+                                        if let Some(ps) = state.expect_player_mut(controller_id) {
+                                            ps.life_total += final_dmg as i32;
+                                            ps.life_gained_this_turn += final_dmg;
+                                        }
+                                        events.push(GameEvent::LifeGained {
+                                            player: controller_id,
+                                            amount: final_dmg,
+                                        });
                                     }
                                 }
                             } else {
@@ -6442,6 +6497,33 @@ fn get_creature_power(state: &GameState, id: ObjectId) -> u32 {
         .unwrap_or(0)
         .max(0) as u32
 }
+/// SR-13: the layer-resolved characteristics of a damage source, using last known
+/// information when the source has left its zone.
+///
+/// CR 702.80c / 702.90e: wither and infect "function no matter what zone an object …
+/// deals damage from." CR 608.2h / 113.7a: an effect that references its source's
+/// information (here, its keywords) uses the source's last known information once the
+/// source is no longer in the zone it is expected to be in. `calculate_characteristics`
+/// returns `None` for a retired `ObjectId` (CR 400.7 mints a new object on every zone
+/// change), so the LKI snapshot captured by `move_object_to_zone` is the fallback. When
+/// the source is still present the two agree, so alive sources are unaffected.
+fn damage_source_characteristics(state: &GameState, source: ObjectId) -> Option<Characteristics> {
+    crate::rules::layers::calculate_characteristics(state, source).or_else(|| {
+        state
+            .lki_object_snapshot(source)
+            .map(|o| o.characteristics.clone())
+    })
+}
+/// SR-13: the controller of a damage source, using last known information when the
+/// source has left its zone (CR 608.2h / 113.7a). Used for lifelink (CR 702.15b): the
+/// source's controller gains the life even if the source is already gone.
+fn damage_source_controller(state: &GameState, source: ObjectId) -> Option<PlayerId> {
+    state
+        .object(source)
+        .ok()
+        .map(|o| o.controller)
+        .or_else(|| state.lki_object_snapshot(source).map(|o| o.controller))
+}
 /// Deal non-combat damage from one creature to another, using the creature as the
 /// damage source (CR 701.14d). Handles deathtouch, lifelink, wither/infect, damage
 /// doubling, and damage prevention — all keyed off the creature source, not the spell.
@@ -6484,7 +6566,9 @@ fn deal_creature_power_damage(
     // CR 120.3d/e: Check creature source for wither and/or infect.
     // CR 702.80a: wither applies to damage dealt to creatures.
     // CR 702.90c: infect also places -1/-1 counters on creatures.
-    let source_chars = crate::rules::layers::calculate_characteristics(state, creature_source);
+    // SR-13 (CR 702.80c / 702.90e / 608.2h): read via LKI so a source that has left its
+    // zone still applies wither/infect/deathtouch/lifelink.
+    let source_chars = damage_source_characteristics(state, creature_source);
     let source_has_wither = source_chars
         .as_ref()
         .map(|c| c.keywords.contains(&KeywordAbility::Wither))
@@ -6536,8 +6620,9 @@ fn deal_creature_power_damage(
         amount: final_dmg,
     });
     // CR 702.15b: Lifelink — controller of the creature source gains life.
+    // SR-13: use LKI controller so lifelink still resolves if the source is gone.
     if source_has_lifelink {
-        if let Some(controller_id) = state.expect_object(creature_source).map(|o| o.controller) {
+        if let Some(controller_id) = damage_source_controller(state, creature_source) {
             if let Some(ps) = state.expect_player_mut(controller_id) {
                 ps.life_total += final_dmg as i32;
                 // PB-B: Track life gained this turn for Condition::ControllerGainedLifeThisTurn.
