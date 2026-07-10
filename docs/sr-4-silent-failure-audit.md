@@ -76,14 +76,14 @@ site rather than at the helper.
 | engine bug | `layers::expect_characteristics` | `debug_assert!`; printed characteristics in release |
 | engine bug | `debug_assert_object_live!(state, id)` | the assert *without* a whole-struct borrow |
 | legal game state | `lki_object`, `lki_object_mut` | silent `None`, CR-cited |
-| legal game state | `lki_move_object_to_zone` | `ObjectNotFound` ⇒ `None`; `ZoneNotFound` still asserts |
+| legal game state | `lki_move_object_to_zone` | `ObjectNotFound` ⇒ `None`; the other three error variants still assert |
 
 Both families return `Option`, so converting a site is a one-token change and the
 `if let Some(..)` shape survives untouched.
 
 `lki_move_object_to_zone` is the one that earns its keep: the codebase repeatedly
 wrote `Err(_) => { /* card disappeared */ }`, which is a correct fizzle for
-`ObjectNotFound` and a swallowed bug for `ZoneNotFound`. Splitting the variants costs
+`ObjectNotFound` and a swallowed bug for the other three variants. Splitting them costs
 nothing and closes that half.
 
 ## Results
@@ -155,15 +155,28 @@ would have become blockable. A dead branch that would have been wrong.
 
 **36 fallbacks silently substituted pre-layer characteristics.**
 `calculate_characteristics(state, id).unwrap_or_else(|| obj.characteristics.clone())`
-appears throughout. The fallback returns *printed* characteristics, ignoring every
-continuous effect — a Blood Moon'd land, an animated Gideon, a pumped creature would
-all read wrong. Unreachable at each of these sites, but wrong if reached. All 36 are
-now `expect_characteristics`, which asserts in debug and keeps the same fallback in
-release.
+appears throughout (31 in `effects/mod.rs`, 5 in `resolution.rs`). The fallback returns
+*printed* characteristics, ignoring every continuous effect — a Blood Moon'd land, an
+animated Gideon, a pumped creature would all read wrong. Unreachable at each of these
+sites, but wrong if reached.
 
-**`move_object_to_zone`'s two error variants were collapsed.** `Err(_) => {}` treated
-a missing object (legal, CR 400.7) and a missing zone (impossible) identically at
-every site. Now split.
+35 of the 36 became `expect_characteristics`, which asserts in debug and keeps the same
+fallback in release. The 36th — the damage-target `card_types` read in the `DealDamage`
+arm — turned out on inspection to be a genuine fizzle guarded by an outer
+`state.objects.get(&id)`, so it became an explicit
+`calculate_characteristics(..).map(|c| c.card_types).unwrap_or_default()` with a CR
+400.7 / 608.2b comment naming the branch. Together with the two `combat.rs`
+`unwrap_or_default()` sites, there are 37 `expect_characteristics` call sites: 30 in
+`effects/mod.rs`, 5 in `resolution.rs`, 2 in `combat.rs`.
+
+**`move_object_to_zone`'s error variants were collapsed into one `Err(_)` arm.** It has
+four: `ObjectNotFound(id)`, `ZoneNotFound(to)`, `ZoneNotFound(from)`, and
+`ObjectNotInZone(id, from)`. Only the first can be a legal game state. A stale id is
+*fully removed* from `state.objects`, so an LKI reference always surfaces as
+`ObjectNotFound` and never as `ObjectNotInZone` — which is what lets
+`lki_move_object_to_zone` silence that one variant and assert on the other three
+without risking a panic on a legitimate fizzle. The remaining three all mean the
+object's `zone` field and that zone's contents disagree, i.e. corrupted state.
 
 **Five sites keep raw field access.** `state.objects.get_mut(&id)` borrows one field;
 `state.expect_object_mut(id)` borrows all of `GameState`. Five blocks need

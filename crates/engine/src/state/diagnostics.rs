@@ -191,16 +191,28 @@ impl GameState {
     // ---------------------------------------------------------------------
     // Fallible mutations.
     //
-    // `move_object_to_zone` fails with exactly two errors: `ObjectNotFound`
-    // (which can be a legitimate CR 400.7 fizzle) and `ZoneNotFound` (never).
-    // `add_object` fails only with `ZoneNotFound`. So a discarded `Err` from
-    // `add_object` is unambiguously a bug, while a discarded `Err` from a move
-    // needs the caller to say which id provenance it has.
+    // `move_object_to_zone` has four error variants, and exactly one of them can
+    // be a legal game state:
+    //
+    //   ObjectNotFound(id)          -- a CR 400.7 fizzle *or* a bug, per provenance
+    //   ZoneNotFound(to)            -- always a bug; zones are never removed
+    //   ZoneNotFound(from)          -- always a bug; ditto
+    //   ObjectNotInZone(id, from)   -- always a bug; the object and its zone's
+    //                                  contents disagree, i.e. corrupted state
+    //
+    // A stale (last-known-information) id is *fully removed* from `state.objects`,
+    // so it surfaces as `ObjectNotFound` and never as `ObjectNotInZone`. That is
+    // why `lki_move_object_to_zone` can silence `ObjectNotFound` alone and assert
+    // on the rest without risking a panic on a legitimate fizzle.
+    //
+    // `add_object` fails only with `ZoneNotFound`, so a discarded `Err` from it is
+    // unambiguously a bug. A discarded `Err` from a move needs the caller to say
+    // which id provenance it has.
     // ---------------------------------------------------------------------
 
     /// Move an object the caller knows is live, into a zone that must exist.
     ///
-    /// Both error variants are engine bugs here, so a `debug_assert!` fires and
+    /// Every error variant is an engine bug here, so a `debug_assert!` fires and
     /// release builds get `None`. Returns the object's *new* `ObjectId` and its
     /// pre-move state, exactly as [`move_object_to_zone`](GameState::move_object_to_zone).
     #[track_caller]
@@ -226,8 +238,9 @@ impl GameState {
     /// Move an object whose id may be *last known information*.
     ///
     /// A missing object is the rules-correct fizzle of CR 400.7 / 608.2b and
-    /// returns `None` quietly. A missing *destination zone* is still a bug and
-    /// still asserts — that half of the error space is never legal.
+    /// returns `None` quietly. The other three error variants — a missing source or
+    /// destination zone, or an object whose zone disagrees with that zone's contents
+    /// — are corrupted state, never a legal fizzle, and still assert.
     #[track_caller]
     pub(crate) fn lki_move_object_to_zone(
         &mut self,
@@ -244,7 +257,9 @@ impl GameState {
                 debug_assert!(
                     false,
                     "engine invariant: move of {object_id:?} to {to:?} failed with {e}. \
-                     Only ObjectNotFound is a legal fizzle; zones are never removed."
+                     Only ObjectNotFound is a legal fizzle (CR 400.7); zones are never \
+                     removed, and an object whose zone disagrees with that zone's \
+                     contents is corrupted state."
                 );
                 None
             }
@@ -435,12 +450,37 @@ mod tests {
     }
 
     /// `lki_move_object_to_zone` tolerates a dead object but *not* a missing zone —
-    /// that half of the error space is never a legal fizzle.
+    /// that part of the error space is never a legal fizzle.
     #[test]
     #[should_panic(expected = "zones are never removed")]
     fn lki_move_still_asserts_on_a_fabricated_destination_zone() {
         let (mut state, id) = state_with_a_creature();
         let _ = state.lki_move_object_to_zone(id, ZoneId::Graveyard(PlayerId(99)));
+    }
+
+    /// The assumption that makes `lki_move_object_to_zone` safe.
+    ///
+    /// It silences `ObjectNotFound` and asserts on `ZoneNotFound` and
+    /// `ObjectNotInZone`. That is only sound if a last-known-information id can never
+    /// produce `ObjectNotInZone` — i.e. a zone change removes the old id from
+    /// `state.objects` *entirely*, rather than leaving a stale entry whose `zone`
+    /// field disagrees with that zone's contents. If `move_object_to_zone` ever
+    /// stopped doing that, `lki_move_object_to_zone` would start panicking on a
+    /// legitimate CR 400.7 fizzle. This test is the tripwire.
+    #[test]
+    fn a_stale_id_yields_object_not_found_not_object_not_in_zone() {
+        let (mut state, old_id) = state_with_a_creature();
+        state
+            .move_object_to_zone(old_id, ZoneId::Graveyard(PlayerId(0)))
+            .expect("legal move");
+
+        match state.move_object_to_zone(old_id, ZoneId::Exile) {
+            Err(GameStateError::ObjectNotFound(id)) => assert_eq!(id, old_id),
+            other => panic!(
+                "a stale id must surface as ObjectNotFound (CR 400.7), not {other:?} — \
+                 lki_move_object_to_zone's assert would fire on a legal fizzle"
+            ),
+        }
     }
 
     #[test]
