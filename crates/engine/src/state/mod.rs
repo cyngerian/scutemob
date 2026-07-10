@@ -10,6 +10,7 @@ pub mod dungeon;
 pub mod error;
 pub mod game_object;
 pub mod hash;
+pub mod keyword_registry;
 pub mod player;
 pub mod replacement_effect;
 pub mod stack;
