@@ -28,7 +28,10 @@ use std::collections::VecDeque;
 /// continuous effects in layer order (1 → 7d), with timestamp and dependency ordering
 /// within each layer.
 ///
-/// Returns `None` if the object does not exist in the game state.
+/// Returns `None` if — and only if — the object does not exist in the game state.
+/// That is the function's sole failure mode: every other step is total. A caller
+/// holding an id it knows to be live should therefore use
+/// [`expect_characteristics`] rather than papering over the `None`.
 pub fn calculate_characteristics(
     state: &GameState,
     object_id: ObjectId,
@@ -429,6 +432,39 @@ pub fn calculate_characteristics(
     }
     Some(chars)
 }
+
+/// [`calculate_characteristics`] for a caller that has already established the
+/// object is live — for example one iterating `state.objects()` directly.
+///
+/// The only way [`calculate_characteristics`] returns `None` is a missing
+/// `ObjectId`, so at such a site `None` is an engine-invariant violation, not a
+/// rules event. Fires a `debug_assert!` naming the id, and in release builds
+/// falls back to the object's printed characteristics if it can find them, or
+/// `Characteristics::default()` if it cannot.
+///
+/// Do **not** use this for an id that may be last known information (CR 400.7) —
+/// a target captured earlier, a sacrificed source, a creature that died to a
+/// state-based action mid-resolution. Call [`calculate_characteristics`] and
+/// handle the `None` as the fizzle CR 608.2b requires.
+#[track_caller]
+pub fn expect_characteristics(state: &GameState, object_id: ObjectId) -> Characteristics {
+    if let Some(chars) = calculate_characteristics(state, object_id) {
+        return chars;
+    }
+    debug_assert!(
+        false,
+        "engine invariant: calculate_characteristics({object_id:?}) returned None at a site \
+         that requires the object to be live. Its only failure mode is an absent ObjectId \
+         (CR 400.7). If the id may be last known information, handle the None as a CR 608.2b \
+         fizzle instead of calling expect_characteristics."
+    );
+    state
+        .objects()
+        .get(&object_id)
+        .map(|o| o.characteristics.clone())
+        .unwrap_or_default()
+}
+
 /// Returns true if a continuous effect is currently active.
 ///
 /// An effect is active when its duration condition is met:

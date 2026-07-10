@@ -15,6 +15,7 @@ use super::abilities;
 use super::events::GameEvent;
 use super::sba;
 use crate::effects::{check_condition, execute_effect, EffectContext};
+use crate::state::diagnostics::debug_assert_object_live;
 use crate::state::error::GameStateError;
 use crate::state::game_object::{Designations, MergedComponent, ObjectId};
 use crate::state::stack::StackObjectKind;
@@ -53,7 +54,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         // CR 702.103e / 608.3b: Bestowed Aura with illegal target ceases
                         // to be bestowed and resolves as a creature spell. Revert the
                         // type transformation on the source object.
-                        if let Some(source_obj) = state.objects.get_mut(&source_object) {
+                        if let Some(source_obj) = state.expect_object_mut(source_object) {
                             source_obj
                                 .characteristics
                                 .subtypes
@@ -541,7 +542,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             .filter(|o| o.zone == ZoneId::Battlefield && o.controller == controller)
                             .count();
                         if permanent_count >= 10 {
-                            if let Some(p) = state.players.get_mut(&controller) {
+                            if let Some(p) = state.expect_player_mut(controller) {
                                 p.has_citys_blessing = true;
                             }
                             events.push(GameEvent::CitysBlessingGained { player: controller });
@@ -580,6 +581,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // triggers can check Condition::WasKicked.
                 // CR 702.74a: Transfer evoked status from stack to permanent so the
                 // ETB sacrifice trigger can check was_evoked.
+                // Impossible-absence: assert without the whole-struct borrow that
+                // `expect_object_mut` would take (this block reads other `state` fields).
+                debug_assert_object_live!(state, new_id);
                 if let Some(obj) = state.objects.get_mut(&new_id) {
                     obj.controller = controller;
                     // CR 702.37a / CR 708.2a: Restore face-down status for morph/megamorph/disguise
@@ -828,7 +832,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // "At the beginning of your upkeep, if this permanent came under your
                 // control since the beginning of your last upkeep, sacrifice it unless
                 // you pay [cost]." Setting echo_pending models the condition.
-                if let Some(obj) = state.objects.get_mut(&new_id) {
+                if let Some(obj) = state.expect_object_mut(new_id) {
                     if obj
                         .characteristics
                         .keywords
@@ -851,7 +855,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                     count,
                                 } = ability
                                 {
-                                    if let Some(obj) = state.objects.get_mut(&new_id) {
+                                    if let Some(obj) = state.expect_object_mut(new_id) {
                                         let current =
                                             obj.counters.get(counter_type).copied().unwrap_or(0);
                                         obj.counters = obj
@@ -897,7 +901,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     for _ in 0..riot_count {
                         // Default choice: +1/+1 counter (CR 702.136a).
                         // Each Riot instance adds one +1/+1 counter.
-                        if let Some(obj) = state.objects.get_mut(&new_id) {
+                        if let Some(obj) = state.expect_object_mut(new_id) {
                             let current = obj
                                 .counters
                                 .get(&CounterType::PlusOnePlusOne)
@@ -939,7 +943,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         })
                         .unwrap_or(0);
                     if modular_total > 0 {
-                        if let Some(obj) = state.objects.get_mut(&new_id) {
+                        if let Some(obj) = state.expect_object_mut(new_id) {
                             let current = obj
                                 .counters
                                 .get(&CounterType::PlusOnePlusOne)
@@ -976,7 +980,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         })
                         .unwrap_or(0);
                     if graft_total > 0 {
-                        if let Some(obj) = state.objects.get_mut(&new_id) {
+                        if let Some(obj) = state.expect_object_mut(new_id) {
                             let current = obj
                                 .counters
                                 .get(&CounterType::PlusOnePlusOne)
@@ -1068,7 +1072,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             total_amplify_counters += n * eligible_count;
                         }
                         if total_amplify_counters > 0 {
-                            if let Some(obj) = state.objects.get_mut(&new_id) {
+                            if let Some(obj) = state.expect_object_mut(new_id) {
                                 let current = obj
                                     .counters
                                     .get(&CounterType::PlusOnePlusOne)
@@ -1126,7 +1130,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         if any_opponent_damaged {
                             let total_counters: u32 = bloodthirst_instances.iter().sum();
                             if total_counters > 0 {
-                                if let Some(obj) = state.objects.get_mut(&new_id) {
+                                if let Some(obj) = state.expect_object_mut(new_id) {
                                     let current = obj
                                         .counters
                                         .get(&CounterType::PlusOnePlusOne)
@@ -1223,7 +1227,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 devour_lki_power,
                                 devour_pre_death_chars,
                             ) = {
-                                let obj = match state.objects.get(&sac_id) {
+                                let obj = match state.lki_object(sac_id) {
                                     Some(o) => o,
                                     None => continue,
                                 };
@@ -1259,8 +1263,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                     ..
                                 } => {
                                     events.extend(repl_events);
-                                    if let Ok((new_grave_id, _old)) =
-                                        state.move_object_to_zone(sac_id, dest)
+                                    if let Some((new_grave_id, _old)) =
+                                        state.expect_move_object_to_zone(sac_id, dest)
                                     {
                                         match dest {
                                             ZoneId::Exile => {
@@ -1298,8 +1302,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                     }
                                 }
                                 crate::rules::replacement::ZoneChangeAction::Proceed => {
-                                    if let Ok((new_grave_id, _old)) = state
-                                        .move_object_to_zone(sac_id, ZoneId::Graveyard(sac_owner))
+                                    if let Some((new_grave_id, _old)) = state
+                                        .expect_move_object_to_zone(
+                                            sac_id,
+                                            ZoneId::Graveyard(sac_owner),
+                                        )
                                     {
                                         events.push(GameEvent::CreatureDied {
                                             object_id: sac_id,
@@ -1324,8 +1331,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 } => {
                                     // For simplicity, treat ChoiceRequired as Proceed (go to graveyard).
                                     // Full interactive choice support is deferred.
-                                    if let Ok((new_grave_id, _old)) = state
-                                        .move_object_to_zone(sac_id, ZoneId::Graveyard(sac_owner))
+                                    if let Some((new_grave_id, _old)) = state
+                                        .expect_move_object_to_zone(
+                                            sac_id,
+                                            ZoneId::Graveyard(sac_owner),
+                                        )
                                     {
                                         events.push(GameEvent::CreatureDied {
                                             object_id: sac_id,
@@ -1350,7 +1360,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         if sacrifice_count > 0 {
                             // CR 702.82b: Record the number of creatures devoured for
                             // abilities that reference "it devoured".
-                            if let Some(obj) = state.objects.get_mut(&new_id) {
+                            if let Some(obj) = state.expect_object_mut(new_id) {
                                 obj.creatures_devoured = sacrifice_count;
                             }
                             // Add +1/+1 counters: for each Devour(N) instance, add N * sacrifice_count.
@@ -1359,7 +1369,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 total_devour_counters += n * sacrifice_count;
                             }
                             if total_devour_counters > 0 {
-                                if let Some(obj) = state.objects.get_mut(&new_id) {
+                                if let Some(obj) = state.expect_object_mut(new_id) {
                                     let current = obj
                                         .counters
                                         .get(&CounterType::PlusOnePlusOne)
@@ -1437,7 +1447,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         })
                         .unwrap_or(false);
                     if has_ravenous && stack_obj.x_value > 0 {
-                        if let Some(obj) = state.objects.get_mut(&new_id) {
+                        if let Some(obj) = state.expect_object_mut(new_id) {
                             let current = obj
                                 .counters
                                 .get(&CounterType::PlusOnePlusOne)
@@ -1592,7 +1602,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         .map(|o| o.gift_was_given)
                         .unwrap_or(false);
                     let permanent_gift_opponent =
-                        state.objects.get(&new_id).and_then(|o| o.gift_opponent);
+                        state.expect_object(new_id).and_then(|o| o.gift_opponent);
                     if has_gift && permanent_gift_was_given {
                         if let Some(gift_opp) = permanent_gift_opponent {
                             state
@@ -1619,7 +1629,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // The permanent enters as an Aura enchantment with enchant creature,
                 // not as a creature.
                 if stack_obj.was_bestowed && !bestow_fallback {
-                    if let Some(obj) = state.objects.get_mut(&new_id) {
+                    if let Some(obj) = state.expect_object_mut(new_id) {
                         obj.characteristics.card_types.remove(&CardType::Creature);
                         obj.characteristics.card_types.insert(CardType::Enchantment);
                         obj.characteristics
@@ -1636,7 +1646,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // attachment must be set before register_static_continuous_effects runs.
                 {
                     let is_aura = {
-                        let obj = state.objects.get(&new_id);
+                        let obj = state.expect_object(new_id);
                         obj.map(|o| {
                             o.characteristics
                                 .card_types
@@ -1662,11 +1672,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             });
                         if let Some(target_id) = aura_target {
                             // Set attached_to on the Aura.
-                            if let Some(aura_obj) = state.objects.get_mut(&new_id) {
+                            if let Some(aura_obj) = state.expect_object_mut(new_id) {
                                 aura_obj.attached_to = Some(target_id);
                             }
                             // Add to target's attachments list.
-                            if let Some(target_obj) = state.objects.get_mut(&target_id) {
+                            if let Some(target_obj) = state.lki_object_mut(target_id) {
                                 if !target_obj.attachments.contains(&new_id) {
                                     target_obj.attachments.push_back(new_id);
                                 }
@@ -1798,8 +1808,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 && obj.is_phased_in()
                                 && obj.controller == controller
                                 // CR 613.1d: Use layer-resolved types (animated permanents).
-                                && crate::rules::layers::calculate_characteristics(state, obj.id)
-                                    .unwrap_or_else(|| obj.characteristics.clone())
+                                && crate::rules::layers::expect_characteristics(state, obj.id)
                                     .card_types
                                     .contains(&CardType::Creature)
                         })
@@ -1851,7 +1860,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // CR 715.3d: If this was an Adventure spell, set adventure_exiled_by on the
                 // exiled card so the controller can cast the creature half from exile.
                 if stack_obj.was_cast_as_adventure {
-                    if let Some(obj) = state.objects.get_mut(&new_id) {
+                    if let Some(obj) = state.expect_object_mut(new_id) {
                         obj.adventure_exiled_by = Some(controller);
                     }
                 }
@@ -1862,7 +1871,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 if let Some(creature_id) = cipher_creature {
                     if let Some(card_id_val) = &card_id {
                         // Add the encoded card to the creature's encoded_cards list.
-                        if let Some(creature_obj) = state.objects.get_mut(&creature_id) {
+                        if let Some(creature_obj) = state.lki_object_mut(creature_id) {
                             creature_obj
                                 .encoded_cards
                                 .push_back((new_id, card_id_val.clone()));
@@ -1976,14 +1985,13 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             // index-namespace collisions when the card also has runtime triggers at the
             // same index position (e.g. Acererak: ETB at def[0], WhenAttacks at runtime[0]).
             let (triggered_effect_opt, triggered_carddef_iif) = {
-                let obj = state.objects.get(&source_object);
+                let obj = state.lki_object(source_object);
                 if let Some(obj) = obj {
                     if !is_carddef_etb {
                         // CR 613.1f: Use layer-resolved triggered_abilities to match
                         // the namespace used by collect_triggers_for_event (S2 fix).
                         let resolved =
-                            crate::rules::layers::calculate_characteristics(state, source_object)
-                                .unwrap_or_else(|| obj.characteristics.clone());
+                            crate::rules::layers::expect_characteristics(state, source_object);
                         if let Some(_ab) = resolved.triggered_abilities.get(ability_index) {
                             // Characteristics path — intervening_if handled below via original code.
                             (
@@ -2172,7 +2180,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 } // end else (non-fizzled path)
             } else {
                 let condition_holds = {
-                    let source_obj = state.objects.get(&source_object);
+                    let source_obj = state.lki_object(source_object);
                     match source_obj {
                         Some(obj) => {
                             // CR 613.1f: Use layer-resolved triggered_abilities
@@ -2424,7 +2432,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             if let Some(count) = current_counters {
                 if count > 0 {
                     // Remove one time counter (CR 702.63a).
-                    if let Some(obj) = state.objects.get_mut(&vanishing_permanent) {
+                    if let Some(obj) = state.expect_object_mut(vanishing_permanent) {
                         let new_count = count - 1;
                         if new_count == 0 {
                             obj.counters.remove(&CounterType::Time);
@@ -2511,7 +2519,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         } => {
             let controller = stack_obj.controller;
             // Check if the source is still on the battlefield (CR 400.7).
-            let source_info = state.objects.get(&vanishing_permanent).and_then(|obj| {
+            let source_info = state.lki_object(vanishing_permanent).and_then(|obj| {
                 if obj.zone == ZoneId::Battlefield {
                     // CR 603.10a / CR 613.1d: capture full layer-resolved characteristics
                     // before zone move.
@@ -2557,8 +2565,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         ..
                     } => {
                         events.extend(repl_events);
-                        if let Ok((new_id, _old)) =
-                            state.move_object_to_zone(vanishing_permanent, dest)
+                        if let Some((new_id, _old)) =
+                            state.expect_move_object_to_zone(vanishing_permanent, dest)
                         {
                             match dest {
                                 ZoneId::Exile => {
@@ -2589,9 +2597,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         }
                     }
                     crate::rules::replacement::ZoneChangeAction::Proceed => {
-                        if let Ok((new_grave_id, _old)) =
-                            state.move_object_to_zone(vanishing_permanent, ZoneId::Graveyard(owner))
-                        {
+                        if let Some((new_grave_id, _old)) = state.expect_move_object_to_zone(
+                            vanishing_permanent,
+                            ZoneId::Graveyard(owner),
+                        ) {
                             events.push(GameEvent::CreatureDied {
                                 object_id: vanishing_permanent,
                                 new_grave_id,
@@ -2651,7 +2660,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         } => {
             let controller = stack_obj.controller;
             // Check if permanent is still on the battlefield (CR 400.7).
-            let source_info = state.objects.get(&fading_permanent).and_then(|obj| {
+            let source_info = state.lki_object(fading_permanent).and_then(|obj| {
                 if obj.zone == ZoneId::Battlefield {
                     let pre_chars =
                         crate::rules::layers::calculate_characteristics(state, fading_permanent);
@@ -2682,7 +2691,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             {
                 if fade_count > 0 {
                     // CR 702.32a: Remove one fade counter.
-                    if let Some(obj) = state.objects.get_mut(&fading_permanent) {
+                    if let Some(obj) = state.expect_object_mut(fading_permanent) {
                         let new_count = fade_count - 1;
                         if new_count == 0 {
                             obj.counters.remove(&CounterType::Fade);
@@ -2713,8 +2722,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             ..
                         } => {
                             events.extend(repl_events);
-                            if let Ok((new_id, _old)) =
-                                state.move_object_to_zone(fading_permanent, dest)
+                            if let Some((new_id, _old)) =
+                                state.expect_move_object_to_zone(fading_permanent, dest)
                             {
                                 match dest {
                                     ZoneId::Exile => {
@@ -2743,9 +2752,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             }
                         }
                         crate::rules::replacement::ZoneChangeAction::Proceed => {
-                            if let Ok((new_grave_id, _old)) = state
-                                .move_object_to_zone(fading_permanent, ZoneId::Graveyard(owner))
-                            {
+                            if let Some((new_grave_id, _old)) = state.expect_move_object_to_zone(
+                                fading_permanent,
+                                ZoneId::Graveyard(owner),
+                            ) {
                                 events.push(GameEvent::CreatureDied {
                                     object_id: fading_permanent,
                                     new_grave_id,
@@ -2861,7 +2871,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 .unwrap_or(false);
             if still_on_battlefield {
                 // CR 702.24a: "put an age counter on this permanent"
-                if let Some(obj) = state.objects.get_mut(&cu_permanent) {
+                if let Some(obj) = state.expect_object_mut(cu_permanent) {
                     let current = obj.counters.get(&CounterType::Age).copied().unwrap_or(0);
                     obj.counters.insert(CounterType::Age, current + 1);
                 }
@@ -2951,7 +2961,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             // actually sacrificed -- it stays on the battlefield (edge case; no
             // known card combines Evoke with a can't-be-sacrificed grant, wired
             // for dispatch-chain completeness).
-            let source_info = state.objects.get(&source_object).and_then(|obj| {
+            let source_info = state.lki_object(source_object).and_then(|obj| {
                 if obj.zone == ZoneId::Battlefield
                     && !crate::effects::object_cant_be_sacrificed(state, source_object)
                 {
@@ -2997,7 +3007,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         ..
                     } => {
                         events.extend(repl_events);
-                        if let Ok((new_id, _old)) = state.move_object_to_zone(source_object, dest) {
+                        if let Some((new_id, _old)) =
+                            state.expect_move_object_to_zone(source_object, dest)
+                        {
                             match dest {
                                 ZoneId::Exile => {
                                     events.push(GameEvent::ObjectExiled {
@@ -3025,8 +3037,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         }
                     }
                     crate::rules::replacement::ZoneChangeAction::Proceed => {
-                        if let Ok((new_grave_id, _old)) =
-                            state.move_object_to_zone(source_object, ZoneId::Graveyard(owner))
+                        if let Some((new_grave_id, _old)) = state
+                            .expect_move_object_to_zone(source_object, ZoneId::Graveyard(owner))
                         {
                             events.push(GameEvent::CreatureDied {
                                 object_id: source_object,
@@ -3092,8 +3104,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 .unwrap_or(false);
             if still_in_exile {
                 // Auto-decline: move the card from exile to its owner's graveyard.
-                if let Ok((new_grave_id, _)) =
-                    state.move_object_to_zone(exiled_card, ZoneId::Graveyard(owner))
+                if let Some((new_grave_id, _)) =
+                    state.expect_move_object_to_zone(exiled_card, ZoneId::Graveyard(owner))
                 {
                     events.push(GameEvent::ObjectPutInGraveyard {
                         player: owner,
@@ -3157,8 +3169,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 //    CR 702.84a: The exile effects are NOT granted to the creature
                 //    (per ruling) -- they are tracked via was_unearthed flag on the
                 //    object, which persists even if the creature loses all abilities.
-                let card_id = state.objects.get(&new_id).and_then(|o| o.card_id.clone());
-                if let Some(obj) = state.objects.get_mut(&new_id) {
+                let card_id = state.expect_object(new_id).and_then(|o| o.card_id.clone());
+                if let Some(obj) = state.expect_object_mut(new_id) {
                     obj.controller = controller;
                     obj.was_unearthed = true;
                     // CR 702.10a: Haste — can attack and use tap abilities immediately.
@@ -3318,7 +3330,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             // PB-AC8 review E1 / CR 701.21a: a "can't be sacrificed" permanent
             // whose Blitz delayed trigger fires is NOT sacrificed -- it stays on
             // the battlefield (mirrors the Evoke guard above).
-            let source_info = state.objects.get(&source_object).and_then(|obj| {
+            let source_info = state.lki_object(source_object).and_then(|obj| {
                 if obj.zone == ZoneId::Battlefield
                     && !crate::effects::object_cant_be_sacrificed(state, source_object)
                 {
@@ -3365,7 +3377,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         ..
                     } => {
                         events.extend(repl_events);
-                        if let Ok((new_id, _old)) = state.move_object_to_zone(source_object, dest) {
+                        if let Some((new_id, _old)) =
+                            state.expect_move_object_to_zone(source_object, dest)
+                        {
                             match dest {
                                 ZoneId::Exile => {
                                     events.push(GameEvent::ObjectExiled {
@@ -3393,8 +3407,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         }
                     }
                     crate::rules::replacement::ZoneChangeAction::Proceed => {
-                        if let Ok((new_grave_id, _old)) =
-                            state.move_object_to_zone(source_object, ZoneId::Graveyard(owner))
+                        if let Some((new_grave_id, _old)) = state
+                            .expect_move_object_to_zone(source_object, ZoneId::Graveyard(owner))
                         {
                             events.push(GameEvent::CreatureDied {
                                 object_id: source_object,
@@ -3465,6 +3479,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // CR 702.185b: mark the new exile object as "warped in exile" and record
                 // the turn it was exiled, gating the recast to a strictly later turn
                 // (CR 702.185a: "after the current turn has ended").
+                // Impossible-absence: assert without the whole-struct borrow that
+                // `expect_object_mut` would take (this block reads other `state` fields).
+                debug_assert_object_live!(state, new_exile_id);
                 if let Some(exiled_obj) = state.objects.get_mut(&new_exile_id) {
                     exiled_obj.designations.insert(Designations::WARPED);
                     exiled_obj.warped_turn = state.turn.turn_number;
@@ -3512,7 +3529,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             if let Some(count) = current_counters {
                 if count > 0 {
                     // Remove one time counter (CR 702.176a).
-                    if let Some(obj) = state.objects.get_mut(&impending_permanent) {
+                    if let Some(obj) = state.expect_object_mut(impending_permanent) {
                         let new_count = count - 1;
                         if new_count == 0 {
                             obj.counters.remove(&CounterType::Time);
@@ -3643,10 +3660,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 .map(|obj| obj.zone == ZoneId::Battlefield)
                 .unwrap_or(false);
             if target_valid {
-                if let Some(obj) = state.objects.get(&provoked_creature) {
+                if let Some(obj) = state.expect_object(provoked_creature) {
                     if obj.status.tapped {
                         let provoked_controller = obj.controller;
-                        if let Some(obj_mut) = state.objects.get_mut(&provoked_creature) {
+                        if let Some(obj_mut) = state.expect_object_mut(provoked_creature) {
                             obj_mut.status.tapped = false;
                         }
                         events.push(GameEvent::PermanentUntapped {
@@ -3682,7 +3699,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 })
                 .unwrap_or(false);
             if should_resolve {
-                if let Some(obj) = state.objects.get_mut(&source_object) {
+                if let Some(obj) = state.expect_object_mut(source_object) {
                     let current = obj
                         .counters
                         .get(&CounterType::PlusOnePlusOne)
@@ -3771,7 +3788,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 },
         } => {
             let controller = stack_obj.controller;
-            if let Some(player) = state.players.get_mut(&target_player) {
+            if let Some(player) = state.expect_player_mut(target_player) {
                 player.poison_counters += poisonous_n;
             }
             events.push(GameEvent::PoisonCountersGiven {
@@ -3876,10 +3893,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             let target_id_opt = stack_obj.targets.first().and_then(|t| match &t.target {
                 Target::Object(id) => {
                     // CR 613.1d: Use layer-resolved types for artifact creature check.
-                    let still_legal = state.objects.get(id).is_some_and(|obj| {
+                    let still_legal = state.lki_object(*id).is_some_and(|obj| {
                         obj.zone == ZoneId::Battlefield && {
-                            let chars = crate::rules::layers::calculate_characteristics(state, *id)
-                                .unwrap_or_else(|| obj.characteristics.clone());
+                            let chars = crate::rules::layers::expect_characteristics(state, *id);
                             chars.card_types.contains(&CardType::Artifact)
                                 && chars.card_types.contains(&CardType::Creature)
                         }
@@ -3894,7 +3910,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             });
             if let Some(target_id) = target_id_opt {
                 if counter_count > 0 {
-                    if let Some(obj) = state.objects.get_mut(&target_id) {
+                    if let Some(obj) = state.expect_object_mut(target_id) {
                         let current = obj
                             .counters
                             .get(&CounterType::PlusOnePlusOne)
@@ -3970,7 +3986,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             if condition_holds {
                 // CR 702.100a: Put a +1/+1 counter on the evolve creature.
                 // The source must still be on the battlefield.
-                if let Some(obj) = state.objects.get_mut(&source_object) {
+                if let Some(obj) = state.lki_object_mut(source_object) {
                     if obj.zone == ZoneId::Battlefield {
                         let current = obj
                             .counters
@@ -4026,7 +4042,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             if source_has_counter && target_on_battlefield {
                 // CR 702.58a: "you may move a +1/+1 counter" -- auto-accept (always move).
                 // Remove one +1/+1 counter from source.
-                if let Some(obj) = state.objects.get_mut(&source_object) {
+                if let Some(obj) = state.expect_object_mut(source_object) {
                     let current = obj
                         .counters
                         .get(&CounterType::PlusOnePlusOne)
@@ -4046,7 +4062,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     count: 1,
                 });
                 // Add one +1/+1 counter to entering creature.
-                if let Some(obj) = state.objects.get_mut(&entering_creature) {
+                if let Some(obj) = state.expect_object_mut(entering_creature) {
                     let current = obj
                         .counters
                         .get(&CounterType::PlusOnePlusOne)
@@ -4122,7 +4138,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 .unwrap_or(false);
             if target_valid && power_snapshot > 0 {
                 // CR 702.97a: Add power_snapshot +1/+1 counters to the target creature.
-                if let Some(obj) = state.objects.get_mut(&target_id) {
+                if let Some(obj) = state.expect_object_mut(target_id) {
                     let current = obj
                         .counters
                         .get(&CounterType::PlusOnePlusOne)
@@ -4230,11 +4246,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             (o.owner, o.counters.clone(), lki_power)
                         })
                         .unwrap_or((controller, im::OrdMap::new(), None));
-                    if let Ok((new_exile_id, _old)) =
-                        state.move_object_to_zone(target_id, ZoneId::Exile)
+                    if let Some((new_exile_id, _old)) =
+                        state.expect_move_object_to_zone(target_id, ZoneId::Exile)
                     {
                         // CR 702.72a / CR 607.2a: Record the exiled card ID on the champion.
-                        if let Some(champion_obj) = state.objects.get_mut(&source_object) {
+                        if let Some(champion_obj) = state.expect_object_mut(source_object) {
                             champion_obj.champion_exiled_card = Some(new_exile_id);
                         }
                         events.push(GameEvent::ObjectExiled {
@@ -4252,7 +4268,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // it stays on the battlefield (mirrors the Evoke/Blitz guards above).
                     // Unreachable today (CantBeSacrificed is self-referential and no known
                     // card combines Champion with it), wired for dispatch-chain completeness.
-                    let source_info = state.objects.get(&source_object).and_then(|obj| {
+                    let source_info = state.lki_object(source_object).and_then(|obj| {
                         if obj.zone == ZoneId::Battlefield
                             && !crate::effects::object_cant_be_sacrificed(state, source_object)
                         {
@@ -4299,8 +4315,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 ..
                             } => {
                                 events.extend(repl_events);
-                                if let Ok((new_id, _old)) =
-                                    state.move_object_to_zone(source_object, dest)
+                                if let Some((new_id, _old)) =
+                                    state.expect_move_object_to_zone(source_object, dest)
                                 {
                                     match dest {
                                         ZoneId::Exile => {
@@ -4334,8 +4350,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 }
                             }
                             crate::rules::replacement::ZoneChangeAction::Proceed => {
-                                if let Ok((new_grave_id, _old)) = state
-                                    .move_object_to_zone(source_object, ZoneId::Graveyard(owner))
+                                if let Some((new_grave_id, _old)) = state
+                                    .expect_move_object_to_zone(
+                                        source_object,
+                                        ZoneId::Graveyard(owner),
+                                    )
                                 {
                                     events.push(GameEvent::CreatureDied {
                                         object_id: source_object,
@@ -4392,7 +4411,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         } => {
             let controller = stack_obj.controller;
             // CR 607.2a: Check if the exiled card is still in exile.
-            let exiled_info = state.objects.get(&exiled_card).and_then(|obj| {
+            let exiled_info = state.lki_object(exiled_card).and_then(|obj| {
                 if obj.zone == ZoneId::Exile {
                     Some((obj.owner, obj.card_id.clone()))
                 } else {
@@ -4401,11 +4420,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             });
             if let Some((owner, card_id)) = exiled_info {
                 // CR 702.72a: Return the card to the battlefield under its OWNER's control.
-                if let Ok((new_id, _old)) =
-                    state.move_object_to_zone(exiled_card, ZoneId::Battlefield)
+                if let Some((new_id, _old)) =
+                    state.expect_move_object_to_zone(exiled_card, ZoneId::Battlefield)
                 {
                     // Set controller to owner (CR 702.72a: "under its owner's control").
-                    if let Some(obj) = state.objects.get_mut(&new_id) {
+                    if let Some(obj) = state.expect_object_mut(new_id) {
                         obj.controller = owner;
                     }
                     // Run the full ETB pipeline.
@@ -4496,10 +4515,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     .unwrap_or(false);
             if source_ok && target_ok {
                 // CR 702.95b: Set paired_with symmetrically on both creatures.
-                if let Some(src) = state.objects.get_mut(&source_object) {
+                if let Some(src) = state.expect_object_mut(source_object) {
                     src.paired_with = Some(pair_target);
                 }
-                if let Some(tgt) = state.objects.get_mut(&pair_target) {
+                if let Some(tgt) = state.expect_object_mut(pair_target) {
                     tgt.paired_with = Some(source_object);
                 }
                 // Register WhilePaired CEs for any soulbond grants from the card definition.
@@ -4734,9 +4753,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         skip_untap_steps: 0,
                     };
                     // Add the token to the battlefield.
-                    let token_id = match state.add_object(token_obj, ZoneId::Battlefield) {
-                        Ok(id) => id,
-                        Err(_) => continue,
+                    // Impossible-absence: add_object's only error is a missing zone (never removed).
+                    let Some(token_id) = state.expect_add_object(token_obj, ZoneId::Battlefield)
+                    else {
+                        continue;
                     };
                     // CR 707.2: Apply a Layer 1 CopyOf continuous effect so the token
                     // has the copiable characteristics of the source creature.
@@ -4945,9 +4965,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     skip_untap_steps: 0,
                 };
                 // Add the token to the battlefield.
-                let token_id = match state.add_object(token_obj, ZoneId::Battlefield) {
-                    Ok(id) => id,
-                    Err(_) => continue,
+                // Impossible-absence: add_object's only error is a missing zone (never removed).
+                let Some(token_id) = state.expect_add_object(token_obj, ZoneId::Battlefield) else {
+                    continue;
                 };
                 // CR 707.2: Apply a Layer 1 CopyOf continuous effect so the token
                 // has the copiable characteristics of the source creature.
@@ -5101,7 +5121,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             let controller = stack_obj.controller;
             // CR 702.171b: "stays saddled until the end of the turn or it leaves
             // the battlefield." Only set if Mount is still on the battlefield.
-            if let Some(obj) = state.objects.get_mut(&source_object) {
+            if let Some(obj) = state.lki_object_mut(source_object) {
                 if obj.zone == ZoneId::Battlefield {
                     obj.designations.insert(Designations::SADDLED);
                 }
@@ -5162,7 +5182,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 state.stack_objects.push_back(copy_stack_obj);
                 // Ruling 2013-04-15: cipher casts trigger "whenever you cast" abilities.
                 // Increment spells_cast_this_turn for the controller.
-                if let Some(ps) = state.players.get_mut(&controller) {
+                if let Some(ps) = state.expect_player_mut(controller) {
                     ps.spells_cast_this_turn = ps.spells_cast_this_turn.saturating_add(1);
                     // PB-AC6: all-players-reset "this game turn" spell count.
                     ps.spells_cast_this_game_turn = ps.spells_cast_this_game_turn.saturating_add(1);
@@ -5235,7 +5255,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         state.move_object_to_zone(haunt_card, crate::state::zone::ZoneId::Exile)?;
                     // CR 702.55b: Set haunting_target on the newly exiled card.
                     // This links the exiled card to the target creature's current ObjectId.
-                    if let Some(exiled_obj) = state.objects.get_mut(&new_exile_id) {
+                    if let Some(exiled_obj) = state.expect_object_mut(new_exile_id) {
                         exiled_obj.haunting_target = Some(target_creature);
                     }
                     events.push(GameEvent::HauntExiled {
@@ -5321,7 +5341,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // CR 702.55c: Haunt fires exactly once — clear the haunting relationship
                     // after the trigger resolves so that a recycled ObjectId cannot cause a
                     // spurious re-trigger against an unrelated creature's death.
-                    if let Some(haunt_obj) = state.objects.get_mut(&haunt_source) {
+                    if let Some(haunt_obj) = state.lki_object_mut(haunt_source) {
                         haunt_obj.haunting_target = None;
                     }
                 }
@@ -5364,8 +5384,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 .get(&target_creature)
                 .map(|o| {
                     matches!(o.zone, crate::state::zone::ZoneId::Battlefield)
-                        && crate::rules::layers::calculate_characteristics(state, target_creature)
-                            .unwrap_or_else(|| o.characteristics.clone())
+                        && crate::rules::layers::expect_characteristics(state, target_creature)
                             .card_types
                             .contains(&CardType::Creature)
                 })
@@ -5475,7 +5494,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 });
             } else {
                 // 1. Place N +1/+1 counters on target.
-                if let Some(obj) = state.objects.get_mut(&target_creature) {
+                if let Some(obj) = state.expect_object_mut(target_creature) {
                     let current = obj
                         .counters
                         .get(&CounterType::PlusOnePlusOne)
@@ -5669,9 +5688,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         skip_untap_steps: 0,
                     };
                     // Add the token to the battlefield.
-                    let token_id = match state.add_object(token_obj, ZoneId::Battlefield) {
-                        Ok(id) => id,
-                        Err(_) => continue,
+                    // Impossible-absence: add_object's only error is a missing zone (never removed).
+                    let Some(token_id) = state.expect_add_object(token_obj, ZoneId::Battlefield)
+                    else {
+                        continue;
                     };
                     // CR 707.2: Apply a Layer 1 CopyOf continuous effect so the token
                     // has the copiable characteristics of the source creature.
@@ -5732,7 +5752,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             if let Some(count) = current_counters {
                 if count > 0 {
                     // Remove one time counter (CR 702.62a).
-                    if let Some(obj) = state.objects.get_mut(&suspended_card) {
+                    if let Some(obj) = state.expect_object_mut(suspended_card) {
                         let new_count = count - 1;
                         if new_count == 0 {
                             obj.counters.remove(&CounterType::Time);
@@ -5801,8 +5821,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // This follows the same pattern as cascade's free-cast (copy.rs:resolve_cascade).
                 let stack_entry_id = state.next_object_id();
                 // Move card from exile to stack zone (new ObjectId via CR 400.7).
-                match state.move_object_to_zone(suspended_card, ZoneId::Stack) {
-                    Ok((stack_source_id, _old)) => {
+                // Expected fizzle: the suspended card may have left exile since the last
+                // time counter was removed (CR 400.7 — it is a different object now;
+                // CR 608.2b — the effect can't find it and doesn't happen). A missing
+                // Stack zone would still be an engine bug and still asserts.
+                match state.lki_move_object_to_zone(suspended_card, ZoneId::Stack) {
+                    Some((stack_source_id, _old)) => {
                         // Check if the spell is a creature (for haste grant).
                         let is_creature = state
                             .objects
@@ -5828,7 +5852,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         // pass again before the newly-cast suspend spell resolves.
                         state.turn.players_passed = im::OrdSet::new();
                         // CR 702.62a: suspend triggers "whenever you cast a spell".
-                        if let Some(ps) = state.players.get_mut(&owner) {
+                        if let Some(ps) = state.expect_player_mut(owner) {
                             ps.spells_cast_this_turn = ps.spells_cast_this_turn.saturating_add(1);
                             // PB-AC6: all-players-reset "this game turn" spell count.
                             ps.spells_cast_this_game_turn =
@@ -5845,7 +5869,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         // Spell resolution arm when was_suspended is true.
                         let _ = is_creature; // used at permanent ETB time via was_suspended flag
                     }
-                    Err(_) => {
+                    None => {
                         // Card disappeared — nothing to cast.
                     }
                 }
@@ -5878,7 +5902,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             // Collect the top N cards from the controller's library.
             // Library is an ordered zone: last element = top (CR 400.7, zone.rs).
             let top_ids: Vec<ObjectId> = {
-                let lib = state.zones.get(&lib_zone);
+                let lib = state.expect_zone(&lib_zone);
                 lib.map(|z| {
                     let all = z.object_ids(); // bottom-to-top order
                     let n = hideaway_count as usize;
@@ -5898,10 +5922,13 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 let exile_card_id = top_ids[0];
                 let remaining: Vec<ObjectId> = top_ids[1..].to_vec();
                 // Move chosen card to exile face-down (CR 702.75a, CR 406.3).
-                match state.move_object_to_zone(exile_card_id, ZoneId::Exile) {
-                    Ok((new_exile_id, _)) => {
+                // Expected fizzle: the looked-at card may have moved before this trigger
+                // resolved (CR 400.7 / CR 608.2b). A missing Exile zone would still be an
+                // engine bug and still asserts.
+                match state.lki_move_object_to_zone(exile_card_id, ZoneId::Exile) {
+                    Some((new_exile_id, _)) => {
                         // Set face_down and exiled_by_hideaway on the exiled object.
-                        if let Some(exile_obj) = state.objects.get_mut(&new_exile_id) {
+                        if let Some(exile_obj) = state.expect_object_mut(new_exile_id) {
                             exile_obj.status.face_down = true;
                             exile_obj.exiled_by_hideaway = Some(source_object);
                         }
@@ -5922,7 +5949,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         // looked at, not moved). They stay in the library; we reorder
                         // the bottom N-1 by moving them out and back in at the bottom.
                         for &card_id in &shuffled {
-                            let _ = state.move_object_to_bottom_of_zone(card_id, lib_zone);
+                            // Impossible-absence: each card was just read from this library and the zone exists.
+                            let _ = state.expect_move_object_to_bottom_of_zone(card_id, lib_zone);
                         }
                         events.push(GameEvent::HideawayExiled {
                             player: controller,
@@ -5935,7 +5963,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             stack_object_id: stack_obj.id,
                         });
                     }
-                    Err(_) => {
+                    None => {
                         // Could not exile the card (already gone); do nothing.
                         events.push(GameEvent::AbilityResolved {
                             controller,
@@ -5981,13 +6009,13 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // Found -- move to target player's hand (reveal is implicit since
                 // the card is being put into hand from a search).
                 let hand_zone = ZoneId::Hand(target_player);
-                let _ = state.move_object_to_zone(card_id, hand_zone);
+                let _ = state.expect_move_object_to_zone(card_id, hand_zone);
             }
             // Whether found or not, shuffle the target player's library (CR 701.20).
             // Use seeded LCG (same pattern as Hideaway) for determinism.
             let seed = state.timestamp_counter;
             state.timestamp_counter += 1;
-            if let Some(zone) = state.zones.get_mut(&lib_zone) {
+            if let Some(zone) = state.expect_zone_mut(&lib_zone) {
                 let ids: Vec<crate::state::game_object::ObjectId> = zone.object_ids();
                 let mut shuffled = ids;
                 let mut rng_state = seed;
@@ -6000,7 +6028,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 }
                 // Reorder: move each card to the bottom in the new order.
                 for &card_id in &shuffled {
-                    let _ = state.move_object_to_bottom_of_zone(card_id, lib_zone);
+                    // Impossible-absence: each card was just read from this library and the zone exists.
+                    let _ = state.expect_move_object_to_bottom_of_zone(card_id, lib_zone);
                 }
             }
             events.push(GameEvent::LibraryShuffled {
@@ -6028,11 +6057,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             let controller = stack_obj.controller;
             let lib_id = ZoneId::Library(target_player);
             // Check if the target player has cards in their library.
-            let top_card = state.zones.get(&lib_id).and_then(|z| z.top());
+            let top_card = state.expect_zone(&lib_id).and_then(|z| z.top());
             if let Some(card_id) = top_card {
                 // Exile the top card (CR 702.115a).
-                if let Ok((new_exile_id, _old_obj)) =
-                    state.move_object_to_zone(card_id, ZoneId::Exile)
+                if let Some((new_exile_id, _old_obj)) =
+                    state.expect_move_object_to_zone(card_id, ZoneId::Exile)
                 {
                     events.push(GameEvent::ObjectExiled {
                         player: controller,
@@ -6107,8 +6136,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // 3. Move ninja from hand/command zone to battlefield (CR 702.49a).
                 let (new_id, _old) = state.move_object_to_zone(ninja_card, ZoneId::Battlefield)?;
                 // 4. Set controller and tapped status.
-                let card_id = state.objects.get(&new_id).and_then(|o| o.card_id.clone());
-                if let Some(obj) = state.objects.get_mut(&new_id) {
+                let card_id = state.expect_object(new_id).and_then(|o| o.card_id.clone());
+                if let Some(obj) = state.expect_object_mut(new_id) {
                     obj.controller = controller;
                     // CR 702.49a: "Put this card onto the battlefield from your hand
                     // tapped and attacking."
@@ -6348,7 +6377,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // Add the token to the battlefield.
                     let token_id = state.add_object(token_obj, ZoneId::Battlefield)?;
                     // Set controller (add_object uses a default; enforce it here).
-                    if let Some(obj) = state.objects.get_mut(&token_id) {
+                    if let Some(obj) = state.expect_object_mut(token_id) {
                         obj.controller = controller;
                     }
                     // Run the full ETB pipeline for the token.
@@ -6573,7 +6602,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // Add the token to the battlefield.
                     let token_id = state.add_object(token_obj, ZoneId::Battlefield)?;
                     // Set controller (add_object uses a default; enforce it here).
-                    if let Some(obj) = state.objects.get_mut(&token_id) {
+                    if let Some(obj) = state.expect_object_mut(token_id) {
                         obj.controller = controller;
                     }
                     // Run the full ETB pipeline for the token.
@@ -6814,7 +6843,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         // Add the token to the battlefield.
                         let token_id = state.add_object(token_obj, ZoneId::Battlefield)?;
                         // Set controller (add_object uses a default; enforce it here).
-                        if let Some(obj) = state.objects.get_mut(&token_id) {
+                        if let Some(obj) = state.expect_object_mut(token_id) {
                             obj.controller = controller;
                         }
                         // Run the full ETB pipeline for the token.
@@ -6932,7 +6961,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             ..
                         } => {
                             events.extend(repl_events);
-                            if let Ok((new_id, _old)) = state.move_object_to_zone(source_object, to)
+                            if let Some((new_id, _old)) =
+                                state.expect_move_object_to_zone(source_object, to)
                             {
                                 match to {
                                     ZoneId::Exile => {
@@ -6961,8 +6991,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             }
                         }
                         crate::rules::replacement::ZoneChangeAction::Proceed => {
-                            if let Ok((new_id, _old)) =
-                                state.move_object_to_zone(source_object, ZoneId::Graveyard(owner))
+                            if let Some((new_id, _old)) = state
+                                .expect_move_object_to_zone(source_object, ZoneId::Graveyard(owner))
                             {
                                 events.push(GameEvent::CreatureDied {
                                     object_id: source_object,
@@ -6976,8 +7006,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         }
                         crate::rules::replacement::ZoneChangeAction::ChoiceRequired { .. } => {
                             // Multiple replacements -- fall back to Proceed (graveyard).
-                            if let Ok((new_id, _old)) =
-                                state.move_object_to_zone(source_object, ZoneId::Graveyard(owner))
+                            if let Some((new_id, _old)) = state
+                                .expect_move_object_to_zone(source_object, ZoneId::Graveyard(owner))
                             {
                                 events.push(GameEvent::CreatureDied {
                                     object_id: source_object,
@@ -7026,11 +7056,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 .unwrap_or(false);
             // CR 702.140b: Check if the target is still legal at resolution time.
             let target_still_legal = {
-                if let Some(target_obj) = state.objects.get(&target) {
+                if let Some(target_obj) = state.lki_object(target) {
                     let target_on_battlefield = target_obj.zone == ZoneId::Battlefield;
-                    let target_chars =
-                        crate::rules::layers::calculate_characteristics(state, target)
-                            .unwrap_or_else(|| target_obj.characteristics.clone());
+                    let target_chars = crate::rules::layers::expect_characteristics(state, target);
                     let target_is_creature = target_chars.card_types.contains(&CardType::Creature);
                     let target_is_human = target_chars
                         .subtypes
@@ -7049,7 +7077,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // The spell enters the battlefield as a regular creature (no merge).
                 let (new_id, _old) =
                     state.move_object_to_zone(source_object, ZoneId::Battlefield)?;
-                if let Some(obj) = state.objects.get_mut(&new_id) {
+                if let Some(obj) = state.expect_object_mut(new_id) {
                     obj.controller = controller;
                     obj.cast_alt_cost = Some(AltCostKind::Mutate);
                     obj.has_summoning_sickness = true;
@@ -7151,7 +7179,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // (merged_components[0]). This ensures that trigger scanning and other
                 // raw-characteristics lookups (which bypass the layer system) see the correct
                 // abilities. The layer system's Layer 1 override is consistent with this.
-                if let Some(target_obj) = state.objects.get_mut(&target) {
+                if let Some(target_obj) = state.expect_object_mut(target) {
                     if let Some(top) = new_components.front() {
                         target_obj.characteristics = top.characteristics.clone();
                         target_obj.card_id = top.card_id.clone();
@@ -7164,7 +7192,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // It is NOT moved to any zone — it simply ceases to exist as a separate entity.
                 let spell_zone = state.objects.get(&source_object).map(|o| o.zone);
                 if let Some(zone) = spell_zone {
-                    if let Some(zone_set) = state.zones.get_mut(&zone) {
+                    if let Some(zone_set) = state.expect_zone_mut(&zone) {
                         zone_set.remove(&source_object);
                     }
                 }
@@ -7194,7 +7222,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             permanent,
             ability_timestamp,
         } => {
-            if let Some(obj) = state.objects.get(&permanent) {
+            if let Some(obj) = state.lki_object(permanent) {
                 let still_on_battlefield = obj.zone == ZoneId::Battlefield;
                 // CR 701.27c/d: Only transform if the permanent hasn't already transformed
                 // since this trigger was put on the stack (timestamp guard).
@@ -7208,6 +7236,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     .unwrap_or(false);
                 if still_on_battlefield && not_already_transformed && has_back_face {
                     let to_back_face = !obj.is_transformed;
+                    // Impossible-absence: assert without the whole-struct borrow that
+                    // `expect_object_mut` would take (this block reads other `state` fields).
+                    debug_assert_object_live!(state, permanent);
                     if let Some(obj_mut) = state.objects.get_mut(&permanent) {
                         obj_mut.is_transformed = to_back_face;
                         obj_mut.last_transform_timestamp = state.timestamp_counter;
@@ -7245,6 +7276,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             if still_in_exile && has_back_face {
                 let (new_id, _old) =
                     state.move_object_to_zone(exiled_source, ZoneId::Battlefield)?;
+                // Impossible-absence: assert without the whole-struct borrow that
+                // `expect_object_mut` would take (this block reads other `state` fields).
+                debug_assert_object_live!(state, new_id);
                 if let Some(obj) = state.objects.get_mut(&new_id) {
                     obj.controller = activator;
                     obj.is_transformed = true;
@@ -7285,7 +7319,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             // ability at `ability_index` in the CardDefinition — each TurnFaceUpTrigger
             // SOK carries the exact index to support cards with multiple such abilities.
             let controller = stack_obj.controller;
-            if let Some(obj) = state.objects.get(&permanent) {
+            if let Some(obj) = state.lki_object(permanent) {
                 if obj.zone == ZoneId::Battlefield {
                     let card_id = source_card_id.or_else(|| obj.card_id.clone());
                     if let Some(cid) = card_id {
@@ -7316,7 +7350,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // Check the permanent is still on the battlefield and the day/night state still
         // requires this transform before applying it.
         StackObjectKind::DayboundTransformTrigger { permanent } => {
-            if let Some(obj) = state.objects.get(&permanent) {
+            if let Some(obj) = state.lki_object(permanent) {
                 if obj.zone == ZoneId::Battlefield {
                     let chars = super::layers::calculate_characteristics(state, permanent)
                         .or_else(|| {
@@ -7346,6 +7380,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             let obj = state.objects.get(&permanent).unwrap();
                             !obj.is_transformed
                         };
+                        // Impossible-absence: assert without the whole-struct borrow that
+                        // `expect_object_mut` would take (this block reads other `state` fields).
+                        debug_assert_object_live!(state, permanent);
                         if let Some(obj_mut) = state.objects.get_mut(&permanent) {
                             obj_mut.is_transformed = to_back_face;
                             obj_mut.last_transform_timestamp = state.timestamp_counter;
@@ -7388,7 +7425,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 .unwrap_or(false);
             if still_on_bf {
                 // Set the class level.
-                if let Some(obj) = state.objects.get_mut(&source_object) {
+                if let Some(obj) = state.expect_object_mut(source_object) {
                     obj.class_level = target_level;
                 }
                 // Register static continuous effects from the new level's abilities.
@@ -7502,7 +7539,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 DelayedTriggerAction::ReturnFromExileToBattlefield { tapped } => {
                     // CR 610.3c: Return from exile to battlefield under owner's control.
                     // CR 400.7: The object in exile may no longer exist (processed elsewhere).
-                    let owner_opt = state.objects.get(&target).map(|o| o.owner);
+                    let owner_opt = state.lki_object(target).map(|o| o.owner);
                     if let Some(_owner) = owner_opt {
                         if state
                             .objects
@@ -7510,10 +7547,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             .map(|o| o.zone == ZoneId::Exile)
                             .unwrap_or(false)
                         {
-                            if let Ok((new_bf_id, _)) =
-                                state.move_object_to_zone(target, ZoneId::Battlefield)
+                            if let Some((new_bf_id, _)) =
+                                state.expect_move_object_to_zone(target, ZoneId::Battlefield)
                             {
-                                if let Some(obj) = state.objects.get_mut(&new_bf_id) {
+                                if let Some(obj) = state.expect_object_mut(new_bf_id) {
                                     obj.controller = obj.owner;
                                     if tapped {
                                         obj.status.tapped = true;
@@ -7560,8 +7597,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         .filter(|o| o.zone == ZoneId::Exile)
                         .map(|o| o.owner);
                     if let Some(owner) = exile_info {
-                        if let Ok((new_id, _)) =
-                            state.move_object_to_zone(target, ZoneId::Hand(owner))
+                        if let Some((new_id, _)) =
+                            state.expect_move_object_to_zone(target, ZoneId::Hand(owner))
                         {
                             events.push(GameEvent::ObjectReturnedToHand {
                                 player: stack_obj.controller,
@@ -7581,8 +7618,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         .filter(|o| matches!(o.zone, ZoneId::Graveyard(_)))
                         .map(|o| o.owner);
                     if let Some(owner) = gy_info {
-                        if let Ok((new_id, _)) =
-                            state.move_object_to_zone(target, ZoneId::Hand(owner))
+                        if let Some((new_id, _)) =
+                            state.expect_move_object_to_zone(target, ZoneId::Hand(owner))
                         {
                             events.push(GameEvent::ObjectReturnedToHand {
                                 player: stack_obj.controller,
@@ -7650,8 +7687,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                     })
                                     .unwrap_or(false)
                             });
-                        if let Ok((new_id, _)) =
-                            state.move_object_to_zone(target, ZoneId::Graveyard(owner))
+                        if let Some((new_id, _)) =
+                            state.expect_move_object_to_zone(target, ZoneId::Graveyard(owner))
                         {
                             events.push(GameEvent::PermanentSacrificed {
                                 player: stack_obj.controller,
@@ -7685,8 +7722,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             (o.counters.clone(), lki_power)
                         });
                     if let Some((exile_pre_lba, exile_lki_power)) = target_pre_lba {
-                        if let Ok((new_exile_id, _)) =
-                            state.move_object_to_zone(target, ZoneId::Exile)
+                        if let Some((new_exile_id, _)) =
+                            state.expect_move_object_to_zone(target, ZoneId::Exile)
                         {
                             events.push(GameEvent::ObjectExiled {
                                 player: stack_obj.controller,
@@ -7753,7 +7790,7 @@ fn execute_gift_effect(
             for _ in 0..token_count {
                 let spec = food_token_spec(1);
                 let obj = crate::effects::make_token(&spec, recipient);
-                if let Ok(id) = state.add_object(obj, ZoneId::Battlefield) {
+                if let Some(id) = state.expect_add_object(obj, ZoneId::Battlefield) {
                     events.push(GameEvent::TokenCreated {
                         player: recipient,
                         object_id: id,
@@ -7782,7 +7819,7 @@ fn execute_gift_effect(
             for _ in 0..token_count {
                 let spec = treasure_token_spec(1);
                 let obj = crate::effects::make_token(&spec, recipient);
-                if let Ok(id) = state.add_object(obj, ZoneId::Battlefield) {
+                if let Some(id) = state.expect_add_object(obj, ZoneId::Battlefield) {
                     events.push(GameEvent::TokenCreated {
                         player: recipient,
                         object_id: id,
