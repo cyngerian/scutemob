@@ -74,17 +74,15 @@ pub fn solve_mana_payment(
                     .position(|s| !s.tapped && (s.produces.contains(color) || s.any_color))
             });
 
-            if let Some(idx) = found {
-                sources[idx].tapped = true;
-                commands.push(Command::TapForMana {
-                    player,
-                    source: sources[idx].object_id,
-                    ability_index: sources[idx].ability_index,
-                });
-                remaining.pay_colored(*color);
-            } else {
-                return None; // Can't pay this color
-            }
+            // None => can't pay this color.
+            let idx = found?;
+            sources[idx].tapped = true;
+            commands.push(Command::TapForMana {
+                player,
+                source: sources[idx].object_id,
+                ability_index: sources[idx].ability_index,
+            });
+            remaining.pay_colored(*color);
         }
     }
 
@@ -94,33 +92,29 @@ pub fn solve_mana_payment(
             .iter()
             .position(|s| !s.tapped && s.produces.contains(&ManaColor::Colorless));
 
-        if let Some(idx) = found {
-            sources[idx].tapped = true;
-            commands.push(Command::TapForMana {
-                player,
-                source: sources[idx].object_id,
-                ability_index: sources[idx].ability_index,
-            });
-            remaining.colorless -= 1;
-        } else {
-            return None; // No colorless source available — colored mana cannot pay {C}
-        }
+        // None => no colorless source available; colored mana cannot pay {C} (CR 107.4c).
+        let idx = found?;
+        sources[idx].tapped = true;
+        commands.push(Command::TapForMana {
+            player,
+            source: sources[idx].object_id,
+            ability_index: sources[idx].ability_index,
+        });
+        remaining.colorless -= 1;
     }
 
     // Phase 3: pay generic with any remaining sources
     while remaining.generic > 0 {
         let found = sources.iter().position(|s| !s.tapped);
-        if let Some(idx) = found {
-            sources[idx].tapped = true;
-            commands.push(Command::TapForMana {
-                player,
-                source: sources[idx].object_id,
-                ability_index: sources[idx].ability_index,
-            });
-            remaining.generic -= 1;
-        } else {
-            return None;
-        }
+        // None => no untapped source left to pay the remaining generic cost.
+        let idx = found?;
+        sources[idx].tapped = true;
+        commands.push(Command::TapForMana {
+            player,
+            source: sources[idx].object_id,
+            ability_index: sources[idx].ability_index,
+        });
+        remaining.generic -= 1;
     }
 
     Some(commands)

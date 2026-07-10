@@ -213,14 +213,14 @@ fn test_dimir_guildgate_modal_color() {
                 matches!(&choices[0], Effect::AddMana { mana, .. }
                     if mana == &ManaPool { blue: 1, ..Default::default() }),
                 "First choice should add 1 blue mana; got: {:?}",
-                &choices[0]
+                choices[0]
             );
             // Second choice must add 1 black mana.
             assert!(
                 matches!(&choices[1], Effect::AddMana { mana, .. }
                     if mana == &ManaPool { black: 1, ..Default::default() }),
                 "Second choice should add 1 black mana; got: {:?}",
-                &choices[1]
+                choices[1]
             );
         }
     }
