@@ -28,7 +28,7 @@ If fewer than 80% of A-* items are checked, warn:
 
 ### X-1: Full Re-scan
 
-Scan every card def file in `crates/engine/src/cards/defs/`:
+Scan every card def file in `crates/card-defs/src/defs/`:
 
 1. **TODO scan**: Grep for `TODO` comments. For each:
    - Is the TODO still valid? (check against current DSL)

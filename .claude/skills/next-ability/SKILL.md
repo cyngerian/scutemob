@@ -40,7 +40,7 @@ needed to complete it, with a checklist from the Ability Addition Workflow.
 5. **Determine which workflow steps apply**: Read the "Ability Addition Workflow" section
    and check which steps are already done for this ability:
 
-   - **Step 1 (enum variant)**: Grep `crates/engine/src/state/types.rs` for the ability name.
+   - **Step 1 (enum variant)**: Grep `crates/card-types/src/state/types.rs` for the ability name.
      If found, step is done.
    - **Step 2 (rule enforcement)**: Grep `crates/engine/src/rules/` for the ability name or
      CR number. If enforcement logic exists, step is done.
@@ -48,7 +48,7 @@ needed to complete it, with a checklist from the Ability Addition Workflow.
      `crates/engine/src/` for a matching `TriggerCondition` variant and check if it's wired
      to runtime dispatch.
    - **Step 4 (unit tests)**: Grep `crates/engine/tests/` for the ability name or CR number.
-   - **Step 5 (card definition)**: Grep `crates/engine/src/cards/defs/` for the
+   - **Step 5 (card definition)**: Grep `crates/card-defs/src/defs/` for the
      ability name.
    - **Step 6 (game script)**: Grep `test-data/generated-scripts/` for the ability name.
    - **Step 7 (coverage doc update)**: This happens after the other steps.
