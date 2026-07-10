@@ -104,7 +104,25 @@ pub use zone::{Zone, ZoneId, ZoneType};
 /// them: doctests are compiled under the test profile, where cargo's feature
 /// unification has already switched `test-util` on. `cargo build --workspace`
 /// is what proves no production consumer depends on a hatch, because it does not
-/// build dev-dependencies. Keep it in the gate list.
+/// build dev-dependencies. It runs in CI for exactly that reason.
+///
+/// ## What the seal does not cover
+///
+/// Three ways to obtain an arbitrary `GameState` remain open by design. All
+/// three yield an *owned* state rather than a handle for mutating a live one,
+/// so none of them can corrupt a game already in progress:
+///
+/// - [`GameStateBuilder`] — the documented public constructor.
+/// - `#[derive(Deserialize)]` — required by replay and networking, which load
+///   states from disk and from the wire. A caller can deserialize any state it
+///   can describe; that is inherent to accepting serialized state at all.
+/// - [`crate::testing::replay_harness::build_initial_state`] — builds a state
+///   from a game script. It is `pub` and ships in production builds.
+///
+/// The invariant this seal protects is narrower than "no one can name a bad
+/// state": it is that a `GameState` handed to a consumer cannot be edited behind
+/// the command/event log's back, so the log remains the complete history of a
+/// game and rewind/replay stay sound.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GameState {
     /// Current turn/phase/step/priority state.
