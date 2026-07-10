@@ -46,7 +46,7 @@ pub use protocol::{
 ///
 /// Used by both `casting::validate_targets` and `abilities::handle_activate_ability`.
 pub(crate) fn validate_target_protection(
-    keywords: &im::OrdSet<crate::state::types::KeywordAbility>,
+    keywords: &imbl::OrdSet<crate::state::types::KeywordAbility>,
     controller: crate::state::player::PlayerId,
     caster: crate::state::player::PlayerId,
     source_chars: Option<&crate::state::game_object::Characteristics>,

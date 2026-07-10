@@ -5,7 +5,7 @@
 //! ordered (position matters: library, graveyard, stack) or unordered.
 use super::game_object::ObjectId;
 use super::player::PlayerId;
-use im::{OrdSet, Vector};
+use imbl::{OrdSet, Vector};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 /// Zone types as described in CR 400.1.

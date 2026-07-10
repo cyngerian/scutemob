@@ -38,7 +38,7 @@ fn tutor_spell(name: &str, card_id: &str, filter: TargetFilter, to: ZoneTarget) 
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Sorcery],
+            card_types: imbl::ordset![CardType::Sorcery],
             ..Default::default()
         },
         abilities: vec![AbilityDefinition::Spell {
@@ -126,7 +126,7 @@ fn test_search_library_max_cmc_finds_matching_card() {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Artifact],
+            card_types: imbl::ordset![CardType::Artifact],
             ..Default::default()
         },
         ..Default::default()
@@ -139,7 +139,7 @@ fn test_search_library_max_cmc_finds_matching_card() {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Artifact],
+            card_types: imbl::ordset![CardType::Artifact],
             ..Default::default()
         },
         ..Default::default()
@@ -234,7 +234,7 @@ fn test_search_library_min_cmc_filters_low_cost_cards() {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Creature],
+            card_types: imbl::ordset![CardType::Creature],
             ..Default::default()
         },
         power: Some(6),
@@ -249,7 +249,7 @@ fn test_search_library_min_cmc_filters_low_cost_cards() {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Creature],
+            card_types: imbl::ordset![CardType::Creature],
             ..Default::default()
         },
         power: Some(1),
@@ -352,7 +352,7 @@ fn test_search_library_has_card_types_or_semantics() {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Instant],
+            card_types: imbl::ordset![CardType::Instant],
             ..Default::default()
         },
         ..Default::default()
@@ -366,7 +366,7 @@ fn test_search_library_has_card_types_or_semantics() {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Creature],
+            card_types: imbl::ordset![CardType::Creature],
             ..Default::default()
         },
         power: Some(2),
@@ -463,7 +463,7 @@ fn test_search_library_empty_filter_finds_any() {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Enchantment],
+            card_types: imbl::ordset![CardType::Enchantment],
             ..Default::default()
         },
         ..Default::default()
@@ -542,7 +542,7 @@ fn test_search_library_combined_creature_max_cmc() {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Creature],
+            card_types: imbl::ordset![CardType::Creature],
             ..Default::default()
         },
         power: Some(2),
@@ -558,7 +558,7 @@ fn test_search_library_combined_creature_max_cmc() {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Creature],
+            card_types: imbl::ordset![CardType::Creature],
             ..Default::default()
         },
         power: Some(6),
@@ -573,7 +573,7 @@ fn test_search_library_combined_creature_max_cmc() {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Artifact],
+            card_types: imbl::ordset![CardType::Artifact],
             ..Default::default()
         },
         ..Default::default()
@@ -678,7 +678,7 @@ fn test_search_library_no_mana_cost_has_mv_zero() {
         name: "Island Test".to_string(),
         card_id: CardId("island_test_search".to_string()),
         types: TypeLine {
-            card_types: im::ordset![CardType::Land],
+            card_types: imbl::ordset![CardType::Land],
             ..Default::default()
         },
         ..Default::default()
@@ -691,7 +691,7 @@ fn test_search_library_no_mana_cost_has_mv_zero() {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Instant],
+            card_types: imbl::ordset![CardType::Instant],
             ..Default::default()
         },
         ..Default::default()
@@ -781,7 +781,7 @@ fn test_search_library_no_match_finds_nothing() {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Creature],
+            card_types: imbl::ordset![CardType::Creature],
             ..Default::default()
         },
         power: Some(2),
@@ -867,7 +867,7 @@ fn test_search_library_to_top_of_library() {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Creature],
+            card_types: imbl::ordset![CardType::Creature],
             ..Default::default()
         },
         power: Some(5),

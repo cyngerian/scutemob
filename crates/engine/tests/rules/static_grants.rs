@@ -456,14 +456,14 @@ fn test_attacking_creatures_you_control_grants_keyword() {
         attackers: [(attacker_id, AttackTarget::Player(p2()))]
             .into_iter()
             .collect(),
-        blockers: im::OrdMap::new(),
-        damage_assignment_order: im::OrdMap::new(),
-        first_strike_participants: im::OrdSet::new(),
-        defenders_declared: im::OrdSet::new(),
-        forced_blocks: im::OrdMap::new(),
+        blockers: imbl::OrdMap::new(),
+        damage_assignment_order: imbl::OrdMap::new(),
+        first_strike_participants: imbl::OrdSet::new(),
+        defenders_declared: imbl::OrdSet::new(),
+        forced_blocks: imbl::OrdMap::new(),
         enlist_pairings: Vec::new(),
-        blocked_attackers: im::OrdSet::new(),
-        exerted_attackers: im::OrdSet::new(),
+        blocked_attackers: imbl::OrdSet::new(),
+        exerted_attackers: imbl::OrdSet::new(),
     });
 
     state.continuous_effects_mut().push_back(ContinuousEffect {
@@ -902,14 +902,14 @@ fn test_attacking_creatures_with_subtype() {
         ]
         .into_iter()
         .collect(),
-        blockers: im::OrdMap::new(),
-        damage_assignment_order: im::OrdMap::new(),
-        first_strike_participants: im::OrdSet::new(),
-        defenders_declared: im::OrdSet::new(),
-        forced_blocks: im::OrdMap::new(),
+        blockers: imbl::OrdMap::new(),
+        damage_assignment_order: imbl::OrdMap::new(),
+        first_strike_participants: imbl::OrdSet::new(),
+        defenders_declared: imbl::OrdSet::new(),
+        forced_blocks: imbl::OrdMap::new(),
         enlist_pairings: Vec::new(),
-        blocked_attackers: im::OrdSet::new(),
-        exerted_attackers: im::OrdSet::new(),
+        blocked_attackers: imbl::OrdSet::new(),
+        exerted_attackers: imbl::OrdSet::new(),
     });
 
     state.continuous_effects_mut().push_back(ContinuousEffect {

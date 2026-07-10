@@ -4,7 +4,7 @@
 //! active player enters the `BeginningOfCombat` step and cleared at `EndOfCombat`.
 use super::game_object::ObjectId;
 use super::player::PlayerId;
-use im::{OrdMap, OrdSet};
+use imbl::{OrdMap, OrdSet};
 use serde::{Deserialize, Serialize};
 /// An attack target: a player or a planeswalker permanent (CR 508.1).
 ///

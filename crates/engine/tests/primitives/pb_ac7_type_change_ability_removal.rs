@@ -21,7 +21,7 @@
 //! 30/31, new `WheneverYouCastSpell.spell_subtype_filter` field). No new mutable
 //! runtime GameState/PlayerState/GameObject fields this batch (see hash.rs changelog).
 
-use im::OrdSet;
+use imbl::OrdSet;
 use mtg_engine::cards::card_definition::EffectAmount;
 use mtg_engine::effects::{execute_effect, EffectContext};
 use mtg_engine::{

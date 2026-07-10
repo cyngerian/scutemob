@@ -1581,7 +1581,7 @@ fn test_protection_from_multicolor_source_damage_prevention() {
 /// SR-PRO-04 tests cover only the targeting path): an attacker with protection from
 /// Goblins cannot be blocked by a Goblin creature, but can be blocked by a Wizard.
 fn test_protection_from_subtype_goblin_prevents_blocking() {
-    let attacker_keywords: im::OrdSet<KeywordAbility> = [KeywordAbility::ProtectionFrom(
+    let attacker_keywords: imbl::OrdSet<KeywordAbility> = [KeywordAbility::ProtectionFrom(
         ProtectionQuality::FromSubType(SubType("Goblin".to_string())),
     )]
     .iter()

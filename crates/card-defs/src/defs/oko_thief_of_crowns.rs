@@ -42,7 +42,7 @@ pub fn card() -> CardDefinition {
                         effect_def: Box::new(ContinuousEffectDef {
                             layer: EffectLayer::TypeChange,
                             modification: LayerModification::SetTypeLine {
-                                supertypes: im::OrdSet::new(),
+                                supertypes: imbl::OrdSet::new(),
                                 card_types: [CardType::Creature].into_iter().collect(),
                                 subtypes: [SubType("Elk".to_string())].into_iter().collect(),
                             },

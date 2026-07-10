@@ -692,7 +692,7 @@ fn test_sba_704_5q_unequal_counters_partial_annihilation() {
 #[test]
 /// CR 704.5u — player who received 21 combat damage from one commander loses
 fn test_sba_704_5u_commander_damage_21_loses() {
-    use im::OrdMap;
+    use imbl::OrdMap;
 
     let commander_card = CardId("thalia-card".to_string());
 
@@ -727,7 +727,7 @@ fn test_sba_704_5u_commander_damage_21_loses() {
 #[test]
 /// CR 704.5u — player with 20 commander damage does NOT lose
 fn test_sba_704_5u_commander_damage_20_survives() {
-    use im::OrdMap;
+    use imbl::OrdMap;
 
     let commander_card = CardId("thalia-card".to_string());
 

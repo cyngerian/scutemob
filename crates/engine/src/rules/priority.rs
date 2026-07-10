@@ -2,7 +2,7 @@
 use super::events::GameEvent;
 use crate::state::player::PlayerId;
 use crate::state::GameState;
-use im::OrdSet;
+use imbl::OrdSet;
 /// Result of a priority pass action.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PriorityResult {

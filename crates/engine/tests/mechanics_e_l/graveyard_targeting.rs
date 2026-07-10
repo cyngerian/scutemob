@@ -64,7 +64,7 @@ fn return_from_gy_spell(
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![card_type],
+            card_types: imbl::ordset![card_type],
             ..Default::default()
         },
         abilities: vec![AbilityDefinition::Spell {
@@ -826,7 +826,7 @@ fn test_608_2b_fizzle_gy_target_exiled_before_resolution() {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Instant],
+            card_types: imbl::ordset![CardType::Instant],
             ..Default::default()
         },
         abilities: vec![AbilityDefinition::Spell {
@@ -1051,7 +1051,7 @@ fn test_reanimate_from_opponent_gy_under_casters_control() {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Sorcery],
+            card_types: imbl::ordset![CardType::Sorcery],
             ..Default::default()
         },
         abilities: vec![AbilityDefinition::Spell {

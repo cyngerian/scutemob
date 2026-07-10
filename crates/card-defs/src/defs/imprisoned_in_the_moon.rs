@@ -23,9 +23,9 @@ pub fn card() -> CardDefinition {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::TypeChange,
                     modification: LayerModification::SetTypeLine {
-                        supertypes: im::OrdSet::new(),
+                        supertypes: imbl::OrdSet::new(),
                         card_types: [CardType::Land].into_iter().collect(),
-                        subtypes: im::OrdSet::new(),
+                        subtypes: imbl::OrdSet::new(),
                     },
                     filter: EffectFilter::AttachedPermanent,
                     duration: EffectDuration::WhileSourceOnBattlefield,
@@ -36,7 +36,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Static {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::ColorChange,
-                    modification: LayerModification::SetColors(im::OrdSet::new()),
+                    modification: LayerModification::SetColors(imbl::OrdSet::new()),
                     filter: EffectFilter::AttachedPermanent,
                     duration: EffectDuration::WhileSourceOnBattlefield,
                     condition: None,

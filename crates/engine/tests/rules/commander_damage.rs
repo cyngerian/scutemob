@@ -97,7 +97,7 @@ fn test_commander_damage_21_from_one_commander_kills() {
     // Pre-set 20 damage already received from this commander.
     {
         let p2_state = state.players_mut().get_mut(&p2).unwrap();
-        let inner = im::OrdMap::from(vec![(cmd_id.clone(), 20u32)]);
+        let inner = imbl::OrdMap::from(vec![(cmd_id.clone(), 20u32)]);
         p2_state.commander_damage_received.insert(p1, inner);
     }
 
@@ -142,7 +142,7 @@ fn test_commander_damage_20_from_one_commander_no_loss() {
 
     {
         let p2_state = state.players_mut().get_mut(&p2).unwrap();
-        let inner = im::OrdMap::from(vec![(cmd_id.clone(), 15u32)]);
+        let inner = imbl::OrdMap::from(vec![(cmd_id.clone(), 15u32)]);
         p2_state.commander_damage_received.insert(p1, inner);
     }
 
@@ -198,8 +198,8 @@ fn test_commander_damage_10_from_a_plus_11_from_b_no_loss() {
 
     {
         let p3_state = state.players_mut().get_mut(&p3).unwrap();
-        let from_p1 = im::OrdMap::from(vec![(cmd_a.clone(), 10u32)]);
-        let from_p2 = im::OrdMap::from(vec![(cmd_b.clone(), 11u32)]);
+        let from_p1 = imbl::OrdMap::from(vec![(cmd_a.clone(), 10u32)]);
+        let from_p2 = imbl::OrdMap::from(vec![(cmd_b.clone(), 11u32)]);
         p3_state.commander_damage_received.insert(p1, from_p1);
         p3_state.commander_damage_received.insert(p2, from_p2);
     }
@@ -395,7 +395,7 @@ fn test_commander_damage_survives_zone_change() {
     test_util::add_object(
         &mut state,
         mtg_engine::state::game_object::GameObject {
-            triggered_abilities_fired_this_turn: im::OrdSet::new(),
+            triggered_abilities_fired_this_turn: imbl::OrdSet::new(),
             id: mtg_engine::ObjectId(0), // will be assigned
             card_id: Some(cmd_id.clone()),
             characteristics: mtg_engine::state::game_object::Characteristics {
@@ -409,8 +409,8 @@ fn test_commander_damage_survives_zone_change() {
             owner: p1,
             zone: ZoneId::Battlefield,
             status: mtg_engine::ObjectStatus::default(),
-            counters: im::OrdMap::new(),
-            attachments: im::Vector::new(),
+            counters: imbl::OrdMap::new(),
+            attachments: imbl::Vector::new(),
             attached_to: None,
             damage_marked: 0,
             deathtouch_damage: false,
@@ -418,7 +418,7 @@ fn test_commander_damage_survives_zone_change() {
             is_emblem: false,
             timestamp: 0,
             has_summoning_sickness: false,
-            goaded_by: im::Vector::new(),
+            goaded_by: imbl::Vector::new(),
             kicker_times_paid: 0,
             cast_alt_cost: None,
             foretold_turn: 0,
@@ -450,15 +450,15 @@ fn test_commander_damage_survives_zone_change() {
             offspring_paid: false,
             gift_was_given: false,
             gift_opponent: None,
-            encoded_cards: im::Vector::new(),
+            encoded_cards: imbl::Vector::new(),
             haunting_target: None,
-            merged_components: im::Vector::new(),
+            merged_components: imbl::Vector::new(),
             is_transformed: false,
             last_transform_timestamp: 0,
             was_cast_disturbed: false,
             was_cast: false,
             abilities_activated_this_turn: 0,
-            craft_exiled_cards: im::Vector::new(),
+            craft_exiled_cards: imbl::Vector::new(),
             chosen_creature_type: None,
             chosen_color: None,
             face_down_as: None,
@@ -485,7 +485,7 @@ fn test_commander_damage_survives_zone_change() {
     // New combat from the DeclareAttackers step.
     state.turn_mut().step = mtg_engine::Step::DeclareAttackers;
     state.turn_mut().priority_holder = Some(p1);
-    state.turn_mut().players_passed = im::OrdSet::new();
+    state.turn_mut().players_passed = imbl::OrdSet::new();
 
     // Round 2: deal 7 more commander damage to p2 with the NEW object.
     let (state, _) = run_one_unblocked_combat(state, p1, p2, new_commander_id, &[p1, p2]);
@@ -593,7 +593,7 @@ fn test_partner_commander_damage_one_partner_at_21_triggers_loss() {
     {
         let p2_state = state.players_mut().get_mut(&p2).unwrap();
         let from_p1 =
-            im::OrdMap::from(vec![(partner_a.clone(), 20u32), (partner_b.clone(), 20u32)]);
+            imbl::OrdMap::from(vec![(partner_a.clone(), 20u32), (partner_b.clone(), 20u32)]);
         p2_state.commander_damage_received.insert(p1, from_p1);
     }
 

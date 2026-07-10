@@ -105,7 +105,7 @@ fn up_to_n_destroy_artifact_spell(name: &str, count: u32) -> CardDefinition {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Instant],
+            card_types: imbl::ordset![CardType::Instant],
             ..Default::default()
         },
         abilities: vec![AbilityDefinition::Spell {
@@ -142,7 +142,7 @@ fn up_to_n_tap_permanent_spell(name: &str, count: u32) -> CardDefinition {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Instant],
+            card_types: imbl::ordset![CardType::Instant],
             ..Default::default()
         },
         abilities: vec![AbilityDefinition::Spell {
@@ -177,7 +177,7 @@ fn mandatory_target_destroy_creature_spell(name: &str) -> CardDefinition {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Instant],
+            card_types: imbl::ordset![CardType::Instant],
             ..Default::default()
         },
         abilities: vec![AbilityDefinition::Spell {
@@ -665,7 +665,7 @@ fn test_pbt_mixed_mandatory_and_up_to_n() {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Instant],
+            card_types: imbl::ordset![CardType::Instant],
             ..Default::default()
         },
         abilities: vec![AbilityDefinition::Spell {
@@ -893,7 +893,7 @@ fn test_pbt_two_parallel_up_to_n_slots() {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Instant],
+            card_types: imbl::ordset![CardType::Instant],
             ..Default::default()
         },
         abilities: vec![AbilityDefinition::Spell {
@@ -1156,7 +1156,7 @@ fn test_pbt_up_to_n_reverse_order_declaration_succeeds() {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Instant],
+            card_types: imbl::ordset![CardType::Instant],
             ..Default::default()
         },
         abilities: vec![AbilityDefinition::Spell {

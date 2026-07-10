@@ -610,7 +610,7 @@ fn test_mutate_zone_change_splits_components() {
 
     {
         let wolf_obj = state.objects_mut().get_mut(&wolf_id).unwrap();
-        wolf_obj.merged_components = im::vector![
+        wolf_obj.merged_components = imbl::vector![
             MergedComponent {
                 card_id: Some(CardId("mock-mutating-beast".to_string())),
                 characteristics: beast_characteristics,
@@ -1122,7 +1122,7 @@ fn test_mutate_stacking_three_deep() {
     };
     {
         let wolf_obj = state.objects_mut().get_mut(&wolf_id).unwrap();
-        wolf_obj.merged_components = im::vector![
+        wolf_obj.merged_components = imbl::vector![
             MergedComponent {
                 card_id: Some(CardId("mock-mutating-beast".to_string())),
                 characteristics: beast_chars.clone(),
@@ -1242,7 +1242,7 @@ fn test_mutate_bounce_returns_all_cards() {
     // Inject merged_components: beast on top of wolf (2 components).
     {
         let wolf_obj = state.objects_mut().get_mut(&wolf_id).unwrap();
-        wolf_obj.merged_components = im::vector![
+        wolf_obj.merged_components = imbl::vector![
             MergedComponent {
                 card_id: Some(CardId("mock-mutating-beast".to_string())),
                 characteristics: Characteristics {

@@ -9,7 +9,7 @@ test-util = []
 [dependencies]
 bitflags = { version = "2", features = ["serde"] }
 blake3 = "1"
-im = { version = "15", features = ["serde"] }
+imbl = { version = "7", features = ["serde"] }
 mtg-card-defs = { path = "../card-defs" }
 mtg-card-types = { path = "../card-types" }
 rand = "0.9"
@@ -22,7 +22,7 @@ mtg-engine = { path = ".", features = ["test-util"] }
 # Used by tests/protocol_schema.rs to digest the Command/GameEvent type closure.
 blake3 = "1"
 criterion = { version = "0.5", features = ["html_reports"] }
-im = { version = "15", features = ["serde"] }
+imbl = { version = "7", features = ["serde"] }
 proptest = "1"
 
 [[bench]]

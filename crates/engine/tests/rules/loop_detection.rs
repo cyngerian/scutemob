@@ -195,7 +195,7 @@ fn test_optional_loop_not_detected() {
 /// checking loop_detection_hashes before and after a relevant command.
 #[test]
 fn test_loop_detection_resets_on_player_choice() {
-    use im::OrdMap;
+    use imbl::OrdMap;
 
     let registry = CardRegistry::new(vec![]);
     let state = GameStateBuilder::new()

@@ -520,6 +520,29 @@ Task-specific extras:
   rather than "fixed to match the engine," because matching a possibly-wrong engine would bless a bug and
   `cc31` is inexpressible (it fakes combat damage via `stack_resolve` and pre-seeds
   `commander_damage_received`, an init field the harness has never read).
+- **SR-10: in progress (2026-07-10).** Four independent chores; each committed separately so any
+  one is revertable. Findings so far:
+  1. **im → imbl: DECISION = MIGRATE (done).** The brief's stated risk ("im→imbl behaviour
+     differences") did not materialize, and the reason is measurable up front, not by faith: of
+     **705** `im::` references, **704** are *ordered* collections — `im::OrdSet` (350),
+     `im::Vector` (148), `im::OrdMap` (136), plus their macros. imbl is a fork of im 15.1 with the
+     **same** B-tree (`OrdMap`/`OrdSet`) and RRB-vector (`Vector`) internals, so iteration order —
+     the only property the engine's determinism and state-hashing depend on — is byte-identical.
+     The **one** `im::HashMap` reference is a *comment* at `rules/replacement.rs` explaining why the
+     engine never uses a hash-ordered im collection; there is zero real `HashMap`/`HashSet` usage to
+     worry about. The swap was mechanical: 4 manifest lines (`im = "15"` → `imbl = "7"`, `serde`
+     feature retained) and a `\bim:: → imbl::` rename across the tree; **no API changes were
+     needed** and the compiler was clean first try. Gates green under imbl: `state_hashing` (19),
+     `zone_integrity` shuffle determinism (19), core (347) + rules (535) + casting (147),
+     `clippy --all-targets`. **The SR-8 `PROTOCOL_SCHEMA_FINGERPRINT` did not move** even though the
+     rename touched declaration files — because struct fields name the collections *unqualified*
+     (`Vector<AbilityInstance>`, imported via `use`), and the fingerprint scanner reads field
+     declarations, not `use` lines. So the wire is provably unchanged; no `PROTOCOL_VERSION` bump.
+     No `HASH_SCHEMA_VERSION` bump either (runtime hashes are identical because iteration order is).
+     Had even a handful of real `im::HashMap`/`HashSet` uses existed on a hashed or iterated path,
+     the correct call would have been *defer* — the migration is clean precisely because the codebase
+     had already disciplined itself onto ordered types (the `replacement.rs` comment is that
+     discipline, written down).
 
 ## Session Log
 

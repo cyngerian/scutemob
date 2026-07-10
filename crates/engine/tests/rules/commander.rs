@@ -2021,7 +2021,7 @@ fn test_companion_rejected_with_non_empty_stack() {
         triggering_creature_id: None,
         cast_from_top_with_bonus: false,
         sacrificed_creature_powers: vec![],
-        lki_counters: im::OrdMap::new(),
+        lki_counters: imbl::OrdMap::new(),
         lki_power: None,
     });
 
@@ -2162,7 +2162,7 @@ fn test_full_four_player_commander_game() {
     // Pre-set p3 having 14 commander damage from p1.
     {
         let p3_state = state.players_mut().get_mut(&p3).unwrap();
-        let inner = im::OrdMap::from(vec![(alpha_id.clone(), 14u32)]);
+        let inner = imbl::OrdMap::from(vec![(alpha_id.clone(), 14u32)]);
         p3_state.commander_damage_received.insert(p1, inner);
     }
 

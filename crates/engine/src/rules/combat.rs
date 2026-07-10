@@ -20,7 +20,7 @@ use crate::state::types::{
 };
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
-use im::{OrdMap, OrdSet};
+use imbl::{OrdMap, OrdSet};
 // ---------------------------------------------------------------------------
 // Declare Attackers
 // ---------------------------------------------------------------------------
@@ -1740,7 +1740,7 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
         .collect();
     // --- Apply damage and collect lifelink gains ---
     // lifelink_gains: controller → total damage dealt by their lifelink sources this step.
-    let mut lifelink_gains: im::OrdMap<PlayerId, u32> = im::OrdMap::new();
+    let mut lifelink_gains: imbl::OrdMap<PlayerId, u32> = imbl::OrdMap::new();
     // Collect wither/infect counter events during the damage application loop.
     // These will be added to the event stream after the loop.
     let mut wither_counter_events: Vec<GameEvent> = Vec::new();

@@ -21,7 +21,7 @@ pub fn card() -> CardDefinition {
                         card_types: [CardType::Creature].into_iter().collect(),
                         subtypes: [SubType("Spirit".to_string())].into_iter().collect(),
                         colors: [Color::White].into_iter().collect(),
-                        supertypes: im::OrdSet::new(),
+                        supertypes: imbl::OrdSet::new(),
                         power: 1,
                         toughness: 1,
                         count: EffectAmount::Fixed(1),

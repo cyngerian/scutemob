@@ -8,7 +8,7 @@
 //! - self_exile_on_resolution: Temporal Trespass/Mastery exile themselves on resolution.
 //! - self_shuffle_on_resolution: Nexus of Fate shuffles into library on resolution.
 
-use im::Vector;
+use imbl::Vector;
 use mtg_engine::cards::card_definition::GiftType;
 use mtg_engine::rules::engine::process_command;
 use mtg_engine::{

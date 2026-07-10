@@ -647,7 +647,7 @@ fn test_vanishing_multiple_instances() {
         .at_step(Step::Untap)
         .object(
             // Two Vanishing instances: Vanishing(3) and Vanishing(1) so they
-            // are distinct values in im::OrdSet (which deduplicates equal values).
+            // are distinct values in imbl::OrdSet (which deduplicates equal values).
             ObjectSpec::card(p1, "Test Vanishing 3 Creature")
                 .in_zone(ZoneId::Battlefield)
                 .with_card_id(CardId("test-vanishing-3".into()))

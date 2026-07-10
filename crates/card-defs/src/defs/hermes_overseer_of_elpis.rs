@@ -43,7 +43,7 @@ pub fn card() -> CardDefinition {
                         power: 1,
                         toughness: 1,
                         count: EffectAmount::Fixed(1),
-                        supertypes: im::OrdSet::new(),
+                        supertypes: imbl::OrdSet::new(),
                         keywords: [KeywordAbility::Flying, KeywordAbility::Vigilance].into_iter().collect(),
                         tapped: false,
                         enters_attacking: false,

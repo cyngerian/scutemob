@@ -33,10 +33,10 @@ pub fn card() -> CardDefinition {
                         card_types: [CardType::Creature].into_iter().collect(),
                         subtypes: [SubType("Insect".to_string())].into_iter().collect(),
                         colors: [Color::Black, Color::Green].into_iter().collect(),
-                        supertypes: im::OrdSet::new(),
+                        supertypes: imbl::OrdSet::new(),
                         power: 1,
                         toughness: 1,
-                        keywords: im::OrdSet::new(),
+                        keywords: imbl::OrdSet::new(),
                         count: EffectAmount::CardCount {
                             zone: ZoneTarget::Graveyard {
                                 owner: PlayerTarget::Controller,

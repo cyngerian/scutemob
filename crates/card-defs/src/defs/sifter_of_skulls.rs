@@ -39,7 +39,7 @@ pub fn card() -> CardDefinition {
                             sacrifice_self: true,
                             any_color: true,
                             requires_tap: false,
-                            produces: im::OrdMap::new(),
+                            produces: imbl::OrdMap::new(),
                             damage_to_controller: 0,
                         }],
                         ..Default::default()

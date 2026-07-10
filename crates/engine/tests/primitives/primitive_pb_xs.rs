@@ -131,7 +131,7 @@ fn fight_self_creature(name: &str) -> CardDefinition {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Creature],
+            card_types: imbl::ordset![CardType::Creature],
             ..Default::default()
         },
         power: Some(2),
@@ -272,7 +272,7 @@ fn test_pbxs_activated_target_permanent_exclude_self_rejects_source() {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Creature],
+            card_types: imbl::ordset![CardType::Creature],
             ..Default::default()
         },
         power: Some(1),
@@ -360,8 +360,8 @@ fn test_pbxs_graveyard_filter_excludes_source() {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Creature],
-            subtypes: im::ordset![SubType("Elf".to_string())],
+            card_types: imbl::ordset![CardType::Creature],
+            subtypes: imbl::ordset![SubType("Elf".to_string())],
             ..Default::default()
         },
         power: Some(1),
@@ -499,8 +499,8 @@ fn test_pbxs_death_trigger_graveyard_picker_excludes_source() {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Creature],
-            subtypes: im::ordset![SubType("Elf".to_string())],
+            card_types: imbl::ordset![CardType::Creature],
+            subtypes: imbl::ordset![SubType("Elf".to_string())],
             ..Default::default()
         },
         power: Some(3),
@@ -665,8 +665,8 @@ fn test_pbxs_death_trigger_skipped_when_only_source_is_legal() {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Creature],
-            subtypes: im::ordset![SubType("Elf".to_string())],
+            card_types: imbl::ordset![CardType::Creature],
+            subtypes: imbl::ordset![SubType("Elf".to_string())],
             ..Default::default()
         },
         power: Some(3),
@@ -767,7 +767,7 @@ fn test_pbxs_matches_filter_ignores_exclude_self_by_design() {
 
     let chars = Characteristics {
         name: "Test Creature".to_string(),
-        card_types: im::ordset![CardType::Creature],
+        card_types: imbl::ordset![CardType::Creature],
         ..Characteristics::default()
     };
     let f_no_exclude = TargetFilter::default();

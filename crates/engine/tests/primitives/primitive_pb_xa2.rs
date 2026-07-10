@@ -67,14 +67,14 @@ fn combat_with_attacker(attacking_player: PlayerId, attacker_id: ObjectId) -> Co
         attackers: [(attacker_id, AttackTarget::Player(p(2)))]
             .into_iter()
             .collect(),
-        blockers: im::OrdMap::new(),
-        damage_assignment_order: im::OrdMap::new(),
-        first_strike_participants: im::OrdSet::new(),
-        defenders_declared: im::OrdSet::new(),
-        forced_blocks: im::OrdMap::new(),
+        blockers: imbl::OrdMap::new(),
+        damage_assignment_order: imbl::OrdMap::new(),
+        first_strike_participants: imbl::OrdSet::new(),
+        defenders_declared: imbl::OrdSet::new(),
+        forced_blocks: imbl::OrdMap::new(),
         enlist_pairings: Vec::new(),
-        blocked_attackers: im::OrdSet::new(),
-        exerted_attackers: im::OrdSet::new(),
+        blocked_attackers: imbl::OrdSet::new(),
+        exerted_attackers: imbl::OrdSet::new(),
     }
 }
 
@@ -87,13 +87,13 @@ fn combat_with_blocker(blocker_id: ObjectId, attacker_id: ObjectId) -> CombatSta
             .into_iter()
             .collect(),
         blockers: [(blocker_id, attacker_id)].into_iter().collect(),
-        damage_assignment_order: im::OrdMap::new(),
-        first_strike_participants: im::OrdSet::new(),
-        defenders_declared: im::OrdSet::new(),
-        forced_blocks: im::OrdMap::new(),
+        damage_assignment_order: imbl::OrdMap::new(),
+        first_strike_participants: imbl::OrdSet::new(),
+        defenders_declared: imbl::OrdSet::new(),
+        forced_blocks: imbl::OrdMap::new(),
         enlist_pairings: Vec::new(),
-        blocked_attackers: im::OrdSet::new(),
-        exerted_attackers: im::OrdSet::new(),
+        blocked_attackers: imbl::OrdSet::new(),
+        exerted_attackers: imbl::OrdSet::new(),
     }
 }
 
@@ -215,7 +215,7 @@ fn blocking_creature_target_ability(name: &str) -> CardDefinition {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Creature],
+            card_types: imbl::ordset![CardType::Creature],
             ..Default::default()
         },
         power: Some(2),
@@ -252,7 +252,7 @@ fn tapped_creature_target_ability(name: &str) -> CardDefinition {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Creature],
+            card_types: imbl::ordset![CardType::Creature],
             ..Default::default()
         },
         power: Some(1),
@@ -289,7 +289,7 @@ fn untapped_creature_target_ability(name: &str) -> CardDefinition {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Creature],
+            card_types: imbl::ordset![CardType::Creature],
             ..Default::default()
         },
         power: Some(1),
@@ -670,7 +670,7 @@ fn attacking_or_blocking_target_ability(name: &str) -> CardDefinition {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Creature],
+            card_types: imbl::ordset![CardType::Creature],
             ..Default::default()
         },
         power: Some(2),
@@ -902,7 +902,7 @@ fn test_pbxa2_trigger_picker_selects_blocking_creature_positive() {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Creature],
+            card_types: imbl::ordset![CardType::Creature],
             ..Default::default()
         },
         power: Some(1),
@@ -1059,7 +1059,7 @@ fn test_pbxa2_trigger_picker_skipped_when_no_blocker() {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Creature],
+            card_types: imbl::ordset![CardType::Creature],
             ..Default::default()
         },
         power: Some(1),
@@ -1176,7 +1176,7 @@ fn test_pbxa2_graveyard_target_with_runtime_fields_rejects() {
                 ..ManaCost::default()
             }),
             types: TypeLine {
-                card_types: im::ordset![CardType::Creature],
+                card_types: imbl::ordset![CardType::Creature],
                 ..Default::default()
             },
             power: Some(1),

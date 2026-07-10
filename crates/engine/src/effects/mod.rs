@@ -139,7 +139,7 @@ pub struct EffectContext {
     /// `EffectContext` at trigger resolution time (resolution.rs).
     /// Read by `EffectAmount::CounterCountAtLastKnownInformation`.
     /// `None` for non-LKI trigger contexts; lookups return 0 if `None` or absent.
-    pub lki_counters: Option<im::OrdMap<crate::state::types::CounterType, u32>>,
+    pub lki_counters: Option<imbl::OrdMap<crate::state::types::CounterType, u32>>,
     /// CR 603.10a / CR 113.7a: LKI source-power snapshot for leaves-battlefield triggers.
     /// Populated by `flush_pending_triggers` (abilities.rs) when a `WhenDies` /
     /// `WhenLeavesBattlefield` trigger is put on the stack, capturing the source's
@@ -1532,7 +1532,7 @@ fn execute_effect_inner(
                             .or(o.characteristics.power);
                         (o.owner, o.counters.clone(), lki_power)
                     })
-                    .unwrap_or((ctx.controller, im::OrdMap::new(), None));
+                    .unwrap_or((ctx.controller, imbl::OrdMap::new(), None));
                 // CR 614: Check replacement effects before exiling.
                 let action = crate::rules::replacement::check_zone_change_replacement(
                     state,
@@ -1664,7 +1664,7 @@ fn execute_effect_inner(
                             .or(o.characteristics.power);
                         (o.owner, o.counters.clone(), lki_power)
                     })
-                    .unwrap_or((ctx.controller, im::OrdMap::new(), None));
+                    .unwrap_or((ctx.controller, imbl::OrdMap::new(), None));
                 // CR 614: Check replacement effects before bouncing.
                 let action = crate::rules::replacement::check_zone_change_replacement(
                     state,
@@ -1761,7 +1761,7 @@ fn execute_effect_inner(
                                 let counters = if o.zone == ZoneId::Battlefield {
                                     o.counters.clone()
                                 } else {
-                                    im::OrdMap::new()
+                                    imbl::OrdMap::new()
                                 };
                                 let lki_power = if o.zone == ZoneId::Battlefield {
                                     crate::rules::layers::calculate_characteristics(state, id)
@@ -1775,7 +1775,7 @@ fn execute_effect_inner(
                             .unwrap_or((
                                 ctx.controller,
                                 ZoneType::Battlefield,
-                                im::OrdMap::new(),
+                                imbl::OrdMap::new(),
                                 None,
                             ));
                         // CR 614: Check replacement effects before exiling.
@@ -3808,7 +3808,7 @@ fn execute_effect_inner(
                         // Start with default characteristics — the layer system
                         // will replace them with the melded back face (CR 712.8g).
                         let melded_obj = crate::state::game_object::GameObject {
-                            triggered_abilities_fired_this_turn: im::OrdSet::new(),
+                            triggered_abilities_fired_this_turn: imbl::OrdSet::new(),
                             id: melded_id,
                             card_id: Some(source_card_id),
                             characteristics: crate::state::game_object::Characteristics::default(),
@@ -3816,8 +3816,8 @@ fn execute_effect_inner(
                             owner: controller,
                             zone: crate::state::zone::ZoneId::Battlefield,
                             status: crate::state::game_object::ObjectStatus::default(),
-                            counters: im::OrdMap::new(),
-                            attachments: im::Vector::new(),
+                            counters: imbl::OrdMap::new(),
+                            attachments: imbl::Vector::new(),
                             attached_to: None,
                             damage_marked: 0,
                             deathtouch_damage: false,
@@ -3826,7 +3826,7 @@ fn execute_effect_inner(
                             timestamp: state.timestamp_counter,
                             has_summoning_sickness: true,
                             entered_turn: Some(state.turn.turn_number),
-                            goaded_by: im::Vector::new(),
+                            goaded_by: imbl::Vector::new(),
                             kicker_times_paid: 0,
                             cast_alt_cost: None,
                             foretold_turn: 0,
@@ -3858,15 +3858,15 @@ fn execute_effect_inner(
                             offspring_paid: false,
                             gift_was_given: false,
                             gift_opponent: None,
-                            encoded_cards: im::Vector::new(),
+                            encoded_cards: imbl::Vector::new(),
                             haunting_target: None,
-                            merged_components: im::Vector::new(),
+                            merged_components: imbl::Vector::new(),
                             is_transformed: false,
                             last_transform_timestamp: 0,
                             was_cast_disturbed: false,
                             was_cast: false,
                             abilities_activated_this_turn: 0,
-                            craft_exiled_cards: im::Vector::new(),
+                            craft_exiled_cards: imbl::Vector::new(),
                             chosen_creature_type: None,
                             chosen_color: None,
                             face_down_as: None,
@@ -4689,7 +4689,7 @@ fn execute_effect_inner(
                     .map(|o| o.characteristics.clone())
                     .unwrap_or_default();
                 let token_obj = crate::state::game_object::GameObject {
-                    triggered_abilities_fired_this_turn: im::OrdSet::new(),
+                    triggered_abilities_fired_this_turn: imbl::OrdSet::new(),
                     id: crate::state::game_object::ObjectId(0), // replaced by add_object
                     card_id: None,
                     characteristics: base_chars,
@@ -4700,8 +4700,8 @@ fn execute_effect_inner(
                         tapped: *enters_tapped_and_attacking,
                         ..crate::state::game_object::ObjectStatus::default()
                     },
-                    counters: im::OrdMap::new(),
-                    attachments: im::Vector::new(),
+                    counters: imbl::OrdMap::new(),
+                    attachments: imbl::Vector::new(),
                     attached_to: None,
                     damage_marked: 0,
                     deathtouch_damage: false,
@@ -4710,7 +4710,7 @@ fn execute_effect_inner(
                     timestamp: 0, // replaced by add_object
                     has_summoning_sickness: true,
                     entered_turn: None, // set by add_object when placed on battlefield
-                    goaded_by: im::Vector::new(),
+                    goaded_by: imbl::Vector::new(),
                     kicker_times_paid: 0,
                     cast_alt_cost: None,
                     foretold_turn: 0,
@@ -4742,15 +4742,15 @@ fn execute_effect_inner(
                     gift_was_given: false,
                     champion_exiled_card: None,
                     gift_opponent: None,
-                    encoded_cards: im::Vector::new(),
+                    encoded_cards: imbl::Vector::new(),
                     haunting_target: None,
-                    merged_components: im::Vector::new(),
+                    merged_components: imbl::Vector::new(),
                     is_transformed: false,
                     last_transform_timestamp: 0,
                     was_cast_disturbed: false,
                     was_cast: false,
                     abilities_activated_this_turn: 0,
-                    craft_exiled_cards: im::Vector::new(),
+                    craft_exiled_cards: imbl::Vector::new(),
                     chosen_creature_type: None,
                     chosen_color: None,
                     face_down_as: None,
@@ -4862,7 +4862,7 @@ fn execute_effect_inner(
                 ..crate::state::game_object::Characteristics::default()
             };
             let emblem_obj = crate::state::game_object::GameObject {
-                triggered_abilities_fired_this_turn: im::OrdSet::new(),
+                triggered_abilities_fired_this_turn: imbl::OrdSet::new(),
                 id: crate::state::game_object::ObjectId(0), // replaced by add_object
                 card_id: None,
                 characteristics: emblem_chars,
@@ -4870,8 +4870,8 @@ fn execute_effect_inner(
                 owner: ctrl,
                 zone: command_zone,
                 status: ObjectStatus::default(),
-                counters: im::OrdMap::new(),
-                attachments: im::Vector::new(),
+                counters: imbl::OrdMap::new(),
+                attachments: imbl::Vector::new(),
                 attached_to: None,
                 damage_marked: 0,
                 deathtouch_damage: false,
@@ -4880,7 +4880,7 @@ fn execute_effect_inner(
                 timestamp: 0, // replaced by add_object
                 has_summoning_sickness: false,
                 entered_turn: None, // emblems go to command zone, not battlefield
-                goaded_by: im::Vector::new(),
+                goaded_by: imbl::Vector::new(),
                 kicker_times_paid: 0,
                 cast_alt_cost: None,
                 foretold_turn: 0,
@@ -4912,15 +4912,15 @@ fn execute_effect_inner(
                 offspring_paid: false,
                 gift_was_given: false,
                 gift_opponent: None,
-                encoded_cards: im::Vector::new(),
+                encoded_cards: imbl::Vector::new(),
                 haunting_target: None,
-                merged_components: im::Vector::new(),
+                merged_components: imbl::Vector::new(),
                 is_transformed: false,
                 last_transform_timestamp: 0,
                 was_cast_disturbed: false,
                 was_cast: false,
                 abilities_activated_this_turn: 0,
-                craft_exiled_cards: im::Vector::new(),
+                craft_exiled_cards: imbl::Vector::new(),
                 chosen_creature_type: None,
                 chosen_color: None,
                 face_down_as: None,
@@ -5086,7 +5086,7 @@ fn execute_effect_inner(
                                         .or(o.characteristics.power);
                                 (Some(o.owner), o.counters.clone(), lki_power)
                             }
-                            None => (None, im::OrdMap::new(), None),
+                            None => (None, imbl::OrdMap::new(), None),
                         }
                     };
                     let Some(_owner) = owner else {
@@ -5635,7 +5635,7 @@ fn execute_effect_inner(
                             object_id: old_id,
                             new_exile_id,
                             // From graveyard — no LBA trigger LKI needed.
-                            pre_lba_counters: im::OrdMap::new(),
+                            pre_lba_counters: imbl::OrdMap::new(),
                             // From graveyard — no battlefield power snapshot.
                             pre_lba_power: None,
                         });
@@ -7048,7 +7048,7 @@ fn zone_move_event(
             player: controller,
             object_id: old_id,
             new_exile_id: new_id,
-            pre_lba_counters: im::OrdMap::new(),
+            pre_lba_counters: imbl::OrdMap::new(),
             pre_lba_power: None,
         },
         ZoneId::Battlefield => GameEvent::PermanentEnteredBattlefield {
@@ -7064,7 +7064,7 @@ fn zone_move_event(
             player: controller,
             object_id: old_id,
             new_hand_id: new_id,
-            pre_lba_counters: im::OrdMap::new(),
+            pre_lba_counters: imbl::OrdMap::new(),
             pre_lba_power: None,
         },
         ZoneId::Library(_) => GameEvent::ObjectPutOnLibrary {
@@ -7076,7 +7076,7 @@ fn zone_move_event(
             player: controller,
             object_id: old_id,
             new_exile_id: new_id,
-            pre_lba_counters: im::OrdMap::new(),
+            pre_lba_counters: imbl::OrdMap::new(),
             pre_lba_power: None,
         },
     }
@@ -7087,7 +7087,7 @@ pub fn make_token(
     controller: PlayerId,
 ) -> GameObject {
     use crate::state::game_object::Characteristics;
-    use im::OrdSet;
+    use imbl::OrdSet;
     let mut card_types = OrdSet::new();
     for ct in &spec.card_types {
         card_types.insert(*ct);
@@ -7096,7 +7096,7 @@ pub fn make_token(
     for kw in &spec.keywords {
         keywords.insert(kw.clone());
     }
-    let mut subtypes = im::OrdSet::new();
+    let mut subtypes = imbl::OrdSet::new();
     for st in &spec.subtypes {
         subtypes.insert(st.clone());
     }
@@ -7108,7 +7108,7 @@ pub fn make_token(
     for st in &spec.supertypes {
         supertypes.insert(*st);
     }
-    let mut mana_abilities = im::Vector::new();
+    let mut mana_abilities = imbl::Vector::new();
     for ma in &spec.mana_abilities {
         mana_abilities.push_back(ma.clone());
     }
@@ -7133,7 +7133,7 @@ pub fn make_token(
         ..ObjectStatus::default()
     };
     GameObject {
-        triggered_abilities_fired_this_turn: im::OrdSet::new(),
+        triggered_abilities_fired_this_turn: imbl::OrdSet::new(),
         id: ObjectId(0), // will be replaced by add_object
         card_id: None,
         characteristics,
@@ -7141,8 +7141,8 @@ pub fn make_token(
         owner: controller,
         zone: ZoneId::Battlefield,
         status,
-        counters: im::OrdMap::new(),
-        attachments: im::Vector::new(),
+        counters: imbl::OrdMap::new(),
+        attachments: imbl::Vector::new(),
         attached_to: None,
         damage_marked: 0,
         deathtouch_damage: false,
@@ -7151,7 +7151,7 @@ pub fn make_token(
         timestamp: 0,
         has_summoning_sickness: true, // tokens have summoning sickness (CR 302.6)
         entered_turn: None,           // set by add_object when placed on battlefield
-        goaded_by: im::Vector::new(),
+        goaded_by: imbl::Vector::new(),
         kicker_times_paid: 0,
         cast_alt_cost: None,
         foretold_turn: 0,
@@ -7189,19 +7189,19 @@ pub fn make_token(
         gift_was_given: false,
         gift_opponent: None,
         // CR 702.171b: Tokens are not saddled by default.
-        encoded_cards: im::Vector::new(),
+        encoded_cards: imbl::Vector::new(),
         // CR 702.55b: Tokens have no haunting relationship.
         haunting_target: None,
         // CR 702.151b: Tokens are not reconfigured by default.
         // CR 729.2: Tokens are not part of a merged permanent by default.
-        merged_components: im::Vector::new(),
+        merged_components: imbl::Vector::new(),
         // CR 712.8a: Tokens and new permanents start untransformed.
         is_transformed: false,
         last_transform_timestamp: 0,
         was_cast_disturbed: false,
         was_cast: false,
         abilities_activated_this_turn: 0,
-        craft_exiled_cards: im::Vector::new(),
+        craft_exiled_cards: imbl::Vector::new(),
         chosen_creature_type: None,
         chosen_color: None,
         face_down_as: None,
@@ -8247,7 +8247,7 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
         // Delirium: count distinct card types among cards in the controller's graveyard.
         Condition::CardTypesInGraveyardAtLeast(n) => {
             let gy_zone = ZoneId::Graveyard(ctx.controller);
-            let mut type_set = im::OrdSet::new();
+            let mut type_set = imbl::OrdSet::new();
             for obj in state.objects.values() {
                 if obj.zone == gy_zone {
                     for ct in &obj.characteristics.card_types {

@@ -39,7 +39,7 @@ pub use crate::state::{
     KeywordAbility, LandwalkType, ManaColor, ManaCost, ManaPool, ProtectionQuality, SubType,
     SuperType,
 };
-pub use im::OrdSet;
+pub use imbl::OrdSet;
 // ── Helper functions ─────────────────────────────────────────────────────────
 pub fn cid(s: &str) -> CardId {
     CardId(s.to_string())

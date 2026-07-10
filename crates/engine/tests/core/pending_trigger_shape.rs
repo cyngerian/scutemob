@@ -280,7 +280,7 @@ fn declared_fields() -> BTreeSet<String> {
     let mut depth = 0i32;
     for line in body.lines() {
         let trimmed = line.trim();
-        // Only depth-0 lines are fields; `im::OrdMap<..>` has no braces, but a future
+        // Only depth-0 lines are fields; `imbl::OrdMap<..>` has no braces, but a future
         // field type might, so track anyway.
         if depth == 0 {
             if let Some(rest) = trimmed.strip_prefix("pub ") {

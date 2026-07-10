@@ -4,7 +4,7 @@
 //! It applies in Layer 5 (ColorChange) as a CDA, before any non-CDA Layer 5 effects (CR 613.3).
 //! It functions in all zones, not just the battlefield (CR 604.3).
 
-use im::OrdSet;
+use imbl::OrdSet;
 use mtg_engine::{
     calculate_characteristics, Color, ContinuousEffect, EffectDuration, EffectFilter, EffectId,
     EffectLayer, GameStateBuilder, KeywordAbility, LayerModification, ObjectSpec, PlayerId,

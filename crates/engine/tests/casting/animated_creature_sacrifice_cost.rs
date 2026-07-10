@@ -12,7 +12,7 @@
 //! Layer 6 (ability-adding), so the permanent's type at the point of death must reflect
 //! all applied Layer 4 effects.
 
-use im::ordset;
+use imbl::ordset;
 use mtg_engine::state::{ActivatedAbility, ActivationCost, SacrificeFilter};
 use mtg_engine::{
     calculate_characteristics, process_command, CardEffectTarget, CardType, Command,

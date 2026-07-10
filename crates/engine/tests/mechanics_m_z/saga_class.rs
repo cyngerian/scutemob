@@ -18,9 +18,9 @@ fn test_saga_def() -> CardDefinition {
             ..Default::default()
         }),
         types: TypeLine {
-            supertypes: im::OrdSet::new(),
-            card_types: im::ordset![CardType::Enchantment],
-            subtypes: im::ordset![SubType("Saga".to_string())],
+            supertypes: imbl::OrdSet::new(),
+            card_types: imbl::ordset![CardType::Enchantment],
+            subtypes: imbl::ordset![SubType("Saga".to_string())],
         },
         oracle_text: "I — Gain 3 life. II — Draw a card. III — Create a token.".to_string(),
         abilities: vec![
@@ -195,7 +195,7 @@ fn saga_chapter_trigger_fires_at_threshold_cr714_2b() {
     }
 
     // Clear any existing triggers.
-    *state.pending_triggers_mut() = im::Vector::new();
+    *state.pending_triggers_mut() = imbl::Vector::new();
 
     let _events = mtg_engine::rules::turn_actions::execute_turn_based_actions(&mut state).unwrap();
 
@@ -212,7 +212,7 @@ fn saga_multiple_chapters_can_trigger_cr714_2c() {
     let (mut state, saga_id, p1) = build_saga_state();
 
     // Set lore to 0 — then manually add 2 counters to cross chapters 1 AND 2.
-    *state.pending_triggers_mut() = im::Vector::new();
+    *state.pending_triggers_mut() = imbl::Vector::new();
 
     // Use the fire_saga_chapter_triggers function directly.
     let registry = state.card_registry().clone();
@@ -314,7 +314,7 @@ fn saga_not_sacrificed_while_chapter_on_stack_cr714_4() {
         triggering_creature_id: None,
         cast_from_top_with_bonus: false,
         sacrificed_creature_powers: vec![],
-        lki_counters: im::OrdMap::new(),
+        lki_counters: imbl::OrdMap::new(),
         lki_power: None,
     };
     state.stack_objects_mut().push_back(stack_obj);
@@ -344,9 +344,9 @@ fn test_class_def() -> CardDefinition {
             ..Default::default()
         }),
         types: TypeLine {
-            supertypes: im::OrdSet::new(),
-            card_types: im::ordset![CardType::Enchantment],
-            subtypes: im::ordset![SubType("Class".to_string())],
+            supertypes: imbl::OrdSet::new(),
+            card_types: imbl::ordset![CardType::Enchantment],
+            subtypes: imbl::ordset![SubType("Class".to_string())],
         },
         oracle_text:
             "Level 1: Gain 1 life when a land enters. Level 2: Extra land. Level 3: Animate land."
@@ -551,7 +551,7 @@ fn class_level_up_requires_sorcery_speed_cr716_2a() {
         triggering_creature_id: None,
         cast_from_top_with_bonus: false,
         sacrificed_creature_powers: vec![],
-        lki_counters: im::OrdMap::new(),
+        lki_counters: imbl::OrdMap::new(),
         lki_power: None,
     };
     state.stack_objects_mut().push_back(stack_obj);

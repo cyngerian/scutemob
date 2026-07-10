@@ -265,7 +265,7 @@ fn test_deck_validation_rejects_duplicate_nonbasic() {
 /// MR-M9-10 — `DuplicateCard` violations are emitted in deterministic
 /// (name-sorted) order.
 ///
-/// `validate_deck` accumulates duplicate counts in an `im::OrdMap`, which
+/// `validate_deck` accumulates duplicate counts in an `imbl::OrdMap`, which
 /// iterates in sorted key order. With several distinct duplicated card names
 /// the resulting `DuplicateCard` violations must appear alphabetically, and
 /// the ordering must be identical across repeated runs (no HashMap-style

@@ -728,7 +728,7 @@ fn handle_pay_echo(
     let sba_events = sba::check_and_apply_sbas(state);
     events.extend(sba_events);
     // Grant priority to the active player.
-    state.turn.players_passed = im::OrdSet::new();
+    state.turn.players_passed = imbl::OrdSet::new();
     let active = state.turn.active_player;
     state.turn.priority_holder = Some(active);
     Ok(events)
@@ -925,7 +925,7 @@ fn handle_pay_cumulative_upkeep(
     let sba_events = sba::check_and_apply_sbas(state);
     events.extend(sba_events);
     // Grant priority to the active player.
-    state.turn.players_passed = im::OrdSet::new();
+    state.turn.players_passed = imbl::OrdSet::new();
     let active = state.turn.active_player;
     state.turn.priority_holder = Some(active);
     Ok(events)
@@ -1039,7 +1039,7 @@ fn handle_pay_recover(
     let sba_events = sba::check_and_apply_sbas(state);
     events.extend(sba_events);
     // Grant priority to the active player.
-    state.turn.players_passed = im::OrdSet::new();
+    state.turn.players_passed = imbl::OrdSet::new();
     let active = state.turn.active_player;
     state.turn.priority_holder = Some(active);
     Ok(events)
@@ -1371,7 +1371,7 @@ fn handle_activate_craft(
     let sba_events = sba::check_and_apply_sbas(state);
     events.extend(sba_events);
     // Grant priority to the active player after craft.
-    state.turn.players_passed = im::OrdSet::new();
+    state.turn.players_passed = imbl::OrdSet::new();
     let active = state.turn.active_player;
     state.turn.priority_holder = Some(active);
     Ok(events)
@@ -1716,7 +1716,7 @@ fn enter_step(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
                 // Active player lost (e.g., drew from empty library).
                 // Find next player in APNAP order.
                 if let Some(next) = priority::next_priority_player(state, active) {
-                    state.turn.players_passed = im::OrdSet::new();
+                    state.turn.players_passed = imbl::OrdSet::new();
                     state.turn.priority_holder = Some(next);
                     events.push(GameEvent::PriorityGiven { player: next });
                 } else {
@@ -1764,7 +1764,7 @@ fn handle_concede(
     // otherwise persist forever.
     {
         use crate::state::continuous_effect::EffectDuration;
-        let keep: im::Vector<_> = state
+        let keep: imbl::Vector<_> = state
             .continuous_effects
             .iter()
             .filter(|e| e.duration != EffectDuration::UntilYourNextTurn(player))
@@ -1985,7 +1985,7 @@ pub fn ring_ability_stack_object(
         triggering_creature_id: None,
         cast_from_top_with_bonus: false,
         sacrificed_creature_powers: vec![],
-        lki_counters: im::OrdMap::new(),
+        lki_counters: imbl::OrdMap::new(),
         lki_power: None,
     }
 }
@@ -2048,7 +2048,7 @@ fn room_ability_stack_object(
         triggering_creature_id: None,
         cast_from_top_with_bonus: false,
         sacrificed_creature_powers: vec![],
-        lki_counters: im::OrdMap::new(),
+        lki_counters: imbl::OrdMap::new(),
         lki_power: None,
     }
 }
@@ -2454,12 +2454,12 @@ fn handle_activate_loyalty_ability(
         triggering_creature_id: None,
         cast_from_top_with_bonus: false,
         sacrificed_creature_powers: vec![],
-        lki_counters: im::OrdMap::new(),
+        lki_counters: imbl::OrdMap::new(),
         lki_power: None,
     };
     state.stack_objects.push_back(stack_obj);
     // Reset priority since a new object is on the stack.
-    state.turn.players_passed = im::OrdSet::new();
+    state.turn.players_passed = imbl::OrdSet::new();
     events.push(GameEvent::AbilityActivated {
         player,
         source_object_id: source,
@@ -2608,7 +2608,7 @@ fn handle_level_up_class(
         triggering_creature_id: None,
         cast_from_top_with_bonus: false,
         sacrificed_creature_powers: vec![],
-        lki_counters: im::OrdMap::new(),
+        lki_counters: imbl::OrdMap::new(),
         lki_power: None,
     };
     state.stack_objects.push_back(stack_obj);
@@ -2618,6 +2618,6 @@ fn handle_level_up_class(
         stack_object_id: stack_id,
     });
     // Reset priority since this is a game action.
-    state.turn.players_passed = im::OrdSet::new();
+    state.turn.players_passed = imbl::OrdSet::new();
     Ok(events)
 }

@@ -14,7 +14,7 @@ use crate::state::{
     CardId, CardType, ChampionFilter, Color, CounterType, CumulativeUpkeepCost, KeywordAbility,
     ManaColor, ManaCost, ManaPool, ProtectionQuality, SubType, SuperType,
 };
-use im::OrdSet;
+use imbl::OrdSet;
 use serde::{Deserialize, Serialize};
 // ── Card Definition ───────────────────────────────────────────────────────────
 /// The back face of a double-faced card (CR 712).

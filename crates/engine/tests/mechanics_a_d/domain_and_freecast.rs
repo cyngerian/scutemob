@@ -381,7 +381,7 @@ fn test_domain_count_dual_land() {
 
     // Register a Layer 4 continuous effect that adds all 5 basic land subtypes to "Exotic Land".
     // This simulates Dryad of the Ilysian Grove ("lands you control are every basic land type").
-    let all_basic_subtypes: im::OrdSet<SubType> = [
+    let all_basic_subtypes: imbl::OrdSet<SubType> = [
         SubType("Plains".to_string()),
         SubType("Island".to_string()),
         SubType("Swamp".to_string()),

@@ -2,7 +2,7 @@
 use super::dungeon::DungeonId;
 use super::types::{ManaColor, ProtectionQuality, SubType};
 use crate::cards::card_definition::ManaRestriction;
-use im::{OrdMap, OrdSet, Vector};
+use imbl::{OrdMap, OrdSet, Vector};
 use serde::{Deserialize, Serialize};
 /// Identifies a player in the game. Unique within a game instance.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]

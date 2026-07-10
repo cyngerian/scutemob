@@ -19,7 +19,7 @@ use crate::state::{
     zone::ZoneId,
     GameState,
 };
-use im::OrdSet;
+use imbl::OrdSet;
 use std::collections::VecDeque;
 /// Calculate the effective characteristics of an object after applying all active
 /// continuous effects through the layer system (CR 613).
@@ -125,7 +125,7 @@ pub fn calculate_characteristics(
                     // CR 204: color indicator overrides mana-cost-derived colors for back faces
                     // that have no mana cost (e.g., Insectile Aberration is blue via indicator).
                     if let Some(ref color_indicator) = back_face.color_indicator {
-                        chars.colors = color_indicator.iter().cloned().collect::<im::OrdSet<_>>();
+                        chars.colors = color_indicator.iter().cloned().collect::<imbl::OrdSet<_>>();
                     } else if let Some(ref mc) = back_face.mana_cost {
                         chars.colors = crate::rules::casting::colors_from_mana_cost(mc);
                     }
@@ -192,7 +192,7 @@ pub fn calculate_characteristics(
                             chars.toughness = melded_face.toughness;
                             if let Some(ref color_indicator) = melded_face.color_indicator {
                                 chars.colors =
-                                    color_indicator.iter().cloned().collect::<im::OrdSet<_>>();
+                                    color_indicator.iter().cloned().collect::<imbl::OrdSet<_>>();
                             } else if let Some(ref mc) = melded_face.mana_cost {
                                 chars.colors = crate::rules::casting::colors_from_mana_cost(mc);
                             }
@@ -229,7 +229,7 @@ pub fn calculate_characteristics(
         chars.toughness = Some(2);
         chars.triggered_abilities = vec![];
         chars.activated_abilities = vec![];
-        chars.mana_abilities = im::Vector::new();
+        chars.mana_abilities = imbl::Vector::new();
         // CR 702.168a / 701.58a: Disguise and Cloak grant ward {2} while face-down.
         if matches!(
             obj.face_down_as,
@@ -307,7 +307,7 @@ pub fn calculate_characteristics(
                     chars.card_types.remove(&CardType::Creature);
                     // CR 702.151b + ruling 2022-02-18: "It also loses any creature subtypes
                     // it had." Retain non-creature subtypes (Equipment, Fortification, etc.).
-                    // im::OrdSet has no retain; rebuild from filtered iterator.
+                    // imbl::OrdSet has no retain; rebuild from filtered iterator.
                     chars.subtypes = chars
                         .subtypes
                         .iter()
@@ -1172,10 +1172,10 @@ fn apply_layer_modification(
             // The continuous effect itself persists (CR 611.2d — effects from removed
             // abilities continue if they were already in effect).
             chars.keywords = OrdSet::new();
-            chars.mana_abilities = im::Vector::new();
+            chars.mana_abilities = imbl::Vector::new();
             chars.activated_abilities = Vec::new();
             chars.triggered_abilities = Vec::new();
-            chars.abilities = im::Vector::new();
+            chars.abilities = imbl::Vector::new();
         }
         LayerModification::RemoveKeyword(kw) => {
             chars.keywords.remove(kw);
@@ -1524,7 +1524,7 @@ fn depends_on(a: &ContinuousEffect, b: &ContinuousEffect) -> bool {
 pub fn expire_end_of_turn_effects(state: &mut GameState) {
     use crate::state::replacement_effect::ReplacementId;
     // Expire UntilEndOfTurn continuous effects (CR 514.2).
-    let keep: im::Vector<ContinuousEffect> = state
+    let keep: imbl::Vector<ContinuousEffect> = state
         .continuous_effects
         .iter()
         .filter(|e| e.duration != EffectDuration::UntilEndOfTurn)
@@ -1540,7 +1540,7 @@ pub fn expire_end_of_turn_effects(state: &mut GameState) {
         .map(|e| e.id)
         .collect();
     if !expired_ids.is_empty() {
-        let keep_replacements: im::Vector<_> = state
+        let keep_replacements: imbl::Vector<_> = state
             .replacement_effects
             .iter()
             .filter(|e| e.duration != EffectDuration::UntilEndOfTurn)
@@ -1553,7 +1553,7 @@ pub fn expire_end_of_turn_effects(state: &mut GameState) {
         }
     }
     // PB-I: Expire UntilEndOfTurn flash grants (CR 514.2).
-    let keep_grants: im::Vector<crate::state::stubs::FlashGrant> = state
+    let keep_grants: imbl::Vector<crate::state::stubs::FlashGrant> = state
         .flash_grants
         .iter()
         .filter(|g| g.duration != EffectDuration::UntilEndOfTurn)
@@ -1571,7 +1571,7 @@ pub fn expire_end_of_turn_effects(state: &mut GameState) {
 /// on all objects controlled by the active player (CR 602.5b once-per-turn enforcement).
 pub fn expire_until_next_turn_effects(state: &mut GameState, active_player: PlayerId) {
     // Expire UntilYourNextTurn continuous effects for this player.
-    let keep: im::Vector<ContinuousEffect> = state
+    let keep: imbl::Vector<ContinuousEffect> = state
         .continuous_effects
         .iter()
         .filter(|e| e.duration != EffectDuration::UntilYourNextTurn(active_player))
@@ -1581,7 +1581,7 @@ pub fn expire_until_next_turn_effects(state: &mut GameState, active_player: Play
     // Expire UntilYourNextTurn replacement effects for this player (CR 611.2b).
     // This fixes the gap where dynamically-registered replacement effects (e.g.
     // Lightning's Stagger) would persist forever without this cleanup.
-    let keep_repl: im::Vector<crate::state::replacement_effect::ReplacementEffect> = state
+    let keep_repl: imbl::Vector<crate::state::replacement_effect::ReplacementEffect> = state
         .replacement_effects
         .iter()
         .filter(|e| e.duration != EffectDuration::UntilYourNextTurn(active_player))
@@ -1589,7 +1589,7 @@ pub fn expire_until_next_turn_effects(state: &mut GameState, active_player: Play
         .collect();
     state.replacement_effects = keep_repl;
     // PB-I: Expire UntilYourNextTurn flash grants for this player (CR 611.2b).
-    let keep_grants: im::Vector<crate::state::stubs::FlashGrant> = state
+    let keep_grants: imbl::Vector<crate::state::stubs::FlashGrant> = state
         .flash_grants
         .iter()
         .filter(|g| g.duration != EffectDuration::UntilYourNextTurn(active_player))
@@ -1633,7 +1633,7 @@ pub fn expire_until_next_turn_effects(state: &mut GameState, active_player: Play
         .collect();
     for id in trigger_reset_ids {
         if let Some(obj) = state.objects.get_mut(&id) {
-            obj.triggered_abilities_fired_this_turn = im::OrdSet::new();
+            obj.triggered_abilities_fired_this_turn = imbl::OrdSet::new();
         }
     }
 }

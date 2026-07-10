@@ -29,7 +29,7 @@ pub use builder::{
     register_commander_zone_replacements, GameStateBuilder, ObjectSpec, PlayerBuilder,
 };
 pub use error::GameStateError;
-use im::{OrdMap, Vector};
+use imbl::{OrdMap, Vector};
 pub use mtg_card_types::state::dungeon::get_dungeon;
 pub use mtg_card_types::state::{
     AbilityInstance, ActivatedAbility, ActivationCost, ActiveRestriction, AdditionalCost,
@@ -145,7 +145,7 @@ pub struct GameState {
     /// Prevention shield counters: remaining capacity for `PreventDamage(n)` effects (CR 615.7).
     /// Keyed by ReplacementId. When a counter reaches 0 the corresponding ReplacementEffect
     /// is removed from `replacement_effects`. `PreventAllDamage` effects need no counter.
-    pub(crate) prevention_counters: im::OrdMap<ReplacementId, u32>,
+    pub(crate) prevention_counters: imbl::OrdMap<ReplacementId, u32>,
     /// Triggered abilities waiting to be put on the stack.
     pub(crate) pending_triggers: Vector<PendingTrigger>,
     /// Active trigger-doubling effects (Panharmonicon-style, CR 603.2d).
@@ -209,7 +209,7 @@ pub struct GameState {
     ///
     /// Excluded from `public_state_hash` — this is metadata, not game state.
     /// See `rules/loop_detection.rs` for the detection algorithm.
-    pub(crate) loop_detection_hashes: im::OrdMap<u64, u32>,
+    pub(crate) loop_detection_hashes: imbl::OrdMap<u64, u32>,
     /// Append-only event log for triggers that look back at history.
     pub(crate) history: Vector<GameEvent>,
     /// CR 702.69a: Global count of permanents put into a graveyard from the battlefield
@@ -233,7 +233,7 @@ pub struct GameState {
     /// Only one echo payment can be pending at a time (triggers resolve one at a time
     /// from the stack), but using `Vector` is consistent with other pending-choice patterns.
     #[serde(default)]
-    pub(crate) pending_echo_payments: im::Vector<(PlayerId, ObjectId, ManaCost)>,
+    pub(crate) pending_echo_payments: imbl::Vector<(PlayerId, ObjectId, ManaCost)>,
     /// CR 702.24a: Pending cumulative upkeep payment choices.
     ///
     /// When a KeywordTrigger (CumulativeUpkeep) resolves (after adding the age counter), the
@@ -241,7 +241,7 @@ pub struct GameState {
     /// `Command::PayCumulativeUpkeep` is received for each entry.
     /// Each entry is `(player, permanent_id, per_counter_cost)`.
     #[serde(default)]
-    pub(crate) pending_cumulative_upkeep_payments: im::Vector<(
+    pub(crate) pending_cumulative_upkeep_payments: imbl::Vector<(
         PlayerId,
         ObjectId,
         crate::state::types::CumulativeUpkeepCost,
@@ -253,14 +253,14 @@ pub struct GameState {
     /// `Command::PayRecover` is received for each entry.
     /// Each entry is `(player, recover_card_id, recover_cost)`.
     #[serde(default)]
-    pub(crate) pending_recover_payments: im::Vector<(PlayerId, ObjectId, ManaCost)>,
+    pub(crate) pending_recover_payments: imbl::Vector<(PlayerId, ObjectId, ManaCost)>,
     /// CR 702.57b: Cards that have activated their forecast ability this turn.
     ///
     /// Keyed by CardId (not ObjectId) since the card stays in hand and retains
     /// its identity. Reset at the start of each turn in `reset_turn_state`.
     /// Each forecast ability can be activated at most once per turn (CR 702.57b).
     #[serde(default)]
-    pub(crate) forecast_used_this_turn: im::OrdSet<crate::state::player::CardId>,
+    pub(crate) forecast_used_this_turn: imbl::OrdSet<crate::state::player::CardId>,
     /// CR 730.1: Current day/night designation of the game.
     ///
     /// `None` = neither day nor night (game start, default).
@@ -319,7 +319,7 @@ pub struct GameState {
     /// Cleaned up when the source permanent leaves the battlefield.
     #[serde(default)]
     pub(crate) additional_land_play_sources:
-        im::Vector<crate::state::stubs::AdditionalLandPlaySource>,
+        imbl::Vector<crate::state::stubs::AdditionalLandPlaySource>,
     /// CR 615.1: When true, all combat damage is prevented for the rest of the turn.
     ///
     /// Set by Effect::PreventAllCombatDamage. Reset in `reset_turn_state` at turn start.
@@ -330,13 +330,13 @@ pub struct GameState {
     /// Set by Effect::PreventCombatDamageFromOrTo with `prevent_from: true`.
     /// Reset in `reset_turn_state` at turn start.
     #[serde(default)]
-    pub(crate) combat_damage_prevented_from: im::OrdSet<ObjectId>,
+    pub(crate) combat_damage_prevented_from: imbl::OrdSet<ObjectId>,
     /// CR 615: Objects whose combat damage INPUT is prevented this turn.
     ///
     /// Set by Effect::PreventCombatDamageFromOrTo with `prevent_to: true`.
     /// Reset in `reset_turn_state` at turn start.
     #[serde(default)]
-    pub(crate) combat_damage_prevented_to: im::OrdSet<ObjectId>,
+    pub(crate) combat_damage_prevented_to: imbl::OrdSet<ObjectId>,
     /// Card definitions registry: maps CardId → CardDefinition.
     ///
     /// Static data, never changes during a game. Held as `Arc` so state clones
@@ -402,7 +402,7 @@ impl GameState {
     }
 
     /// Read-only access to the `prevention_counters` field.
-    pub fn prevention_counters(&self) -> &im::OrdMap<ReplacementId, u32> {
+    pub fn prevention_counters(&self) -> &imbl::OrdMap<ReplacementId, u32> {
         &self.prevention_counters
     }
 
@@ -452,7 +452,7 @@ impl GameState {
     }
 
     /// Read-only access to the `loop_detection_hashes` field.
-    pub fn loop_detection_hashes(&self) -> &im::OrdMap<u64, u32> {
+    pub fn loop_detection_hashes(&self) -> &imbl::OrdMap<u64, u32> {
         &self.loop_detection_hashes
     }
 
@@ -462,24 +462,24 @@ impl GameState {
     }
 
     /// Read-only access to the `pending_echo_payments` field.
-    pub fn pending_echo_payments(&self) -> &im::Vector<(PlayerId, ObjectId, ManaCost)> {
+    pub fn pending_echo_payments(&self) -> &imbl::Vector<(PlayerId, ObjectId, ManaCost)> {
         &self.pending_echo_payments
     }
 
     /// Read-only access to the `pending_cumulative_upkeep_payments` field.
     pub fn pending_cumulative_upkeep_payments(
         &self,
-    ) -> &im::Vector<(PlayerId, ObjectId, CumulativeUpkeepCost)> {
+    ) -> &imbl::Vector<(PlayerId, ObjectId, CumulativeUpkeepCost)> {
         &self.pending_cumulative_upkeep_payments
     }
 
     /// Read-only access to the `pending_recover_payments` field.
-    pub fn pending_recover_payments(&self) -> &im::Vector<(PlayerId, ObjectId, ManaCost)> {
+    pub fn pending_recover_payments(&self) -> &imbl::Vector<(PlayerId, ObjectId, ManaCost)> {
         &self.pending_recover_payments
     }
 
     /// Read-only access to the `forecast_used_this_turn` field.
-    pub fn forecast_used_this_turn(&self) -> &im::OrdSet<CardId> {
+    pub fn forecast_used_this_turn(&self) -> &imbl::OrdSet<CardId> {
         &self.forecast_used_this_turn
     }
 
@@ -489,17 +489,17 @@ impl GameState {
     }
 
     /// Read-only access to the `additional_land_play_sources` field.
-    pub fn additional_land_play_sources(&self) -> &im::Vector<AdditionalLandPlaySource> {
+    pub fn additional_land_play_sources(&self) -> &imbl::Vector<AdditionalLandPlaySource> {
         &self.additional_land_play_sources
     }
 
     /// Read-only access to the `combat_damage_prevented_from` field.
-    pub fn combat_damage_prevented_from(&self) -> &im::OrdSet<ObjectId> {
+    pub fn combat_damage_prevented_from(&self) -> &imbl::OrdSet<ObjectId> {
         &self.combat_damage_prevented_from
     }
 
     /// Read-only access to the `combat_damage_prevented_to` field.
-    pub fn combat_damage_prevented_to(&self) -> &im::OrdSet<ObjectId> {
+    pub fn combat_damage_prevented_to(&self) -> &imbl::OrdSet<ObjectId> {
         &self.combat_damage_prevented_to
     }
 
@@ -639,7 +639,7 @@ impl GameState {
     }
 
     /// Escape hatch: mutable access to `prevention_counters`. See [module docs](GameState#escape-hatches).
-    pub fn prevention_counters_mut(&mut self) -> &mut im::OrdMap<ReplacementId, u32> {
+    pub fn prevention_counters_mut(&mut self) -> &mut imbl::OrdMap<ReplacementId, u32> {
         &mut self.prevention_counters
     }
 
@@ -691,7 +691,7 @@ impl GameState {
     }
 
     /// Escape hatch: mutable access to `loop_detection_hashes`. See [module docs](GameState#escape-hatches).
-    pub fn loop_detection_hashes_mut(&mut self) -> &mut im::OrdMap<u64, u32> {
+    pub fn loop_detection_hashes_mut(&mut self) -> &mut imbl::OrdMap<u64, u32> {
         &mut self.loop_detection_hashes
     }
 
@@ -701,26 +701,26 @@ impl GameState {
     }
 
     /// Escape hatch: mutable access to `pending_echo_payments`. See [module docs](GameState#escape-hatches).
-    pub fn pending_echo_payments_mut(&mut self) -> &mut im::Vector<(PlayerId, ObjectId, ManaCost)> {
+    pub fn pending_echo_payments_mut(&mut self) -> &mut imbl::Vector<(PlayerId, ObjectId, ManaCost)> {
         &mut self.pending_echo_payments
     }
 
     /// Escape hatch: mutable access to `pending_cumulative_upkeep_payments`. See [module docs](GameState#escape-hatches).
     pub fn pending_cumulative_upkeep_payments_mut(
         &mut self,
-    ) -> &mut im::Vector<(PlayerId, ObjectId, CumulativeUpkeepCost)> {
+    ) -> &mut imbl::Vector<(PlayerId, ObjectId, CumulativeUpkeepCost)> {
         &mut self.pending_cumulative_upkeep_payments
     }
 
     /// Escape hatch: mutable access to `pending_recover_payments`. See [module docs](GameState#escape-hatches).
     pub fn pending_recover_payments_mut(
         &mut self,
-    ) -> &mut im::Vector<(PlayerId, ObjectId, ManaCost)> {
+    ) -> &mut imbl::Vector<(PlayerId, ObjectId, ManaCost)> {
         &mut self.pending_recover_payments
     }
 
     /// Escape hatch: mutable access to `forecast_used_this_turn`. See [module docs](GameState#escape-hatches).
-    pub fn forecast_used_this_turn_mut(&mut self) -> &mut im::OrdSet<CardId> {
+    pub fn forecast_used_this_turn_mut(&mut self) -> &mut imbl::OrdSet<CardId> {
         &mut self.forecast_used_this_turn
     }
 
@@ -732,17 +732,17 @@ impl GameState {
     /// Escape hatch: mutable access to `additional_land_play_sources`. See [module docs](GameState#escape-hatches).
     pub fn additional_land_play_sources_mut(
         &mut self,
-    ) -> &mut im::Vector<AdditionalLandPlaySource> {
+    ) -> &mut imbl::Vector<AdditionalLandPlaySource> {
         &mut self.additional_land_play_sources
     }
 
     /// Escape hatch: mutable access to `combat_damage_prevented_from`. See [module docs](GameState#escape-hatches).
-    pub fn combat_damage_prevented_from_mut(&mut self) -> &mut im::OrdSet<ObjectId> {
+    pub fn combat_damage_prevented_from_mut(&mut self) -> &mut imbl::OrdSet<ObjectId> {
         &mut self.combat_damage_prevented_from
     }
 
     /// Escape hatch: mutable access to `combat_damage_prevented_to`. See [module docs](GameState#escape-hatches).
-    pub fn combat_damage_prevented_to_mut(&mut self) -> &mut im::OrdSet<ObjectId> {
+    pub fn combat_damage_prevented_to_mut(&mut self) -> &mut imbl::OrdSet<ObjectId> {
         &mut self.combat_damage_prevented_to
     }
 
@@ -913,7 +913,7 @@ impl GameState {
         // Create new object with fresh ID (CR 400.7)
         let new_id = self.next_object_id();
         let mut new_object = GameObject {
-            triggered_abilities_fired_this_turn: im::OrdSet::new(),
+            triggered_abilities_fired_this_turn: imbl::OrdSet::new(),
             id: new_id,
             card_id: old_object.card_id.clone(),
             characteristics: old_object.characteristics.clone(),
@@ -941,7 +941,7 @@ impl GameState {
                 None
             },
             // CR 400.7: goad state is not preserved across zone changes.
-            goaded_by: im::Vector::new(),
+            goaded_by: imbl::Vector::new(),
             // CR 400.7: kicked status is not preserved across zone changes
             // (a permanent re-entering is not kicked).
             kicker_times_paid: 0,
@@ -1001,14 +1001,14 @@ impl GameState {
             // CR 702.99b / CR 400.7: encoded cipher cards are cleared on zone change.
             // The exiled cards remain in exile but are no longer encoded on anything.
             // CR 702.99c: encoding is broken when the creature leaves the battlefield.
-            encoded_cards: im::Vector::new(),
+            encoded_cards: imbl::Vector::new(),
             // CR 702.55b / CR 400.7: haunting relationship is cleared on zone change.
             // The exiled haunt card's haunting_target is set AFTER zone move, not inherited.
             haunting_target: None,
             // CR 729.2 / CR 400.7: merged_components are cleared on zone change.
             // When a merged permanent leaves the battlefield, components are split into
             // separate GameObjects (CR 729.3). Each new object starts with empty merged_components.
-            merged_components: im::Vector::new(),
+            merged_components: imbl::Vector::new(),
             // CR 712.8a / CR 400.7: DFC transform state is reset on zone change.
             // The front face is used in all non-battlefield zones (CR 712.8a).
             is_transformed: false,
@@ -1018,7 +1018,7 @@ impl GameState {
             was_cast: false,
             abilities_activated_this_turn: 0,
             // CR 702.167c / CR 400.7: craft exiled materials are cleared on zone change.
-            craft_exiled_cards: im::Vector::new(),
+            craft_exiled_cards: imbl::Vector::new(),
             // CR 708.2 / CR 400.7: face-down status is cleared on zone change.
             // A face-down permanent leaving the battlefield is revealed (CR 708.9),
             // and the new object in the destination zone is no longer face-down.
@@ -1055,7 +1055,7 @@ impl GameState {
                     new_object.characteristics.colors = if let Some(ref mc) = def.mana_cost {
                         crate::rules::casting::colors_from_mana_cost(mc)
                     } else {
-                        im::OrdSet::new()
+                        imbl::OrdSet::new()
                     };
                 }
             }
@@ -1104,7 +1104,7 @@ impl GameState {
                 let component_id = self.next_object_id();
                 self.timestamp_counter += 1;
                 let component_obj = GameObject {
-                    triggered_abilities_fired_this_turn: im::OrdSet::new(),
+                    triggered_abilities_fired_this_turn: imbl::OrdSet::new(),
                     id: component_id,
                     card_id: component.card_id,
                     characteristics: component.characteristics,
@@ -1126,7 +1126,7 @@ impl GameState {
                     } else {
                         None
                     },
-                    goaded_by: im::Vector::new(),
+                    goaded_by: imbl::Vector::new(),
                     kicker_times_paid: 0,
                     cast_alt_cost: None,
                     foretold_turn: 0,
@@ -1158,17 +1158,17 @@ impl GameState {
                     offspring_paid: false,
                     gift_was_given: false,
                     gift_opponent: None,
-                    encoded_cards: im::Vector::new(),
+                    encoded_cards: imbl::Vector::new(),
                     haunting_target: None,
                     // CR 729.3 / CR 400.7: Each split component starts with empty merged_components.
-                    merged_components: im::Vector::new(),
+                    merged_components: imbl::Vector::new(),
                     // CR 712.8a / CR 400.7: DFC transform state is reset on zone change.
                     is_transformed: false,
                     last_transform_timestamp: 0,
                     was_cast_disturbed: false,
                     was_cast: false,
                     abilities_activated_this_turn: 0,
-                    craft_exiled_cards: im::Vector::new(),
+                    craft_exiled_cards: imbl::Vector::new(),
                     // CR 708.2 / CR 400.7: face-down status is cleared on zone change.
                     chosen_creature_type: None,
                     chosen_color: None,
@@ -1208,7 +1208,7 @@ impl GameState {
                         let colors = if let Some(ref mc) = def.mana_cost {
                             crate::rules::casting::colors_from_mana_cost(mc)
                         } else {
-                            im::OrdSet::new()
+                            imbl::OrdSet::new()
                         };
                         Characteristics {
                             name: def.name.clone(),
@@ -1226,7 +1226,7 @@ impl GameState {
                     let component_id = self.next_object_id();
                     self.timestamp_counter += 1;
                     let component_obj = GameObject {
-                        triggered_abilities_fired_this_turn: im::OrdSet::new(),
+                        triggered_abilities_fired_this_turn: imbl::OrdSet::new(),
                         id: component_id,
                         card_id: Some(component_card_id.clone()),
                         characteristics: component_chars,
@@ -1248,7 +1248,7 @@ impl GameState {
                         } else {
                             None
                         },
-                        goaded_by: im::Vector::new(),
+                        goaded_by: imbl::Vector::new(),
                         kicker_times_paid: 0,
                         cast_alt_cost: None,
                         foretold_turn: 0,
@@ -1280,15 +1280,15 @@ impl GameState {
                         offspring_paid: false,
                         gift_was_given: false,
                         gift_opponent: None,
-                        encoded_cards: im::Vector::new(),
+                        encoded_cards: imbl::Vector::new(),
                         haunting_target: None,
-                        merged_components: im::Vector::new(),
+                        merged_components: imbl::Vector::new(),
                         is_transformed: false,
                         last_transform_timestamp: 0,
                         was_cast_disturbed: false,
                         was_cast: false,
                         abilities_activated_this_turn: 0,
-                        craft_exiled_cards: im::Vector::new(),
+                        craft_exiled_cards: imbl::Vector::new(),
                         chosen_creature_type: None,
                         chosen_color: None,
                         face_down_as: None,
@@ -1403,7 +1403,7 @@ impl GameState {
         // Create new object with fresh ID (CR 400.7).
         let new_id = self.next_object_id();
         let mut new_object = GameObject {
-            triggered_abilities_fired_this_turn: im::OrdSet::new(),
+            triggered_abilities_fired_this_turn: imbl::OrdSet::new(),
             id: new_id,
             card_id: old_object.card_id.clone(),
             characteristics: old_object.characteristics.clone(),
@@ -1425,7 +1425,7 @@ impl GameState {
             } else {
                 None
             },
-            goaded_by: im::Vector::new(),
+            goaded_by: imbl::Vector::new(),
             // CR 400.7: kicked status is not preserved across zone changes.
             kicker_times_paid: 0,
             // CR 400.7: alt-cost status (evoke/escape/dash) is not preserved across zone changes.
@@ -1484,14 +1484,14 @@ impl GameState {
             // CR 702.99b / CR 400.7: encoded cipher cards are cleared on zone change.
             // The exiled cards remain in exile but are no longer encoded on anything.
             // CR 702.99c: encoding is broken when the creature leaves the battlefield.
-            encoded_cards: im::Vector::new(),
+            encoded_cards: imbl::Vector::new(),
             // CR 702.55b / CR 400.7: haunting relationship is cleared on zone change.
             // The exiled haunt card's haunting_target is set AFTER zone move, not inherited.
             haunting_target: None,
             // CR 729.2 / CR 400.7: merged_components are cleared on zone change.
             // When a merged permanent leaves the battlefield, components are split into
             // separate GameObjects (CR 729.3). Each new object starts with empty merged_components.
-            merged_components: im::Vector::new(),
+            merged_components: imbl::Vector::new(),
             // CR 712.8a / CR 400.7: DFC transform state is reset on zone change.
             // The front face is used in all non-battlefield zones (CR 712.8a).
             is_transformed: false,
@@ -1501,7 +1501,7 @@ impl GameState {
             was_cast: false,
             abilities_activated_this_turn: 0,
             // CR 702.167c / CR 400.7: craft exiled materials are cleared on zone change.
-            craft_exiled_cards: im::Vector::new(),
+            craft_exiled_cards: imbl::Vector::new(),
             // CR 708.2 / CR 400.7: face-down status is cleared on zone change.
             chosen_creature_type: None,
             chosen_color: None,
@@ -1534,7 +1534,7 @@ impl GameState {
                     new_object.characteristics.colors = if let Some(ref mc) = def.mana_cost {
                         crate::rules::casting::colors_from_mana_cost(mc)
                     } else {
-                        im::OrdSet::new()
+                        imbl::OrdSet::new()
                     };
                 }
             }

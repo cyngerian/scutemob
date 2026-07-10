@@ -1798,9 +1798,9 @@ pub enum ChampionFilter {
 /// All creature subtypes from CR 205.3m.
 ///
 /// Used by Changeling (CR 702.73a) and "is every creature type" effects such as
-/// Maskwood Nexus. Lazily initialized on first use; `im::OrdSet` clones are O(1)
+/// Maskwood Nexus. Lazily initialized on first use; `imbl::OrdSet` clones are O(1)
 /// due to structural sharing.
-pub static ALL_CREATURE_TYPES: std::sync::LazyLock<im::OrdSet<SubType>> =
+pub static ALL_CREATURE_TYPES: std::sync::LazyLock<imbl::OrdSet<SubType>> =
     std::sync::LazyLock::new(|| {
         #[rustfmt::skip]
         let types: &[&str] = &[
@@ -1850,7 +1850,7 @@ pub static ALL_CREATURE_TYPES: std::sync::LazyLock<im::OrdSet<SubType>> =
         types.iter().map(|s| SubType(s.to_string())).collect()
     });
 /// All artifact subtypes from CR 205.3g. Correlated card type: `CardType::Artifact`.
-pub static ALL_ARTIFACT_TYPES: std::sync::LazyLock<im::OrdSet<SubType>> =
+pub static ALL_ARTIFACT_TYPES: std::sync::LazyLock<imbl::OrdSet<SubType>> =
     std::sync::LazyLock::new(|| {
         #[rustfmt::skip]
         let types: &[&str] = &[
@@ -1861,7 +1861,7 @@ pub static ALL_ARTIFACT_TYPES: std::sync::LazyLock<im::OrdSet<SubType>> =
         types.iter().map(|s| SubType(s.to_string())).collect()
     });
 /// All enchantment subtypes from CR 205.3h. Correlated card type: `CardType::Enchantment`.
-pub static ALL_ENCHANTMENT_TYPES: std::sync::LazyLock<im::OrdSet<SubType>> =
+pub static ALL_ENCHANTMENT_TYPES: std::sync::LazyLock<imbl::OrdSet<SubType>> =
     std::sync::LazyLock::new(|| {
         #[rustfmt::skip]
         let types: &[&str] = &[
@@ -1872,7 +1872,7 @@ pub static ALL_ENCHANTMENT_TYPES: std::sync::LazyLock<im::OrdSet<SubType>> =
     });
 /// All land subtypes (basic + nonbasic) from CR 205.3i. Correlated card type:
 /// `CardType::Land`.
-pub static ALL_LAND_TYPES: std::sync::LazyLock<im::OrdSet<SubType>> =
+pub static ALL_LAND_TYPES: std::sync::LazyLock<imbl::OrdSet<SubType>> =
     std::sync::LazyLock::new(|| {
         #[rustfmt::skip]
         let types: &[&str] = &[
@@ -1886,7 +1886,7 @@ pub static ALL_LAND_TYPES: std::sync::LazyLock<im::OrdSet<SubType>> =
 /// `CardType::Planeswalker`. (These are used for the legend rule / uniqueness,
 /// not gameplay type-checking, but are included for completeness of the CR
 /// 205.1a correlated-subtype-removal categories.)
-pub static ALL_PLANESWALKER_TYPES: std::sync::LazyLock<im::OrdSet<SubType>> =
+pub static ALL_PLANESWALKER_TYPES: std::sync::LazyLock<imbl::OrdSet<SubType>> =
     std::sync::LazyLock::new(|| {
         #[rustfmt::skip]
         let types: &[&str] = &[
@@ -1909,14 +1909,14 @@ pub static ALL_PLANESWALKER_TYPES: std::sync::LazyLock<im::OrdSet<SubType>> =
 /// BOTH `CardType::Instant` and `CardType::Sorcery` — CR 205.3k: spell
 /// subtypes are shared between the two card types (e.g. an instant AND a
 /// sorcery can each be "Arcane").
-pub static ALL_SPELL_TYPES: std::sync::LazyLock<im::OrdSet<SubType>> =
+pub static ALL_SPELL_TYPES: std::sync::LazyLock<imbl::OrdSet<SubType>> =
     std::sync::LazyLock::new(|| {
         #[rustfmt::skip]
         let types: &[&str] = &["Adventure", "Arcane", "Lesson", "Omen", "Trap"];
         types.iter().map(|s| SubType(s.to_string())).collect()
     });
 /// All battle subtypes from CR 205.3q. Correlated card type: `CardType::Battle`.
-pub static ALL_BATTLE_TYPES: std::sync::LazyLock<im::OrdSet<SubType>> =
+pub static ALL_BATTLE_TYPES: std::sync::LazyLock<imbl::OrdSet<SubType>> =
     std::sync::LazyLock::new(|| {
         #[rustfmt::skip]
         let types: &[&str] = &["Siege"];

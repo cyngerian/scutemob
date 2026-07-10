@@ -40,7 +40,7 @@ use crate::state::types::{
 };
 use crate::state::zone::{ZoneId, ZoneType};
 use crate::state::GameState;
-use im::OrdMap;
+use imbl::OrdMap;
 use std::collections::HashMap;
 // ── Module-level constants ───────────────────────────────────────────────────
 // MR-M4-10: Lazily-initialized SubType singletons used in hot SBA loops.
@@ -749,7 +749,7 @@ fn check_planeswalker_sbas(
                                 // Planeswalkers exiled via replacement — loyalty counters not
                                 // used by WhenLeavesBattlefield LKI (planeswalkers use Loyalty
                                 // counter type, not typically referenced by LBA triggers).
-                                pre_lba_counters: im::OrdMap::new(),
+                                pre_lba_counters: imbl::OrdMap::new(),
                                 // Planeswalkers have no power characteristic.
                                 pre_lba_power: None,
                             });
@@ -867,7 +867,7 @@ fn check_saga_sbas(state: &mut GameState) -> Vec<GameEvent> {
             object_id: saga_id,
             new_grave_id: new_id,
             // Saga sacrifice — no WhenLeavesBattlefield LKI counter trigger expected.
-            pre_lba_counters: im::OrdMap::new(),
+            pre_lba_counters: imbl::OrdMap::new(),
             // Sagas are not creatures; no power LKI needed.
             pre_lba_power: None,
         });
@@ -942,7 +942,7 @@ fn check_legendary_rule(state: &mut GameState) -> Vec<GameEvent> {
 ///
 /// Returns the first `Enchant(target)` keyword found, or `None` if the
 /// object has no Enchant keyword.
-pub(crate) fn get_enchant_target(keywords: &im::OrdSet<KeywordAbility>) -> Option<EnchantTarget> {
+pub(crate) fn get_enchant_target(keywords: &imbl::OrdSet<KeywordAbility>) -> Option<EnchantTarget> {
     keywords.iter().find_map(|kw| {
         if let KeywordAbility::Enchant(target) = kw {
             Some(target.clone())

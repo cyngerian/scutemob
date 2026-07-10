@@ -14,7 +14,7 @@
 //! - Lifelink applies to fight/bite damage.
 //! - Bite is one-sided: only the source deals damage; target does not deal damage back.
 
-use im::OrdSet;
+use imbl::OrdSet;
 use mtg_engine::state::test_util;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardEffectTarget, CardId, CardRegistry,

@@ -6,7 +6,7 @@
 //! stacking (multiple Rites), summoning sickness, Humility interaction, face-down
 //! inheritance, and card-integration smoke tests.
 
-use im::OrdMap;
+use imbl::OrdMap;
 use mtg_engine::state::{ActivatedAbility, ActivationCost};
 use mtg_engine::{
     calculate_characteristics, process_command, Command, ContinuousEffect, Effect, EffectAmount,
@@ -467,7 +467,7 @@ fn test_paradise_mantle_grants_only_equipped_creature() {
         .objects_mut()
         .get_mut(&equipped_id)
         .unwrap()
-        .attachments = im::vector![mantle_id];
+        .attachments = imbl::vector![mantle_id];
 
     // Register the grant effect sourced from the mantle.
     let grant = ContinuousEffect {

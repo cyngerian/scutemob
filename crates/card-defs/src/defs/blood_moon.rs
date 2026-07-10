@@ -17,7 +17,7 @@ pub fn card() -> CardDefinition {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::TypeChange,
                     modification: LayerModification::SetTypeLine {
-                        supertypes: im::OrdSet::new(),
+                        supertypes: imbl::OrdSet::new(),
                         card_types: [CardType::Land].into_iter().collect(),
                         subtypes: [SubType("Mountain".to_string())].into_iter().collect(),
                     },

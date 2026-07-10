@@ -634,7 +634,7 @@ fn test_cumulative_upkeep_multiple_instances_share_counters() {
     let registry = CardRegistry::new(vec![cu_mana_1_def()]);
 
     // Object with TWO instances of CumulativeUpkeep({1}).
-    // im::OrdSet deduplicates equal values -- use Mana({1}) and Mana({2})
+    // imbl::OrdSet deduplicates equal values -- use Mana({1}) and Mana({2})
     // to represent two distinct instances (per gotchas-infra.md).
     let obj_two_cu = ObjectSpec::card(p1, "Test CU Mana 1")
         .in_zone(ZoneId::Battlefield)

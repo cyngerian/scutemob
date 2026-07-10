@@ -367,7 +367,7 @@ pub struct PendingTrigger {
     /// `EffectAmount::CounterCountAtLastKnownInformation`.
     /// Empty for triggers that don't fire from a leaves-battlefield event.
     #[serde(default)]
-    pub lki_counters: im::OrdMap<crate::state::types::CounterType, u32>,
+    pub lki_counters: imbl::OrdMap<crate::state::types::CounterType, u32>,
     /// CR 603.10a / CR 113.7a: LKI source-power snapshot for WhenDies / WhenLeavesBattlefield triggers.
     /// Captured at trigger queueing time (abilities.rs CreatureDied/AuraFellOff/PermanentDestroyed/
     /// ObjectExiled/ObjectReturnedToHand arms) from the corresponding GameEvent's
@@ -417,7 +417,7 @@ impl PendingTrigger {
             combat_damage_amount: 0,
             data: None,
             embedded_effect: None,
-            lki_counters: im::OrdMap::new(),
+            lki_counters: imbl::OrdMap::new(),
             lki_power: None,
         }
     }

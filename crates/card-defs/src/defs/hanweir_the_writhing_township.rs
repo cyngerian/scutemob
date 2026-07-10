@@ -42,7 +42,7 @@ pub fn card() -> CardDefinition {
                             name: "Eldrazi Horror".to_string(),
                             power: 3,
                             toughness: 2,
-                            colors: im::OrdSet::new(), // colorless
+                            colors: imbl::OrdSet::new(), // colorless
                             card_types: [CardType::Creature].iter().copied().collect(),
                             subtypes: [
                                 SubType("Eldrazi".to_string()),

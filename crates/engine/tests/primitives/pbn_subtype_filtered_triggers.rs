@@ -88,7 +88,7 @@ fn attack_trigger_draw_subtype(subtype: &str) -> TriggeredAbilityDef {
 
 /// Build an attack trigger that draws a card, filtered by the given color.
 fn attack_trigger_draw_color(color: Color) -> TriggeredAbilityDef {
-    let mut color_set = im::OrdSet::new();
+    let mut color_set = imbl::OrdSet::new();
     color_set.insert(color);
     TriggeredAbilityDef {
         counter_filter: None,

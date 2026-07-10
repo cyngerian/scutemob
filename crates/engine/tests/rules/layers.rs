@@ -4,7 +4,7 @@
 //! Each test constructs a minimal game state, adds continuous effects directly,
 //! and then calls `calculate_characteristics` to verify the result.
 
-use im::{ordset, OrdSet};
+use imbl::{ordset, OrdSet};
 use mtg_engine::state::test_util;
 use mtg_engine::{
     calculate_characteristics, CardType, ContinuousEffect, EffectDuration, EffectFilter, EffectId,

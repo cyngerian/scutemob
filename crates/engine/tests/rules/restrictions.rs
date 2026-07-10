@@ -34,7 +34,7 @@ fn instant_def(name: &str, card_id: &str) -> CardDefinition {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Instant],
+            card_types: imbl::ordset![CardType::Instant],
             ..Default::default()
         },
         abilities: vec![AbilityDefinition::Spell {
@@ -955,7 +955,7 @@ fn test_restriction_stony_silence_does_not_block_hand_zone_ability() {
             ..ManaCost::default()
         }),
         types: TypeLine {
-            card_types: im::ordset![CardType::Artifact],
+            card_types: imbl::ordset![CardType::Artifact],
             ..Default::default()
         },
         abilities: vec![AbilityDefinition::Keyword(

@@ -9,7 +9,7 @@ use crate::state::replacement_effect::ReplacementId;
 use crate::state::turn::{Phase, Step};
 use crate::state::types::{CounterType, ManaColor};
 use crate::state::zone::{ZoneId, ZoneType};
-use im::OrdMap;
+use imbl::OrdMap;
 use serde::{Deserialize, Serialize};
 /// The target of a combat damage assignment: a creature, player, or planeswalker.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

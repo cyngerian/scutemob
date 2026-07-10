@@ -7,7 +7,7 @@ use super::game_object::ObjectId;
 use super::player::PlayerId;
 use super::types::{CardType, Color, KeywordAbility, SubType, SuperType};
 use crate::cards::card_definition::EffectAmount;
-use im::OrdSet;
+use imbl::OrdSet;
 use serde::{Deserialize, Serialize};
 /// Unique identifier for a continuous effect instance.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]

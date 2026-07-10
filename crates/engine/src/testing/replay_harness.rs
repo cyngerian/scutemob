@@ -11,7 +11,7 @@ use crate::{
     KeywordAbility, ManaAbility, ManaColor, ObjectSpec, PlayerId, Step, TargetController,
     TargetFilter, TimingRestriction, TriggerCondition, TriggerEvent, TriggeredAbilityDef, ZoneId,
 };
-use im::OrdMap;
+use imbl::OrdMap;
 /// Replay harness helpers — extracted from `crates/engine/tests/script_replay.rs`
 /// so that external tools (e.g. `tools/replay-viewer`) can reuse the same
 /// `build_initial_state` logic without code duplication.
@@ -3585,7 +3585,7 @@ fn try_as_tap_mana_ability(effect: &Effect) -> Option<ManaAbility> {
     // Any color: {T}: Add one mana of any color
     if matches!(effect, Effect::AddManaAnyColor { .. }) {
         return Some(ManaAbility {
-            produces: im::OrdMap::new(),
+            produces: imbl::OrdMap::new(),
             requires_tap: true,
             sacrifice_self: false,
             any_color: true,
@@ -3598,7 +3598,7 @@ fn try_as_tap_mana_ability(effect: &Effect) -> Option<ManaAbility> {
         color_a, color_b, ..
     } = effect
     {
-        let mut produces = im::OrdMap::new();
+        let mut produces = imbl::OrdMap::new();
         produces.insert(*color_a, 1u32);
         *produces.entry(*color_b).or_insert(0) += 1;
         return Some(ManaAbility {
@@ -3612,7 +3612,7 @@ fn try_as_tap_mana_ability(effect: &Effect) -> Option<ManaAbility> {
     // Scaled mana: {T}: AddManaScaled { color, count }
     // Registers with produces={color: 1} as a marker; actual production is dynamic.
     if let Effect::AddManaScaled { color, .. } = effect {
-        let mut p = im::OrdMap::new();
+        let mut p = imbl::OrdMap::new();
         p.insert(*color, 1u32);
         return Some(ManaAbility {
             produces: p,

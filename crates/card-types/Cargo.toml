@@ -5,7 +5,7 @@ edition.workspace = true
 
 [dependencies]
 bitflags = { version = "2", features = ["serde"] }
-im = { version = "15", features = ["serde"] }
+imbl = { version = "7", features = ["serde"] }
 rand = "0.9"
 serde = { version = "1", features = ["derive"] }
 

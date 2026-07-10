@@ -119,7 +119,7 @@ fn modal_strike_def() -> CardDefinition {
         card_id: CardId("test-modal-strike".to_string()),
         mana_cost: None,
         types: TypeLine {
-            card_types: im::ordset![CardType::Instant],
+            card_types: imbl::ordset![CardType::Instant],
             ..Default::default()
         },
         oracle_text: "Choose one or more —\n\
@@ -179,7 +179,7 @@ fn duplicate_destroy_def() -> CardDefinition {
         card_id: CardId("test-duplicate-destroy".to_string()),
         mana_cost: None,
         types: TypeLine {
-            card_types: im::ordset![CardType::Instant],
+            card_types: imbl::ordset![CardType::Instant],
             ..Default::default()
         },
         oracle_text: "Choose one or both. You may choose the same mode more than once —\n\
@@ -213,7 +213,7 @@ fn legacy_modal_def() -> CardDefinition {
         card_id: CardId("test-legacy-modal".to_string()),
         mana_cost: None,
         types: TypeLine {
-            card_types: im::ordset![CardType::Instant],
+            card_types: imbl::ordset![CardType::Instant],
             ..Default::default()
         },
         oracle_text: "Choose one —\n• Gain 3 life.\n• Draw a card.".to_string(),
@@ -251,7 +251,7 @@ fn mandatory_destroy_creature_def() -> CardDefinition {
         card_id: CardId("test-mandatory-destroy-creature".to_string()),
         mana_cost: None,
         types: TypeLine {
-            card_types: im::ordset![CardType::Instant],
+            card_types: imbl::ordset![CardType::Instant],
             ..Default::default()
         },
         oracle_text: "Destroy target creature.".to_string(),
@@ -279,7 +279,7 @@ fn escalate_modal_strike_def() -> CardDefinition {
         card_id: CardId("test-escalate-modal-strike".to_string()),
         mana_cost: None,
         types: TypeLine {
-            card_types: im::ordset![CardType::Instant],
+            card_types: imbl::ordset![CardType::Instant],
             ..Default::default()
         },
         oracle_text: "Choose one or more —\n\

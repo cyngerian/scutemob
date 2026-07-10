@@ -247,7 +247,7 @@ fn test_token_enters_attacking_events_emitted() {
             name: "Token".to_string(),
             power: 1,
             toughness: 1,
-            colors: im::OrdSet::new(),
+            colors: imbl::OrdSet::new(),
             card_types: [CardType::Creature].iter().copied().collect(),
             count: EffectAmount::Fixed(1),
             tapped: true,

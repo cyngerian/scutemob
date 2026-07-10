@@ -32,7 +32,7 @@ use crate::state::types::AltCostKind;
 use crate::state::types::{CardType, ChampionFilter, CounterType, KeywordAbility};
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
-use im::OrdSet;
+use imbl::OrdSet;
 // ---------------------------------------------------------------------------
 // Restriction checks (PB-18)
 // ---------------------------------------------------------------------------
@@ -703,7 +703,7 @@ pub fn handle_activate_ability(
                     .or(o.characteristics.power);
                 (o.controller, o.counters.clone(), lki_power)
             })
-            .unwrap_or((state.turn.active_player, im::OrdMap::new(), None));
+            .unwrap_or((state.turn.active_player, imbl::OrdMap::new(), None));
         let (new_exile_id, _) = state.move_object_to_zone(source, ZoneId::Exile)?;
         events.push(crate::rules::events::GameEvent::ObjectExiled {
             player: pre_exile_controller,
@@ -935,7 +935,7 @@ pub fn handle_activate_ability(
                 .objects
                 .get(&food_id)
                 .map(|o| (o.owner, o.counters.clone()))
-                .unwrap_or_else(|| (player, im::OrdMap::new()));
+                .unwrap_or_else(|| (player, imbl::OrdMap::new()));
             // Food tokens are not creatures; no power LKI needed.
             let (new_grave_id, _) = state.move_object_to_zone(food_id, ZoneId::Graveyard(owner))?;
             events.push(GameEvent::PermanentDestroyed {
@@ -956,7 +956,7 @@ pub fn handle_activate_ability(
                     object_id: id,
                     new_exile_id,
                     // From graveyard — no LBA trigger LKI needed.
-                    pre_lba_counters: im::OrdMap::new(),
+                    pre_lba_counters: imbl::OrdMap::new(),
                     // From graveyard — no battlefield power to snapshot.
                     pre_lba_power: None,
                 });
@@ -2023,7 +2023,7 @@ pub fn handle_ninjutsu(
                     .or(o.characteristics.power);
             (o.owner, o.counters.clone(), lki_power)
         })
-        .unwrap_or((state.turn.active_player, im::OrdMap::new(), None));
+        .unwrap_or((state.turn.active_player, imbl::OrdMap::new(), None));
     let (new_hand_id, _old) =
         state.move_object_to_zone(attacker_to_return, ZoneId::Hand(attacker_owner))?;
     // Remove attacker from combat.attackers: move_object_to_zone doesn't touch
@@ -2202,7 +2202,7 @@ pub fn handle_embalm_card(
         player,
         object_id: card,
         new_exile_id: exile_id,
-        pre_lba_counters: im::OrdMap::new(), // graveyard→exile: no battlefield counters
+        pre_lba_counters: imbl::OrdMap::new(), // graveyard→exile: no battlefield counters
         pre_lba_power: None,                 // graveyard→exile: no battlefield power to snapshot
     });
     // 10. Push the embalm ability onto the stack as EmbalmAbility.
@@ -2375,7 +2375,7 @@ pub fn handle_eternalize_card(
         player,
         object_id: card,
         new_exile_id: exile_id,
-        pre_lba_counters: im::OrdMap::new(), // graveyard→exile: no battlefield counters
+        pre_lba_counters: imbl::OrdMap::new(), // graveyard→exile: no battlefield counters
         pre_lba_power: None,                 // graveyard→exile: no battlefield power to snapshot
     });
     // 10. Push the eternalize ability onto the stack as EternalizeAbility.
@@ -2551,7 +2551,7 @@ pub fn handle_encore_card(
         player,
         object_id: card,
         new_exile_id: exile_id,
-        pre_lba_counters: im::OrdMap::new(), // graveyard→exile: no battlefield counters
+        pre_lba_counters: imbl::OrdMap::new(), // graveyard→exile: no battlefield counters
         pre_lba_power: None,                 // graveyard→exile: no battlefield power to snapshot
     });
     // 10. Push the encore ability onto the stack as EncoreAbility.
@@ -5699,7 +5699,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         .get(new_id)
                         .map(|o| o.characteristics.card_types.iter().cloned().collect())
                         .unwrap_or_default();
-                    let sacrificed_subtypes: im::OrdSet<crate::state::types::SubType> = state
+                    let sacrificed_subtypes: imbl::OrdSet<crate::state::types::SubType> = state
                         .objects
                         .get(new_id)
                         .map(|o| o.characteristics.subtypes.clone())
@@ -6510,7 +6510,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
     });
     // Drain all pending triggers.
     let pending: Vec<PendingTrigger> = state.pending_triggers.iter().cloned().collect();
-    state.pending_triggers = im::Vector::new();
+    state.pending_triggers = imbl::Vector::new();
     // Build APNAP order starting from the active player.
     let apnap = apnap_order(state);
     // Stable-sort by controller position in APNAP order.
@@ -8175,7 +8175,7 @@ pub fn handle_crew_vehicle(
     // Build the embedded effect: AddCardTypes({Creature}) in Layer 4, on the source.
     let effect_def = ContinuousEffectDef {
         layer: EffectLayer::TypeChange,
-        modification: LayerModification::AddCardTypes(im::OrdSet::from(vec![CardType::Creature])),
+        modification: LayerModification::AddCardTypes(imbl::OrdSet::from(vec![CardType::Creature])),
         filter: EffectFilter::Source, // resolved to SingleObject(vehicle) at execution
         duration: EffectDuration::UntilEndOfTurn,
         condition: None,
@@ -8424,7 +8424,7 @@ pub fn check_intervening_if(
     state: &GameState,
     cond: &InterveningIf,
     controller: PlayerId,
-    pre_death_counters: Option<&im::OrdMap<crate::state::types::CounterType, u32>>,
+    pre_death_counters: Option<&imbl::OrdMap<crate::state::types::CounterType, u32>>,
 ) -> bool {
     match cond {
         InterveningIf::ControllerLifeAtLeast(n) => state
@@ -8587,7 +8587,7 @@ pub fn handle_scavenge_card(
         player,
         object_id: card,
         new_exile_id: exile_id,
-        pre_lba_counters: im::OrdMap::new(), // graveyard→exile: no battlefield counters
+        pre_lba_counters: imbl::OrdMap::new(), // graveyard→exile: no battlefield counters
         pre_lba_power: None,                 // graveyard→exile: no battlefield power to snapshot
     });
     // 11. Push the ScavengeAbility onto the stack with the target creature.
