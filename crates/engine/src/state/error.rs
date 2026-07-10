@@ -62,4 +62,19 @@ pub enum GameStateError {
     },
     #[error("player {0:?} has already declared blockers this combat phase")]
     AlreadyDeclaredBlockers(PlayerId),
+    /// Architecture Invariant 9: a game may not start with a card whose
+    /// `CardDefinition` is not `Complete`. An inert / partial / knowingly-wrong
+    /// def corrupts the replay history exactly as badly at game time as it does
+    /// at deck-build time, so `start_game` refuses it (the structural companion
+    /// to `validate_deck`'s `DeckViolation::IncompleteCard`).
+    #[error(
+        "{count} card(s) in the game are not Complete (Architecture Invariant 9); \
+         first: {first_name:?} [{first_kind}] — {first_note}"
+    )]
+    IncompleteCardsInGame {
+        count: usize,
+        first_name: String,
+        first_kind: &'static str,
+        first_note: String,
+    },
 }

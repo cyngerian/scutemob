@@ -28,11 +28,18 @@ pub struct DeckConfig {
 /// 3. Gather all cards that fit within that color identity
 /// 4. Fill to 99 cards, padding with matching basic lands
 pub fn random_deck(rng: &mut StdRng, cards: &[CardDefinition]) -> Option<DeckConfig> {
+    // Architecture Invariant 9 (SR-12): the fuzzer must only build games out of
+    // faithfully-implemented cards. A non-`Complete` def corrupts the replay
+    // history, and `start_game` now refuses any game that contains one — so a
+    // deck drawn here that included an inert / partial / knowingly-wrong card
+    // would simply abort at `run_game` with `IncompleteCardsInGame`. Filtering
+    // to `Complete` up front keeps the fuzzer exercising real play instead.
     // Find all legendary creatures (potential commanders)
     let commanders: Vec<&CardDefinition> = cards
         .iter()
         .filter(|c| {
-            c.types.supertypes.contains(&SuperType::Legendary)
+            c.completeness.is_complete()
+                && c.types.supertypes.contains(&SuperType::Legendary)
                 && c.types.card_types.contains(&CardType::Creature)
         })
         .collect();
@@ -50,6 +57,10 @@ pub fn random_deck(rng: &mut StdRng, cards: &[CardDefinition]) -> Option<DeckCon
         .iter()
         .filter(|c| {
             if c.card_id == commander.card_id {
+                return false;
+            }
+            // Architecture Invariant 9 (SR-12): only faithfully-implemented cards.
+            if !c.completeness.is_complete() {
                 return false;
             }
             // Check color identity fits within commander's identity

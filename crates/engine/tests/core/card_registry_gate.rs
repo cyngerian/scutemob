@@ -11,6 +11,10 @@
 use mtg_engine::all_cards;
 use mtg_engine::cards::{CardDefinition, CardRegistry, Completeness, RegistryError, TypeLine};
 use mtg_engine::state::{CardId, CardType};
+use mtg_engine::{
+    start_game, start_game_allowing_incomplete, GameState, GameStateBuilder, GameStateError,
+    ObjectSpec, PlayerId, ZoneId,
+};
 
 fn artifact(id: &str, name: &str) -> CardDefinition {
     CardDefinition {
@@ -170,4 +174,152 @@ fn test_completeness_default_is_complete() {
     assert_eq!(Completeness::known_wrong("x").kind(), "known-wrong");
     assert_eq!(Completeness::known_wrong("why").note(), "why");
     assert_eq!(Completeness::Complete.note(), "");
+}
+
+// ── start_game completeness gate (SR-12) ──────────────────────────────────────
+//
+// validate_deck rejects a non-Complete card, but only where a caller runs it —
+// GameStateBuilder, the simulator, and the fuzzer never do. start_game is the
+// choke point every game-assembly path shares, so the marker is made
+// unbypassable there. These tests prove the gate fires, that the opt-out admits
+// what it must, and that the gate's scope is exactly "known but non-Complete."
+
+/// Build a one-player state holding a single hand object that references a def
+/// with the given completeness. The def has printed rules text so that a
+/// non-Complete marker is semantically warranted.
+fn state_with_one_card(completeness: Completeness) -> GameState {
+    let mut def = artifact("test-card", "Test Card");
+    def.oracle_text = "Do a thing.".to_string();
+    def.completeness = completeness;
+    let registry = CardRegistry::new(vec![def]);
+    GameStateBuilder::new()
+        .add_player(PlayerId(1))
+        .object(
+            ObjectSpec::artifact(PlayerId(1), "Test Card")
+                .with_card_id(CardId("test-card".to_string()))
+                .in_zone(ZoneId::Hand(PlayerId(1))),
+        )
+        .with_registry(registry)
+        .build()
+        .expect("state builds")
+}
+
+#[test]
+/// An inert / partial / knowingly-wrong card in the game aborts start_game with
+/// `IncompleteCardsInGame`, reporting the class and note so the failure is
+/// actionable. This is the structural companion to `validate_deck`.
+fn start_game_rejects_incomplete_cards() {
+    for (completeness, expected_kind) in [
+        (Completeness::inert("no abilities"), "inert"),
+        (
+            Completeness::partial("second clause unimplemented"),
+            "partial",
+        ),
+        (
+            Completeness::known_wrong("deviates from oracle"),
+            "known-wrong",
+        ),
+    ] {
+        let expected_note = completeness.note().to_string();
+        let state = state_with_one_card(completeness);
+        let err = start_game(state).expect_err("non-Complete card must abort start_game");
+        match err {
+            GameStateError::IncompleteCardsInGame {
+                count,
+                first_name,
+                first_kind,
+                first_note,
+            } => {
+                assert_eq!(count, 1);
+                assert_eq!(first_name, "Test Card");
+                assert_eq!(first_kind, expected_kind);
+                assert_eq!(first_note, expected_note);
+            }
+            other => panic!("expected IncompleteCardsInGame, got {other:?}"),
+        }
+    }
+}
+
+#[test]
+/// The explicit opt-out admits exactly what the gate rejects. Without it there
+/// would be no way to stand up a game with a placeholder def on purpose — and a
+/// silent bypass is precisely what SR-12 exists to remove.
+fn start_game_allowing_incomplete_admits_incomplete_cards() {
+    let state = state_with_one_card(Completeness::partial("second clause unimplemented"));
+    start_game_allowing_incomplete(state)
+        .expect("the opt-out must start a game containing an incomplete card");
+}
+
+#[test]
+/// A Complete card passes the gate — the check does not reject faithful defs.
+fn start_game_accepts_complete_cards() {
+    let state = state_with_one_card(Completeness::Complete);
+    start_game(state).expect("a Complete card must start normally");
+}
+
+#[test]
+/// The gate counts every offender and still reports the first deterministically
+/// (imbl::OrdMap iterates in ObjectId order, so "first" is stable).
+fn start_game_counts_all_incomplete_cards() {
+    let inert = {
+        let mut d = artifact("card-a", "Card A");
+        d.oracle_text = "text".to_string();
+        d.completeness = Completeness::inert("blank");
+        d
+    };
+    let partial = {
+        let mut d = artifact("card-b", "Card B");
+        d.oracle_text = "text".to_string();
+        d.completeness = Completeness::partial("half");
+        d
+    };
+    let registry = CardRegistry::new(vec![inert, partial]);
+    let state = GameStateBuilder::new()
+        .add_player(PlayerId(1))
+        .object(
+            ObjectSpec::artifact(PlayerId(1), "Card A")
+                .with_card_id(CardId("card-a".to_string()))
+                .in_zone(ZoneId::Hand(PlayerId(1))),
+        )
+        .object(
+            ObjectSpec::artifact(PlayerId(1), "Card B")
+                .with_card_id(CardId("card-b".to_string()))
+                .in_zone(ZoneId::Hand(PlayerId(1))),
+        )
+        .with_registry(registry)
+        .build()
+        .expect("state builds");
+
+    match start_game(state).expect_err("two incomplete cards must abort") {
+        GameStateError::IncompleteCardsInGame { count, .. } => assert_eq!(count, 2),
+        other => panic!("expected IncompleteCardsInGame, got {other:?}"),
+    }
+}
+
+#[test]
+/// Scope guard: a `card_id` absent from the registry is NOT this gate's business
+/// (that is the UnknownCard axis; the object already carries synthesised
+/// characteristics), and a naked object with no `card_id` is not a card in the
+/// game at all. Neither trips the completeness gate — otherwise the hundreds of
+/// tests that place naked or empty-registry objects would break.
+fn start_game_ignores_unknown_and_naked_objects() {
+    // Empty registry, object names a card_id that resolves to nothing.
+    let unknown = GameStateBuilder::new()
+        .add_player(PlayerId(1))
+        .object(
+            ObjectSpec::artifact(PlayerId(1), "Ghost")
+                .with_card_id(CardId("not-in-registry".to_string()))
+                .in_zone(ZoneId::Hand(PlayerId(1))),
+        )
+        .build()
+        .expect("state builds");
+    start_game(unknown).expect("an unknown card_id is out of this gate's scope");
+
+    // Naked object with no card_id at all.
+    let naked = GameStateBuilder::new()
+        .add_player(PlayerId(1))
+        .object(ObjectSpec::creature(PlayerId(1), "Naked Bear", 2, 2))
+        .build()
+        .expect("state builds");
+    start_game(naked).expect("a naked object is not a card in the game");
 }

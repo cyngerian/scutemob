@@ -2227,8 +2227,75 @@ pub fn handle_ring_tempts_you(
     Ok(events)
 }
 /// Start the game: set up the first turn and enter the first step.
+///
 /// Call this after building the initial state to begin gameplay.
+///
+/// # Architecture Invariant 9 (SR-12)
+///
+/// This is the structural companion to `validate_deck`. The completeness marker
+/// gate (`DeckViolation::IncompleteCard`) only fires where a caller happens to
+/// run `validate_deck`; `GameStateBuilder`, the simulator, and the fuzzer all
+/// assemble games straight from `all_cards()` and never call it. So the *only*
+/// choke point every game-assembly path shares is `start_game`, and this is
+/// where the marker is made unbypassable: a game whose objects reference an
+/// inert / partial / knowingly-wrong `CardDefinition` is refused with
+/// `GameStateError::IncompleteCardsInGame` before the first turn begins.
+///
+/// A caller that genuinely wants an incomplete def in play (engine tests that
+/// deliberately exercise a placeholder, harness fixtures) must say so explicitly
+/// via [`start_game_allowing_incomplete`]. There is no silent bypass.
 pub fn start_game(state: GameState) -> Result<(GameState, Vec<GameEvent>), GameStateError> {
+    check_all_defs_complete(&state)?;
+    start_game_allowing_incomplete(state)
+}
+
+/// Architecture Invariant 9 pre-game check: every object that names a
+/// `CardDefinition` in the registry must reference a `Complete` one.
+///
+/// Scope is deliberately narrow — it fires *only* for a `card_id` that resolves
+/// to a **known** but non-`Complete` def. An object whose `card_id` is absent
+/// from the registry is out of scope here (that is the `UnknownCard` axis, and
+/// the object already carries synthesised characteristics); a naked test object
+/// with no `card_id` is not a "card in the game" at all. This keeps the gate
+/// precise: it catches exactly the marker-rot that `validate_deck` catches, at
+/// every assembly path, and nothing else.
+fn check_all_defs_complete(state: &GameState) -> Result<(), GameStateError> {
+    // Deterministic ordering: `state.objects` is an imbl::OrdMap, so iteration is
+    // in ObjectId order and the "first" offender reported is stable across runs.
+    let mut offenders = state.objects.values().filter_map(|obj| {
+        let cid = obj.card_id.as_ref()?;
+        let def = state.card_registry.get(cid.clone())?;
+        if def.completeness.is_complete() {
+            None
+        } else {
+            Some((
+                def.name.clone(),
+                def.completeness.kind(),
+                def.completeness.note().to_string(),
+            ))
+        }
+    });
+    if let Some((first_name, first_kind, first_note)) = offenders.next() {
+        let count = 1 + offenders.count();
+        return Err(GameStateError::IncompleteCardsInGame {
+            count,
+            first_name,
+            first_kind,
+            first_note,
+        });
+    }
+    Ok(())
+}
+
+/// Start the game **without** the Architecture Invariant 9 completeness check.
+///
+/// This is the explicit opt-out for [`start_game`]. Use it only when an
+/// incomplete `CardDefinition` in play is intentional — e.g. an engine test that
+/// exercises a placeholder def, or a harness fixture that predates the card's
+/// implementation. Production game assembly must go through [`start_game`].
+pub fn start_game_allowing_incomplete(
+    state: GameState,
+) -> Result<(GameState, Vec<GameEvent>), GameStateError> {
     let mut state = state;
     let mut events = Vec::new();
     // CR 113.6b: Place opening-hand permanents on the battlefield before game starts.
