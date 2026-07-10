@@ -51,7 +51,7 @@ Full evidence (file:line) is in each task's ESM description — run
 | 13 | scutemob-65 | SR-13: Damage-source characteristics must use LKI | M | Discovered during SR-4. Wither/infect "function no matter what zone" (CR 702.80c/702.90e) but the engine reads the source through a live lookup and treats a dead source as having neither. Real bug, not an assert. |
 | 14 | scutemob-66 | SR-14: Extend the SR-4 diagnostics vocabulary to the rest of `rules/` | M | **DONE 2026-07-10.** ~360 sites across the ten named `rules/` files classified impossible vs fizzle; two uncertain IMPOSSIBLE calls demoted to FIZZLE by the debug-assert suite. Record: `docs/sr-14-silent-failure-audit-rules.md`. |
 | 15 | scutemob-67 | SR-15: Catch-all audit for the *other* dispatch enums | M | Discovered during SR-5. The ~117 catch-alls SR-5 was sent to find are real but sit on `AbilityDefinition` (20), `ZoneId` (19), `ZoneChangeAction` (17), … — `AbilityDefinition` is a genuine dispatch table. Registry pattern from SR-5 transfers directly. |
-| 16 | scutemob-68 | SR-16: `PendingTrigger` serde round-trip drops `kind`/`data`/`embedded_effect` | S–M | Discovered during SR-7. Three `#[serde(skip)]` fields mean a serialized pending keyword trigger deserializes as an anonymous `Normal` trigger with no payload. Harmless today; load-bearing for M10 state sync and for rewind/replay. |
+| 16 | scutemob-68 | SR-16: `PendingTrigger` serde round-trip drops `kind`/`data`/`embedded_effect` | S–M | **DONE 2026-07-10.** Option (a): the three `#[serde(skip)]` fields are now serialized; `PendingTriggerKind` gained the derive. `HASH_SCHEMA_VERSION` 38 → 39 (serde shape change; hash stream unchanged). Round-trip gate `pending_trigger_serde_roundtrip`. `PROTOCOL_VERSION` untouched — `PendingTrigger` is inside `GameState`. **Closes the SR remediation track.** |
 
 Order is a recommendation, not a dependency chain. Hard constraints only:
 
@@ -681,11 +681,61 @@ Task-specific extras:
      coordinator's central `cargo build --workspace`. One did slip through
      (`activate_loyalty_ability`, E0502) and was fixed to `debug_assert_object_live!` + raw
      `get_mut`. Budget a compile-and-fix pass after any fan-out that edits `_mut` sites.
+- **SR-16: DONE (2026-07-10).** The brief was right and the fix was small; what mattered was
+  getting the *decision* right rather than the diff. What mattered:
+  1. **Option (a) was the only one that survives `GameState: Serialize`.** Once a type derives
+     `Serialize`, any caller can serialize it anywhere — there is no single boundary to guard.
+     So (b) "assert `pending_triggers.is_empty()` at the serde boundary" and (c) "only serialize
+     at a priority boundary" are process guarantees wearing a machine costume: nothing forces the
+     serialization to go through the one function that checks. (a) — just serialize the fields —
+     removes the constraint instead of policing it, and it is what M10 mid-turn state sync and
+     rewind/replay snapshots actually need (a state serialized while a trigger is pending must not
+     silently lose it). This is the same "delete the process guarantee, don't automate it" move the
+     whole track is about.
+  2. **The fix is three `#[serde(skip)]` removals + one derive, because SR-7 had already done the
+     hard part.** `data`/`embedded_effect` are `Option<TriggerData>`/`Option<Effect>`, both already
+     `Serialize`; only `PendingTriggerKind` lacked the derive, and every variant it reaches
+     (`KeywordAbility`, `TriggerData`) was already serializable. No new plumbing.
+  3. **`HASH_SCHEMA_VERSION` bumps but the hash stream does not change.** `kind` and `data` were
+     *already* fed to `HashInto` (that is why SR-7's note said "the state hash catches divergence
+     at runtime even though serde does not"), and `embedded_effect` still is not. So a given state
+     hashes to the same fingerprint as before — the bump (38 → 39) is purely because the *serde*
+     wire shape of `GameState` gained three fields, and a `ReplayLog` written by lossy older code
+     must be rejected. **The hash-version checklist is about the serialized shape, not only the
+     hashed bytes; the two can move independently.**
+  4. **No `PROTOCOL_VERSION` bump, and the reason is load-bearing.** `PendingTrigger` lives inside
+     `GameState`, which SR-8 deliberately excluded from the protocol closure
+     (`CLOSURE_MUST_NOT_CONTAIN`). That exclusion is exactly what lets `HASH_SCHEMA_VERSION` and
+     `PROTOCOL_VERSION` move independently here. Verified by `tests/core/protocol_schema.rs` staying
+     green (the fingerprint did not move). The comment there that called this "an open bug" was
+     updated.
+  5. **The round-trip gate is adversarial per SR-5's lesson.** `pending_trigger_serde_roundtrip`
+     first asserts the payload-bearing fields appear in the JSON (non-vacuity: re-adding
+     `#[serde(skip)]` to any one fails a *named* assertion), then asserts the decoded `kind`/`data`/
+     `embedded_effect` equal the originals and that `kind != Normal`. An equality-only test would
+     pass vacuously if the encoder silently dropped a field on both sides.
 
 ## Session Log
 
 _One entry per session, newest first. Format:_
 `- YYYY-MM-DD — SR-<N> (scutemob-<id>) — <status: done / in progress / blocked> — <one-line outcome + hazards + pointer for next session>`
+
+- 2026-07-10 — SR-16 (scutemob-68) — **done (in_review, awaiting /collect)** — **Closes the SR
+  remediation track (final task).** `PendingTrigger.{kind, data, embedded_effect}` were
+  `#[serde(skip)]`, so a serialized-then-deserialized `GameState` coerced every pending keyword
+  trigger to an anonymous `Normal` with no payload — silently. Chose **option (a)**: serialize the
+  fields (`PendingTriggerKind` gained the `Serialize`/`Deserialize` derive; the other two types
+  were already serializable). (b)/(c) — "assert empty at the boundary" / "only serialize at a
+  priority boundary" — were rejected because once `GameState` derives `Serialize` there is no
+  single boundary to police; they are process guarantees, which is what this track deletes.
+  `HASH_SCHEMA_VERSION` 38 → 39 (serde shape of `GameState` grew three fields; the **hash stream is
+  unchanged** — `kind`/`data` were already hashed, `embedded_effect` still isn't — so states hash
+  identically and the bump only rejects a `ReplayLog` from lossy older code; 29 live sentinels
+  updated). **No `PROTOCOL_VERSION` bump**: `PendingTrigger` is inside `GameState`, which SR-8's
+  `CLOSURE_MUST_NOT_CONTAIN` keeps off the wire — `protocol_schema.rs` fingerprint did not move.
+  New adversarial gate `pending_trigger_serde_roundtrip` (tests/core/pending_trigger_shape.rs).
+  **Gates:** `cargo test --all` 0 failed, `clippy --all-targets -D warnings`, `fmt --all --check`,
+  `build --workspace` — all green. **Next:** none — SR inventory is fully DONE (SR-1..16).
 
 - 2026-07-10 — SR-14 (scutemob-66) — **done (in_review, awaiting /collect)** — Extended the
   SR-4 `state::diagnostics` vocabulary to the ten named `rules/` files (abilities, casting,
