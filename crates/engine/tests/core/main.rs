@@ -5,6 +5,7 @@
 //! `docs/sr-9a-test-consolidation.md`. `tests/no_stray_test_binaries.rs` fails
 //! the suite if a top-level `tests/*.rs` file reappears.
 
+mod ability_definition_registry;
 mod builder_tests;
 mod card_def_fixes;
 mod card_registry_gate;

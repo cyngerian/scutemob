@@ -2,6 +2,7 @@
 //!
 //! All state uses `im` persistent data structures for structural sharing,
 //! enabling cheap snapshots and deterministic replay.
+pub mod ability_definition_registry;
 pub mod builder;
 pub mod diagnostics;
 pub mod error;
