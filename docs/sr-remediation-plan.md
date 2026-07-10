@@ -34,7 +34,7 @@ Full evidence (file:line) is in each task's ESM description — run
 | Order | ESM ID | Task | Size | Notes |
 |-------|--------|------|------|-------|
 | 1 | scutemob-53 | SR-1: Revive CI | S | **DONE 2026-07-10.** CI green; every later task now has a machine gate. |
-| 2 | scutemob-54 | SR-2: Registry gate (invariant #9) | M | Supersedes archived scutemob-48. Do before any further card-authoring waves. |
+| 2 | scutemob-54 | SR-2: Registry gate (invariant #9) | M | **DONE 2026-07-10.** Superseded archived scutemob-48. Card-authoring waves unblocked. Follow-up: `scutemob-64` (SR-12). |
 | 3 | scutemob-55 | SR-3: Seal GameState | M–L | Wide blast radius (tui, replay-viewer, simulator, network, testing). See collision rules below. |
 | 4 | scutemob-56 | SR-4: Silent-failure sweep | M–L | Mechanical but large; classification work. Can run any time after SR-1. |
 | 5 | scutemob-57 | SR-5: KeywordAbility catch-all audit | M | Pairs naturally with SR-4 (same files). |
@@ -44,6 +44,7 @@ Full evidence (file:line) is in each task's ESM description — run
 | 9 | scutemob-61 | SR-9: Test infra consolidation | L | Three sub-items (binaries / equivalence test / script triage). **Split into 2–3 ESM subtasks at dispatch time.** |
 | 10 | scutemob-62 | SR-10: Dependency & lint hygiene | S–M | Four independent chores; safe filler work between larger tasks. |
 | 11 | scutemob-63 | SR-11: Pin the Rust toolchain | S | Discovered during SR-1. CI floats to newest stable; new lints redden CI with no commit, and the local clippy gate can't reproduce them. Pairs well with SR-10. |
+| 12 | scutemob-64 | SR-12: Unbypassable invariant-9 gate + marker anti-rot | M | Discovered during SR-2 review. `GameStateBuilder`/`start_game` skip `validate_deck`; only the Inert marker class has a rot guard. |
 
 Order is a recommendation, not a dependency chain. Hard constraints only:
 
@@ -183,9 +184,12 @@ Task-specific extras:
   (actual workflow is a single Ubuntu job). Correct that doc to describe the
   minimal CI as the intended current state, noting the matrix as an M10/M11
   follow-up.
-- **SR-2:** cross-check marker conventions with `tools/authoring-report.py` so
-  the gate and the authoring report share one source of truth (carried over
-  from archived scutemob-48).
+- **SR-2: DONE (2026-07-10).** The marker (`CardDefinition.completeness`) is the single
+  source of truth; `tools/authoring-report.py` derives its empty/todo/clean buckets from it
+  and reports marker-vs-comment drift. See the SR-2 session-log entry below for the three
+  hazards it surfaced — chiefly that **you cannot detect `abilities: vec![]` with a regex**
+  (it matches `mana_abilities: vec![]` and back faces), which had corrupted the authoring
+  report's headline number for the whole campaign.
 - **SR-3:** the testing harness (`testing/replay_harness.rs`) constructs state
   directly and is `pub` (shared with the replay viewer) — it will need explicit,
   documented constructors, not raw field access.
@@ -203,6 +207,35 @@ Task-specific extras:
 
 _One entry per session, newest first. Format:_
 `- YYYY-MM-DD — SR-<N> (scutemob-<id>) — <status: done / in progress / blocked> — <one-line outcome + hazards + pointer for next session>`
+
+- 2026-07-10 — SR-2 (scutemob-54) — **done** — Invariant #9 is now a machine gate.
+  `Completeness` on `CardDefinition` (`Default` = `Complete`, so an unmarked def is
+  playable); `Inert` / `Partial` / `KnownWrong` each carry a note, and `validate_deck`
+  rejects them with `DeckViolation::IncompleteCard`, which `Display`s the card name and
+  the defect. `CardRegistry::try_new` returns `RegistryError::DuplicateCardId`; `new`
+  panics. Sweep marked 851 defs: 68 inert, 627 partial, 47 known-wrong. 3104 tests pass
+  (was 3090); all four gates clean.
+  **Hazards discovered:**
+  (a) **`abilities: vec![]` cannot be detected by regex.** `re.search(r"abilities:\s*vec!\[\s*\]")`
+  also matches a nested `mana_abilities: vec![]` and a back face's empty ability list.
+  `tools/authoring-report.py` had this bug, so 51 fully-implemented cards were filed under
+  "empty" and the headline clean number was wrong: it is **1,006 / 1,748 (57.6%)**, not the
+  983 / 56.2% quoted in CLAUDE.md before this task. Any future scan of the defs must parse
+  the top-level field (brace-depth), not grep. Same trap for `oracle_text`: a meld def
+  (Hanweir) has an empty top-level `oracle_text` and a populated back face.
+  (b) **Grep spelling silently narrows a hand-curated list.** The first KnownWrong pass
+  searched `modelled as` (double-l) and so never even considered the defs that wrote
+  `modeled as` / `approximated` — 28 of them, including one (`ingenious_prodigy`) whose
+  own comment says `DEVIATION:`. The review caught it. When curating from a grep, print the
+  candidate count and sanity-check it against an independent count.
+  (c) A def's *first* comment block often describes a deviation that was later **removed**
+  (`hazorets_monument`, `reforge_the_soul`, `ingenious_prodigy` line 9). Read the code, not
+  the comment, before marking — and read past the first block.
+  **Deferred:** `scutemob-64` (SR-12) — the gate binds only where `validate_deck` is called
+  (`GameStateBuilder` / `start_game` / simulator bypass it), and only the Inert class has an
+  anti-rot test. Both were raised by the review and are pre-existing in kind.
+  **Next session:** SR-3 (`scutemob-55`, seal GameState) or SR-4/SR-5 as a pair. Card
+  authoring waves are now unblocked — SR-2 was their gate.
 
 - 2026-07-10 — SR-1 (scutemob-53) — **done** — CI revived and green for the first
   time in project history (run `29075466877`: fmt + clippy + 3090 tests, 0 failed).
