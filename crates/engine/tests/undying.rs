@@ -21,7 +21,7 @@ use mtg_engine::{
 
 fn find_by_name(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -34,7 +34,7 @@ fn find_by_name_in_zone(
     zone: ZoneId,
 ) -> Option<mtg_engine::ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -43,7 +43,7 @@ fn find_by_name_in_zone(
 /// Count objects with a given name on the battlefield.
 fn count_on_battlefield(state: &mtg_engine::GameState, name: &str) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
         .count()
@@ -103,13 +103,13 @@ fn test_undying_basic_returns_with_plus_counter() {
 
     // Undying trigger should be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.93a: undying trigger should be on the stack after creature dies"
     );
     assert!(
         matches!(
-            state.stack_objects[0].kind,
+            state.stack_objects()[0].kind,
             StackObjectKind::TriggeredAbility { .. }
         ),
         "stack object should be a triggered ability (undying)"
@@ -142,7 +142,7 @@ fn test_undying_basic_returns_with_plus_counter() {
 
     // The returned creature has exactly one +1/+1 counter.
     let returned_id = find_by_name(&state, "Undying Bear");
-    let returned_obj = state.objects.get(&returned_id).unwrap();
+    let returned_obj = state.objects().get(&returned_id).unwrap();
     let plus_counter = returned_obj
         .counters
         .get(&CounterType::PlusOnePlusOne)
@@ -193,7 +193,7 @@ fn test_undying_does_not_trigger_with_plus_counter() {
 
     // No undying trigger on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "CR 702.93a: undying must NOT trigger when creature had +1/+1 counters"
     );
@@ -245,7 +245,7 @@ fn test_undying_second_death_no_trigger() {
         "First death: CreatureDied should be emitted"
     );
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "First death: undying trigger should be on stack"
     );
@@ -260,7 +260,7 @@ fn test_undying_second_death_no_trigger() {
 
     // Verify the returned creature has a +1/+1 counter.
     let returned_id = find_by_name(&state, "Young Wolf");
-    let returned_obj = state.objects.get(&returned_id).unwrap();
+    let returned_obj = state.objects().get(&returned_id).unwrap();
     assert_eq!(
         returned_obj
             .counters
@@ -275,7 +275,11 @@ fn test_undying_second_death_no_trigger() {
     // Manually apply 3 damage (lethal for effective 3 toughness).
     let mut state = state;
     let creature_id = find_by_name(&state, "Young Wolf");
-    state.objects.get_mut(&creature_id).unwrap().damage_marked = 3;
+    state
+        .objects_mut()
+        .get_mut(&creature_id)
+        .unwrap()
+        .damage_marked = 3;
 
     // --- Second death ---
     // Pass priority → SBA fires → creature dies (has +1/+1 counter → undying does NOT trigger).
@@ -289,7 +293,7 @@ fn test_undying_second_death_no_trigger() {
 
     // No undying trigger on stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "CR 702.93a: undying must NOT trigger on second death (creature has +1/+1 counter)"
     );
@@ -357,7 +361,7 @@ fn test_undying_token_trigger_but_no_return() {
         "CR 704.5d + CR 702.93a: token must not be on battlefield (MoveZone no-op for missing source)"
     );
     // Token also should not be in the graveyard (tokens cease to exist there).
-    let in_graveyard = state.objects.values().any(|obj| {
+    let in_graveyard = state.objects().values().any(|obj| {
         obj.characteristics.name == "Wolf Token" && matches!(obj.zone, ZoneId::Graveyard(_))
     });
     assert!(
@@ -417,7 +421,7 @@ fn test_undying_multiplayer_apnap_ordering() {
 
     // Two undying triggers on the stack (APNAP ordered: P1's first, P3's second → P3 resolves first).
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "CR 603.3: two undying triggers should be on the stack"
     );
@@ -441,7 +445,7 @@ fn test_undying_multiplayer_apnap_ordering() {
     // Both returned creatures should have exactly one +1/+1 counter.
     for name in &["P1 Undying", "P3 Undying"] {
         let id = find_by_name(&state, name);
-        let obj = state.objects.get(&id).unwrap();
+        let obj = state.objects().get(&id).unwrap();
         let counter = obj
             .counters
             .get(&CounterType::PlusOnePlusOne)
@@ -482,7 +486,7 @@ fn test_undying_minus_one_cancellation_enables_second_undying() {
 
     // --- First death: undying triggers, creature returns with +1/+1 counter ---
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.stack_objects.len(), 1, "Undying trigger on stack");
+    assert_eq!(state.stack_objects().len(), 1, "Undying trigger on stack");
 
     let (state, _) = pass_all(state, &[p1, p2]);
     assert_eq!(
@@ -493,7 +497,7 @@ fn test_undying_minus_one_cancellation_enables_second_undying() {
 
     // Verify +1/+1 counter is present.
     let creature_id = find_by_name(&state, "Geralf-like Wolf");
-    let obj = state.objects.get(&creature_id).unwrap();
+    let obj = state.objects().get(&creature_id).unwrap();
     assert_eq!(
         obj.counters
             .get(&CounterType::PlusOnePlusOne)
@@ -508,7 +512,7 @@ fn test_undying_minus_one_cancellation_enables_second_undying() {
     let mut state = state;
     let creature_id = find_by_name(&state, "Geralf-like Wolf");
     {
-        let obj = state.objects.get_mut(&creature_id).unwrap();
+        let obj = state.objects_mut().get_mut(&creature_id).unwrap();
         let cur = obj
             .counters
             .get(&CounterType::MinusOneMinusOne)
@@ -522,7 +526,7 @@ fn test_undying_minus_one_cancellation_enables_second_undying() {
 
     // After SBA, both counters should be gone (annihilated).
     let creature_id = find_by_name(&state, "Geralf-like Wolf");
-    let obj = state.objects.get(&creature_id).unwrap();
+    let obj = state.objects().get(&creature_id).unwrap();
     assert_eq!(
         obj.counters
             .get(&CounterType::PlusOnePlusOne)
@@ -543,7 +547,11 @@ fn test_undying_minus_one_cancellation_enables_second_undying() {
     // --- Now mark lethal damage again; creature has no +1/+1 counter → undying triggers ---
     // After annihilation, creature is 2/2 again. Mark 2 lethal damage.
     let creature_id = find_by_name(&state, "Geralf-like Wolf");
-    state.objects.get_mut(&creature_id).unwrap().damage_marked = 2;
+    state
+        .objects_mut()
+        .get_mut(&creature_id)
+        .unwrap()
+        .damage_marked = 2;
 
     let (state, events) = pass_all(state, &[p1, p2]);
     assert!(
@@ -553,7 +561,7 @@ fn test_undying_minus_one_cancellation_enables_second_undying() {
         "Second death: CreatureDied should be emitted"
     );
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.93a + CR 704.5q: undying should trigger again after counter annihilation"
     );
@@ -568,7 +576,7 @@ fn test_undying_minus_one_cancellation_enables_second_undying() {
 
     // Has +1/+1 counter again.
     let creature_id = find_by_name(&state, "Geralf-like Wolf");
-    let obj = state.objects.get(&creature_id).unwrap();
+    let obj = state.objects().get(&creature_id).unwrap();
     assert_eq!(
         obj.counters
             .get(&CounterType::PlusOnePlusOne)

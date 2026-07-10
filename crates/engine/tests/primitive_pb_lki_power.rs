@@ -43,7 +43,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_by_name(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -52,7 +52,7 @@ fn find_by_name(state: &GameState, name: &str) -> ObjectId {
 
 fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -78,7 +78,7 @@ fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent
 /// Drain the stack completely (pass all until stack is empty).
 fn drain_stack(mut state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent>) {
     let mut all_events = Vec::new();
-    while !state.stack_objects.is_empty() {
+    while !state.stack_objects().is_empty() {
         let (s, ev) = pass_all(state, players);
         state = s;
         all_events.extend(ev);
@@ -142,21 +142,25 @@ fn test_conclave_mentor_death_trigger_gains_life_from_lki_power() {
     // Add 2 +1/+1 counters: Conclave Mentor becomes 4/4 on battlefield (printed 2/2).
     let mentor_id = find_by_name(&state, "Conclave Mentor");
     state
-        .objects
+        .objects_mut()
         .get_mut(&mentor_id)
         .unwrap()
         .counters
         .insert(CounterType::PlusOnePlusOne, 2);
 
     // Record p1's life total before death.
-    let life_before = state.players.get(&p1).unwrap().life_total;
+    let life_before = state.players().get(&p1).unwrap().life_total;
 
     // Mark lethal damage: Conclave Mentor is 2/2 base + 2 counters = 4/4;
     // 4 damage >= 4 toughness → SBA (CR 704.5g) destroys it.
-    state.objects.get_mut(&mentor_id).unwrap().damage_marked = 4;
+    state
+        .objects_mut()
+        .get_mut(&mentor_id)
+        .unwrap()
+        .damage_marked = 4;
 
     // Grant priority so PassPriority triggers SBA check.
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let (state, sba_events) = pass_all(state, &[p1, p2]);
 
     // Verify death occurred.
@@ -174,7 +178,7 @@ fn test_conclave_mentor_death_trigger_gains_life_from_lki_power() {
     // Drain the stack — the WhenDies trigger resolves → gain life = LKI power.
     let (state, _trigger_events) = drain_stack(state, &[p1, p2]);
 
-    let life_after = state.players.get(&p1).unwrap().life_total;
+    let life_after = state.players().get(&p1).unwrap().life_total;
     let life_gained = life_after - life_before;
     assert_eq!(
         life_gained, 4,
@@ -218,20 +222,20 @@ fn test_juri_master_death_trigger_deals_damage_from_lki_power() {
     // Add 3 +1/+1 counters: Juri becomes 4/4 on battlefield (printed 1/1).
     let juri_id = find_by_name(&state, "Juri, Master of the Revue");
     state
-        .objects
+        .objects_mut()
         .get_mut(&juri_id)
         .unwrap()
         .counters
         .insert(CounterType::PlusOnePlusOne, 3);
 
-    let p2_life_before = state.players.get(&p2).unwrap().life_total;
+    let p2_life_before = state.players().get(&p2).unwrap().life_total;
 
     // Mark lethal damage: Juri is 1/1 base + 3 counters = 4/4;
     // 4 damage >= 4 toughness → SBA (CR 704.5g) destroys it.
-    state.objects.get_mut(&juri_id).unwrap().damage_marked = 4;
+    state.objects_mut().get_mut(&juri_id).unwrap().damage_marked = 4;
 
     // Grant priority so PassPriority triggers SBA check.
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let (state, sba_events) = pass_all(state, &[p1, p2]);
 
     // Verify death occurred.
@@ -249,7 +253,7 @@ fn test_juri_master_death_trigger_deals_damage_from_lki_power() {
     // Drain the stack — WhenDies trigger resolves; engine auto-selects p2 as target.
     let (state, _trigger_events) = drain_stack(state, &[p1, p2]);
 
-    let p2_life_after = state.players.get(&p2).unwrap().life_total;
+    let p2_life_after = state.players().get(&p2).unwrap().life_total;
     let damage_taken = p2_life_before - p2_life_after;
     assert_eq!(
         damage_taken, 4,
@@ -295,7 +299,7 @@ fn test_lki_power_resolves_to_pre_death_value_not_printed_value() {
     // Add 5 +1/+1 counters: Juri becomes 6/6 on battlefield (printed 1/1).
     let juri_id = find_by_name(&state, "Juri, Master of the Revue");
     state
-        .objects
+        .objects_mut()
         .get_mut(&juri_id)
         .unwrap()
         .counters
@@ -303,7 +307,7 @@ fn test_lki_power_resolves_to_pre_death_value_not_printed_value() {
 
     // Pre-death invariant: counters are present before SBA.
     let pre_death_counter_count = state
-        .objects
+        .objects()
         .get(&juri_id)
         .unwrap()
         .counters
@@ -315,12 +319,12 @@ fn test_lki_power_resolves_to_pre_death_value_not_printed_value() {
         "Pre-condition: Juri must have 5 +1/+1 counters before death"
     );
 
-    let p2_life_before = state.players.get(&p2).unwrap().life_total;
+    let p2_life_before = state.players().get(&p2).unwrap().life_total;
 
     // Mark lethal damage (6 = toughness with counters).
-    state.objects.get_mut(&juri_id).unwrap().damage_marked = 6;
+    state.objects_mut().get_mut(&juri_id).unwrap().damage_marked = 6;
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let (state, _sba_events) = pass_all(state, &[p1, p2]);
 
     // Verify Juri is no longer on battlefield.
@@ -333,7 +337,7 @@ fn test_lki_power_resolves_to_pre_death_value_not_printed_value() {
     let grave_id = find_in_zone(&state, "Juri, Master of the Revue", ZoneId::Graveyard(p1))
         .expect("Juri must be in p1's graveyard after dying");
 
-    let grave_obj = &state.objects[&grave_id];
+    let grave_obj = &state.objects()[&grave_id];
 
     // CR 122.2: counters cease on zone change — graveyard object must have empty counters.
     assert!(
@@ -356,7 +360,7 @@ fn test_lki_power_resolves_to_pre_death_value_not_printed_value() {
     // Drain the stack to resolve the WhenDies trigger.
     let (state, _trigger_events) = drain_stack(state, &[p1, p2]);
 
-    let p2_life_after = state.players.get(&p2).unwrap().life_total;
+    let p2_life_after = state.players().get(&p2).unwrap().life_total;
     let damage_taken = p2_life_before - p2_life_after;
 
     // The damage must reflect LKI (6), NOT printed (1) AND NOT zero.

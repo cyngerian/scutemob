@@ -25,7 +25,7 @@ use mtg_engine::{
 
 fn find_object(state: &GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -90,7 +90,7 @@ fn test_read_the_bones_scry_then_draw() {
     // Pay 3 mana: 1 black + 2 generic (just add 3 black for simplicity).
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -163,7 +163,7 @@ fn test_read_the_bones_scry_then_draw() {
     // p1 should have lost 2 life.
     let initial_life = 40; // Commander format starts at 40
     assert_eq!(
-        state.players[&p1].life_total,
+        state.players()[&p1].life_total,
         initial_life - 2,
         "Read the Bones should cost 2 life"
     );
@@ -266,7 +266,7 @@ fn test_path_to_exile_optional_search() {
 
     // Pay 1 white mana.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -579,7 +579,7 @@ fn test_alela_opponent_turn_only() {
 /// Helper: find an object id by name in `state`.
 fn find_obj(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -628,9 +628,13 @@ fn test_lightning_greaves_grants_haste_shroud() {
     let greaves_id = find_obj(&state, "Lightning Greaves");
 
     // Wire the attachment relationship: greaves attached_to bear; bear has greaves in attachments.
-    state.objects.get_mut(&greaves_id).unwrap().attached_to = Some(bear_id);
     state
-        .objects
+        .objects_mut()
+        .get_mut(&greaves_id)
+        .unwrap()
+        .attached_to = Some(bear_id);
+    state
+        .objects_mut()
         .get_mut(&bear_id)
         .unwrap()
         .attachments
@@ -638,14 +642,14 @@ fn test_lightning_greaves_grants_haste_shroud() {
 
     // Fix up the source on the continuous effect now that we have the greaves id.
     let effect_idx = state
-        .continuous_effects
+        .continuous_effects()
         .iter()
         .position(|e| e.id == EffectId(999))
         .unwrap();
-    let mut eff = state.continuous_effects[effect_idx].clone();
+    let mut eff = state.continuous_effects()[effect_idx].clone();
     eff.source = Some(greaves_id);
-    state.continuous_effects.remove(effect_idx);
-    state.continuous_effects.push_back(eff);
+    state.continuous_effects_mut().remove(effect_idx);
+    state.continuous_effects_mut().push_back(eff);
 
     // CR 613.1f: Layer 6 ability modification — bear should now have Haste and Shroud.
     let chars = calculate_characteristics(&state, bear_id).unwrap();
@@ -711,9 +715,9 @@ fn test_swiftfoot_boots_grants_haste_hexproof() {
     let boots_id = find_obj(&state, "Swiftfoot Boots");
 
     // Wire the attachment relationship.
-    state.objects.get_mut(&boots_id).unwrap().attached_to = Some(bear_id);
+    state.objects_mut().get_mut(&boots_id).unwrap().attached_to = Some(bear_id);
     state
-        .objects
+        .objects_mut()
         .get_mut(&bear_id)
         .unwrap()
         .attachments
@@ -721,14 +725,14 @@ fn test_swiftfoot_boots_grants_haste_hexproof() {
 
     // Fix up the source on the continuous effect.
     let effect_idx = state
-        .continuous_effects
+        .continuous_effects()
         .iter()
         .position(|e| e.id == EffectId(998))
         .unwrap();
-    let mut eff = state.continuous_effects[effect_idx].clone();
+    let mut eff = state.continuous_effects()[effect_idx].clone();
     eff.source = Some(boots_id);
-    state.continuous_effects.remove(effect_idx);
-    state.continuous_effects.push_back(eff);
+    state.continuous_effects_mut().remove(effect_idx);
+    state.continuous_effects_mut().push_back(eff);
 
     // CR 613.1f: Layer 6 ability modification — bear should now have Haste and Hexproof.
     let chars = calculate_characteristics(&state, bear_id).unwrap();
@@ -775,7 +779,7 @@ fn test_rogues_passage_cant_be_blocked() {
 
     // Manually register the attacker as attacking p2 (simulate being in combat).
     let mut state = state;
-    if let Some(combat) = state.combat.as_mut() {
+    if let Some(combat) = state.combat_mut().as_mut() {
         combat
             .attackers
             .insert(attacker_id, mtg_engine::AttackTarget::Player(p2));
@@ -784,7 +788,7 @@ fn test_rogues_passage_cant_be_blocked() {
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers
             .insert(attacker_id, mtg_engine::AttackTarget::Player(p2));
-        state.combat = Some(cs);
+        *state.combat_mut() = Some(cs);
     }
 
     // Attempting to block the CantBeBlocked attacker must fail.
@@ -852,7 +856,7 @@ fn test_rest_in_peace_etb_exiles_graveyards() {
 
     // Pay {1W} for Rest in Peace.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -1019,8 +1023,8 @@ fn test_darksteel_colossus_shuffles_into_library() {
 
     // Register Darksteel Colossus's self-replacement ability.
     // This binds the SpecificObject filter to this exact ObjectId.
-    let colossus_cid = state.objects.get(&colossus_id).unwrap().card_id.clone();
-    let reg = state.card_registry.clone();
+    let colossus_cid = state.objects().get(&colossus_id).unwrap().card_id.clone();
+    let reg = state.card_registry().clone();
     register_permanent_replacement_abilities(
         &mut state,
         colossus_id,

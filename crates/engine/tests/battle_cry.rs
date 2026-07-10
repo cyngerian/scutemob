@@ -21,7 +21,7 @@ use mtg_engine::{
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -101,7 +101,7 @@ fn test_battle_cry_basic_other_attackers_get_plus_one_power() {
 
     // Stack has 1 trigger.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.91a: battle cry trigger should be on the stack"
     );
@@ -203,7 +203,7 @@ fn test_battle_cry_source_only_attacker_no_bonus() {
 
     // No continuous effects from battle cry (ForEach was empty).
     assert_eq!(
-        state.continuous_effects.len(),
+        state.continuous_effects().len(),
         0,
         "CR 702.91a: no continuous effects when battle cry creature is the only attacker"
     );
@@ -335,7 +335,7 @@ fn test_battle_cry_multiple_instances_stack() {
 
     // Two triggers on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "CR 702.91b: two battle cry triggers should be on the stack"
     );
@@ -606,7 +606,7 @@ fn test_battle_cry_does_not_trigger_on_opponent_attack() {
         "CR 702.91a: P1's battle cry must NOT trigger when P2 attacks"
     );
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "CR 702.91a: stack must be empty — battle cry does not fire on opponent's attack"
     );

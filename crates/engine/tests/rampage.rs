@@ -22,7 +22,7 @@ use mtg_engine::{
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -113,7 +113,7 @@ fn test_702_23a_rampage_blocked_by_two_gets_bonus() {
 
     // Trigger should be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.23a: Rampage trigger should be on the stack after blockers declared"
     );
@@ -145,7 +145,7 @@ fn test_702_23a_rampage_blocked_by_two_gets_bonus() {
 
     // Stack should be empty.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after rampage trigger resolves"
     );
 }
@@ -216,7 +216,7 @@ fn test_702_23a_rampage_blocked_by_one_no_bonus() {
 
     // Trigger on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.23a: trigger should be on the stack"
     );
@@ -240,7 +240,7 @@ fn test_702_23a_rampage_blocked_by_one_no_bonus() {
 
     // No continuous effects from this trigger.
     assert!(
-        state.continuous_effects.is_empty(),
+        state.continuous_effects().is_empty(),
         "CR 702.23a: no continuous effects when blocked by exactly 1 creature"
     );
 }
@@ -306,7 +306,7 @@ fn test_702_23a_rampage_blocked_by_three_scaled_bonus() {
 
     // Trigger on stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.23a: one rampage trigger on the stack"
     );
@@ -408,7 +408,7 @@ fn test_702_23c_multiple_rampage_instances() {
 
     // Two triggers on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "CR 702.23c: two rampage triggers on the stack"
     );
@@ -416,7 +416,7 @@ fn test_702_23c_multiple_rampage_instances() {
     // Resolve first trigger: attacker gains +4/+4 (1+4=5 power, 1+4=5 toughness).
     let (state, _) = pass_all(state, &[p1, p2]);
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "one trigger should remain after first resolves"
     );
@@ -436,7 +436,7 @@ fn test_702_23c_multiple_rampage_instances() {
     // Resolve second trigger: attacker gains another +4/+4 → total 1+8=9 power, 1+8=9 toughness.
     let (state, _) = pass_all(state, &[p1, p2]);
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after both triggers resolve"
     );
 
@@ -516,7 +516,7 @@ fn test_702_23a_rampage_not_blocked_no_trigger() {
 
     // Stack should be empty.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "CR 702.23a: stack must be empty when rampage creature is not blocked"
     );
 
@@ -628,7 +628,7 @@ fn test_702_23a_rampage_bonus_expires_at_end_of_turn() {
 
     // No more continuous effects from Rampage.
     assert!(
-        state.continuous_effects.is_empty(),
+        state.continuous_effects().is_empty(),
         "CR 514.2: no UntilEndOfTurn effects should remain after cleanup"
     );
 }
@@ -638,7 +638,7 @@ fn test_702_23a_rampage_bonus_expires_at_end_of_turn() {
 #[test]
 /// CR 702.23b — "The rampage bonus is calculated only once per combat, when the
 /// triggered ability resolves." This is implicitly verified by tests 1-4: the
-/// blocker count is taken from `state.combat.blockers_for()` at resolution time.
+/// blocker count is taken from `state.combat().blockers_for()` at resolution time.
 /// We verify the blocker count is correct at the time the trigger resolves.
 ///
 /// A creature with Rampage 1 blocked by 2 creatures gets +1/+1.
@@ -691,7 +691,7 @@ fn test_702_23b_bonus_calculated_at_resolution_time() {
     .expect("DeclareBlockers should succeed");
 
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "one rampage trigger on the stack"
     );

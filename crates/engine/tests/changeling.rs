@@ -41,7 +41,7 @@ fn indef_effect(
 
 fn battlefield_id(state: &mtg_engine::GameState) -> mtg_engine::ObjectId {
     *state
-        .zones
+        .zones()
         .get(&ZoneId::Battlefield)
         .expect("battlefield zone must exist")
         .object_ids()
@@ -279,7 +279,7 @@ fn test_changeling_works_in_graveyard() {
 
     // Find the object in the graveyard
     let id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| {
             obj.zone == ZoneId::Graveyard(p1()) && obj.characteristics.name == "Changeling Creature"

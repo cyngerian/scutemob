@@ -22,6 +22,7 @@ use mtg_engine::cards::card_definition::{
     ContinuousEffectDef as CardContinuousEffectDef, EffectAmount, PlayerTarget,
 };
 use mtg_engine::state::stubs::PlayFromTopPermission;
+use mtg_engine::state::test_util;
 use mtg_engine::{
     calculate_characteristics, process_command, AbilityDefinition, AltCostKind, CardDefinition,
     CardId, CardRegistry, CardType, Color, Command, Effect, EffectDuration, EffectFilter,
@@ -86,7 +87,7 @@ fn artifact_creature_spec(owner: PlayerId) -> ObjectSpec {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -251,7 +252,7 @@ fn artifact_creature_def() -> CardDefinition {
 /// Inject a LandsOnly permission into state for the given source/controller.
 fn inject_lands_only(state: &mut GameState, source: ObjectId, controller: PlayerId) {
     state
-        .play_from_top_permissions
+        .play_from_top_permissions_mut()
         .push_back(PlayFromTopPermission {
             source,
             controller,
@@ -267,7 +268,7 @@ fn inject_lands_only(state: &mut GameState, source: ObjectId, controller: Player
 /// Inject a CreaturesOnly permission into state for the given source/controller.
 fn inject_creatures_only(state: &mut GameState, source: ObjectId, controller: PlayerId) {
     state
-        .play_from_top_permissions
+        .play_from_top_permissions_mut()
         .push_back(PlayFromTopPermission {
             source,
             controller,
@@ -283,7 +284,7 @@ fn inject_creatures_only(state: &mut GameState, source: ObjectId, controller: Pl
 /// Inject an All-cards permission into state for the given source/controller.
 fn inject_all_cards(state: &mut GameState, source: ObjectId, controller: PlayerId) {
     state
-        .play_from_top_permissions
+        .play_from_top_permissions_mut()
         .push_back(PlayFromTopPermission {
             source,
             controller,
@@ -299,7 +300,7 @@ fn inject_all_cards(state: &mut GameState, source: ObjectId, controller: PlayerI
 /// Inject an All permission with pay_life_instead for the given source/controller.
 fn inject_pay_life(state: &mut GameState, source: ObjectId, controller: PlayerId) {
     state
-        .play_from_top_permissions
+        .play_from_top_permissions_mut()
         .push_back(PlayFromTopPermission {
             source,
             controller,
@@ -315,7 +316,7 @@ fn inject_pay_life(state: &mut GameState, source: ObjectId, controller: PlayerId
 /// Inject an ArtifactsAndColorless permission for the given source/controller.
 fn inject_artifacts_colorless(state: &mut GameState, source: ObjectId, controller: PlayerId) {
     state
-        .play_from_top_permissions
+        .play_from_top_permissions_mut()
         .push_back(PlayFromTopPermission {
             source,
             controller,
@@ -331,7 +332,7 @@ fn inject_artifacts_colorless(state: &mut GameState, source: ObjectId, controlle
 /// Inject a CreaturesWithMinPower(4) permission for the given source/controller.
 fn inject_creatures_min_power_4(state: &mut GameState, source: ObjectId, controller: PlayerId) {
     state
-        .play_from_top_permissions
+        .play_from_top_permissions_mut()
         .push_back(PlayFromTopPermission {
             source,
             controller,
@@ -366,7 +367,7 @@ fn test_play_from_top_basic_land() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Inject LandsOnly permission pointing to the real source creature.
     let source_id = find_object(&state, "Permission Source");
@@ -374,7 +375,10 @@ fn test_play_from_top_basic_land() {
 
     let plains_id = find_object(&state, "Test Plains");
     // Verify the card is on top of the library.
-    let top = state.zones.get(&ZoneId::Library(p1)).and_then(|z| z.top());
+    let top = state
+        .zones()
+        .get(&ZoneId::Library(p1))
+        .and_then(|z| z.top());
     assert_eq!(top, Some(plains_id), "Plains should be on top of library");
 
     let (state2, events) = process_command(
@@ -395,7 +399,7 @@ fn test_play_from_top_basic_land() {
     );
     // Library should now be empty.
     let lib = state2
-        .zones
+        .zones()
         .get(&ZoneId::Library(p1))
         .map(|z| z.len())
         .unwrap_or(0);
@@ -424,13 +428,13 @@ fn test_play_from_top_land_uses_land_play() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let source_id = find_object(&state, "Permission Source");
     inject_lands_only(&mut state, source_id, p1);
 
     // First land play should succeed.
     let top_id = state
-        .zones
+        .zones()
         .get(&ZoneId::Library(p1))
         .and_then(|z| z.top())
         .unwrap();
@@ -452,7 +456,7 @@ fn test_play_from_top_land_uses_land_play() {
 
     // Second land play should fail.
     let top_id2 = state2
-        .zones
+        .zones()
         .get(&ZoneId::Library(p1))
         .and_then(|z| z.top())
         .unwrap();
@@ -488,19 +492,19 @@ fn test_play_from_top_cast_creature() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let source_id = find_object(&state, "Permission Source");
     inject_creatures_only(&mut state, source_id, p1);
 
     // Add enough mana to cast the creature ({1}{G}).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -512,7 +516,7 @@ fn test_play_from_top_cast_creature() {
 
     // Spell should be on the stack.
     assert!(
-        !state2.stack_objects.is_empty(),
+        !state2.stack_objects().is_empty(),
         "Spell should be on the stack after casting"
     );
     assert!(
@@ -544,18 +548,18 @@ fn test_play_from_top_cast_respects_timing() {
         .unwrap();
 
     // p1 holds priority during p2's main phase.
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let source_id = find_object(&state, "Permission Source");
     inject_all_cards(&mut state, source_id, p1);
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -588,18 +592,18 @@ fn test_play_from_top_filter_rejects_wrong_type() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let source_id = find_object(&state, "Permission Source");
     inject_lands_only(&mut state, source_id, p1);
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -632,11 +636,11 @@ fn test_play_from_top_artifacts_and_colorless_filter() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let source_id = find_object(&state, "Permission Source");
     inject_artifacts_colorless(&mut state, source_id, p1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -648,7 +652,7 @@ fn test_play_from_top_artifacts_and_colorless_filter() {
     );
 
     assert!(
-        !state2.stack_objects.is_empty(),
+        !state2.stack_objects().is_empty(),
         "Artifact creature should be on the stack"
     );
 }
@@ -671,17 +675,17 @@ fn test_play_from_top_artifacts_colorless_filter_rejects_colored_nonartifact() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let source_id = find_object(&state, "Permission Source");
     inject_artifacts_colorless(&mut state, source_id, p1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -716,7 +720,7 @@ fn test_play_from_top_bolas_citadel_pay_life() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let source_id = find_object(&state, "Permission Source");
     inject_pay_life(&mut state, source_id, p1);
     let initial_life = state.player(p1).unwrap().life_total;
@@ -734,7 +738,7 @@ fn test_play_from_top_bolas_citadel_pay_life() {
     );
     // Spell should be on the stack.
     assert!(
-        !state2.stack_objects.is_empty(),
+        !state2.stack_objects().is_empty(),
         "Spell should be on the stack"
     );
 }
@@ -759,7 +763,7 @@ fn test_play_from_top_bolas_citadel_requires_permission() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let source_id = find_object(&state, "Permission Source");
     inject_all_cards(&mut state, source_id, p1);
 
@@ -792,17 +796,17 @@ fn test_play_from_top_not_from_second_card() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let source_id = find_object(&state, "Permission Source");
     inject_creatures_only(&mut state, source_id, p1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -810,7 +814,7 @@ fn test_play_from_top_not_from_second_card() {
 
     // Find the BOTTOM card (first inserted = index 0 = not top).
     let lib_ids = state
-        .zones
+        .zones()
         .get(&ZoneId::Library(p1))
         .map(|z| z.object_ids())
         .unwrap_or_default();
@@ -851,16 +855,14 @@ fn test_play_from_top_source_leaves() {
     inject_creatures_only(&mut state, source_id, p1);
 
     // Permission should now be registered.
-    assert_eq!(state.play_from_top_permissions.len(), 1);
+    assert_eq!(state.play_from_top_permissions().len(), 1);
 
     // Manually move the source to the graveyard (simulate removal).
-    state
-        .move_object_to_zone(source_id, ZoneId::Graveyard(p1))
-        .unwrap();
+    test_util::move_object_to_zone(&mut state, source_id, ZoneId::Graveyard(p1)).unwrap();
 
     // Force cleanup sweep (normally happens in reset_turn_state).
-    let objects = state.objects.clone();
-    state.play_from_top_permissions.retain(|perm| {
+    let objects = state.objects().clone();
+    state.play_from_top_permissions_mut().retain(|perm| {
         objects
             .get(&perm.source)
             .map(|o| matches!(o.zone, ZoneId::Battlefield))
@@ -869,21 +871,21 @@ fn test_play_from_top_source_leaves() {
 
     // Permission should be gone.
     assert_eq!(
-        state.play_from_top_permissions.len(),
+        state.play_from_top_permissions().len(),
         0,
         "Permission should be removed when source leaves battlefield"
     );
 
     // Now casting from top should fail.
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -921,15 +923,13 @@ fn test_play_from_top_multiple_permissions() {
     inject_creatures_only(&mut state, creatures_src_id, p1);
 
     // Both permissions should be registered.
-    assert_eq!(state.play_from_top_permissions.len(), 2);
+    assert_eq!(state.play_from_top_permissions().len(), 2);
 
     // Remove the LandsOnly source manually.
-    state
-        .move_object_to_zone(lands_src_id, ZoneId::Graveyard(p1))
-        .unwrap();
+    test_util::move_object_to_zone(&mut state, lands_src_id, ZoneId::Graveyard(p1)).unwrap();
 
-    let objects = state.objects.clone();
-    state.play_from_top_permissions.retain(|perm| {
+    let objects = state.objects().clone();
+    state.play_from_top_permissions_mut().retain(|perm| {
         objects
             .get(&perm.source)
             .map(|o| matches!(o.zone, ZoneId::Battlefield))
@@ -938,13 +938,13 @@ fn test_play_from_top_multiple_permissions() {
 
     // CreaturesOnly permission should still be there.
     assert_eq!(
-        state.play_from_top_permissions.len(),
+        state.play_from_top_permissions().len(),
         1,
         "Only CreaturesOnly permission should remain"
     );
     assert!(
         state
-            .play_from_top_permissions
+            .play_from_top_permissions()
             .iter()
             .any(|p| matches!(p.filter, PlayFromTopFilter::CreaturesOnly)),
         "CreaturesOnly filter should still be active"
@@ -971,11 +971,11 @@ fn test_play_from_top_power_filter() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let source_id = find_object(&state, "Permission Source");
     inject_creatures_min_power_4(&mut state, source_id, p1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -1000,17 +1000,17 @@ fn test_play_from_top_power_filter() {
         .build()
         .unwrap();
 
-    state2.turn.priority_holder = Some(p1);
+    state2.turn_mut().priority_holder = Some(p1);
     let source_id2 = find_object(&state2, "Permission Source");
     inject_creatures_min_power_4(&mut state2, source_id2, p1);
     state2
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state2
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -1043,17 +1043,17 @@ fn test_play_from_top_all_types_future_sight() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let source_id = find_object(&state, "Permission Source");
     inject_all_cards(&mut state, source_id, p1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -1085,16 +1085,16 @@ fn test_play_from_top_no_permission_rejected() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     // No permissions injected.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -1126,7 +1126,7 @@ fn test_play_from_top_land_no_permission_rejected() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     // No land permissions injected.
 
     let plains_id = find_object(&state, "Test Plains");
@@ -1199,7 +1199,7 @@ fn inject_creatures_min_power_4_with_haste(
     controller: PlayerId,
 ) {
     state
-        .play_from_top_permissions
+        .play_from_top_permissions_mut()
         .push_back(PlayFromTopPermission {
             source,
             controller,
@@ -1241,7 +1241,7 @@ fn test_play_from_top_bolas_citadel_x_is_zero() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let source_id = find_object(&state, "Permission Source");
     inject_pay_life(&mut state, source_id, p1);
 
@@ -1322,13 +1322,13 @@ fn test_play_from_top_haste_grant() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let source_id = find_object(&state, "Permission Source");
     inject_creatures_min_power_4_with_haste(&mut state, source_id, p1);
 
     // Add mana for the 4/4 creature ({4}).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -1341,12 +1341,12 @@ fn test_play_from_top_haste_grant() {
 
     // The spell is on the stack; cast_from_top_with_bonus should be set.
     assert!(
-        !state2.stack_objects.is_empty(),
+        !state2.stack_objects().is_empty(),
         "Spell should be on the stack"
     );
     assert!(
         state2
-            .stack_objects
+            .stack_objects()
             .iter()
             .any(|so| so.cast_from_top_with_bonus),
         "StackObject should have cast_from_top_with_bonus = true"
@@ -1357,7 +1357,7 @@ fn test_play_from_top_haste_grant() {
 
     // The creature should now be on the battlefield.
     let bf_creature = state3
-        .objects
+        .objects()
         .values()
         .find(|obj| {
             obj.characteristics.name == "Test Big Creature"

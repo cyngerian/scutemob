@@ -29,7 +29,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -196,12 +196,12 @@ fn test_cycling_basic_discards_and_draws() {
 
     // Give p1 {1} mana (cycling cost).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Cycling Card");
 
@@ -240,7 +240,7 @@ fn test_cycling_basic_discards_and_draws() {
     );
 
     // Cycling Card is now in p1's graveyard (discard happened immediately as cost).
-    let in_grave = state.objects.values().any(|o| {
+    let in_grave = state.objects().values().any(|o| {
         o.characteristics.name == "Cycling Card" && matches!(o.zone, ZoneId::Graveyard(_))
     });
     assert!(
@@ -250,7 +250,7 @@ fn test_cycling_basic_discards_and_draws() {
 
     // The cycling ability (draw) is on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.29a: cycling ability (draw) should be on the stack"
     );
@@ -264,7 +264,7 @@ fn test_cycling_basic_discards_and_draws() {
     );
 
     // Mana pool is now empty.
-    let pool = &state.players[&p1].mana_pool;
+    let pool = &state.players()[&p1].mana_pool;
     assert_eq!(
         pool.colorless + pool.blue + pool.red + pool.green + pool.black + pool.white,
         0,
@@ -276,7 +276,7 @@ fn test_cycling_basic_discards_and_draws() {
 
     // p1's hand now contains the drawn card (Library Card → Hand).
     let p1_hand_count = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -314,12 +314,12 @@ fn test_cycling_card_not_in_hand_rejected() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Cycling Card");
 
@@ -366,12 +366,12 @@ fn test_cycling_insufficient_mana_rejected() {
 
     // Give p1 only 1 colorless — NOT enough for Cycling {2}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Cycling Two Card");
 
@@ -420,12 +420,12 @@ fn test_cycling_card_without_cycling_rejected() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "No Cycling Card");
 
@@ -475,13 +475,13 @@ fn test_cycling_instant_speed_valid() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
     // Give priority to p1 (non-active player) — simulating p2 passing to p1.
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Cycling Card");
 
@@ -532,12 +532,12 @@ fn test_cycling_card_goes_to_graveyard_before_draw() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Cycling Card");
 
@@ -552,7 +552,7 @@ fn test_cycling_card_goes_to_graveyard_before_draw() {
     .unwrap();
 
     // At this point, BEFORE resolution, the card should be in the graveyard.
-    let in_grave = state.objects.values().any(|o| {
+    let in_grave = state.objects().values().any(|o| {
         o.characteristics.name == "Cycling Card" && matches!(o.zone, ZoneId::Graveyard(_))
     });
     assert!(
@@ -562,7 +562,7 @@ fn test_cycling_card_goes_to_graveyard_before_draw() {
 
     // The card is NOT in the hand any more.
     let in_hand = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Cycling Card" && o.zone == ZoneId::Hand(p1));
     assert!(
@@ -572,14 +572,14 @@ fn test_cycling_card_goes_to_graveyard_before_draw() {
 
     // The draw ability is still on the stack (not yet resolved).
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.29a: draw ability should be on stack, not yet resolved"
     );
 
     // The player's hand is still EMPTY (draw has not happened yet).
     let hand_count = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -616,12 +616,12 @@ fn test_cycling_draw_is_on_stack() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Cycling Card");
 
@@ -636,13 +636,13 @@ fn test_cycling_draw_is_on_stack() {
 
     // Stack has exactly one object — the cycling draw ability.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.29a: draw ability should be on stack"
     );
 
     // The stack object is an ActivatedAbility controlled by p1.
-    let stack_obj = state.stack_objects.back().unwrap();
+    let stack_obj = state.stack_objects().back().unwrap();
     assert_eq!(
         stack_obj.controller, p1,
         "CR 702.29a: cycling ability should be controlled by the cycling player"
@@ -686,7 +686,7 @@ fn test_cycling_zero_cost_cycling() {
         .unwrap();
 
     // NO mana given — {0} cycling costs nothing.
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Cycling Zero Card");
 
@@ -709,7 +709,7 @@ fn test_cycling_zero_cost_cycling() {
     );
 
     // Card is in graveyard.
-    let in_grave = state.objects.values().any(|o| {
+    let in_grave = state.objects().values().any(|o| {
         o.characteristics.name == "Cycling Zero Card" && matches!(o.zone, ZoneId::Graveyard(_))
     });
     assert!(
@@ -719,7 +719,7 @@ fn test_cycling_zero_cost_cycling() {
 
     // Draw ability on stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.29a: draw ability should be on stack for zero-cost cycling"
     );
@@ -727,7 +727,7 @@ fn test_cycling_zero_cost_cycling() {
     // Resolve — player draws.
     let (state, _) = pass_all(state, &[p1, p2]);
     let hand_count = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -767,7 +767,7 @@ fn test_cycling_keyword_on_battlefield() {
 
     // Verify the permanent has the Cycling keyword.
     let permanent = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Cycling Card")
         .expect("Cycling Card should exist");
@@ -813,13 +813,13 @@ fn test_cycling_requires_priority() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
     // Give priority to p2 — p1 does NOT have priority.
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let card_id = find_object(&state, "Cycling Card");
 
@@ -873,12 +873,12 @@ fn test_cycling_colored_mana_cost() {
 
     // Give p1 {U} (1 blue) — correct mana for cycling {U}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Cycling Blue Card");
 
@@ -926,12 +926,12 @@ fn test_cycling_colored_mana_wrong_color_rejected() {
 
     // Give p1 {C} (colorless) — NOT a valid payment for {U}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Cycling Blue Card");
 

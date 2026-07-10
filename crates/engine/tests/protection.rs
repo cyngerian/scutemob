@@ -15,7 +15,7 @@ use mtg_engine::{
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -58,12 +58,12 @@ fn test_protection_from_red_blocks_red_spell_targeting() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let target_id = find_object(&state, "White Knight");
     let bolt_id = find_object(&state, "Lightning Bolt");
@@ -135,12 +135,12 @@ fn test_protection_from_red_allows_green_spell() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let target_id = find_object(&state, "White Knight");
     let vines_id = find_object(&state, "Vines of Vastwood");
@@ -222,12 +222,12 @@ fn test_protection_from_creatures_blocks_creature_ability() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let target_id = find_object(&state, "Paladin");
     let spell_id = find_object(&state, "Creature Spell");
@@ -292,12 +292,12 @@ fn test_protection_from_all_blocks_all_targeting() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let target_id = find_object(&state, "Progenitus");
     let spell_id = find_object(&state, "Divine Verdict");
@@ -416,7 +416,7 @@ fn test_protection_from_red_blocks_red_blocker() {
         .unwrap();
 
     let mut state = state;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let attacker_id = find_object(&state, "White Knight");
     let blocker_id = find_object(&state, "Goblin Warrior");
@@ -437,7 +437,7 @@ fn test_protection_from_red_blocks_red_blocker() {
     let (state, _) = process_command(state, Command::PassPriority { player: p1 }).unwrap();
     let (state, _) = process_command(state, Command::PassPriority { player: p2 }).unwrap();
 
-    assert_eq!(state.turn.step, Step::DeclareBlockers);
+    assert_eq!(state.turn().step, Step::DeclareBlockers);
 
     // p2 attempts to block with the red creature — should fail.
     let result = process_command(
@@ -488,9 +488,9 @@ fn test_protection_from_red_aura_falls_off() {
     let aura_id = find_object(&state, "Burning Anger");
 
     // Manually attach the aura to the knight (simulating an illegal attachment state).
-    state.objects.get_mut(&aura_id).unwrap().attached_to = Some(knight_id);
+    state.objects_mut().get_mut(&aura_id).unwrap().attached_to = Some(knight_id);
     state
-        .objects
+        .objects_mut()
         .get_mut(&knight_id)
         .unwrap()
         .attachments
@@ -537,9 +537,9 @@ fn test_protection_from_red_equipment_detaches() {
     let equip_id = find_object(&state, "Blazing Sword");
 
     // Manually attach the equipment to the knight (simulating an illegal attachment state).
-    state.objects.get_mut(&equip_id).unwrap().attached_to = Some(knight_id);
+    state.objects_mut().get_mut(&equip_id).unwrap().attached_to = Some(knight_id);
     state
-        .objects
+        .objects_mut()
         .get_mut(&knight_id)
         .unwrap()
         .attachments
@@ -654,18 +654,18 @@ fn test_protection_player_target_blocked_by_red_spell() {
     let mut state = state;
     // Grant p2 protection from red via the PlayerState field.
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .protection_qualities
         .push(ProtectionQuality::FromColor(Color::Red));
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let bolt_id = find_object(&state, "Lightning Bolt");
 
@@ -730,12 +730,12 @@ fn test_protection_player_target_allowed_without_protection() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let bolt_id = find_object(&state, "Lightning Bolt");
 
@@ -797,7 +797,7 @@ fn test_protection_player_damage_prevented() {
     let mut state = state;
     // Grant p2 protection from red.
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .protection_qualities
@@ -860,18 +860,18 @@ fn test_protection_from_red_blocks_multicolor_red_source() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let target_id = find_object(&state, "White Knight Multicolor Test");
     let spell_id = find_object(&state, "Gruul Bolt");
@@ -944,12 +944,12 @@ fn test_protection_from_red_allows_green_only_multicolor_source() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let target_id = find_object(&state, "White Knight Green Test");
     let spell_id = find_object(&state, "Giant Growth");
@@ -1026,12 +1026,12 @@ fn test_protection_from_subtype_goblin_blocks_goblin_source() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let target_id = find_object(&state, "Goblin-Hater");
     let spell_id = find_object(&state, "Goblin Grenade");
@@ -1109,12 +1109,12 @@ fn test_protection_from_subtype_goblin_allows_wizard_source() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let target_id = find_object(&state, "Goblin-Hater Positive");
     let spell_id = find_object(&state, "Wizard Bolt");
@@ -1174,7 +1174,7 @@ fn test_protection_player_damage_not_prevented_wrong_color() {
     let mut state = state;
     // Grant p2 protection from red (not green).
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .protection_qualities
@@ -1234,12 +1234,12 @@ fn test_protection_from_supertype_legendary() {
             .build()
             .unwrap();
         state
-            .players
+            .players_mut()
             .get_mut(&p2)
             .unwrap()
             .mana_pool
             .add(ManaColor::Red, 1);
-        state.turn.priority_holder = Some(p2);
+        state.turn_mut().priority_holder = Some(p2);
 
         let target_id = find_object(&state, "Legend-Hater");
         let spell_id = find_object(&state, source_name);
@@ -1315,12 +1315,12 @@ fn test_protection_from_name() {
             .build()
             .unwrap();
         state
-            .players
+            .players_mut()
             .get_mut(&p2)
             .unwrap()
             .mana_pool
             .add(ManaColor::Red, 1);
-        state.turn.priority_holder = Some(p2);
+        state.turn_mut().priority_holder = Some(p2);
 
         let target_id = find_object(&state, "Name-Hater");
         let spell_id = find_object(&state, source_name);
@@ -1397,12 +1397,12 @@ fn test_protection_from_player_targeting() {
             .build()
             .unwrap();
         state
-            .players
+            .players_mut()
             .get_mut(&caster)
             .unwrap()
             .mana_pool
             .add(ManaColor::Red, 1);
-        state.turn.priority_holder = Some(caster);
+        state.turn_mut().priority_holder = Some(caster);
 
         let target_id = find_object(&state, "Bolas-Hater");
         let spell_id = find_object(&state, "Targeted Bolt");
@@ -1471,7 +1471,7 @@ fn test_protection_from_player_damage_prevented() {
 
     // p1 has protection from player p2 → damage from p2's source is prevented.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .protection_qualities
@@ -1492,7 +1492,7 @@ fn test_protection_from_player_damage_prevented() {
 
     // Swap p1's protection to be from p3 instead → p2's source damage now lands.
     {
-        let ps = state.players.get_mut(&p1).unwrap();
+        let ps = state.players_mut().get_mut(&p1).unwrap();
         ps.protection_qualities.clear();
         ps.protection_qualities
             .push(ProtectionQuality::FromPlayer(p3));

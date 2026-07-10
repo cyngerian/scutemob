@@ -29,7 +29,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_obj(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -38,14 +38,14 @@ fn find_obj(state: &mtg_engine::GameState, name: &str) -> ObjectId {
 
 fn in_graveyard(state: &mtg_engine::GameState, name: &str, owner: PlayerId) -> bool {
     state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == name && o.zone == ZoneId::Graveyard(owner))
 }
 
 fn in_zone(state: &mtg_engine::GameState, name: &str, zone: ZoneId) -> bool {
     state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == name && o.zone == zone)
 }
@@ -96,12 +96,12 @@ fn cast_test_sorcery(
 ) -> (mtg_engine::GameState, Vec<mtg_engine::GameEvent>) {
     let spell_id = find_obj(&state, "Test Sacrifice Sorcery");
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     process_command(
         state,
         Command::CastSpell {
@@ -339,7 +339,7 @@ fn multi_count_sacrifice_with_filter() {
 
     // Exactly 2 of P1's 3 creatures are sacrificed; artifact is untouched.
     let p1_creatures_on_bf: usize = state
-        .objects
+        .objects()
         .values()
         .filter(|o| {
             o.zone == ZoneId::Battlefield

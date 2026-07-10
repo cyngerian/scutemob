@@ -57,13 +57,13 @@ fn register_replacement_effects(state: &mut mtg_engine::state::GameState) {
     use mtg_engine::state::game_object::ObjectId;
     use mtg_engine::state::zone::ZoneId;
 
-    let registry = state.card_registry.clone();
+    let registry = state.card_registry().clone();
     let battlefield_objects: Vec<(
         ObjectId,
         PlayerId,
         Option<mtg_engine::state::player::CardId>,
     )> = state
-        .objects
+        .objects()
         .iter()
         .filter(|(_, obj)| matches!(obj.zone, ZoneId::Battlefield))
         .map(|(id, obj)| (*id, obj.controller, obj.card_id.clone()))
@@ -85,7 +85,7 @@ fn find_named(
     name: &str,
 ) -> mtg_engine::state::game_object::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)

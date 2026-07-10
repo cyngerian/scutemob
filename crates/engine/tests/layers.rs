@@ -5,6 +5,7 @@
 //! and then calls `calculate_characteristics` to verify the result.
 
 use im::{ordset, OrdSet};
+use mtg_engine::state::test_util;
 use mtg_engine::{
     calculate_characteristics, CardType, ContinuousEffect, EffectDuration, EffectFilter, EffectId,
     EffectLayer, GameStateBuilder, KeywordAbility, LayerModification, ObjectSpec, PlayerId,
@@ -86,7 +87,7 @@ fn test_613_layer4_add_creature_type() {
         .build()
         .unwrap();
     let land_id = *state
-        .zones
+        .zones()
         .get(&mtg_engine::ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -131,7 +132,7 @@ fn test_613_layer4_set_type_line_replaces_all() {
         .build()
         .unwrap();
     let id = *state
-        .zones
+        .zones()
         .get(&mtg_engine::ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -169,7 +170,7 @@ fn test_613_layer7b_set_pt() {
         .build()
         .unwrap();
     let id = *state
-        .zones
+        .zones()
         .get(&mtg_engine::ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -198,7 +199,7 @@ fn test_613_layer7c_modify_pt() {
         .build()
         .unwrap();
     let id = *state
-        .zones
+        .zones()
         .get(&mtg_engine::ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -235,7 +236,7 @@ fn test_613_layer7c_multiple_modifications_stack() {
         .build()
         .unwrap();
     let id = *state
-        .zones
+        .zones()
         .get(&mtg_engine::ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -286,7 +287,7 @@ fn test_613_layer7d_pt_switch() {
         .build()
         .unwrap();
     let id = *state
-        .zones
+        .zones()
         .get(&mtg_engine::ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -329,7 +330,7 @@ fn test_613_layer5_set_colors() {
         .build()
         .unwrap();
     let id = *state
-        .zones
+        .zones()
         .get(&mtg_engine::ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -367,7 +368,7 @@ fn test_613_layer6_remove_all_abilities() {
         .build()
         .unwrap();
     let id = *state
-        .zones
+        .zones()
         .get(&mtg_engine::ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -398,7 +399,7 @@ fn test_613_layer6_add_keyword() {
         .build()
         .unwrap();
     let id = *state
-        .zones
+        .zones()
         .get(&mtg_engine::ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -453,7 +454,7 @@ fn test_613_layer7a_cda_applies_before_static_pt() {
         .build()
         .unwrap();
     let id = *state
-        .zones
+        .zones()
         .get(&mtg_engine::ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -503,7 +504,7 @@ fn test_613_layer7a_set_pt_to_mana_value() {
         .build()
         .unwrap();
     let id = *state
-        .zones
+        .zones()
         .get(&mtg_engine::ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -553,7 +554,7 @@ fn test_613_timestamp_ordering_later_wins() {
         .build()
         .unwrap();
     let id = *state
-        .zones
+        .zones()
         .get(&mtg_engine::ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -586,7 +587,7 @@ fn test_613_effect_expires_when_source_leaves_battlefield() {
         .unwrap();
 
     let battlefield_ids: Vec<_> = state
-        .zones
+        .zones()
         .get(&mtg_engine::ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -595,7 +596,7 @@ fn test_613_effect_expires_when_source_leaves_battlefield() {
     let target_id = battlefield_ids[1];
 
     // Add a continuous effect sourced from source_id that modifies AllCreatures.
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(1),
         source: Some(source_id),
         timestamp: 10,
@@ -616,8 +617,7 @@ fn test_613_effect_expires_when_source_leaves_battlefield() {
     );
 
     // Move source to graveyard (simulating it dying)
-    state
-        .move_object_to_zone(source_id, mtg_engine::ZoneId::Graveyard(p1()))
+    test_util::move_object_to_zone(&mut state, source_id, mtg_engine::ZoneId::Graveyard(p1()))
         .unwrap();
 
     // After source leaves: effect is no longer active (source not on battlefield)
@@ -671,7 +671,7 @@ fn test_613_until_end_of_turn_expires_at_cleanup() {
         .unwrap();
 
     let id = *state
-        .zones
+        .zones()
         .get(&mtg_engine::ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -684,8 +684,8 @@ fn test_613_until_end_of_turn_expires_at_cleanup() {
 
     // Simulate cleanup: expire UntilEndOfTurn effects (as expire_end_of_turn_effects does)
     let mut state = state;
-    state.continuous_effects = state
-        .continuous_effects
+    *state.continuous_effects_mut() = state
+        .continuous_effects()
         .iter()
         .filter(|e| e.duration != mtg_engine::EffectDuration::UntilEndOfTurn)
         .cloned()
@@ -700,7 +700,7 @@ fn test_613_until_end_of_turn_expires_at_cleanup() {
     );
     assert!(
         state
-            .continuous_effects
+            .continuous_effects()
             .iter()
             .all(|e| e.duration != mtg_engine::EffectDuration::UntilEndOfTurn),
         "no UntilEndOfTurn effects should remain"
@@ -724,7 +724,7 @@ fn test_613_plus_one_counters_modify_pt() {
         .build()
         .unwrap();
     let id = *state
-        .zones
+        .zones()
         .get(&mtg_engine::ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -749,7 +749,7 @@ fn test_613_minus_one_counters_reduce_pt() {
         .build()
         .unwrap();
     let id = *state
-        .zones
+        .zones()
         .get(&mtg_engine::ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -789,7 +789,7 @@ fn test_613_counters_apply_after_set_before_switch() {
         .build()
         .unwrap();
     let id = *state
-        .zones
+        .zones()
         .get(&mtg_engine::ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -856,7 +856,7 @@ fn test_613_opalescence_makes_enchantments_into_creatures() {
         .build()
         .unwrap();
     let id = *state
-        .zones
+        .zones()
         .get(&mtg_engine::ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -972,7 +972,7 @@ fn test_613_humility_plus_opalescence() {
 
     // Get both objects (Opalescence = first, Humility = second)
     let bf_ids: Vec<_> = state
-        .zones
+        .zones()
         .get(&mtg_engine::ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -981,7 +981,7 @@ fn test_613_humility_plus_opalescence() {
     // Both enchantments should now be 1/1 creatures with no abilities.
     for &id in &bf_ids {
         let chars = calculate_characteristics(&state, id).unwrap();
-        let name = &state.objects.get(&id).unwrap().characteristics.name;
+        let name = &state.objects().get(&id).unwrap().characteristics.name;
 
         // Layer 4: Opalescence makes them creatures
         assert!(
@@ -1058,7 +1058,7 @@ fn test_613_blood_moon_plus_urborg_blood_moon_newer() {
         .build()
         .unwrap();
     let id = *state
-        .zones
+        .zones()
         .get(&mtg_engine::ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -1120,7 +1120,7 @@ fn test_613_blood_moon_plus_urborg_blood_moon_older_dependency_wins() {
         .build()
         .unwrap();
     let id = *state
-        .zones
+        .zones()
         .get(&mtg_engine::ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -1195,7 +1195,7 @@ fn test_613_dependency_chain_three_effects() {
         .build()
         .unwrap();
     let id = *state
-        .zones
+        .zones()
         .get(&mtg_engine::ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -1252,7 +1252,7 @@ fn test_613_independent_effects_apply_in_timestamp_order() {
         .build()
         .unwrap();
     let id = *state
-        .zones
+        .zones()
         .get(&mtg_engine::ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -1290,7 +1290,7 @@ fn test_613_filter_excludes_non_matching_objects() {
         .build()
         .unwrap();
     let id = *state
-        .zones
+        .zones()
         .get(&mtg_engine::ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -1334,7 +1334,7 @@ fn test_613_layer4_type_change_enables_later_filter() {
         .build()
         .unwrap();
     let id = *state
-        .zones
+        .zones()
         .get(&mtg_engine::ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -1367,7 +1367,7 @@ fn test_613_no_effects_returns_base_characteristics() {
         .build()
         .unwrap();
     let id = *state
-        .zones
+        .zones()
         .get(&mtg_engine::ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -1425,7 +1425,7 @@ fn test_613_layer_ordering_type_before_ability() {
         .build()
         .unwrap();
     let id = *state
-        .zones
+        .zones()
         .get(&mtg_engine::ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -1518,14 +1518,14 @@ fn test_cc6_humility_magus_of_moon_nondependency() {
 
     // Find the land and the creature by type.
     let land_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Nonbasic Land")
         .map(|(id, _)| *id)
         .expect("Nonbasic Land not found");
 
     let creature_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Flying Bear")
         .map(|(id, _)| *id)
@@ -1652,7 +1652,7 @@ fn test_cc7_opalescence_parallax_wave_zone_change() {
         .unwrap();
 
     let wave_id = *state
-        .zones
+        .zones()
         .get(&mtg_engine::ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -1690,9 +1690,9 @@ fn test_cc7_opalescence_parallax_wave_zone_change() {
     // We simulate zone-change and verify the object becomes a new object (CR 400.7),
     // which is the identity change that "kills" the animated enchantment as a creature.
     let mut state = state;
-    let (new_id, old_snapshot) = state
-        .move_object_to_zone(wave_id, mtg_engine::ZoneId::Graveyard(p))
-        .unwrap();
+    let (new_id, old_snapshot) =
+        test_util::move_object_to_zone(&mut state, wave_id, mtg_engine::ZoneId::Graveyard(p))
+            .unwrap();
 
     // Old ObjectId is no longer valid (zone change = new identity per CR 400.7).
     assert_ne!(
@@ -1759,7 +1759,7 @@ fn test_cc4_yixlid_jailer_removes_anger_graveyard_ability() {
 
     // Find Anger in the graveyard.
     let anger_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Anger")
         .map(|(id, _)| *id)
@@ -1783,7 +1783,7 @@ fn test_cc4_yixlid_jailer_removes_anger_graveyard_ability() {
     // The battlefield creature (Hill Giant) is NOT affected by Yixlid Jailer.
     // Jailer only affects graveyards (AllCardsInGraveyards filter).
     let giant_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Hill Giant")
         .map(|(id, _)| *id)
@@ -1809,7 +1809,7 @@ fn test_cc4_yixlid_jailer_removes_anger_graveyard_ability() {
         .unwrap();
 
     let anger_id_2 = state_no_jailer
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Anger")
         .map(|(id, _)| *id)
@@ -1880,7 +1880,7 @@ fn test_613_layer7b_cda_applies_before_noncda_same_sublayer() {
         .unwrap();
 
     let id = *state
-        .zones
+        .zones()
         .get(&mtg_engine::ZoneId::Battlefield)
         .unwrap()
         .object_ids()

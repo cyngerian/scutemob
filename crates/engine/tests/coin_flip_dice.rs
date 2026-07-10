@@ -42,7 +42,7 @@ fn setup_state_with_library(n: usize) -> mtg_engine::GameState {
 fn test_coin_flip_win_branch() {
     let mut state = setup_basic_state();
     // Set timestamp to an odd number so result = win (odd % 2 == 1 → true).
-    state.timestamp_counter = 101;
+    *state.timestamp_counter_mut() = 101;
     let source = ObjectId(1);
 
     let effect = Effect::CoinFlip {
@@ -68,7 +68,7 @@ fn test_coin_flip_win_branch() {
     );
 
     // Player should have gained 5 life (win branch), not lost 3.
-    let life = state.players.get(&p(1)).unwrap().life_total;
+    let life = state.players().get(&p(1)).unwrap().life_total;
     assert_eq!(
         life, 45,
         "Player should have gained 5 life from winning the flip (40 + 5)"
@@ -81,7 +81,7 @@ fn test_coin_flip_win_branch() {
 fn test_coin_flip_lose_branch() {
     let mut state = setup_basic_state();
     // Set timestamp to an even number so result = lose (even % 2 == 0 → false).
-    state.timestamp_counter = 100;
+    *state.timestamp_counter_mut() = 100;
     let source = ObjectId(1);
 
     let effect = Effect::CoinFlip {
@@ -105,7 +105,7 @@ fn test_coin_flip_lose_branch() {
     );
 
     // Player should have lost 3 life (lose branch).
-    let life = state.players.get(&p(1)).unwrap().life_total;
+    let life = state.players().get(&p(1)).unwrap().life_total;
     assert_eq!(
         life, 37,
         "Player should have taken 3 damage from losing the flip (40 - 3)"
@@ -116,7 +116,7 @@ fn test_coin_flip_lose_branch() {
 /// CR 705.1 — CoinFlipped event is always emitted, even if the branch is Nothing.
 fn test_coin_flip_event_always_emitted() {
     let mut state = setup_basic_state();
-    state.timestamp_counter = 101; // odd = win
+    *state.timestamp_counter_mut() = 101; // odd = win
     let source = ObjectId(1);
 
     let effect = Effect::CoinFlip {
@@ -153,12 +153,12 @@ fn test_coin_flip_deterministic_replay() {
 
     // Run with same initial timestamp twice — should get same result.
     let mut state1 = setup_basic_state();
-    state1.timestamp_counter = 42;
+    *state1.timestamp_counter_mut() = 42;
     let mut ctx1 = EffectContext::new(p(1), source, vec![]);
     let events1 = execute_effect(&mut state1, &effect, &mut ctx1);
 
     let mut state2 = setup_basic_state();
-    state2.timestamp_counter = 42;
+    *state2.timestamp_counter_mut() = 42;
     let mut ctx2 = EffectContext::new(p(1), source, vec![]);
     let events2 = execute_effect(&mut state2, &effect, &mut ctx2);
 
@@ -176,8 +176,8 @@ fn test_coin_flip_deterministic_replay() {
         "Same timestamp should produce same coin flip result"
     );
     assert_eq!(
-        state1.players.get(&p(1)).unwrap().life_total,
-        state2.players.get(&p(1)).unwrap().life_total,
+        state1.players().get(&p(1)).unwrap().life_total,
+        state2.players().get(&p(1)).unwrap().life_total,
         "Deterministic replay should produce identical life totals"
     );
 }
@@ -189,7 +189,7 @@ fn test_coin_flip_deterministic_replay() {
 fn test_dice_roll_d20_high_roll() {
     let mut state = setup_basic_state();
     // timestamp 19 → (19 % 20) + 1 = 20
-    state.timestamp_counter = 19;
+    *state.timestamp_counter_mut() = 19;
     let source = ObjectId(1);
 
     let effect = Effect::RollDice {
@@ -223,7 +223,7 @@ fn test_dice_roll_d20_high_roll() {
         "Expected DiceRolled with result=20"
     );
 
-    let life = state.players.get(&p(1)).unwrap().life_total;
+    let life = state.players().get(&p(1)).unwrap().life_total;
     assert_eq!(
         life, 45,
         "Player should have gained 5 life from high roll (40 + 5)"
@@ -235,7 +235,7 @@ fn test_dice_roll_d20_high_roll() {
 fn test_dice_roll_d20_low_roll() {
     let mut state = setup_basic_state();
     // timestamp 4 → (4 % 20) + 1 = 5
-    state.timestamp_counter = 4;
+    *state.timestamp_counter_mut() = 4;
     let source = ObjectId(1);
 
     let effect = Effect::RollDice {
@@ -270,7 +270,7 @@ fn test_dice_roll_d20_low_roll() {
         "Expected DiceRolled with result=5"
     );
 
-    let life = state.players.get(&p(1)).unwrap().life_total;
+    let life = state.players().get(&p(1)).unwrap().life_total;
     assert_eq!(
         life, 38,
         "Player should have taken 2 damage from low roll (40 - 2)"
@@ -281,7 +281,7 @@ fn test_dice_roll_d20_low_roll() {
 /// CR 706.2 — DiceRolled event is emitted with correct sides and result.
 fn test_dice_roll_event_emitted_d6() {
     let mut state = setup_basic_state();
-    state.timestamp_counter = 0; // (0 % 6) + 1 = 1
+    *state.timestamp_counter_mut() = 0; // (0 % 6) + 1 = 1
     let source = ObjectId(1);
 
     let effect = Effect::RollDice {
@@ -308,12 +308,12 @@ fn test_dice_roll_deterministic_replay() {
     };
 
     let mut state1 = setup_basic_state();
-    state1.timestamp_counter = 77;
+    *state1.timestamp_counter_mut() = 77;
     let mut ctx1 = EffectContext::new(p(1), source, vec![]);
     let events1 = execute_effect(&mut state1, &effect, &mut ctx1);
 
     let mut state2 = setup_basic_state();
-    state2.timestamp_counter = 77;
+    *state2.timestamp_counter_mut() = 77;
     let mut ctx2 = EffectContext::new(p(1), source, vec![]);
     let events2 = execute_effect(&mut state2, &effect, &mut ctx2);
 
@@ -340,7 +340,7 @@ fn test_dice_roll_deterministic_replay() {
 fn test_last_dice_roll_amount() {
     let mut state = setup_state_with_library(20);
     // Set timestamp so we get a known small result: (4 % 20) + 1 = 5
-    state.timestamp_counter = 4;
+    *state.timestamp_counter_mut() = 4;
 
     let source = ObjectId(1);
     let effect = Effect::RollDice {

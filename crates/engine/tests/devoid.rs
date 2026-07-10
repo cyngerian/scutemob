@@ -41,7 +41,7 @@ fn indef_effect(
 
 fn battlefield_id(state: &mtg_engine::GameState) -> mtg_engine::ObjectId {
     *state
-        .zones
+        .zones()
         .get(&ZoneId::Battlefield)
         .expect("battlefield zone must exist")
         .object_ids()
@@ -100,7 +100,7 @@ fn test_devoid_base_colors_unmodified() {
     let id = battlefield_id(&state);
 
     // The stored (base) colors should still contain Red
-    let base_colors = &state.objects.get(&id).unwrap().characteristics.colors;
+    let base_colors = &state.objects().get(&id).unwrap().characteristics.colors;
     assert!(
         base_colors.contains(&Color::Red),
         "Base characteristics should retain mana-cost color Red before layer calculation"
@@ -230,7 +230,7 @@ fn test_devoid_works_in_graveyard() {
 
     // Find the object in the graveyard
     let id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| {
             obj.zone == ZoneId::Graveyard(p1()) && obj.characteristics.name == "Devoid Creature"
@@ -267,7 +267,7 @@ fn test_devoid_works_in_hand() {
 
     // Find the object in hand
     let id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| {
             obj.zone == ZoneId::Hand(p1()) && obj.characteristics.name == "Devoid Creature"

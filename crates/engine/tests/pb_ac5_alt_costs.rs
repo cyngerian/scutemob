@@ -34,7 +34,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -43,7 +43,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -523,7 +523,9 @@ fn test_was_warped_field_participates_in_hash() {
             .active_player(p1)
             .build()
             .unwrap();
-        state.stack_objects.push_back(make_stack_spell(was_warped));
+        state
+            .stack_objects_mut()
+            .push_back(make_stack_spell(was_warped));
         state
     };
 
@@ -563,13 +565,13 @@ fn test_warp_cast_from_hand_pays_warp_cost() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
-    state.players.get_mut(&p1).unwrap().life_total = 20;
-    state.turn.priority_holder = Some(p1);
+    state.players_mut().get_mut(&p1).unwrap().life_total = 20;
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Warp Test Creature");
 
@@ -580,16 +582,17 @@ fn test_warp_cast_from_hand_pays_warp_cost() {
     .unwrap_or_else(|e| panic!("warp cast should succeed: {:?}", e));
 
     assert_eq!(
-        state.players[&p1].life_total, 18,
+        state.players()[&p1].life_total,
+        18,
         "warp cost's Pay 2 life should be deducted (CR 702.185a)"
     );
     assert_eq!(
-        state.players[&p1].mana_pool.get(ManaColor::Black),
+        state.players()[&p1].mana_pool.get(ManaColor::Black),
         0,
         "warp mana cost {{B}} should be paid from the pool"
     );
     assert!(
-        !state.stack_objects.is_empty(),
+        !state.stack_objects().is_empty(),
         "warp-cast spell should be on the stack"
     );
 
@@ -624,13 +627,13 @@ fn test_warp_exiled_at_next_end_step() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
-    state.players.get_mut(&p1).unwrap().life_total = 20;
-    state.turn.priority_holder = Some(p1);
+    state.players_mut().get_mut(&p1).unwrap().life_total = 20;
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Warp Test Creature");
     let (state, _) = process_command(
@@ -646,11 +649,11 @@ fn test_warp_exiled_at_next_end_step() {
     // Advance PostCombatMain -> End step.
     let (state, _) = pass_all(state, &[p1, p2]);
     assert_eq!(
-        state.turn.step,
+        state.turn().step,
         Step::End,
         "should have advanced to End step"
     );
-    let warped_turn = state.turn.turn_number;
+    let warped_turn = state.turn().turn_number;
 
     // Resolve the delayed WarpExile trigger.
     let (state, _end_events) = pass_all(state, &[p1, p2]);
@@ -660,7 +663,7 @@ fn test_warp_exiled_at_next_end_step() {
         "CR 702.185a: warp-cast permanent should be exiled at the next end step"
     );
     let exile_obj = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Warp Test Creature" && o.zone == ZoneId::Exile)
         .expect("warped card should be in exile");
@@ -698,12 +701,12 @@ fn test_warp_not_exiled_if_not_warp_cast() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Warp Test Creature");
     let (state, _) = process_command(state, empty_cast_spell(p1, card_id, None)).unwrap();
@@ -712,7 +715,7 @@ fn test_warp_not_exiled_if_not_warp_cast() {
     assert!(on_battlefield(&state, "Warp Test Creature"));
 
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::End);
+    assert_eq!(state.turn().step, Step::End);
 
     let (state, _) = pass_all(state, &[p1, p2]);
     assert!(
@@ -746,13 +749,13 @@ fn test_warp_recast_from_exile_after_turn() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
-    state.players.get_mut(&p1).unwrap().life_total = 20;
-    state.turn.priority_holder = Some(p1);
+    state.players_mut().get_mut(&p1).unwrap().life_total = 20;
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Warp Test Creature");
     let (state, _) = process_command(
@@ -765,21 +768,21 @@ fn test_warp_recast_from_exile_after_turn() {
     let (mut state, _) = pass_all(state, &[p1, p2]); // resolve exile trigger
 
     let exile_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == "Warp Test Creature" && o.zone == ZoneId::Exile)
         .map(|(&id, _)| id)
         .expect("warped card should be in exile");
 
     // Same-turn recast must fail.
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
-    state.players.get_mut(&p1).unwrap().life_total = 20;
+    state.players_mut().get_mut(&p1).unwrap().life_total = 20;
     let result = process_command(
         state.clone(),
         empty_cast_spell(p1, exile_id, Some(AltCostKind::Warp)),
@@ -791,9 +794,9 @@ fn test_warp_recast_from_exile_after_turn() {
 
     // Advance to a later turn; recast should succeed.
     let mut state = state;
-    state.turn.turn_number += 1;
-    state.turn.step = Step::PreCombatMain;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().turn_number += 1;
+    state.turn_mut().step = Step::PreCombatMain;
+    state.turn_mut().priority_holder = Some(p1);
     let result = process_command(
         state,
         empty_cast_spell(p1, exile_id, Some(AltCostKind::Warp)),
@@ -835,19 +838,19 @@ fn test_warp_countered_spell_not_exiled() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
-    state.players.get_mut(&p1).unwrap().life_total = 20;
+    state.players_mut().get_mut(&p1).unwrap().life_total = 20;
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Warp Test Creature");
     let (state, _) = process_command(
@@ -859,16 +862,16 @@ fn test_warp_countered_spell_not_exiled() {
     // p1 passes; p2 responds by casting Mock Counter targeting the warp spell.
     let (state, _) = process_command(state, Command::PassPriority { player: p1 }).unwrap();
     let counter_id = find_object(&state, "Mock Counter");
-    // CR 601.2c target validation looks up `state.objects` by the CARD's own ObjectId
+    // CR 601.2c target validation looks up `state.objects()` by the CARD's own ObjectId
     // (which moved to ZoneId::Stack when cast) -- i.e. `source_object`, not the
     // StackObject container's own `id`.
     let warp_stack_id = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .find_map(|so| match &so.kind {
             mtg_engine::StackObjectKind::Spell { source_object }
                 if state
-                    .objects
+                    .objects()
                     .get(source_object)
                     .map(|o| o.characteristics.name.as_str())
                     == Some("Warp Test Creature") =>
@@ -916,7 +919,7 @@ fn test_warp_countered_spell_not_exiled() {
         "CR 400.7 / 702.185a: countered spell must remain in graveyard, not be exiled"
     );
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "no delayed WarpExile trigger should have been queued for a countered spell"
     );
 }
@@ -947,13 +950,13 @@ fn test_warp_timeline_culler_from_graveyard() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
-    state.players.get_mut(&p1).unwrap().life_total = 20;
-    state.turn.priority_holder = Some(p1);
+    state.players_mut().get_mut(&p1).unwrap().life_total = 20;
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Timeline Culler");
     let result = process_command(
@@ -992,12 +995,12 @@ fn test_warp_mutual_exclusion() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Warp Flashback Hybrid");
     let result = process_command(
@@ -1059,24 +1062,24 @@ fn test_transmute_searches_equal_mana_value() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let source_id = find_object(&state, "Dimir Infiltrator");
     let (state, _) = process_command(
@@ -1132,24 +1135,24 @@ fn test_transmute_only_from_hand() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let source_id = find_object(&state, "Dimir Infiltrator");
     let result = process_command(
@@ -1206,27 +1209,27 @@ fn test_transmute_sorcery_timing() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Not p1's turn -- can't activate a sorcery-speed ability.
-    state.turn.active_player = p2;
+    state.turn_mut().active_player = p2;
 
     let source_id = find_object(&state, "Dimir Infiltrator");
     let result = process_command(
@@ -1283,24 +1286,24 @@ fn test_transmute_discards_self() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let source_id = find_object(&state, "Dimir Infiltrator");
     let (state, events) = process_command(
@@ -1367,11 +1370,11 @@ fn test_exert_combat_celebrant_untaps_and_extra_combat() {
     let celebrant_id = find_object(&state, "Combat Celebrant");
     let ally_id = find_object(&state, "Sleepy Ally");
     assert!(
-        state.objects[&ally_id].status.tapped,
+        state.objects()[&ally_id].status.tapped,
         "sanity: ally should start tapped"
     );
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let (state, events) = process_command(
         state,
         Command::DeclareAttackers {
@@ -1390,27 +1393,27 @@ fn test_exert_combat_celebrant_untaps_and_extra_combat() {
         "PermanentExerted event should be emitted"
     );
     assert!(
-        state.objects[&celebrant_id]
+        state.objects()[&celebrant_id]
             .designations
             .contains(Designations::EXERTED),
         "CR 701.43a: exerted attacker should carry the EXERTED designation"
     );
     assert!(
-        !state.stack_objects.is_empty(),
+        !state.stack_objects().is_empty(),
         "the linked 'when you do' trigger should be on the stack"
     );
 
     let (state, _) = pass_all(state, &[p1, p2]);
 
     assert!(
-        !state.objects[&ally_id].status.tapped,
+        !state.objects()[&ally_id].status.tapped,
         "CR 701.43d: the linked trigger should untap the ally (another creature you control)"
     );
     // Assert an exact count (not just `.contains`) so a double-fire of the linked trigger
     // (e.g. if a runtime `TriggerEvent` mapping were later added alongside the existing
     // card-registry-scan firing path) would be caught rather than silently passing.
     let combat_phase_count = state
-        .turn
+        .turn()
         .additional_phases
         .iter()
         .filter(|p| **p == mtg_engine::state::turn::Phase::Combat)
@@ -1444,7 +1447,7 @@ fn test_exert_does_not_untap_next_untap_step() {
 
     let beast_id = find_object(&state, "Exerted Beast");
     state
-        .objects
+        .objects_mut()
         .get_mut(&beast_id)
         .unwrap()
         .designations
@@ -1453,11 +1456,11 @@ fn test_exert_does_not_untap_next_untap_step() {
     // First untap step: should skip untap and clear the designation.
     let _ = mtg_engine::rules::turn_actions::untap_active_player_permanents(&mut state);
     assert!(
-        state.objects[&beast_id].status.tapped,
+        state.objects()[&beast_id].status.tapped,
         "CR 701.43a: exerted permanent should not untap during the next untap step"
     );
     assert!(
-        !state.objects[&beast_id]
+        !state.objects()[&beast_id]
             .designations
             .contains(Designations::EXERTED),
         "CR 701.43a/b: EXERTED should be cleared after the skipped untap step"
@@ -1466,7 +1469,7 @@ fn test_exert_does_not_untap_next_untap_step() {
     // Second untap step: no longer exerted, should untap normally.
     let _ = mtg_engine::rules::turn_actions::untap_active_player_permanents(&mut state);
     assert!(
-        !state.objects[&beast_id].status.tapped,
+        !state.objects()[&beast_id].status.tapped,
         "permanent should untap normally on the FOLLOWING untap step"
     );
 }
@@ -1498,7 +1501,7 @@ fn test_exert_twice_expires_same_step() {
         .unwrap();
 
     let creature_id = find_object(&state, "Dual Exert Creature");
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Exert once via the attack cost.
     let (state, _) = process_command(
@@ -1511,14 +1514,14 @@ fn test_exert_twice_expires_same_step() {
         },
     )
     .unwrap();
-    assert!(state.objects[&creature_id]
+    assert!(state.objects()[&creature_id]
         .designations
         .contains(Designations::EXERTED));
 
     // Exert a SECOND time via the activation-cost shape (no "already exerted" guard
     // on this shape -- CR 701.43b permits re-exerting).
     let mut state = state;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let (mut state, _) = process_command(
         state,
         Command::ActivateAbility {
@@ -1533,25 +1536,25 @@ fn test_exert_twice_expires_same_step() {
     )
     .unwrap_or_else(|e| panic!("second exert (activation) should succeed: {:?}", e));
 
-    assert!(state.objects[&creature_id]
+    assert!(state.objects()[&creature_id]
         .designations
         .contains(Designations::EXERTED));
 
     // Only ONE untap step should be skipped, regardless of the double exert.
     let _ = mtg_engine::rules::turn_actions::untap_active_player_permanents(&mut state);
     assert!(
-        state.objects[&creature_id].status.tapped,
+        state.objects()[&creature_id].status.tapped,
         "should stay tapped through the first untap step after being exerted twice"
     );
     assert!(
-        !state.objects[&creature_id]
+        !state.objects()[&creature_id]
             .designations
             .contains(Designations::EXERTED),
         "EXERTED should be cleared after exactly one skipped untap step (CR 701.43b)"
     );
     let _ = mtg_engine::rules::turn_actions::untap_active_player_permanents(&mut state);
     assert!(
-        !state.objects[&creature_id].status.tapped,
+        !state.objects()[&creature_id].status.tapped,
         "should untap normally on the SECOND untap step (only one step was skipped)"
     );
 }
@@ -1580,12 +1583,12 @@ fn test_exert_offer_requires_not_already_exerted() {
 
     let creature_id = find_object(&state, "Already Exerted");
     state
-        .objects
+        .objects_mut()
         .get_mut(&creature_id)
         .unwrap()
         .designations
         .insert(Designations::EXERTED);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let result = process_command(
         state,
@@ -1629,12 +1632,12 @@ fn test_exert_arena_of_glory_activation() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let land_id = find_object(&state, "Exert Land");
     let (state, _) = process_command(
@@ -1652,13 +1655,13 @@ fn test_exert_arena_of_glory_activation() {
     .unwrap_or_else(|e| panic!("exert activation should succeed: {:?}", e));
 
     assert!(
-        state.objects[&land_id]
+        state.objects()[&land_id]
             .designations
             .contains(Designations::EXERTED),
         "CR 701.43a: activating the exert cost should set EXERTED"
     );
     assert!(
-        state.objects[&land_id].status.tapped,
+        state.objects()[&land_id].status.tapped,
         "the Tap component of the sequence cost should tap the land"
     );
 }
@@ -1688,7 +1691,7 @@ fn test_exert_cannot_exert_off_battlefield() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let source_id = find_object(&state, "Graveyard Exert");
     let result = process_command(
         state,
@@ -1751,14 +1754,14 @@ fn test_pitch_force_of_will_exile_blue_and_life() {
         .build()
         .unwrap();
 
-    state.players.get_mut(&p1).unwrap().life_total = 20;
+    state.players_mut().get_mut(&p1).unwrap().life_total = 20;
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     // p2 casts a spell onto the stack for Force of Will to target.
     let threat_id = find_object(&state, "Mock Threat Spell");
@@ -1785,11 +1788,11 @@ fn test_pitch_force_of_will_exile_blue_and_life() {
     .unwrap();
     let (state, _) = process_command(state, Command::PassPriority { player: p2 }).unwrap();
 
-    // CR 601.2c target validation looks up `state.objects` by the CARD's own ObjectId
+    // CR 601.2c target validation looks up `state.objects()` by the CARD's own ObjectId
     // (moved to ZoneId::Stack when cast) -- i.e. `source_object`, not the StackObject
     // container's own `id`.
     let threat_stack_id = match &state
-        .stack_objects
+        .stack_objects()
         .last()
         .expect("Mock Threat Spell should be on the stack")
         .kind
@@ -1828,7 +1831,8 @@ fn test_pitch_force_of_will_exile_blue_and_life() {
     .unwrap_or_else(|e| panic!("Force of Will pitch cast should succeed: {:?}", e));
 
     assert_eq!(
-        state.players[&p1].life_total, 19,
+        state.players()[&p1].life_total,
+        19,
         "CR 118.9: pitch cost's 1 life payment should be deducted"
     );
     assert!(
@@ -1836,7 +1840,7 @@ fn test_pitch_force_of_will_exile_blue_and_life() {
         "the pitched blue card should be exiled (CR 400.7: new ObjectId, old `fodder_id` is dead)"
     );
     assert!(
-        !state.stack_objects.is_empty(),
+        !state.stack_objects().is_empty(),
         "Force of Will should be on the stack after casting"
     );
 }
@@ -1875,14 +1879,14 @@ fn test_pitch_wrong_color_rejected() {
         .build()
         .unwrap();
 
-    state.players.get_mut(&p1).unwrap().life_total = 20;
+    state.players_mut().get_mut(&p1).unwrap().life_total = 20;
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let threat_id = find_object(&state, "Mock Threat Spell");
     let (state, _) = process_command(
@@ -1908,7 +1912,7 @@ fn test_pitch_wrong_color_rejected() {
     .unwrap();
     let (state, _) = process_command(state, Command::PassPriority { player: p2 }).unwrap();
     let threat_stack_id = match &state
-        .stack_objects
+        .stack_objects()
         .last()
         .expect("Mock Threat Spell should be on the stack")
         .kind
@@ -1984,7 +1988,7 @@ fn test_pitch_force_of_vigor_opponents_turn_only() {
             .at_step(Step::PreCombatMain)
             .build()
             .unwrap();
-        state.turn.priority_holder = Some(p1);
+        state.turn_mut().priority_holder = Some(p1);
         state
     };
 
@@ -2089,14 +2093,14 @@ fn test_pitch_mana_value_unchanged() {
         .build()
         .unwrap();
 
-    state.players.get_mut(&p1).unwrap().life_total = 20;
+    state.players_mut().get_mut(&p1).unwrap().life_total = 20;
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let threat_id = find_object(&state, "Mock Threat Spell");
     let (state, _) = process_command(
@@ -2122,7 +2126,7 @@ fn test_pitch_mana_value_unchanged() {
     .unwrap();
     let (state, _) = process_command(state, Command::PassPriority { player: p2 }).unwrap();
     let threat_stack_id = match &state
-        .stack_objects
+        .stack_objects()
         .last()
         .expect("Mock Threat Spell should be on the stack")
         .kind
@@ -2161,12 +2165,12 @@ fn test_pitch_mana_value_unchanged() {
     .unwrap();
 
     let stack_source = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .find_map(|so| match &so.kind {
             mtg_engine::StackObjectKind::Spell { source_object }
                 if state
-                    .objects
+                    .objects()
                     .get(source_object)
                     .map(|o| o.characteristics.name.as_str())
                     == Some("Force of Will") =>
@@ -2176,7 +2180,7 @@ fn test_pitch_mana_value_unchanged() {
             _ => None,
         })
         .expect("Force of Will should be on the stack");
-    let mana_value = state.objects[&stack_source]
+    let mana_value = state.objects()[&stack_source]
         .characteristics
         .mana_cost
         .as_ref()
@@ -2259,7 +2263,7 @@ fn test_pitch_mutual_exclusion() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let card_id = find_object(&state, "Pitch Flashback Hybrid");
     let fodder_id = find_object(&state, "Blue Fodder");
 
@@ -2322,14 +2326,14 @@ fn test_pitch_cannot_pitch_self() {
         .build()
         .unwrap();
 
-    state.players.get_mut(&p1).unwrap().life_total = 20;
+    state.players_mut().get_mut(&p1).unwrap().life_total = 20;
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let threat_id = find_object(&state, "Mock Threat Spell");
     let (state, _) = process_command(
@@ -2355,7 +2359,7 @@ fn test_pitch_cannot_pitch_self() {
     .unwrap();
     let (state, _) = process_command(state, Command::PassPriority { player: p2 }).unwrap();
     let threat_stack_id = match &state
-        .stack_objects
+        .stack_objects()
         .last()
         .expect("Mock Threat Spell should be on the stack")
         .kind
@@ -2461,12 +2465,12 @@ fn test_force_of_negation_counters_and_exiles() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let bolt_id = find_object(&state, "Mock Bolt");
     let (state, _) = process_command(
@@ -2496,7 +2500,7 @@ fn test_force_of_negation_counters_and_exiles() {
     let neg_id = find_object(&state, "Force of Negation");
     let fodder_id = find_object(&state, "Blue Fodder");
     let bolt_stack_id = match &state
-        .stack_objects
+        .stack_objects()
         .last()
         .expect("Mock Bolt should be on the stack")
         .kind

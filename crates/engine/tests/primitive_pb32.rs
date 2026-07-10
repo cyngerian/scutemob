@@ -18,7 +18,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == name)
         .map(|(&id, _)| id)
@@ -40,19 +40,19 @@ fn test_additional_land_play_spell() {
         .unwrap();
 
     assert_eq!(
-        state.players.get(&p1).unwrap().land_plays_remaining,
+        state.players().get(&p1).unwrap().land_plays_remaining,
         1,
         "Should start with 1 land play"
     );
 
     // Manually execute AdditionalLandPlay via the effect context (simulate spell resolution).
     let mut state = state;
-    if let Some(p) = state.players.get_mut(&p1) {
+    if let Some(p) = state.players_mut().get_mut(&p1) {
         p.land_plays_remaining += 1; // Simulates Effect::AdditionalLandPlay
     }
 
     assert_eq!(
-        state.players.get(&p1).unwrap().land_plays_remaining,
+        state.players().get(&p1).unwrap().land_plays_remaining,
         2,
         "CR 305.2: AdditionalLandPlay should increment land_plays_remaining to 2"
     );
@@ -76,7 +76,7 @@ fn test_additional_land_play_static_applied_at_turn_start() {
 
     // Register the additional land play source (simulates what register_static_continuous_effects does).
     state
-        .additional_land_play_sources
+        .additional_land_play_sources_mut()
         .push_back(AdditionalLandPlaySource {
             source: aesi_id,
             controller: p1,
@@ -87,7 +87,7 @@ fn test_additional_land_play_static_applied_at_turn_start() {
     reset_turn_state(&mut state, p1);
 
     assert_eq!(
-        state.players.get(&p1).unwrap().land_plays_remaining,
+        state.players().get(&p1).unwrap().land_plays_remaining,
         2,
         "CR 305.2: Static AdditionalLandPlays should grant 2 land plays at turn start"
     );
@@ -112,14 +112,14 @@ fn test_additional_land_play_stacks() {
     let id2 = find_object(&state, "Aesi 2");
 
     state
-        .additional_land_play_sources
+        .additional_land_play_sources_mut()
         .push_back(AdditionalLandPlaySource {
             source: id1,
             controller: p1,
             count: 1,
         });
     state
-        .additional_land_play_sources
+        .additional_land_play_sources_mut()
         .push_back(AdditionalLandPlaySource {
             source: id2,
             controller: p1,
@@ -129,7 +129,7 @@ fn test_additional_land_play_stacks() {
     reset_turn_state(&mut state, p1);
 
     assert_eq!(
-        state.players.get(&p1).unwrap().land_plays_remaining,
+        state.players().get(&p1).unwrap().land_plays_remaining,
         3,
         "CR 305.2a: Two AdditionalLandPlays sources should grant 3 total land plays"
     );
@@ -149,7 +149,7 @@ fn test_additional_land_play_source_removed() {
     // Register a source with a non-existent ObjectId (simulates permanent leaving battlefield).
     let fake_id = ObjectId(9999);
     state
-        .additional_land_play_sources
+        .additional_land_play_sources_mut()
         .push_back(AdditionalLandPlaySource {
             source: fake_id,
             controller: p1,
@@ -160,12 +160,12 @@ fn test_additional_land_play_source_removed() {
     reset_turn_state(&mut state, p1);
 
     assert_eq!(
-        state.players.get(&p1).unwrap().land_plays_remaining,
+        state.players().get(&p1).unwrap().land_plays_remaining,
         1,
         "CR 305.2: Stale additional land play source should be cleaned up when source leaves battlefield"
     );
     assert_eq!(
-        state.additional_land_play_sources.len(),
+        state.additional_land_play_sources().len(),
         0,
         "Stale additional_land_play_sources should be removed"
     );
@@ -185,15 +185,15 @@ fn test_prevent_all_combat_damage_flag() {
         .unwrap();
 
     assert!(
-        !state.prevent_all_combat_damage,
+        !state.prevent_all_combat_damage(),
         "CR 615.1: prevent_all_combat_damage should be false initially"
     );
 
     // Simulate Effect::PreventAllCombatDamage execution.
-    state.prevent_all_combat_damage = true;
+    *state.prevent_all_combat_damage_mut() = true;
 
     assert!(
-        state.prevent_all_combat_damage,
+        state.prevent_all_combat_damage(),
         "CR 615.1: prevent_all_combat_damage should be set to true"
     );
 }
@@ -208,14 +208,14 @@ fn test_prevent_all_combat_damage_resets_next_turn() {
         .build()
         .unwrap();
 
-    state.prevent_all_combat_damage = true;
-    assert!(state.prevent_all_combat_damage);
+    *state.prevent_all_combat_damage_mut() = true;
+    assert!(state.prevent_all_combat_damage());
 
     // Simulate start of next turn.
     reset_turn_state(&mut state, p1);
 
     assert!(
-        !state.prevent_all_combat_damage,
+        !state.prevent_all_combat_damage(),
         "CR 615.1: prevent_all_combat_damage should reset at turn start"
     );
 }
@@ -236,10 +236,10 @@ fn test_prevent_combat_damage_from_target() {
     let attacker_id = find_object(&state, "Attacker");
 
     // Simulate Effect::PreventCombatDamageFromOrTo with prevent_from = true.
-    state.combat_damage_prevented_from.insert(attacker_id);
+    state.combat_damage_prevented_from_mut().insert(attacker_id);
 
     assert!(
-        state.combat_damage_prevented_from.contains(&attacker_id),
+        state.combat_damage_prevented_from().contains(&attacker_id),
         "CR 615: Attacker's damage output should be in prevention set"
     );
 }
@@ -258,17 +258,17 @@ fn test_prevent_combat_damage_resets_next_turn() {
         .unwrap();
 
     let creature_id = find_object(&state, "Creature");
-    state.combat_damage_prevented_from.insert(creature_id);
-    state.combat_damage_prevented_to.insert(creature_id);
+    state.combat_damage_prevented_from_mut().insert(creature_id);
+    state.combat_damage_prevented_to_mut().insert(creature_id);
 
     reset_turn_state(&mut state, p1);
 
     assert!(
-        state.combat_damage_prevented_from.is_empty(),
+        state.combat_damage_prevented_from().is_empty(),
         "CR 615: combat_damage_prevented_from should reset at turn start"
     );
     assert!(
-        state.combat_damage_prevented_to.is_empty(),
+        state.combat_damage_prevented_to().is_empty(),
         "CR 615: combat_damage_prevented_to should reset at turn start"
     );
 }
@@ -292,7 +292,7 @@ fn test_gain_control_creates_continuous_effect() {
 
     let target_id = find_object(&state, "Target");
     assert_eq!(
-        state.objects.get(&target_id).unwrap().controller,
+        state.objects().get(&target_id).unwrap().controller,
         p2,
         "Target should be controlled by p2 initially"
     );
@@ -309,16 +309,16 @@ fn test_gain_control_creates_continuous_effect() {
         timestamp: 999,
         condition: None,
     };
-    state.continuous_effects.push_back(eff);
-    state.objects.get_mut(&target_id).unwrap().controller = p1;
+    state.continuous_effects_mut().push_back(eff);
+    state.objects_mut().get_mut(&target_id).unwrap().controller = p1;
 
     assert_eq!(
-        state.objects.get(&target_id).unwrap().controller,
+        state.objects().get(&target_id).unwrap().controller,
         p1,
         "CR 613.1b: Target should now be controlled by p1"
     );
 
-    let has_control_effect = state.continuous_effects.iter().any(|e| {
+    let has_control_effect = state.continuous_effects().iter().any(|e| {
         matches!(e.modification, LayerModification::SetController(pid) if pid == p1)
             && e.filter == EffectFilter::SingleObject(target_id)
     });
@@ -357,13 +357,13 @@ fn test_gain_control_until_eot_expires() {
         timestamp: 100,
         condition: None,
     };
-    state.continuous_effects.push_back(eff);
-    state.objects.get_mut(&target_id).unwrap().controller = p1;
+    state.continuous_effects_mut().push_back(eff);
+    state.objects_mut().get_mut(&target_id).unwrap().controller = p1;
 
     // Expire end-of-turn effects (simulates cleanup step).
     expire_end_of_turn_effects(&mut state);
 
-    let has_control_effect = state.continuous_effects.iter().any(|e| {
+    let has_control_effect = state.continuous_effects().iter().any(|e| {
         matches!(e.modification, LayerModification::SetController(pid) if pid == p1)
             && e.filter == EffectFilter::SingleObject(target_id)
     });
@@ -393,21 +393,21 @@ fn test_exchange_control_different_controllers() {
     let b_id = find_object(&state, "ObjB");
 
     // Simulate ExchangeControl effect.
-    let a_ctrl = state.objects.get(&a_id).unwrap().controller;
-    let b_ctrl = state.objects.get(&b_id).unwrap().controller;
+    let a_ctrl = state.objects().get(&a_id).unwrap().controller;
+    let b_ctrl = state.objects().get(&b_id).unwrap().controller;
     assert_ne!(a_ctrl, b_ctrl);
 
     // Swap controllers (as ExchangeControl does).
-    state.objects.get_mut(&a_id).unwrap().controller = b_ctrl;
-    state.objects.get_mut(&b_id).unwrap().controller = a_ctrl;
+    state.objects_mut().get_mut(&a_id).unwrap().controller = b_ctrl;
+    state.objects_mut().get_mut(&b_id).unwrap().controller = a_ctrl;
 
     assert_eq!(
-        state.objects.get(&a_id).unwrap().controller,
+        state.objects().get(&a_id).unwrap().controller,
         p2,
         "CR 701.12b: ObjA should now be controlled by p2"
     );
     assert_eq!(
-        state.objects.get(&b_id).unwrap().controller,
+        state.objects().get(&b_id).unwrap().controller,
         p1,
         "CR 701.12b: ObjB should now be controlled by p1"
     );
@@ -432,8 +432,8 @@ fn test_exchange_control_same_controller_noop() {
     let b_id = find_object(&state, "ObjB");
 
     // Both have same controller — ExchangeControl should be a no-op.
-    let a_ctrl = state.objects.get(&a_id).unwrap().controller;
-    let b_ctrl = state.objects.get(&b_id).unwrap().controller;
+    let a_ctrl = state.objects().get(&a_id).unwrap().controller;
+    let b_ctrl = state.objects().get(&b_id).unwrap().controller;
 
     assert_eq!(
         a_ctrl, b_ctrl,
@@ -464,16 +464,16 @@ fn test_gain_control_multiplayer() {
 
     let dragon_id = find_object(&state, "Dragon");
     assert_eq!(
-        state.objects.get(&dragon_id).unwrap().controller,
+        state.objects().get(&dragon_id).unwrap().controller,
         p3,
         "Dragon should be controlled by p3 initially"
     );
 
     // p1 gains control of p3's creature.
-    state.objects.get_mut(&dragon_id).unwrap().controller = p1;
+    state.objects_mut().get_mut(&dragon_id).unwrap().controller = p1;
 
     assert_eq!(
-        state.objects.get(&dragon_id).unwrap().controller,
+        state.objects().get(&dragon_id).unwrap().controller,
         p1,
         "CR 613.1b: p1 should now control the Dragon in a 4-player game"
     );

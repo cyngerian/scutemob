@@ -68,6 +68,43 @@ pub use zone::{Zone, ZoneId, ZoneType};
 /// for undo, replay, and "what if" analysis.
 ///
 /// See architecture doc Section 2.1 for the full field listing and rationale.
+///
+/// # Sealed (SR-3)
+///
+/// Every field is `pub(crate)`. From outside the engine crate a `GameState` is a
+/// read-only view: one accessor per field, and no way to write. The only
+/// sanctioned mutation path is submitting a
+/// [`Command`](crate::rules::commands::Command) to `process_command`. That is
+/// what makes architecture invariant #3 — *"there is no way to change game state
+/// except through the Command enum"* — enforced by the compiler instead of by
+/// review. Everything downstream (networking, replay, rewind, deterministic
+/// tests) depends on the command/event log being the complete story of a game;
+/// a stray `state.objects.insert(..)` would silently corrupt that history.
+///
+/// Reading is unrestricted:
+///
+/// ```
+/// fn count_objects(state: &mtg_engine::GameState) -> usize {
+///     state.objects().len()
+/// }
+/// ```
+///
+/// Writing does not compile outside the engine — this doctest is a regression
+/// guard on the seal, and fails the build if a field is ever made `pub` again:
+///
+/// ```compile_fail
+/// fn tamper(state: &mut mtg_engine::GameState) {
+///     // error[E0616]: field `objects` of struct `GameState` is private
+///     state.objects.clear();
+/// }
+/// ```
+///
+/// The `test-util` escape hatches ([`crate::state::test_util`], plus the
+/// `*_mut()` accessors) are a separate matter, and this doctest cannot guard
+/// them: doctests are compiled under the test profile, where cargo's feature
+/// unification has already switched `test-util` on. `cargo build --workspace`
+/// is what proves no production consumer depends on a hatch, because it does not
+/// build dev-dependencies. Keep it in the gate list.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GameState {
     /// Current turn/phase/step/priority state.
@@ -147,7 +184,8 @@ pub struct GameState {
     /// Cleaned up when the source permanent leaves the battlefield. Emblem-sourced
     /// permissions are permanent (emblems never leave the command zone).
     #[serde(default)]
-    pub(crate) play_from_graveyard_permissions: Vector<crate::state::stubs::PlayFromGraveyardPermission>,
+    pub(crate) play_from_graveyard_permissions:
+        Vector<crate::state::stubs::PlayFromGraveyardPermission>,
     /// Stack objects (spells and abilities on the stack).
     pub(crate) stack_objects: Vector<StackObject>,
     /// Current combat state, if in a combat phase.
@@ -271,7 +309,8 @@ pub struct GameState {
     /// plays per turn. Applied in `reset_turn_state` to increment `land_plays_remaining`.
     /// Cleaned up when the source permanent leaves the battlefield.
     #[serde(default)]
-    pub(crate) additional_land_play_sources: im::Vector<crate::state::stubs::AdditionalLandPlaySource>,
+    pub(crate) additional_land_play_sources:
+        im::Vector<crate::state::stubs::AdditionalLandPlaySource>,
     /// CR 615.1: When true, all combat damage is prevented for the rest of the turn.
     ///
     /// Set by Effect::PreventAllCombatDamage. Reset in `reset_turn_state` at turn start.
@@ -419,7 +458,9 @@ impl GameState {
     }
 
     /// Read-only access to the `pending_cumulative_upkeep_payments` field.
-    pub fn pending_cumulative_upkeep_payments(&self) -> &im::Vector<(PlayerId, ObjectId, CumulativeUpkeepCost)> {
+    pub fn pending_cumulative_upkeep_payments(
+        &self,
+    ) -> &im::Vector<(PlayerId, ObjectId, CumulativeUpkeepCost)> {
         &self.pending_cumulative_upkeep_payments
     }
 
@@ -500,7 +541,6 @@ impl GameState {
     pub fn prevent_all_combat_damage(&self) -> bool {
         self.prevent_all_combat_damage
     }
-
 }
 
 /// # Escape hatches
@@ -625,7 +665,9 @@ impl GameState {
     }
 
     /// Escape hatch: mutable access to `play_from_graveyard_permissions`. See [module docs](GameState#escape-hatches).
-    pub fn play_from_graveyard_permissions_mut(&mut self) -> &mut Vector<PlayFromGraveyardPermission> {
+    pub fn play_from_graveyard_permissions_mut(
+        &mut self,
+    ) -> &mut Vector<PlayFromGraveyardPermission> {
         &mut self.play_from_graveyard_permissions
     }
 
@@ -655,12 +697,16 @@ impl GameState {
     }
 
     /// Escape hatch: mutable access to `pending_cumulative_upkeep_payments`. See [module docs](GameState#escape-hatches).
-    pub fn pending_cumulative_upkeep_payments_mut(&mut self) -> &mut im::Vector<(PlayerId, ObjectId, CumulativeUpkeepCost)> {
+    pub fn pending_cumulative_upkeep_payments_mut(
+        &mut self,
+    ) -> &mut im::Vector<(PlayerId, ObjectId, CumulativeUpkeepCost)> {
         &mut self.pending_cumulative_upkeep_payments
     }
 
     /// Escape hatch: mutable access to `pending_recover_payments`. See [module docs](GameState#escape-hatches).
-    pub fn pending_recover_payments_mut(&mut self) -> &mut im::Vector<(PlayerId, ObjectId, ManaCost)> {
+    pub fn pending_recover_payments_mut(
+        &mut self,
+    ) -> &mut im::Vector<(PlayerId, ObjectId, ManaCost)> {
         &mut self.pending_recover_payments
     }
 
@@ -675,7 +721,9 @@ impl GameState {
     }
 
     /// Escape hatch: mutable access to `additional_land_play_sources`. See [module docs](GameState#escape-hatches).
-    pub fn additional_land_play_sources_mut(&mut self) -> &mut im::Vector<AdditionalLandPlaySource> {
+    pub fn additional_land_play_sources_mut(
+        &mut self,
+    ) -> &mut im::Vector<AdditionalLandPlaySource> {
         &mut self.additional_land_play_sources
     }
 
@@ -694,8 +742,13 @@ impl GameState {
         &mut self.card_registry
     }
 
-    /// Escape hatch: mutable access to `next_replacement_id`. See [module docs](GameState#escape-hatches).
-    pub fn next_replacement_id_counter_mut(&mut self) -> &mut u64 {
+    /// Escape hatch: mutable access to `next_replacement_id`.
+    ///
+    /// Note the asymmetry with the reader `next_replacement_id_counter()`: only the
+    /// reader needs the `_counter` suffix, to avoid colliding with the
+    /// `next_replacement_id()` id-generator method.
+    /// See [module docs](GameState#escape-hatches).
+    pub fn next_replacement_id_mut(&mut self) -> &mut u64 {
         &mut self.next_replacement_id
     }
 
@@ -733,7 +786,6 @@ impl GameState {
     pub fn prevent_all_combat_damage_mut(&mut self) -> &mut bool {
         &mut self.prevent_all_combat_damage
     }
-
 }
 
 impl GameState {

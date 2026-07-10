@@ -29,7 +29,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -38,7 +38,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 fn find_object_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -333,12 +333,12 @@ fn test_evolve_basic_greater_power() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let evolve_id = find_object(&state, "Evolve Sapling");
 
@@ -353,13 +353,13 @@ fn test_evolve_basic_greater_power() {
 
     // Evolve trigger should be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.100a: evolve trigger should be on the stack after ETB"
     );
     assert!(
         matches!(
-            state.stack_objects[0].kind,
+            state.stack_objects()[0].kind,
             StackObjectKind::KeywordTrigger {
                 keyword: KeywordAbility::Evolve,
                 ..
@@ -373,7 +373,7 @@ fn test_evolve_basic_greater_power() {
 
     // Evolve creature should have 1 +1/+1 counter.
     let obj = state
-        .objects
+        .objects()
         .get(&evolve_id)
         .expect("Evolve Sapling should be on battlefield");
     let counter_count = obj
@@ -435,18 +435,18 @@ fn test_evolve_basic_greater_toughness() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let evolve_id = find_object(&state, "Evolve Beast");
 
@@ -454,13 +454,13 @@ fn test_evolve_basic_greater_toughness() {
 
     // Evolve trigger should be on the stack (toughness 4 > 2).
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.100a: evolve trigger fires when entering creature has greater toughness"
     );
     assert!(
         matches!(
-            state.stack_objects[0].kind,
+            state.stack_objects()[0].kind,
             StackObjectKind::KeywordTrigger {
                 keyword: KeywordAbility::Evolve,
                 ..
@@ -473,7 +473,7 @@ fn test_evolve_basic_greater_toughness() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     let obj = state
-        .objects
+        .objects()
         .get(&evolve_id)
         .expect("Evolve Beast on battlefield");
     let counter_count = obj
@@ -528,18 +528,18 @@ fn test_evolve_greater_power_only_or_condition() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let evolve_id = find_object(&state, "Evolve Beast");
 
@@ -547,7 +547,7 @@ fn test_evolve_greater_power_only_or_condition() {
 
     // Trigger should fire — entering power 3 > evolve power 2 (even though T 1 < 4).
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.100a: evolve trigger fires when entering power > evolve power (OR condition)"
     );
@@ -555,7 +555,7 @@ fn test_evolve_greater_power_only_or_condition() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     let obj = state
-        .objects
+        .objects()
         .get(&evolve_id)
         .expect("Evolve Beast on battlefield");
     assert_eq!(
@@ -607,12 +607,12 @@ fn test_evolve_no_trigger_equal_stats() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let (state, _) = cast_and_resolve(state, p1, "Grizzly Cub", p2);
 
@@ -623,7 +623,7 @@ fn test_evolve_no_trigger_equal_stats() {
     );
 
     // No evolve trigger should be on the stack.
-    let evolve_on_stack = state.stack_objects.iter().any(|s| {
+    let evolve_on_stack = state.stack_objects().iter().any(|s| {
         matches!(
             s.kind,
             StackObjectKind::KeywordTrigger {
@@ -637,7 +637,7 @@ fn test_evolve_no_trigger_equal_stats() {
         "CR 702.100a: evolve does NOT trigger when entering P/T is equal to evolve P/T"
     );
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "CR 702.100a: stack should be empty after equal-stat ETB"
     );
@@ -682,12 +682,12 @@ fn test_evolve_no_trigger_smaller_creature() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let (state, _) = cast_and_resolve(state, p1, "Tiny Saproling", p2);
 
@@ -696,7 +696,7 @@ fn test_evolve_no_trigger_smaller_creature() {
         "Tiny Saproling should be on battlefield"
     );
 
-    let evolve_on_stack = state.stack_objects.iter().any(|s| {
+    let evolve_on_stack = state.stack_objects().iter().any(|s| {
         matches!(
             s.kind,
             StackObjectKind::KeywordTrigger {
@@ -749,12 +749,12 @@ fn test_evolve_noncreature_does_not_trigger() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Cast and resolve the noncreature artifact.
     let (state, _) = cast_and_resolve(state, p1, "Vanilla Artifact", p2);
@@ -766,7 +766,7 @@ fn test_evolve_noncreature_does_not_trigger() {
     );
 
     // No evolve trigger should be on the stack.
-    let evolve_on_stack = state.stack_objects.iter().any(|s| {
+    let evolve_on_stack = state.stack_objects().iter().any(|s| {
         matches!(
             s.kind,
             StackObjectKind::KeywordTrigger {
@@ -820,12 +820,12 @@ fn test_evolve_opponents_creature_does_not_trigger() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 2);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     // P2 casts and resolves their 3/3. P1 passes priority too.
     let card_id = find_object(&state, "Grizzly Bears");
@@ -861,7 +861,7 @@ fn test_evolve_opponents_creature_does_not_trigger() {
     );
 
     // No evolve trigger on P1's evolve creature (different controller).
-    let evolve_on_stack = state.stack_objects.iter().any(|s| {
+    let evolve_on_stack = state.stack_objects().iter().any(|s| {
         matches!(
             s.kind,
             StackObjectKind::KeywordTrigger {
@@ -917,12 +917,12 @@ fn test_evolve_multiple_instances() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let evolve_id = find_object(&state, "Double Evolve Wurm");
 
@@ -931,7 +931,7 @@ fn test_evolve_multiple_instances() {
 
     // Two evolve triggers should be on the stack (one per evolve instance).
     let evolve_count = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .filter(|s| {
             matches!(
@@ -951,7 +951,7 @@ fn test_evolve_multiple_instances() {
     // Resolve first trigger — adds 1 counter (1/1 -> 2/2 via layer-aware chars).
     let (state, _) = pass_all(state, &[p1, p2]);
     let obj = state
-        .objects
+        .objects()
         .get(&evolve_id)
         .expect("evolve creature on battlefield");
     let count_after_first = obj
@@ -966,7 +966,7 @@ fn test_evolve_multiple_instances() {
 
     // One trigger should still be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.100d: second evolve trigger still on stack"
     );
@@ -976,7 +976,7 @@ fn test_evolve_multiple_instances() {
     // 3 > 2 for both P and T, condition still holds — another counter.
     let (state, _) = pass_all(state, &[p1, p2]);
     let obj = state
-        .objects
+        .objects()
         .get(&evolve_id)
         .expect("evolve creature on battlefield");
     let count_after_second = obj
@@ -1031,12 +1031,12 @@ fn test_evolve_intervening_if_fails_at_resolution() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let evolve_id = find_object(&state, "Evolve Sapling");
 
@@ -1046,13 +1046,13 @@ fn test_evolve_intervening_if_fails_at_resolution() {
 
     // Verify the evolve trigger is on the stack before we pump the evolve creature.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 603.4: evolve trigger should be on the stack after the 3/3 enters"
     );
     assert!(
         matches!(
-            state.stack_objects[0].kind,
+            state.stack_objects()[0].kind,
             StackObjectKind::KeywordTrigger {
                 keyword: KeywordAbility::Evolve,
                 ..
@@ -1067,7 +1067,7 @@ fn test_evolve_intervening_if_fails_at_resolution() {
     // Add 3 +1/+1 counters directly: 1/1 base + 3 counters = 4/4.
     {
         let obj = state
-            .objects
+            .objects_mut()
             .get_mut(&evolve_id)
             .expect("Evolve Sapling should be on battlefield");
         obj.counters = obj.counters.update(CounterType::PlusOnePlusOne, 3);
@@ -1095,7 +1095,7 @@ fn test_evolve_intervening_if_fails_at_resolution() {
     // The evolve creature should still have exactly 3 counters (manually added),
     // NOT 4. The trigger must NOT have placed an additional counter.
     let obj = state
-        .objects
+        .objects()
         .get(&evolve_id)
         .expect("Evolve Sapling should still be on battlefield");
     let counter_count = obj
@@ -1167,12 +1167,12 @@ fn test_evolve_multiplayer_only_same_controller() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 2);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     // P2 casts their 3/3.
     let card_id = find_object(&state, "Grizzly Bears");
@@ -1208,7 +1208,7 @@ fn test_evolve_multiplayer_only_same_controller() {
     );
 
     // No evolve trigger on P1's evolve creature (P2's creature, not P1's).
-    let evolve_on_stack = state.stack_objects.iter().any(|s| {
+    let evolve_on_stack = state.stack_objects().iter().any(|s| {
         matches!(
             s.kind,
             StackObjectKind::KeywordTrigger {
@@ -1225,7 +1225,7 @@ fn test_evolve_multiplayer_only_same_controller() {
     // P1's evolve creature should have 0 counters.
     let evolve_id = find_object(&state, "Evolve Sapling");
     let obj = state
-        .objects
+        .objects()
         .get(&evolve_id)
         .expect("Evolve Sapling on battlefield");
     assert_eq!(

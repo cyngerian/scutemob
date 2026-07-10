@@ -31,7 +31,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -40,7 +40,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 fn find_object_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -260,12 +260,12 @@ fn test_graft_etb_counters() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Cast and resolve the graft creature. Both players pass to let it resolve.
     let (state, _) = cast_and_resolve(state, p1, "Graft Ooze", p2);
@@ -274,7 +274,7 @@ fn test_graft_etb_counters() {
     let graft_id = find_object_in_zone(&state, "Graft Ooze", ZoneId::Battlefield)
         .expect("CR 702.58a: Graft Ooze should be on battlefield");
 
-    let obj = state.objects.get(&graft_id).unwrap();
+    let obj = state.objects().get(&graft_id).unwrap();
     let counter_count = obj
         .counters
         .get(&CounterType::PlusOnePlusOne)
@@ -327,12 +327,12 @@ fn test_graft_trigger_moves_counter() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let graft_id = find_object(&state, "Graft Ooze");
 
@@ -341,13 +341,13 @@ fn test_graft_trigger_moves_counter() {
 
     // Graft trigger should be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.58a: Graft trigger should be on the stack after creature ETB"
     );
     assert!(
         matches!(
-            state.stack_objects[0].kind,
+            state.stack_objects()[0].kind,
             StackObjectKind::KeywordTrigger {
                 keyword: KeywordAbility::Graft(_),
                 ..
@@ -360,7 +360,7 @@ fn test_graft_trigger_moves_counter() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // Graft creature should have lost 1 counter (now has 1).
-    let graft_obj = state.objects.get(&graft_id).unwrap();
+    let graft_obj = state.objects().get(&graft_id).unwrap();
     let graft_counters = graft_obj
         .counters
         .get(&CounterType::PlusOnePlusOne)
@@ -374,7 +374,7 @@ fn test_graft_trigger_moves_counter() {
     // Entering creature should have gained 1 counter.
     let entering_id = find_object_in_zone(&state, "Grizzly Bears", ZoneId::Battlefield)
         .expect("CR 702.58a: Grizzly Bears should be on battlefield");
-    let entering_obj = state.objects.get(&entering_id).unwrap();
+    let entering_obj = state.objects().get(&entering_id).unwrap();
     let entering_counters = entering_obj
         .counters
         .get(&CounterType::PlusOnePlusOne)
@@ -424,19 +424,19 @@ fn test_graft_trigger_does_not_fire_without_counters() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Cast and resolve the entering creature.
     let (state, _) = cast_and_resolve(state, p1, "Grizzly Bears", p2);
 
     // No Graft trigger should be on the stack (intervening-if check fails).
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "CR 702.58a / CR 603.4: Graft trigger should NOT fire when source has no +1/+1 counter"
     );
@@ -474,19 +474,19 @@ fn test_graft_trigger_does_not_fire_for_self() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Cast and resolve the graft creature itself (no other graft creature on battlefield).
     let (state, _) = cast_and_resolve(state, p1, "Graft Ooze", p2);
 
     // No GraftTrigger should be on the stack. (Only ETB counters were placed; no trigger.)
     assert!(
-        !state.stack_objects.iter().any(|so| matches!(
+        !state.stack_objects().iter().any(|so| matches!(
             so.kind,
             StackObjectKind::KeywordTrigger {
                 keyword: KeywordAbility::Graft(_),
@@ -500,7 +500,7 @@ fn test_graft_trigger_does_not_fire_for_self() {
     let graft_id = find_object_in_zone(&state, "Graft Ooze", ZoneId::Battlefield)
         .expect("Graft Ooze should be on battlefield");
     let counter_count = state
-        .objects
+        .objects()
         .get(&graft_id)
         .unwrap()
         .counters
@@ -553,12 +553,12 @@ fn test_graft_trigger_fires_for_opponents_creatures() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let graft_id = find_object(&state, "Graft Sapling");
 
@@ -567,13 +567,13 @@ fn test_graft_trigger_fires_for_opponents_creatures() {
 
     // Graft trigger should be on the stack (controlled by P1 since P1 controls the source).
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.58a: Graft trigger should fire for opponent's creature entering"
     );
     assert!(
         matches!(
-            state.stack_objects[0].kind,
+            state.stack_objects()[0].kind,
             StackObjectKind::KeywordTrigger {
                 keyword: KeywordAbility::Graft(_),
                 ..
@@ -587,9 +587,9 @@ fn test_graft_trigger_fires_for_opponents_creatures() {
 
     // After trigger resolves: Graft Sapling had 1 counter, moved it away, now 0/0 with 0
     // counters. SBAs (CR 704.5f) destroy it. Verify it's in graveyard or has 0 counters.
-    // The object may be gone from `state.objects` under the same ID after SBAs killed it.
+    // The object may be gone from `state.objects()` under the same ID after SBAs killed it.
     let graft_counters = state
-        .objects
+        .objects()
         .get(&graft_id)
         .map(|obj| {
             obj.counters
@@ -607,7 +607,7 @@ fn test_graft_trigger_fires_for_opponents_creatures() {
     let entering_id = find_object_in_zone(&state, "Tiny Saproling", ZoneId::Battlefield)
         .expect("Tiny Saproling should be on battlefield");
     let entering_counters = state
-        .objects
+        .objects()
         .get(&entering_id)
         .unwrap()
         .counters
@@ -660,19 +660,19 @@ fn test_graft_noncreature_does_not_trigger() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Cast and resolve the artifact.
     let (state, _) = cast_and_resolve(state, p1, "Vanilla Artifact", p2);
 
     // No Graft trigger should be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "CR 702.58a: Graft should NOT trigger when a non-creature permanent enters"
     );
@@ -720,12 +720,12 @@ fn test_graft_multiple_instances() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let graft_id = find_object(&state, "Double Graft Wurm");
 
@@ -734,7 +734,7 @@ fn test_graft_multiple_instances() {
 
     // Two GraftTrigger stack objects should be on the stack (one per instance, CR 702.58b).
     let graft_triggers = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .filter(|so| {
             matches!(
@@ -756,7 +756,7 @@ fn test_graft_multiple_instances() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // After resolving both triggers, source should have 3 counters (5 - 2 moved).
-    let graft_obj = state.objects.get(&graft_id).unwrap();
+    let graft_obj = state.objects().get(&graft_id).unwrap();
     let graft_counters = graft_obj
         .counters
         .get(&CounterType::PlusOnePlusOne)
@@ -771,7 +771,7 @@ fn test_graft_multiple_instances() {
     let entering_id = find_object_in_zone(&state, "Grizzly Bears", ZoneId::Battlefield)
         .expect("Grizzly Bears should be on battlefield");
     let entering_counters = state
-        .objects
+        .objects()
         .get(&entering_id)
         .unwrap()
         .counters
@@ -817,12 +817,12 @@ fn test_graft_multiple_instances_etb_counter_sum() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 5);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Cast and resolve the double-graft creature.
     let (state, _) = cast_and_resolve(state, p1, "Double Graft Wurm", p2);
@@ -830,7 +830,7 @@ fn test_graft_multiple_instances_etb_counter_sum() {
     let graft_id = find_object_in_zone(&state, "Double Graft Wurm", ZoneId::Battlefield)
         .expect("Double Graft Wurm should be on battlefield");
     let counter_count = state
-        .objects
+        .objects()
         .get(&graft_id)
         .unwrap()
         .counters
@@ -887,12 +887,12 @@ fn test_graft_resolution_recheck_intervening_if() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let graft_id = find_object(&state, "Graft Sapling");
 
@@ -901,14 +901,14 @@ fn test_graft_resolution_recheck_intervening_if() {
 
     // Verify trigger is on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "Graft trigger should be on stack"
     );
 
     // Manually remove the last +1/+1 counter from the graft source (simulating
     // an effect that removed it while the trigger was on the stack).
-    if let Some(obj) = state.objects.get_mut(&graft_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&graft_id) {
         obj.counters = obj.counters.without(&CounterType::PlusOnePlusOne);
     }
 
@@ -919,7 +919,7 @@ fn test_graft_resolution_recheck_intervening_if() {
     // SBAs (CR 704.5f) destroy the 0/0 creature. Check via graveyard or absence.
     // If still present, it has 0 counters; if gone, it was destroyed by SBAs.
     let graft_counters = state
-        .objects
+        .objects()
         .get(&graft_id)
         .map(|obj| {
             obj.counters
@@ -937,7 +937,7 @@ fn test_graft_resolution_recheck_intervening_if() {
     let entering_id = find_object_in_zone(&state, "Grizzly Bears", ZoneId::Battlefield)
         .expect("Grizzly Bears should be on battlefield");
     let entering_counters = state
-        .objects
+        .objects()
         .get(&entering_id)
         .unwrap()
         .counters

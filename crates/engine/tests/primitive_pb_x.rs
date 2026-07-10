@@ -29,7 +29,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == name)
         .map(|(&id, _)| id)
@@ -38,7 +38,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 fn find_object_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == name && o.zone == zone)
         .map(|(&id, _)| id)
@@ -316,7 +316,7 @@ fn test_chosen_subtype_filter_substituted_at_apply_time() {
 
     // After resolution, the stored ContinuousEffect should have AllCreaturesExcludingSubtype("Human")
     // — NOT the placeholder AllCreaturesExcludingChosenSubtype.
-    let has_concrete_filter = state.continuous_effects.iter().any(|e| {
+    let has_concrete_filter = state.continuous_effects().iter().any(|e| {
         matches!(&e.filter, EffectFilter::AllCreaturesExcludingSubtype(st) if st == &SubType("Human".to_string()))
     });
     assert!(
@@ -325,7 +325,7 @@ fn test_chosen_subtype_filter_substituted_at_apply_time() {
     );
 
     let has_placeholder = state
-        .continuous_effects
+        .continuous_effects()
         .iter()
         .any(|e| matches!(&e.filter, EffectFilter::AllCreaturesExcludingChosenSubtype));
     assert!(
@@ -532,7 +532,7 @@ fn test_modify_both_dynamic_resolved_at_apply_time() {
 
     // Stored ContinuousEffect must be ModifyBoth(-3), NOT ModifyBothDynamic.
     let dynamic_in_effects = state
-        .continuous_effects
+        .continuous_effects()
         .iter()
         .any(|e| matches!(&e.modification, LayerModification::ModifyBothDynamic { .. }));
     assert!(
@@ -541,7 +541,7 @@ fn test_modify_both_dynamic_resolved_at_apply_time() {
     );
 
     let has_minus_3 = state
-        .continuous_effects
+        .continuous_effects()
         .iter()
         .any(|e| matches!(&e.modification, LayerModification::ModifyBoth(-3)));
     assert!(
@@ -645,7 +645,7 @@ fn test_modify_both_dynamic_value_locked_at_resolution() {
 
     // Confirm the stored effect is ModifyBoth(-3) (locked)
     let has_locked_effect = state
-        .continuous_effects
+        .continuous_effects()
         .iter()
         .any(|e| matches!(&e.modification, LayerModification::ModifyBoth(-3)));
     assert!(
@@ -716,7 +716,7 @@ fn test_modify_both_dynamic_zero_vampires() {
 
     // Stored effect should be ModifyBoth(0)
     let has_zero = state
-        .continuous_effects
+        .continuous_effects()
         .iter()
         .any(|e| matches!(&e.modification, LayerModification::ModifyBoth(0)));
     assert!(has_zero, "CR 608.2h: ModifyBoth(0) stored when X=0");
@@ -814,7 +814,7 @@ fn test_exile_self_cost_moves_source_to_exile() {
 
     // Ability is on the stack (not yet resolved)
     assert!(
-        !state.stack_objects.is_empty(),
+        !state.stack_objects().is_empty(),
         "Ability should be on the stack waiting for priority passes"
     );
 }
@@ -861,7 +861,7 @@ fn test_exile_self_ability_resolves_after_source_gone() {
 
     let source_id = find_object(&state, "Exile Stone II");
     let initial_hand_size = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -886,7 +886,7 @@ fn test_exile_self_ability_resolves_after_source_gone() {
 
     // Effect resolved: card was drawn
     let final_hand_size = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -1088,7 +1088,7 @@ fn test_balthor_static_minion_pump() {
         is_cda: false,
         condition: None,
     };
-    state.continuous_effects.push_back(static_effect);
+    state.continuous_effects_mut().push_back(static_effect);
 
     let m1_id = find_object(&state, "Minion A");
     let m2_id = find_object(&state, "Minion B");
@@ -1460,7 +1460,7 @@ fn test_city_on_fire_triples_damage() {
 
     // Register City on Fire's replacement ability
     let city_id = find_object(&state, "City on Fire");
-    let registry = state.card_registry.clone();
+    let registry = state.card_registry().clone();
     register_permanent_replacement_abilities(
         &mut state,
         city_id,
@@ -1516,7 +1516,7 @@ fn test_city_on_fire_does_not_triple_opponent_sources() {
         .unwrap();
 
     let city_id = find_object(&state, "City on Fire");
-    let registry2 = state.card_registry.clone();
+    let registry2 = state.card_registry().clone();
     register_permanent_replacement_abilities(
         &mut state,
         city_id,

@@ -216,7 +216,8 @@ fn check_game_progression(
             check: "game_progression".into(),
             description: format!(
                 "Turn number decreased from {} to {}",
-                prev_turn, state.turn().turn_number
+                prev_turn,
+                state.turn().turn_number
             ),
             turn_number: state.turn().turn_number,
         });

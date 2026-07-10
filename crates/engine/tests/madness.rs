@@ -32,7 +32,7 @@ use mtg_engine::{
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -249,7 +249,7 @@ fn test_madness_discard_goes_to_exile() {
 
     // Fiery Temper should be in exile (madness replacement).
     let in_exile = state_after
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Fiery Temper" && o.zone == ZoneId::Exile);
     assert!(
@@ -258,7 +258,7 @@ fn test_madness_discard_goes_to_exile() {
     );
 
     // Card should NOT be in graveyard.
-    let in_grave = state_after.objects.values().any(|o| {
+    let in_grave = state_after.objects().values().any(|o| {
         o.characteristics.name == "Fiery Temper" && matches!(o.zone, ZoneId::Graveyard(_))
     });
     assert!(
@@ -316,7 +316,7 @@ fn test_madness_non_madness_card_goes_to_graveyard() {
         process_command(state, Command::PassPriority { player: p2 }).unwrap();
 
     // Plain Instant should be in graveyard (no madness).
-    let in_grave = state_after.objects.values().any(|o| {
+    let in_grave = state_after.objects().values().any(|o| {
         o.characteristics.name == "Plain Instant" && matches!(o.zone, ZoneId::Graveyard(_))
     });
     assert!(
@@ -326,7 +326,7 @@ fn test_madness_non_madness_card_goes_to_graveyard() {
 
     // Should NOT be in exile.
     let in_exile = state_after
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Plain Instant" && o.zone == ZoneId::Exile);
     assert!(
@@ -379,7 +379,7 @@ fn test_madness_trigger_on_stack_after_discard() {
 
     // A MadnessTrigger should be on the stack.
     let has_madness_trigger = state_after
-        .stack_objects
+        .stack_objects()
         .iter()
         .any(|so| matches!(so.kind, StackObjectKind::MadnessTrigger { .. }));
     assert!(
@@ -422,12 +422,12 @@ fn test_madness_cast_from_exile() {
 
     // Give p1 {R} mana (madness cost).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Fiery Temper");
 
@@ -471,12 +471,12 @@ fn test_madness_cast_from_exile() {
 
     // Spell is on the stack.
     assert!(
-        !state_after.stack_objects.is_empty(),
+        !state_after.stack_objects().is_empty(),
         "CR 702.35a: Spell should be on the stack after madness cast"
     );
 
     // Mana pool should be empty ({R} madness cost paid, not {1}{R}{R} mana cost).
-    let pool = &state_after.players[&p1].mana_pool;
+    let pool = &state_after.players()[&p1].mana_pool;
     assert_eq!(
         pool.red + pool.colorless + pool.blue + pool.green + pool.black + pool.white,
         0,
@@ -520,12 +520,12 @@ fn test_madness_sorcery_ignores_timing() {
 
     // Give p1 {R}{R} mana (madness cost).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Violent Eruption");
 
@@ -603,7 +603,7 @@ fn test_madness_decline_goes_to_graveyard() {
     let (state_final, _) = pass_all(state_after_cleanup, &[p1, p2]);
 
     // Fiery Temper should now be in graveyard (auto-decline).
-    let in_grave = state_final.objects.values().any(|o| {
+    let in_grave = state_final.objects().values().any(|o| {
         o.characteristics.name == "Fiery Temper" && matches!(o.zone, ZoneId::Graveyard(_))
     });
     assert!(
@@ -613,7 +613,7 @@ fn test_madness_decline_goes_to_graveyard() {
 
     // Card should NOT be in exile anymore.
     let in_exile = state_final
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Fiery Temper" && o.zone == ZoneId::Exile);
     assert!(
@@ -653,12 +653,12 @@ fn test_madness_cast_with_madness_flag_set_on_stack() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Fiery Temper");
 
@@ -685,7 +685,7 @@ fn test_madness_cast_with_madness_flag_set_on_stack() {
     .unwrap();
 
     // The stack object for the spell should have cast_with_madness: true.
-    let stack_obj = state_after.stack_objects.iter().find(|so| {
+    let stack_obj = state_after.stack_objects().iter().find(|so| {
         matches!(
             so.kind,
             mtg_engine::state::stack::StackObjectKind::Spell { .. }
@@ -728,12 +728,12 @@ fn test_madness_non_madness_exile_cannot_cast() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 5);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Plain Instant");
 
@@ -795,12 +795,12 @@ fn test_madness_cycling_discard_triggers_madness() {
 
     // Add {1} mana for cycling cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Cycling Madness Card");
 
@@ -815,7 +815,7 @@ fn test_madness_cycling_discard_triggers_madness() {
 
     // Card went to exile (madness replacement applies to cycling discard).
     let in_exile = state_after
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Cycling Madness Card" && o.zone == ZoneId::Exile);
     assert!(
@@ -843,7 +843,7 @@ fn test_madness_cycling_discard_triggers_madness() {
 
     // MadnessTrigger is on the stack (along with the cycling draw ability).
     let has_madness_trigger = state_after
-        .stack_objects
+        .stack_objects()
         .iter()
         .any(|so| matches!(so.kind, StackObjectKind::MadnessTrigger { .. }));
     assert!(
@@ -884,12 +884,12 @@ fn test_madness_mana_value_unchanged() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Fiery Temper");
 
@@ -917,7 +917,7 @@ fn test_madness_mana_value_unchanged() {
 
     // The card on the stack has its printed mana cost ({1}{R}{R} = MV 3), not the madness cost ({R} = MV 1).
     // Verify by checking the characteristics of the card on the stack.
-    let stack_spell = state_after.stack_objects.iter().find(|so| {
+    let stack_spell = state_after.stack_objects().iter().find(|so| {
         matches!(
             so.kind,
             mtg_engine::state::stack::StackObjectKind::Spell { .. }
@@ -927,7 +927,7 @@ fn test_madness_mana_value_unchanged() {
 
     // The card is now in ZoneId::Stack; find it to check mana_cost.
     let stack_card = state_after
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Fiery Temper" && o.zone == ZoneId::Stack);
     assert!(
@@ -1010,13 +1010,13 @@ fn test_madness_effect_discard_goes_to_exile() {
 
     // Give p2 {B} mana to cast the discard spell.
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
     // Give p2 priority.
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let discard_id = find_object(&state, "Discard Spell");
 
@@ -1048,7 +1048,7 @@ fn test_madness_effect_discard_goes_to_exile() {
 
     // Fiery Temper should be in exile (madness replacement on effect-based discard).
     let in_exile = state_after_resolve
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Fiery Temper" && o.zone == ZoneId::Exile);
     assert!(
@@ -1058,7 +1058,7 @@ fn test_madness_effect_discard_goes_to_exile() {
 
     // MadnessTrigger should be on the stack.
     let has_trigger = state_after_resolve
-        .stack_objects
+        .stack_objects()
         .iter()
         .any(|so| matches!(so.kind, StackObjectKind::MadnessTrigger { .. }));
     assert!(

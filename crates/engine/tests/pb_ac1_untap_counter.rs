@@ -35,7 +35,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == name)
         .map(|(&id, _)| id)
@@ -51,7 +51,7 @@ fn load_defs() -> HashMap<String, CardDefinition> {
 
 fn hand_count(state: &GameState, player: PlayerId) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(player))
         .count()
@@ -59,7 +59,7 @@ fn hand_count(state: &GameState, player: PlayerId) -> usize {
 
 fn graveyard_count(state: &GameState, player: PlayerId) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Graveyard(player))
         .count()
@@ -149,19 +149,19 @@ fn test_untap_all_untaps_matching_tapped_permanents() {
     let events = execute_effect(&mut state, &Effect::UntapAll { filter }, &mut ctx);
 
     assert!(
-        !state.objects.get(&bear1).unwrap().status.tapped,
+        !state.objects().get(&bear1).unwrap().status.tapped,
         "CR 701.26b: My Bear 1 (creature, you control, tapped) must be untapped by UntapAll"
     );
     assert!(
-        !state.objects.get(&bear2).unwrap().status.tapped,
+        !state.objects().get(&bear2).unwrap().status.tapped,
         "CR 701.26b: My Bear 2 (creature, you control, tapped) must be untapped by UntapAll"
     );
     assert!(
-        state.objects.get(&land).unwrap().status.tapped,
+        state.objects().get(&land).unwrap().status.tapped,
         "UntapAll{{card_types:[Creature]}} must not untap a land (filter scoping)"
     );
     assert!(
-        state.objects.get(&opp_bear).unwrap().status.tapped,
+        state.objects().get(&opp_bear).unwrap().status.tapped,
         "UntapAll{{controller:You}} must not untap an opponent's creature"
     );
     let untap_events = events
@@ -194,7 +194,7 @@ fn test_untap_all_only_tapped() {
         .unwrap();
 
     let bear = find_object(&state, "Already Untapped Bear");
-    assert!(!state.objects.get(&bear).unwrap().status.tapped);
+    assert!(!state.objects().get(&bear).unwrap().status.tapped);
 
     let mut state = state;
     let mut ctx = ctx_for(&state, p1, bear);
@@ -262,10 +262,10 @@ fn test_untap_all_multiplayer_controller_scope() {
     };
     execute_effect(&mut state, &Effect::UntapAll { filter }, &mut ctx);
 
-    assert!(!state.objects.get(&p1_bear).unwrap().status.tapped);
-    assert!(state.objects.get(&p2_bear).unwrap().status.tapped);
-    assert!(state.objects.get(&p3_bear).unwrap().status.tapped);
-    assert!(state.objects.get(&p4_bear).unwrap().status.tapped);
+    assert!(!state.objects().get(&p1_bear).unwrap().status.tapped);
+    assert!(state.objects().get(&p2_bear).unwrap().status.tapped);
+    assert!(state.objects().get(&p3_bear).unwrap().status.tapped);
+    assert!(state.objects().get(&p4_bear).unwrap().status.tapped);
 }
 
 // ── C: TriggerCondition::WheneverPermanentUntaps (CR 502.3 / 603.2e) ──────────
@@ -315,7 +315,7 @@ fn test_wheneverpermanentuntaps_fires_on_effect_untap_mesmeric_orb() {
     );
     let triggers = check_triggers(&state, &events);
     for t in triggers {
-        state.pending_triggers.push_back(t);
+        state.pending_triggers_mut().push_back(t);
     }
     let flush_events = flush_pending_triggers(&mut state);
     assert!(
@@ -325,7 +325,7 @@ fn test_wheneverpermanentuntaps_fires_on_effect_untap_mesmeric_orb() {
         "CR 502.3/603.2e: Mesmeric Orb must trigger when a permanent becomes untapped"
     );
     // Resolve the stack (single trigger).
-    while !state.stack_objects.is_empty() {
+    while !state.stack_objects().is_empty() {
         let (s, _) = process_command(state, Command::PassPriority { player: p1 }).unwrap();
         let (s, _) = process_command(s, Command::PassPriority { player: p2 }).unwrap();
         state = s;
@@ -378,16 +378,16 @@ fn test_wheneverpermanentuntaps_fires_at_untap_step_held_to_upkeep() {
     );
     let triggers = check_triggers(&state, &untap_events);
     for t in triggers {
-        state.pending_triggers.push_back(t);
+        state.pending_triggers_mut().push_back(t);
     }
     // CR 502.4: no player receives priority during the untap step. The trigger is
     // QUEUED but must NOT yet be on the stack.
     assert!(
-        !state.pending_triggers.is_empty(),
+        !state.pending_triggers().is_empty(),
         "CR 502.4: the WheneverPermanentUntaps trigger must be queued (held) during Untap"
     );
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "CR 502.4: the trigger must NOT be on the stack yet -- no priority during Untap"
     );
 
@@ -398,7 +398,7 @@ fn test_wheneverpermanentuntaps_fires_at_untap_step_held_to_upkeep() {
         .iter()
         .any(|e| matches!(e, GameEvent::AbilityTriggered { .. })));
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 502.4: the untap-step WheneverPermanentUntaps trigger is held and appears \
          on the stack once priority is granted (simulated: the next flush_pending_triggers)"
@@ -762,10 +762,10 @@ fn test_once_per_turn_trigger_fires_once_across_turn() {
     );
     let triggers1 = check_triggers(&state, &events1);
     for t in triggers1 {
-        state.pending_triggers.push_back(t);
+        state.pending_triggers_mut().push_back(t);
     }
     flush_pending_triggers(&mut state);
-    while !state.stack_objects.is_empty() {
+    while !state.stack_objects().is_empty() {
         let (s, _) = process_command(state, Command::PassPriority { player: p1 }).unwrap();
         let (s, _) = process_command(s, Command::PassPriority { player: p2 }).unwrap();
         state = s;
@@ -788,10 +788,10 @@ fn test_once_per_turn_trigger_fires_once_across_turn() {
     );
     let triggers2 = check_triggers(&state, &events2);
     for t in triggers2 {
-        state.pending_triggers.push_back(t);
+        state.pending_triggers_mut().push_back(t);
     }
     flush_pending_triggers(&mut state);
-    while !state.stack_objects.is_empty() {
+    while !state.stack_objects().is_empty() {
         let (s, _) = process_command(state, Command::PassPriority { player: p1 }).unwrap();
         let (s, _) = process_command(s, Command::PassPriority { player: p2 }).unwrap();
         state = s;
@@ -806,7 +806,7 @@ fn test_once_per_turn_trigger_fires_once_across_turn() {
     // Reset for next turn (mirrors the untap-step sweep).
     assert!(
         state
-            .objects
+            .objects()
             .get(&mo_id)
             .unwrap()
             .triggered_abilities_fired_this_turn
@@ -816,7 +816,7 @@ fn test_once_per_turn_trigger_fires_once_across_turn() {
     expire_until_next_turn_effects(&mut state, p1);
     assert!(
         state
-            .objects
+            .objects()
             .get(&mo_id)
             .unwrap()
             .triggered_abilities_fired_this_turn
@@ -867,7 +867,7 @@ fn test_once_per_turn_trigger_batched_deaths() {
 
     let triggers = check_triggers(&state, &all_events);
     for t in triggers {
-        state.pending_triggers.push_back(t);
+        state.pending_triggers_mut().push_back(t);
     }
     let flushed = flush_pending_triggers(&mut state);
     let ability_triggered_count = flushed
@@ -880,7 +880,7 @@ fn test_once_per_turn_trigger_batched_deaths() {
          ability on the stack exactly ONCE (once-per-turn dedup within the same batch)"
     );
 
-    while !state.stack_objects.is_empty() {
+    while !state.stack_objects().is_empty() {
         let (s, _) = process_command(state, Command::PassPriority { player: p1 }).unwrap();
         let (s, _) = process_command(s, Command::PassPriority { player: p2 }).unwrap();
         state = s;
@@ -914,7 +914,7 @@ fn test_does_not_untap_static_keeps_permanent_tapped() {
     untap_active_player_permanents(&mut state);
 
     assert!(
-        state.objects.get(&vault_id).unwrap().status.tapped,
+        state.objects().get(&vault_id).unwrap().status.tapped,
         "CR 502.3: a DoesNotUntap permanent must remain tapped through the untap step"
     );
 }
@@ -956,7 +956,7 @@ fn test_does_not_untap_removed_by_humility() {
     );
 
     // Apply a Humility-style RemoveAllAbilities Layer 6 effect on this creature.
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(9001),
         source: Some(creature_id),
         layer: EffectLayer::Ability,
@@ -976,7 +976,7 @@ fn test_does_not_untap_removed_by_humility() {
 
     untap_active_player_permanents(&mut state);
     assert!(
-        !state.objects.get(&creature_id).unwrap().status.tapped,
+        !state.objects().get(&creature_id).unwrap().status.tapped,
         "CR 502.3 + 613.1f: with DoesNotUntap removed by Humility-style ability removal, \
          the creature DOES untap normally"
     );
@@ -1004,13 +1004,13 @@ fn test_does_not_untap_does_not_consume_skip_untap_counter() {
         .unwrap();
 
     let obj_id = find_object(&state, "Double-Frozen Permanent");
-    if let Some(obj) = state.objects.get_mut(&obj_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&obj_id) {
         obj.skip_untap_steps = 1;
     }
 
     untap_active_player_permanents(&mut state);
 
-    let obj = state.objects.get(&obj_id).unwrap();
+    let obj = state.objects().get(&obj_id).unwrap();
     assert!(obj.status.tapped, "still tapped: DoesNotUntap wins");
     assert_eq!(
         obj.skip_untap_steps, 1,
@@ -1050,7 +1050,7 @@ fn test_goblin_sharpshooter_does_not_untap_via_carddef() {
 
     untap_active_player_permanents(&mut state);
     assert!(
-        state.objects.get(&gs_id).unwrap().status.tapped,
+        state.objects().get(&gs_id).unwrap().status.tapped,
         "CR 502.3: Goblin Sharpshooter doesn't untap during its controller's untap step"
     );
 }

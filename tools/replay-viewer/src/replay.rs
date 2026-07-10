@@ -660,7 +660,7 @@ mod tests {
         // Commander starts at 40 life.
         let script = load_baseline_script("001_priority_pass_empty_stack.json");
         let session = ReplaySession::from_script(&script).unwrap();
-        for (_pid, player) in &session.steps[0].state_after.players {
+        for (_pid, player) in session.steps[0].state_after.players() {
             assert_eq!(
                 player.life_total, 40,
                 "all players start at 40 life in Commander"

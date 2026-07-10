@@ -52,7 +52,7 @@ fn test_608_1_sorcery_resolves_to_graveyard() {
         .unwrap();
 
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -81,19 +81,27 @@ fn test_608_1_sorcery_resolves_to_graveyard() {
         },
     )
     .unwrap();
-    assert_eq!(state.stack_objects.len(), 1);
+    assert_eq!(state.stack_objects().len(), 1);
 
     // All four players pass — active player (p1) has priority after cast.
     let (final_state, events) = pass_all_four(state, [p(1), p(2), p(3), p(4)]);
 
     // Stack is now empty.
-    assert!(final_state.stack_objects.is_empty());
-    assert!(final_state.zones.get(&ZoneId::Stack).unwrap().is_empty());
+    assert!(final_state.stack_objects().is_empty());
+    assert!(final_state.zones().get(&ZoneId::Stack).unwrap().is_empty());
 
     // Card is in the owner's graveyard (not in hand or stack).
-    assert!(final_state.zones.get(&ZoneId::Hand(p1)).unwrap().is_empty());
+    assert!(final_state
+        .zones()
+        .get(&ZoneId::Hand(p1))
+        .unwrap()
+        .is_empty());
     assert_eq!(
-        final_state.zones.get(&ZoneId::Graveyard(p1)).unwrap().len(),
+        final_state
+            .zones()
+            .get(&ZoneId::Graveyard(p1))
+            .unwrap()
+            .len(),
         1
     );
 
@@ -129,7 +137,7 @@ fn test_608_1_instant_resolves_to_graveyard() {
 
     // p2 has priority; cast the instant.
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p2))
         .unwrap()
         .object_ids()
@@ -160,9 +168,13 @@ fn test_608_1_instant_resolves_to_graveyard() {
     // After CastSpell, active player (p1) gets priority. All four pass.
     let (final_state, events) = pass_all_four(state, [p(1), p(2), p(3), p(4)]);
 
-    assert!(final_state.stack_objects.is_empty());
+    assert!(final_state.stack_objects().is_empty());
     assert_eq!(
-        final_state.zones.get(&ZoneId::Graveyard(p2)).unwrap().len(),
+        final_state
+            .zones()
+            .get(&ZoneId::Graveyard(p2))
+            .unwrap()
+            .len(),
         1
     );
     assert!(events
@@ -191,7 +203,7 @@ fn test_608_3a_creature_enters_battlefield() {
         .unwrap();
 
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -223,16 +235,16 @@ fn test_608_3a_creature_enters_battlefield() {
     let (final_state, events) = pass_all_four(state, [p(1), p(2), p(3), p(4)]);
 
     // Stack and Stack zone are empty.
-    assert!(final_state.stack_objects.is_empty());
-    assert!(final_state.zones.get(&ZoneId::Stack).unwrap().is_empty());
+    assert!(final_state.stack_objects().is_empty());
+    assert!(final_state.zones().get(&ZoneId::Stack).unwrap().is_empty());
 
     // Creature is on the battlefield — not in graveyard.
     assert_eq!(
-        final_state.zones.get(&ZoneId::Battlefield).unwrap().len(),
+        final_state.zones().get(&ZoneId::Battlefield).unwrap().len(),
         1
     );
     assert!(final_state
-        .zones
+        .zones()
         .get(&ZoneId::Graveyard(p1))
         .unwrap()
         .is_empty());
@@ -248,11 +260,11 @@ fn test_608_3a_creature_enters_battlefield() {
 
     // The permanent's controller is the caster.
     let new_id = final_state
-        .zones
+        .zones()
         .get(&ZoneId::Battlefield)
         .unwrap()
         .object_ids()[0];
-    let perm = final_state.objects.get(&new_id).unwrap();
+    let perm = final_state.objects().get(&new_id).unwrap();
     assert_eq!(perm.controller, p1);
     assert_eq!(perm.owner, p1);
 }
@@ -273,7 +285,7 @@ fn test_608_3a_artifact_enters_battlefield() {
         .unwrap();
 
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -304,9 +316,9 @@ fn test_608_3a_artifact_enters_battlefield() {
 
     let (final_state, _events) = pass_all_four(state, [p(1), p(2), p(3), p(4)]);
 
-    assert!(final_state.stack_objects.is_empty());
+    assert!(final_state.stack_objects().is_empty());
     assert_eq!(
-        final_state.zones.get(&ZoneId::Battlefield).unwrap().len(),
+        final_state.zones().get(&ZoneId::Battlefield).unwrap().len(),
         1
     );
 }
@@ -336,7 +348,7 @@ fn test_608_1_priority_goes_to_active_player_after_resolution() {
     let (state, _) = process_command(state, Command::PassPriority { player: p1 }).unwrap();
 
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p2))
         .unwrap()
         .object_ids()
@@ -368,9 +380,9 @@ fn test_608_1_priority_goes_to_active_player_after_resolution() {
     let (final_state, _events) = pass_all_four(state, [p(1), p(2), p(3), p(4)]);
 
     // After resolution, p1 (active player) should hold priority.
-    assert_eq!(final_state.turn.priority_holder, Some(p1));
+    assert_eq!(final_state.turn().priority_holder, Some(p1));
     // players_passed has been reset.
-    assert!(final_state.turn.players_passed.is_empty());
+    assert!(final_state.turn().players_passed.is_empty());
 }
 
 // ---------------------------------------------------------------------------
@@ -399,7 +411,7 @@ fn test_608_1_lifo_resolves_top_first() {
 
     // Find both cards in hand.
     let hand_ids: Vec<_> = state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -408,7 +420,7 @@ fn test_608_1_lifo_resolves_top_first() {
 
     // Cast the sorcery first (empty stack required for sorcery speed).
     let (sorcery_id, instant_id) = {
-        let objs = &state.objects;
+        let objs = &state.objects();
         let mut sorcery = None;
         let mut instant = None;
         for id in &hand_ids {
@@ -446,7 +458,7 @@ fn test_608_1_lifo_resolves_top_first() {
         },
     )
     .unwrap();
-    assert_eq!(state.stack_objects.len(), 1);
+    assert_eq!(state.stack_objects().len(), 1);
 
     // Now cast the instant on top of the sorcery.
     let (state, _) = process_command(
@@ -470,15 +482,15 @@ fn test_608_1_lifo_resolves_top_first() {
         },
     )
     .unwrap();
-    assert_eq!(state.stack_objects.len(), 2);
+    assert_eq!(state.stack_objects().len(), 2);
 
     // The instant is on top (pushed last).
-    let top = state.stack_objects.last().unwrap();
+    let top = state.stack_objects().last().unwrap();
     let top_source = match &top.kind {
         mtg_engine::StackObjectKind::Spell { source_object } => *source_object,
         _ => panic!("expected spell"),
     };
-    let top_card_types = state.objects[&top_source]
+    let top_card_types = state.objects()[&top_source]
         .characteristics
         .card_types
         .clone();
@@ -486,7 +498,7 @@ fn test_608_1_lifo_resolves_top_first() {
 
     // First all-pass: instant resolves (→ graveyard).
     let (state, events1) = pass_all_four(state, [p(1), p(2), p(3), p(4)]);
-    assert_eq!(state.stack_objects.len(), 1, "one spell still on stack");
+    assert_eq!(state.stack_objects().len(), 1, "one spell still on stack");
     assert!(events1
         .iter()
         .any(|e| matches!(e, GameEvent::SpellResolved { .. })));
@@ -494,7 +506,7 @@ fn test_608_1_lifo_resolves_top_first() {
     // Second all-pass: sorcery resolves (→ graveyard).
     let (final_state, events2) = pass_all_four(state, [p(1), p(2), p(3), p(4)]);
     assert!(
-        final_state.stack_objects.is_empty(),
+        final_state.stack_objects().is_empty(),
         "stack empty after second resolution"
     );
     assert!(events2
@@ -503,7 +515,11 @@ fn test_608_1_lifo_resolves_top_first() {
 
     // Both cards now in graveyard.
     assert_eq!(
-        final_state.zones.get(&ZoneId::Graveyard(p1)).unwrap().len(),
+        final_state
+            .zones()
+            .get(&ZoneId::Graveyard(p1))
+            .unwrap()
+            .len(),
         2
     );
 }
@@ -526,12 +542,12 @@ fn test_608_1_empty_stack_all_pass_advances_step() {
     let (final_state, events) = pass_all_four(state, [p(1), p(2), p(3), p(4)]);
 
     // Should have advanced to a new step.
-    assert_ne!(final_state.turn.step, Step::Upkeep);
+    assert_ne!(final_state.turn().step, Step::Upkeep);
     assert!(events
         .iter()
         .any(|e| matches!(e, GameEvent::StepChanged { .. })));
     // Stack stays empty.
-    assert!(final_state.stack_objects.is_empty());
+    assert!(final_state.stack_objects().is_empty());
 }
 
 // ---------------------------------------------------------------------------
@@ -555,7 +571,7 @@ fn test_counter_stack_object_spell_to_graveyard() {
         .unwrap();
 
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -599,18 +615,18 @@ fn test_counter_stack_object_spell_to_graveyard() {
         })
         .unwrap();
 
-    assert_eq!(state.stack_objects.len(), 1);
+    assert_eq!(state.stack_objects().len(), 1);
 
     // Counter the spell directly (bypassing command dispatch — M3-D will hook this up properly).
     let counter_events = counter_stack_object(&mut state, stack_object_id).unwrap();
 
     // Stack is empty.
-    assert!(state.stack_objects.is_empty());
-    assert!(state.zones.get(&ZoneId::Stack).unwrap().is_empty());
+    assert!(state.stack_objects().is_empty());
+    assert!(state.zones().get(&ZoneId::Stack).unwrap().is_empty());
 
     // Card is in graveyard, not on battlefield.
-    assert_eq!(state.zones.get(&ZoneId::Graveyard(p1)).unwrap().len(), 1);
-    assert!(state.zones.get(&ZoneId::Battlefield).unwrap().is_empty());
+    assert_eq!(state.zones().get(&ZoneId::Graveyard(p1)).unwrap().len(), 1);
+    assert!(state.zones().get(&ZoneId::Battlefield).unwrap().is_empty());
 
     // SpellCountered event emitted, NOT SpellResolved.
     assert!(counter_events
@@ -621,7 +637,7 @@ fn test_counter_stack_object_spell_to_graveyard() {
         .any(|e| matches!(e, GameEvent::SpellResolved { .. })));
 
     // Active player (p1) gets priority after countering.
-    assert_eq!(state.turn.priority_holder, Some(p1));
+    assert_eq!(state.turn().priority_holder, Some(p1));
 }
 
 #[test]
@@ -640,7 +656,7 @@ fn test_counter_stack_object_permanent_to_graveyard_not_battlefield() {
         .unwrap();
 
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -686,9 +702,9 @@ fn test_counter_stack_object_permanent_to_graveyard_not_battlefield() {
     counter_stack_object(&mut state, stack_object_id).unwrap();
 
     // Creature must NOT be on battlefield.
-    assert!(state.zones.get(&ZoneId::Battlefield).unwrap().is_empty());
+    assert!(state.zones().get(&ZoneId::Battlefield).unwrap().is_empty());
     // Creature IS in graveyard.
-    assert_eq!(state.zones.get(&ZoneId::Graveyard(p1)).unwrap().len(), 1);
+    assert_eq!(state.zones().get(&ZoneId::Graveyard(p1)).unwrap().len(), 1);
 }
 
 // ---------------------------------------------------------------------------
@@ -713,7 +729,7 @@ fn test_608_flash_creature_resolves_to_battlefield() {
         .unwrap();
 
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -745,9 +761,9 @@ fn test_608_flash_creature_resolves_to_battlefield() {
 
     let (final_state, events) = pass_all_four(state, [p(1), p(2), p(3), p(4)]);
 
-    assert!(final_state.stack_objects.is_empty());
+    assert!(final_state.stack_objects().is_empty());
     assert_eq!(
-        final_state.zones.get(&ZoneId::Battlefield).unwrap().len(),
+        final_state.zones().get(&ZoneId::Battlefield).unwrap().len(),
         1
     );
     assert!(events

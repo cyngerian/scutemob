@@ -12,6 +12,7 @@ use mtg_engine::rules::layers::calculate_characteristics;
 use mtg_engine::state::continuous_effect::{
     EffectDuration, EffectFilter, EffectLayer, LayerModification,
 };
+use mtg_engine::state::test_util;
 use mtg_engine::state::types::KeywordAbility;
 use mtg_engine::state::{ActivatedAbility, ActivationCost};
 use mtg_engine::{
@@ -25,7 +26,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_by_name(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -112,7 +113,10 @@ fn test_land_animation_adds_creature_type_and_pt() {
         .unwrap();
 
     let mut state = state;
-    state.player_mut(p(1)).unwrap().mana_pool.colorless = 1;
+    test_util::player_mut(&mut state, p(1))
+        .unwrap()
+        .mana_pool
+        .colorless = 1;
 
     let land_id = find_by_name(&state, "Animate Land");
 
@@ -178,14 +182,17 @@ fn test_animated_land_has_summoning_sickness() {
         .unwrap();
 
     let mut state = state;
-    state.player_mut(p(1)).unwrap().mana_pool.colorless = 1;
+    test_util::player_mut(&mut state, p(1))
+        .unwrap()
+        .mana_pool
+        .colorless = 1;
 
     let land_id = find_by_name(&state, "Sick Land");
 
     // Lands don't normally have summoning sickness tracking, but when they
     // become creatures, the has_summoning_sickness flag determines tap ability access.
     // The land was on the battlefield from the start, so it should NOT have summoning sickness.
-    let obj = state.objects.get(&land_id).unwrap();
+    let obj = state.objects().get(&land_id).unwrap();
     assert!(
         !obj.has_summoning_sickness,
         "land should not have summoning sickness"

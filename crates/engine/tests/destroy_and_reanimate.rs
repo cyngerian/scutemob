@@ -44,7 +44,7 @@ fn card_creature(owner: PlayerId, name: &str, power: i32, toughness: i32) -> Obj
 
 fn find_by_name(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -53,7 +53,7 @@ fn find_by_name(state: &GameState, name: &str) -> ObjectId {
 
 fn find_by_name_opt(state: &GameState, name: &str) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -61,7 +61,7 @@ fn find_by_name_opt(state: &GameState, name: &str) -> Option<ObjectId> {
 
 fn zone_of(state: &GameState, id: ObjectId) -> ZoneId {
     state
-        .objects
+        .objects()
         .get(&id)
         .map(|o| o.zone)
         .unwrap_or(ZoneId::Exile)
@@ -69,7 +69,7 @@ fn zone_of(state: &GameState, id: ObjectId) -> ZoneId {
 
 fn controller_of(state: &GameState, name: &str) -> PlayerId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == name)
         .map(|(_, o)| o.controller)
@@ -141,7 +141,7 @@ fn test_l02_destroy_and_reanimate_basic() {
 
     // The creature should now be on the battlefield again (reanimated).
     let reanimated_on_bf = state_after
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Opponent Creature" && o.zone == ZoneId::Battlefield);
     assert!(
@@ -180,7 +180,7 @@ fn test_l02_reanimate_under_your_control() {
 
     // Find the reanimated copy (new ObjectId, same name, on battlefield).
     let reanimated_controller = state_after
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Enemy Knight" && o.zone == ZoneId::Battlefield)
         .map(|o| o.controller);
@@ -210,7 +210,7 @@ fn test_l02_token_destroyed_not_reanimated() {
 
     // Mark the creature as a token.
     let token_id = find_by_name(&state, "Goblin Token");
-    if let Some(obj) = state.objects.get_mut(&token_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&token_id) {
         obj.is_token = true;
         obj.card_id = None; // tokens have no card_id
     }
@@ -228,7 +228,7 @@ fn test_l02_token_destroyed_not_reanimated() {
 
     // Token must NOT appear on the battlefield after phase 2.
     let token_on_bf = state_after
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Goblin Token" && o.zone == ZoneId::Battlefield);
     assert!(
@@ -267,25 +267,27 @@ fn test_l02_replacement_redirect_to_exile_not_reanimated() {
 
     // Install a global replacement effect: any battlefield→graveyard goes to exile instead
     // (simulating Rest in Peace, CR 614.1a).
-    state.replacement_effects.push_back(ReplacementEffect {
-        id: ReplacementId(9001),
-        controller: p(1),
-        source: None,
-        duration: EffectDuration::Indefinite,
-        is_self_replacement: false,
-        trigger: ReplacementTrigger::WouldChangeZone {
-            from: Some(ZoneType::Battlefield),
-            to: ZoneType::Graveyard,
-            filter: ObjectFilter::Any,
-        },
-        modification: ReplacementModification::RedirectToZone(ZoneType::Exile),
-    });
+    state
+        .replacement_effects_mut()
+        .push_back(ReplacementEffect {
+            id: ReplacementId(9001),
+            controller: p(1),
+            source: None,
+            duration: EffectDuration::Indefinite,
+            is_self_replacement: false,
+            trigger: ReplacementTrigger::WouldChangeZone {
+                from: Some(ZoneType::Battlefield),
+                to: ZoneType::Graveyard,
+                filter: ObjectFilter::Any,
+            },
+            modification: ReplacementModification::RedirectToZone(ZoneType::Exile),
+        });
 
     let (state_after, events) = run_destroy_and_reanimate(state, p(1), &[doomed_id], false);
 
     // Object should be in exile (redirected by replacement effect).
     let in_exile = state_after
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Doomed Creature" && o.zone == ZoneId::Exile);
     assert!(
@@ -295,7 +297,7 @@ fn test_l02_replacement_redirect_to_exile_not_reanimated() {
 
     // Must NOT appear on battlefield (reanimate phase must be skipped).
     let on_bf = state_after
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Doomed Creature" && o.zone == ZoneId::Battlefield);
     assert!(
@@ -400,7 +402,7 @@ fn test_l02_multiple_targets_partial_indestructible() {
 
     // Normal Bear: destroyed and reanimated.
     let bear_on_bf = state_after
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Normal Bear" && o.zone == ZoneId::Battlefield);
     assert!(
@@ -422,7 +424,7 @@ fn test_l02_multiple_targets_partial_indestructible() {
 
     // Own Goblin: destroyed and reanimated (own creature can also be targeted).
     let goblin_on_bf = state_after
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Own Goblin" && o.zone == ZoneId::Battlefield);
     assert!(
@@ -463,7 +465,7 @@ fn test_l02_multiple_targets_partial_indestructible() {
 /// The reanimate phase calls queue_carddef_etb_triggers, which queues ETB
 /// triggered abilities from the permanent's CardDefinition. This test verifies
 /// that a creature with a WhenEntersBattlefield triggered ability has that
-/// trigger queued (added to state.pending_triggers) after being destroyed and
+/// trigger queued (added to state.pending_triggers()) after being destroyed and
 /// reanimated by DestroyAndReanimate.
 #[test]
 fn test_l02_destroy_and_reanimate_runs_etb() {
@@ -526,7 +528,7 @@ fn test_l02_destroy_and_reanimate_runs_etb() {
     let target_id = find_by_name(&state, "ETB Creature");
 
     // Run DestroyAndReanimate via execute_effect (not process_command) so we can
-    // inspect state.pending_triggers directly after the effect resolves.
+    // inspect state.pending_triggers() directly after the effect resolves.
     let (state_after, events) = run_destroy_and_reanimate(state, p(1), &[target_id], false);
 
     // Phase 1: creature must have been destroyed.
@@ -547,7 +549,7 @@ fn test_l02_destroy_and_reanimate_runs_etb() {
     // CR 603.6a: the reanimate path calls queue_carddef_etb_triggers, which pushes a
     // PendingTrigger for the WhenEntersBattlefield ability. Assert it was queued.
     assert!(
-        !state_after.pending_triggers.is_empty(),
+        !state_after.pending_triggers().is_empty(),
         "CR 603.6a: queue_carddef_etb_triggers must queue the ETB triggered ability \
          when a creature with a WhenEntersBattlefield ability is reanimated. \
          Got 0 pending triggers."
@@ -556,7 +558,7 @@ fn test_l02_destroy_and_reanimate_runs_etb() {
     // Verify the trigger is for the reanimated creature (CardDefETB kind).
     use mtg_engine::state::stubs::PendingTriggerKind;
     let has_carddef_etb = state_after
-        .pending_triggers
+        .pending_triggers()
         .iter()
         .any(|t| t.kind == PendingTriggerKind::CardDefETB);
     assert!(

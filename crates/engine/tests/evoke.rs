@@ -15,6 +15,7 @@
 //! - Sacrifice trigger checks source is still on battlefield (CR 400.7).
 
 use mtg_engine::cards::card_definition::{EffectAmount, PlayerTarget};
+use mtg_engine::state::test_util;
 use mtg_engine::state::types::AltCostKind;
 use mtg_engine::state::CardType;
 use mtg_engine::{
@@ -31,7 +32,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -44,7 +45,7 @@ fn find_object_in_zone(
     zone: ZoneId,
 ) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -204,18 +205,18 @@ fn test_evoke_basic_cast_with_evoke_cost() {
 
     // Pay {2}{U} — evoke cost instead of mana cost {4}{U}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let creature_id = find_object(&state, "Mock Elemental");
 
@@ -244,17 +245,17 @@ fn test_evoke_basic_cast_with_evoke_cost() {
 
     // Spell on the stack — was_evoked flag set.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.74a: evoked spell should be on the stack"
     );
     assert!(
-        state.stack_objects[0].was_evoked,
+        state.stack_objects()[0].was_evoked,
         "CR 702.74a: was_evoked should be true on stack object"
     );
 
     // Mana consumed: {2}{U} = 3 mana total.
-    let pool = &state.players[&p1].mana_pool;
+    let pool = &state.players()[&p1].mana_pool;
     assert_eq!(
         pool.white + pool.blue + pool.black + pool.red + pool.green + pool.colorless,
         0,
@@ -272,19 +273,19 @@ fn test_evoke_basic_cast_with_evoke_cost() {
     );
     let bf_id = creature_bf.unwrap();
     assert!(
-        state.objects[&bf_id].cast_alt_cost == Some(mtg_engine::state::types::AltCostKind::Evoke),
+        state.objects()[&bf_id].cast_alt_cost == Some(mtg_engine::state::types::AltCostKind::Evoke),
         "CR 702.74a: cast_alt_cost should be Some(Evoke) on battlefield permanent"
     );
 
     // Evoke sacrifice trigger should be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.74a: evoke sacrifice trigger should be on the stack"
     );
     assert!(
         matches!(
-            state.stack_objects[0].kind,
+            state.stack_objects()[0].kind,
             mtg_engine::StackObjectKind::KeywordTrigger {
                 keyword: KeywordAbility::Evoke,
                 ..
@@ -355,18 +356,18 @@ fn test_evoke_basic_cast_without_evoke() {
 
     // Pay {4}{U} — full mana cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 4);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let creature_id = find_object(&state, "Mock Elemental");
 
@@ -394,7 +395,7 @@ fn test_evoke_basic_cast_without_evoke() {
     .unwrap_or_else(|e| panic!("CastSpell without evoke failed: {:?}", e));
 
     assert!(
-        !state.stack_objects[0].was_evoked,
+        !state.stack_objects()[0].was_evoked,
         "CR 702.74a: was_evoked should be false for normal cast"
     );
 
@@ -403,7 +404,7 @@ fn test_evoke_basic_cast_without_evoke() {
 
     // No evoke sacrifice trigger on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "CR 702.74a: no evoke sacrifice trigger for normal cast"
     );
@@ -457,18 +458,18 @@ fn test_evoke_sacrifice_trigger_goes_through_stack() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let creature_id = find_object(&state, "Mulldrifter");
 
@@ -502,13 +503,13 @@ fn test_evoke_sacrifice_trigger_goes_through_stack() {
     // The sacrifice trigger was pushed first (during flush_pending_triggers);
     // the draw trigger is also from the same flush. Two triggers total.
     assert!(
-        !state.stack_objects.is_empty(),
+        !state.stack_objects().is_empty(),
         "CR 702.74a: at least the evoke sacrifice trigger should be on the stack after ETB; \
          stack len: {}",
-        state.stack_objects.len()
+        state.stack_objects().len()
     );
 
-    let has_evoke_trigger = state.stack_objects.iter().any(|so| {
+    let has_evoke_trigger = state.stack_objects().iter().any(|so| {
         matches!(
             so.kind,
             mtg_engine::StackObjectKind::KeywordTrigger {
@@ -569,18 +570,18 @@ fn test_evoke_does_not_change_mana_value() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let creature_id = find_object(&state, "Mock Elemental");
 
@@ -609,9 +610,9 @@ fn test_evoke_does_not_change_mana_value() {
     // The stack object's source still has its printed mana cost {{4}}{{U}} = MV 5.
     // The was_evoked flag records the alternative cost choice; the card's mana cost is unchanged.
     if let mtg_engine::StackObjectKind::Spell { source_object } =
-        state.stack_objects[0].kind.clone()
+        state.stack_objects()[0].kind.clone()
     {
-        let source = state.objects.get(&source_object).unwrap();
+        let source = state.objects().get(&source_object).unwrap();
         let mv = source
             .characteristics
             .mana_cost
@@ -708,18 +709,18 @@ fn test_evoke_cannot_combine_with_flashback() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Weird Card");
 
@@ -788,12 +789,12 @@ fn test_evoke_non_evoke_spell_rejected() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Lightning Bolt");
 
@@ -862,18 +863,18 @@ fn test_evoke_uses_alternative_cost_not_mana_cost() {
     // If evoke correctly uses the alternative cost, this should be enough.
     // If the engine mistakenly uses the printed mana cost, it would fail (InsufficientMana).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let creature_id = find_object(&state, "Mock Elemental");
 
@@ -906,7 +907,7 @@ fn test_evoke_uses_alternative_cost_not_mana_cost() {
 
     let (state, _) = result.unwrap();
     // Mana pool fully consumed.
-    let pool = &state.players[&p1].mana_pool;
+    let pool = &state.players()[&p1].mana_pool;
     assert_eq!(
         pool.white + pool.blue + pool.black + pool.red + pool.green + pool.colorless,
         0,
@@ -952,18 +953,18 @@ fn test_evoke_sacrifice_trigger_fizzles_if_source_left_battlefield() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let creature_id = find_object(&state, "Mock Elemental");
 
@@ -995,7 +996,7 @@ fn test_evoke_sacrifice_trigger_fizzles_if_source_left_battlefield() {
 
     // Verify the evoke sacrifice trigger is on the stack.
     assert!(
-        state.stack_objects.iter().any(|so| matches!(
+        state.stack_objects().iter().any(|so| matches!(
             so.kind,
             mtg_engine::StackObjectKind::KeywordTrigger {
                 keyword: KeywordAbility::Evoke,
@@ -1011,20 +1012,19 @@ fn test_evoke_sacrifice_trigger_fizzles_if_source_left_battlefield() {
         .expect("creature should be on battlefield before blink");
 
     // Move to exile (simulating blink out).
-    let (exile_id, _) = state.move_object_to_zone(bf_id, ZoneId::Exile).unwrap();
+    let (exile_id, _) = test_util::move_object_to_zone(&mut state, bf_id, ZoneId::Exile).unwrap();
 
     // Move back to battlefield (simulating blink return — new object, new ID).
-    let (new_bf_id, _) = state
-        .move_object_to_zone(exile_id, ZoneId::Battlefield)
-        .unwrap();
+    let (new_bf_id, _) =
+        test_util::move_object_to_zone(&mut state, exile_id, ZoneId::Battlefield).unwrap();
     // Restore controller.
-    if let Some(obj) = state.objects.get_mut(&new_bf_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&new_bf_id) {
         obj.controller = p1;
     }
 
     // Now resolve the evoke sacrifice trigger.
     // The trigger's source_object is bf_id (old ID, now retired).
-    // The check in resolution.rs: `state.objects.get(&source_object).zone == Battlefield`
+    // The check in resolution.rs: `state.objects().get(&source_object).zone == Battlefield`
     // will find nothing (old ID is gone) or find the object is NOT on the battlefield.
     // The trigger should do nothing.
     let (state, _) = pass_all(state, &[p1, p2]);

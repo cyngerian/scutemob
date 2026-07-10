@@ -17,6 +17,7 @@
 //! - Eternalize is NOT a cast: no SpellCast event (ruling 2017-07-14).
 //! - Requires mana payment; error on insufficient mana (CR 602.2b).
 
+use mtg_engine::state::test_util;
 use mtg_engine::state::types::AltCostKind;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Color,
@@ -32,7 +33,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -41,7 +42,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -176,18 +177,18 @@ fn test_eternalize_basic_flow() {
 
     // Give p1 {4}{U}{U} mana for eternalize cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 4);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_obj_id = find_object(&state, "Proven Combatant");
 
@@ -221,7 +222,7 @@ fn test_eternalize_basic_flow() {
 
     // Ability is on the stack.
     assert!(
-        !state.stack_objects.is_empty(),
+        !state.stack_objects().is_empty(),
         "CR 702.129a: EternalizeAbility should be on the stack"
     );
 
@@ -253,7 +254,7 @@ fn test_eternalize_basic_flow() {
     // Token is indeed a token.
     let token_id = find_in_zone(&state, "Proven Combatant", ZoneId::Battlefield)
         .expect("token should be on battlefield");
-    let token_obj = state.objects.get(&token_id).unwrap();
+    let token_obj = state.objects().get(&token_id).unwrap();
     assert!(
         token_obj.is_token,
         "CR 702.129a: the object on battlefield should be a token, not the original card"
@@ -290,18 +291,18 @@ fn test_eternalize_token_is_black_4_4() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 4);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_obj_id = find_object(&state, "Proven Combatant");
 
@@ -318,7 +319,7 @@ fn test_eternalize_token_is_black_4_4() {
 
     let token_id = find_in_zone(&state, "Proven Combatant", ZoneId::Battlefield)
         .expect("token should be on battlefield");
-    let token_obj = state.objects.get(&token_id).unwrap();
+    let token_obj = state.objects().get(&token_id).unwrap();
 
     // Token must be Black only (original Blue replaced).
     assert!(
@@ -374,18 +375,18 @@ fn test_eternalize_card_exiled_as_cost() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 4);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_obj_id = find_object(&state, "Proven Combatant");
 
@@ -401,7 +402,7 @@ fn test_eternalize_card_exiled_as_cost() {
 
     // BEFORE resolution (ability is on the stack), card is already in exile.
     assert!(
-        !state.stack_objects.is_empty(),
+        !state.stack_objects().is_empty(),
         "EternalizeAbility should be on the stack before resolution"
     );
     assert!(
@@ -452,18 +453,18 @@ fn test_eternalize_sorcery_speed() {
             .unwrap();
 
         state
-            .players
+            .players_mut()
             .get_mut(&p1)
             .unwrap()
             .mana_pool
             .add(ManaColor::Blue, 4);
         state
-            .players
+            .players_mut()
             .get_mut(&p1)
             .unwrap()
             .mana_pool
             .add(ManaColor::Blue, 2);
-        state.turn.priority_holder = Some(p1);
+        state.turn_mut().priority_holder = Some(p1);
 
         let card_obj_id = find_object(&state, "Proven Combatant");
 
@@ -493,18 +494,18 @@ fn test_eternalize_sorcery_speed() {
             .unwrap();
 
         state
-            .players
+            .players_mut()
             .get_mut(&p1)
             .unwrap()
             .mana_pool
             .add(ManaColor::Blue, 4);
         state
-            .players
+            .players_mut()
             .get_mut(&p1)
             .unwrap()
             .mana_pool
             .add(ManaColor::Blue, 2);
-        state.turn.priority_holder = Some(p1);
+        state.turn_mut().priority_holder = Some(p1);
 
         let card_obj_id = find_object(&state, "Proven Combatant");
 
@@ -550,18 +551,18 @@ fn test_eternalize_not_in_graveyard() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 4);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_obj_id = find_object(&state, "Proven Combatant");
 
@@ -602,12 +603,12 @@ fn test_eternalize_insufficient_mana() {
 
     // Only 1 blue — can't pay {4}{U}{U}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_obj_id = find_object(&state, "Proven Combatant");
 
@@ -655,18 +656,18 @@ fn test_eternalize_token_retains_printed_keywords() {
 
     // Give p1 4 colorless + 2 red mana to pay the {4}{R}{R} eternalize cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 4);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_obj_id = find_object(&state, "Haste Warrior");
 
@@ -683,7 +684,7 @@ fn test_eternalize_token_retains_printed_keywords() {
 
     let token_id = find_in_zone(&state, "Haste Warrior", ZoneId::Battlefield)
         .expect("token should be on battlefield");
-    let token_obj = state.objects.get(&token_id).unwrap();
+    let token_obj = state.objects().get(&token_id).unwrap();
 
     // Token must have Haste (copied from printed abilities).
     assert!(
@@ -728,20 +729,20 @@ fn test_eternalize_not_a_cast() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 4);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
-    let initial_spells_cast = state.players.get(&p1).unwrap().spells_cast_this_turn;
+    let initial_spells_cast = state.players().get(&p1).unwrap().spells_cast_this_turn;
 
     let card_obj_id = find_object(&state, "Proven Combatant");
 
@@ -763,7 +764,7 @@ fn test_eternalize_not_a_cast() {
     );
 
     // spells_cast_this_turn is unchanged.
-    let after_spells_cast = state.players.get(&p1).unwrap().spells_cast_this_turn;
+    let after_spells_cast = state.players().get(&p1).unwrap().spells_cast_this_turn;
     assert_eq!(
         initial_spells_cast, after_spells_cast,
         "Eternalize is NOT a cast: spells_cast_this_turn should not change"
@@ -792,18 +793,18 @@ fn test_eternalize_token_zombie_subtype() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 4);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_obj_id = find_object(&state, "Proven Combatant");
 
@@ -820,7 +821,7 @@ fn test_eternalize_token_zombie_subtype() {
 
     let token_id = find_in_zone(&state, "Proven Combatant", ZoneId::Battlefield)
         .expect("token should be on battlefield");
-    let token_obj = state.objects.get(&token_id).unwrap();
+    let token_obj = state.objects().get(&token_id).unwrap();
 
     // Token must have Zombie subtype.
     assert!(
@@ -879,18 +880,18 @@ fn test_eternalize_no_mana_cost() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 4);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_obj_id = find_object(&state, "Proven Combatant");
 
@@ -907,7 +908,7 @@ fn test_eternalize_no_mana_cost() {
 
     let token_id = find_in_zone(&state, "Proven Combatant", ZoneId::Battlefield)
         .expect("token should be on battlefield");
-    let token_obj = state.objects.get(&token_id).unwrap();
+    let token_obj = state.objects().get(&token_id).unwrap();
 
     // Token must have no mana cost.
     assert!(
@@ -939,24 +940,24 @@ fn test_eternalize_split_second_blocks() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 4);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Push a dummy UnearthAbility onto the stack to simulate a non-empty stack
     // (as would happen with a split-second spell or any other stack item).
     let fake_object_id = ObjectId(9999);
-    let fake_stack_id = state.next_object_id();
-    state.stack_objects.push_back(StackObject {
+    let fake_stack_id = test_util::next_object_id(&mut state);
+    state.stack_objects_mut().push_back(StackObject {
         id: fake_stack_id,
         controller: p2,
         kind: StackObjectKind::UnearthAbility {
@@ -1048,18 +1049,18 @@ fn test_eternalize_keyword_retained() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 4);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_obj_id = find_object(&state, "Proven Combatant");
 
@@ -1076,7 +1077,7 @@ fn test_eternalize_keyword_retained() {
 
     let token_id = find_in_zone(&state, "Proven Combatant", ZoneId::Battlefield)
         .expect("token should be on battlefield");
-    let token_obj = state.objects.get(&token_id).unwrap();
+    let token_obj = state.objects().get(&token_id).unwrap();
 
     // Token must have Eternalize keyword (copied from printed abilities, CR 707.2).
     assert!(

@@ -4,6 +4,7 @@
 //! backed by `rules::copy::get_copiable_values` and its recursive clone-chain
 //! resolution (CR 707.3).
 
+use mtg_engine::state::test_util;
 use mtg_engine::{
     calculate_characteristics, CardType, ContinuousEffect, EffectDuration, EffectFilter, EffectId,
     EffectLayer, GameStateBuilder, KeywordAbility, LayerModification, ObjectId, ObjectSpec,
@@ -58,13 +59,13 @@ fn test_clone_copies_bear() {
         .unwrap();
 
     let bear_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Grizzly Bears")
         .map(|(id, _)| *id)
         .unwrap();
     let clone_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Clone")
         .map(|(id, _)| *id)
@@ -72,7 +73,7 @@ fn test_clone_copies_bear() {
 
     // Apply Layer 1 copy effect: Clone copies the Bear.
     let copy_eff = copy_effect_of(100, clone_id, bear_id, 50);
-    state.continuous_effects.push_back(copy_eff);
+    state.continuous_effects_mut().push_back(copy_eff);
 
     let chars = calculate_characteristics(&state, clone_id).unwrap();
 
@@ -118,19 +119,19 @@ fn test_clone_copies_clone_chain() {
         .unwrap();
 
     let bear_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Grizzly Bears")
         .map(|(id, _)| *id)
         .unwrap();
     let clone_b_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Clone-B")
         .map(|(id, _)| *id)
         .unwrap();
     let clone_a_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Clone-A")
         .map(|(id, _)| *id)
@@ -141,8 +142,8 @@ fn test_clone_copies_clone_chain() {
     // Clone-A copies Clone-B (timestamp 20, applied after eff_b).
     let eff_a = copy_effect_of(102, clone_a_id, clone_b_id, 20);
 
-    state.continuous_effects.push_back(eff_b);
-    state.continuous_effects.push_back(eff_a);
+    state.continuous_effects_mut().push_back(eff_b);
+    state.continuous_effects_mut().push_back(eff_a);
 
     let chars_a = calculate_characteristics(&state, clone_a_id).unwrap();
 
@@ -199,13 +200,13 @@ fn test_copy_effect_layer_1_applies_before_other_layers() {
         .unwrap();
 
     let bear_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Grizzly Bears")
         .map(|(id, _)| *id)
         .unwrap();
     let clone_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Clone")
         .map(|(id, _)| *id)
@@ -227,8 +228,8 @@ fn test_copy_effect_layer_1_applies_before_other_layers() {
         condition: None,
     };
 
-    state.continuous_effects.push_back(copy_eff);
-    state.continuous_effects.push_back(pump_eff);
+    state.continuous_effects_mut().push_back(copy_eff);
+    state.continuous_effects_mut().push_back(pump_eff);
 
     let chars = calculate_characteristics(&state, clone_id).unwrap();
 
@@ -273,13 +274,13 @@ fn test_copy_does_not_copy_counters_or_status() {
         .unwrap();
 
     let bear_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Grizzly Bears")
         .map(|(id, _)| *id)
         .unwrap();
     let clone_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Clone")
         .map(|(id, _)| *id)
@@ -288,19 +289,19 @@ fn test_copy_does_not_copy_counters_or_status() {
     // Add +1/+1 counters to the Bear (should not be copied to Clone).
     {
         use mtg_engine::CounterType;
-        let bear = state.objects.get_mut(&bear_id).unwrap();
+        let bear = state.objects_mut().get_mut(&bear_id).unwrap();
         bear.counters.insert(CounterType::PlusOnePlusOne, 2);
     }
 
     // Tap the Bear (status should not be copied).
     {
-        let bear = state.objects.get_mut(&bear_id).unwrap();
+        let bear = state.objects_mut().get_mut(&bear_id).unwrap();
         bear.status.tapped = true;
     }
 
     // Apply Layer 1 copy effect.
     let copy_eff = copy_effect_of(300, clone_id, bear_id, 10);
-    state.continuous_effects.push_back(copy_eff);
+    state.continuous_effects_mut().push_back(copy_eff);
 
     // Verify Clone characteristics after copy.
     let clone_chars = calculate_characteristics(&state, clone_id).unwrap();
@@ -325,7 +326,7 @@ fn test_copy_does_not_copy_counters_or_status() {
     );
 
     // The Clone's own status (not tapped) should be independent of the Bear's status.
-    let clone_obj = state.objects.get(&clone_id).unwrap();
+    let clone_obj = state.objects().get(&clone_id).unwrap();
     assert!(
         !clone_obj.status.tapped,
         "Clone's tapped status should be independent of Bear's (status is NOT copiable)"
@@ -361,13 +362,13 @@ fn test_effect_become_copy_of() {
         .unwrap();
 
     let bear_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Grizzly Bears")
         .map(|(id, _)| *id)
         .unwrap();
     let clone_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Shapeshifter")
         .map(|(id, _)| *id)
@@ -422,13 +423,13 @@ fn test_effect_become_copy_reverts_at_eot() {
         .unwrap();
 
     let bear_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Grizzly Bears")
         .map(|(id, _)| *id)
         .unwrap();
     let clone_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Shapeshifter")
         .map(|(id, _)| *id)
@@ -453,7 +454,7 @@ fn test_effect_become_copy_reverts_at_eot() {
 
     // Simulate EOT cleanup: remove UntilEndOfTurn effects.
     state
-        .continuous_effects
+        .continuous_effects_mut()
         .retain(|e| e.duration != EffectDuration::UntilEndOfTurn);
 
     // Should revert to original.
@@ -480,7 +481,7 @@ fn test_effect_create_token_copy() {
         .unwrap();
 
     let dragon_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Shivan Dragon")
         .map(|(id, _)| *id)
@@ -504,7 +505,7 @@ fn test_effect_create_token_copy() {
 
     // Find the token.
     let tokens: Vec<_> = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.is_token && o.zone == ZoneId::Battlefield)
         .collect();
@@ -549,13 +550,13 @@ fn test_effect_create_token_copy_tapped_attacking() {
         .unwrap();
 
     let warrior_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Elite Warrior")
         .map(|(id, _)| *id)
         .unwrap();
     let ninja_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Shadow Ninja")
         .map(|(id, _)| *id)
@@ -564,7 +565,7 @@ fn test_effect_create_token_copy_tapped_attacking() {
     // Set up combat: ninja attacking p2.
     let mut combat = CombatState::new(p);
     combat.attackers.insert(ninja_id, AttackTarget::Player(p2));
-    state.combat = Some(combat);
+    *state.combat_mut() = Some(combat);
 
     let effect = Effect::CreateTokenCopy {
         source: EffectTarget::DeclaredTarget { index: 0 },
@@ -583,7 +584,7 @@ fn test_effect_create_token_copy_tapped_attacking() {
 
     // Find the token.
     let tokens: Vec<_> = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.is_token && o.zone == ZoneId::Battlefield)
         .collect();
@@ -591,7 +592,7 @@ fn test_effect_create_token_copy_tapped_attacking() {
 
     // Token should be tapped and attacking p2.
     assert!(tokens[0].status.tapped, "token should be tapped");
-    let combat = state.combat.as_ref().unwrap();
+    let combat = state.combat().as_ref().unwrap();
     assert!(combat.attackers.contains_key(&tokens[0].id));
     assert_eq!(
         *combat.attackers.get(&tokens[0].id).unwrap(),
@@ -627,7 +628,7 @@ fn test_delirium_condition_evaluation() {
         .unwrap();
 
     let source_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Source")
         .map(|(id, _)| *id)
@@ -635,13 +636,17 @@ fn test_delirium_condition_evaluation() {
 
     // Move 3 objects to graveyard for 3 distinct card types.
     let ids_to_move: Vec<ObjectId> = state
-        .objects
+        .objects()
         .iter()
         .filter(|(_, obj)| obj.characteristics.name.starts_with("Test"))
         .map(|(id, _)| *id)
         .collect();
     for id in ids_to_move {
-        let _ = state.move_object_to_zone(id, mtg_engine::state::zone::ZoneId::Graveyard(p));
+        let _ = test_util::move_object_to_zone(
+            &mut state,
+            id,
+            mtg_engine::state::zone::ZoneId::Graveyard(p),
+        );
     }
 
     let ctx = EffectContext::new(p, source_id, vec![]);

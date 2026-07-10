@@ -21,7 +21,7 @@ use mtg_engine::{
 
 fn find_by_name(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -34,7 +34,7 @@ fn find_by_name_in_zone(
     zone: ZoneId,
 ) -> Option<mtg_engine::ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -43,7 +43,7 @@ fn find_by_name_in_zone(
 /// Count objects with a given name on the battlefield.
 fn count_on_battlefield(state: &mtg_engine::GameState, name: &str) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
         .count()
@@ -103,13 +103,13 @@ fn test_persist_basic_returns_with_counter() {
 
     // Persist trigger should be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.79a: persist trigger should be on the stack after creature dies"
     );
     assert!(
         matches!(
-            state.stack_objects[0].kind,
+            state.stack_objects()[0].kind,
             StackObjectKind::TriggeredAbility { .. }
         ),
         "stack object should be a triggered ability (persist)"
@@ -142,7 +142,7 @@ fn test_persist_basic_returns_with_counter() {
 
     // The returned creature has exactly one -1/-1 counter.
     let returned_id = find_by_name(&state, "Persist Bear");
-    let returned_obj = state.objects.get(&returned_id).unwrap();
+    let returned_obj = state.objects().get(&returned_id).unwrap();
     let minus_counter = returned_obj
         .counters
         .get(&CounterType::MinusOneMinusOne)
@@ -193,7 +193,7 @@ fn test_persist_does_not_trigger_with_minus_counter() {
 
     // No persist trigger on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "CR 702.79a: persist must NOT trigger when creature had -1/-1 counters"
     );
@@ -245,7 +245,7 @@ fn test_persist_second_death_no_trigger() {
         "First death: CreatureDied should be emitted"
     );
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "First death: persist trigger should be on stack"
     );
@@ -260,7 +260,7 @@ fn test_persist_second_death_no_trigger() {
 
     // Verify the returned creature has a -1/-1 counter.
     let returned_id = find_by_name(&state, "Persistent Bear");
-    let returned_obj = state.objects.get(&returned_id).unwrap();
+    let returned_obj = state.objects().get(&returned_id).unwrap();
     assert_eq!(
         returned_obj
             .counters
@@ -275,7 +275,11 @@ fn test_persist_second_death_no_trigger() {
     // Manually apply 2 damage (lethal for effective 2 toughness).
     let mut state = state;
     let creature_id = find_by_name(&state, "Persistent Bear");
-    state.objects.get_mut(&creature_id).unwrap().damage_marked = 2;
+    state
+        .objects_mut()
+        .get_mut(&creature_id)
+        .unwrap()
+        .damage_marked = 2;
 
     // --- Second death ---
     // Pass priority → SBA fires → creature dies (has -1/-1 counter → persist does NOT trigger).
@@ -289,7 +293,7 @@ fn test_persist_second_death_no_trigger() {
 
     // No persist trigger on stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "CR 702.79a: persist must NOT trigger on second death (creature has -1/-1 counter)"
     );
@@ -361,7 +365,7 @@ fn test_persist_token_trigger_but_no_return() {
         "CR 704.5d + CR 702.79a: token must not be on battlefield (MoveZone no-op for missing source)"
     );
     // Token also should not be in the graveyard (tokens cease to exist there).
-    let in_graveyard = state.objects.values().any(|obj| {
+    let in_graveyard = state.objects().values().any(|obj| {
         obj.characteristics.name == "Bear Token" && matches!(obj.zone, ZoneId::Graveyard(_))
     });
     assert!(
@@ -421,7 +425,7 @@ fn test_persist_multiplayer_apnap_ordering() {
 
     // Two persist triggers on the stack (APNAP ordered: P1's first, P3's second → P3 resolves first).
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "CR 603.3: two persist triggers should be on the stack"
     );
@@ -445,7 +449,7 @@ fn test_persist_multiplayer_apnap_ordering() {
     // Both returned creatures should have exactly one -1/-1 counter.
     for name in &["P1 Persist", "P3 Persist"] {
         let id = find_by_name(&state, name);
-        let obj = state.objects.get(&id).unwrap();
+        let obj = state.objects().get(&id).unwrap();
         let counter = obj
             .counters
             .get(&CounterType::MinusOneMinusOne)
@@ -486,7 +490,7 @@ fn test_persist_plus_one_cancellation_enables_second_persist() {
 
     // --- First death: persist triggers, creature returns with -1/-1 counter ---
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.stack_objects.len(), 1, "Persist trigger on stack");
+    assert_eq!(state.stack_objects().len(), 1, "Persist trigger on stack");
 
     let (state, _) = pass_all(state, &[p1, p2]);
     assert_eq!(
@@ -497,7 +501,7 @@ fn test_persist_plus_one_cancellation_enables_second_persist() {
 
     // Verify -1/-1 counter is present.
     let creature_id = find_by_name(&state, "Finks-like Bear");
-    let obj = state.objects.get(&creature_id).unwrap();
+    let obj = state.objects().get(&creature_id).unwrap();
     assert_eq!(
         obj.counters
             .get(&CounterType::MinusOneMinusOne)
@@ -512,7 +516,7 @@ fn test_persist_plus_one_cancellation_enables_second_persist() {
     let mut state = state;
     let creature_id = find_by_name(&state, "Finks-like Bear");
     {
-        let obj = state.objects.get_mut(&creature_id).unwrap();
+        let obj = state.objects_mut().get_mut(&creature_id).unwrap();
         let cur = obj
             .counters
             .get(&CounterType::PlusOnePlusOne)
@@ -526,7 +530,7 @@ fn test_persist_plus_one_cancellation_enables_second_persist() {
 
     // After SBA, both counters should be gone (annihilated).
     let creature_id = find_by_name(&state, "Finks-like Bear");
-    let obj = state.objects.get(&creature_id).unwrap();
+    let obj = state.objects().get(&creature_id).unwrap();
     assert_eq!(
         obj.counters
             .get(&CounterType::MinusOneMinusOne)
@@ -546,7 +550,11 @@ fn test_persist_plus_one_cancellation_enables_second_persist() {
 
     // --- Now mark lethal damage again; creature has no -1/-1 counter → persist triggers ---
     let creature_id = find_by_name(&state, "Finks-like Bear");
-    state.objects.get_mut(&creature_id).unwrap().damage_marked = 3;
+    state
+        .objects_mut()
+        .get_mut(&creature_id)
+        .unwrap()
+        .damage_marked = 3;
 
     let (state, events) = pass_all(state, &[p1, p2]);
     assert!(
@@ -556,7 +564,7 @@ fn test_persist_plus_one_cancellation_enables_second_persist() {
         "Second death: CreatureDied should be emitted"
     );
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.79a + CR 704.5q: persist should trigger again after counter annihilation"
     );
@@ -571,7 +579,7 @@ fn test_persist_plus_one_cancellation_enables_second_persist() {
 
     // Has -1/-1 counter again.
     let creature_id = find_by_name(&state, "Finks-like Bear");
-    let obj = state.objects.get(&creature_id).unwrap();
+    let obj = state.objects().get(&creature_id).unwrap();
     assert_eq!(
         obj.counters
             .get(&CounterType::MinusOneMinusOne)

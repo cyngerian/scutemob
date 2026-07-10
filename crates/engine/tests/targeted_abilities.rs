@@ -63,13 +63,13 @@ fn targeted_activated_ability_valid_creature_target() {
         .unwrap();
 
     let source_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Pump Source" && o.zone == ZoneId::Battlefield)
         .unwrap()
         .id;
     let target_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Bear" && o.zone == ZoneId::Battlefield)
         .unwrap()
@@ -139,13 +139,13 @@ fn targeted_activated_ability_rejects_non_creature() {
         .unwrap();
 
     let source_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Pump Source" && o.zone == ZoneId::Battlefield)
         .unwrap()
         .id;
     let artifact_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Mox" && o.zone == ZoneId::Battlefield)
         .unwrap()
@@ -212,7 +212,7 @@ fn targeted_activated_ability_target_player() {
         .unwrap();
 
     let source_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Pinger" && o.zone == ZoneId::Battlefield)
         .unwrap()
@@ -277,7 +277,7 @@ fn activated_ability_no_targets_backward_compatible() {
         .unwrap();
 
     let source_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Self Buffer" && o.zone == ZoneId::Battlefield)
         .unwrap()
@@ -336,7 +336,7 @@ fn triggered_ability_targets_propagate_to_runtime() {
         .unwrap();
 
     let obj = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "ETB Trigger Source" && o.zone == ZoneId::Battlefield)
         .unwrap();
@@ -379,7 +379,7 @@ fn triggered_ability_target_player_propagates() {
         .unwrap();
 
     let obj = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Damage Trigger" && o.zone == ZoneId::Battlefield)
         .unwrap();
@@ -423,7 +423,7 @@ fn triggered_ability_no_targets_backward_compatible() {
         .unwrap();
 
     let obj = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Untargeted Trigger" && o.zone == ZoneId::Battlefield)
         .unwrap();
@@ -478,7 +478,7 @@ fn targeted_activated_ability_rejects_player_for_creature_requirement() {
         .unwrap();
 
     let source_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Creature Pinger" && o.zone == ZoneId::Battlefield)
         .unwrap()
@@ -545,7 +545,7 @@ fn targeted_activated_ability_rejects_wrong_target_count() {
         .unwrap();
 
     let source_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Single Target" && o.zone == ZoneId::Battlefield)
         .unwrap()

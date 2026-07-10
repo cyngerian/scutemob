@@ -33,7 +33,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -42,7 +42,7 @@ fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
 
 fn find_object_on_battlefield(state: &mtg_engine::GameState, name: &str) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
         .map(|(id, _)| *id)
@@ -75,12 +75,12 @@ fn cast_ravenous(
 ) -> (mtg_engine::GameState, Vec<GameEvent>) {
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&caster)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Colorless, generic_mana);
-    state.turn.priority_holder = Some(caster);
+    state.turn_mut().priority_holder = Some(caster);
 
     process_command(
         state,
@@ -193,7 +193,7 @@ fn test_ravenous_x3_enters_with_3_counters() {
         .at_step(Step::PreCombatMain)
         .build()
         .unwrap();
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_obj_id = find_object(&state, "Test Ravenous Beast");
 
@@ -209,7 +209,7 @@ fn test_ravenous_x3_enters_with_3_counters() {
 
     // CR 702.156a: 3 +1/+1 counters placed at ETB.
     let counter_count = state
-        .objects
+        .objects()
         .get(&creature_id)
         .and_then(|o| o.counters.get(&CounterType::PlusOnePlusOne).copied())
         .unwrap_or(0);
@@ -259,12 +259,12 @@ fn test_ravenous_x5_enters_with_5_counters_and_draws() {
         .at_step(Step::PreCombatMain)
         .build()
         .unwrap();
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_obj_id = find_object(&state, "Test Ravenous Beast");
 
     let initial_hand_size = state
-        .objects
+        .objects()
         .iter()
         .filter(|(_, o)| o.zone == ZoneId::Hand(p1))
         .count();
@@ -289,7 +289,7 @@ fn test_ravenous_x5_enters_with_5_counters_and_draws() {
 
     // CR 702.156a: 5 +1/+1 counters.
     let counter_count = state
-        .objects
+        .objects()
         .get(&creature_id)
         .and_then(|o| o.counters.get(&CounterType::PlusOnePlusOne).copied())
         .unwrap_or(0);
@@ -303,7 +303,7 @@ fn test_ravenous_x5_enters_with_5_counters_and_draws() {
     //   -1 (cast creature) + 1 (draw trigger) = 0 net change.
     // i.e., final_hand_size == initial_hand_size.
     let final_hand_size = state
-        .objects
+        .objects()
         .iter()
         .filter(|(_, o)| o.zone == ZoneId::Hand(p1))
         .count();
@@ -341,7 +341,7 @@ fn test_ravenous_x0_enters_with_no_counters_no_draw() {
         .at_step(Step::PreCombatMain)
         .build()
         .unwrap();
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_obj_id = find_object(&state, "Test Ravenous Beast");
 
@@ -394,7 +394,7 @@ fn test_ravenous_x4_no_draw_boundary() {
         .at_step(Step::PreCombatMain)
         .build()
         .unwrap();
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_obj_id = find_object(&state, "Test Ravenous Beast");
 
@@ -437,7 +437,7 @@ fn test_ravenous_draw_still_fires_if_creature_removed() {
         .at_step(Step::PreCombatMain)
         .build()
         .unwrap();
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_obj_id = find_object(&state, "Test Ravenous Beast");
 
@@ -453,7 +453,7 @@ fn test_ravenous_draw_still_fires_if_creature_removed() {
 
     // Simulate removal (e.g., opponent casts removal in response to the draw trigger):
     // directly move the Ravenous creature to the graveyard.
-    if let Some(obj) = state.objects.get_mut(&creature_bf_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&creature_bf_id) {
         obj.zone = ZoneId::Graveyard(p1);
     }
 
@@ -496,7 +496,7 @@ fn test_ravenous_x10_enters_with_10_counters() {
         .at_step(Step::PreCombatMain)
         .build()
         .unwrap();
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_obj_id = find_object(&state, "Test Ravenous Beast");
 
@@ -518,7 +518,7 @@ fn test_ravenous_x10_enters_with_10_counters() {
 
     // 10 +1/+1 counters.
     let counter_count = state
-        .objects
+        .objects()
         .get(&creature_id)
         .and_then(|o| o.counters.get(&CounterType::PlusOnePlusOne).copied())
         .unwrap_or(0);

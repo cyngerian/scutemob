@@ -37,7 +37,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -152,7 +152,7 @@ fn test_split_second_blocks_casting_spells() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let ss_id = find_object(&state, "Split Second Instant");
 
@@ -180,14 +180,14 @@ fn test_split_second_blocks_casting_spells() {
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
 
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "split second spell should be on the stack"
     );
 
     // P2 has priority (after p1's cast, active player gets it, but let's give it to p2).
     let mut state = state;
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let plain_id = find_object(&state, "Plain Instant");
 
@@ -279,7 +279,7 @@ fn test_split_second_blocks_activated_abilities() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let ss_id = find_object(&state, "Split Second Instant");
 
@@ -307,7 +307,7 @@ fn test_split_second_blocks_activated_abilities() {
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
 
     let mut state = state;
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let creature_id = find_object(&state, "Sparkmage");
 
@@ -375,7 +375,7 @@ fn test_split_second_blocks_cycling() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let ss_id = find_object(&state, "Split Second Instant");
 
@@ -403,7 +403,7 @@ fn test_split_second_blocks_cycling() {
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
 
     let mut state = state;
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let cycling_id = find_object(&state, "Cycling Instant");
 
@@ -461,7 +461,7 @@ fn test_split_second_allows_mana_abilities() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let ss_id = find_object(&state, "Split Second Instant");
 
@@ -489,7 +489,7 @@ fn test_split_second_allows_mana_abilities() {
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
 
     let mut state = state;
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let forest_id = find_object(&state, "Forest");
 
@@ -554,7 +554,7 @@ fn test_split_second_allows_pass_priority() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let ss_id = find_object(&state, "Split Second Instant");
 
@@ -582,7 +582,7 @@ fn test_split_second_allows_pass_priority() {
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
 
     // P1 still has priority after casting.
-    assert_eq!(state.turn.priority_holder, Some(p1));
+    assert_eq!(state.turn().priority_holder, Some(p1));
 
     // P1 passes priority — should succeed even with split second on stack.
     let result = process_command(state, Command::PassPriority { player: p1 });
@@ -596,7 +596,7 @@ fn test_split_second_allows_pass_priority() {
     let (new_state, _) = result.unwrap();
     // Priority should now be with p2 (next player in turn order).
     assert_eq!(
-        new_state.turn.priority_holder,
+        new_state.turn().priority_holder,
         Some(p2),
         "priority should pass to next player after PassPriority"
     );
@@ -634,7 +634,7 @@ fn test_split_second_blocks_caster_too() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let ss_id = find_object(&state, "Split Second Instant");
 
@@ -662,7 +662,7 @@ fn test_split_second_blocks_caster_too() {
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
 
     // P1 still has priority after casting.
-    assert_eq!(state.turn.priority_holder, Some(p1));
+    assert_eq!(state.turn().priority_holder, Some(p1));
 
     let second_id = find_object(&state, "Second Instant");
 
@@ -742,7 +742,7 @@ fn test_split_second_restriction_ends_after_resolution() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let ss_id = find_object(&state, "Split Second Instant");
 
@@ -769,14 +769,18 @@ fn test_split_second_restriction_ends_after_resolution() {
     )
     .unwrap();
 
-    assert_eq!(state.stack_objects.len(), 1, "split second spell on stack");
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "split second spell on stack"
+    );
 
     // Both players pass priority — spell resolves and leaves the stack.
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // Stack should now be empty (split second spell resolved).
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "stack should be empty after split second spell resolves"
     );
@@ -784,7 +788,7 @@ fn test_split_second_restriction_ends_after_resolution() {
     // P1 is the active player. Give p2 priority to test that a non-active player
     // can cast after split second ends. P2 can cast instants at any time.
     let mut state = state;
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let plain_id = find_object(&state, "Plain Instant");
 
@@ -866,7 +870,7 @@ fn test_split_second_triggered_abilities_still_fire() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let ss_id = find_object(&state, "Split Second Instant");
 
@@ -899,15 +903,15 @@ fn test_split_second_triggered_abilities_still_fire() {
     // The triggered ability should now be on the stack (above the split second spell).
     // Stack should have: [split second spell (bottom), triggered ability (top)].
     assert!(
-        state.stack_objects.len() >= 2,
+        state.stack_objects().len() >= 2,
         "CR 702.61b: triggered ability should be on the stack above split second spell; \
          stack_objects.len() = {}",
-        state.stack_objects.len()
+        state.stack_objects().len()
     );
 
     // There should be a triggered ability (TriggeredAbility kind) on the stack.
     let has_trigger = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .any(|so| matches!(so.kind, StackObjectKind::TriggeredAbility { .. }));
     assert!(

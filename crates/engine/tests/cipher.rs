@@ -36,7 +36,7 @@ fn p2() -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -45,7 +45,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 fn find_object_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -53,7 +53,7 @@ fn find_object_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<Ob
 
 fn count_in_zone(state: &GameState, zone: ZoneId) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.zone == zone)
         .count()
@@ -191,7 +191,7 @@ fn test_cipher_basic_encode_on_creature() {
 
     // Cipher spell is on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "cipher spell should be on the stack after casting"
     );
@@ -231,7 +231,7 @@ fn test_cipher_basic_encode_on_creature() {
 
     // The encoded creature should have a non-empty encoded_cards list.
     let creature_obj = state
-        .objects
+        .objects()
         .values()
         .find(|obj| obj.characteristics.name == "Encoder Creature")
         .expect("Encoder Creature should still be on the battlefield");
@@ -294,7 +294,7 @@ fn test_cipher_combat_damage_triggers_copy() {
 
     let creature_id = find_object(&state, "Cipher Creature");
     let creature_obj = state
-        .objects
+        .objects()
         .get(&creature_id)
         .expect("creature should exist");
     assert!(
@@ -368,13 +368,13 @@ fn test_cipher_combat_damage_triggers_copy() {
 
     // Cipher trigger should be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.99a: one CipherTrigger should be on the stack after combat damage"
     );
 
     // Verify it's a CipherTrigger.
-    let trigger = state.stack_objects.back().expect("trigger expected");
+    let trigger = state.stack_objects().back().expect("trigger expected");
     assert!(
         matches!(
             trigger.kind,
@@ -403,11 +403,11 @@ fn test_cipher_combat_damage_triggers_copy() {
 
     // The copy is on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "after CipherTrigger resolves, the spell copy should be on the stack"
     );
-    let copy_spell = state.stack_objects.back().expect("copy spell expected");
+    let copy_spell = state.stack_objects().back().expect("copy spell expected");
     assert!(
         copy_spell.is_copy,
         "the cipher spell copy should have is_copy: true"
@@ -559,7 +559,7 @@ fn test_cipher_creature_leaves_encoding_broken() {
     // Verify encoding happened.
     let creature_id = find_object(&state, "Fragile Creature");
     let creature_obj = state
-        .objects
+        .objects()
         .get(&creature_id)
         .expect("Fragile Creature should exist");
     assert!(
@@ -608,7 +608,7 @@ fn test_cipher_creature_leaves_encoding_broken() {
 
     // No cipher trigger (creature was blocked, no player damage).
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "CR 510.1c: blocked creature with no trample deals no player damage; no cipher trigger"
     );
@@ -616,7 +616,7 @@ fn test_cipher_creature_leaves_encoding_broken() {
     // Fragile Creature should be in the graveyard (died in combat).
     // Note: The ObjectId is dead after zone change. Find by zone count.
     let graveyard_objects = state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.zone == ZoneId::Graveyard(p1))
         .count();
@@ -635,7 +635,7 @@ fn test_cipher_creature_leaves_encoding_broken() {
     // The new Fragile Creature object (if somehow it returned) would have empty encoded_cards.
     // Since it's in the graveyard, we check the graveyard object's encoded_cards if it was moved.
     // The move_object_to_zone always resets encoded_cards (CR 400.7).
-    if let Some(dead_creature) = state.objects.values().find(|obj| {
+    if let Some(dead_creature) = state.objects().values().find(|obj| {
         obj.characteristics.name == "Fragile Creature" && obj.zone == ZoneId::Graveyard(p1)
     }) {
         assert!(
@@ -735,7 +735,7 @@ fn test_cipher_copy_is_not_encodable() {
     // Combat damage — CipherTrigger fires.
     let (state, _) = pass_all(state, &[p1, p2]);
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CipherTrigger should be on stack"
     );
@@ -743,12 +743,12 @@ fn test_cipher_copy_is_not_encodable() {
     // Resolve CipherTrigger — creates a copy spell.
     let (state, _) = pass_all(state, &[p1, p2]);
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "copy spell should be on stack"
     );
     assert!(
-        state.stack_objects.back().unwrap().is_copy,
+        state.stack_objects().back().unwrap().is_copy,
         "copy spell should have is_copy: true"
     );
 
@@ -813,7 +813,7 @@ fn test_cipher_no_combat_damage_no_trigger() {
     let creature_id = find_object(&state, "Cipher Creature");
     assert!(
         !state
-            .objects
+            .objects()
             .get(&creature_id)
             .unwrap()
             .encoded_cards
@@ -870,7 +870,7 @@ fn test_cipher_no_combat_damage_no_trigger() {
 
     // No CipherTrigger on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "CR 510.1c: no triggers should be on the stack when the encoded creature is blocked"
     );
@@ -977,7 +977,7 @@ fn test_cipher_multiple_encoded_cards_fire_separate_triggers() {
     // Both should now be encoded on the creature.
     let creature_id = find_object(&state, "Double Encoded Creature");
     let creature_obj = state
-        .objects
+        .objects()
         .get(&creature_id)
         .expect("Double Encoded Creature should exist");
     assert_eq!(
@@ -1023,13 +1023,13 @@ fn test_cipher_multiple_encoded_cards_fire_separate_triggers() {
     let (state, _damage_events) = pass_all(state, &[p1, p2]);
 
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "CR 702.99a: two CipherTriggers should fire when creature with 2 encoded cards deals combat damage"
     );
 
     // Both stack objects should be CipherTriggers.
-    for obj in state.stack_objects.iter() {
+    for obj in state.stack_objects().iter() {
         assert!(
             matches!(
                 obj.kind,

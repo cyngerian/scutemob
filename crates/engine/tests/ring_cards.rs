@@ -67,14 +67,14 @@ fn test_call_of_the_ring_resolves_to_battlefield() {
         .unwrap();
 
     // Give p1 mana for Call of the Ring ({1}{B}).
-    if let Some(ps) = state.players.get_mut(&p1) {
+    if let Some(ps) = state.players_mut().get_mut(&p1) {
         ps.mana_pool.colorless += 1;
         ps.mana_pool.black += 1;
     }
 
     // Find Call of the Ring in p1's hand.
     let cotr_id = state
-        .objects
+        .objects()
         .iter()
         .find_map(|(&id, obj)| {
             if obj.characteristics.name == "Call of the Ring" && obj.zone == ZoneId::Hand(p1) {
@@ -114,7 +114,7 @@ fn test_call_of_the_ring_resolves_to_battlefield() {
 
     // Call of the Ring should now be on the battlefield.
     let cotr_on_battlefield = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Call of the Ring" && o.zone == ZoneId::Battlefield);
     assert!(
@@ -125,7 +125,7 @@ fn test_call_of_the_ring_resolves_to_battlefield() {
     // No ETB trigger — Call of the Ring only has an upkeep trigger.
     // Stack should be empty after enchantment resolves.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after enchantment resolves (no ETB trigger)"
     );
 }
@@ -160,7 +160,11 @@ fn test_ring_tempts_you_harness_action() {
         .unwrap();
 
     // Verify initial ring level is 0.
-    let initial_level = state.players.get(&p1).map(|ps| ps.ring_level).unwrap_or(0);
+    let initial_level = state
+        .players()
+        .get(&p1)
+        .map(|ps| ps.ring_level)
+        .unwrap_or(0);
     assert_eq!(initial_level, 0, "ring level should start at 0");
 
     // Issue Command::TheRingTemptsYou directly (this is what the harness action translates to).
@@ -168,7 +172,11 @@ fn test_ring_tempts_you_harness_action() {
         .expect("TheRingTemptsYou command should succeed");
 
     // CR 701.54a: Ring level should advance to 1.
-    let ring_level = state.players.get(&p1).map(|ps| ps.ring_level).unwrap_or(0);
+    let ring_level = state
+        .players()
+        .get(&p1)
+        .map(|ps| ps.ring_level)
+        .unwrap_or(0);
     assert_eq!(
         ring_level, 1,
         "ring level should advance to 1 after Command::TheRingTemptsYou"
@@ -193,14 +201,18 @@ fn test_ring_tempts_you_harness_action() {
     );
 
     // p1's ring_bearer_id should be set.
-    let ring_bearer_id = state.players.get(&p1).and_then(|ps| ps.ring_bearer_id);
+    let ring_bearer_id = state.players().get(&p1).and_then(|ps| ps.ring_bearer_id);
     assert!(
         ring_bearer_id.is_some(),
         "p1 should have a ring-bearer after Command::TheRingTemptsYou"
     );
 
     // p2's ring level should be unaffected.
-    let p2_ring_level = state.players.get(&p2).map(|ps| ps.ring_level).unwrap_or(0);
+    let p2_ring_level = state
+        .players()
+        .get(&p2)
+        .map(|ps| ps.ring_level)
+        .unwrap_or(0);
     assert_eq!(
         p2_ring_level, 0,
         "p2 ring level should remain 0 (only p1 was tempted)"

@@ -20,6 +20,7 @@
 //! - Plot free-cast cannot combine with other alt costs (CR 118.9a)
 //! - CR 400.7: new ObjectId after zone change
 
+use mtg_engine::state::test_util;
 use mtg_engine::state::types::AltCostKind;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
@@ -31,7 +32,7 @@ use mtg_engine::{
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -43,7 +44,7 @@ fn find_object_in_zone(
     name: &str,
     zone: ZoneId,
 ) -> Option<mtg_engine::ObjectId> {
-    state.objects.iter().find_map(|(&id, obj)| {
+    state.objects().iter().find_map(|(&id, obj)| {
         if obj.characteristics.name == name && obj.zone == zone {
             Some(id)
         } else {
@@ -54,7 +55,7 @@ fn find_object_in_zone(
 
 fn hand_count(state: &mtg_engine::GameState, player: PlayerId) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(player))
         .count()
@@ -62,7 +63,7 @@ fn hand_count(state: &mtg_engine::GameState, player: PlayerId) -> usize {
 
 fn exile_count(state: &mtg_engine::GameState) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Exile)
         .count()
@@ -213,18 +214,18 @@ fn test_plot_basic_exile_face_up() {
 
     // Give player 1 enough mana for plot cost {1}{R}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Plot Sorcery");
     assert_eq!(hand_count(&state, p1), 1);
@@ -244,7 +245,7 @@ fn test_plot_basic_exile_face_up() {
 
     // The exile object should be face-UP (plotted cards are public, CR 702.170a).
     let exile_obj = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.zone == ZoneId::Exile)
         .expect("exile object should exist");
@@ -257,7 +258,8 @@ fn test_plot_basic_exile_face_up() {
         "exile object should have is_plotted=true (CR 702.170a)"
     );
     assert_eq!(
-        exile_obj.plotted_turn, state.turn.turn_number,
+        exile_obj.plotted_turn,
+        state.turn().turn_number,
         "plotted_turn should equal current turn (CR 702.170d)"
     );
 
@@ -299,18 +301,18 @@ fn test_plot_does_not_use_stack() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Plot Sorcery");
 
@@ -325,7 +327,7 @@ fn test_plot_does_not_use_stack() {
 
     // Stack must remain empty (CR 702.170b: special action, not a spell).
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack must be empty after plot (CR 702.170b: special action)"
     );
 }
@@ -355,18 +357,18 @@ fn test_plot_cannot_cast_same_turn() {
 
     // Give plot cost {1}{R}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Plot the card.
     let card_id = find_object(&state, "Plot Sorcery");
@@ -385,7 +387,7 @@ fn test_plot_cannot_cast_same_turn() {
         .expect("card should be in exile");
 
     let mut state = state;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let result = process_command(
         state,
@@ -439,14 +441,14 @@ fn test_plot_cast_from_exile_on_later_turn() {
         .unwrap();
 
     // Set up: turn 2, card was plotted on turn 1.
-    state.turn.turn_number = 2;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().turn_number = 2;
+    state.turn_mut().priority_holder = Some(p1);
 
     // Mark the exile card as plotted on turn 1.
     let exile_id = find_object_in_zone(&state, "Plot Sorcery", ZoneId::Exile)
         .expect("card should be in exile");
     {
-        let obj = state.objects.get_mut(&exile_id).unwrap();
+        let obj = state.objects_mut().get_mut(&exile_id).unwrap();
         obj.is_plotted = true;
         obj.plotted_turn = 1;
     }
@@ -481,7 +483,11 @@ fn test_plot_cast_from_exile_on_later_turn() {
 
     let (state, events) = result.unwrap();
     // Card should now be on the stack.
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "spell should be on the stack"
+    );
 
     // SpellCast event should have been emitted.
     let has_spell_cast = events
@@ -515,13 +521,13 @@ fn test_plot_free_cast_costs_zero() {
         .unwrap();
 
     // Turn 2, plotted on turn 1.
-    state.turn.turn_number = 2;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().turn_number = 2;
+    state.turn_mut().priority_holder = Some(p1);
 
     let exile_id = find_object_in_zone(&state, "Plot Creature", ZoneId::Exile)
         .expect("card should be in exile");
     {
-        let obj = state.objects.get_mut(&exile_id).unwrap();
+        let obj = state.objects_mut().get_mut(&exile_id).unwrap();
         obj.is_plotted = true;
         obj.plotted_turn = 1;
     }
@@ -580,12 +586,12 @@ fn test_plot_requires_main_phase_empty_stack() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Plot Sorcery");
     let result = process_command(
@@ -618,20 +624,20 @@ fn test_plot_requires_main_phase_empty_stack() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Plot Sorcery");
 
     // Simulate non-empty stack by manually adding a fake stack entry.
     // We use a fake ObjectId to avoid real game state manipulation.
     use mtg_engine::state::stack::{StackObject, StackObjectKind};
-    let fake_id = state.next_object_id();
-    state.stack_objects.push_back(StackObject {
+    let fake_id = test_util::next_object_id(&mut state);
+    state.stack_objects_mut().push_back(StackObject {
         id: fake_id,
         controller: p2,
         kind: StackObjectKind::Spell {
@@ -722,13 +728,13 @@ fn test_plot_free_cast_requires_sorcery_timing() {
         .build()
         .unwrap();
 
-    state.turn.turn_number = 2;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().turn_number = 2;
+    state.turn_mut().priority_holder = Some(p1);
 
     let exile_id = find_object_in_zone(&state, "Plot Instant", ZoneId::Exile)
         .expect("card should be in exile");
     {
-        let obj = state.objects.get_mut(&exile_id).unwrap();
+        let obj = state.objects_mut().get_mut(&exile_id).unwrap();
         obj.is_plotted = true;
         obj.plotted_turn = 1;
     }
@@ -786,12 +792,12 @@ fn test_plot_requires_player_turn() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1); // P1 has priority somehow
+    state.turn_mut().priority_holder = Some(p1); // P1 has priority somehow
 
     let card_id = find_object(&state, "Plot Sorcery");
     let result = process_command(
@@ -831,12 +837,12 @@ fn test_plot_requires_plot_keyword() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Plain Sorcery");
     let result = process_command(
@@ -878,12 +884,12 @@ fn test_plot_requires_card_in_hand() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Plot Sorcery");
     let result = process_command(
@@ -925,12 +931,12 @@ fn test_plot_insufficient_mana() {
 
     // Only give {R} but plot costs {1}{R}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Plot Sorcery");
     let result = process_command(
@@ -974,8 +980,8 @@ fn test_plot_mutual_exclusion_not_plotted_card() {
         .unwrap();
 
     // Turn 2 -- but card is NOT plotted (is_plotted = false by default).
-    state.turn.turn_number = 2;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().turn_number = 2;
+    state.turn_mut().priority_holder = Some(p1);
 
     let exile_id = find_object_in_zone(&state, "Plot Sorcery", ZoneId::Exile)
         .expect("card should be in exile");
@@ -1032,18 +1038,18 @@ fn test_plot_card_identity_tracking() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let old_hand_id = find_object(&state, "Plot Sorcery");
     let (state, _) = process_command(
@@ -1056,7 +1062,7 @@ fn test_plot_card_identity_tracking() {
     .unwrap();
 
     // CR 400.7: old ObjectId is gone (card moved to a new zone).
-    let old_obj_exists = state.objects.contains_key(&old_hand_id);
+    let old_obj_exists = state.objects().contains_key(&old_hand_id);
     assert!(
         !old_obj_exists,
         "original ObjectId should be gone after zone change (CR 400.7)"
@@ -1069,7 +1075,7 @@ fn test_plot_card_identity_tracking() {
         old_hand_id, new_exile_id,
         "exile ObjectId should differ from hand ObjectId (CR 400.7)"
     );
-    let exile_obj = state.objects.get(&new_exile_id).unwrap();
+    let exile_obj = state.objects().get(&new_exile_id).unwrap();
     assert!(
         exile_obj.is_plotted,
         "new exile object should have is_plotted=true"
@@ -1101,13 +1107,13 @@ fn test_plot_mana_value_unchanged_on_stack() {
         .build()
         .unwrap();
 
-    state.turn.turn_number = 2;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().turn_number = 2;
+    state.turn_mut().priority_holder = Some(p1);
 
     let exile_id = find_object_in_zone(&state, "Plot Creature", ZoneId::Exile)
         .expect("card should be in exile");
     {
-        let obj = state.objects.get_mut(&exile_id).unwrap();
+        let obj = state.objects_mut().get_mut(&exile_id).unwrap();
         obj.is_plotted = true;
         obj.plotted_turn = 1;
         // Set mana cost so mana_value is 5 ({3}{R}{R}).
@@ -1142,7 +1148,7 @@ fn test_plot_mana_value_unchanged_on_stack() {
 
     // The stack object should refer to the card in ZoneId::Stack.
     let stack_card = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.zone == ZoneId::Stack)
         .expect("card should be on the stack");
@@ -1184,21 +1190,21 @@ fn test_plot_free_cast_requires_empty_stack() {
         .build()
         .unwrap();
 
-    state.turn.turn_number = 2;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().turn_number = 2;
+    state.turn_mut().priority_holder = Some(p1);
 
     let exile_id = find_object_in_zone(&state, "Plot Instant", ZoneId::Exile)
         .expect("card should be in exile");
     {
-        let obj = state.objects.get_mut(&exile_id).unwrap();
+        let obj = state.objects_mut().get_mut(&exile_id).unwrap();
         obj.is_plotted = true;
         obj.plotted_turn = 1;
     }
 
     // Add a fake item to the stack.
     use mtg_engine::state::stack::{StackObject, StackObjectKind};
-    let fake_id = state.next_object_id();
-    state.stack_objects.push_back(StackObject {
+    let fake_id = test_util::next_object_id(&mut state);
+    state.stack_objects_mut().push_back(StackObject {
         id: fake_id,
         controller: p2,
         kind: StackObjectKind::Spell {
@@ -1301,13 +1307,13 @@ fn test_plot_free_cast_requires_own_turn() {
         .build()
         .unwrap();
 
-    state.turn.turn_number = 2;
-    state.turn.priority_holder = Some(p1); // P1 has priority somehow
+    state.turn_mut().turn_number = 2;
+    state.turn_mut().priority_holder = Some(p1); // P1 has priority somehow
 
     let exile_id = find_object_in_zone(&state, "Plot Sorcery", ZoneId::Exile)
         .expect("card should be in exile");
     {
-        let obj = state.objects.get_mut(&exile_id).unwrap();
+        let obj = state.objects_mut().get_mut(&exile_id).unwrap();
         obj.is_plotted = true;
         obj.plotted_turn = 1;
     }
@@ -1365,18 +1371,18 @@ fn test_plot_normal_cast_still_works() {
 
     // Give player full mana cost {2}{R}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Plot Sorcery");
 
@@ -1432,13 +1438,13 @@ fn test_plot_cast_postcombat_main_phase() {
         .build()
         .unwrap();
 
-    state.turn.turn_number = 2;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().turn_number = 2;
+    state.turn_mut().priority_holder = Some(p1);
 
     let exile_id = find_object_in_zone(&state, "Plot Sorcery", ZoneId::Exile)
         .expect("card should be in exile");
     {
-        let obj = state.objects.get_mut(&exile_id).unwrap();
+        let obj = state.objects_mut().get_mut(&exile_id).unwrap();
         obj.is_plotted = true;
         obj.plotted_turn = 1;
     }
@@ -1495,18 +1501,18 @@ fn test_plot_action_postcombat_main_phase() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Plot Sorcery");
     let result = process_command(
@@ -1549,13 +1555,13 @@ fn test_plot_turn_tracking_boundary() {
         .build()
         .unwrap();
 
-    state.turn.turn_number = 3;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().turn_number = 3;
+    state.turn_mut().priority_holder = Some(p1);
 
     let exile_id = find_object_in_zone(&state, "Plot Sorcery", ZoneId::Exile)
         .expect("card should be in exile");
     {
-        let obj = state.objects.get_mut(&exile_id).unwrap();
+        let obj = state.objects_mut().get_mut(&exile_id).unwrap();
         obj.is_plotted = true;
         obj.plotted_turn = 3; // plotted_turn == current turn_number
     }
@@ -1587,7 +1593,7 @@ fn test_plot_turn_tracking_boundary() {
     );
 
     // Now advance to turn 4 -- should succeed.
-    state.turn.turn_number = 4;
+    state.turn_mut().turn_number = 4;
     let result = process_command(
         state,
         Command::CastSpell {

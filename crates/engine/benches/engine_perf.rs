@@ -65,7 +65,7 @@ fn build_sba_state() -> GameState {
 ///
 /// Returns the new GameState after the step (or turn) advances.
 fn pass_until_advance(mut state: GameState) -> GameState {
-    while let Some(holder) = state.turn.priority_holder {
+    while let Some(holder) = state.turn().priority_holder {
         let (new_state, events) = process_command(state, Command::PassPriority { player: holder })
             .expect("PassPriority failed");
         let advanced = events.iter().any(|e| {
@@ -147,10 +147,10 @@ fn bench_full_turn_4p(c: &mut Criterion) {
                 // Drive through all remaining steps of P1's turn until P2 becomes active.
                 let mut s = state;
                 loop {
-                    let active_before = s.turn.active_player;
+                    let active_before = s.turn().active_player;
                     s = pass_until_advance(s);
                     // When the active player changes, P1's turn is over.
-                    if s.turn.active_player != active_before {
+                    if s.turn().active_player != active_before {
                         break;
                     }
                 }
@@ -174,9 +174,9 @@ fn bench_full_turn_6p(c: &mut Criterion) {
             |state| {
                 let mut s = state;
                 loop {
-                    let active_before = s.turn.active_player;
+                    let active_before = s.turn().active_player;
                     s = pass_until_advance(s);
-                    if s.turn.active_player != active_before {
+                    if s.turn().active_player != active_before {
                         break;
                     }
                 }

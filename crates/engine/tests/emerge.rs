@@ -32,7 +32,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -44,7 +44,7 @@ fn find_object_in_zone(
     name: &str,
     zone: ZoneId,
 ) -> Option<mtg_engine::ObjectId> {
-    state.objects.iter().find_map(|(&id, obj)| {
+    state.objects().iter().find_map(|(&id, obj)| {
         if obj.characteristics.name == name && obj.zone == zone {
             Some(id)
         } else {
@@ -161,7 +161,7 @@ fn setup_emerge_state(
     }
 
     let mut state = builder.build().unwrap();
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Emerge Creature");
     (state, p1, p2, spell_id)
@@ -191,13 +191,13 @@ fn test_emerge_basic_sacrifice_reduces_cost() {
 
     // Add {2}{U}{U} mana (emerge cost {5}{U}{U} reduced by 3 = {2}{U}{U}).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -247,7 +247,7 @@ fn test_emerge_basic_sacrifice_reduces_cost() {
 
     // Emerge Creature must be on the stack.
     assert!(
-        !state.stack_objects.is_empty(),
+        !state.stack_objects().is_empty(),
         "CR 702.119a: emerge creature should be on the stack after casting"
     );
 
@@ -280,13 +280,13 @@ fn test_emerge_sacrifice_token_mv_zero() {
 
     // Must pay full emerge cost {5}{U}{U} (7 mana total, no reduction from token).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 5);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -329,7 +329,7 @@ fn test_emerge_sacrifice_token_mv_zero() {
 
     // Emerge Creature must be on the stack.
     assert!(
-        !state.stack_objects.is_empty(),
+        !state.stack_objects().is_empty(),
         "CR 702.119a + CR 202.3b: emerge spell should be on stack after casting with token (MV 0)"
     );
 
@@ -411,7 +411,7 @@ fn test_emerge_sacrifice_high_mv_creature() {
 
     // Emerge Creature must be on the stack (cast for free after reduction).
     assert!(
-        !state.stack_objects.is_empty(),
+        !state.stack_objects().is_empty(),
         "CR 702.119a: emerge spell should be on stack after free cast (MV reduction to {{0}})"
     );
 
@@ -442,13 +442,13 @@ fn test_emerge_sacrifice_must_be_creature() {
 
     // Add enough mana so that payment failure is about validation, not mana.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 5);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -514,13 +514,13 @@ fn test_emerge_sacrifice_must_be_own_creature() {
     let (mut state, _p1, _p2, spell_id) = setup_emerge_state(vec![opponent_creature]);
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 5);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -576,13 +576,13 @@ fn test_emerge_without_sacrifice_fails() {
     let (mut state, _p1, _p2, spell_id) = setup_emerge_state(vec![]);
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 5);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -642,13 +642,13 @@ fn test_emerge_mutual_exclusion_with_flashback() {
     let (mut state, _p1, _p2, spell_id) = setup_emerge_state(vec![creature]);
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 5);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -734,12 +734,12 @@ fn test_emerge_no_keyword_rejects_emerge() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Plain Creature");
     let creature_id = find_object(&state, "Llanowar Elves");
@@ -794,7 +794,7 @@ fn test_emerge_normal_cast_without_emerge() {
 
     // Pay the full normal cost {8}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -825,7 +825,7 @@ fn test_emerge_normal_cast_without_emerge() {
 
     // The spell should be on the stack.
     assert!(
-        !state.stack_objects.is_empty(),
+        !state.stack_objects().is_empty(),
         "CR 702.119a: emerge creature should be on stack after normal cast"
     );
 
@@ -861,7 +861,7 @@ fn test_sacrifice_without_matching_ability_is_ignored() {
     let (mut state, _p1, _p2, spell_id) = setup_emerge_state(vec![creature]);
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool

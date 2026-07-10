@@ -124,7 +124,7 @@ fn test_activate_ability_tap_places_on_stack() {
         .unwrap();
 
     let source_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -146,8 +146,8 @@ fn test_activate_ability_tap_places_on_stack() {
     .unwrap();
 
     // Ability is on the stack.
-    assert_eq!(new_state.stack_objects.len(), 1);
-    let stack_obj = &new_state.stack_objects[0];
+    assert_eq!(new_state.stack_objects().len(), 1);
+    let stack_obj = &new_state.stack_objects()[0];
     assert!(matches!(
         stack_obj.kind,
         StackObjectKind::ActivatedAbility { .. }
@@ -155,7 +155,7 @@ fn test_activate_ability_tap_places_on_stack() {
     assert_eq!(stack_obj.controller, p1);
 
     // Source was tapped.
-    let source = new_state.objects.get(&source_id).unwrap();
+    let source = new_state.objects().get(&source_id).unwrap();
     assert!(source.status.tapped, "source permanent should be tapped");
 
     // Events: PermanentTapped, AbilityActivated, PriorityGiven.
@@ -175,8 +175,8 @@ fn test_activate_ability_tap_places_on_stack() {
         .any(|e| matches!(e, GameEvent::PriorityGiven { player } if *player == p1)));
 
     // Active player gets priority; players_passed reset.
-    assert_eq!(new_state.turn.priority_holder, Some(p1));
-    assert!(new_state.turn.players_passed.is_empty());
+    assert_eq!(new_state.turn().priority_holder, Some(p1));
+    assert!(new_state.turn().players_passed.is_empty());
 }
 
 #[test]
@@ -195,7 +195,7 @@ fn test_activate_ability_tap_cost_taps_source() {
         .unwrap();
 
     let source_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -216,7 +216,7 @@ fn test_activate_ability_tap_cost_taps_source() {
     )
     .unwrap();
 
-    assert!(new_state.objects.get(&source_id).unwrap().status.tapped);
+    assert!(new_state.objects().get(&source_id).unwrap().status.tapped);
 }
 
 #[test]
@@ -244,7 +244,7 @@ fn test_activate_ability_pays_mana_cost() {
         .unwrap();
 
     let source_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -267,7 +267,7 @@ fn test_activate_ability_pays_mana_cost() {
 
     // Mana was spent (1 blue consumed from the 2 we added).
     assert_eq!(
-        new_state.players.get(&p1).unwrap().mana_pool.total(),
+        new_state.players().get(&p1).unwrap().mana_pool.total(),
         1,
         "one blue should remain"
     );
@@ -298,7 +298,7 @@ fn test_activate_ability_not_priority_holder_fails() {
         .unwrap();
 
     let source_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -340,10 +340,10 @@ fn test_activate_ability_wrong_controller_fails() {
         .build()
         .unwrap();
     // Give priority to p2.
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let source_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -381,7 +381,7 @@ fn test_activate_ability_invalid_index_fails() {
         .unwrap();
 
     let source_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -423,7 +423,7 @@ fn test_activate_ability_already_tapped_fails() {
         .unwrap();
 
     let source_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -473,7 +473,7 @@ fn test_activate_ability_insufficient_mana_fails() {
         .unwrap();
 
     let source_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -519,7 +519,7 @@ fn test_activated_ability_resolves_after_all_pass() {
         .unwrap();
 
     let source_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -541,7 +541,7 @@ fn test_activated_ability_resolves_after_all_pass() {
     )
     .unwrap();
 
-    assert_eq!(state.stack_objects.len(), 1);
+    assert_eq!(state.stack_objects().len(), 1);
 
     // All four players pass priority → stack resolves.
     let (state, _) = process_command(state, Command::PassPriority { player: p1 }).unwrap();
@@ -551,7 +551,7 @@ fn test_activated_ability_resolves_after_all_pass() {
 
     // Stack is empty after resolution.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after ability resolves"
     );
 
@@ -582,7 +582,7 @@ fn test_triggered_ability_self_etb_fires_on_enter() {
         .unwrap();
 
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -620,12 +620,12 @@ fn test_triggered_ability_self_etb_fires_on_enter() {
 
     // The triggered ability should be on the stack now (flushed during resolution).
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "triggered ability should be on the stack"
     );
     assert!(matches!(
-        state.stack_objects[0].kind,
+        state.stack_objects()[0].kind,
         StackObjectKind::TriggeredAbility { .. }
     ));
 }
@@ -655,10 +655,10 @@ fn test_triggered_ability_any_etb_watches_all_permanents() {
 
     // Give p2 priority.
     let mut state = state;
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p2))
         .unwrap()
         .object_ids()
@@ -696,11 +696,11 @@ fn test_triggered_ability_any_etb_watches_all_permanents() {
 
     // Watcher's trigger should be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "watcher's triggered ability should be on the stack"
     );
-    let trigger = &state.stack_objects[0];
+    let trigger = &state.stack_objects()[0];
     assert!(matches!(
         trigger.kind,
         StackObjectKind::TriggeredAbility { .. }
@@ -738,7 +738,7 @@ fn test_triggered_ability_apnap_ordering() {
         .unwrap();
 
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -776,7 +776,7 @@ fn test_triggered_ability_apnap_ordering() {
     // Two triggered abilities on the stack (the creature also may trigger but it has no ability).
     // At least two triggers should be on the stack.
     assert!(
-        state.stack_objects.len() >= 2,
+        state.stack_objects().len() >= 2,
         "both watchers should have triggered"
     );
 
@@ -784,8 +784,8 @@ fn test_triggered_ability_apnap_ordering() {
     // The LAST entry is on top and resolves first.
     // p1 is active player → p1's trigger goes first (ends up at the bottom).
     // p2 is non-active → p2's trigger goes second (ends up on top → resolves first).
-    let top_trigger = &state.stack_objects[state.stack_objects.len() - 1];
-    let bottom_trigger = &state.stack_objects[state.stack_objects.len() - 2];
+    let top_trigger = &state.stack_objects()[state.stack_objects().len() - 1];
+    let bottom_trigger = &state.stack_objects()[state.stack_objects().len() - 2];
 
     assert_eq!(
         top_trigger.controller, p2,
@@ -829,7 +829,7 @@ fn test_triggered_ability_intervening_if_false_does_not_trigger() {
         .unwrap();
 
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -866,7 +866,7 @@ fn test_triggered_ability_intervening_if_false_does_not_trigger() {
 
     // Condition was false at trigger time → no trigger on the stack.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "ability should not have triggered (condition false at trigger time)"
     );
 }
@@ -903,7 +903,7 @@ fn test_triggered_ability_intervening_if_true_triggers() {
         .unwrap();
 
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -940,12 +940,12 @@ fn test_triggered_ability_intervening_if_true_triggers() {
 
     // Condition was true → trigger is on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "ability should have triggered (condition true at trigger time)"
     );
     assert!(matches!(
-        state.stack_objects[0].kind,
+        state.stack_objects()[0].kind,
         StackObjectKind::TriggeredAbility { .. }
     ));
 }
@@ -970,7 +970,7 @@ fn test_triggered_ability_resolves_after_all_pass() {
         .unwrap();
 
     let card_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .unwrap()
         .object_ids()
@@ -1007,9 +1007,9 @@ fn test_triggered_ability_resolves_after_all_pass() {
     let (state, _) = process_command(state, Command::PassPriority { player: p4 }).unwrap();
 
     // Triggered ability is now on the stack.
-    assert_eq!(state.stack_objects.len(), 1);
+    assert_eq!(state.stack_objects().len(), 1);
     assert!(matches!(
-        state.stack_objects[0].kind,
+        state.stack_objects()[0].kind,
         StackObjectKind::TriggeredAbility { .. }
     ));
 
@@ -1021,7 +1021,7 @@ fn test_triggered_ability_resolves_after_all_pass() {
 
     // Stack is empty, AbilityResolved emitted.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after trigger resolves"
     );
     assert!(events
@@ -1088,7 +1088,7 @@ fn test_sacrifice_as_cost_full_flow_draw_card() {
 
     // Find the artifact on the battlefield.
     let source_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -1112,7 +1112,7 @@ fn test_sacrifice_as_cost_full_flow_draw_card() {
 
     // Source is now in p1's graveyard (sacrifice paid at activation time, CR 602.2).
     // Per CR 400.7, the object gets a new ObjectId when it changes zones — look up by name.
-    let in_graveyard = state.objects.values().any(|o| {
+    let in_graveyard = state.objects().values().any(|o| {
         o.characteristics.name == "Jar of Eyeballs (stub)" && matches!(o.zone, ZoneId::Graveyard(_))
     });
     assert!(
@@ -1130,15 +1130,15 @@ fn test_sacrifice_as_cost_full_flow_draw_card() {
     );
 
     // Ability is on the stack with embedded_effect.
-    assert_eq!(state.stack_objects.len(), 1);
+    assert_eq!(state.stack_objects().len(), 1);
     assert!(matches!(
-        state.stack_objects[0].kind,
+        state.stack_objects()[0].kind,
         StackObjectKind::ActivatedAbility { .. }
     ));
 
     // Record hand size before resolution.
     let hand_before = state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .map(|z| z.object_ids().len())
         .unwrap_or(0);
@@ -1151,13 +1151,13 @@ fn test_sacrifice_as_cost_full_flow_draw_card() {
 
     // Stack is empty after resolution.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after ability resolves"
     );
 
     // Player 1 drew a card: hand size increased by 1.
     let hand_after = state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .map(|z| z.object_ids().len())
         .unwrap_or(0);
@@ -1218,13 +1218,13 @@ fn test_sacrifice_filter_creature_valid() {
         .unwrap();
 
     let tower_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == "Phyrexian Tower (stub)")
         .map(|(&id, _)| id)
         .unwrap();
     let creature_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == "Llanowar Elves")
         .map(|(&id, _)| id)
@@ -1245,7 +1245,7 @@ fn test_sacrifice_filter_creature_valid() {
     .unwrap();
 
     // Creature should be in graveyard (sacrificed as cost).
-    let in_graveyard = state.objects.values().any(|o| {
+    let in_graveyard = state.objects().values().any(|o| {
         o.characteristics.name == "Llanowar Elves" && matches!(o.zone, ZoneId::Graveyard(_))
     });
     assert!(in_graveyard, "sacrificed creature should be in graveyard");
@@ -1260,7 +1260,7 @@ fn test_sacrifice_filter_creature_valid() {
     );
 
     // Ability is on the stack.
-    assert_eq!(state.stack_objects.len(), 1);
+    assert_eq!(state.stack_objects().len(), 1);
 }
 
 #[test]
@@ -1307,13 +1307,13 @@ fn test_sacrifice_filter_creature_rejects_artifact() {
         .unwrap();
 
     let tower_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == "Phyrexian Tower (stub)")
         .map(|(&id, _)| id)
         .unwrap();
     let artifact_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == "Sol Ring")
         .map(|(&id, _)| id)
@@ -1384,13 +1384,13 @@ fn test_sacrifice_filter_rejects_opponent_creature() {
         .unwrap();
 
     let tower_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == "Phyrexian Tower (stub)")
         .map(|(&id, _)| id)
         .unwrap();
     let opp_creature_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == "Opponent Bear")
         .map(|(&id, _)| id)
@@ -1456,7 +1456,7 @@ fn test_sacrifice_filter_missing_target_errors() {
         .unwrap();
 
     let tower_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == "Phyrexian Tower (stub)")
         .map(|(&id, _)| id)
@@ -1552,19 +1552,20 @@ fn test_dies_trigger_fires_on_lethal_damage_sba() {
 
     // The dies trigger should be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "dies trigger should be placed on the stack after creature dies via SBA"
     );
     assert!(
         matches!(
-            state.stack_objects[0].kind,
+            state.stack_objects()[0].kind,
             StackObjectKind::TriggeredAbility { .. }
         ),
         "stack object should be a triggered ability"
     );
     assert_eq!(
-        state.stack_objects[0].controller, p1,
+        state.stack_objects()[0].controller,
+        p1,
         "trigger controller should be the creature's owner/controller"
     );
 
@@ -1608,14 +1609,14 @@ fn test_dies_trigger_fires_on_zero_toughness_sba() {
 
     // Creature should be in the graveyard now.
     let in_grave = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Frail Wisp" && matches!(o.zone, ZoneId::Graveyard(_)));
     assert!(in_grave, "0-toughness creature should be in the graveyard");
 
     // Dies trigger should be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "dies trigger should be on the stack after 0-toughness SBA"
     );
@@ -1673,7 +1674,7 @@ fn test_dies_trigger_does_not_fire_when_exiled() {
 
     // Creature should be in exile, not graveyard.
     let in_exile = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Exiled Bear" && o.zone == ZoneId::Exile);
     assert!(
@@ -1699,7 +1700,7 @@ fn test_dies_trigger_does_not_fire_when_exiled() {
 
     // Stack is empty — no trigger queued.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty: no dies trigger fires on exile"
     );
 }
@@ -1733,13 +1734,13 @@ fn test_dies_trigger_resolves_draws_card() {
 
     // Trigger should now be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "dies trigger should be on the stack"
     );
 
     let hand_before = state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .map(|z| z.object_ids().len())
         .unwrap_or(0);
@@ -1752,7 +1753,7 @@ fn test_dies_trigger_resolves_draws_card() {
 
     // Stack empty after resolution.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after dies trigger resolves"
     );
 
@@ -1766,7 +1767,7 @@ fn test_dies_trigger_resolves_draws_card() {
 
     // p1 drew a card: hand grew by 1.
     let hand_after = state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .map(|z| z.object_ids().len())
         .unwrap_or(0);
@@ -1817,7 +1818,7 @@ fn test_dies_trigger_fires_on_sacrifice() {
         .unwrap();
 
     let source_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -1850,7 +1851,7 @@ fn test_dies_trigger_fires_on_sacrifice() {
     // The sacrificed activated ability and the dies trigger should both be on the stack.
     // Dies trigger was flushed after the CreatureDied event from sacrifice.
     let has_triggered = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .any(|so| matches!(so.kind, StackObjectKind::TriggeredAbility { .. }));
     assert!(
@@ -1883,7 +1884,7 @@ fn test_dies_trigger_fires_on_destruction_effect() {
     let (state, events) = process_command(state, Command::PassPriority { player: p(4) }).unwrap();
 
     // Creature is in graveyard.
-    let in_grave = state.objects.values().any(|o| {
+    let in_grave = state.objects().values().any(|o| {
         o.characteristics.name == "Vanilla Creature" && matches!(o.zone, ZoneId::Graveyard(_))
     });
     assert!(
@@ -1893,7 +1894,7 @@ fn test_dies_trigger_fires_on_destruction_effect() {
 
     // Dies trigger on stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "dies trigger should be on the stack"
     );
@@ -1939,9 +1940,9 @@ fn test_dies_trigger_multiple_creatures_simultaneous_sba() {
 
     // Both triggers should be on the stack.
     assert!(
-        state.stack_objects.len() >= 2,
+        state.stack_objects().len() >= 2,
         "both dies triggers should be on the stack (got {})",
-        state.stack_objects.len()
+        state.stack_objects().len()
     );
 
     // Both AbilityTriggered events emitted.
@@ -1957,8 +1958,8 @@ fn test_dies_trigger_multiple_creatures_simultaneous_sba() {
 
     // APNAP order (CR 603.3b): p1 is active player → p1's trigger pushed first (bottom),
     // p2 is non-active → p2's trigger pushed second (top → resolves first).
-    let top = &state.stack_objects[state.stack_objects.len() - 1];
-    let bottom = &state.stack_objects[state.stack_objects.len() - 2];
+    let top = &state.stack_objects()[state.stack_objects().len() - 1];
+    let bottom = &state.stack_objects()[state.stack_objects().len() - 2];
     assert_eq!(
         top.controller, p2,
         "non-active player's dies trigger should be on top of stack (resolves first)"
@@ -1978,7 +1979,7 @@ fn test_dies_trigger_multiple_creatures_simultaneous_sba() {
 ///
 /// The fix (Finding 1): trigger checking now runs inside each SBA pass. After pass 1 moves
 /// the token to the graveyard (emitting CreatureDied), check_triggers queues the SelfDies
-/// trigger while the token still exists in state.objects. Pass 2 then runs CR 704.5d to
+/// trigger while the token still exists in state.objects(). Pass 2 then runs CR 704.5d to
 /// remove the token from the graveyard, but the trigger is already queued and will fire.
 fn test_dies_trigger_token_creature_fires() {
     let p1 = p(1);
@@ -1997,7 +1998,7 @@ fn test_dies_trigger_token_creature_fires() {
         .unwrap();
 
     // All pass → SBA pass 1 moves token to graveyard (CreatureDied emitted)
-    //          → check_triggers queues SelfDies trigger (token still in state.objects)
+    //          → check_triggers queues SelfDies trigger (token still in state.objects())
     //          → SBA pass 2 removes token from graveyard (CR 704.5d)
     //          → flush_pending_triggers puts trigger on stack → AbilityTriggered emitted.
     let (state, _) = process_command(state, Command::PassPriority { player: p1 }).unwrap();
@@ -2007,7 +2008,7 @@ fn test_dies_trigger_token_creature_fires() {
 
     // Token no longer exists anywhere (CR 704.5d removes it from graveyard).
     let token_exists = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Goblin Token");
     assert!(!token_exists, "token should be cleaned up by SBA 704.5d");
@@ -2029,7 +2030,7 @@ fn test_dies_trigger_token_creature_fires() {
         "self-dies trigger on token should fire (CR 603.6c): trigger queued inside SBA pass 1"
     );
     assert!(
-        !state.stack_objects.is_empty(),
+        !state.stack_objects().is_empty(),
         "dies trigger should be on the stack after firing for token creature"
     );
 }
@@ -2089,7 +2090,7 @@ fn test_dies_trigger_via_card_definition_enrich_path() {
     let (state, events) = process_command(state, Command::PassPriority { player: p(4) }).unwrap();
 
     // The creature should be in the graveyard (lethal damage SBA fired).
-    let in_grave = state.objects.values().any(|o| {
+    let in_grave = state.objects().values().any(|o| {
         o.characteristics.name == "Solemn Simulacrum" && matches!(o.zone, ZoneId::Graveyard(_))
     });
     assert!(
@@ -2116,13 +2117,13 @@ fn test_dies_trigger_via_card_definition_enrich_path() {
 
     // The WhenDies trigger should be on the stack.
     assert!(
-        !state.stack_objects.is_empty(),
+        !state.stack_objects().is_empty(),
         "Solemn Simulacrum's WhenDies trigger should be on the stack after dying via SBA \
          (card-definition enrich path)"
     );
     assert!(
         matches!(
-            state.stack_objects[0].kind,
+            state.stack_objects()[0].kind,
             StackObjectKind::TriggeredAbility { .. }
         ),
         "stack object should be a triggered ability (WhenDies from card definition)"
@@ -2198,13 +2199,13 @@ fn test_dies_trigger_full_via_lightning_bolt_and_sba() {
         .unwrap();
 
     // Patch p2's mana pool (Lightning Bolt costs {R}).
-    if let Some(ps) = state.players.get_mut(&p2) {
+    if let Some(ps) = state.players_mut().get_mut(&p2) {
         ps.mana_pool.red = 1;
     }
 
     // Verify initial state: 3 cards in p1's hand, 1 in library.
     let p1_hand_count_initial = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -2215,7 +2216,7 @@ fn test_dies_trigger_full_via_lightning_bolt_and_sba() {
 
     // Find the Solemn Simulacrum on the battlefield.
     let solemn_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| {
             o.characteristics.name == "Solemn Simulacrum" && o.zone == ZoneId::Battlefield
@@ -2224,7 +2225,7 @@ fn test_dies_trigger_full_via_lightning_bolt_and_sba() {
         .expect("Solemn Simulacrum must be on battlefield");
 
     // Verify Solemn has the SelfDies trigger after enrichment.
-    let solemn_obj = state.objects.get(&solemn_id).unwrap();
+    let solemn_obj = state.objects().get(&solemn_id).unwrap();
     assert_eq!(
         solemn_obj
             .characteristics
@@ -2238,7 +2239,7 @@ fn test_dies_trigger_full_via_lightning_bolt_and_sba() {
 
     // Find Lightning Bolt in p2's hand.
     let bolt_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == "Lightning Bolt" && o.zone == ZoneId::Hand(p2))
         .map(|(id, _)| *id)
@@ -2269,7 +2270,7 @@ fn test_dies_trigger_full_via_lightning_bolt_and_sba() {
 
     // Stack should have Lightning Bolt on it.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "Lightning Bolt should be on the stack"
     );
@@ -2281,7 +2282,7 @@ fn test_dies_trigger_full_via_lightning_bolt_and_sba() {
     let (state, _) = process_command(state, Command::PassPriority { player: p1 }).unwrap();
 
     // After resolution: Solemn Simulacrum should be in the graveyard.
-    let solemn_in_grave = state.objects.values().any(|o| {
+    let solemn_in_grave = state.objects().values().any(|o| {
         o.characteristics.name == "Solemn Simulacrum" && matches!(o.zone, ZoneId::Graveyard(_))
     });
     assert!(
@@ -2291,7 +2292,7 @@ fn test_dies_trigger_full_via_lightning_bolt_and_sba() {
 
     // The dies trigger should be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "Solemn Simulacrum's WhenDies trigger should be on the stack after lethal damage + SBA \
          (card-definition enrich path, Lightning Bolt scenario)"
@@ -2303,13 +2304,13 @@ fn test_dies_trigger_full_via_lightning_bolt_and_sba() {
 
     // Stack should now be empty.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "Stack should be empty after dies trigger resolves"
     );
 
     // p1 should have drawn 1 card from the dies trigger (3 initial + 1 drawn = 4).
     let p1_hand_count_final = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -2383,7 +2384,7 @@ fn test_attack_trigger_fires_on_declare_attackers() {
         .unwrap();
 
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1 && o.zone == ZoneId::Battlefield)
         .unwrap()
@@ -2416,19 +2417,20 @@ fn test_attack_trigger_fires_on_declare_attackers() {
 
     // The trigger should be on the stack (CR 508.2b: goes on stack before priority).
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "attack trigger should be placed on the stack (CR 508.2b)"
     );
     assert!(
         matches!(
-            state.stack_objects[0].kind,
+            state.stack_objects()[0].kind,
             StackObjectKind::TriggeredAbility { .. }
         ),
         "stack object should be a triggered ability"
     );
     assert_eq!(
-        state.stack_objects[0].controller, p1,
+        state.stack_objects()[0].controller,
+        p1,
         "trigger controller should be the attacker's controller"
     );
 }
@@ -2502,7 +2504,7 @@ fn test_attack_trigger_via_card_definition_enrich_path() {
         .unwrap();
 
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1 && o.zone == ZoneId::Battlefield)
         .unwrap()
@@ -2531,12 +2533,12 @@ fn test_attack_trigger_via_card_definition_enrich_path() {
 
     // Trigger on stack.
     assert!(
-        !state.stack_objects.is_empty(),
+        !state.stack_objects().is_empty(),
         "attack trigger should be on the stack after enrich_spec_from_def path"
     );
     assert!(
         matches!(
-            state.stack_objects[0].kind,
+            state.stack_objects()[0].kind,
             StackObjectKind::TriggeredAbility { .. }
         ),
         "stack object should be a triggered ability (WhenAttacks from card definition)"
@@ -2565,7 +2567,7 @@ fn test_attack_trigger_resolves_draws_card() {
         .unwrap();
 
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1 && o.zone == ZoneId::Battlefield)
         .unwrap()
@@ -2585,13 +2587,13 @@ fn test_attack_trigger_resolves_draws_card() {
 
     // Trigger should be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "attack trigger should be on the stack before resolution"
     );
 
     let hand_before = state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .map(|z| z.object_ids().len())
         .unwrap_or(0);
@@ -2604,7 +2606,7 @@ fn test_attack_trigger_resolves_draws_card() {
 
     // Stack should be empty after resolution.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after attack trigger resolves"
     );
 
@@ -2618,7 +2620,7 @@ fn test_attack_trigger_resolves_draws_card() {
 
     // p1 drew a card: hand grew by 1.
     let hand_after = state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1))
         .map(|z| z.object_ids().len())
         .unwrap_or(0);
@@ -2653,14 +2655,14 @@ fn test_attack_trigger_does_not_fire_for_non_attacker() {
 
     // Find the plain attacker (no trigger) by name.
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Plain Attacker" && o.zone == ZoneId::Battlefield)
         .unwrap()
         .id;
 
     let bystander_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Trigger Bystander" && o.zone == ZoneId::Battlefield)
         .unwrap()
@@ -2690,7 +2692,7 @@ fn test_attack_trigger_does_not_fire_for_non_attacker() {
 
     // Stack should be empty (the plain attacker has no trigger either).
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty — only the non-trigger attacker declared"
     );
 }
@@ -2719,13 +2721,13 @@ fn test_attack_trigger_multiple_attackers() {
         .unwrap();
 
     let attacker_a_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Attacker Alpha" && o.zone == ZoneId::Battlefield)
         .unwrap()
         .id;
     let attacker_b_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Attacker Beta" && o.zone == ZoneId::Battlefield)
         .unwrap()
@@ -2760,9 +2762,9 @@ fn test_attack_trigger_multiple_attackers() {
 
     // Both triggers should be on the stack.
     assert!(
-        state.stack_objects.len() >= 2,
+        state.stack_objects().len() >= 2,
         "both attack triggers should be on the stack (got {})",
-        state.stack_objects.len()
+        state.stack_objects().len()
     );
 
     // Verify both triggering creatures are represented.

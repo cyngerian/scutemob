@@ -31,7 +31,7 @@ fn subtype(s: &str) -> SubType {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -40,7 +40,7 @@ fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
 
 fn find_object_on_battlefield(state: &mtg_engine::GameState, name: &str) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
         .map(|(id, _)| *id)
@@ -72,12 +72,12 @@ fn cast_creature(
 ) -> mtg_engine::GameState {
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&caster)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Colorless, generic_cost);
-    state.turn.priority_holder = Some(caster);
+    state.turn_mut().priority_holder = Some(caster);
 
     let (state, _) = process_command(
         state,
@@ -322,7 +322,7 @@ fn test_amplify_basic_one_revealed() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let amplify_id = find_object(&state, "Amplify Soldier One");
 
@@ -337,7 +337,7 @@ fn test_amplify_basic_one_revealed() {
         .expect("CR 702.38a: Amplify creature should be on the battlefield after resolution");
 
     // Verify: exactly 1 +1/+1 counter (1 amplify × 1 matching hand card).
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -415,7 +415,7 @@ fn test_amplify_multiple_revealed() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let amplify_id = find_object(&state, "Amplify Soldier One");
     let state = cast_creature(state, p1, amplify_id, 1);
@@ -424,7 +424,7 @@ fn test_amplify_multiple_revealed() {
     let bf_id = find_object_on_battlefield(&state, "Amplify Soldier One")
         .expect("Amplify creature should be on the battlefield");
 
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -474,7 +474,7 @@ fn test_amplify_no_matching_cards() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let amplify_id = find_object(&state, "Amplify Soldier One");
     let state = cast_creature(state, p1, amplify_id, 1);
@@ -483,7 +483,7 @@ fn test_amplify_no_matching_cards() {
     let bf_id = find_object_on_battlefield(&state, "Amplify Soldier One")
         .expect("Amplify creature should be on the battlefield");
 
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -539,7 +539,7 @@ fn test_amplify_n_multiplier() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let amplify_id = find_object(&state, "Amplify Dragon Three");
     let state = cast_creature(state, p1, amplify_id, 5);
@@ -548,7 +548,7 @@ fn test_amplify_n_multiplier() {
     let bf_id = find_object_on_battlefield(&state, "Amplify Dragon Three")
         .expect("Amplify Dragon should be on the battlefield");
 
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -606,7 +606,7 @@ fn test_amplify_multiple_instances() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let amplify_id = find_object(&state, "Amplify Dual Test");
     let state = cast_creature(state, p1, amplify_id, 2);
@@ -615,7 +615,7 @@ fn test_amplify_multiple_instances() {
     let bf_id = find_object_on_battlefield(&state, "Amplify Dual Test")
         .expect("Amplify dual creature should be on the battlefield");
 
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -658,7 +658,7 @@ fn test_amplify_empty_hand() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let amplify_id = find_object(&state, "Amplify Soldier One");
     let state = cast_creature(state, p1, amplify_id, 1);
@@ -667,7 +667,7 @@ fn test_amplify_empty_hand() {
     let bf_id = find_object_on_battlefield(&state, "Amplify Soldier One")
         .expect("Amplify creature should be on the battlefield");
 
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -718,7 +718,7 @@ fn test_amplify_changeling_in_hand() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let amplify_id = find_object(&state, "Amplify Soldier One");
     let state = cast_creature(state, p1, amplify_id, 1);
@@ -727,7 +727,7 @@ fn test_amplify_changeling_in_hand() {
     let bf_id = find_object_on_battlefield(&state, "Amplify Soldier One")
         .expect("Amplify creature should be on the battlefield");
 
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -797,7 +797,7 @@ fn test_amplify_non_creature_in_hand() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let amplify_id = find_object(&state, "Amplify Soldier One");
     let state = cast_creature(state, p1, amplify_id, 1);
@@ -806,7 +806,7 @@ fn test_amplify_non_creature_in_hand() {
     let bf_id = find_object_on_battlefield(&state, "Amplify Soldier One")
         .expect("Amplify creature should be on the battlefield");
 
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()

@@ -20,7 +20,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -29,7 +29,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -143,18 +143,18 @@ fn test_disturb_cast_from_graveyard() {
 
     // Pay disturb cost {1}{W}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Cast with disturb (from graveyard).
     let (state, _) = process_command(
@@ -180,9 +180,13 @@ fn test_disturb_cast_from_graveyard() {
     .expect("Cast with disturb should succeed");
 
     // Verify the spell is on the stack with is_cast_transformed = true.
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "spell should be on the stack"
+    );
     assert!(
-        state.stack_objects[0].is_cast_transformed,
+        state.stack_objects()[0].is_cast_transformed,
         "disturb spell should be on stack with is_cast_transformed=true (CR 702.146a)"
     );
 }
@@ -213,18 +217,18 @@ fn test_disturb_enters_transformed() {
 
     // Pay disturb cost {1}{W}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Cast with disturb.
     let (state, _) = process_command(
@@ -255,7 +259,7 @@ fn test_disturb_enters_transformed() {
     // The permanent should be on the battlefield with back face up.
     // Search by card_id since characteristics.name still shows front face name.
     let souls_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| {
             obj.zone == ZoneId::Battlefield
@@ -271,11 +275,11 @@ fn test_disturb_enters_transformed() {
 
     let souls_id = souls_id.unwrap();
     assert!(
-        state.objects[&souls_id].is_transformed,
+        state.objects()[&souls_id].is_transformed,
         "permanent should have is_transformed=true (entered transformed)"
     );
     assert!(
-        state.objects[&souls_id].was_cast_disturbed,
+        state.objects()[&souls_id].was_cast_disturbed,
         "permanent should have was_cast_disturbed=true"
     );
 
@@ -326,7 +330,7 @@ fn test_disturb_exile_replacement_check() {
 
     // Manually set was_cast_disturbed = true and is_transformed = true.
     let soul_id = find_object(&state, "Generous Soul");
-    if let Some(obj) = state.objects.get_mut(&soul_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&soul_id) {
         obj.was_cast_disturbed = true;
         obj.is_transformed = true;
     }
@@ -393,18 +397,18 @@ fn test_disturb_requires_graveyard() {
         .expect("Beloved Beggar should be in hand");
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Attempt to cast with disturb from hand — should fail.
     let result = process_command(

@@ -4,6 +4,7 @@
 //! function from there (CR 113.6p, CR 114.4). They cannot be removed (CR 114.1) and
 //! have no types, mana cost, or color (CR 114.3).
 
+use mtg_engine::state::test_util;
 use mtg_engine::{
     rules, AbilityDefinition, CardContinuousEffectDef, CardDefinition, CardId, CardRegistry,
     CardType, CounterType, Effect, EffectAmount, EffectDuration, EffectFilter, EffectLayer,
@@ -117,7 +118,7 @@ fn test_emblem_creation_basic() {
         .unwrap();
 
     let pw_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Test Emblem PW")
         .unwrap()
@@ -127,7 +128,7 @@ fn test_emblem_creation_basic() {
 
     // Emblem should now exist in p1's command zone.
     let emblem = state2
-        .objects
+        .objects()
         .values()
         .find(|o| o.is_emblem && o.zone == ZoneId::Command(p1()));
 
@@ -204,7 +205,7 @@ fn test_emblem_triggered_ability_fires() {
         .unwrap();
 
     let pw_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Test Emblem PW")
         .unwrap()
@@ -215,14 +216,14 @@ fn test_emblem_triggered_ability_fires() {
 
     // Verify emblem exists.
     let emblem_id = state2
-        .objects
+        .objects()
         .values()
         .find(|o| o.is_emblem && o.zone == ZoneId::Command(p1()))
         .map(|o| o.id)
         .expect("Emblem must exist");
 
     let _hand_before = state2
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1()))
         .map(|z| z.len())
         .unwrap_or(0);
@@ -231,7 +232,7 @@ fn test_emblem_triggered_ability_fires() {
     // Use the planeswalker's +1 ability to remain on the battlefield,
     // then pass priority multiple times to reach a state where we can cast.
     // For simplicity: verify that the emblem object has the trigger stored in its characteristics.
-    let emblem = state2.objects.get(&emblem_id).unwrap();
+    let emblem = state2.objects().get(&emblem_id).unwrap();
     assert_eq!(
         emblem.characteristics.triggered_abilities.len(),
         1,
@@ -270,7 +271,7 @@ fn test_emblem_survives_board_wipe() {
         .unwrap();
 
     let pw_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Test Emblem PW")
         .unwrap()
@@ -280,7 +281,7 @@ fn test_emblem_survives_board_wipe() {
 
     // Verify emblem exists before wipe.
     let emblem_count_before = state2
-        .objects
+        .objects()
         .values()
         .filter(|o| o.is_emblem && o.zone == ZoneId::Command(p1()))
         .count();
@@ -292,18 +293,18 @@ fn test_emblem_survives_board_wipe() {
     // Simulate board wipe: remove all battlefield objects.
     let mut state3 = state2;
     let battlefield_ids: Vec<ObjectId> = state3
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Battlefield)
         .map(|o| o.id)
         .collect();
     for id in battlefield_ids {
-        let _ = state3.move_object_to_zone(id, ZoneId::Graveyard(p1()));
+        let _ = test_util::move_object_to_zone(&mut state3, id, ZoneId::Graveyard(p1()));
     }
 
     // Emblem must still exist.
     let emblem_count_after = state3
-        .objects
+        .objects()
         .values()
         .filter(|o| o.is_emblem && o.zone == ZoneId::Command(p1()))
         .count();
@@ -339,7 +340,7 @@ fn test_emblem_not_removed_by_token_sba() {
         .unwrap();
 
     let pw_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Test Emblem PW")
         .unwrap()
@@ -352,7 +353,7 @@ fn test_emblem_not_removed_by_token_sba() {
     let _ = mtg_engine::check_and_apply_sbas(&mut state3);
 
     let emblem = state3
-        .objects
+        .objects()
         .values()
         .find(|o| o.is_emblem && o.zone == ZoneId::Command(p1()));
     assert!(
@@ -417,7 +418,7 @@ fn test_multiple_emblems_stack() {
         .unwrap();
 
     let pw_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Test Emblem PW")
         .unwrap()
@@ -504,13 +505,11 @@ fn test_multiple_emblems_stack() {
         entered_turn: None,
         skip_untap_steps: 0,
     };
-    state2
-        .add_object(second_emblem, ZoneId::Command(p1()))
-        .unwrap();
+    test_util::add_object(&mut state2, second_emblem, ZoneId::Command(p1())).unwrap();
 
     // Both emblems must coexist in p1's command zone.
     let emblem_count = state2
-        .objects
+        .objects()
         .values()
         .filter(|o| o.is_emblem && o.zone == ZoneId::Command(p1()))
         .count();
@@ -521,7 +520,7 @@ fn test_multiple_emblems_stack() {
 
     // Both emblems must be distinct objects with unique IDs.
     let mut emblem_ids: Vec<ObjectId> = state2
-        .objects
+        .objects()
         .values()
         .filter(|o| o.is_emblem && o.zone == ZoneId::Command(p1()))
         .map(|o| o.id)
@@ -534,7 +533,7 @@ fn test_multiple_emblems_stack() {
 
     // Each emblem must have its triggered ability stored.
     for eid in &emblem_ids {
-        let e = state2.objects.get(eid).unwrap();
+        let e = state2.objects().get(eid).unwrap();
         assert_eq!(
             e.characteristics.triggered_abilities.len(),
             1,
@@ -584,14 +583,14 @@ fn test_emblem_static_effect() {
         .unwrap();
 
     let pw_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Test Emblem PW")
         .unwrap()
         .id;
 
     let ninja_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "River Sneak")
         .unwrap()
@@ -612,7 +611,7 @@ fn test_emblem_static_effect() {
     // Emblem must exist.
     assert!(
         state2
-            .objects
+            .objects()
             .values()
             .any(|o| o.is_emblem && o.zone == ZoneId::Command(p1())),
         "CR 114.4: Emblem must exist in command zone"
@@ -620,7 +619,7 @@ fn test_emblem_static_effect() {
 
     // The static CE from the emblem must be registered.
     assert!(
-        !state2.continuous_effects.is_empty(),
+        !state2.continuous_effects().is_empty(),
         "CR 114.4: Emblem static effect must be registered as a continuous effect"
     );
 
@@ -664,7 +663,7 @@ fn test_emblem_persists_after_source_removed() {
         .unwrap();
 
     let pw_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Test Emblem PW")
         .unwrap()
@@ -676,7 +675,7 @@ fn test_emblem_persists_after_source_removed() {
     // Emblem exists.
     assert!(
         state2
-            .objects
+            .objects()
             .values()
             .any(|o| o.is_emblem && o.zone == ZoneId::Command(p1())),
         "Emblem must exist after -6 activation"
@@ -685,18 +684,18 @@ fn test_emblem_persists_after_source_removed() {
     // Move the planeswalker to the graveyard (simulating it dying).
     let mut state3 = state2;
     let pw_on_battlefield = state3
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Test Emblem PW" && o.zone == ZoneId::Battlefield)
         .map(|o| o.id);
 
     if let Some(pw_id2) = pw_on_battlefield {
-        let _ = state3.move_object_to_zone(pw_id2, ZoneId::Graveyard(p1()));
+        let _ = test_util::move_object_to_zone(&mut state3, pw_id2, ZoneId::Graveyard(p1()));
     }
 
     // Emblem must still exist — it has no dependency on the planeswalker.
     let emblem_still_exists = state3
-        .objects
+        .objects()
         .values()
         .any(|o| o.is_emblem && o.zone == ZoneId::Command(p1()));
     assert!(

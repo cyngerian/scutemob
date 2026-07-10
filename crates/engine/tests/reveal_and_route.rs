@@ -82,7 +82,7 @@ fn test_reveal_and_route_all_match() {
 
     // Both cards should be in hand now.
     let hand_count = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p(1)))
         .count();
@@ -90,7 +90,7 @@ fn test_reveal_and_route_all_match() {
 
     // Library should be empty (only had 2 cards, both matched).
     let lib_count = state
-        .zones
+        .zones()
         .get(&ZoneId::Library(p(1)))
         .map(|z| z.len())
         .unwrap_or(0);
@@ -149,7 +149,7 @@ fn test_reveal_and_route_none_match() {
 
     // Both cards should remain in library (moved to bottom).
     let lib_count = state
-        .zones
+        .zones()
         .get(&ZoneId::Library(p(1)))
         .map(|z| z.len())
         .unwrap_or(0);
@@ -157,7 +157,7 @@ fn test_reveal_and_route_none_match() {
 
     // Hand should be empty.
     let hand_count = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p(1)))
         .count();
@@ -228,7 +228,7 @@ fn test_reveal_and_route_partial_match() {
 
     // 2 Goblins should be in hand.
     let hand_count = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p(1)))
         .count();
@@ -236,7 +236,7 @@ fn test_reveal_and_route_partial_match() {
 
     // 2 Elves should be in library (bottom).
     let lib_count = state
-        .zones
+        .zones()
         .get(&ZoneId::Library(p(1)))
         .map(|z| z.len())
         .unwrap_or(0);
@@ -318,7 +318,7 @@ fn test_reveal_and_route_permanent_card_to_battlefield() {
 
     // Creature should be on the battlefield.
     let bf_count = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Battlefield)
         .count();
@@ -349,7 +349,7 @@ fn test_flicker_basic_exile_and_return() {
         .unwrap();
 
     let original_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.zone == ZoneId::Battlefield)
         .map(|(id, _)| *id)
@@ -368,13 +368,13 @@ fn test_flicker_basic_exile_and_return() {
     // The original object should no longer be on the battlefield (it was exiled
     // then returned as a NEW object per CR 400.7).
     assert!(
-        !state.objects.contains_key(&original_id),
+        !state.objects().contains_key(&original_id),
         "original object should no longer exist"
     );
 
     // There should be exactly one object on the battlefield (the returned creature).
     let bf_objects: Vec<_> = state
-        .objects
+        .objects()
         .iter()
         .filter(|(_, o)| o.zone == ZoneId::Battlefield)
         .collect();
@@ -415,7 +415,7 @@ fn test_flicker_return_tapped() {
         .unwrap();
 
     let original_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.zone == ZoneId::Battlefield)
         .map(|(id, _)| *id)
@@ -432,7 +432,7 @@ fn test_flicker_return_tapped() {
     execute_effect(&mut state, &effect, &mut ctx);
 
     let bf_objects: Vec<_> = state
-        .objects
+        .objects()
         .iter()
         .filter(|(_, o)| o.zone == ZoneId::Battlefield)
         .collect();
@@ -460,7 +460,7 @@ fn test_flicker_target_not_on_battlefield() {
         .unwrap();
 
     let hand_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.zone == ZoneId::Hand(p(1)))
         .map(|(id, _)| *id)
@@ -491,7 +491,7 @@ fn test_flicker_target_not_on_battlefield() {
 
     // The object should still be in hand.
     let still_in_hand = state
-        .objects
+        .objects()
         .get(&hand_id)
         .map(|o| o.zone == ZoneId::Hand(p(1)))
         .unwrap_or(false);

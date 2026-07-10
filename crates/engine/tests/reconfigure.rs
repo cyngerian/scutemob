@@ -27,7 +27,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -152,12 +152,12 @@ fn test_reconfigure_attach_removes_creature_type() {
 
     // Give p1 mana to pay Reconfigure {2}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let blades_id = find_object(&state, "Lizard Blades");
     let bear_id = find_object(&state, "Vanilla Bear");
@@ -181,7 +181,10 @@ fn test_reconfigure_attach_removes_creature_type() {
     let (state, _resolve_events) = pass_all(state, &[p1, p2]);
 
     // Verify attachment state.
-    let blades_obj = state.objects.get(&blades_id).expect("Lizard Blades exists");
+    let blades_obj = state
+        .objects()
+        .get(&blades_id)
+        .expect("Lizard Blades exists");
     assert_eq!(
         blades_obj.attached_to,
         Some(bear_id),
@@ -194,7 +197,7 @@ fn test_reconfigure_attach_removes_creature_type() {
         "is_reconfigured should be true after attaching via Reconfigure"
     );
 
-    let bear_obj = state.objects.get(&bear_id).expect("Vanilla Bear exists");
+    let bear_obj = state.objects().get(&bear_id).expect("Vanilla Bear exists");
     assert!(
         bear_obj.attachments.contains(&blades_id),
         "bear.attachments should contain Lizard Blades"
@@ -249,12 +252,12 @@ fn test_reconfigure_unattach_restores_creature_type() {
 
     // Give mana for attach.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let blades_id = find_object(&state, "Lizard Blades");
     let bear_id = find_object(&state, "Vanilla Bear");
@@ -278,7 +281,7 @@ fn test_reconfigure_unattach_restores_creature_type() {
     // Sanity: is_reconfigured = true after attach.
     assert!(
         state
-            .objects
+            .objects()
             .get(&blades_id)
             .unwrap()
             .designations
@@ -288,12 +291,12 @@ fn test_reconfigure_unattach_restores_creature_type() {
 
     // Give mana for unattach.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Activate unattach (no targets needed).
     let (state, _) = process_command(
@@ -312,7 +315,10 @@ fn test_reconfigure_unattach_restores_creature_type() {
     let (state, _resolve_events) = pass_all(state, &[p1, p2]);
 
     // Verify unattached state.
-    let blades_obj = state.objects.get(&blades_id).expect("Lizard Blades exists");
+    let blades_obj = state
+        .objects()
+        .get(&blades_id)
+        .expect("Lizard Blades exists");
     assert_eq!(
         blades_obj.attached_to, None,
         "Equipment should be unattached"
@@ -324,7 +330,7 @@ fn test_reconfigure_unattach_restores_creature_type() {
         "is_reconfigured should be false after unattaching"
     );
 
-    let bear_obj = state.objects.get(&bear_id).expect("Vanilla Bear exists");
+    let bear_obj = state.objects().get(&bear_id).expect("Vanilla Bear exists");
     assert!(
         !bear_obj.attachments.contains(&blades_id),
         "bear.attachments should NOT contain Lizard Blades after unattach"
@@ -371,12 +377,12 @@ fn test_reconfigure_sorcery_speed_only() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let blades_id = find_object(&state, "Lizard Blades");
     let bear_id = find_object(&state, "Vanilla Bear");
@@ -426,12 +432,12 @@ fn test_reconfigure_cant_attach_to_self() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let blades_id = find_object(&state, "Lizard Blades");
 
@@ -461,7 +467,7 @@ fn test_reconfigure_cant_attach_to_self() {
         Ok((state, _)) => {
             // Resolved; check no self-attachment occurred.
             let (state, _) = pass_all(state, &[p1, p2]);
-            let blades_obj = state.objects.get(&blades_id).unwrap();
+            let blades_obj = state.objects().get(&blades_id).unwrap();
             assert_eq!(
                 blades_obj.attached_to, None,
                 "Equipment must not equip itself (CR 301.5c)"
@@ -502,12 +508,12 @@ fn test_reconfigure_equipped_creature_leaves_battlefield() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let blades_id = find_object(&state, "Lizard Blades");
     let bear_id = find_object(&state, "Vanilla Bear");
@@ -530,7 +536,7 @@ fn test_reconfigure_equipped_creature_leaves_battlefield() {
 
     assert!(
         state
-            .objects
+            .objects()
             .get(&blades_id)
             .unwrap()
             .designations
@@ -542,14 +548,14 @@ fn test_reconfigure_equipped_creature_leaves_battlefield() {
     // We can do this by directly removing it (simulating a removal spell resolving).
     // Use ExileObject effect or direct state manipulation to simulate the creature dying.
     // Simplest: simulate by using the SBA checker after removing the bear.
-    state.objects.remove(&bear_id);
+    state.objects_mut().remove(&bear_id);
 
     // Run SBAs to unattach the equipment.
     let _ = mtg_engine::check_and_apply_sbas(&mut state);
 
     // Equipment should now be unattached.
     let blades_obj = state
-        .objects
+        .objects()
         .get(&blades_id)
         .expect("Lizard Blades still exists");
     assert_eq!(
@@ -596,12 +602,12 @@ fn test_reconfigure_unattach_rejected_when_not_attached() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let blades_id = find_object(&state, "Lizard Blades");
 
@@ -654,12 +660,12 @@ fn test_reconfigure_cant_attach_to_opponents_creature() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let blades_id = find_object(&state, "Lizard Blades");
     let opp_id = find_object(&state, "Opponent Bear");
@@ -685,7 +691,7 @@ fn test_reconfigure_cant_attach_to_opponents_creature() {
         Ok((state, _)) => {
             // Check not attached after resolution.
             let (state, _) = pass_all(state, &[p1, p2]);
-            let blades_obj = state.objects.get(&blades_id).unwrap();
+            let blades_obj = state.objects().get(&blades_id).unwrap();
             assert_eq!(
                 blades_obj.attached_to, None,
                 "Equipment must not attach to an opponent's creature (CR 702.151a)"
@@ -722,12 +728,12 @@ fn test_reconfigure_artifact_type_retained_while_attached() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let blades_id = find_object(&state, "Lizard Blades");
     let bear_id = find_object(&state, "Vanilla Bear");

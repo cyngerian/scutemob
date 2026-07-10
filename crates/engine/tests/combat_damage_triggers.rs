@@ -22,7 +22,7 @@ use mtg_engine::{
 
 fn find_obj(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -31,7 +31,7 @@ fn find_obj(state: &GameState, name: &str) -> ObjectId {
 
 fn hand_count(state: &GameState, player: PlayerId) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.zone == ZoneId::Hand(player))
         .count()
@@ -526,7 +526,7 @@ fn test_equipped_creature_combat_damage_trigger() {
     // Manually attach equipment to creature
     let state = {
         let mut s = state;
-        if let Some(creature_obj) = s.objects.get_mut(&creature_id) {
+        if let Some(creature_obj) = s.objects_mut().get_mut(&creature_id) {
             creature_obj.attachments = creature_obj
                 .attachments
                 .clone()
@@ -534,7 +534,7 @@ fn test_equipped_creature_combat_damage_trigger() {
                 .chain(std::iter::once(equipment_id))
                 .collect();
         }
-        if let Some(equip_obj) = s.objects.get_mut(&equipment_id) {
+        if let Some(equip_obj) = s.objects_mut().get_mut(&equipment_id) {
             equip_obj.attached_to = Some(creature_id);
         }
         s
@@ -660,7 +660,7 @@ fn test_enchanted_creature_damage_trigger() {
     // Manually attach aura to creature
     let state = {
         let mut s = state;
-        if let Some(creature_obj) = s.objects.get_mut(&creature_id) {
+        if let Some(creature_obj) = s.objects_mut().get_mut(&creature_id) {
             creature_obj.attachments = creature_obj
                 .attachments
                 .clone()
@@ -668,7 +668,7 @@ fn test_enchanted_creature_damage_trigger() {
                 .chain(std::iter::once(aura_id))
                 .collect();
         }
-        if let Some(aura_obj) = s.objects.get_mut(&aura_id) {
+        if let Some(aura_obj) = s.objects_mut().get_mut(&aura_id) {
             aura_obj.attached_to = Some(creature_id);
         }
         s

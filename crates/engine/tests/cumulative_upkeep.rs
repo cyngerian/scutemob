@@ -23,7 +23,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -31,7 +31,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 }
 
 fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
-    state.objects.iter().find_map(|(&id, obj)| {
+    state.objects().iter().find_map(|(&id, obj)| {
         if obj.characteristics.name == name && obj.zone == zone {
             Some(id)
         } else {
@@ -50,7 +50,7 @@ fn in_graveyard(state: &GameState, name: &str, owner: PlayerId) -> bool {
 
 fn age_counters_on(state: &GameState, obj_id: ObjectId) -> u32 {
     state
-        .objects
+        .objects()
         .get(&obj_id)
         .and_then(|obj| obj.counters.get(&CounterType::Age).copied())
         .unwrap_or(0)
@@ -171,15 +171,15 @@ fn test_cumulative_upkeep_basic_age_counter_added() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Advance Untap -> Upkeep (enter_step calls upkeep_actions, queuing trigger).
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::Upkeep);
+    assert_eq!(state.turn().step, Step::Upkeep);
 
     // CumulativeUpkeepTrigger should be on the stack.
     assert!(
-        state.stack_objects.iter().any(|so| matches!(
+        state.stack_objects().iter().any(|so| matches!(
             &so.kind,
             StackObjectKind::KeywordTrigger {
                 keyword: KeywordAbility::CumulativeUpkeep(_),
@@ -230,11 +230,11 @@ fn test_cumulative_upkeep_pay_mana_keeps_permanent() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Advance to Upkeep.
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::Upkeep);
+    assert_eq!(state.turn().step, Step::Upkeep);
 
     // Resolve the trigger (adds 1 age counter, emits payment required).
     let (mut state, _) = pass_all(state, &[p1, p2]);
@@ -244,7 +244,7 @@ fn test_cumulative_upkeep_pay_mana_keeps_permanent() {
 
     // Give p1 {1} generic mana to pay 1x{1}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -294,11 +294,11 @@ fn test_cumulative_upkeep_decline_payment_sacrifices() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Advance to Upkeep.
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::Upkeep);
+    assert_eq!(state.turn().step, Step::Upkeep);
 
     // Resolve the trigger.
     let (state, _) = pass_all(state, &[p1, p2]);
@@ -351,11 +351,11 @@ fn test_cumulative_upkeep_escalating_cost() {
         .object(cu_mana_1_on_battlefield(p1))
         .build()
         .unwrap();
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // --- Upkeep 1 ---
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::Upkeep);
+    assert_eq!(state.turn().step, Step::Upkeep);
     let (mut state, _) = pass_all(state, &[p1, p2]);
 
     let perm_id = find_in_zone(&state, "Test CU Mana 1", ZoneId::Battlefield)
@@ -368,7 +368,7 @@ fn test_cumulative_upkeep_escalating_cost() {
 
     // Pay {1} (age_count=1, cost={1}).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -399,11 +399,11 @@ fn test_cumulative_upkeep_escalating_cost() {
     // Advance to upkeep again by manipulating step and priority.
     let mut state2 = state;
     // Move to Untap of the same player (simulate next turn start).
-    state2.turn.step = Step::Untap;
-    state2.turn.priority_holder = Some(p1);
+    state2.turn_mut().step = Step::Untap;
+    state2.turn_mut().priority_holder = Some(p1);
 
     let (state2, _) = pass_all(state2, &[p1, p2]);
-    assert_eq!(state2.turn.step, Step::Upkeep);
+    assert_eq!(state2.turn().step, Step::Upkeep);
     let (mut state2, _) = pass_all(state2, &[p1, p2]);
 
     let perm_id3 = find_in_zone(&state2, "Test CU Mana 1", ZoneId::Battlefield)
@@ -417,7 +417,7 @@ fn test_cumulative_upkeep_escalating_cost() {
     // CumulativeUpkeepPaymentRequired should show age_counter_count = 2.
     assert!(
         state2
-            .pending_cumulative_upkeep_payments
+            .pending_cumulative_upkeep_payments()
             .iter()
             .any(|(_, obj, _)| *obj == perm_id3),
         "CR 702.24a: pending payment entry should exist for upkeep 2"
@@ -425,7 +425,7 @@ fn test_cumulative_upkeep_escalating_cost() {
 
     // Pay {2} (age_count=2, cost=2x{1}).
     state2
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -473,13 +473,13 @@ fn test_cumulative_upkeep_pay_life_cost() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
-    let initial_life = state.players[&p1].life_total;
+    let initial_life = state.players()[&p1].life_total;
 
     // Advance to Upkeep.
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::Upkeep);
+    assert_eq!(state.turn().step, Step::Upkeep);
 
     // Resolve trigger (adds 1 age counter).
     let (state, _) = pass_all(state, &[p1, p2]);
@@ -504,7 +504,7 @@ fn test_cumulative_upkeep_pay_life_cost() {
     );
 
     assert_eq!(
-        state.players[&p1].life_total,
+        state.players()[&p1].life_total,
         initial_life - 2,
         "CR 702.24a: player should lose 2 life paying cumulative upkeep (1 counter * 2 life)"
     );
@@ -537,17 +537,17 @@ fn test_cumulative_upkeep_permanent_left_battlefield() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Advance to Upkeep -- trigger is queued.
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::Upkeep);
+    assert_eq!(state.turn().step, Step::Upkeep);
 
     // Trigger is on stack. Before resolving, remove the permanent from the battlefield
     // by manually moving it to the graveyard.
     let obj_id = find_object(&state, "Test CU Mana 1");
     let mut state2 = state;
-    if let Some(obj) = state2.objects.get_mut(&obj_id) {
+    if let Some(obj) = state2.objects_mut().get_mut(&obj_id) {
         obj.zone = ZoneId::Graveyard(p1);
     }
 
@@ -564,7 +564,7 @@ fn test_cumulative_upkeep_permanent_left_battlefield() {
 
     // No pending payments.
     assert!(
-        state2.pending_cumulative_upkeep_payments.is_empty(),
+        state2.pending_cumulative_upkeep_payments().is_empty(),
         "CR 400.7: no pending payment entry when permanent left battlefield"
     );
 }
@@ -590,15 +590,15 @@ fn test_cumulative_upkeep_multiplayer_only_controller_upkeep() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     // Advance p2's Untap -> Upkeep.
     let (state, _) = pass_all(state, &[p2, p1]);
-    assert_eq!(state.turn.step, Step::Upkeep);
+    assert_eq!(state.turn().step, Step::Upkeep);
 
     // No CumulativeUpkeepTrigger should be on the stack (it's p2's upkeep, not p1's).
     assert!(
-        !state.stack_objects.iter().any(|so| matches!(
+        !state.stack_objects().iter().any(|so| matches!(
             &so.kind,
             StackObjectKind::KeywordTrigger {
                 keyword: KeywordAbility::CumulativeUpkeep(_),
@@ -611,7 +611,7 @@ fn test_cumulative_upkeep_multiplayer_only_controller_upkeep() {
 
     // No pending triggers for CumulativeUpkeep.
     assert!(
-        state.pending_triggers.iter().all(|t| !matches!(
+        state.pending_triggers().iter().all(|t| !matches!(
             t.kind,
             mtg_engine::state::stubs::PendingTriggerKind::KeywordTrigger {
                 keyword: KeywordAbility::CumulativeUpkeep(_),
@@ -663,14 +663,14 @@ fn test_cumulative_upkeep_multiple_instances_share_counters() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Advance to Upkeep -- both triggers should be queued.
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::Upkeep);
+    assert_eq!(state.turn().step, Step::Upkeep);
 
     let cu_trigger_count = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .filter(|so| {
             matches!(

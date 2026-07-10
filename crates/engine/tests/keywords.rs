@@ -25,7 +25,7 @@ use mtg_engine::{
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -108,7 +108,7 @@ fn test_302_6_summoning_sickness_prevents_attack() {
         .unwrap();
     let creature_id = find_object(&state, "Fresh Bear");
     state
-        .objects
+        .objects_mut()
         .get_mut(&creature_id)
         .unwrap()
         .has_summoning_sickness = true;
@@ -153,7 +153,7 @@ fn test_702_10_haste_bypasses_summoning_sickness() {
     let goblin_id = find_object(&state, "Goblin Guide");
     // Set summoning sickness — haste should bypass it.
     state
-        .objects
+        .objects_mut()
         .get_mut(&goblin_id)
         .unwrap()
         .has_summoning_sickness = true;
@@ -195,7 +195,7 @@ fn test_302_6_summoning_sickness_cleared_after_untap() {
 
     let bear_id = find_object(&state, "Grizzly Bears");
     state
-        .objects
+        .objects_mut()
         .get_mut(&bear_id)
         .unwrap()
         .has_summoning_sickness = true;
@@ -210,22 +210,22 @@ fn test_302_6_summoning_sickness_cleared_after_untap() {
     // The function clears sickness and untaps.
     {
         // Simulate arriving at p1's untap step.
-        state.turn.active_player = p1;
-        state.turn.step = Step::Untap;
+        state.turn_mut().active_player = p1;
+        state.turn_mut().step = Step::Untap;
         // Run turn actions which clears sickness.
         let mut s = state;
         // Use process_command flow by calling start_game... but we'd need to rebuild.
         // Easiest: just clear manually and verify the flag.
         let id = find_object(&s, "Grizzly Bears");
-        s.objects.get_mut(&id).unwrap().has_summoning_sickness = false; // what untap step does
+        s.objects_mut().get_mut(&id).unwrap().has_summoning_sickness = false; // what untap step does
         let _ = id; // ignore
         state = s;
     }
 
     let bear_id = find_object(&state, "Grizzly Bears");
-    state.turn.step = Step::DeclareAttackers;
+    state.turn_mut().step = Step::DeclareAttackers;
     assert!(
-        !state.objects[&bear_id].has_summoning_sickness,
+        !state.objects()[&bear_id].has_summoning_sickness,
         "Sickness should be cleared after untap step"
     );
 
@@ -268,7 +268,7 @@ fn test_702_9_flying_cannot_be_blocked_by_ground() {
 
     // Set up combat state: Pegasus is attacking p2.
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(pegasus_id, AttackTarget::Player(p2));
         cs
@@ -310,7 +310,7 @@ fn test_702_17_reach_can_block_flying() {
     let spider_id = find_object(&state, "Giant Spider");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(air_id, AttackTarget::Player(p2));
         cs
@@ -351,7 +351,7 @@ fn test_702_9_flying_can_block_flying() {
     let eagle_id = find_object(&state, "Eagle");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(dragon_id, AttackTarget::Player(p2));
         cs
@@ -407,7 +407,7 @@ fn test_702_18_shroud_prevents_targeting() {
     // Give p1 red mana
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -474,13 +474,13 @@ fn test_702_11_hexproof_blocks_opponent_targeting() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     // Make p2 the priority holder
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let target_id = find_object(&state, "Hexproof Creature");
     let bolt_id = find_object(&state, "Bolt");
@@ -546,12 +546,12 @@ fn test_702_11d_player_hexproof_blocks_opponent_spell_targeting() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let bolt_id = find_object(&state, "Lightning Bolt");
 
@@ -614,12 +614,12 @@ fn test_702_11d_player_hexproof_allows_self_targeting() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let heal_id = find_object(&state, "Healing Salve");
 
@@ -684,12 +684,12 @@ fn test_702_11d_player_hexproof_lost_when_source_leaves() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let bolt_id = find_object(&state, "Lightning Bolt");
 
@@ -752,7 +752,7 @@ fn test_702_12_indestructible_survives_lethal_damage() {
     );
     assert!(
         state
-            .objects
+            .objects()
             .values()
             .any(|o| o.characteristics.name == "Darksteel Colossus"),
         "Darksteel Colossus should still be on the battlefield"
@@ -809,7 +809,7 @@ fn test_702_110_menace_requires_two_blockers() {
     let blocker_id = find_object(&state, "Single Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(menace_id, AttackTarget::Player(p2));
         cs
@@ -853,7 +853,7 @@ fn test_702_110_menace_allows_two_blockers() {
     let blocker_b = find_object(&state, "Blocker B");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(menace_id, AttackTarget::Player(p2));
         cs
@@ -902,7 +902,7 @@ fn test_702_13_intimidate_blocks_non_matching_creature() {
     let blocker_id = find_object(&state, "White Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -951,7 +951,7 @@ fn test_702_13_intimidate_allows_artifact_creature_blocker() {
     let blocker_id = find_object(&state, "Artifact Creature");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -997,7 +997,7 @@ fn test_702_13_intimidate_allows_same_color_blocker() {
     let blocker_id = find_object(&state, "Red Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -1048,7 +1048,7 @@ fn test_702_13_intimidate_multicolor_attacker_allows_partial_color_match() {
     let blocker_id = find_object(&state, "Green-White Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -1096,7 +1096,7 @@ fn test_702_13_intimidate_colorless_attacker_only_artifact_can_block() {
     let blocker_id = find_object(&state, "Red Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -1143,7 +1143,7 @@ fn test_702_13_intimidate_colorless_attacker_artifact_creature_blocks() {
     let blocker_id = find_object(&state, "Artifact Creature");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -1193,7 +1193,7 @@ fn test_702_13_intimidate_plus_flying_both_must_be_satisfied() {
     let blocker_id = find_object(&state, "Red Ground Creature");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -1234,7 +1234,7 @@ fn test_702_15_lifelink_grants_life_on_combat_damage() {
         .unwrap();
 
     let lifelink_id = find_object(&state, "Lifelink Creature");
-    let initial_life = state.players[&p1].life_total;
+    let initial_life = state.players()[&p1].life_total;
 
     // Declare attacker
     let (state, _) = process_command(
@@ -1268,10 +1268,10 @@ fn test_702_15_lifelink_grants_life_on_combat_damage() {
 
     // And p1's life total should be initial + 3
     assert!(
-        life_gained_event || state.players[&p1].life_total == initial_life + 3,
+        life_gained_event || state.players()[&p1].life_total == initial_life + 3,
         "Lifelink creature dealing 3 damage should gain 3 life for controller. \
          p1 life: {}, initial: {}, events: {:?}",
-        state.players[&p1].life_total,
+        state.players()[&p1].life_total,
         initial_life,
         events
     );
@@ -1327,7 +1327,7 @@ fn test_cc22_hexproof_does_not_block_global_effects() {
 
     // Give p1 enough mana for Wrath of God ({2WW}).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -1383,7 +1383,7 @@ fn test_cc22_hexproof_does_not_block_global_effects() {
     );
 
     // Verify the hexproof creature is NOT on the battlefield.
-    let hexproof_still_on_battlefield = state.objects.values().any(|obj| {
+    let hexproof_still_on_battlefield = state.objects().values().any(|obj| {
         obj.characteristics.name == "Hexproof Creature"
             && obj.zone == mtg_engine::ZoneId::Battlefield
     });
@@ -1423,7 +1423,7 @@ fn test_702_14_swampwalk_unblockable_when_defender_controls_swamp() {
     let blocker_id = find_object(&state, "Swamp Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -1472,7 +1472,7 @@ fn test_702_14_swampwalk_blockable_when_defender_has_no_swamp() {
     let blocker_id = find_object(&state, "Plains Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -1523,7 +1523,7 @@ fn test_702_14_islandwalk_unblockable_when_defender_controls_island() {
     let blocker_id = find_object(&state, "Island Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -1582,7 +1582,7 @@ fn test_702_14_landwalk_checks_defending_player_only() {
 
     // p1 attacks p2; p3's Swamp is irrelevant.
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -1632,7 +1632,7 @@ fn test_702_14_nonbasic_landwalk_unblockable_when_defender_has_nonbasic() {
     let blocker_id = find_object(&state, "Nonbasic Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -1682,7 +1682,7 @@ fn test_702_14_nonbasic_landwalk_blockable_when_all_lands_basic() {
     let blocker_id = find_object(&state, "Basic Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -1741,7 +1741,7 @@ fn test_702_14_landwalk_plus_flying_both_checked() {
     let blocker_id = find_object(&state, "Flying Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -1790,7 +1790,7 @@ fn test_509_1b_cant_be_blocked_basic() {
     let blocker_id = find_object(&state, "Grizzly Bears");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -1833,7 +1833,7 @@ fn test_509_1b_cant_be_blocked_allows_no_blockers() {
     let attacker_id = find_object(&state, "Phantom Warrior");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -1882,7 +1882,7 @@ fn test_509_1b_cant_be_blocked_other_attacker_can_be_blocked() {
     let blocker_id = find_object(&state, "Grizzly Bears");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers
             .insert(unblockable_id, AttackTarget::Player(p2));
@@ -1938,7 +1938,7 @@ fn test_509_1b_cant_be_blocked_plus_flying() {
     let blocker_id = find_object(&state, "Giant Spider");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -2018,12 +2018,12 @@ fn test_509_1b_cant_be_blocked_via_continuous_effect() {
 
     // Give p1 the 4 generic mana to pay the cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 4);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let passage_id = find_object(&state, "Test Passage");
     let creature_id = find_object(&state, "Sneaky Rogue");
@@ -2084,7 +2084,7 @@ fn test_702_36_fear_blocks_non_matching_creature() {
     let blocker_id = find_object(&state, "White Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -2131,7 +2131,7 @@ fn test_702_36_fear_allows_artifact_creature_blocker() {
     let blocker_id = find_object(&state, "Artifact Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -2176,7 +2176,7 @@ fn test_702_36_fear_allows_black_creature_blocker() {
     let blocker_id = find_object(&state, "Black Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -2223,7 +2223,7 @@ fn test_702_36_fear_attacker_color_irrelevant() {
     let blocker_id = find_object(&state, "Red Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -2268,7 +2268,7 @@ fn test_702_36_fear_colorless_non_artifact_cannot_block() {
     let blocker_id = find_object(&state, "Colorless Creature");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -2317,7 +2317,7 @@ fn test_702_36_fear_allows_black_artifact_creature_blocker() {
     let blocker_id = find_object(&state, "Black Artifact Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -2367,7 +2367,7 @@ fn test_702_36_fear_plus_flying_both_must_be_satisfied() {
     let blocker_id = find_object(&state, "Black Ground Creature");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -2442,7 +2442,7 @@ fn test_702_80_wither_combat_damage_places_minus_counters() {
     let (state, events) = pass_all(state, &[p1, p2]);
 
     // Defending creature (Big Blocker) should have 3 -1/-1 counters, NOT damage_marked.
-    let blocker_obj = state.objects.get(&blocker_id).unwrap();
+    let blocker_obj = state.objects().get(&blocker_id).unwrap();
     let minus_counters = blocker_obj
         .counters
         .get(&CounterType::MinusOneMinusOne)
@@ -2458,7 +2458,7 @@ fn test_702_80_wither_combat_damage_places_minus_counters() {
     );
 
     // Attacker receives normal damage from blocker (no wither on blocker).
-    let attacker_obj = state.objects.get(&attacker_id).unwrap();
+    let attacker_obj = state.objects().get(&attacker_id).unwrap();
     assert_eq!(
         attacker_obj.damage_marked, 4,
         "Wither Creature should have 4 damage_marked from normal blocker damage"
@@ -2537,7 +2537,7 @@ fn test_702_80_wither_combat_kills_creature_via_toughness_sba() {
 
     // After SBAs: Defender Bear (3/3 with 3 -1/-1 counters = 3/0 → dies via CR 704.5f).
     let blocker_on_bf = state
-        .objects
+        .objects()
         .values()
         .any(|obj| obj.characteristics.name == "Defender Bear" && obj.zone == ZoneId::Battlefield);
     assert!(
@@ -2545,7 +2545,7 @@ fn test_702_80_wither_combat_kills_creature_via_toughness_sba() {
         "CR 704.5f: Defender Bear should have died (toughness reduced to 0 by wither counters)"
     );
 
-    let blocker_in_gy = state.objects.values().any(|obj| {
+    let blocker_in_gy = state.objects().values().any(|obj| {
         obj.characteristics.name == "Defender Bear" && obj.zone == ZoneId::Graveyard(p2)
     });
     assert!(
@@ -2555,7 +2555,7 @@ fn test_702_80_wither_combat_kills_creature_via_toughness_sba() {
 
     // Wither Striker also dies (3 damage_marked on a 3/3 = lethal via CR 704.5g).
     let attacker_on_bf = state
-        .objects
+        .objects()
         .values()
         .any(|obj| obj.characteristics.name == "Wither Striker" && obj.zone == ZoneId::Battlefield);
     assert!(
@@ -2583,7 +2583,7 @@ fn test_702_80_wither_does_not_affect_player_damage() {
         .unwrap();
 
     let attacker_id = find_object(&state, "Wither Attacker");
-    let initial_life = state.players[&p2].life_total;
+    let initial_life = state.players()[&p2].life_total;
 
     // Declare attacker targeting p2 directly (no blocker).
     let (state, _) = process_command(
@@ -2609,7 +2609,7 @@ fn test_702_80_wither_does_not_affect_player_damage() {
 
     // p2's life total should have decreased by 3 (wither does not apply to players).
     assert_eq!(
-        state.players[&p2].life_total,
+        state.players()[&p2].life_total,
         initial_life - 3,
         "CR 702.80a: wither only affects damage to creatures; player takes normal life loss"
     );
@@ -2675,7 +2675,7 @@ fn test_702_80_wither_persist_interaction() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // Persist Critter should be in graveyard (died via CR 704.5f).
-    let critter_in_gy = state.objects.values().any(|obj| {
+    let critter_in_gy = state.objects().values().any(|obj| {
         obj.characteristics.name == "Persist Critter" && obj.zone == ZoneId::Graveyard(p2)
     });
     assert!(
@@ -2687,7 +2687,7 @@ fn test_702_80_wither_persist_interaction() {
     // CR 702.79a intervening-if: persist checks for no -1/-1 counters at DEATH — the
     // wither damage placed -1/-1 counters before death, so condition is false.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "CR 702.79a: persist must NOT trigger when creature died with -1/-1 counters from wither"
     );
@@ -2740,7 +2740,7 @@ fn test_702_80_wither_redundant_instances() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // Sturdy Blocker should have exactly 2 -1/-1 counters (power 2), not 4.
-    let blocker_obj = state.objects.get(&blocker_id).unwrap();
+    let blocker_obj = state.objects().get(&blocker_id).unwrap();
     let minus_counters = blocker_obj
         .counters
         .get(&CounterType::MinusOneMinusOne)
@@ -2800,7 +2800,7 @@ fn test_702_80_wither_noncombat_damage_places_counters() {
     let events = mtg_engine::effects::execute_effect(&mut state, &effect, &mut ctx);
 
     // CR 702.80a: target creature must have 2 -1/-1 counters, NOT damage_marked.
-    let target_obj = state.objects.get(&target_id).unwrap();
+    let target_obj = state.objects().get(&target_id).unwrap();
     let minus_counters = target_obj
         .counters
         .get(&CounterType::MinusOneMinusOne)
@@ -2900,7 +2900,7 @@ fn test_702_90_infect_combat_damage_places_minus_counters_on_creature() {
     let (state, events) = pass_all(state, &[p1, p2]);
 
     // Big Blocker must have 3 -1/-1 counters, NOT damage_marked.
-    let blocker_obj = state.objects.get(&blocker_id).unwrap();
+    let blocker_obj = state.objects().get(&blocker_id).unwrap();
     let minus_counters = blocker_obj
         .counters
         .get(&CounterType::MinusOneMinusOne)
@@ -2916,7 +2916,7 @@ fn test_702_90_infect_combat_damage_places_minus_counters_on_creature() {
     );
 
     // Attacker receives normal damage from blocker (no infect on blocker).
-    let attacker_obj = state.objects.get(&attacker_id).unwrap();
+    let attacker_obj = state.objects().get(&attacker_id).unwrap();
     assert_eq!(
         attacker_obj.damage_marked, 4,
         "Infect Attacker should have 4 damage_marked from normal blocker damage"
@@ -2968,7 +2968,7 @@ fn test_702_90_infect_combat_damage_gives_poison_counters_to_player() {
         .unwrap();
 
     let attacker_id = find_object(&state, "Infect Striker");
-    let initial_life = state.players[&p2].life_total;
+    let initial_life = state.players()[&p2].life_total;
 
     let (state, _) = process_command(
         state,
@@ -2996,13 +2996,15 @@ fn test_702_90_infect_combat_damage_gives_poison_counters_to_player() {
 
     // p2 should have 3 poison counters.
     assert_eq!(
-        state.players[&p2].poison_counters, 3,
+        state.players()[&p2].poison_counters,
+        3,
         "CR 702.90b: infect damage to a player must give poison counters"
     );
 
     // p2's life total must be UNCHANGED.
     assert_eq!(
-        state.players[&p2].life_total, initial_life,
+        state.players()[&p2].life_total,
+        initial_life,
         "CR 120.3b: infect damage to a player must NOT cause life loss"
     );
 
@@ -3082,7 +3084,7 @@ fn test_702_90_infect_noncombat_damage_creature_places_counters() {
     let events = mtg_engine::effects::execute_effect(&mut state, &effect, &mut ctx);
 
     // CR 702.90c: target creature must have 2 -1/-1 counters, NOT damage_marked.
-    let target_obj = state.objects.get(&target_id).unwrap();
+    let target_obj = state.objects().get(&target_id).unwrap();
     let minus_counters = target_obj
         .counters
         .get(&CounterType::MinusOneMinusOne)
@@ -3148,7 +3150,7 @@ fn test_702_90_infect_noncombat_damage_player_gives_poison() {
         .unwrap();
 
     let source_id = find_object(&state, "Infect Caster");
-    let initial_life = state.players[&p2].life_total;
+    let initial_life = state.players()[&p2].life_total;
 
     let effect = Effect::DealDamage {
         target: CardEffectTarget::DeclaredTarget { index: 0 },
@@ -3167,11 +3169,13 @@ fn test_702_90_infect_noncombat_damage_player_gives_poison() {
 
     // CR 702.90b: player must have poison counters instead of life loss.
     assert_eq!(
-        state.players[&p2].poison_counters, 3,
+        state.players()[&p2].poison_counters,
+        3,
         "CR 702.90b: non-combat infect damage to a player must give poison counters"
     );
     assert_eq!(
-        state.players[&p2].life_total, initial_life,
+        state.players()[&p2].life_total,
+        initial_life,
         "CR 120.3b: non-combat infect damage to a player must NOT cause life loss"
     );
 
@@ -3228,7 +3232,7 @@ fn test_702_90_infect_kills_via_poison_sba() {
         .unwrap();
 
     let attacker_id = find_object(&state, "Infect Finisher");
-    let initial_life = state.players[&p2].life_total;
+    let initial_life = state.players()[&p2].life_total;
 
     let (state, _) = process_command(
         state,
@@ -3257,13 +3261,15 @@ fn test_702_90_infect_kills_via_poison_sba() {
 
     // p2 should have exactly 10 poison counters.
     assert_eq!(
-        state.players[&p2].poison_counters, 10,
+        state.players()[&p2].poison_counters,
+        10,
         "CR 702.90b: p2 should have 10 poison counters after infect damage"
     );
 
     // p2's life total must be UNCHANGED (infect gave poison, not life loss).
     assert_eq!(
-        state.players[&p2].life_total, initial_life,
+        state.players()[&p2].life_total,
+        initial_life,
         "CR 120.3b: infect damage must not reduce p2's life total"
     );
 
@@ -3328,7 +3334,7 @@ fn test_702_90_infect_redundant_instances() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // Sturdy Blocker should have exactly 2 -1/-1 counters (power 2), not 4.
-    let blocker_obj = state.objects.get(&blocker_id).unwrap();
+    let blocker_obj = state.objects().get(&blocker_id).unwrap();
     let minus_counters = blocker_obj
         .counters
         .get(&CounterType::MinusOneMinusOne)
@@ -3390,7 +3396,7 @@ fn test_702_90_infect_wither_overlap_creature() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // Heavy Blocker should have exactly 3 -1/-1 counters (power 3), not 6.
-    let blocker_obj = state.objects.get(&blocker_id).unwrap();
+    let blocker_obj = state.objects().get(&blocker_id).unwrap();
     let minus_counters = blocker_obj
         .counters
         .get(&CounterType::MinusOneMinusOne)
@@ -3451,7 +3457,7 @@ fn test_702_90_infect_does_not_affect_planeswalker_damage() {
     let events = mtg_engine::effects::execute_effect(&mut state, &effect, &mut ctx);
 
     // Planeswalker should have 2 loyalty counters removed (4 - 2 = 2).
-    let pw_obj = state.objects.get(&pw_id).unwrap();
+    let pw_obj = state.objects().get(&pw_id).unwrap();
     let loyalty = pw_obj
         .counters
         .get(&CounterType::Loyalty)
@@ -3518,7 +3524,7 @@ fn test_702_90_infect_commander_damage_still_tracks() {
         .unwrap();
 
     let attacker_id = find_object(&state, "Infect Commander");
-    let initial_life = state.players[&p2].life_total;
+    let initial_life = state.players()[&p2].life_total;
 
     let (state, _) = process_command(
         state,
@@ -3547,17 +3553,19 @@ fn test_702_90_infect_commander_damage_still_tracks() {
 
     // p2 should have 11 poison counters (not life loss).
     assert_eq!(
-        state.players[&p2].poison_counters, 11,
+        state.players()[&p2].poison_counters,
+        11,
         "CR 702.90b: infect commander damage gives poison counters to the player"
     );
     assert_eq!(
-        state.players[&p2].life_total, initial_life,
+        state.players()[&p2].life_total,
+        initial_life,
         "CR 120.3b: infect commander damage must NOT reduce life total"
     );
 
     // Commander damage must still be tracked.
     let commander_dmg = state
-        .players
+        .players()
         .get(&p2)
         .and_then(|p| p.commander_damage_received.get(&p1))
         .and_then(|m| m.get(&card_id))

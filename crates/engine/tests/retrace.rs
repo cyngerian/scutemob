@@ -31,7 +31,7 @@ use mtg_engine::{
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -41,7 +41,7 @@ fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectI
 #[allow(dead_code)]
 fn find_object_opt(state: &mtg_engine::GameState, name: &str) -> Option<mtg_engine::ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -210,12 +210,12 @@ fn test_retrace_basic_cast_from_graveyard() {
 
     // p1 has {R} mana (normal mana cost for Flame Jab).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let jab_id = find_object(&state, "Flame Jab");
     let mountain_id = find_object(&state, "Mountain");
@@ -269,7 +269,7 @@ fn test_retrace_basic_cast_from_graveyard() {
 
     // Flame Jab should now be on the stack (moved out of graveyard).
     let jab_on_stack = state
-        .objects
+        .objects()
         .values()
         .any(|obj| obj.characteristics.name == "Flame Jab" && obj.zone == ZoneId::Stack);
     assert!(
@@ -279,7 +279,7 @@ fn test_retrace_basic_cast_from_graveyard() {
 
     // Mountain should be in p1's graveyard (discarded).
     let mountain_in_graveyard = state
-        .objects
+        .objects()
         .values()
         .any(|obj| obj.characteristics.name == "Mountain" && obj.zone == ZoneId::Graveyard(p1));
     assert!(
@@ -288,7 +288,7 @@ fn test_retrace_basic_cast_from_graveyard() {
     );
 
     // p1's mana pool should be empty ({R} was paid).
-    let p1_mana = &state.players[&p1].mana_pool;
+    let p1_mana = &state.players()[&p1].mana_pool;
     assert_eq!(
         p1_mana.total(),
         0,
@@ -335,12 +335,12 @@ fn test_retrace_card_returns_to_graveyard_on_resolution() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let jab_id = find_object(&state, "Flame Jab");
     let mountain_id = find_object(&state, "Mountain");
@@ -373,7 +373,7 @@ fn test_retrace_card_returns_to_graveyard_on_resolution() {
 
     // Flame Jab should be back in p1's graveyard (not exiled, not in hand).
     let jab_in_graveyard = state
-        .objects
+        .objects()
         .values()
         .any(|obj| obj.characteristics.name == "Flame Jab" && obj.zone == ZoneId::Graveyard(p1));
     assert!(
@@ -383,7 +383,7 @@ fn test_retrace_card_returns_to_graveyard_on_resolution() {
 
     // Flame Jab should NOT be in exile.
     let jab_in_exile = state
-        .objects
+        .objects()
         .values()
         .any(|obj| obj.characteristics.name == "Flame Jab" && obj.zone == ZoneId::Exile);
     assert!(
@@ -441,18 +441,18 @@ fn test_retrace_card_returns_to_graveyard_when_countered() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let jab_id = find_object(&state, "Flame Jab");
     let mountain_id = find_object(&state, "Mountain");
@@ -483,7 +483,7 @@ fn test_retrace_card_returns_to_graveyard_when_countered() {
 
     // Find Flame Jab on the stack (new object id after zone change).
     let jab_stack_id = state
-        .stack_objects
+        .stack_objects()
         .back()
         .map(|so| {
             if let mtg_engine::StackObjectKind::Spell { source_object } = so.kind {
@@ -528,7 +528,7 @@ fn test_retrace_card_returns_to_graveyard_when_countered() {
 
     // Flame Jab should be back in p1's graveyard (not exiled).
     let jab_in_graveyard = state
-        .objects
+        .objects()
         .values()
         .any(|obj| obj.characteristics.name == "Flame Jab" && obj.zone == ZoneId::Graveyard(p1));
     assert!(
@@ -537,7 +537,7 @@ fn test_retrace_card_returns_to_graveyard_when_countered() {
     );
 
     let jab_in_exile = state
-        .objects
+        .objects()
         .values()
         .any(|obj| obj.characteristics.name == "Flame Jab" && obj.zone == ZoneId::Exile);
     assert!(
@@ -584,12 +584,12 @@ fn test_retrace_normal_timing_sorcery_cannot_cast_on_opponents_turn() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1); // p1 has priority
+    state.turn_mut().priority_holder = Some(p1); // p1 has priority
 
     let jab_id = find_object(&state, "Flame Jab");
     let mountain_id = find_object(&state, "Mountain");
@@ -665,12 +665,12 @@ fn test_retrace_discard_must_be_land() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let jab_id = find_object(&state, "Flame Jab");
     let non_land_id = find_object(&state, "Simple Sorcery");
@@ -745,12 +745,12 @@ fn test_retrace_discard_must_be_in_hand() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let jab_id = find_object(&state, "Flame Jab");
     let mountain_id = find_object(&state, "Mountain");
@@ -825,12 +825,12 @@ fn test_retrace_no_retrace_keyword_cannot_cast_from_graveyard() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let sorcery_id = find_object(&state, "Simple Sorcery");
     let mountain_id = find_object(&state, "Mountain");
@@ -902,12 +902,12 @@ fn test_retrace_pays_normal_mana_cost() {
 
     // Give p1 exactly {R} — the normal mana cost of Flame Jab.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let jab_id = find_object(&state, "Flame Jab");
     let mountain_id = find_object(&state, "Mountain");
@@ -944,7 +944,7 @@ fn test_retrace_pays_normal_mana_cost() {
 
     // Mana pool should now be empty (exactly {R} was paid).
     assert_eq!(
-        state.players[&p1].mana_pool.total(),
+        state.players()[&p1].mana_pool.total(),
         0,
         "Exactly the normal mana cost ({{R}}) should be paid"
     );
@@ -984,12 +984,12 @@ fn test_retrace_without_land_provided_cannot_cast_from_graveyard() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let jab_id = find_object(&state, "Flame Jab");
 
@@ -1055,12 +1055,12 @@ fn test_retrace_normal_hand_cast_no_land_discard_needed() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let jab_id = find_object(&state, "Flame Jab");
 
@@ -1096,7 +1096,7 @@ fn test_retrace_normal_hand_cast_no_land_discard_needed() {
 
     // Flame Jab should be on the stack.
     let jab_on_stack = state
-        .objects
+        .objects()
         .values()
         .any(|obj| obj.characteristics.name == "Flame Jab" && obj.zone == ZoneId::Stack);
     assert!(
@@ -1150,17 +1150,17 @@ fn test_retrace_recast_after_resolution() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 2); // {R}{R} for two casts
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let jab_id = find_object(&state, "Flame Jab");
     // Find both mountains (same name — pick distinct IDs).
     let mountains: Vec<_> = state
-        .objects
+        .objects()
         .iter()
         .filter(|(_, obj)| obj.characteristics.name == "Mountain")
         .map(|(id, _)| *id)
@@ -1196,7 +1196,7 @@ fn test_retrace_recast_after_resolution() {
 
     // Flame Jab should be back in graveyard.
     let jab_in_graveyard = state
-        .objects
+        .objects()
         .values()
         .any(|obj| obj.characteristics.name == "Flame Jab" && obj.zone == ZoneId::Graveyard(p1));
     assert!(
@@ -1208,7 +1208,7 @@ fn test_retrace_recast_after_resolution() {
     let new_jab_id = find_object(&state, "Flame Jab");
 
     // Reset priority for second cast.
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Second retrace cast (using the second mountain).
     let result2 = process_command(

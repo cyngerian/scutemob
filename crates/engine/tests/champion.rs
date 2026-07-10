@@ -31,7 +31,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -44,7 +44,7 @@ fn find_object_in_zone(
     zone: ZoneId,
 ) -> Option<mtg_engine::ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -52,7 +52,7 @@ fn find_object_in_zone(
 
 fn count_in_zone(state: &mtg_engine::GameState, zone: ZoneId) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.zone == zone)
         .count()
@@ -237,18 +237,18 @@ fn setup_champion_on_bf(
 
     // Add mana for {2}{W}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let hand_id = find_object(&state, "Mock Champion Creature");
 
@@ -323,18 +323,18 @@ fn test_champion_basic_etb_exiles_creature() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let hand_id = find_object(&state, "Mock Champion Creature");
 
@@ -365,13 +365,13 @@ fn test_champion_basic_etb_exiles_creature() {
 
     // ChampionETBTrigger should be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.72a: ChampionETBTrigger should be on stack after champion ETB"
     );
     assert!(
         matches!(
-            state.stack_objects[0].kind,
+            state.stack_objects()[0].kind,
             StackObjectKind::KeywordTrigger {
                 keyword: KeywordAbility::Champion,
                 ..
@@ -385,7 +385,7 @@ fn test_champion_basic_etb_exiles_creature() {
 
     // Stack should be empty.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "CR 702.72a: stack should be empty after ETB trigger resolves"
     );
@@ -445,18 +445,18 @@ fn test_champion_no_target_sacrifices_self() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let hand_id = find_object(&state, "Mock Champion Creature");
 
@@ -486,7 +486,7 @@ fn test_champion_no_target_sacrifices_self() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.72a: ChampionETBTrigger should be on stack"
     );
@@ -563,18 +563,18 @@ fn test_champion_ltb_returns_exiled_card() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let hand_id = find_object(&state, "Mock Champion Creature");
 
@@ -622,7 +622,7 @@ fn test_champion_ltb_returns_exiled_card() {
         .expect("champion should be on battlefield");
 
     // Verify champion_exiled_card is set (CR 607.2a: linked ability tracking).
-    let champion_obj = state.objects.get(&champion_bf_id).unwrap();
+    let champion_obj = state.objects().get(&champion_bf_id).unwrap();
     assert!(
         champion_obj.champion_exiled_card.is_some(),
         "CR 607.2a: champion_exiled_card should be set on champion after exiling fodder"
@@ -630,7 +630,7 @@ fn test_champion_ltb_returns_exiled_card() {
 
     // The exiled card ID should point to an object in exile.
     let exiled_id = champion_obj.champion_exiled_card.unwrap();
-    let exiled_obj = state.objects.get(&exiled_id).unwrap();
+    let exiled_obj = state.objects().get(&exiled_id).unwrap();
     assert_eq!(
         exiled_obj.zone,
         ZoneId::Exile,
@@ -670,18 +670,18 @@ fn test_champion_non_champion_no_trigger() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let hand_id = find_object(&state, "Mock Vanilla Creature");
 
@@ -711,7 +711,7 @@ fn test_champion_non_champion_no_trigger() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // No ChampionETBTrigger on the stack.
-    let has_champion_trigger = state.stack_objects.iter().any(|so| {
+    let has_champion_trigger = state.stack_objects().iter().any(|so| {
         matches!(
             so.kind,
             StackObjectKind::KeywordTrigger {
@@ -725,7 +725,7 @@ fn test_champion_non_champion_no_trigger() {
         "Negative test: non-champion creature should NOT generate a ChampionETBTrigger"
     );
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "Negative test: stack should be empty after non-champion creature ETB"
     );
@@ -781,18 +781,18 @@ fn test_champion_subtype_filter_rejects_wrong_type() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let hand_id = find_object(&state, "Mock Champion Faerie");
 
@@ -883,18 +883,18 @@ fn test_champion_subtype_filter_accepts_faerie() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let hand_id = find_object(&state, "Mock Champion Faerie");
 
@@ -981,18 +981,18 @@ fn test_champion_changeling_matches_faerie_filter() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let hand_id = find_object(&state, "Mock Champion Faerie");
 
@@ -1081,18 +1081,18 @@ fn test_champion_cannot_target_itself() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let hand_id = find_object(&state, "Mock Champion Creature");
 
@@ -1177,7 +1177,7 @@ fn test_champion_ltb_full_return_path() {
         .at_step(Step::PreCombatMain)
         .build()
         .unwrap();
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let champion_bf_id = find_object_in_zone(&state, "Mock Champion Creature", ZoneId::Battlefield)
         .expect("champion should be on battlefield");
@@ -1187,14 +1187,14 @@ fn test_champion_ltb_full_return_path() {
     // Simulate the linked-ability state: champion has exiled the fodder.
     // CR 607.2a: champion_exiled_card is the "championed" designation.
     state
-        .objects
+        .objects_mut()
         .get_mut(&champion_bf_id)
         .expect("champion object must exist")
         .champion_exiled_card = Some(fodder_exile_id);
 
     // Step 1: Mark lethal damage (2 ≥ toughness 2) → SBA 704.5g will fire on next pass.
     state
-        .objects
+        .objects_mut()
         .get_mut(&champion_bf_id)
         .expect("champion object must exist")
         .damage_marked = 2;
@@ -1218,7 +1218,7 @@ fn test_champion_ltb_full_return_path() {
 
     // Verify LTB trigger is now on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.72a: ChampionLTBTrigger should be on the stack after champion dies"
     );
@@ -1240,7 +1240,7 @@ fn test_champion_ltb_full_return_path() {
     // Verify ownership: returned card is under its owner's (p1's) control.
     let returned_id = find_object_in_zone(&state, "Mock Vanilla Creature", ZoneId::Battlefield)
         .expect("returned creature must be on battlefield");
-    let returned_obj = state.objects.get(&returned_id).unwrap();
+    let returned_obj = state.objects().get(&returned_id).unwrap();
     assert_eq!(
         returned_obj.controller, p1,
         "CR 702.72a: returned card must be under its owner's control"

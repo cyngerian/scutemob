@@ -25,7 +25,7 @@ use mtg_engine::{
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -98,7 +98,7 @@ fn test_702_154a_enlist_basic_power_addition() {
 
     // Enlist trigger is on the stack.
     assert!(
-        !state.stack_objects.is_empty(),
+        !state.stack_objects().is_empty(),
         "CR 702.154a: EnlistTrigger should be on the stack"
     );
 
@@ -122,7 +122,7 @@ fn test_702_154a_enlist_basic_power_addition() {
 
     // Vanilla creature is tapped.
     let vanilla_obj = state
-        .objects
+        .objects()
         .get(&vanilla_id)
         .expect("Vanilla Ally on battlefield");
     assert!(
@@ -173,7 +173,7 @@ fn test_702_154a_enlist_no_choice_no_trigger() {
     // No Enlist KeywordTrigger on the stack (there may be other triggers, but no enlist ones).
     use mtg_engine::state::stack::StackObjectKind;
     assert!(
-        !state.stack_objects.iter().any(|obj| {
+        !state.stack_objects().iter().any(|obj| {
             matches!(
                 obj.kind,
                 StackObjectKind::KeywordTrigger {
@@ -187,7 +187,7 @@ fn test_702_154a_enlist_no_choice_no_trigger() {
 
     // Vanilla creature is NOT tapped.
     let vanilla_obj = state
-        .objects
+        .objects()
         .get(&vanilla_id)
         .expect("Vanilla Ally on battlefield");
     assert!(
@@ -291,7 +291,7 @@ fn test_702_154a_enlist_summoning_sickness_rejected() {
     let sick_id = find_object(&state, "Sick Creature");
 
     // Set summoning sickness on the creature to enlist.
-    if let Some(obj) = state.objects.get_mut(&sick_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&sick_id) {
         obj.has_summoning_sickness = true;
     }
 
@@ -349,7 +349,7 @@ fn test_702_154a_enlist_summoning_sickness_with_haste_allowed() {
     let hasty_id = find_object(&state, "Hasty Sick");
 
     // Set summoning sickness + haste.
-    if let Some(obj) = state.objects.get_mut(&hasty_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&hasty_id) {
         obj.has_summoning_sickness = true;
         // Haste is already set via keyword; the engine uses calculate_characteristics
         // to check haste at validation time.
@@ -562,7 +562,10 @@ fn test_702_154a_enlist_multiplayer_four_player() {
     );
 
     // 5/5 creature is tapped.
-    let big_obj = state.objects.get(&big_id).expect("Big Ally on battlefield");
+    let big_obj = state
+        .objects()
+        .get(&big_id)
+        .expect("Big Ally on battlefield");
     assert!(
         big_obj.status.tapped,
         "CR 702.154a: enlisted creature should be tapped"

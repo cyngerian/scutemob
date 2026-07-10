@@ -26,7 +26,7 @@ fn p2() -> PlayerId {
 /// Find the ObjectId of the named object on the battlefield.
 fn on_battlefield(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
         .map(|(id, _)| *id)
@@ -87,7 +87,7 @@ fn armorcraft_judge_no_counters_zero_draw() {
     execute_effect(&mut state, &effect, &mut ctx);
 
     let hand_count = state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1()))
         .map(|z| z.object_ids().len())
         .unwrap_or(0);
@@ -140,7 +140,7 @@ fn armorcraft_judge_one_creature_with_counter_draws_one() {
     execute_effect(&mut state, &effect, &mut ctx);
 
     let hand_count = state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1()))
         .map(|z| z.object_ids().len())
         .unwrap_or(0);
@@ -191,7 +191,7 @@ fn armorcraft_judge_multiple_counters_one_creature_still_one() {
     execute_effect(&mut state, &effect, &mut ctx);
 
     let hand_count = state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1()))
         .map(|z| z.object_ids().len())
         .unwrap_or(0);
@@ -240,7 +240,7 @@ fn armorcraft_judge_filters_other_players_creatures() {
     execute_effect(&mut state, &effect, &mut ctx);
 
     let hand_count = state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p1()))
         .map(|z| z.object_ids().len())
         .unwrap_or(0);

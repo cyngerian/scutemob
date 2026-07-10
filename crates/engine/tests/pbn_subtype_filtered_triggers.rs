@@ -16,7 +16,7 @@
 //! - CR 613.1d/f: Filter reads use layer-resolved characteristics.
 //!
 //! Convention: after flush_pending_triggers, pending_triggers is EMPTY but triggers appear on
-//! state.stack_objects. "No trigger" means stack_objects is empty after the event.
+//! state.stack_objects(). "No trigger" means stack_objects is empty after the event.
 
 use mtg_engine::{
     process_command, AttackTarget, CardContinuousEffectDef, CardId, CardRegistry, Color, Command,
@@ -46,7 +46,7 @@ fn pass_all(
 /// Count the number of TriggeredAbility stack objects (indicates triggers that fired).
 fn stack_trigger_count(state: &mtg_engine::GameState) -> usize {
     state
-        .stack_objects
+        .stack_objects()
         .iter()
         .filter(|so| matches!(so.kind, StackObjectKind::TriggeredAbility { .. }))
         .count()
@@ -176,7 +176,7 @@ fn test_pbn_attack_filter_subtype_match_fires() {
         .unwrap();
 
     let dragon_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == "Test Dragon")
         .map(|(id, _)| *id)
@@ -198,7 +198,7 @@ fn test_pbn_attack_filter_subtype_match_fires() {
     assert!(
         stack_trigger_count(&state) > 0,
         "Expected at least 1 triggered ability on stack when Dragon attacks (subtype match). stack_objects={:?}",
-        state.stack_objects.iter().map(|s| &s.kind).collect::<Vec<_>>()
+        state.stack_objects().iter().map(|s| &s.kind).collect::<Vec<_>>()
     );
 }
 
@@ -231,7 +231,7 @@ fn test_pbn_attack_filter_subtype_mismatch_no_fire() {
         .unwrap();
 
     let goblin_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == "Test Goblin")
         .map(|(id, _)| *id)
@@ -285,7 +285,7 @@ fn test_pbn_attack_filter_color_match_fires() {
         .unwrap();
 
     let attacker_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == "Black Creature")
         .map(|(id, _)| *id)
@@ -344,7 +344,7 @@ fn test_pbn_death_filter_subtype_match_fires() {
 
     // The Vampire died → left battlefield via SBA.
     let vampire_gone = !state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Dying Vampire" && o.zone == ZoneId::Battlefield);
     assert!(
@@ -453,7 +453,7 @@ fn test_pbn_death_filter_pre_death_lki_color() {
 
     // The vampire died → left battlefield via SBA.
     let creature_gone = !state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Dying Vampire LKI" && o.zone == ZoneId::Battlefield);
     assert!(
@@ -625,7 +625,7 @@ fn test_pbn_kolaghan_end_to_end() {
         .unwrap();
 
     let kolaghan_id = state_a
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == "Kolaghan")
         .map(|(id, _)| *id)
@@ -691,7 +691,7 @@ fn test_pbn_kolaghan_end_to_end() {
         .unwrap();
 
     let goblin_id_b = state_b
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == "Goblin")
         .map(|(id, _)| *id)
@@ -797,7 +797,7 @@ fn test_pbn_combat_damage_filter_not_consulted_on_attack_events() {
         .unwrap();
 
     let goblin_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == "Test Goblin")
         .map(|(id, _)| *id)
@@ -886,7 +886,7 @@ fn test_utvara_hellkite_dragon_filter() {
         .unwrap();
 
     let utvara_id = state_a
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == "Utvara Hellkite")
         .map(|(id, _)| *id)
@@ -930,7 +930,7 @@ fn test_utvara_hellkite_dragon_filter() {
         .unwrap();
 
     let goblin_id = state_b
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == "Goblin Attacker")
         .map(|(id, _)| *id)
@@ -1031,14 +1031,14 @@ fn test_sanctum_seeker_flat_gain_4_player() {
         .unwrap();
 
     let vampire_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == "Vampire Attacker")
         .map(|(id, _)| *id)
         .unwrap();
 
-    let p1_life_before = state.players[&p1].life_total;
-    let p2_life_before = state.players[&p2].life_total;
+    let p1_life_before = state.players()[&p1].life_total;
+    let p2_life_before = state.players()[&p2].life_total;
 
     // Declare the Vampire attacker → queues the Sanctum Seeker trigger.
     let (state, _) = process_command(
@@ -1069,10 +1069,10 @@ fn test_sanctum_seeker_flat_gain_4_player() {
         state
     };
 
-    let p1_life_after = state.players[&p1].life_total;
-    let p2_life_after = state.players[&p2].life_total;
-    let p3_life_after = state.players[&p3].life_total;
-    let p4_life_after = state.players[&p4].life_total;
+    let p1_life_after = state.players()[&p1].life_total;
+    let p2_life_after = state.players()[&p2].life_total;
+    let p3_life_after = state.players()[&p3].life_total;
+    let p4_life_after = state.players()[&p4].life_total;
 
     // p1 gains exactly 1 life (flat, not total_lost = 3).
     assert_eq!(
@@ -1116,7 +1116,7 @@ fn test_sanctum_seeker_flat_gain_4_player() {
 /// **Test setup:**
 /// - Dying creature: base type Human only (no Zombie).
 /// - Continuous effect: `EffectFilter::SingleObject(dying_id)` + `LayerModification::AddSubtypes([Zombie])`
-///   — injected via `state.continuous_effects` after build.
+///   — injected via `state.continuous_effects()` after build.
 /// - Watcher: "Whenever a Zombie you control dies, draw a card" (`death_filter.controller_you`).
 /// - Dying creature has toughness 0 → dies via SBA.
 /// - Expected: trigger FIRES (pre_death_characteristics captured Zombie subtype from the effect).
@@ -1148,7 +1148,7 @@ fn test_lki_death_filter_subtype_granted_via_single_object() {
 
     // Find the dying creature's battlefield ObjectId to use in the SingleObject filter.
     let dying_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == "Dying Human LKI")
         .map(|(id, _)| *id)
@@ -1157,7 +1157,7 @@ fn test_lki_death_filter_subtype_granted_via_single_object() {
     // Inject a battlefield-gated continuous effect: "Dying Human LKI is also a Zombie."
     // EffectFilter::SingleObject(dying_id) matches only the battlefield object with that id.
     // After zone change, the new graveyard ObjectId does NOT match — this is what BASELINE-LKI-01 fixes.
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(9001),
         source: None,
         timestamp: 999,
@@ -1175,7 +1175,7 @@ fn test_lki_death_filter_subtype_granted_via_single_object() {
 
     // Confirm the creature actually died (SBA: toughness 0).
     let creature_gone = !state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Dying Human LKI" && o.zone == ZoneId::Battlefield);
     assert!(
@@ -1205,7 +1205,7 @@ fn test_lki_death_filter_subtype_granted_via_single_object() {
 /// - Dying creature: base type Human only (no Zombie in base characteristics).
 /// - An enchantment (aura) placed on the battlefield with `attached_to = Some(dying_id)`.
 /// - Continuous effect: `EffectFilter::AttachedCreature` + `LayerModification::AddSubtypes([Zombie])`
-///   sourced from the aura — injected via `state.continuous_effects`.
+///   sourced from the aura — injected via `state.continuous_effects()`.
 /// - Watcher: "Whenever a Zombie you control dies, draw a card" (`death_filter.controller_you`).
 /// - Dying creature has toughness 0 → dies via SBA.
 /// - Expected: trigger FIRES (pre_death_characteristics captured Zombie subtype from the aura effect).
@@ -1241,26 +1241,26 @@ fn test_lki_death_filter_subtype_granted_via_aura() {
 
     // Find the dying creature's and aura's ObjectIds.
     let dying_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == "Dying Human Aura LKI")
         .map(|(id, _)| *id)
         .expect("Dying Human Aura LKI must be on battlefield");
     let aura_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == "Zombie Aura")
         .map(|(id, _)| *id)
         .expect("Zombie Aura must be on battlefield");
 
     // Set the aura's attached_to relationship so AttachedCreature filter resolves correctly.
-    if let Some(aura_obj) = state.objects.get_mut(&aura_id) {
+    if let Some(aura_obj) = state.objects_mut().get_mut(&aura_id) {
         aura_obj.attached_to = Some(dying_id);
     }
 
     // Inject the continuous effect via AttachedCreature filter sourced from the aura.
     // This grants Zombie subtype to whichever creature the aura is attached to.
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(9002),
         source: Some(aura_id),
         timestamp: 999,
@@ -1278,7 +1278,7 @@ fn test_lki_death_filter_subtype_granted_via_aura() {
 
     // Confirm the creature actually died (SBA: toughness 0).
     let creature_gone = !state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Dying Human Aura LKI" && o.zone == ZoneId::Battlefield);
     assert!(

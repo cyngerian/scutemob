@@ -24,7 +24,7 @@ use mtg_engine::{
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -33,7 +33,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 fn life_total(state: &GameState, player: PlayerId) -> i32 {
     state
-        .players
+        .players()
         .get(&player)
         .map(|p| p.life_total)
         .unwrap_or_default()
@@ -133,15 +133,20 @@ fn cast_creature(
     mana_amount: u32,
 ) -> (GameState, Vec<GameEvent>) {
     let card_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == ZoneId::Hand(player))
         .map(|(id, _)| *id)
         .unwrap_or_else(|| panic!("card '{}' not found in {}'s hand", name, player.0));
 
     let mut state = state;
-    state.players.get_mut(&player).unwrap().mana_pool.colorless = mana_amount;
-    state.turn.priority_holder = Some(player);
+    state
+        .players_mut()
+        .get_mut(&player)
+        .unwrap()
+        .mana_pool
+        .colorless = mana_amount;
+    state.turn_mut().priority_holder = Some(player);
 
     process_command(
         state,
@@ -169,12 +174,12 @@ fn cast_creature(
 /// Count Alliance triggers pending or on stack for a given source object.
 fn count_alliance_triggers_for(state: &GameState, source: ObjectId) -> usize {
     let pending = state
-        .pending_triggers
+        .pending_triggers()
         .iter()
         .filter(|t| t.source == source)
         .count();
     let on_stack = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .filter(|so| {
             matches!(
@@ -271,7 +276,7 @@ fn test_alliance_fires_when_another_creature_enters() {
     );
 
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "CR 207.2c: Stack should be empty after Alliance trigger resolves."
     );
 }
@@ -371,7 +376,7 @@ fn test_alliance_does_not_fire_on_self_etb() {
 
     // Stack should be empty.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "CR 207.2c: Stack should be empty after Alliance creature's self-ETB."
     );
 }
@@ -489,15 +494,20 @@ fn test_alliance_does_not_fire_on_noncreature_permanent_etb() {
 
     // P1 casts Sol Ring.
     let artifact_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Sol Ring" && obj.zone == ZoneId::Hand(p1))
         .map(|(id, _)| *id)
         .expect("Sol Ring not found in P1's hand");
 
     let mut state = state;
-    state.players.get_mut(&p1).unwrap().mana_pool.colorless = 1;
-    state.turn.priority_holder = Some(p1);
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .colorless = 1;
+    state.turn_mut().priority_holder = Some(p1);
 
     let (state, _cast_events) = process_command(
         state,

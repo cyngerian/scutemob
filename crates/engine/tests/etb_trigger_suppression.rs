@@ -167,7 +167,7 @@ fn etb_gain_life_enchantment_def() -> CardDefinition {
 ///
 /// When a continuous effect with `RemoveAllAbilities` (Layer 6) applies to a creature
 /// entering the battlefield, the creature's ETB triggered ability should NOT be queued.
-/// Verified by checking that `state.pending_triggers` is empty after the creature enters.
+/// Verified by checking that `state.pending_triggers()` is empty after the creature enters.
 #[test]
 fn test_ig1_layer6_remove_all_abilities_suppresses_etb_trigger() {
     let registry = CardRegistry::new(vec![etb_draw_creature_def()]);
@@ -209,7 +209,7 @@ fn test_ig1_layer6_remove_all_abilities_suppresses_etb_trigger() {
         .unwrap();
 
     let card_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| {
             obj.characteristics.name == "ETB Draw Creature" && obj.zone == ZoneId::Hand(p1())
@@ -220,13 +220,13 @@ fn test_ig1_layer6_remove_all_abilities_suppresses_etb_trigger() {
     // Add mana and cast the creature.
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1())
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1())
         .unwrap()
         .mana_pool
@@ -261,15 +261,15 @@ fn test_ig1_layer6_remove_all_abilities_suppresses_etb_trigger() {
     // The creature has now entered the battlefield. Because RemoveAllAbilities was active,
     // the ETB trigger should NOT have been queued (IG-1 fix).
     assert!(
-        state.pending_triggers.is_empty(),
+        state.pending_triggers().is_empty(),
         "IG-1: ETB draw trigger should be suppressed by RemoveAllAbilities (Layer 6). \
          Got {} pending triggers.",
-        state.pending_triggers.len()
+        state.pending_triggers().len()
     );
 
     // The creature should be on the battlefield.
     let on_bf = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "ETB Draw Creature" && o.zone == ZoneId::Battlefield);
     assert!(on_bf, "ETB Draw Creature should be on the battlefield");
@@ -308,7 +308,7 @@ fn test_ig1_without_layer6_effect_etb_trigger_fires_normally() {
         .unwrap();
 
     let card_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| {
             obj.characteristics.name == "ETB Draw Creature" && obj.zone == ZoneId::Hand(p1())
@@ -318,13 +318,13 @@ fn test_ig1_without_layer6_effect_etb_trigger_fires_normally() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1())
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1())
         .unwrap()
         .mana_pool
@@ -358,9 +358,9 @@ fn test_ig1_without_layer6_effect_etb_trigger_fires_normally() {
 
     // The creature entered the battlefield. Without RemoveAllAbilities, the ETB trigger
     // should have been queued (it will appear as a pending trigger or on the stack).
-    let has_pending_or_stack = !state.pending_triggers.is_empty()
+    let has_pending_or_stack = !state.pending_triggers().is_empty()
         || state
-            .stack_objects
+            .stack_objects()
             .iter()
             .any(|s| matches!(s.kind, mtg_engine::StackObjectKind::TriggeredAbility { .. }));
 
@@ -379,7 +379,7 @@ fn test_ig1_without_layer6_effect_etb_trigger_fires_normally() {
 ///
 /// Note: `register_static_continuous_effects` is called when a permanent resolves from
 /// the stack (not when built directly via builder). So we cast the Torpor Orb first to
-/// ensure its suppressor is registered in `state.etb_suppressors`.
+/// ensure its suppressor is registered in `state.etb_suppressors()`.
 #[test]
 fn test_ig2_torpor_orb_suppresses_creature_etb() {
     let registry = CardRegistry::new(vec![torpor_orb_def(), etb_draw_creature_def()]);
@@ -416,7 +416,7 @@ fn test_ig2_torpor_orb_suppresses_creature_etb() {
 
     // Step 1: Cast Torpor Orb from hand so register_static_continuous_effects runs on entry.
     let orb_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == "Torpor Orb" && o.zone == ZoneId::Hand(p1()))
         .map(|(id, _)| *id)
@@ -424,7 +424,7 @@ fn test_ig2_torpor_orb_suppresses_creature_etb() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1())
         .unwrap()
         .mana_pool
@@ -458,13 +458,13 @@ fn test_ig2_torpor_orb_suppresses_creature_etb() {
 
     // Torpor Orb is on battlefield — etb_suppressors should now be populated.
     assert!(
-        !state.etb_suppressors.is_empty(),
+        !state.etb_suppressors().is_empty(),
         "ETB suppressors should be registered after Torpor Orb enters the battlefield"
     );
 
     // Step 2: Cast ETB Draw Creature.
     let creature_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| {
             o.characteristics.name == "ETB Draw Creature" && o.zone == ZoneId::Hand(p1())
@@ -474,13 +474,13 @@ fn test_ig2_torpor_orb_suppresses_creature_etb() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1())
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1())
         .unwrap()
         .mana_pool
@@ -514,13 +514,13 @@ fn test_ig2_torpor_orb_suppresses_creature_etb() {
 
     // Creature is on battlefield. The ETB draw trigger should NOT have been queued.
     assert!(
-        state.pending_triggers.is_empty(),
+        state.pending_triggers().is_empty(),
         "IG-2: Torpor Orb should suppress creature ETB trigger. Got {} pending triggers.",
-        state.pending_triggers.len()
+        state.pending_triggers().len()
     );
 
     let creature_on_bf = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "ETB Draw Creature" && o.zone == ZoneId::Battlefield);
     assert!(
@@ -570,7 +570,7 @@ fn test_ig2_torpor_orb_does_not_suppress_non_creature_etb() {
 
     // Cast Torpor Orb.
     let orb_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == "Torpor Orb" && o.zone == ZoneId::Hand(p1()))
         .map(|(id, _)| *id)
@@ -578,7 +578,7 @@ fn test_ig2_torpor_orb_does_not_suppress_non_creature_etb() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1())
         .unwrap()
         .mana_pool
@@ -611,7 +611,7 @@ fn test_ig2_torpor_orb_does_not_suppress_non_creature_etb() {
 
     // Now cast the enchantment.
     let enc_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| {
             o.characteristics.name == "ETB Gain Life Enchantment" && o.zone == ZoneId::Hand(p1())
@@ -621,7 +621,7 @@ fn test_ig2_torpor_orb_does_not_suppress_non_creature_etb() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1())
         .unwrap()
         .mana_pool
@@ -654,9 +654,9 @@ fn test_ig2_torpor_orb_does_not_suppress_non_creature_etb() {
 
     // The enchantment entered the battlefield. Its ETB trigger should fire normally
     // because Torpor Orb only suppresses creatures (CreaturesOnly filter).
-    let has_enchantment_trigger = !state.pending_triggers.is_empty()
+    let has_enchantment_trigger = !state.pending_triggers().is_empty()
         || state
-            .stack_objects
+            .stack_objects()
             .iter()
             .any(|s| matches!(s.kind, mtg_engine::StackObjectKind::TriggeredAbility { .. }));
 
@@ -715,7 +715,7 @@ fn test_ig2_removing_torpor_orb_restores_etb_triggers() {
 
     // Step 1: Cast and resolve Torpor Orb.
     let orb_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == "Torpor Orb" && o.zone == ZoneId::Hand(p1()))
         .map(|(id, _)| *id)
@@ -723,7 +723,7 @@ fn test_ig2_removing_torpor_orb_restores_etb_triggers() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1())
         .unwrap()
         .mana_pool
@@ -756,7 +756,7 @@ fn test_ig2_removing_torpor_orb_restores_etb_triggers() {
 
     // Torpor Orb is on battlefield — suppressor registered.
     assert!(
-        !state.etb_suppressors.is_empty(),
+        !state.etb_suppressors().is_empty(),
         "Suppressor should be registered"
     );
 
@@ -764,7 +764,7 @@ fn test_ig2_removing_torpor_orb_restores_etb_triggers() {
     // This replicates the "source no longer on battlefield" condition that the lazy
     // cleanup checks. We move the orb object directly in the im-rs OrdMap.
     let orb_bf_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == "Torpor Orb" && o.zone == ZoneId::Battlefield)
         .map(|(id, _)| *id)
@@ -775,7 +775,7 @@ fn test_ig2_removing_torpor_orb_restores_etb_triggers() {
     // The etb_suppressors entry remains (lazy cleanup), but the retain check in
     // queue_carddef_etb_triggers looks at `obj.zone == ZoneId::Battlefield`, so
     // changing obj.zone is sufficient to trigger lazy pruning.
-    if let Some(obj) = state.objects.get_mut(&orb_bf_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&orb_bf_id) {
         obj.zone = ZoneId::Graveyard(p1());
     }
 
@@ -784,7 +784,7 @@ fn test_ig2_removing_torpor_orb_restores_etb_triggers() {
 
     // Step 3: Cast ETB Draw Creature — its ETB should now fire normally.
     let creature_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| {
             o.characteristics.name == "ETB Draw Creature" && o.zone == ZoneId::Hand(p1())
@@ -793,13 +793,13 @@ fn test_ig2_removing_torpor_orb_restores_etb_triggers() {
         .expect("ETB Draw Creature not in hand");
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1())
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1())
         .unwrap()
         .mana_pool
@@ -831,9 +831,9 @@ fn test_ig2_removing_torpor_orb_restores_etb_triggers() {
     let (state, _) = process_command(state, Command::PassPriority { player: p2() }).unwrap();
 
     // The ETB trigger should now fire (Torpor Orb is gone, lazy cleanup removed the suppressor).
-    let has_trigger = !state.pending_triggers.is_empty()
+    let has_trigger = !state.pending_triggers().is_empty()
         || state
-            .stack_objects
+            .stack_objects()
             .iter()
             .any(|s| matches!(s.kind, mtg_engine::StackObjectKind::TriggeredAbility { .. }));
 
@@ -841,7 +841,7 @@ fn test_ig2_removing_torpor_orb_restores_etb_triggers() {
         has_trigger,
         "IG-2: After Torpor Orb leaves, creature ETB trigger should fire. \
          Got {} pending triggers, {} stack objects.",
-        state.pending_triggers.len(),
-        state.stack_objects.len()
+        state.pending_triggers().len(),
+        state.stack_objects().len()
     );
 }

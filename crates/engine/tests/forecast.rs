@@ -14,6 +14,7 @@
 //! - Forecast effect resolves when the stack drains.
 //! - Split second blocks Forecast activation (CR 702.61a).
 
+use mtg_engine::state::test_util;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, Command, Effect,
     EffectAmount, GameEvent, GameState, GameStateBuilder, KeywordAbility, ManaColor, ManaCost,
@@ -28,7 +29,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -133,12 +134,12 @@ fn test_forecast_basic_activates_during_upkeep() {
 
     // Give p1 {1} mana (forecast cost).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Forecast Card");
 
@@ -163,13 +164,13 @@ fn test_forecast_basic_activates_during_upkeep() {
 
     // Ability is on the stack.
     assert!(
-        !state.stack_objects.is_empty(),
+        !state.stack_objects().is_empty(),
         "CR 702.57a: forecast ability should be on the stack after activation"
     );
 
     // Card is still in hand — NOT discarded.
     let card_still_in_hand = state
-        .objects
+        .objects()
         .values()
         .any(|obj| obj.characteristics.name == "Forecast Card" && obj.zone == ZoneId::Hand(p1));
     assert!(
@@ -179,7 +180,7 @@ fn test_forecast_basic_activates_during_upkeep() {
 
     // Forecast is marked as used this turn.
     let used = state
-        .forecast_used_this_turn
+        .forecast_used_this_turn()
         .contains(&CardId("forecast-card".to_string()));
     assert!(
         used,
@@ -214,12 +215,12 @@ fn test_forecast_fails_outside_upkeep() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Forecast Card");
 
@@ -272,12 +273,12 @@ fn test_forecast_fails_during_opponent_upkeep() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Forecast Card");
 
@@ -329,12 +330,12 @@ fn test_forecast_once_per_turn() {
 
     // Give p1 {2} mana (enough for two casts, though the second should fail).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Forecast Card");
 
@@ -352,7 +353,7 @@ fn test_forecast_once_per_turn() {
     // Second activation — should fail (once per turn).
     // Need to find the card again (it's still in hand, same ObjectId).
     let card_id2 = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| {
             obj.characteristics.name == "Forecast Card" && obj.zone == ZoneId::Hand(p1)
@@ -405,12 +406,12 @@ fn test_forecast_resets_each_turn() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Turn 1: activate forecast.
     let card_id = find_object(&state, "Forecast Card");
@@ -426,35 +427,35 @@ fn test_forecast_resets_each_turn() {
 
     // Verify the card is marked as used this turn.
     assert!(state
-        .forecast_used_this_turn
+        .forecast_used_this_turn()
         .contains(&CardId("forecast-card".to_string())));
 
     // Simulate turn reset (what reset_turn_state does when a new turn begins).
-    state.forecast_used_this_turn = im::OrdSet::new();
+    *state.forecast_used_this_turn_mut() = im::OrdSet::new();
 
     // Verify the tracking is cleared.
     assert!(
         !state
-            .forecast_used_this_turn
+            .forecast_used_this_turn()
             .contains(&CardId("forecast-card".to_string())),
         "CR 702.57b: forecast tracking should be reset at the start of each turn"
     );
 
     // Give p1 mana for second turn.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
     // Priority for a new upkeep.
-    state.turn.priority_holder = Some(p1);
-    state.turn.step = Step::Upkeep;
-    state.turn.active_player = p1;
+    state.turn_mut().priority_holder = Some(p1);
+    state.turn_mut().step = Step::Upkeep;
+    state.turn_mut().active_player = p1;
 
     // Turn 2: forecast should be activatable again.
     let card_id2 = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| {
             obj.characteristics.name == "Forecast Card" && obj.zone == ZoneId::Hand(p1)
@@ -508,12 +509,12 @@ fn test_forecast_card_stays_in_hand() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Forecast Card");
 
@@ -533,7 +534,7 @@ fn test_forecast_card_stays_in_hand() {
 
     // Card must still be in p1's hand after resolution.
     let card_in_hand = state
-        .objects
+        .objects()
         .values()
         .any(|obj| obj.characteristics.name == "Forecast Card" && obj.zone == ZoneId::Hand(p1));
     assert!(
@@ -543,7 +544,7 @@ fn test_forecast_card_stays_in_hand() {
 
     // Stack should be empty.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "Stack should be empty after forecast ability resolves"
     );
 }
@@ -578,16 +579,16 @@ fn test_forecast_effect_resolves() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Count hand size before (just the forecast card = 1).
     let hand_before = state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.zone == ZoneId::Hand(p1))
         .count();
@@ -621,7 +622,7 @@ fn test_forecast_effect_resolves() {
 
     // p1's hand should now have 2 cards: the forecast card + the drawn card.
     let hand_after = state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.zone == ZoneId::Hand(p1))
         .count();
@@ -667,8 +668,8 @@ fn test_forecast_blocked_by_split_second() {
 
     // Manually push a split-second stack object (simulate a cast spell on the stack).
     let split_second_oid = find_object(&state, "Split Second Card");
-    let stack_id = state.next_object_id();
-    state.stack_objects.push_back(StackObject {
+    let stack_id = test_util::next_object_id(&mut state);
+    state.stack_objects_mut().push_back(StackObject {
         id: stack_id,
         controller: p1,
         kind: StackObjectKind::Spell {
@@ -719,12 +720,12 @@ fn test_forecast_blocked_by_split_second() {
     });
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Forecast Card");
 
@@ -775,12 +776,12 @@ fn test_forecast_requires_keyword() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "No Forecast Card");
 

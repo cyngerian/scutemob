@@ -28,7 +28,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -40,7 +40,7 @@ fn find_object_on_battlefield(
     name: &str,
 ) -> Option<mtg_engine::ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
         .map(|(id, _)| *id)
@@ -171,18 +171,18 @@ fn test_riot_enters_with_counter() {
 
     // Pay {1}{R}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let creature_id = find_object(&state, "Riot Test Creature");
 
@@ -217,7 +217,7 @@ fn test_riot_enters_with_counter() {
         .expect("CR 702.136a: Riot creature should be on the battlefield after resolution");
 
     // Verify: creature has exactly 1 +1/+1 counter.
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -280,18 +280,18 @@ fn test_riot_creature_has_correct_stats() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let creature_id = find_object(&state, "Riot Test Creature");
 
@@ -370,18 +370,18 @@ fn test_riot_keyword_present_on_permanent() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let creature_id = find_object(&state, "Riot Test Creature");
 
@@ -413,7 +413,7 @@ fn test_riot_keyword_present_on_permanent() {
         .expect("Riot creature should be on battlefield");
 
     assert!(
-        state.objects[&bf_id]
+        state.objects()[&bf_id]
             .characteristics
             .keywords
             .contains(&KeywordAbility::Riot),
@@ -456,24 +456,24 @@ fn test_riot_multiple_instances_each_add_counter() {
 
     // Pay {2}{R}{G}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let creature_id = find_object(&state, "Double Riot Creature");
 
@@ -505,7 +505,7 @@ fn test_riot_multiple_instances_each_add_counter() {
         .expect("CR 702.136b: Double Riot creature should be on battlefield");
 
     // Two instances of Riot → 2 +1/+1 counters.
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -567,18 +567,18 @@ fn test_riot_no_counters_on_non_riot_creature() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let creature_id = find_object(&state, "Vanilla Creature");
 
@@ -610,7 +610,7 @@ fn test_riot_no_counters_on_non_riot_creature() {
         .expect("Vanilla creature should be on battlefield");
 
     // No counters.
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()

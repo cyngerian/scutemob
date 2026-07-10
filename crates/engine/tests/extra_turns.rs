@@ -39,13 +39,13 @@ fn four_player_with_libraries(step: Step) -> GameState {
 /// Complete the current turn by passing priority until the turn number increases.
 fn complete_turn(mut state: GameState) -> (GameState, Vec<GameEvent>) {
     let mut all_events = Vec::new();
-    let start_turn = state.turn.turn_number;
+    let start_turn = state.turn().turn_number;
     loop {
-        let holder = state.turn.priority_holder.expect("no priority holder");
+        let holder = state.turn().priority_holder.expect("no priority holder");
         let (new_state, events) = pass(state, holder);
         all_events.extend(events);
         state = new_state;
-        if state.turn.turn_number > start_turn {
+        if state.turn().turn_number > start_turn {
             return (state, all_events);
         }
     }
@@ -57,13 +57,13 @@ fn test_extra_turns_lifo() {
     let mut state = four_player_with_libraries(Step::End);
 
     // Add extra turns: P2 first, then P3
-    state.turn.extra_turns = Vector::from(vec![PlayerId(2), PlayerId(3)]);
+    state.turn_mut().extra_turns = Vector::from(vec![PlayerId(2), PlayerId(3)]);
 
     // Complete current turn (P1's End step)
     let (state, _) = complete_turn(state);
 
     // P3 should get the next turn (LIFO — last added goes first)
-    assert_eq!(state.turn.active_player, PlayerId(3));
+    assert_eq!(state.turn().active_player, PlayerId(3));
 }
 
 #[test]
@@ -71,11 +71,11 @@ fn test_extra_turns_lifo() {
 fn test_extra_turn_designated_player_active() {
     let mut state = four_player_with_libraries(Step::End);
 
-    state.turn.extra_turns.push_back(PlayerId(3));
+    state.turn_mut().extra_turns.push_back(PlayerId(3));
 
     let (state, events) = complete_turn(state);
 
-    assert_eq!(state.turn.active_player, PlayerId(3));
+    assert_eq!(state.turn().active_player, PlayerId(3));
     assert!(events.iter().any(|e| matches!(
         e,
         GameEvent::TurnStarted { player, .. } if *player == PlayerId(3)
@@ -88,15 +88,15 @@ fn test_extra_turn_normal_order_resumes() {
     let mut state = four_player_with_libraries(Step::End);
 
     // P1's turn, with an extra turn for P3 queued
-    state.turn.extra_turns.push_back(PlayerId(3));
+    state.turn_mut().extra_turns.push_back(PlayerId(3));
 
     // Complete P1's turn → P3's extra turn
     let (state, _) = complete_turn(state);
-    assert_eq!(state.turn.active_player, PlayerId(3));
+    assert_eq!(state.turn().active_player, PlayerId(3));
 
     // Complete P3's extra turn → normal order resumes (P2 is next after P1)
     let (state, _) = complete_turn(state);
-    assert_eq!(state.turn.active_player, PlayerId(2));
+    assert_eq!(state.turn().active_player, PlayerId(2));
 }
 
 #[test]
@@ -105,25 +105,25 @@ fn test_multiple_extra_turns_stack() {
     let mut state = four_player_with_libraries(Step::End);
 
     // Stack three extra turns
-    state.turn.extra_turns.push_back(PlayerId(2));
-    state.turn.extra_turns.push_back(PlayerId(3));
-    state.turn.extra_turns.push_back(PlayerId(4));
+    state.turn_mut().extra_turns.push_back(PlayerId(2));
+    state.turn_mut().extra_turns.push_back(PlayerId(3));
+    state.turn_mut().extra_turns.push_back(PlayerId(4));
 
     // P4 goes first (LIFO)
     let (state, _) = complete_turn(state);
-    assert_eq!(state.turn.active_player, PlayerId(4));
+    assert_eq!(state.turn().active_player, PlayerId(4));
 
     // Then P3
     let (state, _) = complete_turn(state);
-    assert_eq!(state.turn.active_player, PlayerId(3));
+    assert_eq!(state.turn().active_player, PlayerId(3));
 
     // Then P2
     let (state, _) = complete_turn(state);
-    assert_eq!(state.turn.active_player, PlayerId(2));
+    assert_eq!(state.turn().active_player, PlayerId(2));
 
     // Then back to normal order (P2 is after P1)
     let (state, _) = complete_turn(state);
-    assert_eq!(state.turn.active_player, PlayerId(2));
+    assert_eq!(state.turn().active_player, PlayerId(2));
 }
 
 // ── Effect::ExtraTurn dispatch tests ──────────────────────────────────────────
@@ -315,15 +315,15 @@ fn setup_extra_turn_state_with_keywords(
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_obj_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Extra Turn Spell")
         .map(|(id, _)| *id)
@@ -407,7 +407,7 @@ fn resolve_top(mut state: GameState, players: &[PlayerId]) -> (GameState, Vec<Ga
         let (s, evs) = process_command(state, Command::PassPriority { player: pl }).unwrap();
         all_events.extend(evs);
         state = s;
-        if state.stack_objects.is_empty() {
+        if state.stack_objects().is_empty() {
             break;
         }
     }
@@ -422,19 +422,19 @@ fn test_effect_extra_turn_basic() {
 
     // Cast the spell.
     let (state, _) = cast_extra_turn_spell(state, p1, spell_id);
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on stack");
+    assert_eq!(state.stack_objects().len(), 1, "spell should be on stack");
 
     // Resolve: p1 then p2 pass priority.
     let (state, events) = resolve_top(state, &[p1, p2]);
 
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after resolution"
     );
 
     // Extra turn queue should have p1 in it.
     assert_eq!(
-        state.turn.extra_turns,
+        state.turn().extra_turns,
         Vector::from(vec![p1]),
         "CR 500.7: controller should have one extra turn queued"
     );
@@ -457,16 +457,16 @@ fn test_effect_extra_turn_two_turns() {
     let (state, _) = cast_extra_turn_spell(state, p1, spell_id);
     let (state, events) = resolve_top(state, &[p1, p2]);
 
-    assert!(state.stack_objects.is_empty());
+    assert!(state.stack_objects().is_empty());
 
     // Should have two entries for p1 in the extra_turns queue.
     assert_eq!(
-        state.turn.extra_turns.len(),
+        state.turn().extra_turns.len(),
         2,
         "CR 500.7: two extra turns should be queued for count=2"
     );
     assert!(
-        state.turn.extra_turns.iter().all(|&pid| pid == p1),
+        state.turn().extra_turns.iter().all(|&pid| pid == p1),
         "CR 500.7: both extra turns should be for the controller"
     );
 
@@ -492,15 +492,15 @@ fn test_gift_extra_turn() {
 
     // Cast choosing p2 as gift recipient.
     let (state, _) = cast_gift_extra_turn(state, p1, spell_id, p2);
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on stack");
+    assert_eq!(state.stack_objects().len(), 1, "spell should be on stack");
 
     // Resolve.
     let (state, events) = resolve_top(state, &[p1, p2]);
-    assert!(state.stack_objects.is_empty());
+    assert!(state.stack_objects().is_empty());
 
     // p2 should have an extra turn queued (the gift recipient, not the caster).
     assert_eq!(
-        state.turn.extra_turns,
+        state.turn().extra_turns,
         Vector::from(vec![p2]),
         "CR 702.174g: the gift recipient (p2) should have an extra turn queued"
     );
@@ -524,11 +524,11 @@ fn test_self_exile_on_resolution() {
 
     // The spell card should now be in exile, NOT in the graveyard.
     let in_exile = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.zone == ZoneId::Exile && o.characteristics.name == "Extra Turn Spell");
     let in_graveyard = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.zone == ZoneId::Graveyard(p1) && o.characteristics.name == "Extra Turn Spell");
 
@@ -543,7 +543,7 @@ fn test_self_exile_on_resolution() {
 
     // The extra turn should still have been granted.
     assert!(
-        !state.turn.extra_turns.is_empty(),
+        !state.turn().extra_turns.is_empty(),
         "extra turn should still be granted when spell self-exiles"
     );
 }
@@ -558,11 +558,11 @@ fn test_self_shuffle_on_resolution() {
 
     // The spell card should now be in the owner's library, NOT in the graveyard.
     let in_library = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.zone == ZoneId::Library(p1) && o.characteristics.name == "Extra Turn Spell");
     let in_graveyard = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.zone == ZoneId::Graveyard(p1) && o.characteristics.name == "Extra Turn Spell");
 
@@ -577,7 +577,7 @@ fn test_self_shuffle_on_resolution() {
 
     // The extra turn should still have been granted.
     assert!(
-        !state.turn.extra_turns.is_empty(),
+        !state.turn().extra_turns.is_empty(),
         "extra turn should still be granted when spell shuffles into library"
     );
 }
@@ -599,14 +599,14 @@ fn test_extra_turn_eliminated_player_skipped() {
     let p3 = PlayerId(3);
 
     // Grant an extra turn to p2.
-    state.turn.extra_turns.push_back(PlayerId(2));
+    state.turn_mut().extra_turns.push_back(PlayerId(2));
 
     // Eliminate p2 before the extra turn fires.
-    state.players.get_mut(&p2).unwrap().has_lost = true;
+    state.players_mut().get_mut(&p2).unwrap().has_lost = true;
 
     // Record the extra turn queue state before advancing.
     assert_eq!(
-        state.turn.extra_turns.len(),
+        state.turn().extra_turns.len(),
         1,
         "extra turn should be queued for p2 before elimination takes effect"
     );
@@ -621,13 +621,14 @@ fn test_extra_turn_eliminated_player_skipped() {
     // The turn should now belong to p2 (eliminated — extra turn popped) or
     // have already advanced further. In either case, p2's extra_turns slot is gone.
     assert!(
-        state.turn.extra_turns.is_empty(),
+        state.turn().extra_turns.is_empty(),
         "CR 500.7 + 800.4a: p2's extra turn slot should be consumed (queue empty)"
     );
 
     // The active player should NOT be p1 (we advanced at least one turn).
     assert_ne!(
-        state.turn.active_player, p1,
+        state.turn().active_player,
+        p1,
         "turn should have advanced past p1"
     );
 
@@ -637,7 +638,8 @@ fn test_extra_turn_eliminated_player_skipped() {
     // Complete one more turn to confirm normal order skips p2.
     let (state, _) = complete_turn(state);
     assert_eq!(
-        state.turn.active_player, p3,
+        state.turn().active_player,
+        p3,
         "CR 800.4a: normal turn order skips eliminated p2; p3 should follow p1's regular turn"
     );
 }
@@ -653,19 +655,21 @@ fn test_effect_extra_turn_resolves_and_taken() {
 
     // Add extra turn spell to p1's hand via state manipulation.
     // Push the extra turn for p1 directly onto extra_turns.
-    state.turn.extra_turns.push_back(p1);
+    state.turn_mut().extra_turns.push_back(p1);
 
     // Complete p1's current turn. The extra turn should fire next.
     let (state, _) = complete_turn(state);
     assert_eq!(
-        state.turn.active_player, p1,
+        state.turn().active_player,
+        p1,
         "CR 500.7: p1 takes the extra turn"
     );
 
     // After p1's extra turn completes, normal order resumes (p2 is next after p1).
     let (state, _) = complete_turn(state);
     assert_eq!(
-        state.turn.active_player, p2,
+        state.turn().active_player,
+        p2,
         "CR 500.7: after extra turn, normal order resumes (p2 next after p1)"
     );
 }

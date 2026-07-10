@@ -33,7 +33,7 @@ fn find_object_in_zone(
     name: &str,
     zone: ZoneId,
 ) -> Option<mtg_engine::ObjectId> {
-    state.objects.iter().find_map(|(&id, obj)| {
+    state.objects().iter().find_map(|(&id, obj)| {
         if obj.characteristics.name == name && obj.zone == zone {
             Some(id)
         } else {
@@ -255,18 +255,18 @@ fn setup_state(
 
     // Give p1 {2}{W} mana (full cost of Evidence Instant).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object_in_zone(&state, "Evidence Instant", ZoneId::Hand(p1)).unwrap();
 
@@ -287,7 +287,7 @@ fn test_collect_evidence_basic_exile_from_graveyard() {
     let gy_mv3_id = find_object_in_zone(&state, "GY Card MV3", ZoneId::Graveyard(p1)).unwrap();
     let gy_mv4_id = find_object_in_zone(&state, "GY Card MV4", ZoneId::Graveyard(p1)).unwrap();
 
-    let p1_life_before = state.players[&p1].life_total;
+    let p1_life_before = state.players()[&p1].life_total;
 
     let (state, _) = process_command(
         state,
@@ -315,7 +315,7 @@ fn test_collect_evidence_basic_exile_from_graveyard() {
 
     // The stack object should have evidence_collected = true.
     assert!(
-        state.stack_objects.iter().any(|so| so.evidence_collected),
+        state.stack_objects().iter().any(|so| so.evidence_collected),
         "StackObject should have evidence_collected = true"
     );
 
@@ -331,7 +331,7 @@ fn test_collect_evidence_basic_exile_from_graveyard() {
 
     // Resolve the spell (p1 has priority first after cast, then p2, then resolves).
     let (state, _) = pass_all(state, &[p1, p2]);
-    let p1_life_after = state.players[&p1].life_total;
+    let p1_life_after = state.players()[&p1].life_total;
 
     // Evidence was collected -> "if true" branch: gain 3 life.
     assert_eq!(
@@ -431,7 +431,7 @@ fn test_collect_evidence_under_threshold_rejected() {
 fn test_collect_evidence_not_collected_optional() {
     let (state, p1, p2, spell_id) = setup_state(vec![], vec![]);
 
-    let p1_life_before = state.players[&p1].life_total;
+    let p1_life_before = state.players()[&p1].life_total;
 
     let (state, _) = process_command(
         state,
@@ -457,13 +457,16 @@ fn test_collect_evidence_not_collected_optional() {
 
     // Stack object should have evidence_collected = false.
     assert!(
-        state.stack_objects.iter().any(|so| !so.evidence_collected),
+        state
+            .stack_objects()
+            .iter()
+            .any(|so| !so.evidence_collected),
         "StackObject should have evidence_collected = false when player declines"
     );
 
     // Resolve the spell (p1 has priority first after cast, then p2, then resolves).
     let (state, _) = pass_all(state, &[p1, p2]);
-    let p1_life_after = state.players[&p1].life_total;
+    let p1_life_after = state.players()[&p1].life_total;
 
     // Evidence NOT collected -> "if false" branch: gain 1 life.
     assert_eq!(
@@ -538,18 +541,18 @@ fn test_collect_evidence_mandatory_without_cards_rejected() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object_in_zone(&state, "Mandatory Evidence", ZoneId::Hand(p1)).unwrap();
 
@@ -732,12 +735,12 @@ fn test_collect_evidence_spell_without_ability_rejected() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object_in_zone(&state, "Plain Instant", ZoneId::Hand(p1)).unwrap();
     let gy_id = find_object_in_zone(&state, "GY Card MV4", ZoneId::Graveyard(p1)).unwrap();
@@ -800,12 +803,12 @@ fn test_collect_evidence_mana_not_reduced() {
 
     // Only give {W} — not enough to pay {2}{W}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object_in_zone(&state, "Evidence Instant", ZoneId::Hand(p1)).unwrap();
     let gy_id = find_object_in_zone(&state, "GY Card MV4", ZoneId::Graveyard(p1)).unwrap();

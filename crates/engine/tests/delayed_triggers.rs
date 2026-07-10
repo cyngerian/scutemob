@@ -12,6 +12,7 @@
 //! - CR 610.3: WhenSourceLeavesBattlefield delayed trigger
 
 use mtg_engine::state::game_object::ObjectId;
+use mtg_engine::state::test_util;
 use mtg_engine::state::types::SuperType;
 use mtg_engine::{
     process_command, CardType, Command, EffectAmount, GameEvent, GameState, GameStateBuilder,
@@ -24,7 +25,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -37,7 +38,7 @@ fn on_battlefield(state: &GameState, name: &str) -> bool {
 #[allow(dead_code)]
 fn count_on_battlefield(state: &GameState, name: &str) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
         .count()
@@ -45,7 +46,7 @@ fn count_on_battlefield(state: &GameState, name: &str) -> usize {
 
 fn in_exile(state: &GameState, name: &str) -> bool {
     state
-        .objects
+        .objects()
         .iter()
         .any(|(_, obj)| obj.characteristics.name == name && obj.zone == ZoneId::Exile)
 }
@@ -71,7 +72,7 @@ fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent
 fn drain_stack(mut state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent>) {
     let mut all_events = Vec::new();
     let mut limit = 200;
-    while !state.stack_objects.is_empty() && limit > 0 {
+    while !state.stack_objects().is_empty() && limit > 0 {
         let (s, ev) = pass_all(state, players);
         state = s;
         all_events.extend(ev);
@@ -88,7 +89,7 @@ fn advance_to_step(
 ) -> (GameState, Vec<GameEvent>) {
     let mut all_events = Vec::new();
     let mut limit = 200;
-    while state.turn.step != target && limit > 0 {
+    while state.turn().step != target && limit > 0 {
         let (s, ev) = pass_all(state, players);
         state = s;
         all_events.extend(ev);
@@ -217,9 +218,7 @@ fn test_sacrifice_at_end_step_mobilize_token() {
         ..Default::default()
     };
     let token_obj = mtg_engine::effects::make_token(&token_spec, p1);
-    state
-        .add_object(token_obj, ZoneId::Battlefield)
-        .expect("add token");
+    test_util::add_object(&mut state, token_obj, ZoneId::Battlefield).expect("add token");
 
     assert!(
         on_battlefield(&state, "Warrior"),
@@ -266,9 +265,7 @@ fn test_exile_at_end_step_token() {
         ..Default::default()
     };
     let token_obj = mtg_engine::effects::make_token(&token_spec, p1);
-    state
-        .add_object(token_obj, ZoneId::Battlefield)
-        .expect("add token");
+    test_util::add_object(&mut state, token_obj, ZoneId::Battlefield).expect("add token");
 
     assert!(
         on_battlefield(&state, "Elemental"),
@@ -286,7 +283,7 @@ fn test_exile_at_end_step_token() {
     // So the token won't persist in exile — it simply no longer exists.
     assert!(
         state
-            .objects
+            .objects()
             .values()
             .find(|obj| obj.characteristics.name == "Elemental")
             .is_none(),
@@ -313,9 +310,8 @@ fn test_return_to_hand_at_end_step() {
     // Add a creature in the graveyard with return_to_hand_at_end_step=true.
     let mut god = make_test_creature("Locust God", p1);
     god.return_to_hand_at_end_step = true;
-    let _god_id = state
-        .add_object(god, ZoneId::Graveyard(p1))
-        .expect("add to graveyard");
+    let _god_id =
+        test_util::add_object(&mut state, god, ZoneId::Graveyard(p1)).expect("add to graveyard");
 
     assert!(
         !in_hand(&state, "Locust God", p1),
@@ -351,12 +347,11 @@ fn test_delayed_trigger_fires_only_once() {
 
     // Add a creature in exile that the delayed trigger will return.
     let bear = make_test_creature("Bear", p1);
-    let bear_id = state
-        .add_object(bear, ZoneId::Exile)
-        .expect("add bear to exile");
+    let bear_id =
+        test_util::add_object(&mut state, bear, ZoneId::Exile).expect("add bear to exile");
 
     // Register a delayed trigger to return at next end step.
-    state.delayed_triggers.push_back(DelayedTrigger {
+    state.delayed_triggers_mut().push_back(DelayedTrigger {
         source: ObjectId(999), // dummy source (unused for AtNextEndStep)
         controller: p1,
         target_object: bear_id,
@@ -366,7 +361,7 @@ fn test_delayed_trigger_fires_only_once() {
     });
 
     assert_eq!(
-        state.delayed_triggers.len(),
+        state.delayed_triggers().len(),
         1,
         "one pending delayed trigger"
     );
@@ -381,7 +376,7 @@ fn test_delayed_trigger_fires_only_once() {
         "CR 603.7b: bear returned to battlefield"
     );
     assert_eq!(
-        state.delayed_triggers.len(),
+        state.delayed_triggers().len(),
         0,
         "CR 603.7b: fired trigger should be cleaned up"
     );
@@ -406,8 +401,7 @@ fn test_create_token_copy_with_haste() {
         .unwrap();
 
     let source = make_test_creature("Source Creature", p1);
-    let source_id = state
-        .add_object(source, ZoneId::Battlefield)
+    let source_id = test_util::add_object(&mut state, source, ZoneId::Battlefield)
         .expect("add source creature");
 
     let effect = Effect::CreateTokenCopy {
@@ -426,7 +420,7 @@ fn test_create_token_copy_with_haste() {
     let _events = execute_effect(&mut state, &effect, &mut ctx);
 
     let token = state
-        .objects
+        .objects()
         .values()
         .find(|obj| {
             obj.characteristics.name == "Source Creature"
@@ -469,8 +463,7 @@ fn test_create_token_copy_not_legendary() {
         .insert(SuperType::Legendary);
     source.characteristics.power = Some(5);
     source.characteristics.toughness = Some(5);
-    let source_id = state
-        .add_object(source, ZoneId::Battlefield)
+    let source_id = test_util::add_object(&mut state, source, ZoneId::Battlefield)
         .expect("add legendary creature");
 
     let effect = Effect::CreateTokenCopy {
@@ -489,7 +482,7 @@ fn test_create_token_copy_not_legendary() {
     let _events = execute_effect(&mut state, &effect, &mut ctx);
 
     let token = state
-        .objects
+        .objects()
         .values()
         .find(|obj| {
             obj.characteristics.name == "Legendary Dragon"
@@ -507,7 +500,10 @@ fn test_create_token_copy_not_legendary() {
     );
 
     // Source should still be Legendary.
-    let source = state.objects.get(&source_id).expect("source still exists");
+    let source = state
+        .objects()
+        .get(&source_id)
+        .expect("source still exists");
     let source_chars = mtg_engine::rules::layers::calculate_characteristics(&state, source_id)
         .unwrap_or_else(|| source.characteristics.clone());
     assert!(
@@ -536,20 +532,18 @@ fn test_exile_until_source_leaves() {
 
     // p1 has Cathar (source) on battlefield.
     let cathar = make_test_creature("Cathar", p1);
-    let cathar_id = state
-        .add_object(cathar, ZoneId::Battlefield)
-        .expect("add cathar");
+    let cathar_id =
+        test_util::add_object(&mut state, cathar, ZoneId::Battlefield).expect("add cathar");
 
     // p2 has a creature exiled.
     let mut prisoner = make_test_creature("Prisoner", p2);
     prisoner.owner = p2;
     prisoner.controller = p2;
-    let prisoner_id = state
-        .add_object(prisoner, ZoneId::Exile)
-        .expect("add prisoner to exile");
+    let prisoner_id =
+        test_util::add_object(&mut state, prisoner, ZoneId::Exile).expect("add prisoner to exile");
 
     // Register a WhenSourceLeavesBattlefield delayed trigger.
-    state.delayed_triggers.push_back(DelayedTrigger {
+    state.delayed_triggers_mut().push_back(DelayedTrigger {
         source: cathar_id,
         controller: p1,
         target_object: prisoner_id,
@@ -562,9 +556,9 @@ fn test_exile_until_source_leaves() {
     assert!(on_battlefield(&state, "Cathar"), "cathar on battlefield");
 
     // Destroy the Cathar (source leaves battlefield).
-    let (grave_id, _) = state
-        .move_object_to_zone(cathar_id, ZoneId::Graveyard(p1))
-        .expect("destroy cathar");
+    let (grave_id, _) =
+        test_util::move_object_to_zone(&mut state, cathar_id, ZoneId::Graveyard(p1))
+            .expect("destroy cathar");
 
     // Simulate check_triggers for CreatureDied event.
     let events = vec![mtg_engine::GameEvent::CreatureDied {
@@ -577,7 +571,7 @@ fn test_exile_until_source_leaves() {
     }];
     let triggers = mtg_engine::rules::abilities::check_triggers(&state, &events);
     for t in triggers {
-        state.pending_triggers.push_back(t);
+        state.pending_triggers_mut().push_back(t);
     }
 
     // Flush and drain stack.

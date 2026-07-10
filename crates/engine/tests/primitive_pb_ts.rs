@@ -38,7 +38,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == name)
         .map(|(&id, _)| id)
@@ -47,7 +47,7 @@ fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
 
 fn count_tokens_named(state: &mtg_engine::GameState, name: &str) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.is_token && o.characteristics.name == name)
         .count()
@@ -318,7 +318,7 @@ fn test_pb_ts_counter_count_from_live_source() {
 
         // Pre-load N +1/+1 counters onto the source while it's on the battlefield.
         {
-            let obj = state.objects.get_mut(&skulker_id).unwrap();
+            let obj = state.objects_mut().get_mut(&skulker_id).unwrap();
             obj.counters.insert(CounterType::PlusOnePlusOne, counter_n);
         }
 

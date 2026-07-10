@@ -24,7 +24,7 @@ use mtg_engine::{zombie_decayed_token_spec, Effect};
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -33,30 +33,30 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 fn is_on_battlefield(state: &GameState, name: &str) -> bool {
     state
-        .objects
+        .objects()
         .values()
         .any(|obj| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
 }
 
 fn is_in_graveyard(state: &GameState, name: &str, owner: PlayerId) -> bool {
     state
-        .objects
+        .objects()
         .values()
         .any(|obj| obj.characteristics.name == name && obj.zone == ZoneId::Graveyard(owner))
 }
 
 /// Advance through priority passes until the step changes (or turn number changes).
 fn pass_until_advance(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent>) {
-    let start_step = state.turn.step;
-    let start_turn = state.turn.turn_number;
+    let start_step = state.turn().step;
+    let start_turn = state.turn().turn_number;
     let mut all_events = Vec::new();
     let mut current = state;
     loop {
-        let holder = current.turn.priority_holder.expect("no priority holder");
+        let holder = current.turn().priority_holder.expect("no priority holder");
         let (new_state, ev) = process_command(current, Command::PassPriority { player: holder })
             .unwrap_or_else(|e| panic!("PassPriority by {:?} failed: {:?}", holder, e));
         let step_changed =
-            new_state.turn.step != start_step || new_state.turn.turn_number != start_turn;
+            new_state.turn().step != start_step || new_state.turn().turn_number != start_turn;
         all_events.extend(ev);
         current = new_state;
         if step_changed {
@@ -64,14 +64,14 @@ fn pass_until_advance(state: GameState, players: &[PlayerId]) -> (GameState, Vec
         }
         // Safety guard: if same holder got priority again and step hasn't changed,
         // try passing for the other player once more.
-        if current.turn.priority_holder == Some(holder) {
+        if current.turn().priority_holder == Some(holder) {
             let other = players.iter().find(|&&p| p != holder).copied();
             if let Some(other_p) = other {
                 let (ns, ev) = process_command(current, Command::PassPriority { player: other_p })
                     .unwrap_or_else(|e| panic!("PassPriority by {:?} failed: {:?}", other_p, e));
                 all_events.extend(ev);
                 current = ns;
-                if current.turn.step != start_step || current.turn.turn_number != start_turn {
+                if current.turn().step != start_step || current.turn().turn_number != start_turn {
                     return (current, all_events);
                 }
             }
@@ -106,7 +106,7 @@ fn test_702_147_decayed_creature_cannot_block() {
     let blocker_id = find_object(&state, "Decayed Creature");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -169,7 +169,7 @@ fn test_702_147_decayed_creature_can_attack() {
     // Verify the creature is registered as an attacker.
     assert!(
         state
-            .combat
+            .combat()
             .as_ref()
             .map(|c| c.attackers.contains_key(&attacker_id))
             .unwrap_or(false),
@@ -215,7 +215,7 @@ fn test_702_147_decayed_flag_set_on_attack() {
     // The creature may have a new ObjectId after the attack (zone changes on tap).
     // Search by name since the attacker stays on the battlefield.
     let decayed_obj = state
-        .objects
+        .objects()
         .values()
         .find(|obj| obj.characteristics.name == "Decayed Attacker")
         .expect("Decayed Attacker should still be on the battlefield");
@@ -339,7 +339,7 @@ fn test_702_147_decayed_sacrifice_persists_after_losing_keyword() {
 
     // Verify the flag is set.
     let obj = state
-        .objects
+        .objects()
         .values()
         .find(|obj| obj.characteristics.name == "Decayed Attacker")
         .expect("Decayed Attacker should exist");
@@ -352,7 +352,7 @@ fn test_702_147_decayed_sacrifice_persists_after_losing_keyword() {
     // Simulate losing the Decayed keyword by directly removing it from the
     // object's characteristics (no layer effect — just removing from base set).
     // This models a "loses all abilities" or enchantment removal effect.
-    if let Some(obj_mut) = state.objects.get_mut(&obj_id) {
+    if let Some(obj_mut) = state.objects_mut().get_mut(&obj_id) {
         obj_mut
             .characteristics
             .keywords
@@ -360,7 +360,7 @@ fn test_702_147_decayed_sacrifice_persists_after_losing_keyword() {
     }
 
     // Verify keyword is gone but flag is still set.
-    let obj = state.objects.get(&obj_id).unwrap();
+    let obj = state.objects().get(&obj_id).unwrap();
     assert!(
         !obj.characteristics
             .keywords
@@ -482,7 +482,7 @@ fn test_702_147_non_decayed_creature_can_block() {
     let blocker_id = find_object(&state, "Normal Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -533,7 +533,7 @@ fn test_702_147_decayed_no_haste() {
 
     // Manually set summoning sickness (simulates creature that just entered this turn).
     let mut state = state;
-    if let Some(obj) = state.objects.get_mut(&attacker_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&attacker_id) {
         obj.has_summoning_sickness = true;
     }
 
@@ -589,7 +589,7 @@ fn test_702_147_decayed_token_created_with_keyword() {
 
     // The Zombie token should be on the battlefield with the Decayed keyword.
     let token = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Zombie" && o.zone == ZoneId::Battlefield)
         .expect(
@@ -647,7 +647,7 @@ fn test_702_147_decayed_token_cannot_block() {
     let blocker_id = find_object(&state, "Zombie Token");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -768,7 +768,7 @@ fn test_702_147_decayed_token_has_summoning_sickness() {
 
     // Manually set summoning sickness (simulates a token that entered this turn).
     let mut state = state;
-    if let Some(obj) = state.objects.get_mut(&attacker_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&attacker_id) {
         obj.has_summoning_sickness = true;
     }
 

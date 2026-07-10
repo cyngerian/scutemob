@@ -34,7 +34,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -42,7 +42,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 }
 
 fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
-    state.objects.iter().find_map(|(&id, obj)| {
+    state.objects().iter().find_map(|(&id, obj)| {
         if obj.characteristics.name == name && obj.zone == zone {
             Some(id)
         } else {
@@ -62,7 +62,7 @@ fn in_graveyard(state: &GameState, name: &str, owner: PlayerId) -> bool {
 /// Count fade counters on the named object (wherever it is).
 fn fade_counters(state: &GameState, name: &str) -> u32 {
     state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == name)
         .and_then(|o| o.counters.get(&CounterType::Fade).copied())
@@ -72,7 +72,7 @@ fn fade_counters(state: &GameState, name: &str) -> u32 {
 /// Count time counters on the named object (wherever it is).
 fn time_counters(state: &GameState, name: &str) -> u32 {
     state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == name)
         .and_then(|o| o.counters.get(&CounterType::Time).copied())
@@ -222,7 +222,7 @@ fn test_fading_etb_places_fade_counters() {
     // The ETB placement in resolution.rs fires when permanents resolve from the stack.
     // Verify the keyword is present correctly for now.
     assert!(
-        state.objects[&obj_id]
+        state.objects()[&obj_id]
             .characteristics
             .keywords
             .contains(&KeywordAbility::Fading(3)),
@@ -262,18 +262,18 @@ fn test_fading_etb_counters_on_cast() {
     // Give p1 enough mana to cast.
     use mtg_engine::ManaColor;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Test Fading 3 Creature");
 
@@ -347,22 +347,22 @@ fn test_fading_upkeep_removes_counter() {
 
     // Manually place 3 fade counters.
     let obj_id = find_object(&state, "Test Fading 3 Creature");
-    if let Some(obj) = state.objects.get_mut(&obj_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&obj_id) {
         obj.counters = obj.counters.update(CounterType::Fade, 3);
     }
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Advance Untap -> Upkeep (enter_step queues FadingTrigger).
     let (state, _) = pass_all(state, &[p1, p2]);
     assert_eq!(
-        state.turn.step,
+        state.turn().step,
         Step::Upkeep,
         "should be at Upkeep after advancing from Untap"
     );
 
     // FadingTrigger should be on the stack.
     assert!(
-        state.stack_objects.iter().any(|so| matches!(
+        state.stack_objects().iter().any(|so| matches!(
             &so.kind,
             StackObjectKind::KeywordTrigger {
                 keyword: KeywordAbility::Fading(_),
@@ -423,14 +423,14 @@ fn test_fading_sacrifice_when_no_counters() {
 
     // Place exactly 1 fade counter (will be removed on first upkeep, then sacrifice on second).
     let obj_id = find_object(&state, "Test Fading 3 Creature");
-    if let Some(obj) = state.objects.get_mut(&obj_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&obj_id) {
         obj.counters = obj.counters.update(CounterType::Fade, 1);
     }
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // === First upkeep: trigger fires, removes the 1 fade counter ===
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::Upkeep);
+    assert_eq!(state.turn().step, Step::Upkeep);
 
     // Resolve FadingTrigger -> removes the last counter (1->0). No sacrifice yet.
     let (state, _) = pass_all(state, &[p1, p2]);
@@ -448,16 +448,16 @@ fn test_fading_sacrifice_when_no_counters() {
 
     // Advance to next upkeep manually.
     let mut state = state;
-    state.turn.step = Step::Untap;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().step = Step::Untap;
+    state.turn_mut().priority_holder = Some(p1);
 
     // === Second upkeep: trigger fires, can't remove (0 counters) -> sacrifice ===
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::Upkeep);
+    assert_eq!(state.turn().step, Step::Upkeep);
 
     // FadingTrigger on stack.
     assert!(
-        state.stack_objects.iter().any(|so| matches!(
+        state.stack_objects().iter().any(|so| matches!(
             &so.kind,
             StackObjectKind::KeywordTrigger {
                 keyword: KeywordAbility::Fading(_),
@@ -510,14 +510,14 @@ fn test_fading_full_lifecycle() {
 
     // Place 2 fade counters (simulating ETB placement).
     let obj_id = find_object(&state, "Test Fading 2 Creature");
-    if let Some(obj) = state.objects.get_mut(&obj_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&obj_id) {
         obj.counters = obj.counters.update(CounterType::Fade, 2);
     }
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // === Upkeep 1: advance to Upkeep, trigger fires, 2->1 counter ===
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::Upkeep);
+    assert_eq!(state.turn().step, Step::Upkeep);
 
     let (state, _) = pass_all(state, &[p1, p2]);
 
@@ -533,12 +533,12 @@ fn test_fading_full_lifecycle() {
 
     // Reset to Untap for upkeep 2.
     let mut state = state;
-    state.turn.step = Step::Untap;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().step = Step::Untap;
+    state.turn_mut().priority_holder = Some(p1);
 
     // === Upkeep 2: 1->0 counter (no sacrifice yet) ===
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::Upkeep);
+    assert_eq!(state.turn().step, Step::Upkeep);
 
     let (state, _) = pass_all(state, &[p1, p2]);
 
@@ -554,12 +554,12 @@ fn test_fading_full_lifecycle() {
 
     // Reset to Untap for upkeep 3.
     let mut state = state;
-    state.turn.step = Step::Untap;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().step = Step::Untap;
+    state.turn_mut().priority_holder = Some(p1);
 
     // === Upkeep 3: can't remove (0 counters) -> sacrifice ===
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::Upkeep);
+    assert_eq!(state.turn().step, Step::Upkeep);
 
     let (state, _) = pass_all(state, &[p1, p2]);
 
@@ -595,18 +595,18 @@ fn test_fading_multiplayer_only_active_player() {
 
     // Place 3 fade counters on p1's creature.
     let obj_id = find_object(&state, "Test Fading 3 Creature");
-    if let Some(obj) = state.objects.get_mut(&obj_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&obj_id) {
         obj.counters = obj.counters.update(CounterType::Fade, 3);
     }
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     // Advance p2's Untap -> p2's Upkeep.
     let (state, _) = pass_all(state, &[p2, p1]);
-    assert_eq!(state.turn.step, Step::Upkeep);
+    assert_eq!(state.turn().step, Step::Upkeep);
 
     // No FadingTrigger for p1's permanent during p2's upkeep.
     assert!(
-        !state.stack_objects.iter().any(|so| matches!(
+        !state.stack_objects().iter().any(|so| matches!(
             &so.kind,
             StackObjectKind::KeywordTrigger {
                 keyword: KeywordAbility::Fading(_),
@@ -645,15 +645,15 @@ fn test_fading_non_creature_sacrifice() {
 
     // Place 0 fade counters (simulates a state where all were removed externally).
     // The trigger fires unconditionally and will sacrifice.
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Advance Untap -> Upkeep -> FadingTrigger fires.
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::Upkeep);
+    assert_eq!(state.turn().step, Step::Upkeep);
 
     // Trigger on stack.
     assert!(
-        state.stack_objects.iter().any(|so| matches!(
+        state.stack_objects().iter().any(|so| matches!(
             &so.kind,
             StackObjectKind::KeywordTrigger {
                 keyword: KeywordAbility::Fading(_),
@@ -706,15 +706,15 @@ fn test_fading_uses_fade_counters_not_time() {
 
     // Give the permanent both fade counters (for Fading) and time counters (for something else).
     let obj_id = find_object(&state, "Test Fading 3 Creature");
-    if let Some(obj) = state.objects.get_mut(&obj_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&obj_id) {
         obj.counters = obj.counters.update(CounterType::Fade, 3);
         obj.counters = obj.counters.update(CounterType::Time, 5);
     }
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Advance Untap -> Upkeep -> FadingTrigger queued.
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::Upkeep);
+    assert_eq!(state.turn().step, Step::Upkeep);
 
     // Resolve FadingTrigger.
     let (state, _) = pass_all(state, &[p1, p2]);

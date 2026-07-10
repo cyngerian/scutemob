@@ -35,7 +35,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -44,7 +44,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -57,7 +57,7 @@ fn on_battlefield(state: &GameState, name: &str) -> bool {
 /// Count time counters on the named object (wherever it is).
 fn time_counters(state: &GameState, name: &str) -> u32 {
     state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == name)
         .and_then(|o| o.counters.get(&CounterType::Time).copied())
@@ -132,7 +132,7 @@ fn impending_creature_in_hand(owner: PlayerId) -> ObjectSpec {
 fn set_cast_alt_cost(state: &mut GameState, name: &str, cost: AltCostKind) {
     let id = find_in_zone(state, name, ZoneId::Battlefield)
         .unwrap_or_else(|| panic!("'{}' not found on battlefield", name));
-    if let Some(obj) = state.objects.get_mut(&id) {
+    if let Some(obj) = state.objects_mut().get_mut(&id) {
         obj.cast_alt_cost = Some(cost);
     }
 }
@@ -159,18 +159,18 @@ fn test_impending_basic_cast() {
 
     // Pay {1}{G}{G} — impending cost instead of mana cost {3}{G}{G}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Test Impending Creature");
 
@@ -199,17 +199,17 @@ fn test_impending_basic_cast() {
 
     // Spell is on the stack with was_impended = true.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.176a: impended spell should be on the stack"
     );
     assert!(
-        state.stack_objects[0].was_impended,
+        state.stack_objects()[0].was_impended,
         "CR 702.176a: was_impended should be true on stack object"
     );
 
     // Mana consumed: {1}{G}{G} = 3 pips (not {3}{G}{G} = 5 pips).
-    let pool = &state.players[&p1].mana_pool;
+    let pool = &state.players()[&p1].mana_pool;
     assert_eq!(
         pool.white + pool.blue + pool.black + pool.red + pool.green + pool.colorless,
         0,
@@ -228,7 +228,7 @@ fn test_impending_basic_cast() {
     // cast_alt_cost is set to Impending on the permanent.
     let bf_id = find_in_zone(&state, "Test Impending Creature", ZoneId::Battlefield).unwrap();
     assert_eq!(
-        state.objects[&bf_id].cast_alt_cost,
+        state.objects()[&bf_id].cast_alt_cost,
         Some(AltCostKind::Impending),
         "CR 702.176a: cast_alt_cost should be Some(Impending) on battlefield permanent"
     );
@@ -262,18 +262,18 @@ fn test_impending_not_a_creature_while_counters() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Test Impending Creature");
 
@@ -360,7 +360,7 @@ fn test_impending_counter_removed_at_end_step() {
 
     // Advance to End step (both players pass priority at PostCombatMain).
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::End, "should be at End step");
+    assert_eq!(state.turn().step, Step::End, "should be at End step");
 
     // At End step entry, ImpendingCounter trigger should be queued.
     // Both players pass priority to let the trigger resolve.
@@ -418,7 +418,7 @@ fn test_impending_becomes_creature_when_last_counter_removed() {
 
     // Advance to End step and let the trigger fire.
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::End);
+    assert_eq!(state.turn().step, Step::End);
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // Last counter removed: 0 time counters remain.
@@ -463,18 +463,18 @@ fn test_impending_normal_cast() {
 
     // Pay full mana cost {3}{G}{G} = 5 mana.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Test Impending Creature");
 
@@ -524,7 +524,8 @@ fn test_impending_normal_cast() {
         "CR 702.176a: normally cast permanent should be a creature"
     );
     assert_eq!(
-        state.objects[&bf_id].cast_alt_cost, None,
+        state.objects()[&bf_id].cast_alt_cost,
+        None,
         "CR 702.176a: normally cast permanent should have cast_alt_cost == None"
     );
 }
@@ -624,7 +625,7 @@ fn test_impending_multiple_end_steps() {
 
     // End step 1: PostCombatMain -> End, trigger resolves.
     let (state, _) = pass_all(state, &[p1, p2]); // Advance to End
-    assert_eq!(state.turn.step, Step::End);
+    assert_eq!(state.turn().step, Step::End);
     let (state, _) = pass_all(state, &[p1, p2]); // Trigger resolves
     assert_eq!(
         time_counters(&state, "Test Impending Creature"),
@@ -753,18 +754,18 @@ fn test_impending_alt_cost_exclusivity() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Vanilla Creature");
 
@@ -867,26 +868,26 @@ fn test_impending_commander_tax() {
     // Manually set the commander tax to simulate having cast it once before
     // (1 previous cast = +2 generic tax on next cast).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .commander_tax
         .insert(card_id_raw.clone(), 1);
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Impending Commander");
 
     // With 1 previous cast, impending cost {1}{G}{G} + {2} tax = {3}{G}{G}.
     // Try to cast with just {1}{G}{G} -- should fail (insufficient mana for tax).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -921,13 +922,13 @@ fn test_impending_commander_tax() {
 
     // Now provide enough mana: {3}{G}{G}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -1005,8 +1006,8 @@ fn test_impending_counter_removal_only_on_controller_end_step() {
     // impending permanents controlled by the ACTIVE player (p2). p1's permanent
     // is controlled by p1, so no ImpendingCounter trigger is queued for it.
     let (state, _) = pass_all(state, &[p2, p1]);
-    assert_eq!(state.turn.step, Step::End, "should be at End step");
-    assert_eq!(state.turn.active_player, p2, "should be p2's end step");
+    assert_eq!(state.turn().step, Step::End, "should be at End step");
+    assert_eq!(state.turn().active_player, p2, "should be p2's end step");
 
     // Both players pass priority — any triggers on the stack resolve.
     // (There should be no ImpendingCounter trigger for p1's permanent.)

@@ -57,7 +57,7 @@ fn run_amass(
 /// Find an object by name in the game state (panics if not found).
 fn find_by_name(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -67,7 +67,7 @@ fn find_by_name(state: &mtg_engine::GameState, name: &str) -> ObjectId {
 /// Get the +1/+1 counter count on an object.
 fn get_plus_counters(state: &mtg_engine::GameState, id: ObjectId) -> u32 {
     state
-        .objects
+        .objects()
         .get(&id)
         .and_then(|obj| obj.counters.get(&CounterType::PlusOnePlusOne).copied())
         .unwrap_or(0)
@@ -76,7 +76,7 @@ fn get_plus_counters(state: &mtg_engine::GameState, id: ObjectId) -> u32 {
 /// Check whether an object has a given creature subtype (by string name).
 fn has_subtype(state: &mtg_engine::GameState, id: ObjectId, subtype: &str) -> bool {
     state
-        .objects
+        .objects()
         .get(&id)
         .map(|obj| {
             obj.characteristics
@@ -89,7 +89,7 @@ fn has_subtype(state: &mtg_engine::GameState, id: ObjectId, subtype: &str) -> bo
 /// Count Army creature tokens (is_token == true, has Creature type, has Army subtype).
 fn count_army_tokens(state: &mtg_engine::GameState, controller: PlayerId) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|obj| {
             obj.zone == ZoneId::Battlefield
@@ -165,7 +165,7 @@ fn test_amass_creates_army_token_when_none_exists() {
 
     // Find the token and verify it has 2 +1/+1 counters (making it a 2/2).
     let token_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| {
             obj.is_token
@@ -394,7 +394,7 @@ fn test_amass_zero_still_creates_token() {
 
     // The token has 0 +1/+1 counters and is a true 0/0.
     let token_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.is_token && obj.controller == p1)
         .map(|(id, _)| *id)
@@ -599,7 +599,7 @@ fn test_amass_subtype_not_duplicated_if_already_present() {
     );
 
     // Subtypes should still be a minimal set: Zombie + Army (no duplicate Zombie).
-    let obj = state.objects.get(&army_id).unwrap();
+    let obj = state.objects().get(&army_id).unwrap();
     let zombie_count = obj
         .characteristics
         .subtypes
@@ -666,7 +666,7 @@ fn test_amass_doubling_season_doubles_army_token() {
         .unwrap();
 
     let doubler_id = find_by_name(&state, "Amass Doubler Test");
-    let registry = state.card_registry.clone();
+    let registry = state.card_registry().clone();
     mtg_engine::rules::replacement::register_permanent_replacement_abilities(
         &mut state,
         doubler_id,
@@ -692,7 +692,7 @@ fn test_amass_doubling_season_doubles_army_token() {
     // Exactly one of the two Army tokens should have received the 3 +1/+1
     // counters (the other stays a bare 0/0, per the "only the first" call).
     let total_counters: u32 = state
-        .objects
+        .objects()
         .values()
         .filter(|o| {
             o.zone == ZoneId::Battlefield
@@ -772,7 +772,7 @@ fn test_amass_counters_are_doubled_by_counter_replacement() {
         .unwrap();
 
     let doubler_id = find_by_name(&state, "Amass Counter Doubler Test");
-    let registry = state.card_registry.clone();
+    let registry = state.card_registry().clone();
     mtg_engine::rules::replacement::register_permanent_replacement_abilities(
         &mut state,
         doubler_id,
@@ -791,7 +791,7 @@ fn test_amass_counters_are_doubled_by_counter_replacement() {
     );
 
     let total_counters: u32 = state
-        .objects
+        .objects()
         .values()
         .filter(|o| {
             o.zone == ZoneId::Battlefield

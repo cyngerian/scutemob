@@ -28,7 +28,7 @@ fn p(n: u64) -> PlayerId {
 /// Find an object in the game state by name (panics if not found).
 fn find_by_name(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -39,7 +39,7 @@ fn find_by_name(state: &GameState, name: &str) -> ObjectId {
 #[allow(dead_code)]
 fn find_by_name_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -48,7 +48,7 @@ fn find_by_name_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<O
 /// Count objects with a given name on the battlefield.
 fn count_on_battlefield(state: &GameState, name: &str) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
         .count()
@@ -157,7 +157,7 @@ fn test_clue_token_has_activated_ability() {
         .unwrap();
 
     let obj = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Clue")
         .expect("Clue token should be on battlefield");
@@ -220,16 +220,16 @@ fn test_clue_activate_draw_card() {
 
     // Give p1 {2} generic mana.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let clue_id = find_by_name(&state, "Clue");
     let initial_hand_size = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -251,7 +251,7 @@ fn test_clue_activate_draw_card() {
 
     // Hand size should not have changed yet (effect is on stack).
     let hand_after_activate = state_after_activate
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -269,7 +269,7 @@ fn test_clue_activate_draw_card() {
 
     // Player drew 1 card after resolution.
     let final_hand_size = state_final
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -305,12 +305,12 @@ fn test_clue_uses_stack_not_mana_ability() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let clue_id = find_by_name(&state, "Clue");
 
@@ -330,7 +330,7 @@ fn test_clue_uses_stack_not_mana_ability() {
 
     // Stack must NOT be empty — Clue's ability uses the stack (CR 602.2).
     assert!(
-        !state_after_activate.stack_objects.is_empty(),
+        !state_after_activate.stack_objects().is_empty(),
         "CR 602.2: Clue ability should be on the stack after activation"
     );
 }
@@ -353,16 +353,16 @@ fn test_clue_sacrifice_is_cost_not_effect() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let clue_id = find_by_name(&state, "Clue");
     let initial_hand_size = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -390,7 +390,7 @@ fn test_clue_sacrifice_is_cost_not_effect() {
 
     // But player has NOT drawn yet (effect is on stack, not resolved).
     let hand_after_activate = state_after_activate
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -417,12 +417,12 @@ fn test_clue_tapped_can_still_activate() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let clue_id = find_by_name(&state, "Clue");
 
@@ -465,7 +465,7 @@ fn test_clue_not_affected_by_summoning_sickness() {
 
     // Verify Clue is NOT a creature — this is why summoning sickness cannot apply.
     let clue_obj = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Clue")
         .expect("Clue token should be on battlefield");
@@ -479,12 +479,12 @@ fn test_clue_not_affected_by_summoning_sickness() {
 
     // Give mana and attempt activation.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let clue_id = find_by_name(&state, "Clue");
 
@@ -526,12 +526,12 @@ fn test_clue_token_ceases_to_exist_after_sba() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let clue_id = find_by_name(&state, "Clue");
 
@@ -553,7 +553,7 @@ fn test_clue_token_ceases_to_exist_after_sba() {
     // Token is in the graveyard before SBA check (post-sacrifice, pre-SBA).
     assert!(
         after_activate
-            .objects
+            .objects()
             .values()
             .any(|o| o.characteristics.name == "Clue" && o.zone == ZoneId::Graveyard(p1)),
         "Clue should be in graveyard before SBA check"
@@ -573,7 +573,7 @@ fn test_clue_token_ceases_to_exist_after_sba() {
     // Token no longer exists in any zone.
     assert!(
         !after_sba
-            .objects
+            .objects()
             .values()
             .any(|o| o.characteristics.name == "Clue"),
         "CR 704.5d: Token should no longer exist in any zone after SBA"
@@ -598,12 +598,12 @@ fn test_clue_opponent_cannot_activate() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let clue_id = find_by_name(&state, "Clue");
 
@@ -651,12 +651,12 @@ fn test_clue_insufficient_mana_cannot_activate() {
 
     // Only 1 mana — not enough for {2}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let clue_id = find_by_name(&state, "Clue");
 
@@ -708,7 +708,7 @@ fn test_clue_create_via_effect() {
 
     // Find the Clue token on the battlefield.
     let clue_obj = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Clue" && o.zone == ZoneId::Battlefield)
         .expect("CR 111.10f: Clue token should be on battlefield after Effect::CreateToken");

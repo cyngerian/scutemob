@@ -39,7 +39,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_obj(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -48,14 +48,14 @@ fn find_obj(state: &GameState, name: &str) -> ObjectId {
 
 fn obj_on_battlefield(state: &GameState, name: &str) -> bool {
     state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == name && o.zone == ZoneId::Battlefield)
 }
 
 fn obj_in_graveyard(state: &GameState, name: &str, owner: PlayerId) -> bool {
     state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == name && o.zone == ZoneId::Graveyard(owner))
 }
@@ -527,7 +527,7 @@ fn test_pbt_up_to_n_partial_target_declaration_resolves() {
 
     // CR 608.2b: spell resolves; 1 target is tapped. No fizzle.
     let bear_obj = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Grizzly Bears")
         .expect("M5: Grizzly Bears must still exist on battlefield");
@@ -1121,7 +1121,7 @@ fn test_pbt_up_to_n_partial_fizzle_on_zone_change() {
     );
     // Creature B must be tapped (surviving legal target per CR 608.2b).
     let creature_b_obj = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Creature B")
         .expect("M9: Creature B must still exist on battlefield after partial fizzle");

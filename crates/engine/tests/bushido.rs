@@ -22,7 +22,7 @@ use mtg_engine::{
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -106,7 +106,7 @@ fn test_702_45a_bushido_blocker_gets_bonus() {
 
     // One trigger on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.45a: Bushido blocker trigger should be on the stack"
     );
@@ -195,7 +195,7 @@ fn test_702_45a_bushido_attacker_becomes_blocked() {
 
     // One trigger on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.45a: Bushido attacker trigger should be on the stack"
     );
@@ -305,7 +305,7 @@ fn test_702_45a_bushido_does_not_double_trigger() {
 
     // Exactly 2 items on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "CR 702.45a: exactly 2 triggers on the stack"
     );
@@ -416,18 +416,18 @@ fn test_702_45b_bushido_multiple_instances() {
 
     // 2 triggers on the stack from the attacker (plus 0 from the blocker which has no Bushido).
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "CR 702.45b: 2 Bushido triggers on the stack from the attacker"
     );
 
     // Resolve first trigger.
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.stack_objects.len(), 1, "one trigger should remain");
+    assert_eq!(state.stack_objects().len(), 1, "one trigger should remain");
 
     // Resolve second trigger.
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert!(state.stack_objects.is_empty(), "stack should be empty");
+    assert!(state.stack_objects().is_empty(), "stack should be empty");
 
     // Attacker should be 4/4 (1 + 1 + 2 = 4 power/toughness).
     let chars = calculate_characteristics(&state, attacker_id)
@@ -704,7 +704,7 @@ fn test_702_45a_bushido_multiplayer() {
 
     // Two triggers on the stack total.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "CR 702.45a multiplayer: 2 Bushido triggers on the stack after both declare-blockers"
     );
@@ -714,7 +714,7 @@ fn test_702_45a_bushido_multiplayer() {
     let (state, _) = pass_all(state, &[p1, p2, p3, p4]);
 
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after both triggers resolve"
     );
 

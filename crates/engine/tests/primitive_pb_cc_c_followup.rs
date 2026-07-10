@@ -43,7 +43,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == name)
         .map(|(&id, _)| id)
@@ -82,7 +82,7 @@ fn test_cda_modify_power_toughness_re_evaluates_after_counter_mutation() {
     // Register a ContinuousEffect with ModifyPowerDynamic + is_cda=true at Layer 7c.
     // This mirrors what register_static_continuous_effects does for
     // AbilityDefinition::CdaModifyPowerToughness { power: Some(CounterCount{Source, Oil}), .. }.
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(8800),
         source: Some(creature_id),
         timestamp: 8800,
@@ -108,7 +108,7 @@ fn test_cda_modify_power_toughness_re_evaluates_after_counter_mutation() {
     // Step 2: mutate to 2 oil counters. Re-read — power must change.
     // CR 611.3a: "isn't locked in; applies at any given moment to whatever its text indicates."
     {
-        let obj = state.objects.get_mut(&creature_id).unwrap();
+        let obj = state.objects_mut().get_mut(&creature_id).unwrap();
         obj.counters.insert(CounterType::Oil, 2);
     }
     let chars = calculate_characteristics(&state, creature_id).unwrap();
@@ -121,7 +121,7 @@ fn test_cda_modify_power_toughness_re_evaluates_after_counter_mutation() {
 
     // Step 3: mutate to 5 oil counters. Power must follow.
     {
-        let obj = state.objects.get_mut(&creature_id).unwrap();
+        let obj = state.objects_mut().get_mut(&creature_id).unwrap();
         obj.counters.insert(CounterType::Oil, 5);
     }
     let chars = calculate_characteristics(&state, creature_id).unwrap();
@@ -133,7 +133,7 @@ fn test_cda_modify_power_toughness_re_evaluates_after_counter_mutation() {
 
     // Step 4: remove all counters. Power returns to 0.
     {
-        let obj = state.objects.get_mut(&creature_id).unwrap();
+        let obj = state.objects_mut().get_mut(&creature_id).unwrap();
         obj.counters.remove(&CounterType::Oil);
     }
     let chars = calculate_characteristics(&state, creature_id).unwrap();
@@ -195,7 +195,7 @@ fn test_vishgraz_scales_with_opponent_poison_counters() {
     // The builder places objects directly on the battlefield, bypassing the ETB code path.
     // We must call register_static_continuous_effects manually to simulate ETB registration.
     let card_id = state
-        .objects
+        .objects()
         .get(&vishgraz_id)
         .and_then(|o| o.card_id.clone());
     mtg_engine::rules::replacement::register_static_continuous_effects(
@@ -222,11 +222,11 @@ fn test_vishgraz_scales_with_opponent_poison_counters() {
     // Step 2: p2=1, p3=0, p4=2 → sum=3. Expected P/T = 3+3 = 6/6.
     let mut state = state;
     {
-        let ps = state.players.get_mut(&p2).unwrap();
+        let ps = state.players_mut().get_mut(&p2).unwrap();
         ps.poison_counters = 1;
     }
     {
-        let ps = state.players.get_mut(&p4).unwrap();
+        let ps = state.players_mut().get_mut(&p4).unwrap();
         ps.poison_counters = 2;
     }
     let chars = calculate_characteristics(&state, vishgraz_id).unwrap();
@@ -240,15 +240,15 @@ fn test_vishgraz_scales_with_opponent_poison_counters() {
     // Step 3: p2=5, p3=2, p4=1 → sum=8. Expected P/T = 3+8 = 11/11.
     // Discriminating choice: sum=8, count-of-poisoned=3, max=5.
     {
-        let ps = state.players.get_mut(&p2).unwrap();
+        let ps = state.players_mut().get_mut(&p2).unwrap();
         ps.poison_counters = 5;
     }
     {
-        let ps = state.players.get_mut(&p3).unwrap();
+        let ps = state.players_mut().get_mut(&p3).unwrap();
         ps.poison_counters = 2;
     }
     {
-        let ps = state.players.get_mut(&p4).unwrap();
+        let ps = state.players_mut().get_mut(&p4).unwrap();
         ps.poison_counters = 1;
     }
     let chars = calculate_characteristics(&state, vishgraz_id).unwrap();
@@ -263,7 +263,7 @@ fn test_vishgraz_scales_with_opponent_poison_counters() {
     // Step 4: give p1 (controller) 4 poison counters. EachOpponent excludes controller.
     // Expected: P/T still 11/11 (p1's own poison ignored).
     {
-        let ps = state.players.get_mut(&p1).unwrap();
+        let ps = state.players_mut().get_mut(&p1).unwrap();
         ps.poison_counters = 4;
     }
     let chars = calculate_characteristics(&state, vishgraz_id).unwrap();
@@ -322,7 +322,7 @@ fn test_exuberant_fuseling_power_scales_with_oil_counters() {
     // The builder places objects directly on the battlefield, bypassing the ETB code path.
     // We must call register_static_continuous_effects manually to simulate ETB registration.
     let card_id = state
-        .objects
+        .objects()
         .get(&fuseling_id)
         .and_then(|o| o.card_id.clone());
     mtg_engine::rules::replacement::register_static_continuous_effects(
@@ -335,7 +335,7 @@ fn test_exuberant_fuseling_power_scales_with_oil_counters() {
     // Zero oil counters explicitly to make this test deterministic
     // (ETB trigger may have fired depending on build path).
     {
-        let obj = state.objects.get_mut(&fuseling_id).unwrap();
+        let obj = state.objects_mut().get_mut(&fuseling_id).unwrap();
         obj.counters.remove(&CounterType::Oil);
     }
 
@@ -350,7 +350,7 @@ fn test_exuberant_fuseling_power_scales_with_oil_counters() {
 
     // Step 2: 1 oil counter. Power = 0 + 1 = 1.
     {
-        let obj = state.objects.get_mut(&fuseling_id).unwrap();
+        let obj = state.objects_mut().get_mut(&fuseling_id).unwrap();
         obj.counters.insert(CounterType::Oil, 1);
     }
     let chars = calculate_characteristics(&state, fuseling_id).unwrap();
@@ -359,7 +359,7 @@ fn test_exuberant_fuseling_power_scales_with_oil_counters() {
 
     // Step 3: 3 oil counters. Power = 0 + 3 = 3.
     {
-        let obj = state.objects.get_mut(&fuseling_id).unwrap();
+        let obj = state.objects_mut().get_mut(&fuseling_id).unwrap();
         obj.counters.insert(CounterType::Oil, 3);
     }
     let chars = calculate_characteristics(&state, fuseling_id).unwrap();
@@ -368,7 +368,7 @@ fn test_exuberant_fuseling_power_scales_with_oil_counters() {
 
     // Step 4: set counter to 1 (down-scaling from 3 → 1 via overwrite). Power = 0 + 1 = 1.
     {
-        let obj = state.objects.get_mut(&fuseling_id).unwrap();
+        let obj = state.objects_mut().get_mut(&fuseling_id).unwrap();
         obj.counters.insert(CounterType::Oil, 1);
     }
     let chars = calculate_characteristics(&state, fuseling_id).unwrap();

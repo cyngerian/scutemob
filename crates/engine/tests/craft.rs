@@ -23,7 +23,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -32,7 +32,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -176,18 +176,18 @@ fn test_craft_basic_exile_and_transform() {
 
     // Pay craft cost {2}{G}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let net_id = find_in_zone(&state, "Braided Net", ZoneId::Battlefield)
         .expect("Braided Net should be on battlefield");
@@ -210,7 +210,7 @@ fn test_craft_basic_exile_and_transform() {
 
     // CR 702.167a: The card (DFC) returns transformed.
     let transformed_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| {
             obj.zone == ZoneId::Battlefield
@@ -265,18 +265,18 @@ fn test_craft_back_face_characteristics() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let net_id = find_in_zone(&state, "Braided Net", ZoneId::Battlefield).unwrap();
     let art_a_id = find_object(&state, "Artifact A");
@@ -294,7 +294,7 @@ fn test_craft_back_face_characteristics() {
 
     // Find the transformed permanent.
     let quipu_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| {
             obj.zone == ZoneId::Battlefield
@@ -324,7 +324,7 @@ fn test_craft_back_face_characteristics() {
         "back face has no mana cost in characteristics (CR 712.8e: MV uses front face from registry)"
     );
     let def = state
-        .card_registry
+        .card_registry()
         .get(CardId("mock-braided-net".to_string()))
         .expect("definition should be in registry");
     let front_mv = def
@@ -364,12 +364,12 @@ fn test_craft_non_dfc_stays_exiled() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let source_id = find_in_zone(&state, "Non-DFC Craft", ZoneId::Battlefield).unwrap();
     let art_a_id = find_object(&state, "Artifact A");
@@ -398,7 +398,7 @@ fn test_craft_non_dfc_stays_exiled() {
         "non-DFC craft source should NOT be on battlefield (stays in exile, CR 702.167a ruling)"
     );
     let in_exile = state
-        .objects
+        .objects()
         .iter()
         .any(|(_, obj)| obj.characteristics.name == "Non-DFC Craft" && obj.zone == ZoneId::Exile);
     assert!(
@@ -439,18 +439,18 @@ fn test_craft_tracks_exiled_materials() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let net_id = find_in_zone(&state, "Braided Net", ZoneId::Battlefield).unwrap();
     let art_a_id = find_object(&state, "Artifact A");
@@ -468,7 +468,7 @@ fn test_craft_tracks_exiled_materials() {
 
     // Find the returned permanent.
     let quipu_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| {
             obj.zone == ZoneId::Battlefield
@@ -478,7 +478,7 @@ fn test_craft_tracks_exiled_materials() {
         .expect("Braided Quipu should be on battlefield");
 
     // craft_exiled_cards should contain the 2 exiled material IDs.
-    let exiled_materials = &state.objects[&quipu_id].craft_exiled_cards;
+    let exiled_materials = &state.objects()[&quipu_id].craft_exiled_cards;
     assert_eq!(
         exiled_materials.len(),
         2,
@@ -510,18 +510,18 @@ fn test_craft_sorcery_speed_only() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let net_id = find_in_zone(&state, "Braided Net", ZoneId::Battlefield).unwrap();
     let art_a_id = find_object(&state, "Artifact A");
@@ -532,9 +532,9 @@ fn test_craft_sorcery_speed_only() {
     // CR 702.167a: "Activate only as a sorcery" = main phase, empty stack, active player.
     // Move to upkeep (not a main phase) to trigger the sorcery-speed check.
     let mut state2 = state.clone();
-    state2.turn.step = Step::Upkeep;
-    state2.turn.phase = mtg_engine::Phase::Beginning;
-    state2.turn.priority_holder = Some(p1);
+    state2.turn_mut().step = Step::Upkeep;
+    state2.turn_mut().phase = mtg_engine::Phase::Beginning;
+    state2.turn_mut().priority_holder = Some(p1);
 
     let result = process_command(
         state2,
@@ -581,18 +581,18 @@ fn test_craft_materials_from_graveyard() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let net_id = find_in_zone(&state, "Braided Net", ZoneId::Battlefield).unwrap();
     let art_gy_id = find_in_zone(&state, "Artifact In GY", ZoneId::Graveyard(p1))
@@ -619,7 +619,7 @@ fn test_craft_materials_from_graveyard() {
     );
 
     // The DFC should have returned to the battlefield transformed.
-    let quipu_on_bf = state.objects.iter().any(|(_, obj)| {
+    let quipu_on_bf = state.objects().iter().any(|(_, obj)| {
         obj.zone == ZoneId::Battlefield
             && obj.card_id == Some(CardId("mock-braided-net".to_string()))
             && obj.is_transformed

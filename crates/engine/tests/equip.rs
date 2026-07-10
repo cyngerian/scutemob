@@ -11,6 +11,7 @@
 //! - CR 701.3c: New timestamp on reattach (layer ordering).
 //! - CR 602.5d: Sorcery-speed means active player's main phase, empty stack.
 
+use mtg_engine::state::test_util;
 use mtg_engine::state::{
     ActivatedAbility, ActivationCost, ContinuousEffect, EffectId, GameStateError,
 };
@@ -29,7 +30,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -113,12 +114,12 @@ fn test_equip_basic_attaches_to_creature() {
 
     // Give p1 mana to pay Equip {2}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let equip_id = find_object(&state, "Test Sword");
     let creature_id = find_object(&state, "Test Bear");
@@ -142,14 +143,14 @@ fn test_equip_basic_attaches_to_creature() {
     let (state, resolve_events) = pass_all(state, &[p1, p2]);
 
     // Equipment is attached to the creature.
-    let equip_obj = state.objects.get(&equip_id).expect("equipment exists");
+    let equip_obj = state.objects().get(&equip_id).expect("equipment exists");
     assert_eq!(
         equip_obj.attached_to,
         Some(creature_id),
         "equipment.attached_to should be the creature"
     );
 
-    let creature_obj = state.objects.get(&creature_id).expect("creature exists");
+    let creature_obj = state.objects().get(&creature_id).expect("creature exists");
     assert!(
         creature_obj.attachments.contains(&equip_id),
         "creature.attachments should contain the equipment"
@@ -191,12 +192,12 @@ fn test_equip_sorcery_speed_only() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let equip_id = find_object(&state, "Test Sword");
     let creature_id = find_object(&state, "Test Bear");
@@ -247,12 +248,12 @@ fn test_equip_sorcery_speed_not_active_player() {
 
     // Give p1 priority during p2's main phase.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let equip_id = find_object(&state, "Test Sword");
     let creature_id = find_object(&state, "Test Bear");
@@ -339,12 +340,12 @@ fn test_equip_sorcery_speed_stack_not_empty() {
 
     // p2 casts instant (going on the stack).
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
     let instant_id = find_object(&state, "Test Instant");
 
     let (state, _) = process_command(
@@ -375,9 +376,9 @@ fn test_equip_sorcery_speed_stack_not_empty() {
 
     // p1 has priority after the cast.
     let mut state = state;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -435,12 +436,12 @@ fn test_equip_target_opponent_creature_rejected_at_activation() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let equip_id = find_object(&state, "Test Sword");
     let creature_id = find_object(&state, "Opponent Bear");
@@ -498,9 +499,9 @@ fn test_equip_reequip_detaches_from_previous() {
     let creature_b_id = find_object(&state, "Creature B");
 
     // Manually pre-attach to creature A.
-    state.objects.get_mut(&equip_id).unwrap().attached_to = Some(creature_a_id);
+    state.objects_mut().get_mut(&equip_id).unwrap().attached_to = Some(creature_a_id);
     state
-        .objects
+        .objects_mut()
         .get_mut(&creature_a_id)
         .unwrap()
         .attachments
@@ -508,16 +509,16 @@ fn test_equip_reequip_detaches_from_previous() {
 
     // Capture timestamp before re-equipping to creature B.
     // CR 701.3c: reattaching to a different object must assign a new (greater) timestamp.
-    let timestamp_before_reequip = state.objects.get(&equip_id).unwrap().timestamp;
+    let timestamp_before_reequip = state.objects().get(&equip_id).unwrap().timestamp;
 
     // Now equip targeting creature B.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let (state, _) = process_command(
         state,
@@ -537,7 +538,7 @@ fn test_equip_reequip_detaches_from_previous() {
 
     // Equipment is now attached to creature B.
     assert_eq!(
-        state.objects.get(&equip_id).unwrap().attached_to,
+        state.objects().get(&equip_id).unwrap().attached_to,
         Some(creature_b_id),
         "equipment should be attached to creature B"
     );
@@ -545,7 +546,7 @@ fn test_equip_reequip_detaches_from_previous() {
     // Creature A no longer has the equipment in its attachments.
     assert!(
         !state
-            .objects
+            .objects()
             .get(&creature_a_id)
             .unwrap()
             .attachments
@@ -556,7 +557,7 @@ fn test_equip_reequip_detaches_from_previous() {
     // Creature B has the equipment.
     assert!(
         state
-            .objects
+            .objects()
             .get(&creature_b_id)
             .unwrap()
             .attachments
@@ -566,7 +567,7 @@ fn test_equip_reequip_detaches_from_previous() {
 
     // CR 701.3c / CR 613.7e: reattaching to a different object gives a new, strictly
     // greater timestamp (required for correct layer ordering).
-    let timestamp_after_reequip = state.objects.get(&equip_id).unwrap().timestamp;
+    let timestamp_after_reequip = state.objects().get(&equip_id).unwrap().timestamp;
     assert!(
         timestamp_after_reequip > timestamp_before_reequip,
         "equipment timestamp should increase after re-equip (CR 701.3c): before={}, after={}",
@@ -604,12 +605,12 @@ fn test_equip_cannot_equip_self() {
 
     // Manually set power/toughness so the object is a valid creature for SBA purposes.
     // (We just need to avoid SBAs killing it before we can test.)
-    if let Some(obj) = state.objects.get_mut(&equip_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&equip_id) {
         obj.characteristics.power = Some(3);
         obj.characteristics.toughness = Some(3);
     }
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Activate equip targeting itself.
     let (state, _) = process_command(
@@ -629,7 +630,7 @@ fn test_equip_cannot_equip_self() {
     let (state, resolve_events) = pass_all(state, &[p1, p2]);
 
     // Effect does nothing: equipment can't equip itself.
-    let equip_obj = state.objects.get(&equip_id).expect("equipment exists");
+    let equip_obj = state.objects().get(&equip_id).expect("equipment exists");
     assert_eq!(
         equip_obj.attached_to, None,
         "equipment should NOT be attached to itself"
@@ -671,23 +672,23 @@ fn test_equip_already_attached_to_same_target_no_op() {
     let creature_id = find_object(&state, "Test Bear");
 
     // Pre-attach to the creature.
-    state.objects.get_mut(&equip_id).unwrap().attached_to = Some(creature_id);
+    state.objects_mut().get_mut(&equip_id).unwrap().attached_to = Some(creature_id);
     state
-        .objects
+        .objects_mut()
         .get_mut(&creature_id)
         .unwrap()
         .attachments
         .push_back(equip_id);
 
-    let old_timestamp = state.objects.get(&equip_id).unwrap().timestamp;
+    let old_timestamp = state.objects().get(&equip_id).unwrap().timestamp;
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Activate equip targeting the same creature.
     let (state, _) = process_command(
@@ -708,14 +709,14 @@ fn test_equip_already_attached_to_same_target_no_op() {
 
     // State unchanged: attached_to still same creature.
     assert_eq!(
-        state.objects.get(&equip_id).unwrap().attached_to,
+        state.objects().get(&equip_id).unwrap().attached_to,
         Some(creature_id),
         "equipment should still be attached to the same creature"
     );
 
     // Creature still has exactly one attachment entry (no duplicate).
     let attachment_count = state
-        .objects
+        .objects()
         .get(&creature_id)
         .unwrap()
         .attachments
@@ -737,7 +738,7 @@ fn test_equip_already_attached_to_same_target_no_op() {
 
     // CR 701.3b / CR 701.3c: attaching to the same target is a no-op; the timestamp
     // must NOT be updated (no reattachment happened).
-    let new_timestamp = state.objects.get(&equip_id).unwrap().timestamp;
+    let new_timestamp = state.objects().get(&equip_id).unwrap().timestamp;
     assert_eq!(
         new_timestamp, old_timestamp,
         "equipment timestamp should NOT change when re-equipping to the same target (CR 701.3b)"
@@ -770,12 +771,12 @@ fn test_equip_pays_mana_cost() {
 
     // Give p1 exactly 2 generic mana.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let equip_id = find_object(&state, "Test Sword");
     let creature_id = find_object(&state, "Test Bear");
@@ -803,7 +804,7 @@ fn test_equip_pays_mana_cost() {
     );
 
     // Mana pool is now empty.
-    let mana_pool = &state.players.get(&p1).unwrap().mana_pool;
+    let mana_pool = &state.players().get(&p1).unwrap().mana_pool;
     assert_eq!(
         mana_pool.colorless
             + mana_pool.white
@@ -842,12 +843,12 @@ fn test_equip_insufficient_mana_rejected() {
 
     // Give p1 only 1 mana (not enough for Equip {2}).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let equip_id = find_object(&state, "Test Sword");
     let creature_id = find_object(&state, "Test Bear");
@@ -902,12 +903,12 @@ fn test_equip_protection_blocks_targeting() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let equip_id = find_object(&state, "Test Sword");
     let creature_id = find_object(&state, "Protected Paladin");
@@ -963,12 +964,12 @@ fn test_equip_fizzles_if_target_not_on_battlefield() {
 
     // Give mana and activate equip.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let (state, _) = process_command(
         state,
@@ -986,14 +987,14 @@ fn test_equip_fizzles_if_target_not_on_battlefield() {
 
     // Before resolving, destroy the creature (move to graveyard).
     let mut state = state;
-    let owner = state.objects.get(&creature_id).map(|o| o.owner).unwrap();
-    let _ = state.move_object_to_zone(creature_id, ZoneId::Graveyard(owner));
+    let owner = state.objects().get(&creature_id).map(|o| o.owner).unwrap();
+    let _ = test_util::move_object_to_zone(&mut state, creature_id, ZoneId::Graveyard(owner));
 
     // Pass priority — ability resolves, but target is gone.
     let (state, resolve_events) = pass_all(state, &[p1, p2]);
 
     // Equipment still unattached.
-    let equip_obj = state.objects.get(&equip_id).expect("equipment exists");
+    let equip_obj = state.objects().get(&equip_id).expect("equipment exists");
     assert_eq!(
         equip_obj.attached_to, None,
         "equipment should remain unattached when target left battlefield"
@@ -1037,7 +1038,7 @@ fn test_equip_zero_cost_succeeds() {
         .unwrap();
 
     // No mana added — Equip {0} should not require any.
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let equip_id = find_object(&state, "Zero Sword");
     let creature_id = find_object(&state, "Test Bear");
@@ -1069,7 +1070,7 @@ fn test_equip_zero_cost_succeeds() {
     let (state, resolve_events) = pass_all(state, &[p1, p2]);
 
     // Equipment is attached to the creature.
-    let equip_obj = state.objects.get(&equip_id).expect("equipment exists");
+    let equip_obj = state.objects().get(&equip_id).expect("equipment exists");
     assert_eq!(
         equip_obj.attached_to,
         Some(creature_id),
@@ -1125,10 +1126,10 @@ fn test_equip_grants_keywords_via_layer_system() {
     // register_static_continuous_effects does at ETB time for equipment with static abilities.
     // This grants Haste to whatever the equipment is attached to (AttachedCreature filter).
     {
-        let eff_id = state.next_object_id().0;
-        state.timestamp_counter += 1;
-        let ts = state.timestamp_counter;
-        state.continuous_effects.push_back(ContinuousEffect {
+        let eff_id = test_util::next_object_id(&mut state).0;
+        *state.timestamp_counter_mut() += 1;
+        let ts = state.timestamp_counter();
+        state.continuous_effects_mut().push_back(ContinuousEffect {
             id: EffectId(eff_id),
             source: Some(equip_id),
             timestamp: ts,
@@ -1153,12 +1154,12 @@ fn test_equip_grants_keywords_via_layer_system() {
 
     // Equip targeting the creature.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let (state, _) = process_command(
         state,
@@ -1178,7 +1179,7 @@ fn test_equip_grants_keywords_via_layer_system() {
 
     // Equipment is attached.
     assert_eq!(
-        state.objects.get(&equip_id).unwrap().attached_to,
+        state.objects().get(&equip_id).unwrap().attached_to,
         Some(creature_id),
         "equipment should be attached to the creature"
     );

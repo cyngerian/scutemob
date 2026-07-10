@@ -14,6 +14,7 @@
 //! - No bonus if only attacking planeswalkers (no Player targets).
 //! - Multiplayer: attacking 3 opponents gives +3/+3.
 
+use mtg_engine::state::test_util;
 use mtg_engine::{
     calculate_characteristics, process_command, AttackTarget, CardRegistry, Command, GameEvent,
     GameState, GameStateBuilder, KeywordAbility, ObjectId, ObjectSpec, PlayerId, Step, ZoneId,
@@ -23,7 +24,7 @@ use mtg_engine::{
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -93,7 +94,7 @@ fn test_702_121a_melee_basic_one_opponent_attacked() {
 
     // Trigger should be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.121a: Melee trigger should be on the stack after attackers declared"
     );
@@ -125,7 +126,7 @@ fn test_702_121a_melee_basic_one_opponent_attacked() {
 
     // Stack should be empty.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after melee trigger resolves"
     );
 }
@@ -177,7 +178,7 @@ fn test_702_121a_melee_multiplayer_two_opponents() {
 
     // Melee trigger should be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.121a: Melee trigger on the stack (one melee creature)"
     );
@@ -254,7 +255,7 @@ fn test_702_121a_melee_multiplayer_three_opponents() {
 
     // Melee trigger on stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.121a: one Melee trigger on the stack"
     );
@@ -335,7 +336,7 @@ fn test_702_121a_melee_does_not_count_planeswalker_attacks() {
         "CR 702.121a: Melee trigger fires even when attacking a planeswalker"
     );
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.121a: trigger should be on the stack"
     );
@@ -359,7 +360,7 @@ fn test_702_121a_melee_does_not_count_planeswalker_attacks() {
 
     // No continuous effects registered (bonus was 0).
     assert!(
-        state.continuous_effects.is_empty(),
+        state.continuous_effects().is_empty(),
         "Ruling 2016-08-23: no continuous effects when only planeswalker attacked"
     );
 }
@@ -420,7 +421,7 @@ fn test_702_121b_melee_multiple_instances() {
 
     // Two triggers on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "CR 702.121b: two melee triggers on the stack"
     );
@@ -428,7 +429,7 @@ fn test_702_121b_melee_multiple_instances() {
     // Resolve first trigger: creature gains +1/+1 → 3/3.
     let (state, _) = pass_all(state, &[p1, p2]);
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "one trigger should remain after first resolves"
     );
@@ -443,7 +444,7 @@ fn test_702_121b_melee_multiple_instances() {
     // Resolve second trigger: creature gains another +1/+1 → 4/4.
     let (state, _) = pass_all(state, &[p1, p2]);
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after both triggers resolve"
     );
 
@@ -497,17 +498,17 @@ fn test_702_121a_melee_source_leaves_battlefield_no_bonus() {
     .expect("DeclareAttackers should succeed");
 
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.121a: melee trigger should be on stack"
     );
 
     // Destroy the melee creature before the trigger resolves.
-    let _ = state.move_object_to_zone(attacker_id, ZoneId::Graveyard(p1));
+    let _ = test_util::move_object_to_zone(&mut state, attacker_id, ZoneId::Graveyard(p1));
 
     // Source is no longer on battlefield — verify.
     assert!(
-        state.objects.get(&attacker_id).is_none(),
+        state.objects().get(&attacker_id).is_none(),
         "attacker should no longer be at original ObjectId after zone move"
     );
 
@@ -524,7 +525,7 @@ fn test_702_121a_melee_source_leaves_battlefield_no_bonus() {
 
     // No continuous effects (source not on battlefield → no bonus applied).
     assert!(
-        state.continuous_effects.is_empty(),
+        state.continuous_effects().is_empty(),
         "CR 603.10: no continuous effects when source left battlefield before resolution"
     );
 }
@@ -568,7 +569,7 @@ fn test_702_121a_melee_attacking_alone_still_counts() {
 
     // Trigger on stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.121a: Melee trigger fires when attacking alone"
     );

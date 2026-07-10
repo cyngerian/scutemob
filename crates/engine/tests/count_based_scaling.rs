@@ -25,12 +25,12 @@ fn creature_filter() -> TargetFilter {
 }
 
 fn find_on_battlefield(state: &mtg_engine::GameState, name: &str) -> ObjectId {
-    let bf = state.zones.get(&ZoneId::Battlefield).unwrap();
+    let bf = state.zones().get(&ZoneId::Battlefield).unwrap();
     *bf.object_ids()
         .iter()
         .find(|id| {
             state
-                .objects
+                .objects()
                 .get(id)
                 .map(|o| o.characteristics.name == name)
                 .unwrap_or(false)
@@ -69,7 +69,7 @@ fn test_permanent_count_creatures_you_control() {
     let mut ctx = EffectContext::new(p1(), source, vec![]);
     execute_effect(&mut state, &effect, &mut ctx);
 
-    assert_eq!(state.players.get(&p1()).unwrap().life_total, 43);
+    assert_eq!(state.players().get(&p1()).unwrap().life_total, 43);
 }
 
 /// PermanentCount with EachOpponent counts opponents' permanents.
@@ -98,7 +98,7 @@ fn test_permanent_count_opponents_creatures() {
     execute_effect(&mut state, &effect, &mut ctx);
 
     // P2 controls 2 creatures
-    assert_eq!(state.players.get(&p1()).unwrap().life_total, 42);
+    assert_eq!(state.players().get(&p1()).unwrap().life_total, 42);
 }
 
 /// PermanentCount with a land filter counts lands, not creatures.
@@ -145,7 +145,7 @@ fn test_permanent_count_lands_you_control() {
     execute_effect(&mut state, &effect, &mut ctx);
 
     // P1 controls 2 lands
-    assert_eq!(state.players.get(&p1()).unwrap().life_total, 42);
+    assert_eq!(state.players().get(&p1()).unwrap().life_total, 42);
 }
 
 // ---------------------------------------------------------------------------
@@ -202,7 +202,7 @@ fn test_devotion_to_color_counts_mana_symbols() {
     let mut ctx = EffectContext::new(p1(), source, vec![]);
     execute_effect(&mut state, &effect, &mut ctx);
 
-    assert_eq!(state.players.get(&p1()).unwrap().life_total, 45);
+    assert_eq!(state.players().get(&p1()).unwrap().life_total, 45);
 }
 
 /// Devotion to a color with no matching mana symbols yields 0.
@@ -231,7 +231,7 @@ fn test_devotion_to_color_zero_when_no_symbols() {
     let mut ctx = EffectContext::new(p1(), source, vec![]);
     execute_effect(&mut state, &effect, &mut ctx);
 
-    assert_eq!(state.players.get(&p1()).unwrap().life_total, 40);
+    assert_eq!(state.players().get(&p1()).unwrap().life_total, 40);
 }
 
 /// Devotion excludes permanents without mana costs (e.g., basic lands).
@@ -265,7 +265,7 @@ fn test_devotion_excludes_permanents_without_mana_cost() {
     execute_effect(&mut state, &effect, &mut ctx);
 
     // Only the Elf contributes: devotion = 1
-    assert_eq!(state.players.get(&p1()).unwrap().life_total, 41);
+    assert_eq!(state.players().get(&p1()).unwrap().life_total, 41);
 }
 
 /// CR 700.5: Hybrid and phyrexian mana symbols count toward devotion.
@@ -312,7 +312,7 @@ fn test_devotion_counts_hybrid_and_phyrexian_mana_symbols() {
     };
     let mut ctx = EffectContext::new(p1(), source, vec![]);
     execute_effect(&mut state, &effect, &mut ctx);
-    assert_eq!(state.players.get(&p1()).unwrap().life_total, 44);
+    assert_eq!(state.players().get(&p1()).unwrap().life_total, 44);
 
     // White devotion: 2 (from {G/W}{G/W}), none from the others
     let effect_white = Effect::GainLife {
@@ -321,7 +321,7 @@ fn test_devotion_counts_hybrid_and_phyrexian_mana_symbols() {
     };
     let mut ctx2 = EffectContext::new(p1(), source, vec![]);
     execute_effect(&mut state, &effect_white, &mut ctx2);
-    assert_eq!(state.players.get(&p1()).unwrap().life_total, 46);
+    assert_eq!(state.players().get(&p1()).unwrap().life_total, 46);
 }
 
 // ---------------------------------------------------------------------------
@@ -342,7 +342,7 @@ fn test_counter_count_on_self() {
 
     // Place 5 +1/+1 counters on the Hydra
     {
-        let obj = state.objects.get_mut(&hydra).unwrap();
+        let obj = state.objects_mut().get_mut(&hydra).unwrap();
         obj.counters.insert(CounterType::PlusOnePlusOne, 5);
     }
 
@@ -357,7 +357,7 @@ fn test_counter_count_on_self() {
     let mut ctx = EffectContext::new(p1(), hydra, vec![]);
     execute_effect(&mut state, &effect, &mut ctx);
 
-    assert_eq!(state.players.get(&p1()).unwrap().life_total, 45);
+    assert_eq!(state.players().get(&p1()).unwrap().life_total, 45);
 }
 
 /// CounterCount returns 0 when the permanent has no counters of that type.
@@ -383,5 +383,5 @@ fn test_counter_count_zero_when_no_counters() {
     let mut ctx = EffectContext::new(p1(), bear, vec![]);
     execute_effect(&mut state, &effect, &mut ctx);
 
-    assert_eq!(state.players.get(&p1()).unwrap().life_total, 40);
+    assert_eq!(state.players().get(&p1()).unwrap().life_total, 40);
 }

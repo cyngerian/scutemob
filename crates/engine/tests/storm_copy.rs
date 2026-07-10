@@ -120,16 +120,20 @@ fn test_storm_creates_copies() {
 
     // Directly set spells_cast_this_turn = 3 to simulate 3 prior spells cast.
     let mut state = state;
-    state.players.get_mut(&p1).unwrap().spells_cast_this_turn = 3;
     state
-        .players
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .spells_cast_this_turn = 3;
+    state
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
 
     let storm_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Test Storm Sorcery")
         .map(|(id, _)| *id)
@@ -160,10 +164,10 @@ fn test_storm_creates_copies() {
     // CR 702.40a: After casting, the storm trigger is on the stack above the spell.
     // Stack has: [storm spell (bottom), storm trigger (top)] = 2 objects.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "After cast: storm spell + storm trigger on stack; got {}",
-        state.stack_objects.len()
+        state.stack_objects().len()
     );
 
     // CastSpell events: 1 SpellCast + 1 AbilityTriggered (storm trigger), 0 SpellCopied.
@@ -184,10 +188,10 @@ fn test_storm_creates_copies() {
     // CR 702.40a: 3 prior spells → 3 copies created when trigger resolves.
     // Stack should have: 1 original + 3 copies = 4 stack objects.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         4,
         "After trigger resolves: storm spell + 3 copies = 4 total; got {}",
-        state.stack_objects.len()
+        state.stack_objects().len()
     );
 
     // Exactly 3 SpellCopied events emitted when the trigger resolved.
@@ -238,16 +242,20 @@ fn test_storm_copies_resolve_independently() {
 
     // 2 prior spells → 2 copies.
     let mut state = state;
-    state.players.get_mut(&p1).unwrap().spells_cast_this_turn = 2;
     state
-        .players
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .spells_cast_this_turn = 2;
+    state
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
 
     let storm_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Test Storm Sorcery")
         .map(|(id, _)| *id)
@@ -277,7 +285,7 @@ fn test_storm_copies_resolve_independently() {
 
     // CR 702.40a: After cast, stack has [storm spell, storm trigger] = 2 entries.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "After cast: storm spell + storm trigger = 2 stack objects"
     );
@@ -286,13 +294,13 @@ fn test_storm_copies_resolve_independently() {
     // Stack becomes [storm spell, copy1, copy2] = 3 entries.
     let (state, _) = pass_all(state, &[p1, p2]);
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         3,
         "After trigger resolves: 3 stack objects"
     );
 
     // All 3 should have distinct IDs.
-    let ids: Vec<ObjectId> = state.stack_objects.iter().map(|s| s.id).collect();
+    let ids: Vec<ObjectId> = state.stack_objects().iter().map(|s| s.id).collect();
     let mut unique_ids = ids.clone();
     unique_ids.sort();
     unique_ids.dedup();
@@ -306,13 +314,13 @@ fn test_storm_copies_resolve_independently() {
     // Resolve all 3 remaining stack objects (pass priority for both players each time).
     // After each resolve: stack shrinks by 1.
     let (state, _) = pass_all(state, &[p1, p2]);
-    let first_resolve_size = state.stack_objects.len();
+    let first_resolve_size = state.stack_objects().len();
 
     let (state, _) = pass_all(state, &[p1, p2]);
-    let second_resolve_size = state.stack_objects.len();
+    let second_resolve_size = state.stack_objects().len();
 
     let (state, _) = pass_all(state, &[p1, p2]);
-    let final_size = state.stack_objects.len();
+    let final_size = state.stack_objects().len();
 
     assert_eq!(
         first_resolve_size, 2,
@@ -360,20 +368,21 @@ fn test_storm_count_resets_each_turn() {
 
     // Verify spells_cast_this_turn starts at 0.
     assert_eq!(
-        state.players[&p1].spells_cast_this_turn, 0,
+        state.players()[&p1].spells_cast_this_turn,
+        0,
         "spells_cast_this_turn should start at 0"
     );
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
 
     let storm_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Test Storm Sorcery")
         .map(|(id, _)| *id)
@@ -406,25 +415,26 @@ fn test_storm_count_resets_each_turn() {
     // CR 702.40a: Storm trigger goes on the stack even with 0 prior spells.
     // When it resolves, it creates 0 copies (no-op).
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "After cast: storm spell + storm trigger = 2 stack objects; got {}",
-        state.stack_objects.len()
+        state.stack_objects().len()
     );
 
     // After casting, spells_cast_this_turn should be 1 (the storm spell itself).
     assert_eq!(
-        state.players[&p1].spells_cast_this_turn, 1,
+        state.players()[&p1].spells_cast_this_turn,
+        1,
         "spells_cast_this_turn should be 1 after casting the storm spell"
     );
 
     // Resolve the storm trigger: 0 prior spells → 0 copies → stack has 1 object.
     let (state, _resolve_events) = pass_all(state, &[p1, p2]);
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "After trigger resolves with 0 copies: 1 stack object remains; got {}",
-        state.stack_objects.len()
+        state.stack_objects().len()
     );
 }
 
@@ -466,16 +476,20 @@ fn test_spell_copy_is_not_cast() {
 
     // 2 prior spells → 2 copies.
     let mut state = state;
-    state.players.get_mut(&p1).unwrap().spells_cast_this_turn = 2;
     state
-        .players
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .spells_cast_this_turn = 2;
+    state
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
 
     let storm_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Test Storm Sorcery")
         .map(|(id, _)| *id)
@@ -529,13 +543,14 @@ fn test_spell_copy_is_not_cast() {
     // spells_cast_this_turn is incremented for the cast, NOT for copies.
     // After this cast, it was 2 (prior) + 1 (this cast) = 3.
     assert_eq!(
-        state.players[&p1].spells_cast_this_turn, 3,
+        state.players()[&p1].spells_cast_this_turn,
+        3,
         "spells_cast_this_turn should be 3 (2 prior + 1 this cast); copies don't increment"
     );
 
     // Stack has: [storm spell (bottom), storm trigger (top)] = 2.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "After cast: storm spell + storm trigger = 2 stack objects"
     );
@@ -569,7 +584,7 @@ fn test_spell_copy_is_not_cast() {
 
     // Stack should have 3 entries: original + 2 copies.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         3,
         "After trigger resolves: original + 2 copies = 3 stack objects"
     );

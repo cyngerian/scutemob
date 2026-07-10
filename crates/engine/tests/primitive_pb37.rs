@@ -26,7 +26,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == name)
         .map(|(&id, _)| id)
@@ -36,7 +36,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 /// Build a minimal EffectContext for condition checking.
 fn make_ctx(state: &GameState, source: ObjectId) -> mtg_engine::effects::EffectContext {
     let controller = state
-        .objects
+        .objects()
         .get(&source)
         .map(|o| o.controller)
         .unwrap_or_else(|| p(1));
@@ -92,7 +92,7 @@ fn test_was_cast_condition_true_when_cast() {
     let appraiser_id = find_object(&state, "Geological Appraiser");
 
     // Simulate that this permanent entered via casting (as resolution.rs sets it).
-    if let Some(obj) = state.objects.get_mut(&appraiser_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&appraiser_id) {
         obj.was_cast = true;
     }
 
@@ -128,7 +128,7 @@ fn test_was_cast_condition_false_when_not_cast() {
 
     // was_cast defaults to false — objects placed via builder were not cast from the stack.
     assert!(
-        !state.objects.get(&creature_id).unwrap().was_cast,
+        !state.objects().get(&creature_id).unwrap().was_cast,
         "Objects placed via builder should have was_cast == false"
     );
 
@@ -172,18 +172,18 @@ fn test_until_your_next_turn_duration_persists_through_opponent_turns() {
         is_cda: false,
         condition: None,
     };
-    state.continuous_effects.push_back(effect);
+    state.continuous_effects_mut().push_back(effect);
 
     // p2's turn starts — this should NOT expire p1's UntilYourNextTurn effect.
     expire_until_next_turn_effects(&mut state, p2);
 
     assert_eq!(
-        state.continuous_effects.len(),
+        state.continuous_effects().len(),
         1,
         "CR 611.2b: UntilYourNextTurn(p1) effect should NOT expire when p2's turn starts"
     );
     assert_eq!(
-        state.continuous_effects.front().unwrap().duration,
+        state.continuous_effects().front().unwrap().duration,
         EffectDuration::UntilYourNextTurn(p1),
         "Effect should remain active after p2's turn"
     );
@@ -216,9 +216,9 @@ fn test_until_your_next_turn_duration_expires_on_next_turn() {
         is_cda: false,
         condition: None,
     };
-    state.continuous_effects.push_back(effect);
+    state.continuous_effects_mut().push_back(effect);
     assert_eq!(
-        state.continuous_effects.len(),
+        state.continuous_effects().len(),
         1,
         "Effect should be registered"
     );
@@ -227,7 +227,7 @@ fn test_until_your_next_turn_duration_expires_on_next_turn() {
     expire_until_next_turn_effects(&mut state, p1);
 
     assert!(
-        state.continuous_effects.is_empty(),
+        state.continuous_effects().is_empty(),
         "CR 611.2b: UntilYourNextTurn(p1) effect should expire when p1's next turn starts"
     );
 }
@@ -249,13 +249,13 @@ fn test_until_your_next_turn_player_protection_expires() {
         .unwrap();
 
     // Add temporary protection (as if from Teferi's Protection ETB).
-    if let Some(ps) = state.players.get_mut(&p1) {
+    if let Some(ps) = state.players_mut().get_mut(&p1) {
         ps.temporary_protection_qualities
             .push(ProtectionQuality::FromAll);
     }
     assert_eq!(
         state
-            .players
+            .players()
             .get(&p1)
             .unwrap()
             .temporary_protection_qualities
@@ -269,7 +269,7 @@ fn test_until_your_next_turn_player_protection_expires() {
 
     assert!(
         state
-            .players
+            .players()
             .get(&p1)
             .unwrap()
             .temporary_protection_qualities
@@ -301,7 +301,7 @@ fn test_once_per_turn_counter_starts_zero() {
 
     assert_eq!(
         state
-            .objects
+            .objects()
             .get(&ramos_id)
             .unwrap()
             .abilities_activated_this_turn,
@@ -330,13 +330,13 @@ fn test_once_per_turn_resets_at_untap_step() {
     let ramos_id = find_object(&state, "Ramos Engine");
 
     // Simulate that the ability was used once this turn.
-    if let Some(obj) = state.objects.get_mut(&ramos_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&ramos_id) {
         obj.abilities_activated_this_turn = 1;
     }
 
     assert_eq!(
         state
-            .objects
+            .objects()
             .get(&ramos_id)
             .unwrap()
             .abilities_activated_this_turn,
@@ -349,7 +349,7 @@ fn test_once_per_turn_resets_at_untap_step() {
 
     assert_eq!(
         state
-            .objects
+            .objects()
             .get(&ramos_id)
             .unwrap()
             .abilities_activated_this_turn,
@@ -409,12 +409,12 @@ fn test_one_ring_burden_counters_tracked() {
     let burden = CounterType::Custom("burden".to_string());
 
     // Add burden counters directly.
-    if let Some(obj) = state.objects.get_mut(&ring_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&ring_id) {
         *obj.counters.entry(burden.clone()).or_insert(0) += 3;
     }
 
     let count = state
-        .objects
+        .objects()
         .get(&ring_id)
         .and_then(|obj| obj.counters.get(&burden))
         .copied()

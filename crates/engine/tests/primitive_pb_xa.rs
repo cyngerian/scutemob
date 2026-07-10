@@ -47,7 +47,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_obj(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -237,7 +237,7 @@ fn test_pbxa_activated_target_creature_attacking_accepted() {
 
     // Inject combat state: Charging Bear is attacking.
     let mut state = state;
-    state.combat = Some(combat_with_attacker(p(1), attacker_id));
+    *state.combat_mut() = Some(combat_with_attacker(p(1), attacker_id));
 
     let result = process_command(
         state,
@@ -378,7 +378,7 @@ fn test_pbxa_activated_target_permanent_attacking_accepted() {
     let attacker_id = find_obj(&state, "Charging Bear");
 
     let mut state = state;
-    state.combat = Some(combat_with_attacker(p(1), attacker_id));
+    *state.combat_mut() = Some(combat_with_attacker(p(1), attacker_id));
 
     let result = process_command(
         state,
@@ -474,7 +474,7 @@ fn test_pbxa_graveyard_target_with_is_attacking_always_rejected() {
     // We inject combat with source_id as attacker (battlefield object is in combat;
     // the graveyard card is not).
     let mut state = state;
-    state.combat = Some(combat_with_attacker(p(1), source_id));
+    *state.combat_mut() = Some(combat_with_attacker(p(1), source_id));
 
     let result = process_command(
         state,
@@ -509,7 +509,7 @@ fn test_pbxa_graveyard_target_with_is_attacking_always_rejected() {
 /// - P1 controls a TFS-shaped creature on the battlefield (the triggering source).
 /// - P2 controls two creatures: "Sitter" (non-attacking, SMALLER ObjectId, added
 ///   first) and "Ravager" (attacker, LARGER ObjectId, added second).
-/// - state.combat is injected with Ravager as the sole attacker.
+/// - state.combat() is injected with Ravager as the sole attacker.
 ///
 /// Expected: the trigger auto-picks Ravager (the attacker), skipping Sitter.
 ///
@@ -615,7 +615,7 @@ fn test_pbxa_trigger_picker_selects_attacking_creature_positive() {
         .object(ravager) // Ravager second → larger ObjectId.
         .build()
         .expect("builder must succeed");
-    state.turn.priority_holder = Some(p(1));
+    state.turn_mut().priority_holder = Some(p(1));
 
     let ravager_id = find_obj(&state, "Ravager");
     let sitter_id = find_obj(&state, "Sitter");
@@ -636,7 +636,7 @@ fn test_pbxa_trigger_picker_selects_attacking_creature_positive() {
     // Note: attacking_player p(1) does not match Ravager's controller p(2) — an MTG-
     // impossible state — but the validate/picker sites only check attackers.contains_key,
     // not attacking_player, so the discrimination is unaffected (L-XA-01).
-    state.combat = Some(combat_with_attacker(p(1), ravager_id));
+    *state.combat_mut() = Some(combat_with_attacker(p(1), ravager_id));
 
     // Both players pass priority → SBAs fire → Shadow Ninja dies → WhenDies
     // trigger queues → auto-target picker runs on TargetPermanentWithFilter
@@ -663,7 +663,7 @@ fn test_pbxa_trigger_picker_selects_attacking_creature_positive() {
 
     // The WhenDies TriggeredAbility must be on the stack with target = Ravager.
     let trigger_so = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .find(|so| matches!(so.kind, StackObjectKind::TriggeredAbility { .. }))
         .expect("F-1: WhenDies TriggeredAbility must be on the stack");
@@ -765,7 +765,7 @@ fn test_pbxa_trigger_picker_skipped_when_no_attacker() {
         .object(sitter)
         .build()
         .expect("builder must succeed");
-    state.turn.priority_holder = Some(p(1));
+    state.turn_mut().priority_holder = Some(p(1));
     // No combat state — no attackers.
 
     let (state, events) = {
@@ -789,7 +789,7 @@ fn test_pbxa_trigger_picker_skipped_when_no_attacker() {
 
     // Per CR 603.3d: trigger with no legal target is not put on the stack.
     let no_trigger = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .all(|so| !matches!(so.kind, StackObjectKind::TriggeredAbility { .. }));
     assert!(
@@ -797,7 +797,7 @@ fn test_pbxa_trigger_picker_skipped_when_no_attacker() {
         "PB-XA F-2 / CR 603.3d: WhenDies trigger with is_attacking=true and no attackers \
          must be SKIPPED (no stack object created). Stack: {:?}",
         state
-            .stack_objects
+            .stack_objects()
             .iter()
             .map(|so| format!("{:?}", so.kind))
             .collect::<Vec<_>>()
@@ -810,7 +810,7 @@ fn test_pbxa_trigger_picker_skipped_when_no_attacker() {
 /// silently ignore `is_attacking` — by design. The field is a runtime property
 /// of `CombatState.attackers`, not of `Characteristics`. Enforcement happens at
 /// higher-level call sites (validate_object_satisfies_requirement and the
-/// trigger auto-target picker) that have access to `state.combat`.
+/// trigger auto-target picker) that have access to `state.combat()`.
 ///
 /// This test documents the invariant: the same Characteristics passes both
 /// filter shapes regardless of is_attacking.
@@ -837,6 +837,6 @@ fn test_pbxa_matches_filter_ignores_is_attacking_by_design() {
     assert!(
         matches_filter(&chars, &f_with_attacking),
         "PB-XA: matches_filter MUST ignore is_attacking (no CombatState context). \
-         Enforcement happens at call sites that have access to state.combat."
+         Enforcement happens at call sites that have access to state.combat()."
     );
 }

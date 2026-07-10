@@ -250,10 +250,15 @@ fn test_cascade_exiles_until_hit() {
 
     // Give p1 enough mana to cast the MV=5 cascade spell.
     let mut state = state;
-    state.players.get_mut(&p1).unwrap().mana_pool.colorless = 5;
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .colorless = 5;
 
     let cascade_hand_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Big Cascade Spell")
         .map(|(id, _)| *id)
@@ -284,10 +289,10 @@ fn test_cascade_exiles_until_hit() {
     // CR 702.85a: After cast, the cascade trigger is on the stack above the spell.
     // Stack has: [cascade spell (bottom), cascade trigger (top)] = 2 entries.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "After cast: cascade spell + cascade trigger on stack; got {} stack objects",
-        state.stack_objects.len()
+        state.stack_objects().len()
     );
 
     // At cast time: 1 SpellCast (cascade spell) + 1 AbilityTriggered (cascade trigger).
@@ -317,9 +322,9 @@ fn test_cascade_exiles_until_hit() {
     // CR 702.85b: After trigger resolves, the qualifying card (Small Spell) is on the stack.
     // Stack: [cascade spell (bottom), cascaded spell (top)] = 2 entries.
     assert!(
-        state.stack_objects.len() >= 2,
+        state.stack_objects().len() >= 2,
         "Cascade spell + cascaded spell should both be on stack after trigger resolves; got {}",
-        state.stack_objects.len()
+        state.stack_objects().len()
     );
 
     // CascadeCast fires during trigger resolution.
@@ -414,10 +419,15 @@ fn test_cascade_skips_lands() {
         .unwrap();
 
     let mut state = state;
-    state.players.get_mut(&p1).unwrap().mana_pool.colorless = 3;
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .colorless = 3;
 
     let cascade_hand_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Cascade Spell MV3")
         .map(|(id, _)| *id)
@@ -448,10 +458,10 @@ fn test_cascade_skips_lands() {
     // CR 702.85a: After cast, the cascade trigger is on the stack above the spell.
     // Stack has: [cascade spell, cascade trigger] = 2 entries.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "After cast: cascade spell + cascade trigger on stack; got {}",
-        state.stack_objects.len()
+        state.stack_objects().len()
     );
 
     // At cast time: no CascadeCast yet (trigger hasn't resolved).
@@ -489,7 +499,7 @@ fn test_cascade_skips_lands() {
 
     // After trigger resolves: [cascade spell (bottom), cascaded sorcery (top)] = 2 entries.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "After trigger resolves: cascade spell + cascaded sorcery on stack"
     );
@@ -580,10 +590,15 @@ fn test_cascade_combined_mana_value_skip() {
         .unwrap();
 
     let mut state = state;
-    state.players.get_mut(&p1).unwrap().mana_pool.colorless = 4;
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .colorless = 4;
 
     let cascade_hand_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Cascade MV4 Spell")
         .map(|(id, _)| *id)
@@ -614,10 +629,10 @@ fn test_cascade_combined_mana_value_skip() {
     // CR 702.85a: After cast, cascade trigger is on the stack above the spell.
     // Stack has [cascade spell, cascade trigger] = 2 entries.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "After cast: cascade spell + cascade trigger; got {}",
-        state.stack_objects.len()
+        state.stack_objects().len()
     );
 
     // No CascadeCast at cast time.
@@ -645,7 +660,7 @@ fn test_cascade_combined_mana_value_skip() {
 
     // Both cascade spell and cascaded spell are on stack.
     assert!(
-        state.stack_objects.len() >= 2,
+        state.stack_objects().len() >= 2,
         "Cascade spell + cascaded spell should be on stack after trigger resolves"
     );
 

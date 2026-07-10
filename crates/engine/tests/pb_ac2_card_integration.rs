@@ -27,6 +27,7 @@
 
 use mtg_engine::effects::{execute_effect, EffectContext};
 use mtg_engine::rules::abilities::{check_triggers, flush_pending_triggers};
+use mtg_engine::state::test_util;
 use mtg_engine::{
     all_cards, enrich_spec_from_def, process_command, CardDefinition, CardId, CardRegistry,
     CardType, Command, CounterType, Effect, EffectAmount, GameEvent, GameState, GameStateBuilder,
@@ -50,7 +51,7 @@ fn load_defs() -> HashMap<String, CardDefinition> {
 
 fn find_by_name(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -59,7 +60,7 @@ fn find_by_name(state: &GameState, name: &str) -> ObjectId {
 
 fn find_in_hand(state: &GameState, player: PlayerId, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == name && o.zone == ZoneId::Hand(player))
         .map(|(id, _)| *id)
@@ -68,7 +69,7 @@ fn find_in_hand(state: &GameState, player: PlayerId, name: &str) -> ObjectId {
 
 fn hand_count(state: &GameState, player: PlayerId) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(player))
         .count()
@@ -76,7 +77,7 @@ fn hand_count(state: &GameState, player: PlayerId) -> usize {
 
 fn graveyard_count(state: &GameState, player: PlayerId) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|o| matches!(o.zone, ZoneId::Graveyard(pid) if pid == player))
         .count()
@@ -84,12 +85,12 @@ fn graveyard_count(state: &GameState, player: PlayerId) -> usize {
 
 fn trigger_count_for(state: &GameState, source: ObjectId) -> usize {
     let pending = state
-        .pending_triggers
+        .pending_triggers()
         .iter()
         .filter(|t| t.source == source)
         .count();
     let on_stack = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .filter(|so| {
             matches!(
@@ -127,7 +128,7 @@ fn cast_spell(
 ) -> (GameState, Vec<GameEvent>) {
     let card_id = find_in_hand(&state, player, name);
     let mut state = state;
-    state.turn.priority_holder = Some(player);
+    state.turn_mut().priority_holder = Some(player);
     process_command(
         state,
         Command::CastSpell {
@@ -152,60 +153,62 @@ fn cast_spell(
 }
 
 /// Push a bare `StackObject::Spell` entry wrapping `source_object` onto
-/// `state.stack_objects`. Used for the opposing spell that Mana Leak targets --
+/// `state.stack_objects()`. Used for the opposing spell that Mana Leak targets --
 /// mirrors the pattern in `optional_cost_and_counter_tax.rs`.
 fn push_spell_stack_object(
     state: &mut GameState,
     source_object: ObjectId,
     controller: PlayerId,
 ) -> ObjectId {
-    let stack_id = state.next_object_id();
-    state.stack_objects.push_back(mtg_engine::StackObject {
-        id: stack_id,
-        controller,
-        kind: StackObjectKind::Spell { source_object },
-        targets: vec![],
-        cant_be_countered: false,
-        is_copy: false,
-        cast_with_flashback: false,
-        kicker_times_paid: 0,
-        was_evoked: false,
-        was_bestowed: false,
-        cast_with_madness: false,
-        cast_with_miracle: false,
-        was_escaped: false,
-        cast_with_foretell: false,
-        was_buyback_paid: false,
-        was_suspended: false,
-        was_overloaded: false,
-        cast_with_jump_start: false,
-        cast_with_aftermath: false,
-        was_dashed: false,
-        was_warped: false,
-        was_blitzed: false,
-        was_plotted: false,
-        was_prototyped: false,
-        was_impended: false,
-        was_bargained: false,
-        was_surged: false,
-        was_casualty_paid: false,
-        was_cleaved: false,
-        was_cast_as_adventure: false,
-        x_value: 0,
-        evidence_collected: false,
-        spliced_effects: vec![],
-        spliced_card_ids: vec![],
-        modes_chosen: vec![],
-        is_cast_transformed: false,
-        additional_costs: vec![],
-        damaged_player: None,
-        combat_damage_amount: 0,
-        triggering_creature_id: None,
-        cast_from_top_with_bonus: false,
-        sacrificed_creature_powers: vec![],
-        lki_counters: im::OrdMap::new(),
-        lki_power: None,
-    });
+    let stack_id = test_util::next_object_id(state);
+    state
+        .stack_objects_mut()
+        .push_back(mtg_engine::StackObject {
+            id: stack_id,
+            controller,
+            kind: StackObjectKind::Spell { source_object },
+            targets: vec![],
+            cant_be_countered: false,
+            is_copy: false,
+            cast_with_flashback: false,
+            kicker_times_paid: 0,
+            was_evoked: false,
+            was_bestowed: false,
+            cast_with_madness: false,
+            cast_with_miracle: false,
+            was_escaped: false,
+            cast_with_foretell: false,
+            was_buyback_paid: false,
+            was_suspended: false,
+            was_overloaded: false,
+            cast_with_jump_start: false,
+            cast_with_aftermath: false,
+            was_dashed: false,
+            was_warped: false,
+            was_blitzed: false,
+            was_plotted: false,
+            was_prototyped: false,
+            was_impended: false,
+            was_bargained: false,
+            was_surged: false,
+            was_casualty_paid: false,
+            was_cleaved: false,
+            was_cast_as_adventure: false,
+            x_value: 0,
+            evidence_collected: false,
+            spliced_effects: vec![],
+            spliced_card_ids: vec![],
+            modes_chosen: vec![],
+            is_cast_transformed: false,
+            additional_costs: vec![],
+            damaged_player: None,
+            combat_damage_amount: 0,
+            triggering_creature_id: None,
+            cast_from_top_with_bonus: false,
+            sacrificed_creature_powers: vec![],
+            lki_counters: im::OrdMap::new(),
+            lki_power: None,
+        });
     stack_id
 }
 
@@ -267,7 +270,7 @@ fn test_crossway_troublemakers_vampire_death_may_pay_life_draws() {
         .at_step(Step::PreCombatMain)
         .build()
         .unwrap();
-    state.players.get_mut(&p1).unwrap().life_total = 20;
+    state.players_mut().get_mut(&p1).unwrap().life_total = 20;
 
     let crossway_id = find_by_name(&state, "Crossway Troublemakers");
     let initial_hand = hand_count(&state, p1);
@@ -276,7 +279,7 @@ fn test_crossway_troublemakers_vampire_death_may_pay_life_draws() {
     let (state, _) = pass_all(state, &[p1, p2]);
     assert!(
         !state
-            .objects
+            .objects()
             .values()
             .any(|o| o.characteristics.name == "Vampire Fodder" && o.zone == ZoneId::Battlefield),
         "CR 704.5f: Vampire Fodder (0 toughness) should have died to the SBA"
@@ -303,7 +306,7 @@ fn test_crossway_troublemakers_vampire_death_may_pay_life_draws() {
         "CR 118.12: cost was paid -- `then` (draw a card) should run"
     );
     assert_eq!(
-        state.players.get(&p1).unwrap().life_total,
+        state.players().get(&p1).unwrap().life_total,
         18,
         "life total should be reduced by the paid 2 life"
     );
@@ -362,7 +365,7 @@ fn test_hazorets_monument_creature_cast_may_discard_draws() {
         .build()
         .unwrap();
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -466,13 +469,13 @@ fn test_springbloom_druid_etb_may_sacrifice_land_searches() {
         .build()
         .unwrap();
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -484,7 +487,7 @@ fn test_springbloom_druid_etb_may_sacrifice_land_searches() {
     let (state, _) = pass_all(state, &[p1, p2]);
     assert!(
         state
-            .objects
+            .objects()
             .values()
             .any(|o| o.characteristics.name == "Springbloom Druid" && o.zone == ZoneId::Battlefield),
         "Springbloom Druid should have resolved onto the battlefield"
@@ -508,18 +511,18 @@ fn test_springbloom_druid_etb_may_sacrifice_land_searches() {
     );
     assert!(
         !state
-            .objects
+            .objects()
             .values()
             .any(|o| o.characteristics.name == "Sacrificial Land" && o.zone == ZoneId::Battlefield),
         "the sacrificed land should have left the battlefield"
     );
 
     let forest_on_bf = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Forest" && o.zone == ZoneId::Battlefield);
     let plains_on_bf = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Plains" && o.zone == ZoneId::Battlefield);
     assert!(
@@ -540,7 +543,7 @@ fn test_springbloom_druid_etb_may_sacrifice_land_searches() {
     );
     assert!(
         !state
-            .objects
+            .objects()
             .values()
             .any(|o| o.zone == ZoneId::Library(p1)),
         "both basics should have left the library"
@@ -581,7 +584,7 @@ fn test_nadir_kraken_on_draw_may_pay_puts_counter_and_token() {
     // Pre-float {1} -- mana pools are empty between steps (CR 500.4); the
     // beneficial pay only fires if the payer has floating mana at trigger time.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -608,7 +611,7 @@ fn test_nadir_kraken_on_draw_may_pay_puts_counter_and_token() {
     );
     let triggers = check_triggers(&state, &draw_events);
     for t in triggers {
-        state.pending_triggers.push_back(t);
+        state.pending_triggers_mut().push_back(t);
     }
     let flush_events = flush_pending_triggers(&mut state);
     assert!(
@@ -619,13 +622,13 @@ fn test_nadir_kraken_on_draw_may_pay_puts_counter_and_token() {
     );
 
     // Resolve the trigger from the stack.
-    while !state.stack_objects.is_empty() {
+    while !state.stack_objects().is_empty() {
         let (s, _) = process_command(state, Command::PassPriority { player: p1 }).unwrap();
         let (s, _) = process_command(s, Command::PassPriority { player: p2 }).unwrap();
         state = s;
     }
 
-    let kraken = state.objects.get(&kraken_id).unwrap();
+    let kraken = state.objects().get(&kraken_id).unwrap();
     assert_eq!(
         kraken
             .counters
@@ -636,7 +639,7 @@ fn test_nadir_kraken_on_draw_may_pay_puts_counter_and_token() {
         "CR 118.12: {{1}} was floating and paid -- Nadir Kraken should have a +1/+1 counter"
     );
     let tentacle_count = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.characteristics.name == "Tentacle" && o.zone == ZoneId::Battlefield)
         .count();
@@ -645,7 +648,7 @@ fn test_nadir_kraken_on_draw_may_pay_puts_counter_and_token() {
         "CR 118.12: {{1}} was floating and paid -- exactly 1 Tentacle token should be created"
     );
     assert_eq!(
-        state.players.get(&p1).unwrap().mana_pool.colorless,
+        state.players().get(&p1).unwrap().mana_pool.colorless,
         0,
         "the floating mana should have been spent"
     );
@@ -692,13 +695,13 @@ fn test_mana_leak_counters_target_spell() {
     // p1 has exactly {1}{U} -- enough to cast Mana Leak, nothing left over. p2 (the
     // target's controller) has NO floating mana at all -- no way to pay {3}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -707,7 +710,7 @@ fn test_mana_leak_counters_target_spell() {
     let (state, _) = cast_spell(state, p1, "Mana Leak", vec![Target::Object(target_id)]);
     assert!(
         state
-            .stack_objects
+            .stack_objects()
             .iter()
             .any(|so| matches!(so.kind, StackObjectKind::Spell { source_object } if source_object != target_id)),
         "Mana Leak should be on the stack above the target"
@@ -725,14 +728,14 @@ fn test_mana_leak_counters_target_spell() {
         events
     );
     assert!(
-        state.objects.values().any(|o| {
+        state.objects().values().any(|o| {
             o.characteristics.name == "Countable Spell" && matches!(o.zone, ZoneId::Graveyard(_))
         }),
         "the countered spell should move to its owner's graveyard"
     );
     assert!(
         !state
-            .stack_objects
+            .stack_objects()
             .iter()
             .any(|so| matches!(so.kind, StackObjectKind::Spell { source_object } if source_object == target_id)),
         "the countered spell's stack entry should be gone"

@@ -25,7 +25,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -34,7 +34,7 @@ fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
 
 fn find_object_on_battlefield(state: &mtg_engine::GameState, name: &str) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
         .map(|(id, _)| *id)
@@ -167,12 +167,12 @@ fn test_modular_etb_counters() {
 
     // Add mana to pay {1}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let creature_id = find_object(&state, "Modular Test One");
 
@@ -207,7 +207,7 @@ fn test_modular_etb_counters() {
         .expect("CR 702.43a: Modular creature should be on the battlefield after resolution");
 
     // Verify: creature has exactly 1 +1/+1 counter.
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -266,12 +266,12 @@ fn test_modular_etb_counters_n() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let creature_id = find_object(&state, "Modular Test Three");
 
@@ -302,7 +302,7 @@ fn test_modular_etb_counters_n() {
     let bf_id = find_object_on_battlefield(&state, "Modular Test Three")
         .expect("Modular 3 creature should be on the battlefield");
 
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -375,12 +375,12 @@ fn test_modular_dies_transfers_counters() {
 
     // Verify trigger is on the stack (before resolution).
     assert!(
-        state.stack_objects.len() == 1,
+        state.stack_objects().len() == 1,
         "CR 702.43a: Modular trigger should be on the stack"
     );
     assert!(
         matches!(
-            state.stack_objects[0].kind,
+            state.stack_objects()[0].kind,
             mtg_engine::StackObjectKind::KeywordTrigger {
                 keyword: KeywordAbility::Modular(_),
                 ..
@@ -392,7 +392,7 @@ fn test_modular_dies_transfers_counters() {
     // Verify target has no +1/+1 counters yet.
     let target_id =
         find_object_on_battlefield(&state, "Steel Target").expect("Steel Target should exist");
-    let target_counters_before = state.objects[&target_id]
+    let target_counters_before = state.objects()[&target_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -405,7 +405,7 @@ fn test_modular_dies_transfers_counters() {
     // Both players pass → trigger resolves → Steel Target receives 1 +1/+1 counter.
     let (state, trigger_events) = pass_all(state, &[p1, p2]);
 
-    let target_counters_after = state.objects[&target_id]
+    let target_counters_after = state.objects()[&target_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -471,14 +471,14 @@ fn test_modular_dies_extra_counters() {
 
     // Verify trigger carries 3 counters.
     assert!(
-        state.stack_objects.len() == 1,
+        state.stack_objects().len() == 1,
         "Modular trigger should be on the stack"
     );
     if let mtg_engine::StackObjectKind::KeywordTrigger {
         keyword: KeywordAbility::Modular(_),
         data: mtg_engine::state::stack::TriggerData::DeathModular { counter_count },
         ..
-    } = &state.stack_objects[0].kind
+    } = &state.stack_objects()[0].kind
     {
         assert_eq!(
             *counter_count, 3,
@@ -495,7 +495,7 @@ fn test_modular_dies_extra_counters() {
     // Resolve trigger.
     let (state, _) = pass_all(state, &[p1, p2]);
 
-    let target_counters = state.objects[&target_id]
+    let target_counters = state.objects()[&target_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -551,7 +551,7 @@ fn test_modular_dies_no_artifact_creature_target() {
 
     // Trigger should NOT be on the stack (no legal artifact creature target).
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "CR 603.3d: Modular trigger should NOT be placed on the stack when \
          no artifact creature target exists"
@@ -560,7 +560,7 @@ fn test_modular_dies_no_artifact_creature_target() {
     // Vanilla creature should be unaffected.
     let vanilla_id =
         find_object_on_battlefield(&state, "Vanilla Creature").expect("Vanilla should survive");
-    let vanilla_counters = state.objects[&vanilla_id]
+    let vanilla_counters = state.objects()[&vanilla_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -621,7 +621,7 @@ fn test_modular_dies_zero_counters() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // Target should have 0 counters (trigger had counter_count=0).
-    let target_counters = state.objects[&target_id]
+    let target_counters = state.objects()[&target_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -666,12 +666,12 @@ fn test_modular_multiple_instances_etb() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let creature_id = find_object(&state, "Double Modular Test");
 
@@ -702,7 +702,7 @@ fn test_modular_multiple_instances_etb() {
     let bf_id = find_object_on_battlefield(&state, "Double Modular Test")
         .expect("Double Modular creature should be on the battlefield");
 
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -746,12 +746,12 @@ fn test_modular_0_0_base_stats_survives_etb() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let creature_id = find_object(&state, "Modular Test One");
 
@@ -784,7 +784,7 @@ fn test_modular_0_0_base_stats_survives_etb() {
         .expect("CR 702.43a: 0/0 Modular 1 creature should be on the battlefield (not SBA-killed)");
 
     // Should have 1 +1/+1 counter (making it effectively 1/1).
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -862,13 +862,13 @@ fn test_modular_multiple_instances_death_triggers() {
 
     // Exactly 2 ModularTrigger entries should be on the stack (one per Modular instance).
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "CR 702.43b: Two separate Modular triggers should be on the stack (one per instance)"
     );
 
     // Both stack objects must be ModularTrigger.
-    for (i, stack_obj) in state.stack_objects.iter().enumerate() {
+    for (i, stack_obj) in state.stack_objects().iter().enumerate() {
         assert!(
             matches!(
                 stack_obj.kind,
@@ -884,7 +884,7 @@ fn test_modular_multiple_instances_death_triggers() {
 
     // Each trigger should carry counter_count = 3 (full pre-death counter count, not
     // the individual N value of 1 or 2).
-    for (i, stack_obj) in state.stack_objects.iter().enumerate() {
+    for (i, stack_obj) in state.stack_objects().iter().enumerate() {
         if let mtg_engine::StackObjectKind::KeywordTrigger {
             keyword: KeywordAbility::Modular(_),
             data: mtg_engine::state::stack::TriggerData::DeathModular { counter_count },

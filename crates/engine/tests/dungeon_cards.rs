@@ -75,14 +75,14 @@ fn test_nadaar_enters_ventures() {
         .unwrap();
 
     // Give p1 enough mana for Nadaar ({3}{W}).
-    if let Some(ps) = state.players.get_mut(&p1) {
+    if let Some(ps) = state.players_mut().get_mut(&p1) {
         ps.mana_pool.colorless += 3;
         ps.mana_pool.white += 1;
     }
 
     // Find Nadaar in hand.
     let nadaar_id = state
-        .objects
+        .objects()
         .iter()
         .find_map(|(&id, obj)| {
             if obj.characteristics.name == "Nadaar, Selfless Paladin"
@@ -123,7 +123,7 @@ fn test_nadaar_enters_ventures() {
     let (state, _) = process_command(state, Command::PassPriority { player: p2 }).expect("pass p2");
 
     // Nadaar should now be on the battlefield.
-    let nadaar_on_battlefield = state.objects.values().any(|o| {
+    let nadaar_on_battlefield = state.objects().values().any(|o| {
         o.characteristics.name == "Nadaar, Selfless Paladin" && o.zone == ZoneId::Battlefield
     });
     assert!(
@@ -133,7 +133,7 @@ fn test_nadaar_enters_ventures() {
 
     // ETB trigger should be on the stack.
     assert!(
-        !state.stack_objects.is_empty(),
+        !state.stack_objects().is_empty(),
         "ETB venture trigger should be on the stack"
     );
 
@@ -162,7 +162,7 @@ fn test_nadaar_enters_ventures() {
     );
 
     // CR 309.4c: RoomAbility (Scry 1 from Cave Entrance) should now be on the stack.
-    let room_ability_on_stack = state.stack_objects.iter().any(|so| {
+    let room_ability_on_stack = state.stack_objects().iter().any(|so| {
         matches!(
             &so.kind,
             StackObjectKind::RoomAbility { owner, dungeon, room }
@@ -175,7 +175,7 @@ fn test_nadaar_enters_ventures() {
     );
 
     // p1's dungeon_state should track progress in Lost Mine at room 0.
-    let ds = state.dungeon_state.get(&p1);
+    let ds = state.dungeon_state().get(&p1);
     assert!(ds.is_some(), "p1 should have an active dungeon state");
     let ds = ds.unwrap();
     assert_eq!(
@@ -217,7 +217,7 @@ fn test_nadaar_attacks_ventures() {
 
     // Find Nadaar on the battlefield.
     let nadaar_id = state
-        .objects
+        .objects()
         .iter()
         .find_map(|(&id, obj)| {
             if obj.characteristics.name == "Nadaar, Selfless Paladin"
@@ -244,7 +244,7 @@ fn test_nadaar_attacks_ventures() {
 
     // After declaring attackers, the WhenAttacks trigger should be on the stack.
     assert!(
-        !state.stack_objects.is_empty(),
+        !state.stack_objects().is_empty(),
         "WhenAttacks trigger from Nadaar should be on the stack after declare attackers"
     );
 
@@ -294,7 +294,7 @@ fn test_nadaar_completed_dungeon_buff() {
         .unwrap();
 
     // Verify Nadaar is on the battlefield.
-    let nadaar_on_battlefield = state.objects.values().any(|o| {
+    let nadaar_on_battlefield = state.objects().values().any(|o| {
         o.characteristics.name == "Nadaar, Selfless Paladin" && o.zone == ZoneId::Battlefield
     });
     assert!(
@@ -305,13 +305,13 @@ fn test_nadaar_completed_dungeon_buff() {
     // Simulate completing a dungeon by directly setting dungeons_completed.
     // (In a real game this would happen via handle_venture_into_dungeon completing
     // the bottommost room and triggering the DungeonCompleted SBA.)
-    if let Some(ps) = state.players.get_mut(&p1) {
+    if let Some(ps) = state.players_mut().get_mut(&p1) {
         ps.dungeons_completed = 1;
     }
 
     // Verify the condition fires: p1 has completed a dungeon.
     let dungeons_completed = state
-        .players
+        .players()
         .get(&p1)
         .map(|ps| ps.dungeons_completed)
         .unwrap_or(0);
@@ -353,14 +353,14 @@ fn test_acererak_bounces_without_tomb() {
         .unwrap();
 
     // Give p1 mana for Acererak ({2}{B}).
-    if let Some(ps) = state.players.get_mut(&p1) {
+    if let Some(ps) = state.players_mut().get_mut(&p1) {
         ps.mana_pool.colorless += 2;
         ps.mana_pool.black += 1;
     }
 
     // Confirm p1 has not completed Tomb of Annihilation (default state).
     let completed_tomb = state
-        .players
+        .players()
         .get(&p1)
         .map(|ps| {
             ps.dungeons_completed_set
@@ -374,7 +374,7 @@ fn test_acererak_bounces_without_tomb() {
 
     // Find Acererak in hand.
     let acererak_id = state
-        .objects
+        .objects()
         .iter()
         .find_map(|(&id, obj)| {
             if obj.characteristics.name == "Acererak the Archlich" && obj.zone == ZoneId::Hand(p1) {
@@ -413,7 +413,7 @@ fn test_acererak_bounces_without_tomb() {
     let (state, _) = process_command(state, Command::PassPriority { player: p2 }).expect("pass p2");
 
     // Acererak should be on the battlefield (just entered).
-    let on_bf = state.objects.values().any(|o| {
+    let on_bf = state.objects().values().any(|o| {
         o.characteristics.name == "Acererak the Archlich" && o.zone == ZoneId::Battlefield
     });
     assert!(
@@ -423,7 +423,7 @@ fn test_acererak_bounces_without_tomb() {
 
     // ETB trigger (intervening-if: Tomb not completed) should be on the stack.
     assert!(
-        !state.stack_objects.is_empty(),
+        !state.stack_objects().is_empty(),
         "Acererak ETB trigger should be on the stack"
     );
 
@@ -437,7 +437,7 @@ fn test_acererak_bounces_without_tomb() {
 
     // CR 603.4: Acererak should be back in p1's hand (MoveZone to Hand fired).
     let acererak_in_hand = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Acererak the Archlich" && o.zone == ZoneId::Hand(p1));
     assert!(
@@ -483,13 +483,13 @@ fn test_acererak_stays_after_tomb_completed() {
         .unwrap();
 
     // Give p1 mana for Acererak ({2}{B}).
-    if let Some(ps) = state.players.get_mut(&p1) {
+    if let Some(ps) = state.players_mut().get_mut(&p1) {
         ps.mana_pool.colorless += 2;
         ps.mana_pool.black += 1;
     }
 
     // Mark p1 as having completed Tomb of Annihilation — condition is now false.
-    if let Some(ps) = state.players.get_mut(&p1) {
+    if let Some(ps) = state.players_mut().get_mut(&p1) {
         ps.dungeons_completed_set
             .insert(DungeonId::TombOfAnnihilation);
         ps.dungeons_completed += 1;
@@ -497,7 +497,7 @@ fn test_acererak_stays_after_tomb_completed() {
 
     // Confirm p1 has completed Tomb of Annihilation.
     let completed_tomb = state
-        .players
+        .players()
         .get(&p1)
         .map(|ps| {
             ps.dungeons_completed_set
@@ -511,7 +511,7 @@ fn test_acererak_stays_after_tomb_completed() {
 
     // Find Acererak in hand.
     let acererak_id = state
-        .objects
+        .objects()
         .iter()
         .find_map(|(&id, obj)| {
             if obj.characteristics.name == "Acererak the Archlich" && obj.zone == ZoneId::Hand(p1) {
@@ -550,7 +550,7 @@ fn test_acererak_stays_after_tomb_completed() {
     let (state, _) = process_command(state, Command::PassPriority { player: p2 }).expect("pass p2");
 
     // Acererak should be on the battlefield (just entered).
-    let on_bf = state.objects.values().any(|o| {
+    let on_bf = state.objects().values().any(|o| {
         o.characteristics.name == "Acererak the Archlich" && o.zone == ZoneId::Battlefield
     });
     assert!(
@@ -572,7 +572,7 @@ fn test_acererak_stays_after_tomb_completed() {
     let all_events: Vec<_> = trigger_events.into_iter().chain(trigger_events2).collect();
 
     // CR 603.4: Acererak should still be on the battlefield (NOT bounced to hand).
-    let acererak_on_bf = state.objects.values().any(|o| {
+    let acererak_on_bf = state.objects().values().any(|o| {
         o.characteristics.name == "Acererak the Archlich" && o.zone == ZoneId::Battlefield
     });
     assert!(
@@ -591,7 +591,7 @@ fn test_acererak_stays_after_tomb_completed() {
 
     // Acererak should NOT be in p1's hand.
     let acererak_in_hand = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Acererak the Archlich" && o.zone == ZoneId::Hand(p1));
     assert!(
@@ -629,13 +629,13 @@ fn test_initiative_take_ventures_undercity() {
         .unwrap();
 
     // Give p1 mana for Seasoned Dungeoneer ({3}{W}).
-    if let Some(ps) = state.players.get_mut(&p1) {
+    if let Some(ps) = state.players_mut().get_mut(&p1) {
         ps.mana_pool.colorless += 3;
         ps.mana_pool.white += 1;
     }
 
     let dungeoneer_id = state
-        .objects
+        .objects()
         .iter()
         .find_map(|(&id, obj)| {
             if obj.characteristics.name == "Seasoned Dungeoneer" && obj.zone == ZoneId::Hand(p1) {
@@ -675,7 +675,7 @@ fn test_initiative_take_ventures_undercity() {
 
     // ETB trigger (take the initiative) should be on the stack.
     assert!(
-        !state.stack_objects.is_empty(),
+        !state.stack_objects().is_empty(),
         "ETB take-the-initiative trigger should be on the stack"
     );
 
@@ -698,7 +698,7 @@ fn test_initiative_take_ventures_undercity() {
 
     // CR 725.1: p1 should now hold the initiative.
     assert_eq!(
-        state.has_initiative,
+        state.has_initiative(),
         Some(p1),
         "p1 should hold the initiative after taking it"
     );
@@ -721,7 +721,7 @@ fn test_initiative_take_ventures_undercity() {
 
     // p1's dungeon state should show The Undercity at room 0.
     let ds = state
-        .dungeon_state
+        .dungeon_state()
         .get(&p1)
         .expect("p1 should have an active dungeon state");
     assert_eq!(

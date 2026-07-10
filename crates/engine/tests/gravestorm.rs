@@ -14,6 +14,7 @@
 //! - Counter resets to 0 at the start of each new turn (CR 702.69a "this turn").
 //! - Counter includes permanents from ALL players (ruling 2024-02-02).
 
+use mtg_engine::state::test_util;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
     Effect, EffectAmount, GameEvent, GameState, GameStateBuilder, KeywordAbility, ManaColor,
@@ -32,7 +33,7 @@ fn p2() -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -155,9 +156,9 @@ fn test_gravestorm_basic_creates_copies() {
 
     // Directly set permanents_put_into_graveyard_this_turn = 3 to simulate 3 deaths.
     let mut state = state;
-    state.permanents_put_into_graveyard_this_turn = 3;
+    *state.permanents_put_into_graveyard_this_turn_mut() = 3;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -168,14 +169,14 @@ fn test_gravestorm_basic_creates_copies() {
 
     // After casting: stack has [gravestorm spell (bottom), gravestorm trigger (top)] = 2 objects.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "After cast: gravestorm spell + trigger on stack; got {}",
-        state.stack_objects.len()
+        state.stack_objects().len()
     );
 
     // Verify the trigger has the correct gravestorm_count.
-    let trigger = state.stack_objects.back().expect("trigger expected");
+    let trigger = state.stack_objects().back().expect("trigger expected");
     match &trigger.kind {
         StackObjectKind::KeywordTrigger {
             keyword: KeywordAbility::Gravestorm,
@@ -208,10 +209,10 @@ fn test_gravestorm_basic_creates_copies() {
     // CR 702.69a: 3 permanents → 3 copies created.
     // Stack: 1 original + 3 copies = 4 objects.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         4,
         "After trigger resolves: 1 original + 3 copies = 4; got {}",
-        state.stack_objects.len()
+        state.stack_objects().len()
     );
 
     // Verify 3 SpellCopied events (not SpellCast).
@@ -237,7 +238,7 @@ fn test_gravestorm_basic_creates_copies() {
     );
 
     // Verify all 3 copies have is_copy = true.
-    let copy_count_on_stack = state.stack_objects.iter().filter(|s| s.is_copy).count();
+    let copy_count_on_stack = state.stack_objects().iter().filter(|s| s.is_copy).count();
     assert_eq!(
         copy_count_on_stack, 3,
         "3 stack objects should have is_copy=true; got {}",
@@ -282,7 +283,7 @@ fn test_gravestorm_zero_count_no_copies() {
     // permanents_put_into_graveyard_this_turn = 0 (default).
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -293,13 +294,13 @@ fn test_gravestorm_zero_count_no_copies() {
 
     // Trigger is on the stack (count=0, but trigger was still created).
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "After cast: spell + trigger on stack (count=0); got {}",
-        state.stack_objects.len()
+        state.stack_objects().len()
     );
 
-    let trigger = state.stack_objects.back().expect("trigger");
+    let trigger = state.stack_objects().back().expect("trigger");
     match &trigger.kind {
         StackObjectKind::KeywordTrigger {
             keyword: KeywordAbility::Gravestorm,
@@ -320,10 +321,10 @@ fn test_gravestorm_zero_count_no_copies() {
 
     // Zero copies created — stack has only the original spell.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "After trigger resolves with count=0: only original on stack; got {}",
-        state.stack_objects.len()
+        state.stack_objects().len()
     );
 
     let copied_count = resolve_events
@@ -356,7 +357,8 @@ fn test_gravestorm_count_increments_on_permanent_dying() {
         .unwrap();
 
     assert_eq!(
-        state.permanents_put_into_graveyard_this_turn, 0,
+        state.permanents_put_into_graveyard_this_turn(),
+        0,
         "Counter starts at 0"
     );
 
@@ -364,14 +366,14 @@ fn test_gravestorm_count_increments_on_permanent_dying() {
     let mut state = state;
 
     // Simulate death by moving from Battlefield to Graveyard.
-    state
-        .move_object_to_zone(creature_id, ZoneId::Graveyard(p1))
+    test_util::move_object_to_zone(&mut state, creature_id, ZoneId::Graveyard(p1))
         .expect("move_object_to_zone should succeed");
 
     assert_eq!(
-        state.permanents_put_into_graveyard_this_turn, 1,
+        state.permanents_put_into_graveyard_this_turn(),
+        1,
         "Counter should be 1 after one permanent dies; got {}",
-        state.permanents_put_into_graveyard_this_turn
+        state.permanents_put_into_graveyard_this_turn()
     );
 }
 
@@ -396,14 +398,14 @@ fn test_gravestorm_count_includes_tokens() {
     let token_id = find_object(&state, "Token Creature");
     let mut state = state;
 
-    state
-        .move_object_to_zone(token_id, ZoneId::Graveyard(p1))
+    test_util::move_object_to_zone(&mut state, token_id, ZoneId::Graveyard(p1))
         .expect("token move should succeed");
 
     assert_eq!(
-        state.permanents_put_into_graveyard_this_turn, 1,
+        state.permanents_put_into_graveyard_this_turn(),
+        1,
         "Token entering graveyard from battlefield should increment counter; got {}",
-        state.permanents_put_into_graveyard_this_turn
+        state.permanents_put_into_graveyard_this_turn()
     );
 }
 
@@ -431,24 +433,24 @@ fn test_gravestorm_count_includes_all_players() {
     let mut state = state;
 
     // Move p1's creature to p1's graveyard.
-    state
-        .move_object_to_zone(p1_creature_id, ZoneId::Graveyard(p1))
+    test_util::move_object_to_zone(&mut state, p1_creature_id, ZoneId::Graveyard(p1))
         .expect("p1 creature move should succeed");
 
     assert_eq!(
-        state.permanents_put_into_graveyard_this_turn, 1,
+        state.permanents_put_into_graveyard_this_turn(),
+        1,
         "After p1 creature dies: counter = 1"
     );
 
     // Move p2's creature to p2's graveyard.
-    state
-        .move_object_to_zone(p2_creature_id, ZoneId::Graveyard(p2))
+    test_util::move_object_to_zone(&mut state, p2_creature_id, ZoneId::Graveyard(p2))
         .expect("p2 creature move should succeed");
 
     assert_eq!(
-        state.permanents_put_into_graveyard_this_turn, 2,
+        state.permanents_put_into_graveyard_this_turn(),
+        2,
         "After p2 creature also dies: counter = 2 (all players); got {}",
-        state.permanents_put_into_graveyard_this_turn
+        state.permanents_put_into_graveyard_this_turn()
     );
 }
 
@@ -472,10 +474,11 @@ fn test_gravestorm_count_resets_each_turn() {
 
     // Manually set the counter to simulate 2 permanents dying this turn.
     let mut state = state;
-    state.permanents_put_into_graveyard_this_turn = 2;
+    *state.permanents_put_into_graveyard_this_turn_mut() = 2;
 
     assert_eq!(
-        state.permanents_put_into_graveyard_this_turn, 2,
+        state.permanents_put_into_graveyard_this_turn(),
+        2,
         "Counter is 2 before turn end"
     );
 
@@ -490,16 +493,17 @@ fn test_gravestorm_count_resets_each_turn() {
     // We pass priority repeatedly until the active player changes.
     let mut turn_changed = false;
     for _ in 0..30 {
-        let active = current.turn.active_player;
+        let active = current.turn().active_player;
         let (next, _) = pass_all(current, &players);
         current = next;
-        if current.turn.active_player != active {
+        if current.turn().active_player != active {
             turn_changed = true;
             // Check counter reset happened.
             assert_eq!(
-                current.permanents_put_into_graveyard_this_turn, 0,
+                current.permanents_put_into_graveyard_this_turn(),
+                0,
                 "Counter should reset to 0 at start of p2's turn; got {}",
-                current.permanents_put_into_graveyard_this_turn
+                current.permanents_put_into_graveyard_this_turn()
             );
             break;
         }
@@ -543,15 +547,15 @@ fn test_gravestorm_copies_not_cast() {
         .unwrap();
 
     let mut state = state;
-    state.permanents_put_into_graveyard_this_turn = 2;
+    *state.permanents_put_into_graveyard_this_turn_mut() = 2;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
 
-    let spells_before = state.players.get(&p1).unwrap().spells_cast_this_turn;
+    let spells_before = state.players().get(&p1).unwrap().spells_cast_this_turn;
 
     let spell_id = find_object(&state, "Test Gravestorm Sorcery");
     let (state, _) = cast_spell(state, p1, spell_id);
@@ -561,10 +565,10 @@ fn test_gravestorm_copies_not_cast() {
 
     // 2 copies should be on stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         3,
         "1 original + 2 copies = 3 stack objects; got {}",
-        state.stack_objects.len()
+        state.stack_objects().len()
     );
 
     // No SpellCast events during trigger resolution.
@@ -579,7 +583,7 @@ fn test_gravestorm_copies_not_cast() {
     );
 
     // spells_cast_this_turn should only have incremented by 1 (the original cast).
-    let spells_after = state.players.get(&p1).unwrap().spells_cast_this_turn;
+    let spells_after = state.players().get(&p1).unwrap().spells_cast_this_turn;
     assert_eq!(
         spells_after,
         spells_before + 1,
@@ -622,25 +626,25 @@ fn test_gravestorm_count_does_not_include_non_battlefield_to_graveyard() {
     let mut state = state;
 
     // Move from Hand → Graveyard (discard): should NOT increment counter.
-    state
-        .move_object_to_zone(hand_card_id, ZoneId::Graveyard(p1))
+    test_util::move_object_to_zone(&mut state, hand_card_id, ZoneId::Graveyard(p1))
         .expect("hand-to-graveyard move should succeed");
 
     assert_eq!(
-        state.permanents_put_into_graveyard_this_turn, 0,
+        state.permanents_put_into_graveyard_this_turn(),
+        0,
         "Discarding from hand should NOT increment gravestorm counter; got {}",
-        state.permanents_put_into_graveyard_this_turn
+        state.permanents_put_into_graveyard_this_turn()
     );
 
     // Move from Library → Graveyard (mill): should NOT increment counter.
-    state
-        .move_object_to_zone(library_card_id, ZoneId::Graveyard(p1))
+    test_util::move_object_to_zone(&mut state, library_card_id, ZoneId::Graveyard(p1))
         .expect("library-to-graveyard move should succeed");
 
     assert_eq!(
-        state.permanents_put_into_graveyard_this_turn, 0,
+        state.permanents_put_into_graveyard_this_turn(),
+        0,
         "Milling from library should NOT increment gravestorm counter; got {}",
-        state.permanents_put_into_graveyard_this_turn
+        state.permanents_put_into_graveyard_this_turn()
     );
 }
 
@@ -669,22 +673,17 @@ fn test_gravestorm_count_accumulates_across_multiple_deaths() {
     let c_id = find_object(&state, "Creature C");
     let mut state = state;
 
-    state
-        .move_object_to_zone(a_id, ZoneId::Graveyard(p1))
-        .unwrap();
-    assert_eq!(state.permanents_put_into_graveyard_this_turn, 1);
+    test_util::move_object_to_zone(&mut state, a_id, ZoneId::Graveyard(p1)).unwrap();
+    assert_eq!(state.permanents_put_into_graveyard_this_turn(), 1);
 
-    state
-        .move_object_to_zone(b_id, ZoneId::Graveyard(p1))
-        .unwrap();
-    assert_eq!(state.permanents_put_into_graveyard_this_turn, 2);
+    test_util::move_object_to_zone(&mut state, b_id, ZoneId::Graveyard(p1)).unwrap();
+    assert_eq!(state.permanents_put_into_graveyard_this_turn(), 2);
 
-    state
-        .move_object_to_zone(c_id, ZoneId::Graveyard(p2))
-        .unwrap();
+    test_util::move_object_to_zone(&mut state, c_id, ZoneId::Graveyard(p2)).unwrap();
     assert_eq!(
-        state.permanents_put_into_graveyard_this_turn, 3,
+        state.permanents_put_into_graveyard_this_turn(),
+        3,
         "Three permanents (including from p2) should produce count=3; got {}",
-        state.permanents_put_into_graveyard_this_turn
+        state.permanents_put_into_graveyard_this_turn()
     );
 }

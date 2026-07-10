@@ -32,7 +32,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -98,20 +98,20 @@ fn test_kicker_basic_cast_with_kicker() {
 
     // Pay {4}{R} — base {R} + kicker {4}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 4);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
-    let initial_p2_life = state.players[&p2].life_total;
+    let initial_p2_life = state.players()[&p2].life_total;
     let spell_id = find_object(&state, "Burst Lightning");
 
     // Cast Burst Lightning with kicker.
@@ -139,19 +139,20 @@ fn test_kicker_basic_cast_with_kicker() {
 
     // Spell is on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.33a: kicked spell should be on the stack"
     );
 
     // kicker_times_paid = 1 on the stack object.
     assert_eq!(
-        state.stack_objects[0].kicker_times_paid, 1,
+        state.stack_objects()[0].kicker_times_paid,
+        1,
         "CR 702.33d: kicker_times_paid should be 1 on stack object"
     );
 
     // Mana pool should be empty — {4}{R} consumed.
-    let pool = &state.players[&p1].mana_pool;
+    let pool = &state.players()[&p1].mana_pool;
     assert_eq!(
         pool.white + pool.blue + pool.black + pool.red + pool.green + pool.colorless,
         0,
@@ -163,7 +164,7 @@ fn test_kicker_basic_cast_with_kicker() {
 
     // P2's life should be down by 4 (kicked effect).
     assert_eq!(
-        state.players[&p2].life_total,
+        state.players()[&p2].life_total,
         initial_p2_life - 4,
         "CR 702.33d: kicked Burst Lightning should deal 4 damage (not 2)"
     );
@@ -213,14 +214,14 @@ fn test_kicker_basic_cast_without_kicker() {
 
     // Pay only {R} — no kicker.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
-    let initial_p2_life = state.players[&p2].life_total;
+    let initial_p2_life = state.players()[&p2].life_total;
     let spell_id = find_object(&state, "Burst Lightning");
 
     // Cast Burst Lightning WITHOUT kicker (kicker_times: 0).
@@ -248,7 +249,8 @@ fn test_kicker_basic_cast_without_kicker() {
 
     // kicker_times_paid = 0 on the stack object.
     assert_eq!(
-        state.stack_objects[0].kicker_times_paid, 0,
+        state.stack_objects()[0].kicker_times_paid,
+        0,
         "CR 702.33d: kicker_times_paid should be 0 when not kicked"
     );
 
@@ -257,7 +259,7 @@ fn test_kicker_basic_cast_without_kicker() {
 
     // P2's life should be down by 2 (unkicked effect).
     assert_eq!(
-        state.players[&p2].life_total,
+        state.players()[&p2].life_total,
         initial_p2_life - 2,
         "CR 702.33a: unkicked Burst Lightning should deal 2 damage (not 4)"
     );
@@ -307,12 +309,12 @@ fn test_kicker_insufficient_mana_with_kicker() {
 
     // Only {R} in pool — not enough for {4}{R} total kicker cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Burst Lightning");
 
@@ -378,12 +380,12 @@ fn test_kicker_non_kicker_spell_rejected() {
 
     // Provide plenty of mana so the only failure is kicker validation.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 6);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Lightning Bolt");
 
@@ -453,12 +455,12 @@ fn test_kicker_standard_kicker_rejects_multiple() {
 
     // Provide more than enough mana so validation fails on kicker limit, not mana.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 10);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Burst Lightning");
 
@@ -530,18 +532,18 @@ fn test_kicker_permanent_etb_kicked() {
 
     // Pay {2}{R} + kicker {1}{R} = {3}{R}{R} total.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Torch Slinger");
 
@@ -570,7 +572,8 @@ fn test_kicker_permanent_etb_kicked() {
 
     // kicker_times_paid on stack object = 1.
     assert_eq!(
-        state.stack_objects[0].kicker_times_paid, 1,
+        state.stack_objects()[0].kicker_times_paid,
+        1,
         "CR 702.33d: kicker_times_paid should be 1 on stack object before resolution"
     );
 
@@ -579,7 +582,7 @@ fn test_kicker_permanent_etb_kicked() {
 
     // Torch Slinger should now be on the battlefield.
     let slinger = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Torch Slinger" && o.zone == ZoneId::Battlefield)
         .expect("CR 702.33e: Torch Slinger should be on the battlefield after resolution");
@@ -626,18 +629,18 @@ fn test_kicker_permanent_etb_not_kicked() {
 
     // Pay only base cost {2}{R} — no kicker.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Torch Slinger");
 
@@ -669,7 +672,7 @@ fn test_kicker_permanent_etb_not_kicked() {
 
     // Torch Slinger should be on the battlefield.
     let slinger = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Torch Slinger" && o.zone == ZoneId::Battlefield)
         .expect("Torch Slinger should be on the battlefield after resolution");
@@ -715,18 +718,18 @@ fn test_kicker_does_not_change_mana_value() {
 
     // Pay {4}{R} — kicked cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 4);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Burst Lightning");
 
@@ -754,7 +757,7 @@ fn test_kicker_does_not_change_mana_value() {
 
     // The stack object's printed mana cost is {R} — mana_value should still be 1.
     // CR 118.8d: additional costs don't change the spell's mana cost.
-    let stack_obj = &state.stack_objects[0];
+    let stack_obj = &state.stack_objects()[0];
 
     // Verify the stack object knows it was kicked (kicker_times_paid = 1).
     assert_eq!(
@@ -765,7 +768,7 @@ fn test_kicker_does_not_change_mana_value() {
     // The mana value of the spell itself is determined by the card's printed mana cost.
     // Look up the source object and check its printed mana cost.
     let source_obj = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Burst Lightning")
         .expect("Burst Lightning source object should still exist");
@@ -828,7 +831,7 @@ fn test_kicker_with_commander_tax() {
     // Simulate 1 previous cast: tax = 1 → adds {2} to cost.
     // Base: {2}{R}, tax: {2}, kicker: {1}{R} → total: {5}{R}{R}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .commander_tax
@@ -836,24 +839,24 @@ fn test_kicker_with_commander_tax() {
 
     // Pay {5}{R}{R}: 5 colorless + 2 red.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 5);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Register commander zone replacements (required for casting from command zone).
     mtg_engine::register_commander_zone_replacements(&mut state);
 
     let cmd_obj_id = state
-        .zones
+        .zones()
         .get(&ZoneId::Command(p1))
         .unwrap()
         .object_ids()
@@ -886,20 +889,21 @@ fn test_kicker_with_commander_tax() {
 
     // Spell is on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 118.8a + 903.8: commander + kicker spell should be on the stack"
     );
 
     // kicker_times_paid = 1.
     assert_eq!(
-        state.stack_objects[0].kicker_times_paid, 1,
+        state.stack_objects()[0].kicker_times_paid,
+        1,
         "CR 702.33d: kicker_times_paid = 1 when kicked with commander tax"
     );
 
     // Tax incremented to 2 (cast count 2).
     assert_eq!(
-        state.players[&p1].commander_tax.get(&cmd_id).copied(),
+        state.players()[&p1].commander_tax.get(&cmd_id).copied(),
         Some(2),
         "CR 903.8: commander tax should increment to 2 after second cast"
     );
@@ -921,7 +925,7 @@ fn test_kicker_with_commander_tax() {
     );
 
     // Mana pool empty.
-    let pool = &state.players[&p1].mana_pool;
+    let pool = &state.players()[&p1].mana_pool;
     assert_eq!(
         pool.white + pool.blue + pool.black + pool.red + pool.green + pool.colorless,
         0,
@@ -961,18 +965,18 @@ fn test_kicker_spell_cast_event_emitted() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 4);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Burst Lightning");
 

@@ -12,7 +12,7 @@ use mtg_engine::{CardType, GameEvent, GameStateBuilder, ObjectSpec, Step, ZoneId
 // ── CR 724.1: BecomeMonarch effect ──────────────────────────────────────────
 
 #[test]
-/// CR 724.1 — BecomeMonarch effect sets state.monarch.
+/// CR 724.1 — BecomeMonarch effect sets state.monarch().
 fn test_724_1_become_monarch_sets_designation() {
     let p1 = PlayerId(1);
     let p2 = PlayerId(2);
@@ -25,11 +25,11 @@ fn test_724_1_become_monarch_sets_designation() {
         .build()
         .unwrap();
 
-    assert!(state.monarch.is_none(), "No monarch at game start");
+    assert!(state.monarch().is_none(), "No monarch at game start");
 
     // Directly set the monarch (simulating an effect)
-    state.monarch = Some(p1);
-    assert_eq!(state.monarch, Some(p1));
+    *state.monarch_mut() = Some(p1);
+    assert_eq!(state.monarch(), Some(p1));
 }
 
 // ── CR 724.3: Only one monarch at a time ────────────────────────────────────
@@ -48,12 +48,12 @@ fn test_724_3_new_monarch_replaces_old() {
         .build()
         .unwrap();
 
-    state.monarch = Some(p1);
-    assert_eq!(state.monarch, Some(p1));
+    *state.monarch_mut() = Some(p1);
+    assert_eq!(state.monarch(), Some(p1));
 
     // P2 becomes monarch — P1 is no longer monarch
-    state.monarch = Some(p2);
-    assert_eq!(state.monarch, Some(p2));
+    *state.monarch_mut() = Some(p2);
+    assert_eq!(state.monarch(), Some(p2));
 }
 
 // ── CR 724.2: EOT draw ─────────────────────────────────────────────────────
@@ -79,11 +79,11 @@ fn test_724_2_monarch_eot_draw() {
         .unwrap();
 
     // P1 is the monarch
-    state.monarch = Some(p1);
+    *state.monarch_mut() = Some(p1);
 
     // Count cards in hand before
     let hand_before = state
-        .objects
+        .objects()
         .values()
         .filter(|o| matches!(o.zone, ZoneId::Hand(pid) if pid == p1))
         .count();
@@ -93,7 +93,7 @@ fn test_724_2_monarch_eot_draw() {
 
     // Count cards in hand after
     let hand_after = state
-        .objects
+        .objects()
         .values()
         .filter(|o| matches!(o.zone, ZoneId::Hand(pid) if pid == p1))
         .count();
@@ -131,10 +131,10 @@ fn test_724_2_non_monarch_no_eot_draw() {
         .unwrap();
 
     // P2 is the monarch, P1 is the active player
-    state.monarch = Some(p2);
+    *state.monarch_mut() = Some(p2);
 
     let hand_before = state
-        .objects
+        .objects()
         .values()
         .filter(|o| matches!(o.zone, ZoneId::Hand(pid) if pid == p1))
         .count();
@@ -142,7 +142,7 @@ fn test_724_2_non_monarch_no_eot_draw() {
     let _events = mtg_engine::rules::turn_actions::end_step_actions(&mut state);
 
     let hand_after = state
-        .objects
+        .objects()
         .values()
         .filter(|o| matches!(o.zone, ZoneId::Hand(pid) if pid == p1))
         .count();
@@ -172,13 +172,13 @@ fn test_724_4_monarch_leaves_active_player_inherits() {
         .unwrap();
 
     // P2 is monarch, P1 is active player
-    state.monarch = Some(p2);
+    *state.monarch_mut() = Some(p2);
 
     // P2 loses the game
     let events = mtg_engine::rules::sba::transfer_monarch_on_player_leave(&mut state, p2);
 
     assert_eq!(
-        state.monarch,
+        state.monarch(),
         Some(p1),
         "Active player should become monarch when monarch leaves"
     );
@@ -207,11 +207,11 @@ fn test_724_4_non_monarch_leaves_no_change() {
         .unwrap();
 
     // P1 is monarch
-    state.monarch = Some(p1);
+    *state.monarch_mut() = Some(p1);
 
     // P2 leaves (not the monarch)
     let events = mtg_engine::rules::sba::transfer_monarch_on_player_leave(&mut state, p2);
 
-    assert_eq!(state.monarch, Some(p1), "Monarch should not change");
+    assert_eq!(state.monarch(), Some(p1), "Monarch should not change");
     assert!(events.is_empty(), "No events when non-monarch leaves");
 }

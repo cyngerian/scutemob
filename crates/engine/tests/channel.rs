@@ -13,6 +13,7 @@
 //! - Channel abilities cannot be activated from the battlefield.
 //! - Only the owner can activate channel abilities on their cards.
 
+use mtg_engine::state::test_util;
 use mtg_engine::state::{ActivatedAbility, ActivationCost};
 use mtg_engine::{
     process_command, CardType, Command, Effect, EffectAmount, GameEvent, GameState,
@@ -25,7 +26,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_by_name(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -34,7 +35,7 @@ fn find_by_name(state: &GameState, name: &str) -> ObjectId {
 
 fn find_by_name_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -116,13 +117,19 @@ fn test_channel_activate_from_hand_basic() {
 
     // Give player 1 enough mana.
     let mut state = state;
-    state.player_mut(p(1)).unwrap().mana_pool.green = 1;
-    state.player_mut(p(1)).unwrap().mana_pool.colorless = 1;
+    test_util::player_mut(&mut state, p(1))
+        .unwrap()
+        .mana_pool
+        .green = 1;
+    test_util::player_mut(&mut state, p(1))
+        .unwrap()
+        .mana_pool
+        .colorless = 1;
 
     // The card should be in hand.
     let card_id = find_by_name(&state, "Channel Land");
     assert_eq!(
-        state.objects.get(&card_id).unwrap().zone,
+        state.objects().get(&card_id).unwrap().zone,
         ZoneId::Hand(p(1))
     );
 
@@ -147,7 +154,7 @@ fn test_channel_activate_from_hand_basic() {
         "card should no longer be in hand"
     );
     assert!(
-        state.objects.values().any(|o| {
+        state.objects().values().any(|o| {
             o.characteristics.name == "Channel Land" && matches!(o.zone, ZoneId::Graveyard(_))
         }),
         "card should be in graveyard after discard"
@@ -163,7 +170,7 @@ fn test_channel_activate_from_hand_basic() {
 
     // Ability should be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "channel ability should be on the stack"
     );
@@ -233,7 +240,10 @@ fn test_channel_cannot_activate_from_battlefield() {
         .build()
         .unwrap();
     let mut state = state;
-    state.player_mut(p(1)).unwrap().mana_pool.colorless = 2;
+    test_util::player_mut(&mut state, p(1))
+        .unwrap()
+        .mana_pool
+        .colorless = 2;
 
     let card_id = find_by_name(&state, "Channel Land BF");
 
@@ -286,9 +296,12 @@ fn test_channel_only_owner_can_activate() {
         .unwrap();
 
     let mut state = state;
-    state.player_mut(p(2)).unwrap().mana_pool.colorless = 2;
+    test_util::player_mut(&mut state, p(2))
+        .unwrap()
+        .mana_pool
+        .colorless = 2;
     // Give p(2) priority.
-    state.turn.priority_holder = Some(p(2));
+    state.turn_mut().priority_holder = Some(p(2));
 
     let card_id = find_by_name(&state, "P1 Channel");
 
@@ -343,7 +356,10 @@ fn test_channel_insufficient_mana_fails() {
 
     // Give only 1 mana (not enough for {2}{G}).
     let mut state = state;
-    state.player_mut(p(1)).unwrap().mana_pool.green = 1;
+    test_util::player_mut(&mut state, p(1))
+        .unwrap()
+        .mana_pool
+        .green = 1;
 
     let card_id = find_by_name(&state, "Expensive Channel");
 
@@ -394,8 +410,14 @@ fn test_channel_ability_uses_stack() {
         .unwrap();
 
     let mut state = state;
-    state.player_mut(p(1)).unwrap().mana_pool.white = 1;
-    state.player_mut(p(1)).unwrap().mana_pool.colorless = 2;
+    test_util::player_mut(&mut state, p(1))
+        .unwrap()
+        .mana_pool
+        .white = 1;
+    test_util::player_mut(&mut state, p(1))
+        .unwrap()
+        .mana_pool
+        .colorless = 2;
 
     let card_id = find_by_name(&state, "Damage Channel");
 
@@ -414,8 +436,8 @@ fn test_channel_ability_uses_stack() {
     .unwrap();
 
     // Ability on stack, card in graveyard.
-    assert_eq!(state.stack_objects.len(), 1);
-    assert!(state.objects.values().any(|o| {
+    assert_eq!(state.stack_objects().len(), 1);
+    assert!(state.objects().values().any(|o| {
         o.characteristics.name == "Damage Channel" && matches!(o.zone, ZoneId::Graveyard(_))
     }),);
 }

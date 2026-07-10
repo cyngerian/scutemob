@@ -33,7 +33,7 @@ fn cid(s: &str) -> CardId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -158,12 +158,12 @@ fn test_affinity_basic_reduce_generic_cost() {
 
     // Give p1 {1} — pays the reduced cost (4 - 3 = 1 generic remaining).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Affinity Spell");
 
@@ -171,11 +171,15 @@ fn test_affinity_basic_reduce_generic_cost() {
         .expect("CR 702.41a: should succeed when 3 artifacts reduce {4} to {1}");
 
     // Spell on the stack.
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "spell should be on the stack"
+    );
 
     // Mana pool should be empty (1 colorless consumed).
     assert!(
-        state.players.get(&p1).unwrap().mana_pool.is_empty(),
+        state.players().get(&p1).unwrap().mana_pool.is_empty(),
         "CR 702.41a: mana pool should be empty after affinity reduction + payment"
     );
 }
@@ -210,7 +214,7 @@ fn test_affinity_reduce_to_zero() {
         .unwrap();
 
     // Give p1 nothing — spell should be free.
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Affinity Spell");
 
@@ -218,11 +222,15 @@ fn test_affinity_reduce_to_zero() {
         .expect("CR 702.41a + CR 601.2f: should succeed when 4 artifacts reduce {4} to {0}");
 
     // Spell on the stack.
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "spell should be on the stack"
+    );
 
     // Mana pool still empty (nothing to pay).
     assert!(
-        state.players.get(&p1).unwrap().mana_pool.is_empty(),
+        state.players().get(&p1).unwrap().mana_pool.is_empty(),
         "CR 601.2f: mana pool should be empty — spell cost reduced to {{0}}"
     );
 }
@@ -261,7 +269,7 @@ fn test_affinity_excess_artifacts_no_negative_cost() {
         .unwrap();
 
     // Give p1 nothing — 6 artifacts > 4 generic, cost floors at {0}.
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Affinity Spell");
 
@@ -269,7 +277,11 @@ fn test_affinity_excess_artifacts_no_negative_cost() {
         .expect("CR 601.2f: excess artifacts should floor cost at {0}, not go negative");
 
     // Spell on the stack.
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "spell should be on the stack"
+    );
 }
 
 // ── Test 4: Affinity does not reduce colored pips ────────────────────────────
@@ -304,12 +316,12 @@ fn test_affinity_does_not_reduce_colored_pips() {
 
     // Give p1 {U} — colored pip not reduced by affinity.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Affinity Spell");
 
@@ -317,11 +329,15 @@ fn test_affinity_does_not_reduce_colored_pips() {
         .expect("CR 702.41a: should succeed when paying {U} after affinity reduces {4} to {0}");
 
     // Spell on the stack.
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "spell should be on the stack"
+    );
 
     // Mana pool should be empty — {U} was consumed.
     assert!(
-        state.players.get(&p1).unwrap().mana_pool.is_empty(),
+        state.players().get(&p1).unwrap().mana_pool.is_empty(),
         "CR 702.41a: the {{U}} pip should have been consumed; pool should be empty"
     );
 }
@@ -357,12 +373,12 @@ fn test_affinity_no_keyword_no_reduction() {
 
     // Give p1 only {1} — not enough without affinity reduction.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Plain Spell");
 
@@ -404,7 +420,7 @@ fn test_affinity_counts_tapped_artifacts() {
         .unwrap();
 
     // Give p1 nothing — 4 artifacts (incl. tapped) reduce {4} to {0}.
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Affinity Spell");
 
@@ -412,7 +428,11 @@ fn test_affinity_counts_tapped_artifacts() {
         .expect("CR 702.41a: tapped artifacts should count for affinity, reducing {4} to {0}");
 
     // Spell on the stack.
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "spell should be on the stack"
+    );
 }
 
 // ── Test 7: Affinity only counts controlled permanents ────────────────────────
@@ -447,12 +467,12 @@ fn test_affinity_only_counts_controlled_permanents() {
 
     // Give p1 {3} — only own 1 artifact counts, so {4-1} = {3} must be paid.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Affinity Spell");
 
@@ -460,11 +480,15 @@ fn test_affinity_only_counts_controlled_permanents() {
         .expect("CR 702.41a: should succeed with {3} (only own 1 artifact counts, 4-1=3)");
 
     // Spell on the stack.
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "spell should be on the stack"
+    );
 
     // Mana pool empty.
     assert!(
-        state.players.get(&p1).unwrap().mana_pool.is_empty(),
+        state.players().get(&p1).unwrap().mana_pool.is_empty(),
         "CR 702.41a: mana pool should be empty after paying {{3}}"
     );
 }
@@ -514,12 +538,12 @@ fn test_affinity_combined_with_improvise() {
 
     // Give p1 {U} only — affinity reduces {6} to {2}, improvise taps 2 artifacts for {2}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Affinity Improvise Spell");
     let id3 = find_object(&state, "Artifact 3");
@@ -550,11 +574,15 @@ fn test_affinity_combined_with_improvise() {
     );
 
     // Spell on the stack.
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "spell should be on the stack"
+    );
 
     // Mana pool empty.
     assert!(
-        state.players.get(&p1).unwrap().mana_pool.is_empty(),
+        state.players().get(&p1).unwrap().mana_pool.is_empty(),
         "mana pool should be empty after paying {{U}}"
     );
 
@@ -617,7 +645,7 @@ fn test_affinity_with_commander_tax() {
     // Total cost: base {2}{U} + tax {2} = {4}{U}.
     // Affinity with 4 artifacts: {4} - 4 = {0}. Must pay {U}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .commander_tax
@@ -625,16 +653,16 @@ fn test_affinity_with_commander_tax() {
 
     // Give p1 {U} only.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Find the commander in the command zone.
     let card_obj_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Command(p1))
         .unwrap()
         .object_ids()
@@ -647,14 +675,14 @@ fn test_affinity_with_commander_tax() {
 
     // Spell on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "commander should be on the stack"
     );
 
     // Tax incremented to 2.
     let tax = state
-        .players
+        .players()
         .get(&p1)
         .unwrap()
         .commander_tax
@@ -668,7 +696,7 @@ fn test_affinity_with_commander_tax() {
 
     // Mana pool empty.
     assert!(
-        state.players.get(&p1).unwrap().mana_pool.is_empty(),
+        state.players().get(&p1).unwrap().mana_pool.is_empty(),
         "mana pool should be empty after paying {{U}}"
     );
 }
@@ -732,12 +760,12 @@ fn test_affinity_multiple_instances_cumulative() {
 
     // Give p1 {3} — affinity for artifacts (-3) + affinity for Plains (-2) = 8-3-2=3.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Multi Affinity Spell");
 
@@ -745,11 +773,15 @@ fn test_affinity_multiple_instances_cumulative() {
         .expect("CR 702.41b: affinity for artifacts (-3) + affinity for Plains (-2) should reduce {8} to {3}");
 
     // Spell on the stack.
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "spell should be on the stack"
+    );
 
     // Mana pool empty.
     assert!(
-        state.players.get(&p1).unwrap().mana_pool.is_empty(),
+        state.players().get(&p1).unwrap().mana_pool.is_empty(),
         "CR 702.41b: mana pool should be empty after paying {{3}}"
     );
 }
@@ -784,7 +816,7 @@ fn test_affinity_artifact_creature_counts() {
         .unwrap();
 
     // Give p1 nothing — 4 artifact creatures reduce {4} to {0}.
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Affinity Spell");
 
@@ -792,7 +824,11 @@ fn test_affinity_artifact_creature_counts() {
         .expect("Ruling: artifact creatures are artifacts, should count for affinity — {4} to {0}");
 
     // Spell on the stack.
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "spell should be on the stack"
+    );
 }
 
 // ── Test 12: Affinity for basic land type ────────────────────────────────────
@@ -841,12 +877,12 @@ fn test_affinity_for_basic_land_type() {
 
     // Give p1 {1} — 2 Plains reduce {3} to {1}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Plains Affinity Spell");
 
@@ -854,11 +890,15 @@ fn test_affinity_for_basic_land_type() {
         .expect("CR 702.41a: affinity for Plains should reduce {3} to {1} with 2 Plains");
 
     // Spell on the stack.
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "spell should be on the stack"
+    );
 
     // Mana pool empty.
     assert!(
-        state.players.get(&p1).unwrap().mana_pool.is_empty(),
+        state.players().get(&p1).unwrap().mana_pool.is_empty(),
         "mana pool should be empty after paying {{1}}"
     );
 }

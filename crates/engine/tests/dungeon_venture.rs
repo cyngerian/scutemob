@@ -34,7 +34,7 @@ fn test_venture_enters_first_room() {
     let mut state = simple_state();
 
     // Player 1 has no dungeon yet
-    assert!(state.dungeon_state.get(&p(1)).is_none());
+    assert!(state.dungeon_state().get(&p(1)).is_none());
 
     // Venture into the dungeon
     let events = mtg_engine::rules::engine::handle_venture_into_dungeon(&mut state, p(1), false)
@@ -42,7 +42,7 @@ fn test_venture_enters_first_room() {
 
     // Player 1 should now have a dungeon with venture marker at room 0
     let ds = state
-        .dungeon_state
+        .dungeon_state()
         .get(&p(1))
         .expect("player should have dungeon state");
     assert_eq!(ds.current_room, 0, "venture marker should start at room 0");
@@ -76,7 +76,7 @@ fn test_venture_advances_room() {
     let mut state = simple_state();
 
     // Place player 1 in Lost Mine of Phandelver at room 0 (Cave Entrance, exits: [1, 2])
-    state.dungeon_state.insert(
+    state.dungeon_state_mut().insert(
         p(1),
         DungeonState {
             dungeon: DungeonId::LostMineOfPhandelver,
@@ -89,7 +89,7 @@ fn test_venture_advances_room() {
         .expect("venture should succeed");
 
     let ds = state
-        .dungeon_state
+        .dungeon_state()
         .get(&p(1))
         .expect("player should still have dungeon state");
     assert_eq!(
@@ -127,7 +127,7 @@ fn test_venture_completes_dungeon() {
     let bottommost = get_dungeon(DungeonId::LostMineOfPhandelver).bottommost_room;
 
     // Place player 1 at the bottommost room
-    state.dungeon_state.insert(
+    state.dungeon_state_mut().insert(
         p(1),
         DungeonState {
             dungeon: DungeonId::LostMineOfPhandelver,
@@ -136,7 +136,7 @@ fn test_venture_completes_dungeon() {
     );
 
     // Initial dungeons_completed should be 0
-    let initial_completed = state.players.get(&p(1)).unwrap().dungeons_completed;
+    let initial_completed = state.players().get(&p(1)).unwrap().dungeons_completed;
     assert_eq!(initial_completed, 0);
 
     // Venture — should complete the dungeon and start a new one
@@ -154,7 +154,7 @@ fn test_venture_completes_dungeon() {
     assert!(completed, "DungeonCompleted event should be emitted");
 
     // dungeons_completed should now be 1
-    let new_completed = state.players.get(&p(1)).unwrap().dungeons_completed;
+    let new_completed = state.players().get(&p(1)).unwrap().dungeons_completed;
     assert_eq!(
         new_completed, 1,
         "dungeons_completed should be incremented to 1"
@@ -174,7 +174,7 @@ fn test_venture_starts_new_after_completion() {
     let bottommost = get_dungeon(DungeonId::LostMineOfPhandelver).bottommost_room;
 
     // Place player 1 at the bottommost room of Lost Mine
-    state.dungeon_state.insert(
+    state.dungeon_state_mut().insert(
         p(1),
         DungeonState {
             dungeon: DungeonId::LostMineOfPhandelver,
@@ -189,7 +189,7 @@ fn test_venture_starts_new_after_completion() {
     // Player 1 should have a new dungeon (not the old one at bottommost)
     // After completion, a new dungeon is entered at room 0
     let ds = state
-        .dungeon_state
+        .dungeon_state()
         .get(&p(1))
         .expect("player should have a new dungeon state");
     assert_eq!(ds.current_room, 0, "new dungeon should start at room 0");
@@ -206,7 +206,7 @@ fn test_venture_starts_new_after_completion() {
     );
 
     // dungeons_completed should be 1
-    assert_eq!(state.players.get(&p(1)).unwrap().dungeons_completed, 1);
+    assert_eq!(state.players().get(&p(1)).unwrap().dungeons_completed, 1);
 }
 
 /// CR 309.4c: When the venture marker moves into a room, a room ability
@@ -218,7 +218,7 @@ fn test_venture_starts_new_after_completion() {
 fn test_room_ability_goes_on_stack() {
     let mut state = simple_state();
 
-    let initial_stack_len = state.stack_objects.len();
+    let initial_stack_len = state.stack_objects().len();
 
     // Venture into the dungeon (player 1 has no dungeon yet)
     let _ = mtg_engine::rules::engine::handle_venture_into_dungeon(&mut state, p(1), false)
@@ -226,13 +226,13 @@ fn test_room_ability_goes_on_stack() {
 
     // A RoomAbility should be on the stack
     assert!(
-        state.stack_objects.len() > initial_stack_len,
+        state.stack_objects().len() > initial_stack_len,
         "stack should have grown after venturing"
     );
 
     // The top of the stack should be a RoomAbility for the entered room
     let top = state
-        .stack_objects
+        .stack_objects()
         .back()
         .expect("stack should not be empty");
     assert!(

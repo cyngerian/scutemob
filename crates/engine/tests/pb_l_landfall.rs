@@ -57,7 +57,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == name)
         .map(|(&id, _)| id)
@@ -304,7 +304,7 @@ fn test_bloodghast_landfall_triggers_from_graveyard() {
 
     // Bloodghast in p1's graveyard. The graveyard-zone Landfall dispatch in
     // collect_graveyard_carddef_triggers looks up the source object's card_id
-    // in state.card_registry, so we must set both.
+    // in state.card_registry(), so we must set both.
     let bloodghast_card_id = defs.get("Bloodghast").unwrap().card_id.clone();
     let bloodghast_spec = enrich_spec_from_def(
         ObjectSpec::card(p1, "Bloodghast")

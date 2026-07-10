@@ -39,7 +39,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -60,7 +60,7 @@ fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent
 
 fn life_total(state: &GameState, player: PlayerId) -> i32 {
     state
-        .players
+        .players()
         .get(&player)
         .map(|p| p.life_total)
         .unwrap_or_default()
@@ -95,15 +95,20 @@ fn cast_creature(
     mana_amount: u32,
 ) -> (GameState, Vec<GameEvent>) {
     let card_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == ZoneId::Hand(player))
         .map(|(id, _)| *id)
         .unwrap_or_else(|| panic!("card '{}' not found in {}'s hand", name, player.0));
 
     let mut state = state;
-    state.players.get_mut(&player).unwrap().mana_pool.colorless = mana_amount;
-    state.turn.priority_holder = Some(player);
+    state
+        .players_mut()
+        .get_mut(&player)
+        .unwrap()
+        .mana_pool
+        .colorless = mana_amount;
+    state.turn_mut().priority_holder = Some(player);
 
     process_command(
         state,
@@ -131,12 +136,12 @@ fn cast_creature(
 /// Count triggers (pending + on stack) emitted from a specific source.
 fn triggers_for(state: &GameState, source: ObjectId) -> usize {
     let pending = state
-        .pending_triggers
+        .pending_triggers()
         .iter()
         .filter(|t| t.source == source)
         .count();
     let on_stack = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .filter(|so| {
             matches!(
@@ -551,13 +556,18 @@ fn test_pbxse_permanent_trigger_excludes_self_on_own_etb() {
 
     // Give P1 enough red mana.
     let mut state = state;
-    state.players.get_mut(&p(1)).unwrap().mana_pool.red = 1;
-    state.players.get_mut(&p(1)).unwrap().mana_pool.colorless = 1;
-    state.turn.priority_holder = Some(p(1));
+    state.players_mut().get_mut(&p(1)).unwrap().mana_pool.red = 1;
+    state
+        .players_mut()
+        .get_mut(&p(1))
+        .unwrap()
+        .mana_pool
+        .colorless = 1;
+    state.turn_mut().priority_holder = Some(p(1));
 
     // Find the card in hand.
     let card_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| {
             obj.characteristics.name == "Permanent Watcher" && obj.zone == ZoneId::Hand(p(1))
@@ -665,11 +675,11 @@ fn test_pbxse_permanent_trigger_fires_when_another_red_permanent_enters() {
         .unwrap();
 
     let mut state = state;
-    state.players.get_mut(&p(1)).unwrap().mana_pool.red = 1;
-    state.turn.priority_holder = Some(p(1));
+    state.players_mut().get_mut(&p(1)).unwrap().mana_pool.red = 1;
+    state.turn_mut().priority_holder = Some(p(1));
 
     let goblin_card_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Red Goblin" && obj.zone == ZoneId::Hand(p(1)))
         .map(|(id, _)| *id)

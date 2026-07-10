@@ -28,7 +28,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == name)
         .map(|(&id, _)| id)
@@ -37,7 +37,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 fn find_object_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == name && o.zone == zone)
         .map(|(&id, _)| id)
@@ -138,7 +138,7 @@ fn test_choose_color_replacement_sets_field() {
     let bf_caged_sun_id = find_object_in_zone(&state, "Caged Sun", ZoneId::Battlefield)
         .expect("Caged Sun should be on battlefield");
 
-    let caged_sun_obj = state.objects.get(&bf_caged_sun_id).unwrap();
+    let caged_sun_obj = state.objects().get(&bf_caged_sun_id).unwrap();
     // White was most common color → chosen_color should be White
     assert_eq!(
         caged_sun_obj.chosen_color,
@@ -200,7 +200,7 @@ fn test_choose_color_deterministic_fallback_picks_majority() {
 
     let bf_id = find_object_in_zone(&state, "Caged Sun", ZoneId::Battlefield)
         .expect("Caged Sun should be on battlefield");
-    let obj = state.objects.get(&bf_id).unwrap();
+    let obj = state.objects().get(&bf_id).unwrap();
     assert_eq!(
         obj.chosen_color,
         Some(Color::White),
@@ -246,7 +246,7 @@ fn test_choose_color_default_when_no_permanents() {
 
     let bf_id = find_object_in_zone(&state, "Caged Sun", ZoneId::Battlefield)
         .expect("Caged Sun should be on battlefield");
-    let obj = state.objects.get(&bf_id).unwrap();
+    let obj = state.objects().get(&bf_id).unwrap();
     assert_eq!(
         obj.chosen_color,
         Some(Color::White),
@@ -281,7 +281,7 @@ fn test_choose_color_resets_on_zone_change() {
         .unwrap();
 
     let obj_id = find_object(&state, "Dummy Permanent");
-    let obj = state.objects.get(&obj_id).unwrap();
+    let obj = state.objects().get(&obj_id).unwrap();
     assert_eq!(
         obj.chosen_color, None,
         "CR 400.7: Fresh GameObjects must have chosen_color = None"
@@ -349,7 +349,7 @@ fn test_caged_sun_full_dispatch_pumps_chosen_color_creatures() {
     // Verify Caged Sun resolved and chose White (most common: 1 white > 0 blue/red)
     let bf_cs_id = find_object_in_zone(&state, "Caged Sun", ZoneId::Battlefield)
         .expect("Caged Sun must be on battlefield after resolution");
-    let cs_obj = state.objects.get(&bf_cs_id).unwrap();
+    let cs_obj = state.objects().get(&bf_cs_id).unwrap();
     assert_eq!(
         cs_obj.chosen_color,
         Some(Color::White),
@@ -447,7 +447,7 @@ fn test_chosen_color_filter_no_choice_matches_nothing() {
         condition: None,
     };
     let mut state = state;
-    state.continuous_effects.push_back(effect);
+    state.continuous_effects_mut().push_back(effect);
 
     let white_id = find_object(&state, "White Target");
     let white_chars = calculate_characteristics(&state, white_id).unwrap();
@@ -520,7 +520,7 @@ fn test_caged_sun_doubles_chosen_color_land_mana() {
     // Verify Caged Sun resolved with chosen_color = White (no other colors on board).
     let bf_cs_id = find_object_in_zone(&state, "Caged Sun", ZoneId::Battlefield)
         .expect("Caged Sun must be on battlefield");
-    let cs_obj = state.objects.get(&bf_cs_id).unwrap();
+    let cs_obj = state.objects().get(&bf_cs_id).unwrap();
     assert_eq!(
         cs_obj.chosen_color,
         Some(Color::White),
@@ -540,7 +540,7 @@ fn test_caged_sun_doubles_chosen_color_land_mana() {
     )
     .expect("TapForMana on Plains should succeed");
 
-    let pool = &state.players.get(&p1).unwrap().mana_pool;
+    let pool = &state.players().get(&p1).unwrap().mana_pool;
     assert_eq!(
         pool.white, 2,
         "CR 106.6a: Caged Sun adds 1 additional White mana → 2W total from Plains tap"
@@ -597,7 +597,7 @@ fn test_caged_sun_does_not_double_other_color_mana() {
     // Verify chose White
     let bf_cs_id = find_object_in_zone(&state, "Caged Sun", ZoneId::Battlefield).unwrap();
     assert_eq!(
-        state.objects.get(&bf_cs_id).unwrap().chosen_color,
+        state.objects().get(&bf_cs_id).unwrap().chosen_color,
         Some(Color::White)
     );
 
@@ -612,7 +612,7 @@ fn test_caged_sun_does_not_double_other_color_mana() {
     )
     .expect("TapForMana on Mountain should succeed");
 
-    let pool = &state.players.get(&p1).unwrap().mana_pool;
+    let pool = &state.players().get(&p1).unwrap().mana_pool;
     assert_eq!(
         pool.red, 1,
         "CR 105.1: Mountain produces 1R; Caged Sun chose White — no doubling"
@@ -653,7 +653,7 @@ fn test_chosen_color_hash_field_audit() {
 
     // State2: mutate the object to have chosen_color = White
     let mut state2 = state1.clone();
-    if let Some(obj) = state2.objects.get_mut(&obj_id) {
+    if let Some(obj) = state2.objects_mut().get_mut(&obj_id) {
         obj.chosen_color = Some(Color::White);
     }
     let hash2 = state2.public_state_hash();
@@ -665,7 +665,7 @@ fn test_chosen_color_hash_field_audit() {
 
     // Also verify different colors produce different hashes
     let mut state3 = state2.clone();
-    if let Some(obj) = state3.objects.get_mut(&obj_id) {
+    if let Some(obj) = state3.objects_mut().get_mut(&obj_id) {
         obj.chosen_color = Some(Color::Black);
     }
     let hash3 = state3.public_state_hash();

@@ -70,7 +70,7 @@ fn cast_cmd(player: PlayerId, card: ObjectId) -> Command {
 /// Helper: find object by name.
 fn find_by_name(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == name)
         .unwrap_or_else(|| panic!("object '{}' not found", name))
@@ -84,7 +84,7 @@ fn add_restriction(
     controller: PlayerId,
     restriction: GameRestriction,
 ) {
-    state.restrictions.push_back(ActiveRestriction {
+    state.restrictions_mut().push_back(ActiveRestriction {
         source,
         controller,
         restriction,
@@ -133,7 +133,7 @@ fn test_restriction_max_spells_blocks_second_spell() {
     );
 
     // P1 already cast 1 spell this turn.
-    if let Some(ps) = state.players.get_mut(&p1()) {
+    if let Some(ps) = state.players_mut().get_mut(&p1()) {
         ps.spells_cast_this_turn = 1;
     }
 
@@ -236,10 +236,10 @@ fn test_restriction_max_spells_affects_opponents() {
     );
 
     // P2 already cast 1 spell.
-    if let Some(ps) = state.players.get_mut(&p2()) {
+    if let Some(ps) = state.players_mut().get_mut(&p2()) {
         ps.spells_cast_this_turn = 1;
     }
-    state.turn.priority_holder = Some(p2());
+    state.turn_mut().priority_holder = Some(p2());
 
     let bolt = find_by_name(&state, "Bolt");
     let result = process_command(state, cast_cmd(p2(), bolt));
@@ -285,7 +285,7 @@ fn test_restriction_opponents_cant_cast_during_your_turn() {
         p1(),
         GameRestriction::OpponentsCantCastDuringYourTurn,
     );
-    state.turn.priority_holder = Some(p2());
+    state.turn_mut().priority_holder = Some(p2());
 
     let bolt = find_by_name(&state, "Bolt");
     let result = process_command(state, cast_cmd(p2(), bolt));
@@ -383,7 +383,7 @@ fn test_restriction_drannith_blocks_graveyard_cast() {
         p1(),
         GameRestriction::OpponentsCantCastFromNonHand,
     );
-    state.turn.priority_holder = Some(p2());
+    state.turn_mut().priority_holder = Some(p2());
 
     let gy_spell = find_by_name(&state, "GY Spell");
     let result = process_command(
@@ -446,7 +446,7 @@ fn test_restriction_artifact_abilities_blocked() {
         p1(),
         GameRestriction::ArtifactAbilitiesCantBeActivated,
     );
-    state.turn.priority_holder = Some(p2());
+    state.turn_mut().priority_holder = Some(p2());
 
     let mind_stone = find_by_name(&state, "Mind Stone");
     let result = process_command(
@@ -515,13 +515,13 @@ fn test_restriction_inactive_when_source_leaves_battlefield() {
     );
 
     // P2 already cast 1 spell.
-    if let Some(ps) = state.players.get_mut(&p2()) {
+    if let Some(ps) = state.players_mut().get_mut(&p2()) {
         ps.spells_cast_this_turn = 1;
     }
-    state.turn.priority_holder = Some(p2());
+    state.turn_mut().priority_holder = Some(p2());
 
     // Move stax piece to graveyard (destroyed).
-    if let Some(obj) = state.objects.get_mut(&stax_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&stax_id) {
         obj.zone = ZoneId::Graveyard(p1());
     }
 
@@ -572,7 +572,7 @@ fn test_restriction_grand_abolisher_blocks_opponent_cast() {
         p1(),
         GameRestriction::OpponentsCantCastOrActivateDuringYourTurn,
     );
-    state.turn.priority_holder = Some(p2());
+    state.turn_mut().priority_holder = Some(p2());
 
     let bolt = find_by_name(&state, "Bolt");
     let result = process_command(state, cast_cmd(p2(), bolt));
@@ -670,7 +670,7 @@ fn test_restriction_cant_attack_you_unless_pay_blocks_broke_attacker() {
         },
     );
     // P2 has no mana.
-    state.turn.priority_holder = Some(p2());
+    state.turn_mut().priority_holder = Some(p2());
 
     let bear = find_by_name(&state, "Bear");
     let result = process_command(
@@ -723,7 +723,7 @@ fn test_restriction_cant_attack_you_unless_pay_allows_funded_attacker() {
             },
         },
     );
-    state.turn.priority_holder = Some(p2());
+    state.turn_mut().priority_holder = Some(p2());
 
     let bear = find_by_name(&state, "Bear");
     let result = process_command(
@@ -785,7 +785,7 @@ fn test_restriction_cant_attack_you_stacked_costs() {
             },
         },
     );
-    state.turn.priority_holder = Some(p2());
+    state.turn_mut().priority_holder = Some(p2());
 
     let bear = find_by_name(&state, "Bear");
     let result = process_command(
@@ -828,7 +828,7 @@ fn test_restriction_cant_attack_you_does_not_affect_other_targets() {
             },
         },
     );
-    state.turn.priority_holder = Some(p2());
+    state.turn_mut().priority_holder = Some(p2());
 
     // P2 attacks P3 (not P1 who has Propaganda) — should succeed despite no mana
     let bear = find_by_name(&state, "Bear");
@@ -870,7 +870,7 @@ fn test_restriction_stony_silence_blocks_artifact_mana_ability() {
         p1(),
         GameRestriction::ArtifactAbilitiesCantBeActivated,
     );
-    state.turn.priority_holder = Some(p2());
+    state.turn_mut().priority_holder = Some(p2());
 
     let sol_ring = find_by_name(&state, "Sol Ring");
     let result = process_command(
@@ -919,7 +919,7 @@ fn test_restriction_stony_silence_does_not_block_land_mana_ability() {
         p1(),
         GameRestriction::ArtifactAbilitiesCantBeActivated,
     );
-    state.turn.priority_holder = Some(p2());
+    state.turn_mut().priority_holder = Some(p2());
 
     let forest = find_by_name(&state, "Forest");
     let result = process_command(

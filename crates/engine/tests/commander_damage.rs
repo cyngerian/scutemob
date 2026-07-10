@@ -9,6 +9,7 @@
 //! - A copy (clone) of a commander does NOT deal commander damage (CR 903.3)
 //! - Commander damage survives zone changes (CardId-based, not ObjectId-based)
 
+use mtg_engine::state::test_util;
 use mtg_engine::{
     check_and_apply_sbas, process_command, AttackTarget, CardId, Command, GameEvent, GameState,
     GameStateBuilder, ObjectSpec, PlayerId, Step, ZoneId,
@@ -95,13 +96,13 @@ fn test_commander_damage_21_from_one_commander_kills() {
 
     // Pre-set 20 damage already received from this commander.
     {
-        let p2_state = state.players.get_mut(&p2).unwrap();
+        let p2_state = state.players_mut().get_mut(&p2).unwrap();
         let inner = im::OrdMap::from(vec![(cmd_id.clone(), 20u32)]);
         p2_state.commander_damage_received.insert(p1, inner);
     }
 
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1)
         .unwrap()
@@ -111,7 +112,7 @@ fn test_commander_damage_21_from_one_commander_kills() {
 
     // After combat damage, p2 has 27 damage total (20 + 7), which triggers SBA loss.
     // SBA is checked after damage (before priority). Check p2's loss state.
-    let p2_state = state.players.get(&p2).unwrap();
+    let p2_state = state.players().get(&p2).unwrap();
     assert!(
         p2_state.has_lost,
         "p2 should have lost due to 27 commander damage (>= 21); \
@@ -140,13 +141,13 @@ fn test_commander_damage_20_from_one_commander_no_loss() {
         .unwrap();
 
     {
-        let p2_state = state.players.get_mut(&p2).unwrap();
+        let p2_state = state.players_mut().get_mut(&p2).unwrap();
         let inner = im::OrdMap::from(vec![(cmd_id.clone(), 15u32)]);
         p2_state.commander_damage_received.insert(p1, inner);
     }
 
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1)
         .unwrap()
@@ -154,7 +155,7 @@ fn test_commander_damage_20_from_one_commander_no_loss() {
 
     let (state, _) = run_one_unblocked_combat(state, p1, p2, attacker_id, &[p1, p2]);
 
-    let p2_state = state.players.get(&p2).unwrap();
+    let p2_state = state.players().get(&p2).unwrap();
     // 15 + 5 = 20: still not enough to lose.
     let total_damage = p2_state
         .commander_damage_received
@@ -196,7 +197,7 @@ fn test_commander_damage_10_from_a_plus_11_from_b_no_loss() {
         .unwrap();
 
     {
-        let p3_state = state.players.get_mut(&p3).unwrap();
+        let p3_state = state.players_mut().get_mut(&p3).unwrap();
         let from_p1 = im::OrdMap::from(vec![(cmd_a.clone(), 10u32)]);
         let from_p2 = im::OrdMap::from(vec![(cmd_b.clone(), 11u32)]);
         p3_state.commander_damage_received.insert(p1, from_p1);
@@ -206,7 +207,7 @@ fn test_commander_damage_10_from_a_plus_11_from_b_no_loss() {
     // Run SBA check — neither commander's total is >= 21.
     let events = check_and_apply_sbas(&mut state);
 
-    let p3_state = state.players.get(&p3).unwrap();
+    let p3_state = state.players().get(&p3).unwrap();
     assert!(
         !p3_state.has_lost,
         "p3 should NOT have lost: 10 from A + 11 from B are tracked separately; events: {:?}",
@@ -242,7 +243,7 @@ fn test_commander_damage_from_copy_does_not_count() {
 
     // Find the copy (no card_id).
     let copy_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1 && o.card_id.is_none())
         .unwrap()
@@ -271,7 +272,7 @@ fn test_commander_damage_from_copy_does_not_count() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // The copy dealt 6 damage to p2 as normal combat damage (life total reduced).
-    let p2_life = state.players.get(&p2).unwrap().life_total;
+    let p2_life = state.players().get(&p2).unwrap().life_total;
     assert_eq!(
         p2_life, 34,
         "p2 should have taken 6 normal damage from the copy"
@@ -279,7 +280,7 @@ fn test_commander_damage_from_copy_does_not_count() {
 
     // But NO commander damage was tracked for p2.
     let p2_cmd_damage = state
-        .players
+        .players()
         .get(&p2)
         .unwrap()
         .commander_damage_received
@@ -316,7 +317,7 @@ fn test_commander_damage_survives_zone_change() {
         .unwrap();
 
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1)
         .unwrap()
@@ -327,7 +328,7 @@ fn test_commander_damage_survives_zone_change() {
 
     // Verify 7 damage accumulated.
     let damage_after_r1 = state
-        .players
+        .players()
         .get(&p2)
         .unwrap()
         .commander_damage_received
@@ -344,16 +345,15 @@ fn test_commander_damage_survives_zone_change() {
     // Also reset combat state so the second combat can proceed cleanly.
     let mut state = state;
     // Clear the combat state from round 1 (would be cleared by EndOfCombat in a real game).
-    state.combat = None;
+    *state.combat_mut() = None;
     let commander_obj_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.card_id.as_ref() == Some(&cmd_id))
         .map(|o| o.id)
         .expect("commander should be on battlefield");
 
-    state
-        .move_object_to_zone(commander_obj_id, ZoneId::Graveyard(p1))
+    test_util::move_object_to_zone(&mut state, commander_obj_id, ZoneId::Graveyard(p1))
         .expect("move to graveyard failed");
 
     // SBA: commander in graveyard → emits CommanderZoneReturnChoiceRequired (MR-M9-01 fix).
@@ -392,107 +392,107 @@ fn test_commander_damage_survives_zone_change() {
 
     // "Re-cast": add a NEW object with the same card_id to the battlefield
     // (simulating casting from command zone; the new object has a new ObjectId).
-    state
-        .add_object(
-            mtg_engine::state::game_object::GameObject {
-                triggered_abilities_fired_this_turn: im::OrdSet::new(),
-                id: mtg_engine::ObjectId(0), // will be assigned
-                card_id: Some(cmd_id.clone()),
-                characteristics: mtg_engine::state::game_object::Characteristics {
-                    name: "Persistent Commander".to_string(),
-                    card_types: [mtg_engine::CardType::Creature].into_iter().collect(),
-                    power: Some(7),
-                    toughness: Some(7),
-                    ..Default::default()
-                },
-                controller: p1,
-                owner: p1,
-                zone: ZoneId::Battlefield,
-                status: mtg_engine::ObjectStatus::default(),
-                counters: im::OrdMap::new(),
-                attachments: im::Vector::new(),
-                attached_to: None,
-                damage_marked: 0,
-                deathtouch_damage: false,
-                is_token: false,
-                is_emblem: false,
-                timestamp: 0,
-                has_summoning_sickness: false,
-                goaded_by: im::Vector::new(),
-                kicker_times_paid: 0,
-                cast_alt_cost: None,
-                foretold_turn: 0,
-                warped_turn: 0,
-                was_unearthed: false,
-                myriad_exile_at_eoc: false,
-                decayed_sacrifice_at_eoc: false,
-                ring_block_sacrifice_at_eoc: false,
-                exiled_by_hideaway: None,
-                encore_sacrifice_at_end_step: false,
-                encore_must_attack: None,
-                encore_activated_by: None,
-                sacrifice_at_end_step: false,
-                exile_at_end_step: false,
-                return_to_hand_at_end_step: false,
-                is_plotted: false,
-                plotted_turn: 0,
-                is_prototyped: false,
-                was_bargained: false,
-                phased_out_indirectly: false,
-                phased_out_controller: None,
-                creatures_devoured: 0,
-                champion_exiled_card: None,
-                paired_with: None,
-                tribute_was_paid: false,
-                x_value: 0,
-                evidence_collected: false,
-                squad_count: 0,
-                offspring_paid: false,
-                gift_was_given: false,
-                gift_opponent: None,
-                encoded_cards: im::Vector::new(),
-                haunting_target: None,
-                merged_components: im::Vector::new(),
-                is_transformed: false,
-                last_transform_timestamp: 0,
-                was_cast_disturbed: false,
-                was_cast: false,
-                abilities_activated_this_turn: 0,
-                craft_exiled_cards: im::Vector::new(),
-                chosen_creature_type: None,
-                chosen_color: None,
-                face_down_as: None,
-                loyalty_ability_activated_this_turn: false,
-                class_level: 0,
-                designations: mtg_engine::Designations::default(),
-                adventure_exiled_by: None,
-                meld_component: None,
-                entered_turn: None,
-                skip_untap_steps: 0,
+    test_util::add_object(
+        &mut state,
+        mtg_engine::state::game_object::GameObject {
+            triggered_abilities_fired_this_turn: im::OrdSet::new(),
+            id: mtg_engine::ObjectId(0), // will be assigned
+            card_id: Some(cmd_id.clone()),
+            characteristics: mtg_engine::state::game_object::Characteristics {
+                name: "Persistent Commander".to_string(),
+                card_types: [mtg_engine::CardType::Creature].into_iter().collect(),
+                power: Some(7),
+                toughness: Some(7),
+                ..Default::default()
             },
-            ZoneId::Battlefield,
-        )
-        .expect("add new commander object failed");
+            controller: p1,
+            owner: p1,
+            zone: ZoneId::Battlefield,
+            status: mtg_engine::ObjectStatus::default(),
+            counters: im::OrdMap::new(),
+            attachments: im::Vector::new(),
+            attached_to: None,
+            damage_marked: 0,
+            deathtouch_damage: false,
+            is_token: false,
+            is_emblem: false,
+            timestamp: 0,
+            has_summoning_sickness: false,
+            goaded_by: im::Vector::new(),
+            kicker_times_paid: 0,
+            cast_alt_cost: None,
+            foretold_turn: 0,
+            warped_turn: 0,
+            was_unearthed: false,
+            myriad_exile_at_eoc: false,
+            decayed_sacrifice_at_eoc: false,
+            ring_block_sacrifice_at_eoc: false,
+            exiled_by_hideaway: None,
+            encore_sacrifice_at_end_step: false,
+            encore_must_attack: None,
+            encore_activated_by: None,
+            sacrifice_at_end_step: false,
+            exile_at_end_step: false,
+            return_to_hand_at_end_step: false,
+            is_plotted: false,
+            plotted_turn: 0,
+            is_prototyped: false,
+            was_bargained: false,
+            phased_out_indirectly: false,
+            phased_out_controller: None,
+            creatures_devoured: 0,
+            champion_exiled_card: None,
+            paired_with: None,
+            tribute_was_paid: false,
+            x_value: 0,
+            evidence_collected: false,
+            squad_count: 0,
+            offspring_paid: false,
+            gift_was_given: false,
+            gift_opponent: None,
+            encoded_cards: im::Vector::new(),
+            haunting_target: None,
+            merged_components: im::Vector::new(),
+            is_transformed: false,
+            last_transform_timestamp: 0,
+            was_cast_disturbed: false,
+            was_cast: false,
+            abilities_activated_this_turn: 0,
+            craft_exiled_cards: im::Vector::new(),
+            chosen_creature_type: None,
+            chosen_color: None,
+            face_down_as: None,
+            loyalty_ability_activated_this_turn: false,
+            class_level: 0,
+            designations: mtg_engine::Designations::default(),
+            adventure_exiled_by: None,
+            meld_component: None,
+            entered_turn: None,
+            skip_untap_steps: 0,
+        },
+        ZoneId::Battlefield,
+    )
+    .expect("add new commander object failed");
 
     // Find the new commander ObjectId.
     let new_commander_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.card_id.as_ref() == Some(&cmd_id) && o.zone == ZoneId::Battlefield)
         .map(|o| o.id)
         .expect("new commander should be on battlefield");
 
     // New combat from the DeclareAttackers step.
-    state.turn.step = mtg_engine::Step::DeclareAttackers;
-    state.turn.priority_holder = Some(p1);
-    state.turn.players_passed = im::OrdSet::new();
+    state.turn_mut().step = mtg_engine::Step::DeclareAttackers;
+    state.turn_mut().priority_holder = Some(p1);
+    state.turn_mut().players_passed = im::OrdSet::new();
 
     // Round 2: deal 7 more commander damage to p2 with the NEW object.
     let (state, _) = run_one_unblocked_combat(state, p1, p2, new_commander_id, &[p1, p2]);
 
     // Verify cumulative damage is 14 (7 + 7), confirming zone-change survival.
     let damage_after_r2 = state
-        .players
+        .players()
         .get(&p2)
         .unwrap()
         .commander_damage_received
@@ -524,7 +524,7 @@ fn test_combat_damage_no_declare_blockers_command() {
 
     // Pass all through BeginningOfCombat → DeclareAttackers
     let (state, _) = pass_all(state, &players);
-    assert_eq!(state.turn.step, Step::DeclareAttackers);
+    assert_eq!(state.turn().step, Step::DeclareAttackers);
 
     // Declare the elf attacking p2
     let elf_id = state
@@ -545,14 +545,14 @@ fn test_combat_damage_no_declare_blockers_command() {
 
     // Pass all → DeclareBlockers
     let (state, _) = pass_all(state, &players);
-    assert_eq!(state.turn.step, Step::DeclareBlockers);
+    assert_eq!(state.turn().step, Step::DeclareBlockers);
 
     // All pass WITHOUT sending DeclareBlockers command → CombatDamage
     let (state, _) = pass_all(state, &players);
 
     // P2 should have taken 1 combat damage
     assert_eq!(
-        state.players.get(&p2).unwrap().life_total,
+        state.players().get(&p2).unwrap().life_total,
         39,
         "P2 should have taken 1 combat damage (40 - 1 = 39)"
     );
@@ -591,7 +591,7 @@ fn test_partner_commander_damage_one_partner_at_21_triggers_loss() {
     // Pre-set p2 as having received 20 damage from EACH partner (40 total).
     // Both partners belong to p1, so both totals live in the same inner map.
     {
-        let p2_state = state.players.get_mut(&p2).unwrap();
+        let p2_state = state.players_mut().get_mut(&p2).unwrap();
         let from_p1 =
             im::OrdMap::from(vec![(partner_a.clone(), 20u32), (partner_b.clone(), 20u32)]);
         p2_state.commander_damage_received.insert(p1, from_p1);
@@ -601,7 +601,7 @@ fn test_partner_commander_damage_one_partner_at_21_triggers_loss() {
     // summed. If it were summed (40), p2 would already have lost.
     let events = check_and_apply_sbas(&mut state);
     assert!(
-        !state.players.get(&p2).unwrap().has_lost,
+        !state.players().get(&p2).unwrap().has_lost,
         "p2 must NOT lose at 20 from each partner — partner damage is tracked \
          independently, not summed; events: {:?}",
         events
@@ -609,14 +609,14 @@ fn test_partner_commander_damage_one_partner_at_21_triggers_loss() {
 
     // (2) partner_a deals 1 more combat damage, pushing ITS total to 21.
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.card_id.as_ref() == Some(&partner_a))
         .unwrap()
         .id;
     let (state, _) = run_one_unblocked_combat(state, p1, p2, attacker_id, &[p1, p2]);
 
-    let p2_state = state.players.get(&p2).unwrap();
+    let p2_state = state.players().get(&p2).unwrap();
     let dmg_a = p2_state
         .commander_damage_received
         .get(&p1)

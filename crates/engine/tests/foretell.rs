@@ -31,7 +31,7 @@ use mtg_engine::{
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -43,7 +43,7 @@ fn find_object_in_zone(
     name: &str,
     zone: ZoneId,
 ) -> Option<mtg_engine::ObjectId> {
-    state.objects.iter().find_map(|(&id, obj)| {
+    state.objects().iter().find_map(|(&id, obj)| {
         if obj.characteristics.name == name && obj.zone == zone {
             Some(id)
         } else {
@@ -54,7 +54,7 @@ fn find_object_in_zone(
 
 fn hand_count(state: &mtg_engine::GameState, player: PlayerId) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(player))
         .count()
@@ -62,7 +62,7 @@ fn hand_count(state: &mtg_engine::GameState, player: PlayerId) -> usize {
 
 fn exile_count(state: &mtg_engine::GameState) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Exile)
         .count()
@@ -214,12 +214,12 @@ fn test_foretell_basic_exile_face_down() {
 
     // Give player 1 enough mana to foretell ({2}).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Saw It Coming");
     let initial_hand_count = hand_count(&state, p1);
@@ -244,7 +244,7 @@ fn test_foretell_basic_exile_face_down() {
 
     // The exile object should be face-down and marked as foretold.
     let exile_obj = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.zone == ZoneId::Exile)
         .expect("exile object should exist");
@@ -259,7 +259,8 @@ fn test_foretell_basic_exile_face_down() {
         "foretold card should have is_foretold=true (CR 702.143a)"
     );
     assert_eq!(
-        exile_obj.foretold_turn, state.turn.turn_number,
+        exile_obj.foretold_turn,
+        state.turn().turn_number,
         "foretold_turn should equal current turn (CR 702.143a)"
     );
 
@@ -302,12 +303,12 @@ fn test_foretell_does_not_use_stack() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Saw It Coming");
 
@@ -322,7 +323,7 @@ fn test_foretell_does_not_use_stack() {
 
     // Stack must be empty — foretell is a special action, not a spell (CR 702.143b).
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "foretell must not use the stack (CR 702.143b)"
     );
 }
@@ -352,18 +353,18 @@ fn test_foretell_cannot_cast_same_turn() {
 
     // Give mana for foretell action ({2}).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Saw It Coming");
 
@@ -379,7 +380,7 @@ fn test_foretell_cannot_cast_same_turn() {
 
     // Find the foretold card in exile.
     let exile_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| {
             o.zone == ZoneId::Exile && o.designations.contains(mtg_engine::Designations::FORETOLD)
@@ -447,12 +448,12 @@ fn test_foretell_cast_from_exile_on_later_turn() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Behold the Multiverse");
 
@@ -466,25 +467,25 @@ fn test_foretell_cast_from_exile_on_later_turn() {
     .unwrap();
 
     // Advance to turn 4 (next turn).
-    state.turn.turn_number = 4;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().turn_number = 4;
+    state.turn_mut().priority_holder = Some(p1);
 
     // Give mana for foretell cost ({1}{U}).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
 
     let exile_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| {
             o.zone == ZoneId::Exile && o.designations.contains(mtg_engine::Designations::FORETOLD)
@@ -524,7 +525,7 @@ fn test_foretell_cast_from_exile_on_later_turn() {
 
     // The card should now be on the stack.
     assert!(
-        !state.stack_objects.is_empty(),
+        !state.stack_objects().is_empty(),
         "spell should be on the stack"
     );
     // No longer in exile.
@@ -562,13 +563,13 @@ fn test_foretell_requires_player_turn() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
     // Priority goes to p1 during p2's turn (response window).
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Saw It Coming");
 
@@ -614,12 +615,12 @@ fn test_foretell_requires_foretell_keyword() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Lightning Bolt");
 
@@ -660,12 +661,12 @@ fn test_foretell_requires_card_in_hand() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Saw It Coming");
 
@@ -707,12 +708,12 @@ fn test_foretell_insufficient_mana() {
 
     // Only {1} mana -- not enough for {2} foretell action cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Saw It Coming");
 
@@ -759,12 +760,12 @@ fn test_foretell_during_combat() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Saw It Coming");
 
@@ -819,12 +820,12 @@ fn test_foretell_mutual_exclusion_with_escape() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Saw It Coming");
 
@@ -838,23 +839,23 @@ fn test_foretell_mutual_exclusion_with_escape() {
     .unwrap();
 
     // Advance to turn 4.
-    state.turn.turn_number = 4;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().turn_number = 4;
+    state.turn_mut().priority_holder = Some(p1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
 
     let exile_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| {
             o.zone == ZoneId::Exile && o.designations.contains(mtg_engine::Designations::FORETOLD)
@@ -922,12 +923,12 @@ fn test_foretell_mutual_exclusion_with_evoke() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Saw It Coming");
 
@@ -940,23 +941,23 @@ fn test_foretell_mutual_exclusion_with_evoke() {
     )
     .unwrap();
 
-    state.turn.turn_number = 4;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().turn_number = 4;
+    state.turn_mut().priority_holder = Some(p1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
 
     let exile_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| {
             o.zone == ZoneId::Exile && o.designations.contains(mtg_engine::Designations::FORETOLD)
@@ -1019,12 +1020,12 @@ fn test_foretell_sorcery_timing_restriction() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Glorious End");
 
@@ -1038,25 +1039,25 @@ fn test_foretell_sorcery_timing_restriction() {
     .unwrap();
 
     // Turn 4 but it's p2's turn -- p1 cannot cast a sorcery at instant speed.
-    state.turn.turn_number = 4;
-    state.turn.active_player = p2; // p2's turn
-    state.turn.priority_holder = Some(p1); // p1 has priority (response window)
+    state.turn_mut().turn_number = 4;
+    state.turn_mut().active_player = p2; // p2's turn
+    state.turn_mut().priority_holder = Some(p1); // p1 has priority (response window)
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
 
     let exile_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| {
             o.zone == ZoneId::Exile && o.designations.contains(mtg_engine::Designations::FORETOLD)
@@ -1117,12 +1118,12 @@ fn test_foretell_instant_timing() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Saw It Coming");
 
@@ -1136,25 +1137,25 @@ fn test_foretell_instant_timing() {
     .unwrap();
 
     // Turn 4, opponent's turn with a spell on the stack -- instant speed.
-    state.turn.turn_number = 4;
-    state.turn.active_player = p2;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().turn_number = 4;
+    state.turn_mut().active_player = p2;
+    state.turn_mut().priority_holder = Some(p1);
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
 
     let exile_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| {
             o.zone == ZoneId::Exile && o.designations.contains(mtg_engine::Designations::FORETOLD)
@@ -1214,12 +1215,12 @@ fn test_foretell_card_identity_tracking() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let old_card_id = find_object(&state, "Saw It Coming");
 
@@ -1234,7 +1235,7 @@ fn test_foretell_card_identity_tracking() {
 
     // Old ObjectId should no longer exist (CR 400.7).
     assert!(
-        !state.objects.contains_key(&old_card_id),
+        !state.objects().contains_key(&old_card_id),
         "old ObjectId should not exist after zone change (CR 400.7)"
     );
 
@@ -1300,7 +1301,7 @@ fn test_foretell_mana_value_unchanged() {
 
     // The card in hand should have the printed mana cost {1}{U}{U}.
     let card_obj = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Saw It Coming")
         .expect("card should be in state");
@@ -1344,12 +1345,12 @@ fn test_foretell_card_requires_cast_with_foretell_flag() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Saw It Coming");
 
@@ -1362,23 +1363,23 @@ fn test_foretell_card_requires_cast_with_foretell_flag() {
     )
     .unwrap();
 
-    state.turn.turn_number = 4;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().turn_number = 4;
+    state.turn_mut().priority_holder = Some(p1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
 
     let exile_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| {
             o.zone == ZoneId::Exile && o.designations.contains(mtg_engine::Designations::FORETOLD)
@@ -1437,12 +1438,12 @@ fn test_foretell_reveals_hidden_info() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Saw It Coming");
 
@@ -1491,24 +1492,24 @@ fn test_foretell_requires_is_foretold_flag() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Saw It Coming");
 
     // is_foretold should be false by default.
     assert!(
-        !state.objects[&card_id]
+        !state.objects()[&card_id]
             .designations
             .contains(mtg_engine::Designations::FORETOLD),
         "card placed directly in exile should not be foretold"

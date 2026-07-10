@@ -178,7 +178,10 @@ impl LegalActionProvider for StubProvider {
         // The human player can still quit via 'q'.)
         actions.push(LegalAction::PassPriority);
 
-        let is_main_phase = matches!(state.turn().step, Step::PreCombatMain | Step::PostCombatMain);
+        let is_main_phase = matches!(
+            state.turn().step,
+            Step::PreCombatMain | Step::PostCombatMain
+        );
         let stack_empty = state.stack_objects().is_empty();
         let is_active = state.turn().active_player == player;
 
@@ -998,7 +1001,10 @@ fn is_cast_restricted_by_stax(state: &GameState, player: PlayerId) -> bool {
             GameRestriction::OpponentsCanOnlyCastAtSorcerySpeed => {
                 if player != controller {
                     let is_own_main = active_player == player
-                        && matches!(state.turn().step, Step::PreCombatMain | Step::PostCombatMain);
+                        && matches!(
+                            state.turn().step,
+                            Step::PreCombatMain | Step::PostCombatMain
+                        );
                     let stack_empty = state.stack_objects().is_empty();
                     if !is_own_main || !stack_empty {
                         return true;

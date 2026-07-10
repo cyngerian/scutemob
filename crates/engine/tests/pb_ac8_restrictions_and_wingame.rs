@@ -27,6 +27,7 @@ use mtg_engine::cards::card_definition::{
 };
 use mtg_engine::effects::{execute_effect, EffectContext};
 use mtg_engine::state::stubs::{ActiveRestriction, PendingTrigger, PendingTriggerKind};
+use mtg_engine::state::test_util;
 use mtg_engine::state::{ActivatedAbility, ActivationCost, SacrificeFilter};
 use mtg_engine::{
     process_command, AttackTarget, CardId, CardType, Command, GameEvent, GameRestriction,
@@ -42,7 +43,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_by_name(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -51,14 +52,14 @@ fn find_by_name(state: &GameState, name: &str) -> ObjectId {
 
 fn in_graveyard(state: &GameState, name: &str, owner: PlayerId) -> bool {
     state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == name && o.zone == ZoneId::Graveyard(owner))
 }
 
 fn on_battlefield(state: &GameState, name: &str) -> bool {
     state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == name && o.zone == ZoneId::Battlefield)
 }
@@ -81,7 +82,7 @@ fn add_restriction(
     controller: PlayerId,
     restriction: GameRestriction,
 ) {
-    state.restrictions.push_back(ActiveRestriction {
+    state.restrictions_mut().push_back(ActiveRestriction {
         source,
         controller,
         restriction,
@@ -183,11 +184,11 @@ fn test_wingame_1v1_controller_wins_opponent_loses() {
     let (state, events) = run_effect(state, p(1), Effect::WinGame);
 
     assert!(
-        state.players.get(&p(2)).unwrap().has_lost,
+        state.players().get(&p(2)).unwrap().has_lost,
         "opponent must lose when the controller wins the game (CR 104.1)"
     );
     assert!(
-        !state.players.get(&p(1)).unwrap().has_lost,
+        !state.players().get(&p(1)).unwrap().has_lost,
         "the winning controller must not be marked has_lost"
     );
     assert!(events.iter().any(|e| matches!(
@@ -230,12 +231,12 @@ fn test_wingame_4player_all_three_opponents_lose() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p(1))
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p(1));
+    state.turn_mut().priority_holder = Some(p(1));
 
     let card = find_by_name(&state, "Win The Game");
     let (state, cast_events) =
@@ -249,13 +250,13 @@ fn test_wingame_4player_all_three_opponents_lose() {
 
     for opp in [p(2), p(3), p(4)] {
         assert!(
-            state.players.get(&opp).unwrap().has_lost,
+            state.players().get(&opp).unwrap().has_lost,
             "player {:?} should have lost when P1 won the game (CR 104.1)",
             opp
         );
     }
     assert!(
-        !state.players.get(&p(1)).unwrap().has_lost,
+        !state.players().get(&p(1)).unwrap().has_lost,
         "the winning controller P1 must not be marked has_lost"
     );
     let active = state.active_players();
@@ -283,12 +284,12 @@ fn test_wingame_controller_already_lost_is_noop() {
         .add_player(p(2))
         .build()
         .unwrap();
-    state.players.get_mut(&p(1)).unwrap().has_lost = true;
+    state.players_mut().get_mut(&p(1)).unwrap().has_lost = true;
 
     let (state, events) = run_effect(state, p(1), Effect::WinGame);
 
     assert!(
-        !state.players.get(&p(2)).unwrap().has_lost,
+        !state.players().get(&p(2)).unwrap().has_lost,
         "opponent must NOT lose when the (already-lost) controller 'wins' (CR 104.3f)"
     );
     assert!(
@@ -374,7 +375,7 @@ fn test_wingame_via_intervening_if_upkeep_trigger() {
 
     let win_con_id = find_by_name(&state_below, "Test Win Con");
     state_below
-        .pending_triggers
+        .pending_triggers_mut()
         .push_back(PendingTrigger::blank(
             win_con_id,
             p(1),
@@ -387,7 +388,7 @@ fn test_wingame_via_intervening_if_upkeep_trigger() {
     all_events_below.extend(more_events);
 
     assert!(
-        !state_below.players.get(&p(2)).unwrap().has_lost,
+        !state_below.players().get(&p(2)).unwrap().has_lost,
         "below threshold (1 artifact < 2): WinGame must NOT resolve (CR 603.4 \
          intervening-if false at resolution)"
     );
@@ -408,18 +409,20 @@ fn test_wingame_via_intervening_if_upkeep_trigger() {
         .unwrap();
 
     let win_con_id = find_by_name(&state_at, "Test Win Con");
-    state_at.pending_triggers.push_back(PendingTrigger::blank(
-        win_con_id,
-        p(1),
-        PendingTriggerKind::Normal,
-    ));
+    state_at
+        .pending_triggers_mut()
+        .push_back(PendingTrigger::blank(
+            win_con_id,
+            p(1),
+            PendingTriggerKind::Normal,
+        ));
     let events_at = mtg_engine::rules::abilities::flush_pending_triggers(&mut state_at);
     let mut all_events_at = events_at;
     let (state_at, more_events) = pass_all(state_at, &[p(1), p(2)]);
     all_events_at.extend(more_events);
 
     assert!(
-        state_at.players.get(&p(2)).unwrap().has_lost,
+        state_at.players().get(&p(2)).unwrap().has_lost,
         "at threshold (2 artifacts >= 2): WinGame must resolve and eliminate the \
          opponent; events: {:?}",
         all_events_at
@@ -533,7 +536,7 @@ fn test_cant_be_sacrificed_activation_cost_cannot_pay() {
         .at_step(Step::PreCombatMain)
         .build()
         .unwrap();
-    state.turn.priority_holder = Some(p(1));
+    state.turn_mut().priority_holder = Some(p(1));
 
     let creature_id = find_by_name(&state, "Suicide Bomber");
     add_restriction(
@@ -593,7 +596,7 @@ fn test_cant_be_sacrificed_activation_cost_sacrifice_filter_cannot_pay() {
         .at_step(Step::PreCombatMain)
         .build()
         .unwrap();
-    state.turn.priority_holder = Some(p(1));
+    state.turn_mut().priority_holder = Some(p(1));
 
     let altar = find_by_name(&state, "Blood Altar");
     let bear = find_by_name(&state, "Protected Bear");
@@ -716,7 +719,7 @@ fn test_cant_attack_owner_illegal_declaration() {
         .at_step(Step::DeclareAttackers)
         .build()
         .unwrap();
-    state.turn.priority_holder = Some(p(2));
+    state.turn_mut().priority_holder = Some(p(2));
 
     let alexios = find_by_name(&state, "Alexios-Style");
     add_restriction(&mut state, alexios, p(2), GameRestriction::CantAttackOwner);
@@ -745,7 +748,7 @@ fn test_cant_attack_owner_can_attack_other_player() {
         .at_step(Step::DeclareAttackers)
         .build()
         .unwrap();
-    state.turn.priority_holder = Some(p(2));
+    state.turn_mut().priority_holder = Some(p(2));
 
     let alexios = find_by_name(&state, "Alexios-Style");
     add_restriction(&mut state, alexios, p(2), GameRestriction::CantAttackOwner);
@@ -781,7 +784,7 @@ fn test_cant_attack_owner_yields_mustattack_requirement() {
         .at_step(Step::DeclareAttackers)
         .build()
         .unwrap();
-    state.turn.priority_holder = Some(p(2));
+    state.turn_mut().priority_holder = Some(p(2));
 
     let alexios = find_by_name(&state, "Alexios-Style");
     add_restriction(&mut state, alexios, p(2), GameRestriction::CantAttackOwner);
@@ -901,7 +904,7 @@ fn test_cleanup_layer_granted_no_max_hand_size_skips_discard() {
     let bear = find_by_name(&state, "Emblem Proxy Bear");
     // Grant NoMaxHandSize via a Layer 6 continuous effect (mirrors the emblem's
     // AddKeyword grant), NOT a printed keyword on the card.
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(1),
         source: Some(bear),
         timestamp: 10,
@@ -944,7 +947,7 @@ fn test_cleanup_layer_granted_no_max_hand_size_skips_discard() {
 fn drain_stack(mut state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent>) {
     let mut all_events = Vec::new();
     let mut limit = 200;
-    while !state.stack_objects.is_empty() && limit > 0 {
+    while !state.stack_objects().is_empty() && limit > 0 {
         let (s, ev) = pass_all(state, players);
         state = s;
         all_events.extend(ev);
@@ -961,7 +964,7 @@ fn advance_to_step(
 ) -> (GameState, Vec<GameEvent>) {
     let mut all_events = Vec::new();
     let mut limit = 200;
-    while state.turn.step != target && limit > 0 {
+    while state.turn().step != target && limit > 0 {
         let (s, ev) = pass_all(state, players);
         state = s;
         all_events.extend(ev);
@@ -1034,12 +1037,12 @@ fn test_cant_be_sacrificed_blitz_delayed_sacrifice_skipped() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_by_name(&state, "Blitz Bear");
 
@@ -1079,7 +1082,7 @@ fn test_cant_be_sacrificed_blitz_delayed_sacrifice_skipped() {
 
     // Advance to End step -- Blitz's delayed trigger is queued.
     let (state, _) = advance_to_step(state, Step::End, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::End, "should reach End step");
+    assert_eq!(state.turn().step, Step::End, "should reach End step");
 
     // Resolve the delayed trigger. Because the creature can't be sacrificed, the
     // trigger must do nothing -- no CreatureDied event, no draw trigger, no
@@ -1130,9 +1133,7 @@ fn test_cant_be_sacrificed_mobilize_delayed_sacrifice_skipped() {
         ..Default::default()
     };
     let token_obj = mtg_engine::effects::make_token(&token_spec, p1);
-    state
-        .add_object(token_obj, ZoneId::Battlefield)
-        .expect("add token");
+    test_util::add_object(&mut state, token_obj, ZoneId::Battlefield).expect("add token");
 
     assert!(
         on_battlefield(&state, "Mobilized Warrior"),
@@ -1172,14 +1173,14 @@ fn test_cant_attack_owner_goad_yields_requirement() {
         .at_step(Step::DeclareAttackers)
         .build()
         .unwrap();
-    state.turn.priority_holder = Some(p(2));
+    state.turn_mut().priority_holder = Some(p(2));
 
     let creature = find_by_name(&state, "Goaded Alexios-Style");
     add_restriction(&mut state, creature, p(2), GameRestriction::CantAttackOwner);
     // Goad the creature (the goading player's identity doesn't matter for the
     // "must attack if able" computation -- only that `goaded_by` is non-empty).
     state
-        .objects
+        .objects_mut()
         .get_mut(&creature)
         .unwrap()
         .goaded_by
@@ -1262,18 +1263,18 @@ fn test_cant_be_sacrificed_cast_cost_emerge_cannot_pay() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Colorless, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Blue, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_by_name(&state, "Emerge Test Creature");
     let sac_id = find_by_name(&state, "Protected Sac Fodder");

@@ -19,6 +19,7 @@
 //! card definitions themselves are not modified in this implement phase.
 
 use mtg_engine::effects::{execute_effect, EffectContext};
+use mtg_engine::state::test_util;
 use mtg_engine::{
     AbilityDefinition, CardDefinition, CardEffectTarget, CardId, CardRegistry, CardType, Command,
     Cost, Effect, EffectAmount, GameEvent, GameState, GameStateBuilder, ManaColor, ManaCost,
@@ -34,7 +35,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_by_name(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -69,19 +70,19 @@ fn draw_one() -> Effect {
     }
 }
 
-/// Push a bare `StackObject::Spell` entry onto `state.stack_objects` wrapping
+/// Push a bare `StackObject::Spell` entry onto `state.stack_objects()` wrapping
 /// `source_object`. Mirrors the manual-stack-push pattern used elsewhere in the
 /// test suite (see `tests/forecast.rs`, `tests/dungeon_resolution.rs`) since
 /// `Effect::CounterSpell`/`CounterUnlessPays` operate on `StackObject`, not on
-/// `state.objects` alone.
+/// `state.objects()` alone.
 fn push_spell_stack_object(
     state: &mut GameState,
     source_object: ObjectId,
     controller: PlayerId,
     cast_with_flashback: bool,
 ) -> ObjectId {
-    let stack_id = state.next_object_id();
-    state.stack_objects.push_back(StackObject {
+    let stack_id = test_util::next_object_id(state);
+    state.stack_objects_mut().push_back(StackObject {
         id: stack_id,
         controller,
         kind: StackObjectKind::Spell { source_object },
@@ -171,7 +172,7 @@ fn test_may_pay_then_effect_paylife_pays_and_runs() {
         .active_player(p1)
         .build()
         .unwrap();
-    state.players.get_mut(&p1).unwrap().life_total = 20;
+    state.players_mut().get_mut(&p1).unwrap().life_total = 20;
 
     let (state, events) = run_may_pay_then(state, p1, Cost::PayLife(2), draw_one());
 
@@ -188,7 +189,7 @@ fn test_may_pay_then_effect_paylife_pays_and_runs() {
         "CR 118.12: cost was paid -- `then` (draw a card) should run"
     );
     assert_eq!(
-        state.players.get(&p1).unwrap().life_total,
+        state.players().get(&p1).unwrap().life_total,
         18,
         "life total should be reduced by the paid amount"
     );
@@ -208,7 +209,7 @@ fn test_may_pay_then_effect_paylife_insufficient_declines() {
         .active_player(p1)
         .build()
         .unwrap();
-    state.players.get_mut(&p1).unwrap().life_total = 1;
+    state.players_mut().get_mut(&p1).unwrap().life_total = 1;
 
     let (state, events) = run_may_pay_then(state, p1, Cost::PayLife(2), draw_one());
 
@@ -219,7 +220,7 @@ fn test_may_pay_then_effect_paylife_insufficient_declines() {
         events
     );
     assert_eq!(
-        state.players.get(&p1).unwrap().life_total,
+        state.players().get(&p1).unwrap().life_total,
         1,
         "life total should be unchanged when the cost cannot be paid"
     );
@@ -259,12 +260,12 @@ fn test_may_pay_then_effect_discard_pays_and_runs() {
         "CR 118.12: cost was paid -- `then` (draw a card) should run"
     );
     let hand_count = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
     let grave_count = state
-        .objects
+        .objects()
         .values()
         .filter(|o| matches!(o.zone, ZoneId::Graveyard(pid) if pid == p1))
         .count();
@@ -302,7 +303,7 @@ fn test_may_pay_then_effect_discard_empty_hand_declines() {
         events
     );
     let grave_count = state
-        .objects
+        .objects()
         .values()
         .filter(|o| matches!(o.zone, ZoneId::Graveyard(pid) if pid == p1))
         .count();
@@ -353,7 +354,7 @@ fn test_may_pay_then_effect_sacrifice_pays_and_runs() {
     );
     assert!(
         !state
-            .objects
+            .objects()
             .values()
             .any(|o| o.characteristics.name == "Sac Fodder" && o.zone == ZoneId::Battlefield),
         "Sac Fodder should have left the battlefield"
@@ -396,7 +397,7 @@ fn test_may_pay_then_effect_sacrifice_none_declines() {
     );
     assert!(
         state
-            .objects
+            .objects()
             .values()
             .any(|o| o.characteristics.name == "Some Land" && o.zone == ZoneId::Battlefield),
         "the land should be untouched"
@@ -421,7 +422,7 @@ fn test_may_pay_then_effect_mana_requires_floating() {
         .unwrap();
     // Pre-float {2}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -439,7 +440,7 @@ fn test_may_pay_then_effect_mana_requires_floating() {
             .any(|e| matches!(e, GameEvent::CardDrawn { player, .. } if *player == p1)),
         "CR 118.12: floating mana was available -- `then` should run"
     );
-    let pool = &state.players.get(&p1).unwrap().mana_pool;
+    let pool = &state.players().get(&p1).unwrap().mana_pool;
     assert_eq!(
         pool.colorless, 0,
         "the floating mana should have been spent"
@@ -475,7 +476,7 @@ fn test_may_pay_then_effect_mana_empty_pool_declines() {
     );
     assert!(
         state
-            .objects
+            .objects()
             .values()
             .any(|o| o.zone == ZoneId::Library(p1)),
         "the library card should not have been drawn"
@@ -499,9 +500,9 @@ fn test_may_pay_then_effect_sequence_pays_all_when_available() {
         .active_player(p1)
         .build()
         .unwrap();
-    state.players.get_mut(&p1).unwrap().life_total = 20;
+    state.players_mut().get_mut(&p1).unwrap().life_total = 20;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -528,8 +529,8 @@ fn test_may_pay_then_effect_sequence_pays_all_when_available() {
             .any(|e| matches!(e, GameEvent::CardDrawn { .. })),
         "CR 118.12: both sub-costs payable -- `then` should run"
     );
-    assert_eq!(state.players.get(&p1).unwrap().life_total, 19);
-    assert_eq!(state.players.get(&p1).unwrap().mana_pool.colorless, 0);
+    assert_eq!(state.players().get(&p1).unwrap().life_total, 19);
+    assert_eq!(state.players().get(&p1).unwrap().mana_pool.colorless, 0);
 }
 
 #[test]
@@ -547,7 +548,7 @@ fn test_may_pay_then_effect_sequence_declines_all_when_any_unavailable() {
         .active_player(p1)
         .build()
         .unwrap();
-    state.players.get_mut(&p1).unwrap().life_total = 20;
+    state.players_mut().get_mut(&p1).unwrap().life_total = 20;
     // No mana floated -- the Mana{1} sub-cost is unpayable.
 
     let cost = Cost::Sequence(vec![
@@ -566,7 +567,7 @@ fn test_may_pay_then_effect_sequence_declines_all_when_any_unavailable() {
         events
     );
     assert_eq!(
-        state.players.get(&p1).unwrap().life_total,
+        state.players().get(&p1).unwrap().life_total,
         20,
         "life must NOT be paid when the mana sub-cost is unavailable (atomicity)"
     );
@@ -621,7 +622,7 @@ fn test_may_pay_then_effect_sequence_sacrifice_sacrifice_one_eligible_declines()
     );
     assert!(
         state
-            .objects
+            .objects()
             .values()
             .any(|o| o.characteristics.name == "Only Fodder" && o.zone == ZoneId::Battlefield),
         "the sole creature must survive -- atomicity means no partial sacrifice"
@@ -673,8 +674,11 @@ fn test_may_pay_then_effect_sequence_sacrifice_sacrifice_two_eligible_pays() {
         "CR 118.12: full cost paid -- `then` should run"
     );
     assert!(
-        !state.objects.values().any(|o| o.zone == ZoneId::Battlefield
-            && (o.characteristics.name == "Fodder A" || o.characteristics.name == "Fodder B")),
+        !state
+            .objects()
+            .values()
+            .any(|o| o.zone == ZoneId::Battlefield
+                && (o.characteristics.name == "Fodder A" || o.characteristics.name == "Fodder B")),
         "both creatures should have left the battlefield"
     );
 }
@@ -696,7 +700,7 @@ fn test_may_pay_then_effect_sequence_paylife_paylife_insufficient_declines() {
         .active_player(p1)
         .build()
         .unwrap();
-    state.players.get_mut(&p1).unwrap().life_total = 6;
+    state.players_mut().get_mut(&p1).unwrap().life_total = 6;
 
     let cost = Cost::Sequence(vec![Cost::PayLife(5), Cost::PayLife(5)]);
     let (state, events) = run_may_pay_then(state, p1, cost, draw_one());
@@ -709,7 +713,7 @@ fn test_may_pay_then_effect_sequence_paylife_paylife_insufficient_declines() {
         events
     );
     assert_eq!(
-        state.players.get(&p1).unwrap().life_total,
+        state.players().get(&p1).unwrap().life_total,
         6,
         "life must be unchanged -- atomicity means no partial life payment"
     );
@@ -730,7 +734,7 @@ fn test_may_pay_then_effect_sequence_paylife_paylife_sufficient_pays() {
         .active_player(p1)
         .build()
         .unwrap();
-    state.players.get_mut(&p1).unwrap().life_total = 20;
+    state.players_mut().get_mut(&p1).unwrap().life_total = 20;
 
     let cost = Cost::Sequence(vec![Cost::PayLife(5), Cost::PayLife(5)]);
     let (state, events) = run_may_pay_then(state, p1, cost, draw_one());
@@ -754,7 +758,7 @@ fn test_may_pay_then_effect_sequence_paylife_paylife_sufficient_pays() {
         "CR 118.12: full cost paid -- `then` should run"
     );
     assert_eq!(
-        state.players.get(&p1).unwrap().life_total,
+        state.players().get(&p1).unwrap().life_total,
         10,
         "life should be reduced by the combined 10 total"
     );
@@ -778,7 +782,7 @@ fn test_may_pay_then_effect_sequence_mana_mana_one_floating_declines() {
         .build()
         .unwrap();
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -801,7 +805,7 @@ fn test_may_pay_then_effect_sequence_mana_mana_one_floating_declines() {
         events
     );
     assert_eq!(
-        state.players.get(&p1).unwrap().mana_pool.colorless,
+        state.players().get(&p1).unwrap().mana_pool.colorless,
         1,
         "the floating mana must be untouched -- atomicity means no partial spend"
     );
@@ -823,7 +827,7 @@ fn test_may_pay_then_effect_sequence_mana_mana_two_floating_pays() {
         .build()
         .unwrap();
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -847,7 +851,7 @@ fn test_may_pay_then_effect_sequence_mana_mana_two_floating_pays() {
         events
     );
     assert_eq!(
-        state.players.get(&p1).unwrap().mana_pool.colorless,
+        state.players().get(&p1).unwrap().mana_pool.colorless,
         0,
         "both floating mana should have been spent"
     );
@@ -891,11 +895,11 @@ fn test_counter_unless_pays_counters_when_declined() {
         "CR 118.12a: controller declined -- the spell should be countered"
     );
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "the countered spell's stack entry should be removed"
     );
     assert!(
-        state.objects.values().any(|o| {
+        state.objects().values().any(|o| {
             o.characteristics.name == "Target Spell" && matches!(o.zone, ZoneId::Graveyard(_))
         }),
         "the countered spell should move to its owner's graveyard"
@@ -944,14 +948,14 @@ fn test_counter_unless_pays_flashback_exiles() {
     );
     assert!(
         state
-            .objects
+            .objects()
             .values()
             .any(|o| { o.characteristics.name == "Flashback Spell" && o.zone == ZoneId::Exile }),
         "CR 702.34a: a flashback-cast spell countered by an effect must be exiled, \
          not put into the graveyard"
     );
     assert!(
-        !state.objects.values().any(|o| {
+        !state.objects().values().any(|o| {
             o.characteristics.name == "Flashback Spell" && matches!(o.zone, ZoneId::Graveyard(_))
         }),
         "the flashback spell must NOT end up in the graveyard"
@@ -1024,12 +1028,12 @@ fn test_counter_unless_pays_noncreature_filter() {
         .build()
         .unwrap();
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let noncreature_id = find_by_name(&state, "Noncreature Spell");
     push_spell_stack_object(&mut state, noncreature_id, p2, false);
@@ -1085,12 +1089,12 @@ fn test_counter_unless_pays_noncreature_filter() {
         .build()
         .unwrap();
     state2
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state2.turn.priority_holder = Some(p1);
+    state2.turn_mut().priority_holder = Some(p1);
 
     let creature_id = find_by_name(&state2, "Creature Spell");
     push_spell_stack_object(&mut state2, creature_id, p2, false);

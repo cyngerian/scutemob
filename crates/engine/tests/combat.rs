@@ -49,7 +49,7 @@ fn test_510_unblocked_attacker_deals_damage_to_player() {
 
     // Find the attacker ID.
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1)
         .unwrap()
@@ -71,7 +71,7 @@ fn test_510_unblocked_attacker_deals_damage_to_player() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // Verify we're in DeclareBlockers step.
-    assert_eq!(state.turn.step, Step::DeclareBlockers);
+    assert_eq!(state.turn().step, Step::DeclareBlockers);
 
     // p2 declares no blockers.
     let (state, _) = process_command(
@@ -100,7 +100,7 @@ fn test_510_unblocked_attacker_deals_damage_to_player() {
     assert!(damage_dealt, "Expected 2 damage to be dealt to p2");
 
     // p2's life total should be reduced.
-    let p2_life = state.players.get(&p2).unwrap().life_total;
+    let p2_life = state.players().get(&p2).unwrap().life_total;
     assert_eq!(p2_life, 38, "p2 should have 38 life after taking 2 damage");
 }
 
@@ -126,13 +126,13 @@ fn test_509_blocked_attacker_no_player_damage() {
         .unwrap();
 
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1 && o.characteristics.name == "Attacker")
         .unwrap()
         .id;
     let blocker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p2)
         .unwrap()
@@ -165,7 +165,7 @@ fn test_509_blocked_attacker_no_player_damage() {
     let (state, events) = pass_all(state, &[p1, p2]);
 
     // p2's life should be unchanged (attacker is blocked, no trample).
-    let p2_life = state.players.get(&p2).unwrap().life_total;
+    let p2_life = state.players().get(&p2).unwrap().life_total;
     assert_eq!(
         p2_life, 40,
         "Blocked attacker (no trample) should deal no player damage"
@@ -207,13 +207,13 @@ fn test_510_mutual_combat_damage_both_die() {
         .unwrap();
 
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1)
         .unwrap()
         .id;
     let blocker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p2)
         .unwrap()
@@ -243,14 +243,14 @@ fn test_510_mutual_combat_damage_both_die() {
     let (state, events) = pass_all(state, &[p1, p2]);
 
     // Both creatures should have died (SBAs after combat damage).
-    let attacker_alive = state.objects.values().any(|o| o.id == attacker_id);
-    let blocker_alive = state.objects.values().any(|o| o.id == blocker_id);
+    let attacker_alive = state.objects().values().any(|o| o.id == attacker_id);
+    let blocker_alive = state.objects().values().any(|o| o.id == blocker_id);
     assert!(!attacker_alive, "Attacker (3/3 hit by 3) should have died");
     assert!(!blocker_alive, "Blocker (3/3 hit by 3) should have died");
 
     // Both players' life totals should be unchanged (damage went to creatures).
-    assert_eq!(state.players.get(&p1).unwrap().life_total, 40);
-    assert_eq!(state.players.get(&p2).unwrap().life_total, 40);
+    assert_eq!(state.players().get(&p1).unwrap().life_total, 40);
+    assert_eq!(state.players().get(&p2).unwrap().life_total, 40);
 
     // CreatureDied events should have been emitted for both.
     let deaths = events
@@ -285,13 +285,13 @@ fn test_702_7_first_strike_kills_blocker_before_regular_damage() {
         .unwrap();
 
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1)
         .unwrap()
         .id;
     let blocker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p2)
         .unwrap()
@@ -321,7 +321,7 @@ fn test_702_7_first_strike_kills_blocker_before_regular_damage() {
     // Both pass → FirstStrikeDamage step entered (first-strike damage applied here).
     let (state, fs_events) = pass_all(state, &[p1, p2]);
     assert_eq!(
-        state.turn.step,
+        state.turn().step,
         Step::FirstStrikeDamage,
         "Should enter FirstStrikeDamage step"
     );
@@ -339,14 +339,14 @@ fn test_702_7_first_strike_kills_blocker_before_regular_damage() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // The attacker should survive (blocker had no first strike, can't deal damage in first step).
-    let attacker_alive = state.objects.values().any(|o| o.id == attacker_id);
+    let attacker_alive = state.objects().values().any(|o| o.id == attacker_id);
     assert!(
         attacker_alive,
         "First striker should survive (blocker can't deal back in first-strike step)"
     );
 
     // p1's life total unchanged (attacker survived).
-    assert_eq!(state.players.get(&p1).unwrap().life_total, 40);
+    assert_eq!(state.players().get(&p1).unwrap().life_total, 40);
 }
 
 // ---------------------------------------------------------------------------
@@ -373,7 +373,7 @@ fn test_702_4_double_strike_deals_in_both_steps() {
         .unwrap();
 
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1)
         .unwrap()
@@ -403,7 +403,7 @@ fn test_702_4_double_strike_deals_in_both_steps() {
 
     // Pass through DeclareBlockers → FirstStrikeDamage step entered (first-strike damage applied here).
     let (state, fs_step_events) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::FirstStrikeDamage);
+    assert_eq!(state.turn().step, Step::FirstStrikeDamage);
 
     let first_damage: u32 = fs_step_events
         .iter()
@@ -427,7 +427,7 @@ fn test_702_4_double_strike_deals_in_both_steps() {
 
     // Pass through FirstStrikeDamage → CombatDamage step entered (regular damage applied here).
     let (state, regular_step_events) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::CombatDamage);
+    assert_eq!(state.turn().step, Step::CombatDamage);
 
     let second_damage: u32 = regular_step_events
         .iter()
@@ -453,7 +453,7 @@ fn test_702_4_double_strike_deals_in_both_steps() {
     );
 
     // p2 should have taken 4 total damage (2 first-strike + 2 regular).
-    assert_eq!(state.players.get(&p2).unwrap().life_total, 36);
+    assert_eq!(state.players().get(&p2).unwrap().life_total, 36);
 }
 
 // ---------------------------------------------------------------------------
@@ -479,13 +479,13 @@ fn test_702_19_trample_excess_to_player() {
         .unwrap();
 
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1)
         .unwrap()
         .id;
     let blocker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p2)
         .unwrap()
@@ -537,7 +537,7 @@ fn test_702_19_trample_excess_to_player() {
     );
 
     assert_eq!(
-        state.players.get(&p2).unwrap().life_total,
+        state.players().get(&p2).unwrap().life_total,
         37,
         "p2 should take 3 trample damage"
     );
@@ -570,13 +570,13 @@ fn test_702_deathtouch_with_trample() {
         .unwrap();
 
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1)
         .unwrap()
         .id;
     let blocker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p2)
         .unwrap()
@@ -627,7 +627,7 @@ fn test_702_deathtouch_with_trample() {
         "Only 1 (deathtouch lethal) assigned to blocker"
     );
     assert_eq!(
-        state.players.get(&p2).unwrap().life_total,
+        state.players().get(&p2).unwrap().life_total,
         37,
         "3 trample damage to p2 (4 power - 1 lethal)"
     );
@@ -657,19 +657,19 @@ fn test_509_2_multiple_blockers_damage_order() {
         .unwrap();
 
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1)
         .unwrap()
         .id;
     let blocker1_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p2 && o.characteristics.name == "Blocker1")
         .unwrap()
         .id;
     let blocker2_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p2 && o.characteristics.name == "Blocker2")
         .unwrap()
@@ -748,13 +748,13 @@ fn test_509_2_multiple_blockers_damage_order() {
     assert_eq!(b2_damage, 3, "Blocker2 gets remaining 3 damage");
 
     // Both should be dead (2/2 hit by ≥2).
-    let b1_alive = state.objects.values().any(|o| o.id == blocker1_id);
-    let b2_alive = state.objects.values().any(|o| o.id == blocker2_id);
+    let b1_alive = state.objects().values().any(|o| o.id == blocker1_id);
+    let b2_alive = state.objects().values().any(|o| o.id == blocker2_id);
     assert!(!b1_alive, "Blocker1 should have died");
     assert!(!b2_alive, "Blocker2 should have died");
 
     // No damage to p2 (no trample on the attacker).
-    assert_eq!(state.players.get(&p2).unwrap().life_total, 40);
+    assert_eq!(state.players().get(&p2).unwrap().life_total, 40);
 }
 
 // ---------------------------------------------------------------------------
@@ -782,19 +782,19 @@ fn test_702_19b_trample_multiple_blockers_excess_to_player() {
         .unwrap();
 
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1)
         .unwrap()
         .id;
     let blocker1_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p2 && o.characteristics.name == "Blocker1")
         .unwrap()
         .id;
     let blocker2_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p2 && o.characteristics.name == "Blocker2")
         .unwrap()
@@ -875,7 +875,7 @@ fn test_702_19b_trample_multiple_blockers_excess_to_player() {
     assert_eq!(b1_damage, 2, "Blocker1 should receive exactly lethal (2)");
     assert_eq!(b2_damage, 2, "Blocker2 should receive exactly lethal (2)");
     assert_eq!(
-        state.players.get(&p2).unwrap().life_total,
+        state.players().get(&p2).unwrap().life_total,
         38,
         "p2 should take 2 excess trample damage (6 power - 2 - 2 = 2)"
     );
@@ -913,13 +913,13 @@ fn test_702_19d_trample_blockers_removed_before_damage() {
         .unwrap();
 
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1)
         .unwrap()
         .id;
     let blocker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p2)
         .unwrap()
@@ -949,7 +949,7 @@ fn test_702_19d_trample_blockers_removed_before_damage() {
     // Both pass → FirstStrikeDamage step entered. The 4/4 first striker kills the 1/1 blocker.
     let (state, fs_events) = pass_all(state, &[p1, p2]);
     assert_eq!(
-        state.turn.step,
+        state.turn().step,
         Step::FirstStrikeDamage,
         "Should be in FirstStrikeDamage step"
     );
@@ -959,7 +959,7 @@ fn test_702_19d_trample_blockers_removed_before_damage() {
     assert!(blocker_died, "TinyBlocker should die in first-strike step");
 
     // The blocker is gone from the battlefield.
-    let blocker_on_field = state.objects.values().any(|o| o.id == blocker_id);
+    let blocker_on_field = state.objects().values().any(|o| o.id == blocker_id);
     assert!(
         !blocker_on_field,
         "TinyBlocker should no longer be on the battlefield"
@@ -967,7 +967,7 @@ fn test_702_19d_trample_blockers_removed_before_damage() {
 
     // Trample dealt 3 excess in the first-strike step (4 power - 1 lethal = 3).
     assert_eq!(
-        state.players.get(&p2).unwrap().life_total,
+        state.players().get(&p2).unwrap().life_total,
         37,
         "p2 should take 3 trample damage in first-strike step"
     );
@@ -978,7 +978,7 @@ fn test_702_19d_trample_blockers_removed_before_damage() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     assert_eq!(
-        state.players.get(&p2).unwrap().life_total,
+        state.players().get(&p2).unwrap().life_total,
         33,
         "p2 should take 4 more damage in regular step (702.19d: blocked but all blockers gone)"
     );
@@ -1024,7 +1024,7 @@ fn test_603_self_attacks_trigger_fires() {
         .unwrap();
 
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1)
         .unwrap()
@@ -1052,7 +1052,7 @@ fn test_603_self_attacks_trigger_fires() {
 
     // Stack should have one object (the triggered ability).
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "Triggered ability should be on the stack"
     );
@@ -1083,7 +1083,7 @@ fn test_903_10a_commander_damage_tracked() {
         .unwrap();
 
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1)
         .unwrap()
@@ -1113,7 +1113,7 @@ fn test_903_10a_commander_damage_tracked() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // Commander damage should be tracked in p2's record.
-    let p2_state = state.players.get(&p2).unwrap();
+    let p2_state = state.players().get(&p2).unwrap();
     let damage_from_p1 = p2_state
         .commander_damage_received
         .get(&p1)
@@ -1150,13 +1150,13 @@ fn test_506_multiplayer_simultaneous_attacks() {
         .unwrap();
 
     let att1_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1 && o.characteristics.name == "Attacker1")
         .unwrap()
         .id;
     let att2_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1 && o.characteristics.name == "Attacker2")
         .unwrap()
@@ -1199,10 +1199,10 @@ fn test_506_multiplayer_simultaneous_attacks() {
     let (state, _) = pass_all(state, &[p1, p2, p3]);
 
     // p2 should have 38 life (took 2), p3 should have 37 (took 3).
-    assert_eq!(state.players.get(&p2).unwrap().life_total, 38);
-    assert_eq!(state.players.get(&p3).unwrap().life_total, 37);
+    assert_eq!(state.players().get(&p2).unwrap().life_total, 38);
+    assert_eq!(state.players().get(&p3).unwrap().life_total, 37);
     // p1 untouched.
-    assert_eq!(state.players.get(&p1).unwrap().life_total, 40);
+    assert_eq!(state.players().get(&p1).unwrap().life_total, 40);
 }
 
 // ---------------------------------------------------------------------------
@@ -1225,7 +1225,7 @@ fn test_508_attack_self_rejected() {
         .unwrap();
 
     let bear_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1)
         .unwrap()
@@ -1262,7 +1262,7 @@ fn test_508_attack_nonexistent_player_rejected() {
         .unwrap();
 
     let bear_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1)
         .unwrap()
@@ -1300,13 +1300,13 @@ fn test_508_attack_own_planeswalker_rejected() {
         .unwrap();
 
     let bear_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1 && o.characteristics.name == "Bear")
         .unwrap()
         .id;
     let pw_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Jace")
         .unwrap()
@@ -1344,13 +1344,13 @@ fn test_508_attack_opponent_planeswalker_accepted() {
         .unwrap();
 
     let bear_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1)
         .unwrap()
         .id;
     let pw_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p2)
         .unwrap()
@@ -1393,19 +1393,19 @@ fn test_509_duplicate_blocker_rejected() {
         .unwrap();
 
     let attacker1_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1 && o.characteristics.name == "Attacker1")
         .unwrap()
         .id;
     let attacker2_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1 && o.characteristics.name == "Attacker2")
         .unwrap()
         .id;
     let blocker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p2)
         .unwrap()
@@ -1426,7 +1426,7 @@ fn test_509_duplicate_blocker_rejected() {
     .expect("declare attackers should succeed");
 
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::DeclareBlockers);
+    assert_eq!(state.turn().step, Step::DeclareBlockers);
 
     // Try to block both attackers with the same creature in one declaration.
     let result = process_command(
@@ -1464,19 +1464,19 @@ fn test_509_incomplete_blocker_order_rejected() {
         .unwrap();
 
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1)
         .unwrap()
         .id;
     let blocker1_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p2 && o.characteristics.name == "Blocker1")
         .unwrap()
         .id;
     let blocker2_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p2 && o.characteristics.name == "Blocker2")
         .unwrap()
@@ -1494,7 +1494,7 @@ fn test_509_incomplete_blocker_order_rejected() {
     .expect("declare attackers should succeed");
 
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::DeclareBlockers);
+    assert_eq!(state.turn().step, Step::DeclareBlockers);
 
     // p2 blocks with both creatures.
     let (state, _) = process_command(
@@ -1551,13 +1551,13 @@ fn test_509_cross_player_block_rejected() {
         .unwrap();
 
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1)
         .unwrap()
         .id;
     let blocker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p3)
         .unwrap()
@@ -1576,7 +1576,7 @@ fn test_509_cross_player_block_rejected() {
     .expect("declare attackers should succeed");
 
     let (state, _) = pass_all(state, &[p1, p2, p3]);
-    assert_eq!(state.turn.step, Step::DeclareBlockers);
+    assert_eq!(state.turn().step, Step::DeclareBlockers);
 
     // p3 tries to block p1's attacker (which is attacking p2, not p3).
     let result = process_command(
@@ -1617,7 +1617,7 @@ fn test_509_redeclare_blockers_rejected() {
         .unwrap();
 
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1)
         .unwrap()
@@ -1635,7 +1635,7 @@ fn test_509_redeclare_blockers_rejected() {
     .expect("declare attackers should succeed");
 
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::DeclareBlockers);
+    assert_eq!(state.turn().step, Step::DeclareBlockers);
 
     // p2 declares no blockers (valid first declaration).
     let (state, _) = process_command(
@@ -1703,13 +1703,13 @@ fn test_cc20_first_strike_blocks_double_strike() {
         .unwrap();
 
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "DoubleStriker")
         .unwrap()
         .id;
     let blocker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "FirstStriker")
         .unwrap()
@@ -1742,7 +1742,7 @@ fn test_cc20_first_strike_blocks_double_strike() {
     // Both creatures deal first-strike damage simultaneously in this step.
     let (state, fs_events) = pass_all(state, &[p1, p2]);
     assert_eq!(
-        state.turn.step,
+        state.turn().step,
         Step::FirstStrikeDamage,
         "should enter FirstStrikeDamage step"
     );
@@ -1763,8 +1763,8 @@ fn test_cc20_first_strike_blocks_double_strike() {
     );
 
     // Both should be off the battlefield.
-    let attacker_alive = state.objects.values().any(|o| o.id == attacker_id);
-    let blocker_alive = state.objects.values().any(|o| o.id == blocker_id);
+    let attacker_alive = state.objects().values().any(|o| o.id == attacker_id);
+    let blocker_alive = state.objects().values().any(|o| o.id == blocker_id);
     assert!(
         !attacker_alive,
         "DoubleStriker (3/1) should be dead (took 2 from first-striker, lethal on 1 toughness)"
@@ -1777,7 +1777,7 @@ fn test_cc20_first_strike_blocks_double_strike() {
     // Pass through FirstStrikeDamage → CombatDamage step.
     // Both creatures are dead; no regular combat damage is dealt.
     let (state, regular_events) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::CombatDamage);
+    assert_eq!(state.turn().step, Step::CombatDamage);
 
     let damage_in_regular_step: u32 = regular_events
         .iter()
@@ -1800,12 +1800,12 @@ fn test_cc20_first_strike_blocks_double_strike() {
 
     // p2's life total: should be unchanged (DoubleStriker never reached regular damage step alive).
     assert_eq!(
-        state.players.get(&p2).unwrap().life_total,
+        state.players().get(&p2).unwrap().life_total,
         40,
         "p2 should not have taken damage (DoubleStriker was blocked and killed before regular step)"
     );
     assert_eq!(
-        state.players.get(&p1).unwrap().life_total,
+        state.players().get(&p1).unwrap().life_total,
         40,
         "p1 should not have taken damage (all damage was between creatures)"
     );
@@ -1854,7 +1854,7 @@ fn test_510_3a_combat_damage_trigger_fires_on_unblocked_attacker() {
         .unwrap();
 
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1)
         .unwrap()
@@ -1902,14 +1902,14 @@ fn test_510_3a_combat_damage_trigger_fires_on_unblocked_attacker() {
 
     // The triggered ability should be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "Triggered ability should be placed on the stack"
     );
 
     // p2's life should be reduced by 2.
     assert_eq!(
-        state.players.get(&p2).unwrap().life_total,
+        state.players().get(&p2).unwrap().life_total,
         38,
         "p2 should have taken 2 combat damage"
     );
@@ -1954,13 +1954,13 @@ fn test_510_3a_combat_damage_trigger_does_not_fire_on_blocked_creature() {
         .unwrap();
 
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1 && o.characteristics.name == "Trigger Attacker")
         .unwrap()
         .id;
     let blocker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p2)
         .unwrap()
@@ -2006,14 +2006,14 @@ fn test_510_3a_combat_damage_trigger_does_not_fire_on_blocked_creature() {
 
     // The stack should have no triggered abilities from the attacker.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "No triggered ability should be on the stack"
     );
 
     // p2's life total should be unchanged (all damage went to the blocker).
     assert_eq!(
-        state.players.get(&p2).unwrap().life_total,
+        state.players().get(&p2).unwrap().life_total,
         40,
         "p2 should not have taken any combat damage"
     );
@@ -2057,7 +2057,7 @@ fn test_510_3a_combat_damage_trigger_does_not_fire_when_damage_is_zero() {
         .unwrap();
 
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1)
         .unwrap()
@@ -2103,7 +2103,7 @@ fn test_510_3a_combat_damage_trigger_does_not_fire_when_damage_is_zero() {
 
     // p2's life total should be unchanged.
     assert_eq!(
-        state.players.get(&p2).unwrap().life_total,
+        state.players().get(&p2).unwrap().life_total,
         40,
         "p2 should not have taken any damage from a 0-power creature"
     );
@@ -2149,13 +2149,13 @@ fn test_510_3a_combat_damage_trigger_multiplayer_separate_targets() {
         .unwrap();
 
     let att_a_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1 && o.characteristics.name == "Creature A")
         .unwrap()
         .id;
     let att_b_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.controller == p1 && o.characteristics.name == "Creature B")
         .unwrap()
@@ -2227,24 +2227,24 @@ fn test_510_3a_combat_damage_trigger_multiplayer_separate_targets() {
 
     // Both triggered abilities should be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "Both triggered abilities should be placed on the stack (one per creature)"
     );
 
     // p2 and p3 both took damage; p1 is untouched.
     assert_eq!(
-        state.players.get(&p2).unwrap().life_total,
+        state.players().get(&p2).unwrap().life_total,
         38,
         "p2 should have taken 2 damage from Creature A"
     );
     assert_eq!(
-        state.players.get(&p3).unwrap().life_total,
+        state.players().get(&p3).unwrap().life_total,
         37,
         "p3 should have taken 3 damage from Creature B"
     );
     assert_eq!(
-        state.players.get(&p1).unwrap().life_total,
+        state.players().get(&p1).unwrap().life_total,
         40,
         "p1 (the attacker) should be untouched"
     );
@@ -2280,7 +2280,7 @@ fn test_702_7b_first_strike_snapshot_populated_and_excludes_regular_step() {
         .unwrap();
 
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "FSAttacker")
         .unwrap()
@@ -2303,13 +2303,13 @@ fn test_702_7b_first_strike_snapshot_populated_and_excludes_regular_step() {
     // Pass through DeclareBlockers → FirstStrikeDamage step.
     let (state, _) = pass_all(state, &[p1, p2]);
     assert_eq!(
-        state.turn.step,
+        state.turn().step,
         Step::FirstStrikeDamage,
         "should be in FirstStrikeDamage step"
     );
 
     // CR 702.7b: After the first-strike step fires, the snapshot must be populated.
-    let snapshot = &state.combat.as_ref().unwrap().first_strike_participants;
+    let snapshot = &state.combat().as_ref().unwrap().first_strike_participants;
     assert!(
         snapshot.contains(&attacker_id),
         "CR 702.7b: attacker with FirstStrike must appear in first_strike_participants snapshot"
@@ -2317,14 +2317,14 @@ fn test_702_7b_first_strike_snapshot_populated_and_excludes_regular_step() {
 
     // p2 should have taken 2 damage from the first-strike step.
     assert_eq!(
-        state.players.get(&p2).unwrap().life_total,
+        state.players().get(&p2).unwrap().life_total,
         38,
         "p2 should have taken 2 damage in the first-strike step"
     );
 
     // Pass through FirstStrikeDamage → CombatDamage step.
     let (state, regular_events) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::CombatDamage);
+    assert_eq!(state.turn().step, Step::CombatDamage);
 
     // CR 702.7b/702.7c: FS attacker was in snapshot → excluded from regular step.
     // No damage should be dealt in the regular step.
@@ -2348,7 +2348,7 @@ fn test_702_7b_first_strike_snapshot_populated_and_excludes_regular_step() {
 
     // p2 should still have exactly 38 life (2 damage total, not 4).
     assert_eq!(
-        state.players.get(&p2).unwrap().life_total,
+        state.players().get(&p2).unwrap().life_total,
         38,
         "p2 should have taken exactly 2 total damage (FS step only, not regular step)"
     );
@@ -2381,13 +2381,13 @@ fn test_702_7c_normal_creature_not_in_snapshot_deals_regular_damage() {
         .unwrap();
 
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "NormalAttacker")
         .unwrap()
         .id;
     let blocker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "FSBlocker")
         .unwrap()
@@ -2420,10 +2420,10 @@ fn test_702_7c_normal_creature_not_in_snapshot_deals_regular_damage() {
 
     // Pass through DeclareBlockers → FirstStrikeDamage step.
     let (state, fs_events) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::FirstStrikeDamage);
+    assert_eq!(state.turn().step, Step::FirstStrikeDamage);
 
     // CR 702.7b: blocker (FS) must be in snapshot; attacker (normal) must NOT be.
-    let snapshot = &state.combat.as_ref().unwrap().first_strike_participants;
+    let snapshot = &state.combat().as_ref().unwrap().first_strike_participants;
     assert!(
         snapshot.contains(&blocker_id),
         "CR 702.7b: FS blocker must appear in snapshot"
@@ -2448,7 +2448,7 @@ fn test_702_7c_normal_creature_not_in_snapshot_deals_regular_damage() {
 
     // Pass through FirstStrikeDamage → CombatDamage step.
     let (state, regular_events) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::CombatDamage);
+    assert_eq!(state.turn().step, Step::CombatDamage);
 
     // CR 702.7c: normal attacker (NOT in snapshot) deals 3 in regular step.
     // FS blocker (in snapshot, no DS) does NOT deal damage again.
@@ -2469,7 +2469,7 @@ fn test_702_7c_normal_creature_not_in_snapshot_deals_regular_damage() {
     );
 
     // FSBlocker should be dead (took 3, toughness 1).
-    let blocker_alive = state.objects.values().any(|o| {
+    let blocker_alive = state.objects().values().any(|o| {
         o.characteristics.name == "FSBlocker" && o.zone == mtg_engine::ZoneId::Battlefield
     });
     assert!(
@@ -2512,13 +2512,13 @@ fn test_sr_fs03_first_strike_vs_first_strike_damage_only_in_fs_step() {
         .unwrap();
 
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "FS Attacker")
         .unwrap()
         .id;
     let blocker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "FS Blocker")
         .unwrap()
@@ -2553,7 +2553,7 @@ fn test_sr_fs03_first_strike_vs_first_strike_damage_only_in_fs_step() {
     // Both creatures have first strike → both deal damage in this step.
     let (state, fs_events) = pass_all(state, &[p1, p2]);
     assert_eq!(
-        state.turn.step,
+        state.turn().step,
         Step::FirstStrikeDamage,
         "SR-FS-03: should be in FirstStrikeDamage step"
     );
@@ -2592,7 +2592,7 @@ fn test_sr_fs03_first_strike_vs_first_strike_damage_only_in_fs_step() {
     // Both creatures are now dead → neither deals regular damage.
     let (state, regular_events) = pass_all(state, &[p1, p2]);
     assert_eq!(
-        state.turn.step,
+        state.turn().step,
         Step::CombatDamage,
         "SR-FS-03: should advance to CombatDamage step"
     );
@@ -2617,9 +2617,9 @@ fn test_sr_fs03_first_strike_vs_first_strike_damage_only_in_fs_step() {
 
     // Both creatures must be off the battlefield.
     // Check using original ObjectIds (CR 400.7: zone change creates new object ID).
-    // After death, the original IDs are gone from state.objects.
-    let attacker_alive = state.objects.values().any(|o| o.id == attacker_id);
-    let blocker_alive = state.objects.values().any(|o| o.id == blocker_id);
+    // After death, the original IDs are gone from state.objects().
+    let attacker_alive = state.objects().values().any(|o| o.id == attacker_id);
+    let blocker_alive = state.objects().values().any(|o| o.id == blocker_id);
     assert!(
         !attacker_alive,
         "SR-FS-03: FS Attacker should have died in the first-strike step (original ID {} gone)",
@@ -2670,13 +2670,13 @@ fn test_sr_fs02_first_strike_gained_between_damage_steps() {
         .unwrap();
 
     let vanguard_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Vanguard")
         .unwrap()
         .id;
     let latecomer_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Latecomer")
         .unwrap()
@@ -2711,14 +2711,14 @@ fn test_sr_fs02_first_strike_gained_between_damage_steps() {
     // DeclareBlockers → FirstStrikeDamage step. Only Vanguard (FS) deals damage.
     let (mut state, _) = pass_all(state, &[p1, p2]);
     assert_eq!(
-        state.turn.step,
+        state.turn().step,
         Step::FirstStrikeDamage,
         "SR-FS-02: should be in FirstStrikeDamage step"
     );
 
     // CR 702.7b: the snapshot must contain Vanguard (had FS) but not Latecomer.
     {
-        let snapshot = &state.combat.as_ref().unwrap().first_strike_participants;
+        let snapshot = &state.combat().as_ref().unwrap().first_strike_participants;
         assert!(
             snapshot.contains(&vanguard_id),
             "SR-FS-02: Vanguard (FirstStrike) must be in the first-strike snapshot"
@@ -2729,7 +2729,7 @@ fn test_sr_fs02_first_strike_gained_between_damage_steps() {
         );
     }
     assert_eq!(
-        state.players.get(&p2).unwrap().life_total,
+        state.players().get(&p2).unwrap().life_total,
         38,
         "SR-FS-02: p2 takes only Vanguard's 2 damage in the first-strike step"
     );
@@ -2738,7 +2738,7 @@ fn test_sr_fs02_first_strike_gained_between_damage_steps() {
     // Simulates an instant-speed grant (e.g. a spell) cast during the priority
     // window after the first-strike step. CR 702.7c: this must NOT retroactively
     // place Latecomer into the first-strike step.
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(9_000_002),
         source: None,
         timestamp: 9_000_002,
@@ -2764,7 +2764,7 @@ fn test_sr_fs02_first_strike_gained_between_damage_steps() {
     // FS only) does not deal damage again.
     let (state, regular_events) = pass_all(state, &[p1, p2]);
     assert_eq!(
-        state.turn.step,
+        state.turn().step,
         Step::CombatDamage,
         "SR-FS-02: should advance to CombatDamage step"
     );
@@ -2785,7 +2785,7 @@ fn test_sr_fs02_first_strike_gained_between_damage_steps() {
          its 3 damage in the regular step; Vanguard does not deal damage again"
     );
     assert_eq!(
-        state.players.get(&p2).unwrap().life_total,
+        state.players().get(&p2).unwrap().life_total,
         35,
         "SR-FS-02: p2 ends at 40 - 2 (FS step) - 3 (regular step) = 35"
     );
@@ -2820,13 +2820,13 @@ fn test_mr_m6_13_blocked_attacker_blockers_removed_no_trample() {
         .unwrap();
 
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Grizzly")
         .unwrap()
         .id;
     let blocker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Wall")
         .unwrap()
@@ -2859,7 +2859,7 @@ fn test_mr_m6_13_blocked_attacker_blockers_removed_no_trample() {
 
     // The attacker is now recorded as blocked (CR 509.1h).
     assert!(
-        state.combat.as_ref().unwrap().is_blocked(attacker_id),
+        state.combat().as_ref().unwrap().is_blocked(attacker_id),
         "MR-M6-13: Grizzly should be marked blocked after declaration"
     );
 
@@ -2867,7 +2867,7 @@ fn test_mr_m6_13_blocked_attacker_blockers_removed_no_trample() {
     // A continuous effect drops the Wall's toughness to 0; the next SBA check
     // destroys it (CR 704.5f). This simulates a removal spell resolving during
     // the declare-blockers priority window.
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(9_000_013),
         source: None,
         timestamp: 9_000_013,
@@ -2882,13 +2882,13 @@ fn test_mr_m6_13_blocked_attacker_blockers_removed_no_trample() {
     // DeclareBlockers → CombatDamage. The SBA fires on the way, destroying the Wall.
     let (state, events) = pass_all(state, &[p1, p2]);
     assert_eq!(
-        state.turn.step,
+        state.turn().step,
         Step::CombatDamage,
         "MR-M6-13: should advance to the CombatDamage step"
     );
 
     // The Wall is gone (CR 400.7: original ObjectId no longer on the battlefield).
-    let wall_alive = state.objects.values().any(|o| o.id == blocker_id);
+    let wall_alive = state.objects().values().any(|o| o.id == blocker_id);
     assert!(
         !wall_alive,
         "MR-M6-13: the Wall should have been destroyed by the 0-toughness SBA"
@@ -2896,7 +2896,7 @@ fn test_mr_m6_13_blocked_attacker_blockers_removed_no_trample() {
 
     // CR 509.1h: the Grizzly is still blocked even though no blockers remain.
     assert!(
-        state.combat.as_ref().unwrap().is_blocked(attacker_id),
+        state.combat().as_ref().unwrap().is_blocked(attacker_id),
         "MR-M6-13: Grizzly remains blocked after its blocker left combat (CR 509.1h)"
     );
 
@@ -2923,7 +2923,7 @@ fn test_mr_m6_13_blocked_attacker_blockers_removed_no_trample() {
          deals no combat damage to the player"
     );
     assert_eq!(
-        state.players.get(&p2).unwrap().life_total,
+        state.players().get(&p2).unwrap().life_total,
         40,
         "MR-M6-13: p2 takes no damage (blocked Grizzly, blockers gone, no trample)"
     );
@@ -2954,13 +2954,13 @@ fn test_sr_trm01_planeswalker_combat_damage_removes_loyalty() {
         .unwrap();
 
     let attacker_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Raider")
         .unwrap()
         .id;
     let pw_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Garruk")
         .unwrap()
@@ -2992,13 +2992,13 @@ fn test_sr_trm01_planeswalker_combat_damage_removes_loyalty() {
     // DeclareBlockers → CombatDamage (no first strike → single damage step).
     let (state, _) = pass_all(state, &[p1, p2]);
     assert_eq!(
-        state.turn.step,
+        state.turn().step,
         Step::CombatDamage,
         "SR-TRM-01: should be in the CombatDamage step"
     );
 
     let pw = state
-        .objects
+        .objects()
         .get(&pw_id)
         .expect("SR-TRM-01: planeswalker should still be on the battlefield (5 - 3 = 2 loyalty)");
 

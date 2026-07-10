@@ -24,7 +24,7 @@ fn p(n: u64) -> PlayerId {
 
 fn count_in_hand(state: &GameState, player: PlayerId) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(player))
         .count()
@@ -32,7 +32,7 @@ fn count_in_hand(state: &GameState, player: PlayerId) -> usize {
 
 fn count_on_battlefield(state: &GameState) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Battlefield)
         .count()
@@ -132,7 +132,7 @@ fn test_bounce_all_exclude_subtypes() {
     assert_eq!(bounced, 2);
     assert_eq!(count_on_battlefield(&state), 1);
     let kraken = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.zone == ZoneId::Battlefield && o.characteristics.name == "Big Kraken");
     assert!(kraken.is_some(), "Kraken should remain on battlefield");
@@ -384,7 +384,7 @@ fn test_destroy_all_exclude_subtypes() {
     assert_eq!(destroyed, 2);
     assert_eq!(count_on_battlefield(&state), 1);
     let dragon = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.zone == ZoneId::Battlefield && o.characteristics.name == "Shivan Dragon");
     assert!(dragon.is_some(), "Dragon should survive");

@@ -5,6 +5,7 @@
 //! and the specific interaction it validates.
 
 use mtg_engine::rules::{process_command, Command, GameEvent};
+use mtg_engine::state::test_util;
 use mtg_engine::state::turn::Step;
 use mtg_engine::state::{CardType, GameStateBuilder, ObjectSpec, PlayerId, Target, ZoneId};
 
@@ -49,7 +50,7 @@ fn test_cc23_flicker_kills_spell_fizzles_no_dies_trigger() {
 
     // Find the original creature ObjectId (on the battlefield).
     let original_creature_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Battlefield)
         .unwrap()
         .object_ids()
@@ -58,7 +59,7 @@ fn test_cc23_flicker_kills_spell_fizzles_no_dies_trigger() {
 
     // Find the kill spell's ObjectId (in p2's hand).
     let kill_spell_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Hand(p2))
         .unwrap()
         .object_ids()
@@ -92,7 +93,7 @@ fn test_cc23_flicker_kills_spell_fizzles_no_dies_trigger() {
     )
     .unwrap();
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "kill spell should be on the stack"
     );
@@ -104,9 +105,8 @@ fn test_cc23_flicker_kills_spell_fizzles_no_dies_trigger() {
     //
     // Step 1: exile the original creature.
     // CR 400.7: zone change produces a new object; original_creature_id is now dead.
-    let (exile_id, _old_snapshot) = state
-        .move_object_to_zone(original_creature_id, ZoneId::Exile)
-        .unwrap();
+    let (exile_id, _old_snapshot) =
+        test_util::move_object_to_zone(&mut state, original_creature_id, ZoneId::Exile).unwrap();
 
     // CR 400.7: the exile object is a NEW object — different ID from original.
     assert_ne!(
@@ -116,9 +116,8 @@ fn test_cc23_flicker_kills_spell_fizzles_no_dies_trigger() {
 
     // Step 2: return the creature from exile to the battlefield.
     // CR 400.7: another zone change produces yet another new object.
-    let (returned_id, _) = state
-        .move_object_to_zone(exile_id, ZoneId::Battlefield)
-        .unwrap();
+    let (returned_id, _) =
+        test_util::move_object_to_zone(&mut state, exile_id, ZoneId::Battlefield).unwrap();
 
     // CR 400.7: the returned creature is a NEW object again.
     assert_ne!(
@@ -136,10 +135,10 @@ fn test_cc23_flicker_kills_spell_fizzles_no_dies_trigger() {
     let mut all_events = Vec::new();
     // p2 has priority after casting; pass until all 4 players pass.
     for _ in 0..8 {
-        if state.stack_objects.is_empty() {
+        if state.stack_objects().is_empty() {
             break;
         }
-        let holder = match state.turn.priority_holder {
+        let holder = match state.turn().priority_holder {
             Some(h) => h,
             None => break,
         };
@@ -152,7 +151,7 @@ fn test_cc23_flicker_kills_spell_fizzles_no_dies_trigger() {
 
     // Stack should be empty after fizzle.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "stack should be empty after spell fizzles"
     );
 

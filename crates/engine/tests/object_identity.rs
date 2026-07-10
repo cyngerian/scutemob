@@ -3,6 +3,7 @@
 //! CR 400.7: "An object that moves from one zone to another becomes a new
 //! object with no memory of, or relation to, its previous existence."
 
+use mtg_engine::state::test_util;
 use mtg_engine::state::*;
 
 #[test]
@@ -20,9 +21,8 @@ fn test_400_7_zone_change_new_object_id() {
     let old_id = battlefield_objs[0].id;
 
     // Move to graveyard (creature dies)
-    let (new_id, _old_snapshot) = state
-        .move_object_to_zone(old_id, ZoneId::Graveyard(p1))
-        .unwrap();
+    let (new_id, _old_snapshot) =
+        test_util::move_object_to_zone(&mut state, old_id, ZoneId::Graveyard(p1)).unwrap();
 
     // New ObjectId is different from old
     assert_ne!(old_id, new_id);
@@ -52,9 +52,8 @@ fn test_400_7_old_snapshot_preserved() {
     let battlefield_objs = state.objects_in_zone(&ZoneId::Battlefield);
     let old_id = battlefield_objs[0].id;
 
-    let (_new_id, old_snapshot) = state
-        .move_object_to_zone(old_id, ZoneId::Graveyard(p1))
-        .unwrap();
+    let (_new_id, old_snapshot) =
+        test_util::move_object_to_zone(&mut state, old_id, ZoneId::Graveyard(p1)).unwrap();
 
     // Old snapshot preserves original state
     assert_eq!(old_snapshot.id, old_id);
@@ -89,9 +88,8 @@ fn test_400_7_characteristics_preserved() {
     let battlefield_objs = state.objects_in_zone(&ZoneId::Battlefield);
     let old_id = battlefield_objs[0].id;
 
-    let (new_id, _) = state
-        .move_object_to_zone(old_id, ZoneId::Graveyard(p1))
-        .unwrap();
+    let (new_id, _) =
+        test_util::move_object_to_zone(&mut state, old_id, ZoneId::Graveyard(p1)).unwrap();
 
     let new_obj = state.object(new_id).unwrap();
     assert_eq!(new_obj.characteristics.name, "Tarmogoyf");
@@ -133,9 +131,8 @@ fn test_400_7_status_counters_attachments_reset() {
     assert!(old_obj.status.tapped);
     assert_eq!(old_obj.counters.get(&CounterType::PlusOnePlusOne), Some(&5));
 
-    let (new_id, _) = state
-        .move_object_to_zone(old_id, ZoneId::Graveyard(p1))
-        .unwrap();
+    let (new_id, _) =
+        test_util::move_object_to_zone(&mut state, old_id, ZoneId::Graveyard(p1)).unwrap();
 
     let new_obj = state.object(new_id).unwrap();
     // Status reset
@@ -170,9 +167,8 @@ fn test_400_7_controller_resets_to_owner() {
     assert_eq!(old_obj.owner, p1);
     assert_eq!(old_obj.controller, p2);
 
-    let (new_id, _) = state
-        .move_object_to_zone(old_id, ZoneId::Graveyard(p1))
-        .unwrap();
+    let (new_id, _) =
+        test_util::move_object_to_zone(&mut state, old_id, ZoneId::Graveyard(p1)).unwrap();
 
     let new_obj = state.object(new_id).unwrap();
     assert_eq!(new_obj.owner, p1);
@@ -192,9 +188,8 @@ fn test_400_7_card_id_persists() {
 
     let old_id = state.objects_in_zone(&ZoneId::Battlefield)[0].id;
 
-    let (new_id, _) = state
-        .move_object_to_zone(old_id, ZoneId::Graveyard(p1))
-        .unwrap();
+    let (new_id, _) =
+        test_util::move_object_to_zone(&mut state, old_id, ZoneId::Graveyard(p1)).unwrap();
 
     let new_obj = state.object(new_id).unwrap();
     assert_eq!(
@@ -215,9 +210,8 @@ fn test_400_7_token_status_preserved() {
 
     let old_id = state.objects_in_zone(&ZoneId::Battlefield)[0].id;
 
-    let (new_id, _) = state
-        .move_object_to_zone(old_id, ZoneId::Graveyard(p1))
-        .unwrap();
+    let (new_id, _) =
+        test_util::move_object_to_zone(&mut state, old_id, ZoneId::Graveyard(p1)).unwrap();
 
     let new_obj = state.object(new_id).unwrap();
     assert!(new_obj.is_token, "token status should persist");
@@ -235,9 +229,8 @@ fn test_400_7_new_timestamp() {
     let old_id = state.objects_in_zone(&ZoneId::Battlefield)[0].id;
     let old_timestamp = state.object(old_id).unwrap().timestamp;
 
-    let (new_id, _) = state
-        .move_object_to_zone(old_id, ZoneId::Graveyard(p1))
-        .unwrap();
+    let (new_id, _) =
+        test_util::move_object_to_zone(&mut state, old_id, ZoneId::Graveyard(p1)).unwrap();
 
     let new_obj = state.object(new_id).unwrap();
     assert!(
@@ -250,7 +243,8 @@ fn test_400_7_new_timestamp() {
 /// Move an object that doesn't exist returns error
 fn test_move_nonexistent_object_errors() {
     let mut state = GameStateBuilder::four_player().build().unwrap();
-    let result = state.move_object_to_zone(ObjectId(999), ZoneId::Graveyard(PlayerId(1)));
+    let result =
+        test_util::move_object_to_zone(&mut state, ObjectId(999), ZoneId::Graveyard(PlayerId(1)));
     assert!(result.is_err());
 }
 
@@ -268,9 +262,8 @@ fn test_400_7_same_zone_move_produces_new_id() {
     let old_id = state.objects_in_zone(&ZoneId::Battlefield)[0].id;
 
     // Move back to battlefield (simulating "leave and re-enter" at the primitive level).
-    let (new_id, _old_snapshot) = state
-        .move_object_to_zone(old_id, ZoneId::Battlefield)
-        .unwrap();
+    let (new_id, _old_snapshot) =
+        test_util::move_object_to_zone(&mut state, old_id, ZoneId::Battlefield).unwrap();
 
     // New ObjectId is different from old (CR 400.7: every zone change = new object).
     assert_ne!(old_id, new_id, "same-zone move must produce a new ObjectId");
@@ -302,7 +295,8 @@ fn test_move_to_invalid_zone_returns_error() {
     let bear_id = state.objects_in_zone(&ZoneId::Battlefield)[0].id;
 
     // PlayerId(999) does not exist in the state.
-    let result = state.move_object_to_zone(bear_id, ZoneId::Graveyard(PlayerId(999)));
+    let result =
+        test_util::move_object_to_zone(&mut state, bear_id, ZoneId::Graveyard(PlayerId(999)));
     assert!(
         result.is_err(),
         "moving to a non-existent player's graveyard should return an error"
@@ -332,13 +326,11 @@ fn test_multiple_zone_transitions() {
     let id1 = state.objects_in_zone(&ZoneId::Battlefield)[0].id;
 
     // Battlefield → Graveyard
-    let (id2, _) = state
-        .move_object_to_zone(id1, ZoneId::Graveyard(p1))
-        .unwrap();
+    let (id2, _) = test_util::move_object_to_zone(&mut state, id1, ZoneId::Graveyard(p1)).unwrap();
     assert_ne!(id1, id2);
 
     // Graveyard → Exile
-    let (id3, _) = state.move_object_to_zone(id2, ZoneId::Exile).unwrap();
+    let (id3, _) = test_util::move_object_to_zone(&mut state, id2, ZoneId::Exile).unwrap();
     assert_ne!(id2, id3);
     assert_ne!(id1, id3);
 

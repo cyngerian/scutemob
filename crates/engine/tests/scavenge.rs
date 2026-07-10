@@ -18,6 +18,7 @@
 //! - Requires mana payment; error on insufficient mana (CR 602.2b).
 //! - Non-active player cannot scavenge (CR 702.97a / CR 602.2a).
 
+use mtg_engine::state::test_util;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
     GameEvent, GameState, GameStateBuilder, KeywordAbility, ManaColor, ManaCost, ObjectId,
@@ -32,7 +33,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -41,7 +42,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -57,7 +58,7 @@ fn in_exile(state: &GameState, name: &str) -> bool {
 
 fn counter_count(state: &GameState, name: &str) -> u32 {
     state
-        .objects
+        .objects()
         .values()
         .find(|obj| obj.characteristics.name == name)
         .and_then(|obj| {
@@ -153,20 +154,20 @@ fn test_scavenge_basic_adds_counters() {
 
     // Give p1 {4}{G}{G} mana for scavenge cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 2);
     for _ in 0..4 {
         state
-            .players
+            .players_mut()
             .get_mut(&p1)
             .unwrap()
             .mana_pool
             .add(ManaColor::Colorless, 1);
     }
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let goliath_id = find_object(&state, "Deadbridge Goliath");
     let bear_id = find_object(&state, "Test Bear");
@@ -202,7 +203,7 @@ fn test_scavenge_basic_adds_counters() {
 
     // Ability is on the stack.
     assert!(
-        !state.stack_objects.is_empty(),
+        !state.stack_objects().is_empty(),
         "CR 702.97a: ScavengeAbility should be on the stack"
     );
 
@@ -260,20 +261,20 @@ fn test_scavenge_card_exiled_as_cost() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 2);
     for _ in 0..4 {
         state
-            .players
+            .players_mut()
             .get_mut(&p1)
             .unwrap()
             .mana_pool
             .add(ManaColor::Colorless, 1);
     }
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let goliath_id = find_object(&state, "Deadbridge Goliath");
     let bear_id = find_object(&state, "Test Bear");
@@ -299,7 +300,7 @@ fn test_scavenge_card_exiled_as_cost() {
         "ruling 2013-04-15: card should NOT be in graveyard after scavenge activation"
     );
     assert!(
-        !state.stack_objects.is_empty(),
+        !state.stack_objects().is_empty(),
         "ability should still be on the stack waiting to resolve"
     );
 }
@@ -327,14 +328,14 @@ fn test_scavenge_sorcery_speed_restriction() {
             .build()
             .unwrap();
         state
-            .players
+            .players_mut()
             .get_mut(&p1)
             .unwrap()
             .mana_pool
             .add(ManaColor::Green, 2);
         for _ in 0..4 {
             state
-                .players
+                .players_mut()
                 .get_mut(&p1)
                 .unwrap()
                 .mana_pool
@@ -348,7 +349,7 @@ fn test_scavenge_sorcery_speed_restriction() {
     // (a) Non-active player cannot scavenge.
     {
         let (mut state, goliath_id, bear_id) = make_state();
-        state.turn.priority_holder = Some(p2); // p2 has priority but p1 is active
+        state.turn_mut().priority_holder = Some(p2); // p2 has priority but p1 is active
         let result = process_command(
             state,
             Command::ScavengeCard {
@@ -366,8 +367,8 @@ fn test_scavenge_sorcery_speed_restriction() {
     // (b) Cannot scavenge in a non-main phase (e.g., EndStep).
     {
         let (mut state, goliath_id, bear_id) = make_state();
-        state.turn.step = Step::End;
-        state.turn.priority_holder = Some(p1);
+        state.turn_mut().step = Step::End;
+        state.turn_mut().priority_holder = Some(p1);
         let result = process_command(
             state,
             Command::ScavengeCard {
@@ -386,12 +387,12 @@ fn test_scavenge_sorcery_speed_restriction() {
     {
         let (mut state, goliath_id, bear_id) = make_state();
         // Put a dummy object on the stack.
-        state.turn.priority_holder = Some(p1);
+        state.turn_mut().priority_holder = Some(p1);
         // We can't directly push to the stack easily in tests, but we can verify
         // the empty-stack check by noting that the actual ScavengeCard handler
         // returns an error when stack_objects is non-empty. We test this indirectly:
         // just verify the validation path matches Embalm's pattern.
-        // The implementation guards check !state.stack_objects.is_empty().
+        // The implementation guards check !state.stack_objects().is_empty().
         // The other tests cover the positive case. This sub-case is confirmed by
         // the integration test (test_scavenge_basic_adds_counters) which succeeds
         // with an empty stack.
@@ -422,7 +423,7 @@ fn test_scavenge_requires_keyword() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let vanilla_id = find_object(&state, "Vanilla Bear");
     let bear_id = find_object(&state, "Test Bear");
@@ -470,7 +471,7 @@ fn test_scavenge_requires_graveyard() {
             .at_step(Step::PreCombatMain)
             .build()
             .unwrap();
-        state.turn.priority_holder = Some(p1);
+        state.turn_mut().priority_holder = Some(p1);
 
         let goliath_id = find_object(&state, "Deadbridge Goliath");
         let bear_id = find_object(&state, "Test Bear");
@@ -506,7 +507,7 @@ fn test_scavenge_requires_graveyard() {
             .at_step(Step::PreCombatMain)
             .build()
             .unwrap();
-        state.turn.priority_holder = Some(p1);
+        state.turn_mut().priority_holder = Some(p1);
 
         let goliath_id = find_object(&state, "Deadbridge Goliath");
         let bear_id = find_object(&state, "Test Bear");
@@ -549,20 +550,20 @@ fn test_scavenge_fizzles_if_target_leaves() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 2);
     for _ in 0..4 {
         state
-            .players
+            .players_mut()
             .get_mut(&p1)
             .unwrap()
             .mana_pool
             .add(ManaColor::Colorless, 1);
     }
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let goliath_id = find_object(&state, "Deadbridge Goliath");
     let bear_id = find_object(&state, "Test Bear");
@@ -580,8 +581,7 @@ fn test_scavenge_fizzles_if_target_leaves() {
 
     // Now manually move the target creature out of play (simulate it dying).
     // The bear's ObjectId `bear_id` should now be in the graveyard.
-    let (_, _) = state
-        .move_object_to_zone(bear_id, ZoneId::Graveyard(p1))
+    let (_, _) = test_util::move_object_to_zone(&mut state, bear_id, ZoneId::Graveyard(p1))
         .expect("should be able to move bear to graveyard");
 
     // Pass priority to resolve.
@@ -670,20 +670,20 @@ fn test_scavenge_zero_power() {
 
     // Give mana for {2}{U}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     for _ in 0..2 {
         state
-            .players
+            .players_mut()
             .get_mut(&p1)
             .unwrap()
             .mana_pool
             .add(ManaColor::Colorless, 1);
     }
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let wall_id = find_object(&state, "Wall of Fog");
     let bear_id = find_object(&state, "Test Bear");
@@ -746,22 +746,22 @@ fn test_scavenge_not_a_cast() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 2);
     for _ in 0..4 {
         state
-            .players
+            .players_mut()
             .get_mut(&p1)
             .unwrap()
             .mana_pool
             .add(ManaColor::Colorless, 1);
     }
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
-    let spells_before = state.players.get(&p1).unwrap().spells_cast_this_turn;
+    let spells_before = state.players().get(&p1).unwrap().spells_cast_this_turn;
 
     let goliath_id = find_object(&state, "Deadbridge Goliath");
     let bear_id = find_object(&state, "Test Bear");
@@ -785,7 +785,7 @@ fn test_scavenge_not_a_cast() {
     );
 
     // spells_cast_this_turn unchanged.
-    let spells_after = state.players.get(&p1).unwrap().spells_cast_this_turn;
+    let spells_after = state.players().get(&p1).unwrap().spells_cast_this_turn;
     assert_eq!(
         spells_before, spells_after,
         "scavenge is an activated ability: spells_cast_this_turn should be unchanged"
@@ -815,12 +815,12 @@ fn test_scavenge_requires_mana_payment() {
 
     // Give p1 only {G} (not enough for {4}{G}{G}).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let goliath_id = find_object(&state, "Deadbridge Goliath");
     let bear_id = find_object(&state, "Test Bear");
@@ -877,21 +877,21 @@ fn test_scavenge_multiplayer_only_active_player() {
 
     // Give p2 enough mana for scavenge.
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 2);
     for _ in 0..4 {
         state
-            .players
+            .players_mut()
             .get_mut(&p2)
             .unwrap()
             .mana_pool
             .add(ManaColor::Colorless, 1);
     }
     // p2 has priority but is not the active player.
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let goliath_id = find_object(&state, "Deadbridge Goliath");
     let bear_id = find_object(&state, "Test Bear");

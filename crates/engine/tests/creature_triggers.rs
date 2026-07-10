@@ -22,7 +22,7 @@ use mtg_engine::{
 
 fn find_obj(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -31,7 +31,7 @@ fn find_obj(state: &GameState, name: &str) -> ObjectId {
 
 fn hand_count(state: &GameState, player: PlayerId) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.zone == ZoneId::Hand(player))
         .count()

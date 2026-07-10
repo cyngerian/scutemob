@@ -175,7 +175,7 @@ fn basic_land(id: &str, name: &str) -> CardDefinition {
 /// the state after the CastSpell command (the ETB trigger is not yet resolved).
 fn cast_discover_creature(state: GameState, name: &str) -> (GameState, Vec<GameEvent>) {
     let card_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == ZoneId::Hand(p1()))
         .map(|(id, _)| *id)
@@ -268,7 +268,12 @@ fn test_discover_basic_finds_and_casts_card() {
         .build()
         .unwrap();
 
-    state.players.get_mut(&p1).unwrap().mana_pool.colorless = 3;
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .colorless = 3;
 
     // Cast the discover creature.
     let (state, _) = cast_discover_creature(state, "Disc Creature 1");
@@ -302,10 +307,10 @@ fn test_discover_basic_finds_and_casts_card() {
     );
 
     // The Small Sorcery should now be on the stack (Disc Creature still resolves separately).
-    let sorcery_on_stack = state.stack_objects.iter().any(|so| {
+    let sorcery_on_stack = state.stack_objects().iter().any(|so| {
         if let StackObjectKind::Spell { source_object } = so.kind {
             state
-                .objects
+                .objects()
                 .get(&source_object)
                 .map(|obj| obj.characteristics.name == "Small Sorcery")
                 .unwrap_or(false)
@@ -322,7 +327,7 @@ fn test_discover_basic_finds_and_casts_card() {
     // so it returns to library — but the stack hasn't resolved yet, so it may still
     // be at the bottom of the library).
     let forest_in_library = state
-        .objects
+        .objects()
         .values()
         .any(|obj| obj.characteristics.name == "Forest 1" && obj.zone == ZoneId::Library(p1));
     assert!(
@@ -376,7 +381,12 @@ fn test_discover_mv_equal_to_n_is_valid() {
         .build()
         .unwrap();
 
-    state.players.get_mut(&p1).unwrap().mana_pool.colorless = 4;
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .colorless = 4;
 
     let (state, _) = cast_discover_creature(state, "Disc Creature Eq");
     // Resolve the creature spell.
@@ -395,10 +405,10 @@ fn test_discover_mv_equal_to_n_is_valid() {
         cast_count
     );
 
-    let sorcery_on_stack = state.stack_objects.iter().any(|so| {
+    let sorcery_on_stack = state.stack_objects().iter().any(|so| {
         if let StackObjectKind::Spell { source_object } = so.kind {
             state
-                .objects
+                .objects()
                 .get(&source_object)
                 .map(|obj| obj.characteristics.name == "Equal MV Sorcery")
                 .unwrap_or(false)
@@ -446,7 +456,12 @@ fn test_discover_empty_library() {
         .build()
         .unwrap();
 
-    state.players.get_mut(&p1).unwrap().mana_pool.colorless = 3;
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .colorless = 3;
 
     // Should not panic or error.
     let (state, _) = cast_discover_creature(state, "Disc Creature Empty");
@@ -465,7 +480,7 @@ fn test_discover_empty_library() {
     assert_eq!(to_hand_count, 0, "No DiscoverToHand with empty library");
 
     // Engine state must still be valid: creature should have entered the battlefield.
-    let creature_on_bf = state.objects.values().any(|obj| {
+    let creature_on_bf = state.objects().values().any(|obj| {
         obj.characteristics.name == "Disc Creature Empty" && obj.zone == ZoneId::Battlefield
     });
     assert!(
@@ -524,7 +539,12 @@ fn test_discover_all_lands_in_library() {
         .build()
         .unwrap();
 
-    state.players.get_mut(&p1).unwrap().mana_pool.colorless = 3;
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .colorless = 3;
 
     let (state, _) = cast_discover_creature(state, "Disc Creature Lands");
     // Resolve the creature spell.
@@ -566,7 +586,7 @@ fn test_discover_all_lands_in_library() {
 
     // Both lands should be back in the library (exiled then put on bottom).
     let lands_in_lib = state
-        .objects
+        .objects()
         .values()
         .filter(|obj| {
             obj.zone == ZoneId::Library(p1)
@@ -654,7 +674,12 @@ fn test_discover_remaining_cards_go_to_library_bottom() {
         .build()
         .unwrap();
 
-    state.players.get_mut(&p1).unwrap().mana_pool.colorless = 4;
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .colorless = 4;
 
     let (state, _) = cast_discover_creature(state, "Disc Creature Rem");
     // Resolve the creature spell.
@@ -671,7 +696,7 @@ fn test_discover_remaining_cards_go_to_library_bottom() {
 
     // Forest Rem should be back in the library (not in exile).
     let forest_in_lib = state
-        .objects
+        .objects()
         .values()
         .any(|obj| obj.characteristics.name == "Forest Rem" && obj.zone == ZoneId::Library(p1));
     assert!(
@@ -680,7 +705,7 @@ fn test_discover_remaining_cards_go_to_library_bottom() {
     );
 
     let forest_in_exile = state
-        .objects
+        .objects()
         .values()
         .any(|obj| obj.characteristics.name == "Forest Rem" && obj.zone == ZoneId::Exile);
     assert!(
@@ -690,7 +715,7 @@ fn test_discover_remaining_cards_go_to_library_bottom() {
 
     // Bottom Sorcery should still be in the library (was never touched).
     let bottom_in_lib = state
-        .objects
+        .objects()
         .values()
         .any(|obj| obj.characteristics.name == "Bottom Sorcery" && obj.zone == ZoneId::Library(p1));
     assert!(
@@ -749,7 +774,12 @@ fn test_discover_vs_cascade_mv_threshold() {
         .build()
         .unwrap();
 
-    state.players.get_mut(&p1).unwrap().mana_pool.colorless = 4;
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .colorless = 4;
 
     let (state, _) = cast_discover_creature(state, "Disc Creature Thr");
     // Resolve the creature spell.
@@ -818,7 +848,12 @@ fn test_discover_high_mv_card_goes_to_library_bottom() {
         .build()
         .unwrap();
 
-    state.players.get_mut(&p1).unwrap().mana_pool.colorless = 3;
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .colorless = 3;
 
     let (state, _) = cast_discover_creature(state, "Disc Creature HighMV");
     let (state, resolve_events) = pass_all(state, &[p1, p2]);
@@ -835,7 +870,7 @@ fn test_discover_high_mv_card_goes_to_library_bottom() {
     );
 
     // The MV=5 sorcery is exiled (skip) then goes to library bottom.
-    let sorcery_in_lib = state.objects.values().any(|obj| {
+    let sorcery_in_lib = state.objects().values().any(|obj| {
         obj.characteristics.name == "High MV Sorcery" && obj.zone == ZoneId::Library(p1)
     });
     assert!(

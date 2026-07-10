@@ -19,6 +19,7 @@
 //! - CR 729.2c: ETB triggers do NOT fire on merge (same object, not new entry).
 
 use mtg_engine::state::game_object::{Characteristics, TriggerEvent, TriggeredAbilityDef};
+use mtg_engine::state::test_util;
 use mtg_engine::state::types::{AltCostKind, FaceDownKind};
 use mtg_engine::state::CardType;
 use mtg_engine::AdditionalCost;
@@ -36,7 +37,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -45,14 +46,14 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 fn is_on_battlefield(state: &GameState, name: &str) -> bool {
     state
-        .objects
+        .objects()
         .values()
         .any(|obj| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
 }
 
 fn is_in_graveyard(state: &GameState, name: &str, owner: PlayerId) -> bool {
     state
-        .objects
+        .objects()
         .values()
         .any(|obj| obj.characteristics.name == name && obj.zone == ZoneId::Graveyard(owner))
 }
@@ -200,18 +201,18 @@ fn test_mutate_resolution_basic_merge() {
 
     // Pay mana for the mutate cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 4);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let beast_id = find_object(&state, "Mock Mutating Beast");
     let wolf_id = find_object(&state, "Mock Wolf");
@@ -244,11 +245,11 @@ fn test_mutate_resolution_basic_merge() {
 
     // Spell should be on the stack as a MutatingCreatureSpell.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "mutating spell should be on stack"
     );
-    let stack_obj = &state.stack_objects[0];
+    let stack_obj = &state.stack_objects()[0];
     assert!(
         matches!(
             &stack_obj.kind,
@@ -273,7 +274,7 @@ fn test_mutate_resolution_basic_merge() {
     // topmost component's name (beast), since mutate_on_top=true.
     assert!(
         state
-            .objects
+            .objects()
             .get(&wolf_id)
             .map(|obj| obj.zone == ZoneId::Battlefield)
             .unwrap_or(false),
@@ -284,7 +285,7 @@ fn test_mutate_resolution_basic_merge() {
     // After merge, there should be exactly one object with the beast's name
     // (the merged permanent itself, whose base name is now the beast's).
     let beast_objects_count = state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.characteristics.name == "Mock Mutating Beast")
         .count();
@@ -296,7 +297,7 @@ fn test_mutate_resolution_basic_merge() {
 
     // CR 729.2a / CR 729.2: Wolf permanent should have merged_components with 2 entries.
     let wolf_obj = state
-        .objects
+        .objects()
         .get(&wolf_id)
         .expect("wolf should still exist with same ObjectId (CR 729.2c)");
     assert_eq!(
@@ -337,7 +338,7 @@ fn test_mutate_resolution_basic_merge() {
 
     // CR 729.2c: Stack should be empty — no ETB triggers fired.
     assert!(
-        state.stack_objects.is_empty(),
+        state.stack_objects().is_empty(),
         "CR 729.2c: no ETB triggers should fire (merged, not new entry)"
     );
 }
@@ -386,18 +387,18 @@ fn test_mutate_validation_rejects_human_target() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 4);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let beast_id = find_object(&state, "Mock Mutating Beast");
     let human_id = find_object(&state, "Mock Human");
@@ -480,18 +481,18 @@ fn test_mutate_resolution_illegal_target_fallback() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 4);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let beast_id = find_object(&state, "Mock Mutating Beast");
     let wolf_id = find_object(&state, "Mock Wolf");
@@ -523,9 +524,7 @@ fn test_mutate_resolution_illegal_target_fallback() {
     .unwrap_or_else(|e| panic!("CastSpell with mutate failed: {:?}", e));
 
     // Now simulate the wolf leaving the battlefield before resolution.
-    let _ = state
-        .move_object_to_zone(wolf_id, ZoneId::Graveyard(p1))
-        .unwrap();
+    let _ = test_util::move_object_to_zone(&mut state, wolf_id, ZoneId::Graveyard(p1)).unwrap();
 
     // Resolve: all players pass priority.
     let (state, _) = pass_all(state, &[p1, p2]);
@@ -544,7 +543,7 @@ fn test_mutate_resolution_illegal_target_fallback() {
 
     // CR 729.2c: The beast entered normally — it should have NO merged_components.
     let beast_on_field = state
-        .objects
+        .objects()
         .values()
         .find(|obj| {
             obj.characteristics.name == "Mock Mutating Beast" && obj.zone == ZoneId::Battlefield
@@ -610,7 +609,7 @@ fn test_mutate_zone_change_splits_components() {
     };
 
     {
-        let wolf_obj = state.objects.get_mut(&wolf_id).unwrap();
+        let wolf_obj = state.objects_mut().get_mut(&wolf_id).unwrap();
         wolf_obj.merged_components = im::vector![
             MergedComponent {
                 card_id: Some(CardId("mock-mutating-beast".to_string())),
@@ -626,13 +625,12 @@ fn test_mutate_zone_change_splits_components() {
     }
 
     // Move the merged permanent to the graveyard (simulates dying).
-    let _ = state
-        .move_object_to_zone(wolf_id, ZoneId::Graveyard(p1))
+    let _ = test_util::move_object_to_zone(&mut state, wolf_id, ZoneId::Graveyard(p1))
         .expect("move to graveyard should succeed");
 
     // CR 729.3: Each component should be a separate object in the graveyard.
     let graveyard_cards: Vec<_> = state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.zone == ZoneId::Graveyard(p1))
         .collect();
@@ -724,18 +722,18 @@ fn test_mutate_trigger_fires() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 4);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let beast_id = find_object(&state, "Mock Mutating Beast");
     let wolf_id = find_object(&state, "Mock Wolf");
@@ -783,12 +781,12 @@ fn test_mutate_trigger_fires() {
     // The trigger beast was placed on top (mutate_on_top=true), so the merged permanent
     // has the trigger beast's triggered abilities (from merged_components[0]).
     assert!(
-        !state.stack_objects.is_empty(),
+        !state.stack_objects().is_empty(),
         "CR 702.140d: 'whenever this creature mutates' trigger should be on the stack"
     );
 
     // The stack should contain a triggered ability from the merged permanent (wolf_id).
-    let trigger_on_stack = state.stack_objects.iter().any(|so| {
+    let trigger_on_stack = state.stack_objects().iter().any(|so| {
         matches!(
             &so.kind,
             mtg_engine::state::stack::StackObjectKind::TriggeredAbility { source_object, .. }
@@ -847,18 +845,18 @@ fn test_mutate_under_uses_target_characteristics() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 4);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let beast_id = find_object(&state, "Mock Mutating Beast");
     let wolf_id = find_object(&state, "Mock Wolf");
@@ -893,7 +891,7 @@ fn test_mutate_under_uses_target_characteristics() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     let wolf_obj = state
-        .objects
+        .objects()
         .get(&wolf_id)
         .expect("wolf should still exist");
     assert_eq!(
@@ -987,18 +985,18 @@ fn test_mutate_gemrazer_trigger_queued_after_merge() {
 
     // Pay mutate cost {1}{G}{G} for Gemrazer.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let gemrazer_id = find_object(&state, "Gemrazer");
     let wolf_id = find_object(&state, "Mock Wolf");
@@ -1043,7 +1041,7 @@ fn test_mutate_gemrazer_trigger_queued_after_merge() {
     // CR 702.140d: The "whenever this creature mutates" trigger should be on the stack.
     // The trigger goes on the stack targeting an artifact or enchantment (needs manual target choice).
     assert!(
-        !state.stack_objects.is_empty(),
+        !state.stack_objects().is_empty(),
         "CR 702.140d: Gemrazer's 'whenever this creature mutates' trigger should be on the stack"
     );
 
@@ -1123,7 +1121,7 @@ fn test_mutate_stacking_three_deep() {
         ..Default::default()
     };
     {
-        let wolf_obj = state.objects.get_mut(&wolf_id).unwrap();
+        let wolf_obj = state.objects_mut().get_mut(&wolf_id).unwrap();
         wolf_obj.merged_components = im::vector![
             MergedComponent {
                 card_id: Some(CardId("mock-mutating-beast".to_string())),
@@ -1145,7 +1143,7 @@ fn test_mutate_stacking_three_deep() {
     // Simpler approach: manually inject merged_components for a 3-deep test.
     // Rather than going through the full CastSpell flow again, verify 3-component logic directly.
     {
-        let wolf_obj = state.objects.get_mut(&wolf_id).unwrap();
+        let wolf_obj = state.objects_mut().get_mut(&wolf_id).unwrap();
         // Add a third component on top.
         let top_chars = Characteristics {
             name: "Mock Top Beast".to_string(),
@@ -1168,7 +1166,7 @@ fn test_mutate_stacking_three_deep() {
     }
 
     // Verify 3 components.
-    let wolf_obj = state.objects.get(&wolf_id).unwrap();
+    let wolf_obj = state.objects().get(&wolf_id).unwrap();
     assert_eq!(
         wolf_obj.merged_components.len(),
         3,
@@ -1195,12 +1193,11 @@ fn test_mutate_stacking_three_deep() {
     );
 
     // CR 729.3: When merged permanent leaves battlefield, all 3 components become separate.
-    let _ = state
-        .move_object_to_zone(wolf_id, ZoneId::Graveyard(p1))
+    let _ = test_util::move_object_to_zone(&mut state, wolf_id, ZoneId::Graveyard(p1))
         .expect("move to graveyard should succeed");
 
     let graveyard_count = state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.zone == ZoneId::Graveyard(p1))
         .count();
@@ -1244,7 +1241,7 @@ fn test_mutate_bounce_returns_all_cards() {
 
     // Inject merged_components: beast on top of wolf (2 components).
     {
-        let wolf_obj = state.objects.get_mut(&wolf_id).unwrap();
+        let wolf_obj = state.objects_mut().get_mut(&wolf_id).unwrap();
         wolf_obj.merged_components = im::vector![
             MergedComponent {
                 card_id: Some(CardId("mock-mutating-beast".to_string())),
@@ -1274,13 +1271,12 @@ fn test_mutate_bounce_returns_all_cards() {
     }
 
     // CR 729.3: Bounce the merged permanent to hand.
-    let _ = state
-        .move_object_to_zone(wolf_id, ZoneId::Hand(p1))
+    let _ = test_util::move_object_to_zone(&mut state, wolf_id, ZoneId::Hand(p1))
         .expect("bounce to hand should succeed");
 
     // CR 729.3: Both components should be in hand as separate objects.
     let hand_count = state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.zone == ZoneId::Hand(p1))
         .count();
@@ -1292,7 +1288,7 @@ fn test_mutate_bounce_returns_all_cards() {
     // Beast and wolf should both be in hand.
     assert!(
         state
-            .objects
+            .objects()
             .values()
             .any(|obj| obj.characteristics.name == "Mock Mutating Beast"
                 && obj.zone == ZoneId::Hand(p1)),
@@ -1300,7 +1296,7 @@ fn test_mutate_bounce_returns_all_cards() {
     );
     assert!(
         state
-            .objects
+            .objects()
             .values()
             .any(|obj| obj.characteristics.name == "Mock Wolf" && obj.zone == ZoneId::Hand(p1)),
         "CR 729.3: wolf component should be in hand after bounce"
@@ -1308,7 +1304,7 @@ fn test_mutate_bounce_returns_all_cards() {
 
     // CR 400.7 / CR 729.3: Each component in hand should have empty merged_components.
     for obj in state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
     {
@@ -1383,20 +1379,20 @@ fn test_mutate_onto_face_down_creature_accepted() {
     // Mark the wolf as face-down (Morph) by setting face_down_as on the GameObject.
     // This makes the wolf's printed subtypes hidden (CR 708.2).
     let wolf_game_id = find_object(&state, "Mock Wolf");
-    if let Some(wolf_obj) = state.objects.get_mut(&wolf_game_id) {
+    if let Some(wolf_obj) = state.objects_mut().get_mut(&wolf_game_id) {
         wolf_obj.face_down_as = Some(FaceDownKind::Morph);
     }
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 4);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let hand_beast_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| {
             o.zone == ZoneId::Hand(p1) && o.characteristics.name == "Mock Mutating Beast"
@@ -1441,7 +1437,7 @@ fn test_mutate_onto_face_down_creature_accepted() {
     let (state, _) = result.unwrap();
     // The spell should be on the stack as a MutatingCreatureSpell targeting the face-down wolf.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 729.6: mutating creature spell targeting face-down permanent should be on stack"
     );
@@ -1505,12 +1501,12 @@ fn test_mutate_stack_object_has_mutate_additional_cost() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 4);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let beast_id = find_object(&state, "Mock Mutating Beast");
     let wolf_id = find_object(&state, "Mock Wolf");
@@ -1545,11 +1541,11 @@ fn test_mutate_stack_object_has_mutate_additional_cost() {
     // This invariant must hold for any copy of the spell as well — the copy would
     // inherit the same additional_costs (including the Mutate target).
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "mutating spell should be on stack"
     );
-    let stack_obj = &state.stack_objects[0];
+    let stack_obj = &state.stack_objects()[0];
     let has_mutate_cost = stack_obj
         .additional_costs
         .iter()

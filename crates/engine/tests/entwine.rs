@@ -30,7 +30,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -186,9 +186,9 @@ fn test_entwine_basic_both_modes_execute() {
         builder.build().unwrap()
     };
 
-    let initial_life = state.players[&p1].life_total;
+    let initial_life = state.players()[&p1].life_total;
     let initial_hand_size = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count()
@@ -196,18 +196,18 @@ fn test_entwine_basic_both_modes_execute() {
 
     // Pay {1}{U} + entwine {2} = {1}{U}{2} = 4 mana total.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Entwine Test Spell");
 
@@ -235,9 +235,13 @@ fn test_entwine_basic_both_modes_execute() {
     .unwrap_or_else(|e| panic!("cast with entwine_paid failed: {:?}", e));
 
     // Spell is on the stack with was_entwined = true.
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "spell should be on the stack"
+    );
     assert!(
-        state.stack_objects[0]
+        state.stack_objects()[0]
             .additional_costs
             .iter()
             .any(|c| matches!(c, AdditionalCost::Entwine)),
@@ -249,12 +253,12 @@ fn test_entwine_basic_both_modes_execute() {
 
     // Mode 0 (GainLife) + Mode 1 (DrawCards) both executed.
     assert_eq!(
-        state.players[&p1].life_total,
+        state.players()[&p1].life_total,
         initial_life + 3,
         "CR 702.42b: Mode 0 (GainLife 3) should have executed"
     );
     let new_hand_size = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -304,9 +308,9 @@ fn test_entwine_not_paid_only_first_mode() {
         builder.build().unwrap()
     };
 
-    let initial_life = state.players[&p1].life_total;
+    let initial_life = state.players()[&p1].life_total;
     let initial_hand_size = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count()
@@ -314,18 +318,18 @@ fn test_entwine_not_paid_only_first_mode() {
 
     // Pay only base {1}{U} — no entwine cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Entwine Test Spell");
 
@@ -352,7 +356,7 @@ fn test_entwine_not_paid_only_first_mode() {
     .unwrap_or_else(|e| panic!("cast without entwine failed: {:?}", e));
 
     assert!(
-        !state.stack_objects[0]
+        !state.stack_objects()[0]
             .additional_costs
             .iter()
             .any(|c| matches!(c, AdditionalCost::Entwine)),
@@ -363,12 +367,12 @@ fn test_entwine_not_paid_only_first_mode() {
 
     // Only Mode 0 (GainLife) should have executed.
     assert_eq!(
-        state.players[&p1].life_total,
+        state.players()[&p1].life_total,
         initial_life + 3,
         "CR 702.42a: Mode 0 (GainLife 3) should have executed"
     );
     let new_hand_size = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -414,18 +418,18 @@ fn test_entwine_insufficient_mana_rejected() {
 
     // Only provide {1}{U} = 2 mana — NOT enough for entwine ({2} more needed = 4 total).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Entwine Test Spell");
 
@@ -484,12 +488,12 @@ fn test_entwine_no_keyword_rejected() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 5);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Plain Sorcery");
 
@@ -567,9 +571,9 @@ fn test_entwine_modes_in_printed_order() {
         builder.build().unwrap()
     };
 
-    let initial_life = state.players[&p1].life_total;
+    let initial_life = state.players()[&p1].life_total;
     let initial_hand_size = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count()
@@ -577,18 +581,18 @@ fn test_entwine_modes_in_printed_order() {
 
     // Pay {1}{U}{2} for base + entwine.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Entwine Test Spell");
 
@@ -618,12 +622,12 @@ fn test_entwine_modes_in_printed_order() {
 
     // Both modes applied: +3 life AND +2 cards drawn.
     assert_eq!(
-        state.players[&p1].life_total,
+        state.players()[&p1].life_total,
         initial_life + 3,
         "CR 702.42b: Mode 0 (GainLife 3) must have applied"
     );
     let final_hand_size = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -663,18 +667,18 @@ fn test_entwine_was_entwined_flag_on_stack() {
 
     // Pay full cost + entwine.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Entwine Test Spell");
 
@@ -701,14 +705,14 @@ fn test_entwine_was_entwined_flag_on_stack() {
     .unwrap_or_else(|e| panic!("cast with entwine failed: {:?}", e));
 
     assert!(
-        state.stack_objects[0]
+        state.stack_objects()[0]
             .additional_costs
             .iter()
             .any(|c| matches!(c, AdditionalCost::Entwine)),
         "CR 702.42a: was_entwined must be true when entwine cost was paid"
     );
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "exactly one object should be on the stack"
     );

@@ -16,6 +16,7 @@
 use mtg_engine::check_and_apply_sbas;
 use mtg_engine::register_commander_zone_replacements;
 use mtg_engine::rules::{process_command, Command, GameEvent};
+use mtg_engine::state::test_util;
 use mtg_engine::state::turn::Step;
 use mtg_engine::state::zone::{ZoneId, ZoneType};
 use mtg_engine::state::{
@@ -109,7 +110,7 @@ fn test_cast_commander_from_command_zone_first_time() {
         .unwrap();
 
     let card_obj_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Command(p1))
         .unwrap()
         .object_ids()
@@ -140,11 +141,11 @@ fn test_cast_commander_from_command_zone_first_time() {
 
     // Card moved to stack
     assert!(new_state
-        .zones
+        .zones()
         .get(&ZoneId::Command(p1))
         .unwrap()
         .is_empty());
-    assert_eq!(new_state.stack_objects.len(), 1);
+    assert_eq!(new_state.stack_objects().len(), 1);
 
     // SpellCast event emitted
     assert!(events
@@ -166,7 +167,7 @@ fn test_cast_commander_from_command_zone_first_time() {
     );
 
     // Tax counter incremented to 1 (next cast will cost +{2})
-    let player_state = new_state.players.get(&p1).unwrap();
+    let player_state = new_state.players().get(&p1).unwrap();
     assert_eq!(
         player_state
             .commander_tax
@@ -176,7 +177,7 @@ fn test_cast_commander_from_command_zone_first_time() {
     );
 
     // Mana was deducted (3 mana paid for {2}{G})
-    assert!(new_state.players.get(&p1).unwrap().mana_pool.is_empty());
+    assert!(new_state.players().get(&p1).unwrap().mana_pool.is_empty());
 }
 
 #[test]
@@ -199,14 +200,14 @@ fn test_cast_commander_from_command_zone_second_time() {
         .unwrap();
     // Manually set the commander tax to simulate having cast it once before.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .commander_tax
         .insert(cmd_id.clone(), 1);
 
     let card_obj_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Command(p1))
         .unwrap()
         .object_ids()
@@ -250,7 +251,7 @@ fn test_cast_commander_from_command_zone_second_time() {
     );
 
     // Tax counter incremented to 2
-    let player_state = new_state.players.get(&p1).unwrap();
+    let player_state = new_state.players().get(&p1).unwrap();
     assert_eq!(
         player_state
             .commander_tax
@@ -260,10 +261,10 @@ fn test_cast_commander_from_command_zone_second_time() {
     );
 
     // 5 mana spent ({2}{G} base + {2} tax = {4}{G} = 5 mana)
-    assert!(new_state.players.get(&p1).unwrap().mana_pool.is_empty());
+    assert!(new_state.players().get(&p1).unwrap().mana_pool.is_empty());
 
     // Card is on the stack
-    assert_eq!(new_state.stack_objects.len(), 1);
+    assert_eq!(new_state.stack_objects().len(), 1);
 }
 
 #[test]
@@ -285,14 +286,14 @@ fn test_cast_commander_from_command_zone_third_time() {
         .build()
         .unwrap();
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .commander_tax
         .insert(cmd_id.clone(), 2);
 
     let card_obj_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Command(p1))
         .unwrap()
         .object_ids()
@@ -336,7 +337,7 @@ fn test_cast_commander_from_command_zone_third_time() {
     );
 
     // Tax counter incremented to 3
-    let player_state = new_state.players.get(&p1).unwrap();
+    let player_state = new_state.players().get(&p1).unwrap();
     assert_eq!(
         player_state
             .commander_tax
@@ -346,7 +347,7 @@ fn test_cast_commander_from_command_zone_third_time() {
     );
 
     // 7 mana spent ({2}{G} base + {4} tax = {6}{G} = 7 mana)
-    assert!(new_state.players.get(&p1).unwrap().mana_pool.is_empty());
+    assert!(new_state.players().get(&p1).unwrap().mana_pool.is_empty());
 }
 
 #[test]
@@ -376,7 +377,7 @@ fn test_cast_commander_from_command_zone_insufficient_mana() {
         .unwrap();
 
     let card_obj_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Command(p1))
         .unwrap()
         .object_ids()
@@ -439,7 +440,7 @@ fn test_cast_non_commander_from_command_zone_rejected() {
         .unwrap();
 
     let card_obj_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Command(p1))
         .unwrap()
         .object_ids()
@@ -494,10 +495,10 @@ fn test_cast_commander_sorcery_speed_enforced() {
         .build()
         .unwrap();
     // Give p2 priority
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let card_obj_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Command(p2))
         .unwrap()
         .object_ids()
@@ -775,7 +776,7 @@ fn test_commander_bounced_to_hand_replacement_redirects() {
     register_commander_zone_replacements(&mut state);
 
     // Verify the hand replacement is registered.
-    let has_hand_replacement = state.replacement_effects.iter().any(|e| {
+    let has_hand_replacement = state.replacement_effects().iter().any(|e| {
         matches!(
             &e.trigger,
             ReplacementTrigger::WouldChangeZone {
@@ -794,7 +795,7 @@ fn test_commander_bounced_to_hand_replacement_redirects() {
 
     // The replacement count should be 2 (hand + library for p1's commander).
     assert_eq!(
-        state.replacement_effects.len(),
+        state.replacement_effects().len(),
         2,
         "should have hand and library replacements only (M9 model)"
     );
@@ -825,7 +826,7 @@ fn test_commander_tucked_to_library_replacement_redirects() {
     register_commander_zone_replacements(&mut state);
 
     // Verify the library replacement is registered.
-    let has_library_replacement = state.replacement_effects.iter().any(|e| {
+    let has_library_replacement = state.replacement_effects().iter().any(|e| {
         matches!(
             &e.trigger,
             ReplacementTrigger::WouldChangeZone {
@@ -843,7 +844,7 @@ fn test_commander_tucked_to_library_replacement_redirects() {
     );
 
     // No graveyard or exile replacements (those are now SBAs in M9).
-    let has_graveyard_replacement = state.replacement_effects.iter().any(|e| {
+    let has_graveyard_replacement = state.replacement_effects().iter().any(|e| {
         matches!(
             &e.trigger,
             ReplacementTrigger::WouldChangeZone {
@@ -857,7 +858,7 @@ fn test_commander_tucked_to_library_replacement_redirects() {
         "M9 model: no graveyard replacement — handled by SBA (CR 903.9a)"
     );
 
-    let has_exile_replacement = state.replacement_effects.iter().any(|e| {
+    let has_exile_replacement = state.replacement_effects().iter().any(|e| {
         matches!(
             &e.trigger,
             ReplacementTrigger::WouldChangeZone {
@@ -893,7 +894,7 @@ fn test_commander_tax_increments_on_cast_not_zone_change() {
 
     // Tax starts at 0 (not yet cast).
     let initial_tax = state
-        .players
+        .players()
         .get(&p1)
         .unwrap()
         .commander_tax
@@ -907,7 +908,7 @@ fn test_commander_tax_increments_on_cast_not_zone_change() {
 
     // Tax should still be 0 after SBA fires (no move yet).
     let tax_after_sba = state
-        .players
+        .players()
         .get(&p1)
         .unwrap()
         .commander_tax
@@ -936,7 +937,7 @@ fn test_commander_tax_increments_on_cast_not_zone_change() {
 
     // Tax should still be 0 after zone return — only casting increments tax.
     let tax_after_return = state
-        .players
+        .players()
         .get(&p1)
         .unwrap()
         .commander_tax
@@ -1008,12 +1009,12 @@ fn test_partner_commanders_separate_tax_tracking() {
 
     // ── First cast of A ──
     let cmd_a_obj_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Command(p1))
         .unwrap()
         .object_ids()
         .iter()
-        .find(|&&id| state.objects.get(&id).and_then(|o| o.card_id.as_ref()) == Some(&cmd_a))
+        .find(|&&id| state.objects().get(&id).and_then(|o| o.card_id.as_ref()) == Some(&cmd_a))
         .unwrap();
 
     let (mut state, _) = process_command(
@@ -1040,7 +1041,7 @@ fn test_partner_commanders_separate_tax_tracking() {
 
     // After first cast of A: A's tax = 1, B's tax = 0.
     let tax_a_after_1 = state
-        .players
+        .players()
         .get(&p1)
         .unwrap()
         .commander_tax
@@ -1048,7 +1049,7 @@ fn test_partner_commanders_separate_tax_tracking() {
         .copied()
         .unwrap_or(0);
     let tax_b_after_1 = state
-        .players
+        .players()
         .get(&p1)
         .unwrap()
         .commander_tax
@@ -1065,13 +1066,13 @@ fn test_partner_commanders_separate_tax_tracking() {
     // (simulates zone-return after the spell resolves or is countered).
     // The spell is a StackObject; the actual card is in ZoneId::Stack as a GameObject.
     let (a_stack_object_idx, a_stack_card_id) = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .enumerate()
         .find_map(|(idx, so)| {
             if let mtg_engine::StackObjectKind::Spell { source_object } = so.kind {
                 let card_id = state
-                    .objects
+                    .objects()
                     .get(&source_object)
                     .and_then(|o| o.card_id.clone());
                 if card_id.as_ref() == Some(&cmd_a) {
@@ -1082,20 +1083,19 @@ fn test_partner_commanders_separate_tax_tracking() {
         })
         .expect("commander A should be on the stack");
     // Remove the StackObject so the stack is empty again.
-    state.stack_objects.remove(a_stack_object_idx);
+    state.stack_objects_mut().remove(a_stack_object_idx);
     // Move the card from ZoneId::Stack to ZoneId::Command(p1).
-    state
-        .move_object_to_zone(a_stack_card_id, ZoneId::Command(p1))
+    test_util::move_object_to_zone(&mut state, a_stack_card_id, ZoneId::Command(p1))
         .expect("move A to command zone failed");
 
     // ── Second cast of A (pays +{2} tax = {4}{G}) ──
     let cmd_a_obj_id2 = *state
-        .zones
+        .zones()
         .get(&ZoneId::Command(p1))
         .unwrap()
         .object_ids()
         .iter()
-        .find(|&&id| state.objects.get(&id).and_then(|o| o.card_id.as_ref()) == Some(&cmd_a))
+        .find(|&&id| state.objects().get(&id).and_then(|o| o.card_id.as_ref()) == Some(&cmd_a))
         .unwrap();
 
     let (state, _) = process_command(
@@ -1122,7 +1122,7 @@ fn test_partner_commanders_separate_tax_tracking() {
 
     // After second cast of A: A's tax = 2; B's tax still = 0.
     let tax_a_after_2 = state
-        .players
+        .players()
         .get(&p1)
         .unwrap()
         .commander_tax
@@ -1130,7 +1130,7 @@ fn test_partner_commanders_separate_tax_tracking() {
         .copied()
         .unwrap_or(0);
     let tax_b_after_2 = state
-        .players
+        .players()
         .get(&p1)
         .unwrap()
         .commander_tax
@@ -1593,22 +1593,22 @@ fn test_mulligan_sequence_four_players() {
 
     // Verify mulligan counts are tracked independently
     assert_eq!(
-        state.players.get(&p1).unwrap().mulligan_count,
+        state.players().get(&p1).unwrap().mulligan_count,
         1,
         "p1 took 1 mulligan"
     );
     assert_eq!(
-        state.players.get(&p2).unwrap().mulligan_count,
+        state.players().get(&p2).unwrap().mulligan_count,
         0,
         "p2 took 0 mulligans"
     );
     assert_eq!(
-        state.players.get(&p3).unwrap().mulligan_count,
+        state.players().get(&p3).unwrap().mulligan_count,
         2,
         "p3 took 2 mulligans"
     );
     assert_eq!(
-        state.players.get(&p4).unwrap().mulligan_count,
+        state.players().get(&p4).unwrap().mulligan_count,
         0,
         "p4 took 0 mulligans"
     );
@@ -1738,7 +1738,7 @@ fn test_mulligan_three_times_escalating_bottom_count() {
         "after 3rd keep (2 to bottom): 5 in hand"
     );
     assert_eq!(
-        state.players.get(&p1).unwrap().mulligan_count,
+        state.players().get(&p1).unwrap().mulligan_count,
         3,
         "mulligan_count should be 3"
     );
@@ -1772,7 +1772,7 @@ fn test_companion_special_action_costs_3_mana() {
         .unwrap();
 
     // Register companion for this player
-    state.players.get_mut(&p1).unwrap().companion = Some(comp_id.clone());
+    state.players_mut().get_mut(&p1).unwrap().companion = Some(comp_id.clone());
 
     let (new_state, events) =
         process_command(state, Command::BringCompanion { player: p1 }).unwrap();
@@ -1793,7 +1793,7 @@ fn test_companion_special_action_costs_3_mana() {
 
     // {3} mana was deducted
     assert!(
-        new_state.players.get(&p1).unwrap().mana_pool.is_empty(),
+        new_state.players().get(&p1).unwrap().mana_pool.is_empty(),
         "mana pool should be empty after paying {{3}}"
     );
 
@@ -1806,7 +1806,7 @@ fn test_companion_special_action_costs_3_mana() {
 
     // companion_used is true
     assert!(
-        new_state.players.get(&p1).unwrap().companion_used,
+        new_state.players().get(&p1).unwrap().companion_used,
         "companion_used should be set after using the special action"
     );
 }
@@ -1839,7 +1839,7 @@ fn test_companion_rejected_when_not_in_command_zone() {
         .unwrap();
 
     // Register the companion CardId, but the card itself is nowhere on the board.
-    state.players.get_mut(&p1).unwrap().companion = Some(comp_id.clone());
+    state.players_mut().get_mut(&p1).unwrap().companion = Some(comp_id.clone());
 
     let err = process_command(state.clone(), Command::BringCompanion { player: p1 }).unwrap_err();
     assert!(
@@ -1851,11 +1851,11 @@ fn test_companion_rejected_when_not_in_command_zone() {
     // The action failed atomically: the state the caller keeps is unchanged —
     // no mana spent, action not marked used.
     assert!(
-        !state.players.get(&p1).unwrap().companion_used,
+        !state.players().get(&p1).unwrap().companion_used,
         "companion_used must remain false after a rejected BringCompanion"
     );
     assert_eq!(
-        state.players.get(&p1).unwrap().mana_pool.colorless,
+        state.players().get(&p1).unwrap().mana_pool.colorless,
         3,
         "mana must not be deducted when BringCompanion is rejected"
     );
@@ -1885,7 +1885,7 @@ fn test_companion_only_during_main_phase_stack_empty() {
         .build()
         .unwrap();
 
-    state.players.get_mut(&p1).unwrap().companion = Some(comp_id.clone());
+    state.players_mut().get_mut(&p1).unwrap().companion = Some(comp_id.clone());
 
     let err = process_command(state, Command::BringCompanion { player: p1 }).unwrap_err();
     assert!(
@@ -1919,14 +1919,19 @@ fn test_companion_only_once_per_game() {
         .build()
         .unwrap();
 
-    state.players.get_mut(&p1).unwrap().companion = Some(comp_id.clone());
+    state.players_mut().get_mut(&p1).unwrap().companion = Some(comp_id.clone());
 
     // First use succeeds
     let (new_state, _) = process_command(state, Command::BringCompanion { player: p1 }).unwrap();
 
     // Restore mana for second attempt
     let mut state2 = new_state;
-    state2.players.get_mut(&p1).unwrap().mana_pool.colorless = 3;
+    state2
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .colorless = 3;
 
     // Second use fails
     let err = process_command(state2, Command::BringCompanion { player: p1 }).unwrap_err();
@@ -1963,12 +1968,12 @@ fn test_companion_rejected_with_non_empty_stack() {
         .build()
         .unwrap();
 
-    state.players.get_mut(&p1).unwrap().companion = Some(comp_id.clone());
+    state.players_mut().get_mut(&p1).unwrap().companion = Some(comp_id.clone());
 
     // Push a spell onto the stack to simulate a non-empty stack.
     // Use a sentinel ObjectId that doesn't correspond to a real object —
     // we only need the stack to be non-empty for the check.
-    state.stack_objects.push_back(StackObject {
+    state.stack_objects_mut().push_back(StackObject {
         id: ObjectId(9001),
         controller: p1,
         kind: StackObjectKind::Spell {
@@ -2021,7 +2026,7 @@ fn test_companion_rejected_with_non_empty_stack() {
     });
 
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "pre-condition: stack should have 1 object"
     );
@@ -2148,7 +2153,7 @@ fn test_full_four_player_commander_game() {
 
     // Pre-set p1's commander tax to 1 (already cast once from command zone).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .commander_tax
@@ -2156,14 +2161,14 @@ fn test_full_four_player_commander_game() {
 
     // Pre-set p3 having 14 commander damage from p1.
     {
-        let p3_state = state.players.get_mut(&p3).unwrap();
+        let p3_state = state.players_mut().get_mut(&p3).unwrap();
         let inner = im::OrdMap::from(vec![(alpha_id.clone(), 14u32)]);
         p3_state.commander_damage_received.insert(p1, inner);
     }
 
     // Find p1's commander on the battlefield.
     let alpha_obj = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.card_id.as_ref() == Some(&alpha_id))
         .expect("p1's commander should be on battlefield")
@@ -2175,7 +2180,7 @@ fn test_full_four_player_commander_game() {
 
     // After combat: p3 should have lost.
     {
-        let p3_state = state.players.get(&p3).unwrap();
+        let p3_state = state.players().get(&p3).unwrap();
         let total_cmd_damage = p3_state
             .commander_damage_received
             .get(&p1)
@@ -2195,7 +2200,7 @@ fn test_full_four_player_commander_game() {
 
     // p1, p2, p4 should still be alive.
     for pid in [p1, p2, p4] {
-        let ps = state.players.get(&pid).unwrap();
+        let ps = state.players().get(&pid).unwrap();
         assert!(
             !ps.has_lost,
             "player {:?} should NOT have lost yet; has_lost = {}",
@@ -2206,33 +2211,31 @@ fn test_full_four_player_commander_game() {
     // ── Step 2: Simulate p2's commander dying and owner returning it to command zone ──
     // Reset combat state for next action.
     let mut state = state;
-    state.combat = None;
-    state.turn.step = Step::PreCombatMain;
-    state.turn.priority_holder = Some(p2);
+    *state.combat_mut() = None;
+    state.turn_mut().step = Step::PreCombatMain;
+    state.turn_mut().priority_holder = Some(p2);
 
     // Simulate p2's commander being on the battlefield (it got cast between turns).
     // Move the command-zone object to the battlefield.
     let beta_cmd_obj = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.card_id.as_ref() == Some(&beta_id))
         .map(|o| o.id)
         .expect("p2's commander should be in command zone");
 
-    state
-        .move_object_to_zone(beta_cmd_obj, ZoneId::Battlefield)
+    test_util::move_object_to_zone(&mut state, beta_cmd_obj, ZoneId::Battlefield)
         .expect("moving beta commander to battlefield");
 
     // Simulate it dying: move to p2's graveyard.
     let beta_on_battlefield = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.card_id.as_ref() == Some(&beta_id) && o.zone == ZoneId::Battlefield)
         .map(|o| o.id)
         .expect("beta commander should be on battlefield");
 
-    state
-        .move_object_to_zone(beta_on_battlefield, ZoneId::Graveyard(p2))
+    test_util::move_object_to_zone(&mut state, beta_on_battlefield, ZoneId::Graveyard(p2))
         .expect("moving beta commander to graveyard");
 
     // SBA check: commander in graveyard → emits choice event (CR 903.9a).
@@ -2268,7 +2271,7 @@ fn test_full_four_player_commander_game() {
 
     // Verify commander is now in command zone.
     let beta_in_command_zone = state
-        .objects
+        .objects()
         .values()
         .any(|o| o.card_id.as_ref() == Some(&beta_id) && o.zone == ZoneId::Command(p2));
     assert!(
@@ -2279,26 +2282,26 @@ fn test_full_four_player_commander_game() {
     // ── Step 3: p2 re-casts commander from command zone with +{2} tax ─────────
     // Pre-set p2's tax to 1 (was cast once before dying).
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .commander_tax
         .insert(beta_id.clone(), 1);
 
     // Give p2 mana to pay {2}{G} + {2} tax = {4}{G}.
-    state.players.get_mut(&p2).unwrap().mana_pool = ManaPool {
+    state.players_mut().get_mut(&p2).unwrap().mana_pool = ManaPool {
         colorless: 4,
         green: 1,
         ..Default::default()
     };
 
     // Advance to p2's main phase.
-    state.turn.step = Step::PreCombatMain;
-    state.turn.priority_holder = Some(p2);
-    state.turn.active_player = p2;
+    state.turn_mut().step = Step::PreCombatMain;
+    state.turn_mut().priority_holder = Some(p2);
+    state.turn_mut().active_player = p2;
 
     let beta_cmd_obj_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.card_id.as_ref() == Some(&beta_id) && o.zone == ZoneId::Command(p2))
         .map(|o| o.id)
@@ -2348,7 +2351,7 @@ fn test_full_four_player_commander_game() {
 
     // Tax counter should now be 2 (next cast will cost +{4}).
     let p2_tax = state
-        .players
+        .players()
         .get(&p2)
         .unwrap()
         .commander_tax
@@ -2362,13 +2365,13 @@ fn test_full_four_player_commander_game() {
 
     // Mana was fully consumed ({4}{G} paid for {2}{G} + {2} tax).
     assert!(
-        state.players.get(&p2).unwrap().mana_pool.is_empty(),
+        state.players().get(&p2).unwrap().mana_pool.is_empty(),
         "p2's mana pool should be empty after casting with tax"
     );
 
     // ── Final state verification ─────────────────────────────────────────────
     // p3 lost (commander damage), p1/p2/p4 still playing.
-    let p3_state = state.players.get(&p3).unwrap();
+    let p3_state = state.players().get(&p3).unwrap();
     assert!(
         p3_state.has_lost,
         "p3 should have lost (21 commander damage)"
@@ -2376,14 +2379,14 @@ fn test_full_four_player_commander_game() {
 
     for pid in [p1, p2, p4] {
         assert!(
-            !state.players.get(&pid).unwrap().has_lost,
+            !state.players().get(&pid).unwrap().has_lost,
             "player {:?} should not have lost",
             pid
         );
     }
 
     // Game is not over (3 active players remain).
-    let active = state.players.values().filter(|ps| !ps.has_lost).count();
+    let active = state.players().values().filter(|ps| !ps.has_lost).count();
     assert_eq!(
         active, 3,
         "3 players should remain active after p3 is eliminated"

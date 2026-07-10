@@ -31,7 +31,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -40,7 +40,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -137,12 +137,12 @@ fn test_embalm_basic_create_token() {
 
     // Give p1 {W} mana for embalm cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_obj_id = find_object(&state, "Sacred Cat");
 
@@ -176,7 +176,7 @@ fn test_embalm_basic_create_token() {
 
     // Ability is on the stack.
     assert!(
-        !state.stack_objects.is_empty(),
+        !state.stack_objects().is_empty(),
         "CR 702.128a: EmbalmAbility should be on the stack"
     );
 
@@ -208,7 +208,7 @@ fn test_embalm_basic_create_token() {
     // Token is indeed a token.
     let token_id = find_in_zone(&state, "Sacred Cat", ZoneId::Battlefield)
         .expect("token should be on battlefield");
-    let token_obj = state.objects.get(&token_id).unwrap();
+    let token_obj = state.objects().get(&token_id).unwrap();
     assert!(
         token_obj.is_token,
         "CR 702.128a: the object on battlefield should be a token, not the original card"
@@ -243,12 +243,12 @@ fn test_embalm_token_is_white() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_obj_id = find_object(&state, "Sacred Cat");
 
@@ -265,7 +265,7 @@ fn test_embalm_token_is_white() {
 
     let token_id = find_in_zone(&state, "Sacred Cat", ZoneId::Battlefield)
         .expect("token should be on battlefield");
-    let token_obj = state.objects.get(&token_id).unwrap();
+    let token_obj = state.objects().get(&token_id).unwrap();
 
     // Token must be White only.
     assert!(
@@ -301,12 +301,12 @@ fn test_embalm_token_has_no_mana_cost() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_obj_id = find_object(&state, "Sacred Cat");
 
@@ -323,7 +323,7 @@ fn test_embalm_token_has_no_mana_cost() {
 
     let token_id = find_in_zone(&state, "Sacred Cat", ZoneId::Battlefield)
         .expect("token should be on battlefield");
-    let token_obj = state.objects.get(&token_id).unwrap();
+    let token_obj = state.objects().get(&token_id).unwrap();
 
     // Token must have no mana cost.
     assert!(
@@ -355,12 +355,12 @@ fn test_embalm_token_is_zombie() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_obj_id = find_object(&state, "Sacred Cat");
 
@@ -377,7 +377,7 @@ fn test_embalm_token_is_zombie() {
 
     let token_id = find_in_zone(&state, "Sacred Cat", ZoneId::Battlefield)
         .expect("token should be on battlefield");
-    let token_obj = state.objects.get(&token_id).unwrap();
+    let token_obj = state.objects().get(&token_id).unwrap();
 
     // Token must have Zombie subtype.
     assert!(
@@ -430,12 +430,12 @@ fn test_embalm_token_keeps_abilities() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_obj_id = find_object(&state, "Sacred Cat");
 
@@ -452,7 +452,7 @@ fn test_embalm_token_keeps_abilities() {
 
     let token_id = find_in_zone(&state, "Sacred Cat", ZoneId::Battlefield)
         .expect("token should be on battlefield");
-    let token_obj = state.objects.get(&token_id).unwrap();
+    let token_obj = state.objects().get(&token_id).unwrap();
 
     // Token must have Lifelink (copied from printed abilities).
     assert!(
@@ -488,12 +488,12 @@ fn test_embalm_sorcery_speed_restriction() {
             .unwrap();
 
         state
-            .players
+            .players_mut()
             .get_mut(&p1)
             .unwrap()
             .mana_pool
             .add(ManaColor::White, 1);
-        state.turn.priority_holder = Some(p1);
+        state.turn_mut().priority_holder = Some(p1);
 
         let card_obj_id = find_object(&state, "Sacred Cat");
 
@@ -523,12 +523,12 @@ fn test_embalm_sorcery_speed_restriction() {
             .unwrap();
 
         state
-            .players
+            .players_mut()
             .get_mut(&p1)
             .unwrap()
             .mana_pool
             .add(ManaColor::White, 1);
-        state.turn.priority_holder = Some(p1);
+        state.turn_mut().priority_holder = Some(p1);
 
         let card_obj_id = find_object(&state, "Sacred Cat");
 
@@ -563,12 +563,12 @@ fn test_embalm_sorcery_speed_restriction() {
             .unwrap();
 
         state
-            .players
+            .players_mut()
             .get_mut(&p1)
             .unwrap()
             .mana_pool
             .add(ManaColor::White, 1);
-        state.turn.priority_holder = Some(p1);
+        state.turn_mut().priority_holder = Some(p1);
 
         let card_obj_id = find_object(&state, "Sacred Cat");
 
@@ -610,12 +610,12 @@ fn test_embalm_card_exiled_as_cost() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_obj_id = find_object(&state, "Sacred Cat");
 
@@ -631,7 +631,7 @@ fn test_embalm_card_exiled_as_cost() {
 
     // BEFORE resolution (ability is on the stack), card is already in exile.
     assert!(
-        !state.stack_objects.is_empty(),
+        !state.stack_objects().is_empty(),
         "EmbalmAbility should be on the stack before resolution"
     );
     assert!(
@@ -666,14 +666,14 @@ fn test_embalm_is_not_a_cast() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
-    let initial_spells_cast = state.players.get(&p1).unwrap().spells_cast_this_turn;
+    let initial_spells_cast = state.players().get(&p1).unwrap().spells_cast_this_turn;
 
     let card_obj_id = find_object(&state, "Sacred Cat");
 
@@ -695,7 +695,7 @@ fn test_embalm_is_not_a_cast() {
     );
 
     // spells_cast_this_turn is unchanged.
-    let after_spells_cast = state.players.get(&p1).unwrap().spells_cast_this_turn;
+    let after_spells_cast = state.players().get(&p1).unwrap().spells_cast_this_turn;
     assert_eq!(
         initial_spells_cast, after_spells_cast,
         "Embalm is NOT a cast: spells_cast_this_turn should not change"
@@ -725,12 +725,12 @@ fn test_embalm_ability_on_stack_card_in_exile() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_obj_id = find_object(&state, "Sacred Cat");
 
@@ -745,7 +745,7 @@ fn test_embalm_ability_on_stack_card_in_exile() {
 
     // Exactly one EmbalmAbility is on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.128a: exactly one EmbalmAbility should be on the stack"
     );
@@ -797,7 +797,7 @@ fn test_embalm_requires_mana_payment() {
         .unwrap();
 
     // No mana added — cannot pay {W}.
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_obj_id = find_object(&state, "Sacred Cat");
 
@@ -842,12 +842,12 @@ fn test_embalm_multiplayer_only_active_player() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p3)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
-    state.turn.priority_holder = Some(p3);
+    state.turn_mut().priority_holder = Some(p3);
 
     let card_obj_id = find_object(&state, "Sacred Cat");
 
@@ -887,12 +887,12 @@ fn test_embalm_token_has_summoning_sickness() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_obj_id = find_object(&state, "Sacred Cat");
 
@@ -909,7 +909,7 @@ fn test_embalm_token_has_summoning_sickness() {
 
     let token_id = find_in_zone(&state, "Sacred Cat", ZoneId::Battlefield)
         .expect("token should be on battlefield");
-    let token_obj = state.objects.get(&token_id).unwrap();
+    let token_obj = state.objects().get(&token_id).unwrap();
 
     assert!(
         token_obj.has_summoning_sickness,

@@ -17,6 +17,7 @@
 //! - Multiple Tribute instances: each N is independent.
 //! - 4-player multiplayer: tribute fires correctly for active player's turn.
 
+use mtg_engine::state::test_util;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
     CounterType, Effect, EffectAmount, GameEvent, GameStateBuilder, KeywordAbility, ManaCost,
@@ -31,7 +32,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -40,7 +41,7 @@ fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
 
 fn find_object_on_battlefield(state: &mtg_engine::GameState, name: &str) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
         .map(|(id, _)| *id)
@@ -71,12 +72,12 @@ fn cast_creature(
 ) -> mtg_engine::GameState {
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&caster)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Colorless, generic_cost);
-    state.turn.priority_holder = Some(caster);
+    state.turn_mut().priority_holder = Some(caster);
 
     let (state, _) = process_command(
         state,
@@ -233,7 +234,7 @@ fn test_tribute_basic_not_paid_no_counters() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Tribute Test Creature");
     let state = cast_creature(state, p1, card_id, 2);
@@ -243,7 +244,7 @@ fn test_tribute_basic_not_paid_no_counters() {
         .expect("CR 702.104a: Tribute creature should be on the battlefield");
 
     // Creature should have 0 +1/+1 counters (tribute not paid by bot).
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -255,7 +256,7 @@ fn test_tribute_basic_not_paid_no_counters() {
 
     // tribute_was_paid should be false.
     assert!(
-        !state.objects[&bf_id].tribute_was_paid,
+        !state.objects()[&bf_id].tribute_was_paid,
         "CR 702.104b: tribute_was_paid should be false when opponent declines"
     );
 }
@@ -292,8 +293,8 @@ fn test_tribute_not_paid_trigger_fires() {
         .build()
         .unwrap();
 
-    let initial_life = state.players[&p1].life_total;
-    state.turn.priority_holder = Some(p1);
+    let initial_life = state.players()[&p1].life_total;
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Tribute Test Creature");
     let state = cast_creature(state, p1, card_id, 2);
@@ -303,7 +304,7 @@ fn test_tribute_not_paid_trigger_fires() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // Controller should have gained 3 life from "if tribute wasn't paid" trigger.
-    let final_life = state.players[&p1].life_total;
+    let final_life = state.players()[&p1].life_total;
     assert_eq!(
         final_life,
         initial_life + 3,
@@ -343,27 +344,28 @@ fn test_tribute_paid_trigger_does_not_fire() {
     // Manually set tribute_was_paid = true and add 2 counters (simulating tribute paid).
     let bf_id = find_object_on_battlefield(&state, "Tribute Test Creature")
         .expect("creature should be on battlefield");
-    if let Some(obj) = state.objects.get_mut(&bf_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&bf_id) {
         obj.tribute_was_paid = true;
         obj.counters = obj.counters.update(CounterType::PlusOnePlusOne, 2);
     }
 
-    let initial_life = state.players[&p1].life_total;
+    let initial_life = state.players()[&p1].life_total;
 
     // No trigger should have fired — life should be unchanged.
     assert_eq!(
-        state.players[&p1].life_total, initial_life,
+        state.players()[&p1].life_total,
+        initial_life,
         "CR 702.104b: When tribute is paid, the trigger should not fire"
     );
 
     // tribute_was_paid should be true.
     assert!(
-        state.objects[&bf_id].tribute_was_paid,
+        state.objects()[&bf_id].tribute_was_paid,
         "CR 702.104b: tribute_was_paid should be true when tribute was paid"
     );
 
     // 2 +1/+1 counters should be present (tribute N=2 was paid).
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -438,9 +440,9 @@ fn test_tribute_n_value_draw_card() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let hand_count_before = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -456,7 +458,7 @@ fn test_tribute_n_value_draw_card() {
         .expect("CR 702.104a: Tribute 3 creature should be on battlefield");
 
     // No extra counters when tribute not paid.
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -468,7 +470,7 @@ fn test_tribute_n_value_draw_card() {
 
     // "If tribute wasn't paid" trigger drew a card.
     let hand_count_after = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -512,22 +514,21 @@ fn test_tribute_paid_resets_on_zone_change() {
     // Mark tribute as paid on the battlefield object.
     let bf_id = find_object_on_battlefield(&state, "Tribute Test Creature")
         .expect("creature should start on battlefield");
-    if let Some(obj) = state.objects.get_mut(&bf_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&bf_id) {
         obj.tribute_was_paid = true;
     }
     assert!(
-        state.objects[&bf_id].tribute_was_paid,
+        state.objects()[&bf_id].tribute_was_paid,
         "tribute_was_paid should be true initially"
     );
 
     // Move the creature to graveyard (zone change per CR 400.7 → new object).
-    let (new_id, _) = state
-        .move_object_to_zone(bf_id, ZoneId::Graveyard(p1))
+    let (new_id, _) = test_util::move_object_to_zone(&mut state, bf_id, ZoneId::Graveyard(p1))
         .expect("zone change should succeed");
 
     // The new object in the graveyard should have tribute_was_paid = false.
     assert!(
-        !state.objects[&new_id].tribute_was_paid,
+        !state.objects()[&new_id].tribute_was_paid,
         "CR 400.7: tribute_was_paid should be false after zone change (new object)"
     );
 }
@@ -563,8 +564,8 @@ fn test_tribute_no_trigger_card() {
         .build()
         .unwrap();
 
-    let initial_life = state.players[&p1].life_total;
-    state.turn.priority_holder = Some(p1);
+    let initial_life = state.players()[&p1].life_total;
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Tribute No Trigger Test");
     let state = cast_creature(state, p1, card_id, 2);
@@ -574,7 +575,7 @@ fn test_tribute_no_trigger_card() {
         .expect("creature should be on battlefield");
 
     // No counters (bot declined).
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -586,7 +587,8 @@ fn test_tribute_no_trigger_card() {
 
     // No life gain (no trigger).
     assert_eq!(
-        state.players[&p1].life_total, initial_life,
+        state.players()[&p1].life_total,
+        initial_life,
         "CR 702.104a: Creature with Tribute but no trigger should not change controller's life"
     );
 }
@@ -627,8 +629,8 @@ fn test_tribute_multiplayer_fires() {
         .build()
         .unwrap();
 
-    let initial_life = state.players[&p1].life_total;
-    state.turn.priority_holder = Some(p1);
+    let initial_life = state.players()[&p1].life_total;
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Tribute Test Creature");
     let state = cast_creature(state, p1, card_id, 2);
@@ -641,7 +643,7 @@ fn test_tribute_multiplayer_fires() {
         .expect("CR 702.104a: Tribute creature should be on battlefield in 4-player game");
 
     // No counters placed (bot declined).
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -653,7 +655,7 @@ fn test_tribute_multiplayer_fires() {
 
     // "If tribute wasn't paid" trigger should have fired → controller gained 3 life.
     assert_eq!(
-        state.players[&p1].life_total,
+        state.players()[&p1].life_total,
         initial_life + 3,
         "CR 702.104b: 'Tribute wasn't paid' trigger should fire in 4-player game"
     );

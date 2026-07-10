@@ -31,7 +31,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -131,9 +131,9 @@ fn setup_surge_state(
 
     // Directly set the spells_cast_this_turn counter to simulate prior casts.
     let mut state = state;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     if spells_cast > 0 {
-        if let Some(ps) = state.players.get_mut(&p1) {
+        if let Some(ps) = state.players_mut().get_mut(&p1) {
             ps.spells_cast_this_turn = spells_cast;
         }
     }
@@ -153,13 +153,13 @@ fn test_surge_basic_cast_with_surge_cost() {
 
     // Give p1 enough mana for the surge cost {1}{R} (not the full {3}{R}).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -200,7 +200,7 @@ fn test_surge_basic_cast_with_surge_cost() {
     );
     // Verify the spell is on the stack (not still in hand).
     let on_stack = state_after
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == "Surge Creature" && o.zone == ZoneId::Stack);
     assert!(
@@ -217,13 +217,13 @@ fn test_surge_rejected_no_prior_spell() {
 
     // Give mana (surge cost would be {1}{R}, but it should be rejected).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -270,13 +270,13 @@ fn test_surge_optional_normal_cost() {
 
     // Give mana for the full printed cost {3}{R}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -319,13 +319,13 @@ fn test_surge_after_resolved_spell() {
     let (mut state, p1, _p2, spell_id) = setup_surge_state(1);
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -367,13 +367,13 @@ fn test_surge_after_countered_spell() {
     let (mut state, p1, _p2, spell_id) = setup_surge_state(1);
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -419,13 +419,13 @@ fn test_surge_mutual_exclusion_with_flashback() {
     // More directly: provide a card with flashback and try surge — rejected at surge validation.
     let (mut state, p1, _p2, spell_id) = setup_surge_state(1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -456,9 +456,9 @@ fn test_surge_mutual_exclusion_with_flashback() {
             .at_step(Step::PreCombatMain)
             .build()
             .unwrap();
-        s.turn.priority_holder = Some(p1);
-        s.players.get_mut(&p1).unwrap().spells_cast_this_turn = 1;
-        s.players
+        s.turn_mut().priority_holder = Some(p1);
+        s.players_mut().get_mut(&p1).unwrap().spells_cast_this_turn = 1;
+        s.players_mut()
             .get_mut(&p1)
             .unwrap()
             .mana_pool
@@ -513,13 +513,13 @@ fn test_surge_mutual_exclusion_with_spectacle() {
     // The checks inside both blocks prevent combining them at code level.
     let (mut state, p1, _p2, spell_id) = setup_surge_state(1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -588,11 +588,15 @@ fn test_surge_card_without_keyword_rejected() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     // Provide a prior spell so the precondition isn't the rejection reason.
-    state.players.get_mut(&p1).unwrap().spells_cast_this_turn = 1;
     state
-        .players
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .spells_cast_this_turn = 1;
+    state
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -647,19 +651,19 @@ fn test_surge_reset_at_turn_start() {
     let (mut state, p1, _p2, spell_id) = setup_surge_state(2);
 
     assert_eq!(
-        state.players.get(&p1).unwrap().spells_cast_this_turn,
+        state.players().get(&p1).unwrap().spells_cast_this_turn,
         2,
         "p1 should have 2 spells cast this turn before the turn boundary"
     );
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -716,17 +720,21 @@ fn test_surge_reset_at_turn_start() {
             .at_step(Step::PreCombatMain)
             .build()
             .unwrap();
-        state2.turn.priority_holder = Some(p1);
+        state2.turn_mut().priority_holder = Some(p1);
         // Simulate turn reset: spells_cast_this_turn = 0 (new turn just started).
-        state2.players.get_mut(&p1).unwrap().spells_cast_this_turn = 0;
         state2
-            .players
+            .players_mut()
+            .get_mut(&p1)
+            .unwrap()
+            .spells_cast_this_turn = 0;
+        state2
+            .players_mut()
             .get_mut(&p1)
             .unwrap()
             .mana_pool
             .add(ManaColor::Red, 1);
         state2
-            .players
+            .players_mut()
             .get_mut(&p1)
             .unwrap()
             .mana_pool
@@ -834,29 +842,33 @@ fn test_surge_commander_tax_stacks() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Pre-set commander tax to 1 (cast once previously) — adds {2} to total cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .commander_tax
         .insert(cmd_id.clone(), 1);
 
     // p1 has cast 1 prior spell this turn — surge precondition is met.
-    state.players.get_mut(&p1).unwrap().spells_cast_this_turn = 1;
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .spells_cast_this_turn = 1;
 
     // Total cost with surge + tax: {1}{R} surge + {2} tax = {3}{R}.
     // Provide exactly {3}{R}: 1 red + 3 colorless.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -865,7 +877,7 @@ fn test_surge_commander_tax_stacks() {
     register_commander_zone_replacements(&mut state);
 
     let cmd_obj_id = state
-        .zones
+        .zones()
         .get(&ZoneId::Command(p1))
         .unwrap()
         .object_ids()
@@ -905,14 +917,17 @@ fn test_surge_commander_tax_stacks() {
 
     // Commander tax should have been incremented to 2 (one more cast).
     assert_eq!(
-        state_after.players[&p1].commander_tax.get(&cmd_id).copied(),
+        state_after.players()[&p1]
+            .commander_tax
+            .get(&cmd_id)
+            .copied(),
         Some(2),
         "CR 903.8: commander tax should increment to 2 after second cast"
     );
 
     // Spell should be on the stack.
     assert_eq!(
-        state_after.stack_objects.len(),
+        state_after.stack_objects().len(),
         1,
         "CR 118.9d + 903.8: commander surge spell should be on the stack"
     );
@@ -927,13 +942,13 @@ fn test_surge_cast_alt_cost_tracked() {
     let (mut state, p1, _p2, spell_id) = setup_surge_state(1);
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -969,7 +984,7 @@ fn test_surge_cast_alt_cost_tracked() {
 
     // The spell should be on the stack.
     assert_eq!(
-        state_after.stack_objects.len(),
+        state_after.stack_objects().len(),
         1,
         "Surge Creature should be on the stack"
     );
@@ -977,7 +992,7 @@ fn test_surge_cast_alt_cost_tracked() {
     // The stack object should have was_surged = true (set at cast time in casting.rs).
     // This flag propagates to cast_alt_cost = Some(AltCostKind::Surge) when the permanent
     // enters the battlefield at resolution time (resolution.rs).
-    let stack_obj = state_after.stack_objects.iter().next().unwrap();
+    let stack_obj = state_after.stack_objects().iter().next().unwrap();
     assert!(
         stack_obj.was_surged,
         "was_surged should be true on the stack object when surge alt_cost was used"

@@ -11,6 +11,7 @@
 //! - CR 701.42c: If partner not present, nothing happens.
 //! - Zone-change splitting: melded permanent leaving battlefield splits into two cards.
 
+use mtg_engine::state::test_util;
 use mtg_engine::{
     calculate_characteristics, enrich_spec_from_def, process_command, AbilityDefinition,
     CardDefinition, CardFace, CardId, CardRegistry, CardType, Command, Effect, GameEvent,
@@ -24,7 +25,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -34,7 +35,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     // Check raw characteristics first, then try layer-resolved characteristics.
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| {
             obj.zone == zone && {
@@ -412,15 +413,15 @@ fn test_meld_zone_change_splitting() {
     // Move the melded permanent to graveyard directly (simulates destruction).
     let mut state = state;
     let gy = ZoneId::Graveyard(p(1));
-    let _ = state.move_object_to_zone(melded_id, gy);
+    let _ = test_util::move_object_to_zone(&mut state, melded_id, gy);
 
     // Both original cards should be in the graveyard (zone-change splitting).
     let battlements_in_gy = state
-        .objects
+        .objects()
         .values()
         .any(|obj| obj.zone == gy && obj.card_id == Some(CardId("mock-battlements".to_string())));
     let garrison_in_gy = state
-        .objects
+        .objects()
         .values()
         .any(|obj| obj.zone == gy && obj.card_id == Some(CardId("mock-garrison".to_string())));
 
@@ -457,7 +458,7 @@ fn test_meld_cards_cannot_transform() {
     .expect("transform command should succeed (silently no-op for meld cards)");
 
     // Battlements should still be on the battlefield, untransformed.
-    let obj = state.objects.get(&battlements_id).unwrap();
+    let obj = state.objects().get(&battlements_id).unwrap();
     assert!(
         !obj.is_transformed,
         "CR 712.4c: meld cards cannot be transformed"
@@ -487,7 +488,7 @@ fn test_meld_component_tracking() {
 
     let melded_id = find_in_zone(&state, "Hanweir Township", ZoneId::Battlefield)
         .expect("melded permanent should exist");
-    let melded_obj = state.objects.get(&melded_id).unwrap();
+    let melded_obj = state.objects().get(&melded_id).unwrap();
 
     assert_eq!(
         melded_obj.meld_component,

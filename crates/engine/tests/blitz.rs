@@ -19,6 +19,7 @@
 //! - Attempting to cast a non-blitz card with blitz cost is rejected (CR 702.152a).
 //! - Commander tax applies on top of blitz cost (CR 118.9d).
 
+use mtg_engine::state::test_util;
 use mtg_engine::state::types::AltCostKind;
 use mtg_engine::state::types::SuperType;
 use mtg_engine::{
@@ -35,7 +36,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -44,7 +45,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -74,7 +75,7 @@ fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent
 /// Drain the stack completely (pass all until stack is empty).
 fn drain_stack(mut state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent>) {
     let mut all_events = Vec::new();
-    while !state.stack_objects.is_empty() {
+    while !state.stack_objects().is_empty() {
         let (s, ev) = pass_all(state, players);
         state = s;
         all_events.extend(ev);
@@ -179,12 +180,12 @@ fn test_blitz_basic_cast_with_blitz_cost() {
 
     // Pay {R} — blitz cost instead of mana cost {1}{R}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Blitz Goblin");
 
@@ -213,17 +214,17 @@ fn test_blitz_basic_cast_with_blitz_cost() {
 
     // Spell is on the stack with was_blitzed = true.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.152a: blitzed spell should be on the stack"
     );
     assert!(
-        state.stack_objects[0].was_blitzed,
+        state.stack_objects()[0].was_blitzed,
         "CR 702.152a: was_blitzed should be true on stack object"
     );
 
     // Mana consumed: {R} = 1 mana total (not {1}{R} = 2 mana).
-    let pool = &state.players[&p1].mana_pool;
+    let pool = &state.players()[&p1].mana_pool;
     assert_eq!(
         pool.white + pool.blue + pool.black + pool.red + pool.green + pool.colorless,
         0,
@@ -242,14 +243,14 @@ fn test_blitz_basic_cast_with_blitz_cost() {
     // cast_alt_cost is set to Blitz on the permanent.
     let bf_id = find_in_zone(&state, "Blitz Goblin", ZoneId::Battlefield).unwrap();
     assert_eq!(
-        state.objects[&bf_id].cast_alt_cost,
+        state.objects()[&bf_id].cast_alt_cost,
         Some(AltCostKind::Blitz),
         "CR 702.152a: cast_alt_cost should be Some(Blitz) on battlefield permanent"
     );
 
     // Haste is granted: permanent has the Haste keyword.
     assert!(
-        state.objects[&bf_id]
+        state.objects()[&bf_id]
             .characteristics
             .keywords
             .contains(&KeywordAbility::Haste),
@@ -281,18 +282,18 @@ fn test_blitz_normal_cast_no_sacrifice_no_draw() {
 
     // Pay {1}{R} — normal mana cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Blitz Goblin");
 
@@ -332,13 +333,13 @@ fn test_blitz_normal_cast_no_sacrifice_no_draw() {
 
     // cast_alt_cost is None (normal cast, not blitzed).
     assert!(
-        state.objects[&bf_id].cast_alt_cost.is_none(),
+        state.objects()[&bf_id].cast_alt_cost.is_none(),
         "CR 702.152a: cast_alt_cost should be None for normally cast creature"
     );
 
     // Advance to End step — no BlitzSacrificeTrigger should fire.
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::End, "should advance to End step");
+    assert_eq!(state.turn().step, Step::End, "should advance to End step");
 
     // Pass priority at End step — creature should still be on battlefield.
     let (state, _) = pass_all(state, &[p1, p2]);
@@ -373,12 +374,12 @@ fn test_blitz_sacrifice_at_end_step() {
 
     // Pay {R} — blitz cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Blitz Goblin");
 
@@ -415,7 +416,7 @@ fn test_blitz_sacrifice_at_end_step() {
 
     // Advance from PostCombatMain to End step.
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::End, "should advance to End step");
+    assert_eq!(state.turn().step, Step::End, "should advance to End step");
 
     // Both players pass priority at End step:
     // BlitzSacrificeTrigger queued → pushed to stack → resolves → creature sacrificed.
@@ -472,12 +473,12 @@ fn test_blitz_draw_card_on_death() {
 
     // Pay {R} — blitz cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Blitz Goblin");
 
@@ -514,7 +515,7 @@ fn test_blitz_draw_card_on_death() {
 
     // Record hand size before death.
     let hand_before = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -525,11 +526,11 @@ fn test_blitz_draw_card_on_death() {
     // engine event path: CreatureDied is emitted, check_triggers picks up the
     // SelfDies draw trigger injected at ETB, and the trigger is queued.
     let bf_id = find_in_zone(&state, "Blitz Goblin", ZoneId::Battlefield).unwrap();
-    state.objects.get_mut(&bf_id).unwrap().damage_marked = 2; // 2 >= toughness 2 → lethal
+    state.objects_mut().get_mut(&bf_id).unwrap().damage_marked = 2; // 2 >= toughness 2 → lethal
 
     // PassPriority → SBAs fire (CR 704.5g: lethal damage) → creature destroyed via
     // engine path → CreatureDied event emitted → SelfDies draw trigger queued.
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let (state, sba_events) = pass_all(state, &[p1, p2]);
 
     // CreatureDied should have been emitted through the engine SBA path.
@@ -557,7 +558,7 @@ fn test_blitz_draw_card_on_death() {
 
     // Controller should have drawn a card (hand size increased by 1).
     let hand_after = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -608,12 +609,12 @@ fn test_blitz_draw_on_sacrifice_at_end_step() {
 
     // Pay {R} — blitz cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Blitz Goblin");
 
@@ -650,14 +651,14 @@ fn test_blitz_draw_on_sacrifice_at_end_step() {
 
     // Record hand size before end step.
     let hand_before = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
 
     // Advance from PostCombatMain to End step.
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::End, "should advance to End step");
+    assert_eq!(state.turn().step, Step::End, "should advance to End step");
 
     // At End step: BlitzSacrificeTrigger fires and goes on stack.
     // Pass priority → sacrifice trigger resolves → creature dies → CreatureDied fired →
@@ -679,7 +680,7 @@ fn test_blitz_draw_on_sacrifice_at_end_step() {
 
     // Controller should have drawn a card (hand size increased by 1).
     let hand_after = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -726,12 +727,12 @@ fn test_blitz_creature_left_battlefield_before_end_step() {
 
     // Pay {R} — blitz cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Blitz Goblin");
 
@@ -768,8 +769,7 @@ fn test_blitz_creature_left_battlefield_before_end_step() {
 
     // Manually move the creature to the graveyard BEFORE the end step.
     let bf_id = find_in_zone(&state, "Blitz Goblin", ZoneId::Battlefield).unwrap();
-    state
-        .move_object_to_zone(bf_id, ZoneId::Graveyard(p1))
+    test_util::move_object_to_zone(&mut state, bf_id, ZoneId::Graveyard(p1))
         .expect("move to graveyard should succeed");
 
     assert!(
@@ -783,7 +783,7 @@ fn test_blitz_creature_left_battlefield_before_end_step() {
 
     // Advance to End step.
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::End, "should advance to End step");
+    assert_eq!(state.turn().step, Step::End, "should advance to End step");
 
     // Resolve trigger at End step — trigger fires, finds creature NOT on battlefield,
     // does nothing. Creature should remain in graveyard (not double-moved).
@@ -834,12 +834,12 @@ fn test_blitz_card_without_blitz_rejected() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Plain Goblin");
 
@@ -903,12 +903,12 @@ fn test_blitz_alternative_cost_exclusivity() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Blitz Goblin");
 
@@ -1012,7 +1012,7 @@ fn test_blitz_commander_tax_applies() {
     // Set commander tax to 2 (simulates having cast the commander once before).
     let commander_card_id = CardId("blitz-goblin".to_string());
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .commander_ids
@@ -1020,19 +1020,19 @@ fn test_blitz_commander_tax_applies() {
     // Commander tax entry stores the NUMBER OF TIMES already cast.
     // apply_commander_tax multiplies by 2: 1 cast = {2} additional mana.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .commander_tax
         .insert(commander_card_id, 1);
 
     let cmd_obj_id = find_object(&state, "Blitz Goblin");
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Pay {R} blitz cost alone — should FAIL because commander tax {2} is owed
     // (total needed: {R} + {2} = {2}{R} = 3 mana, but only providing 1).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -1065,7 +1065,7 @@ fn test_blitz_commander_tax_applies() {
 
     // Now pay {2}{R} (blitz cost {R} + {2} commander tax) — should succeed.
     {
-        let player = state.players.get_mut(&p1).unwrap();
+        let player = state.players_mut().get_mut(&p1).unwrap();
         player.mana_pool.colorless = 2;
         player.mana_pool.red = 1;
     }

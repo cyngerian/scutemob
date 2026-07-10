@@ -25,6 +25,7 @@
 //! that wrong-game-state bug, fixed.
 
 use mtg_engine::rules::events::GameEvent;
+use mtg_engine::state::test_util;
 use mtg_engine::{
     all_cards, enrich_spec_from_def, process_command, CardEffectTarget, CardId, CardRegistry,
     CardType, Command, CounterType, Effect, GameStateBuilder, ManaColor, ObjectId, ObjectSpec,
@@ -47,7 +48,7 @@ fn load_defs() -> HashMap<String, mtg_engine::CardDefinition> {
 
 fn find_by_name(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -56,7 +57,7 @@ fn find_by_name(state: &mtg_engine::GameState, name: &str) -> ObjectId {
 
 fn find_in_hand(state: &mtg_engine::GameState, player: PlayerId, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == name && o.zone == ZoneId::Hand(player))
         .map(|(id, _)| *id)
@@ -65,28 +66,28 @@ fn find_in_hand(state: &mtg_engine::GameState, player: PlayerId, name: &str) -> 
 
 fn obj_in_graveyard(state: &mtg_engine::GameState, name: &str, owner: PlayerId) -> bool {
     state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == name && o.zone == ZoneId::Graveyard(owner))
 }
 
 fn obj_in_hand(state: &mtg_engine::GameState, name: &str, owner: PlayerId) -> bool {
     state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == name && o.zone == ZoneId::Hand(owner))
 }
 
 fn obj_on_battlefield(state: &mtg_engine::GameState, name: &str) -> bool {
     state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == name && o.zone == ZoneId::Battlefield)
 }
 
 fn obj_controller(state: &mtg_engine::GameState, name: &str) -> PlayerId {
     state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == name)
         .unwrap_or_else(|| panic!("object '{}' not found", name))
@@ -118,7 +119,7 @@ fn cast_modal(
 ) -> (mtg_engine::GameState, Vec<GameEvent>) {
     let card_id = find_in_hand(&state, player, name);
     let mut state = state;
-    state.turn.priority_holder = Some(player);
+    state.turn_mut().priority_holder = Some(player);
     process_command(
         state,
         Command::CastSpell {
@@ -143,14 +144,14 @@ fn cast_modal(
 }
 
 /// Push a bare `StackObject::Spell` entry wrapping `source_object` onto
-/// `state.stack_objects`. Mirrors the pattern in `pb_ac2_card_integration.rs`.
+/// `state.stack_objects()`. Mirrors the pattern in `pb_ac2_card_integration.rs`.
 fn push_spell_stack_object(
     state: &mut mtg_engine::GameState,
     source_object: ObjectId,
     controller: PlayerId,
 ) -> ObjectId {
-    let stack_id = state.next_object_id();
-    state.stack_objects.push_back(StackObject {
+    let stack_id = test_util::next_object_id(state);
+    state.stack_objects_mut().push_back(StackObject {
         id: stack_id,
         controller,
         kind: StackObjectKind::Spell { source_object },
@@ -235,7 +236,7 @@ fn test_casualties_of_war_castable_choosing_creature_subset() {
 
     // {2}{B}{B}{G}{G} — pay generic with colorless.
     {
-        let pool = &mut state.players.get_mut(&p1).unwrap().mana_pool;
+        let pool = &mut state.players_mut().get_mut(&p1).unwrap().mana_pool;
         pool.add(ManaColor::Black, 2);
         pool.add(ManaColor::Green, 2);
         pool.add(ManaColor::Colorless, 2);
@@ -294,7 +295,7 @@ fn test_izzet_charm_damage_mode_needs_no_spell_target() {
         .unwrap();
 
     {
-        let pool = &mut state.players.get_mut(&p1).unwrap().mana_pool;
+        let pool = &mut state.players_mut().get_mut(&p1).unwrap().mana_pool;
         pool.add(ManaColor::Blue, 1);
         pool.add(ManaColor::Red, 1);
     }
@@ -364,7 +365,7 @@ fn test_cryptic_command_counter_and_bounce_sliced_independently() {
 
     // {1}{U}{U}{U} — all blue covers both the colored pips and the generic.
     {
-        let pool = &mut state.players.get_mut(&p1).unwrap().mana_pool;
+        let pool = &mut state.players_mut().get_mut(&p1).unwrap().mana_pool;
         pool.add(ManaColor::Blue, 4);
     }
 
@@ -380,7 +381,7 @@ fn test_cryptic_command_counter_and_bounce_sliced_independently() {
 
     assert!(
         state
-            .stack_objects
+            .stack_objects()
             .iter()
             .any(|so| matches!(so.kind, StackObjectKind::Spell { source_object } if source_object != spell_id)),
         "Cryptic Command should be on the stack above the target spell"
@@ -437,7 +438,7 @@ fn test_archmages_charm_gain_control_of_low_mv_permanent() {
         .unwrap();
 
     {
-        let pool = &mut state.players.get_mut(&p1).unwrap().mana_pool;
+        let pool = &mut state.players_mut().get_mut(&p1).unwrap().mana_pool;
         pool.add(ManaColor::Blue, 3);
     }
 
@@ -498,7 +499,7 @@ fn test_golgari_charm_mode_2_regenerates_only_callers_creatures() {
         .unwrap();
 
     {
-        let pool = &mut state.players.get_mut(&p1).unwrap().mana_pool;
+        let pool = &mut state.players_mut().get_mut(&p1).unwrap().mana_pool;
         pool.add(ManaColor::Black, 1);
         pool.add(ManaColor::Green, 1);
     }
@@ -571,7 +572,7 @@ fn test_abzan_charm_mode_2_can_target_opponents_creature() {
         .unwrap();
 
     {
-        let pool = &mut state.players.get_mut(&p1).unwrap().mana_pool;
+        let pool = &mut state.players_mut().get_mut(&p1).unwrap().mana_pool;
         pool.add(ManaColor::White, 1);
         pool.add(ManaColor::Black, 1);
         pool.add(ManaColor::Green, 1);
@@ -591,7 +592,7 @@ fn test_abzan_charm_mode_2_can_target_opponents_creature() {
 
     let (state, _) = pass_all(state, &[p1, p2]);
     let counters = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Opponent's Creature")
         .and_then(|o| o.counters.get(&CounterType::PlusOnePlusOne).copied())

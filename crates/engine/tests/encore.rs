@@ -34,7 +34,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -43,7 +43,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -59,7 +59,7 @@ fn in_exile(state: &GameState, name: &str) -> bool {
 
 fn count_on_battlefield_by_name(state: &GameState, name: &str) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
         .count()
@@ -147,18 +147,18 @@ fn test_encore_basic_4p() {
 
     // Give p1 {2}{B} mana for encore cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Encore Test Creature");
 
@@ -225,18 +225,18 @@ fn test_encore_tokens_have_haste() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Encore Test Creature");
 
@@ -253,7 +253,7 @@ fn test_encore_tokens_have_haste() {
 
     // All tokens on battlefield should have Haste.
     let tokens: Vec<_> = state
-        .objects
+        .objects()
         .values()
         .filter(|obj| {
             obj.characteristics.name == "Encore Test Creature"
@@ -298,18 +298,18 @@ fn test_encore_card_exiled_as_cost() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Encore Test Creature");
 
@@ -345,7 +345,7 @@ fn test_encore_card_exiled_as_cost() {
 
     // Stack should have the EncoreAbility (not empty yet).
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.141a: EncoreAbility should be on the stack after activation"
     );
@@ -374,18 +374,18 @@ fn test_encore_sacrifice_at_end_step() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Encore Test Creature");
 
@@ -403,7 +403,7 @@ fn test_encore_sacrifice_at_end_step() {
 
     // Token should be on the battlefield with encore_sacrifice_at_end_step = true.
     let token_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| {
             obj.characteristics.name == "Encore Test Creature"
@@ -413,7 +413,7 @@ fn test_encore_sacrifice_at_end_step() {
         .map(|(id, _)| *id)
         .expect("encore token should be on battlefield");
 
-    let token = state.objects.get(&token_id).unwrap();
+    let token = state.objects().get(&token_id).unwrap();
     assert!(
         token.encore_sacrifice_at_end_step,
         "CR 702.141a: encore token should have encore_sacrifice_at_end_step = true"
@@ -425,7 +425,7 @@ fn test_encore_sacrifice_at_end_step() {
 
     // Pending triggers should include an encore sacrifice trigger.
     let has_encore_trigger = state
-        .pending_triggers
+        .pending_triggers()
         .iter()
         .any(|t| t.kind == mtg_engine::state::stubs::PendingTriggerKind::EncoreSacrifice);
     assert!(
@@ -440,7 +440,7 @@ fn test_encore_sacrifice_at_end_step() {
 
     // Stack should have the EncoreSacrificeTrigger.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "EncoreSacrificeTrigger should be on the stack"
     );
@@ -449,7 +449,7 @@ fn test_encore_sacrifice_at_end_step() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // Token should no longer be on the battlefield.
-    let token_on_battlefield = state.objects.values().any(|obj| {
+    let token_on_battlefield = state.objects().values().any(|obj| {
         obj.characteristics.name == "Encore Test Creature" && obj.zone == ZoneId::Battlefield
     });
     assert!(
@@ -481,18 +481,18 @@ fn test_encore_sorcery_speed_opponent_turn() {
 
     // p2 tries to activate encore during p1's turn.
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let card_id = find_object(&state, "Encore Test Creature");
 
@@ -532,18 +532,18 @@ fn test_encore_sorcery_speed_non_empty_stack() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Artificially add a stack object to simulate non-empty stack.
     let fake_stack_obj = mtg_engine::StackObject {
@@ -600,7 +600,7 @@ fn test_encore_sorcery_speed_non_empty_stack() {
         lki_counters: im::OrdMap::new(),
         lki_power: None,
     };
-    state.stack_objects.push_back(fake_stack_obj);
+    state.stack_objects_mut().push_back(fake_stack_obj);
 
     let card_id = find_object(&state, "Encore Test Creature");
 
@@ -646,18 +646,18 @@ fn test_encore_not_in_graveyard() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Encore Test Creature");
 
@@ -703,18 +703,18 @@ fn test_encore_no_keyword() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Encore Test Creature");
 
@@ -754,18 +754,18 @@ fn test_encore_2p_game() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Encore Test Creature");
 
@@ -814,21 +814,21 @@ fn test_encore_eliminated_opponent() {
         .unwrap();
 
     // Mark p3 as eliminated.
-    state.players.get_mut(&p3).unwrap().has_lost = true;
+    state.players_mut().get_mut(&p3).unwrap().has_lost = true;
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Encore Test Creature");
 

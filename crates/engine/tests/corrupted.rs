@@ -28,7 +28,7 @@ use mtg_engine::{
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -37,7 +37,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 fn library_count(state: &GameState, player: PlayerId) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.zone == ZoneId::Library(player))
         .count()
@@ -162,14 +162,14 @@ fn test_corrupted_etb_fires_when_opponent_has_3_poison() {
         .unwrap();
 
     // P2 has exactly 3 poison counters — threshold met.
-    state.players.get_mut(&p2).unwrap().poison_counters = 3;
+    state.players_mut().get_mut(&p2).unwrap().poison_counters = 3;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let lib_before = library_count(&state, p1);
 
@@ -227,14 +227,14 @@ fn test_corrupted_etb_does_not_fire_below_threshold() {
         .unwrap();
 
     // P2 has only 2 poison counters — one short of the threshold.
-    state.players.get_mut(&p2).unwrap().poison_counters = 2;
+    state.players_mut().get_mut(&p2).unwrap().poison_counters = 2;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let lib_before = library_count(&state, p1);
 
@@ -290,17 +290,17 @@ fn test_corrupted_condition_any_opponent_multiplayer() {
         .unwrap();
 
     // P2=0, P3=3 (meets threshold), P4=1.
-    state.players.get_mut(&p2).unwrap().poison_counters = 0;
-    state.players.get_mut(&p3).unwrap().poison_counters = 3;
-    state.players.get_mut(&p4).unwrap().poison_counters = 1;
+    state.players_mut().get_mut(&p2).unwrap().poison_counters = 0;
+    state.players_mut().get_mut(&p3).unwrap().poison_counters = 3;
+    state.players_mut().get_mut(&p4).unwrap().poison_counters = 1;
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let lib_before = library_count(&state, p1);
 
@@ -355,16 +355,16 @@ fn test_corrupted_condition_ignores_controller_poison() {
 
     // Controller (P1) has 5 poison — well above threshold, but doesn't count.
     // Opponent (P2) has only 1 poison — below threshold.
-    state.players.get_mut(&p1).unwrap().poison_counters = 5;
-    state.players.get_mut(&p2).unwrap().poison_counters = 1;
+    state.players_mut().get_mut(&p1).unwrap().poison_counters = 5;
+    state.players_mut().get_mut(&p2).unwrap().poison_counters = 1;
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let lib_before = library_count(&state, p1);
 
@@ -417,18 +417,18 @@ fn test_corrupted_condition_ignores_eliminated_opponents() {
         .unwrap();
 
     // P2 is eliminated with 10 poison (would meet threshold if alive).
-    state.players.get_mut(&p2).unwrap().poison_counters = 10;
-    state.players.get_mut(&p2).unwrap().has_lost = true;
+    state.players_mut().get_mut(&p2).unwrap().poison_counters = 10;
+    state.players_mut().get_mut(&p2).unwrap().has_lost = true;
     // P3 is alive but has 0 poison.
-    state.players.get_mut(&p3).unwrap().poison_counters = 0;
+    state.players_mut().get_mut(&p3).unwrap().poison_counters = 0;
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let lib_before = library_count(&state, p1);
 
@@ -478,14 +478,14 @@ fn test_corrupted_boundary_exactly_3_poison_meets_threshold() {
         .unwrap();
 
     // Exactly 3 — the boundary value.
-    state.players.get_mut(&p2).unwrap().poison_counters = 3;
+    state.players_mut().get_mut(&p2).unwrap().poison_counters = 3;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let lib_before = library_count(&state, p1);
 
@@ -550,14 +550,14 @@ fn test_corrupted_etb_fizzles_if_condition_drops_before_resolution() {
         .unwrap();
 
     // P2 starts with 3 poison — Corrupted condition met at trigger time.
-    state.players.get_mut(&p2).unwrap().poison_counters = 3;
+    state.players_mut().get_mut(&p2).unwrap().poison_counters = 3;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let lib_before = library_count(&state, p1);
 
@@ -571,7 +571,7 @@ fn test_corrupted_etb_fizzles_if_condition_drops_before_resolution() {
     // Simulate an effect that removes a poison counter from P2 before the trigger resolves.
     // (e.g. Melira, Sylvok Outcast or Leeches — not implemented as commands, so direct mutation.)
     // CR 603.4: The condition is re-checked at resolution; if it fails, the trigger does nothing.
-    state.players.get_mut(&p2).unwrap().poison_counters = 2;
+    state.players_mut().get_mut(&p2).unwrap().poison_counters = 2;
 
     // Both players pass priority → Corrupted ETB trigger resolves.
     // At resolution time: P2 has only 2 poison → condition fails → trigger fizzles.

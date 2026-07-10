@@ -13,6 +13,7 @@
 //! - `Effect::PlayExiledCard` finds the matching card and plays it (CR 702.75a, CR 607.2a).
 //! - Permanents without Hideaway do NOT generate a HideawayTrigger (negative test).
 
+use mtg_engine::state::test_util;
 use mtg_engine::state::{ActivatedAbility, ActivationCost, CardType};
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, Command, Condition,
@@ -28,7 +29,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -58,7 +59,7 @@ fn pass_all_until_empty(
 ) -> (mtg_engine::GameState, Vec<GameEvent>) {
     let mut all_events = Vec::new();
     for _ in 0..50 {
-        if state.stack_objects.is_empty() {
+        if state.stack_objects().is_empty() {
             break;
         }
         let (s, ev) = pass_all(state, players);
@@ -248,14 +249,14 @@ fn test_hideaway_etb_trigger_fires() {
 
     // Push the HideawayTrigger manually onto the stack to simulate what
     // the engine does when the permanent enters via process_command.
-    let trigger_id = state.next_object_id();
+    let trigger_id = test_util::next_object_id(&mut state);
     state
-        .stack_objects
+        .stack_objects_mut()
         .push_back(make_hideaway_trigger_stack_obj(trigger_id, perm_id, 4, p1));
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // The trigger should be on the stack.
-    let has_trigger = state.stack_objects.iter().any(|so| {
+    let has_trigger = state.stack_objects().iter().any(|so| {
         matches!(
             so.kind,
             StackObjectKind::KeywordTrigger {
@@ -274,7 +275,7 @@ fn test_hideaway_etb_trigger_fires() {
 
     // Stack should be empty after trigger resolves.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "CR 702.75a: stack should be empty after HideawayTrigger resolves"
     );
@@ -314,7 +315,7 @@ fn test_hideaway_trigger_resolution_exiles_one_face_down() {
         .unwrap();
 
     let initial_lib_count = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Library(p1))
         .count();
@@ -323,18 +324,18 @@ fn test_hideaway_trigger_resolution_exiles_one_face_down() {
     let perm_id = find_object(&state, "Mock Hideaway Creature");
 
     // Push the HideawayTrigger onto the stack.
-    let trigger_id = state.next_object_id();
+    let trigger_id = test_util::next_object_id(&mut state);
     state
-        .stack_objects
+        .stack_objects_mut()
         .push_back(make_hideaway_trigger_stack_obj(trigger_id, perm_id, 4, p1));
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Resolve the trigger.
     let (state, events) = pass_all(state, &[p1, p2]);
 
     // Exactly one card should now be in exile.
     let exile_cards: Vec<_> = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Exile)
         .collect();
@@ -354,7 +355,7 @@ fn test_hideaway_trigger_resolution_exiles_one_face_down() {
 
     // Library should have 5 cards remaining (6 - 1 exiled = 5).
     let remaining_lib = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Library(p1))
         .count();
@@ -407,20 +408,20 @@ fn test_hideaway_exiled_card_tracked_by_source() {
     let source_id = find_object(&state, "Mock Hideaway Creature");
 
     // Push HideawayTrigger onto the stack.
-    let trigger_id = state.next_object_id();
+    let trigger_id = test_util::next_object_id(&mut state);
     state
-        .stack_objects
+        .stack_objects_mut()
         .push_back(make_hideaway_trigger_stack_obj(
             trigger_id, source_id, 4, p1,
         ));
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Resolve the trigger.
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // The exiled card's exiled_by_hideaway must equal source_id.
     let exiled_obj = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.zone == ZoneId::Exile)
         .expect("CR 607.2a: one card should be in exile");
@@ -466,18 +467,18 @@ fn test_hideaway_empty_library() {
     let perm_id = find_object(&state, "Mock Hideaway Creature");
 
     // Push HideawayTrigger onto the stack.
-    let trigger_id = state.next_object_id();
+    let trigger_id = test_util::next_object_id(&mut state);
     state
-        .stack_objects
+        .stack_objects_mut()
         .push_back(make_hideaway_trigger_stack_obj(trigger_id, perm_id, 4, p1));
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Resolve the trigger.
     let (state, events) = pass_all(state, &[p1, p2]);
 
     // No cards should be exiled.
     let exile_count = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Exile)
         .count();
@@ -497,7 +498,7 @@ fn test_hideaway_empty_library() {
 
     // Stack should be empty after trigger resolves.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "Stack should be empty after empty-library trigger resolves"
     );
@@ -534,17 +535,17 @@ fn test_hideaway_face_down_exile_is_hidden() {
 
     let perm_id = find_object(&state, "Mock Hideaway Creature");
 
-    let trigger_id = state.next_object_id();
+    let trigger_id = test_util::next_object_id(&mut state);
     state
-        .stack_objects
+        .stack_objects_mut()
         .push_back(make_hideaway_trigger_stack_obj(trigger_id, perm_id, 4, p1));
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // Every card in exile from this trigger must be face-down.
     let exiled_by_hideaway: Vec<_> = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Exile && o.exiled_by_hideaway.is_some())
         .collect();
@@ -623,17 +624,17 @@ fn test_hideaway_play_exiled_card() {
     let perm_id = find_object(&state, "Mock Hideaway Play");
 
     // Step 1: Resolve the Hideaway ETB trigger to exile one card.
-    let trigger_id = state.next_object_id();
+    let trigger_id = test_util::next_object_id(&mut state);
     state
-        .stack_objects
+        .stack_objects_mut()
         .push_back(make_hideaway_trigger_stack_obj(trigger_id, perm_id, 2, p1));
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // Verify one card is in exile face-down.
     let exile_count = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Exile)
         .count();
@@ -643,7 +644,7 @@ fn test_hideaway_play_exiled_card() {
     );
 
     let exiled_obj = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.zone == ZoneId::Exile)
         .unwrap();
@@ -677,7 +678,7 @@ fn test_hideaway_play_exiled_card() {
 
     // The exiled card should no longer be in exile.
     let exile_after = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Exile)
         .count();
@@ -714,7 +715,7 @@ fn test_hideaway_negative_no_keyword() {
         .unwrap();
 
     // No HideawayTrigger should be on the stack.
-    let has_hideaway_trigger = state.stack_objects.iter().any(|so| {
+    let has_hideaway_trigger = state.stack_objects().iter().any(|so| {
         matches!(
             so.kind,
             StackObjectKind::KeywordTrigger {
@@ -731,7 +732,7 @@ fn test_hideaway_negative_no_keyword() {
 
     // No pending hideaway trigger either.
     let has_pending = state
-        .pending_triggers
+        .pending_triggers()
         .iter()
         .any(|t| t.kind == mtg_engine::state::stubs::PendingTriggerKind::Hideaway);
     assert!(

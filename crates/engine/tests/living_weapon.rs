@@ -30,7 +30,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_by_name(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -39,7 +39,7 @@ fn find_by_name(state: &GameState, name: &str) -> ObjectId {
 
 fn find_by_name_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -47,7 +47,7 @@ fn find_by_name_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<O
 
 fn count_on_battlefield(state: &GameState, name: &str) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
         .count()
@@ -129,13 +129,13 @@ fn cast_and_enter_battlefield(
 ) -> (GameState, Vec<GameEvent>) {
     // Inject mana into the caster's pool.
     state
-        .players
+        .players_mut()
         .get_mut(&caster)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 4); // more than enough for {2}
 
-    state.turn.priority_holder = Some(caster);
+    state.turn_mut().priority_holder = Some(caster);
 
     let card_id = find_by_name(&state, equipment_name);
 
@@ -208,13 +208,13 @@ fn test_living_weapon_trigger_fires_and_equipment_attached_event_emits() {
 
     // LivingWeapon trigger should be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.92a: LivingWeapon trigger should be on the stack after ETB"
     );
     assert!(
         matches!(
-            state.stack_objects[0].kind,
+            state.stack_objects()[0].kind,
             StackObjectKind::TriggeredAbility { .. }
         ),
         "stack object should be a triggered ability (LivingWeapon)"
@@ -315,7 +315,7 @@ fn test_living_weapon_germ_has_correct_characteristics() {
     // Look in graveyard (if SBA killed it) OR battlefield (if it somehow survived).
     // Token ceases to exist after leaving battlefield (CR 704.5d).
     // Check if it's still accessible by id (it may have been removed).
-    let germ_obj = state.objects.get(&germ_created_event);
+    let germ_obj = state.objects().get(&germ_created_event);
 
     // Even if object is gone, we can find it by name in any zone for a brief window,
     // OR verify via the events. Let's use the events to verify characteristics.
@@ -372,7 +372,7 @@ fn test_living_weapon_germ_has_correct_characteristics() {
     } else {
         // Object removed by SBA 704.5d — verify via graveyard zone.
         // Tokens go to graveyard briefly then cease to exist (CR 704.5d).
-        // The SBA removes them from state.objects. This is expected.
+        // The SBA removes them from state.objects(). This is expected.
         // The TokenCreated + CreatureDied events confirm the create-and-die happened.
         assert!(
             resolve_events
@@ -418,7 +418,7 @@ fn test_living_weapon_germ_survives_with_equipment_buff() {
     // Add a continuous effect: +0/+4 to attached creature (mimics Batterskull-style buff).
     // This effect is active while the Equipment is on the battlefield.
     // EffectFilter::AttachedCreature resolves via source.attached_to at characteristic-calc time.
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(9001),
         source: Some(equip_id),
         timestamp: 9001,
@@ -452,7 +452,7 @@ fn test_living_weapon_germ_survives_with_equipment_buff() {
 
     // Equipment is attached to the Germ.
     let germ_id = find_by_name(&state, "Phyrexian Germ");
-    let equip_obj = state.objects.get(&equip_id).unwrap();
+    let equip_obj = state.objects().get(&equip_id).unwrap();
     assert_eq!(
         equip_obj.attached_to,
         Some(germ_id),
@@ -516,7 +516,7 @@ fn test_living_weapon_germ_dies_without_buff_equipment_stays() {
 
     // Equipment is unattached (SBA detaches when host creature dies or ceases to exist).
     let equip_id = find_by_name(&state, "Bare Glaive");
-    let equip_obj = state.objects.get(&equip_id).unwrap();
+    let equip_obj = state.objects().get(&equip_id).unwrap();
     assert_eq!(
         equip_obj.attached_to, None,
         "Equipment should be unattached after the 0/0 Germ dies"
@@ -567,7 +567,7 @@ fn test_living_weapon_equip_to_other_creature_germ_dies() {
 
     // Add +4 toughness buff so the Germ survives the initial SBA.
     let equip_id = find_by_name(&state, "Reequip Glaive");
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(9002),
         source: Some(equip_id),
         timestamp: 9002,
@@ -593,7 +593,7 @@ fn test_living_weapon_equip_to_other_creature_germ_dies() {
 
     // Sanity: Equipment is attached to Germ.
     assert_eq!(
-        state.objects.get(&equip_id).unwrap().attached_to,
+        state.objects().get(&equip_id).unwrap().attached_to,
         Some(germ_id),
         "Equipment should initially be attached to Germ"
     );
@@ -601,12 +601,12 @@ fn test_living_weapon_equip_to_other_creature_germ_dies() {
     // Give p1 mana for Equip {3}.
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Activate Equip, targeting the Bear.
     let (state, _) = process_command(
@@ -629,7 +629,7 @@ fn test_living_weapon_equip_to_other_creature_germ_dies() {
     let (state, equip_resolve_events) = pass_all(state, &[p1, p2]);
 
     // Equipment is now attached to the Bear.
-    let equip_obj = state.objects.get(&equip_id).unwrap();
+    let equip_obj = state.objects().get(&equip_id).unwrap();
     assert_eq!(
         equip_obj.attached_to,
         Some(bear_id),
@@ -698,7 +698,7 @@ fn test_living_weapon_multiplayer_single_trigger() {
 
     // Exactly one trigger on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 603.3: exactly one LivingWeapon trigger should be on the stack"
     );
@@ -730,7 +730,7 @@ fn test_living_weapon_multiplayer_single_trigger() {
     let equip_id = find_by_name(&state, "MP Glaive");
     assert!(
         state
-            .objects
+            .objects()
             .get(&equip_id)
             .map(|o| o.zone == ZoneId::Battlefield)
             .unwrap_or(false),
@@ -794,7 +794,7 @@ fn test_living_weapon_doubling_season_doubles_germ() {
 
     let mut state = state;
     let doubler_id = find_by_name(&state, "Living Weapon Doubler Test");
-    let registry = state.card_registry.clone();
+    let registry = state.card_registry().clone();
     mtg_engine::rules::replacement::register_permanent_replacement_abilities(
         &mut state,
         doubler_id,

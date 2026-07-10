@@ -24,7 +24,7 @@ use mtg_engine::{
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -56,7 +56,7 @@ fn test_702_118_skulk_creature_cannot_be_blocked_by_greater_power() {
     let blocker_id = find_object(&state, "Big Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -99,7 +99,7 @@ fn test_702_118_skulk_creature_can_be_blocked_by_equal_power() {
     let blocker_id = find_object(&state, "Equal Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -145,7 +145,7 @@ fn test_702_118_skulk_creature_can_be_blocked_by_lesser_power() {
     let blocker_id = find_object(&state, "Small Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -191,7 +191,7 @@ fn test_702_118_skulk_is_one_directional() {
     let blocker_id = find_object(&state, "Skulk Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -243,7 +243,7 @@ fn test_702_118_skulk_plus_flying_both_must_be_satisfied() {
     let blocker_id = find_object(&state, "Ground Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -283,7 +283,7 @@ fn test_702_118_skulk_plus_flying_both_must_be_satisfied() {
     let blocker_id = find_object(&state, "Flying Blocker Small");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -325,7 +325,7 @@ fn test_702_118_skulk_plus_flying_both_must_be_satisfied() {
     let blocker_id = find_object(&state, "Flying Blocker Big");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -370,7 +370,7 @@ fn test_702_118_skulk_zero_power_attacker() {
     let blocker_id = find_object(&state, "1/1 Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -406,7 +406,7 @@ fn test_702_118_skulk_zero_power_attacker() {
     let blocker_id = find_object(&state, "0/3 Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -454,7 +454,7 @@ fn test_702_118_skulk_with_power_pump() {
 
     // Add a +2/+0 continuous effect targeting the skulk attacker (pumps it to 4/1).
     // After this effect, blocker power 3 < attacker power 4 -- block is legal.
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(1),
         source: None,
         timestamp: 10,
@@ -466,7 +466,7 @@ fn test_702_118_skulk_with_power_pump() {
         condition: None,
     });
 
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs

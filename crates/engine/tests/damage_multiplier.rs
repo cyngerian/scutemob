@@ -28,9 +28,9 @@ fn p(n: u64) -> PlayerId {
 fn register_replacements(state: &mut mtg_engine::state::GameState) {
     use mtg_engine::state::game_object::ObjectId;
 
-    let registry = state.card_registry.clone();
+    let registry = state.card_registry().clone();
     let objects: Vec<(ObjectId, PlayerId, Option<CardId>)> = state
-        .objects
+        .objects()
         .iter()
         .filter(|(_, obj)| matches!(obj.zone, ZoneId::Battlefield))
         .map(|(id, obj)| (*id, obj.controller, obj.card_id.clone()))
@@ -137,7 +137,7 @@ fn test_triple_damage_basic() {
     register_replacements(&mut state);
 
     let source_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Fire Elemental")
         .map(|(id, _)| *id)
@@ -174,7 +174,7 @@ fn test_triple_damage_opponent_source_not_tripled() {
     register_replacements(&mut state);
 
     let source_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Opponent Creature")
         .map(|(id, _)| *id)
@@ -215,7 +215,7 @@ fn test_double_and_triple_stack() {
     register_replacements(&mut state);
 
     let source_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Attacker")
         .map(|(id, _)| *id)
@@ -254,14 +254,14 @@ fn test_neriv_creatures_entered_this_turn_doubled() {
         .unwrap();
 
     // Manually set entered_turn to current turn for the source creature.
-    let turn_number = state.turn.turn_number;
+    let turn_number = state.turn().turn_number;
     let source_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "New Creature")
         .map(|(id, _)| *id)
         .unwrap();
-    if let Some(obj) = state.objects.get_mut(&source_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&source_id) {
         obj.entered_turn = Some(turn_number);
     }
 
@@ -298,7 +298,7 @@ fn test_neriv_creature_from_prior_turn_not_doubled() {
     register_replacements(&mut state);
 
     let source_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Old Creature")
         .map(|(id, _)| *id)
@@ -335,14 +335,14 @@ fn test_neriv_noncreature_source_not_doubled() {
         .unwrap();
 
     // Set entered_turn for the artifact to this turn.
-    let turn_number = state.turn.turn_number;
+    let turn_number = state.turn().turn_number;
     let source_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Noncreature Artifact")
         .map(|(id, _)| *id)
         .unwrap();
-    if let Some(obj) = state.objects.get_mut(&source_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&source_id) {
         obj.entered_turn = Some(turn_number);
     }
 
@@ -368,14 +368,13 @@ fn test_to_player_or_their_permanents_player_target() {
         .unwrap();
 
     // Use a stable dummy ObjectId — the filter only inspects the target (player/permanent),
-    // not the source, so the source_id does not need to exist in state.objects.
+    // not the source, so the source_id does not need to exist in state.objects().
     use mtg_engine::state::game_object::ObjectId;
     let source_id = ObjectId(999);
 
     // Manually add a ToPlayerOrTheirPermanents replacement effect targeting p(2).
-    state
-        .replacement_effects
-        .push_back(mtg_engine::state::replacement_effect::ReplacementEffect {
+    state.replacement_effects_mut().push_back(
+        mtg_engine::state::replacement_effect::ReplacementEffect {
             id: mtg_engine::state::replacement_effect::ReplacementId(100),
             source: None,
             controller: p(1),
@@ -385,7 +384,8 @@ fn test_to_player_or_their_permanents_player_target() {
                 target_filter: DamageTargetFilter::ToPlayerOrTheirPermanents(p(2)),
             },
             modification: ReplacementModification::DoubleDamage,
-        });
+        },
+    );
 
     // Damage to p(2) — should be doubled.
     let (modified, events) = apply_damage_doubling(
@@ -466,7 +466,7 @@ fn test_entered_turn_set_on_etb() {
 
     // All permanents placed by the builder have entered_turn = None
     // (treated as pre-existing; no zone change occurred via move_object_to_zone).
-    for (_, obj) in state.objects.iter() {
+    for (_, obj) in state.objects().iter() {
         if obj.zone == ZoneId::Battlefield {
             assert_eq!(
                 obj.entered_turn, None,

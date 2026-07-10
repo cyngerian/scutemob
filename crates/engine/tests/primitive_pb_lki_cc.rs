@@ -41,7 +41,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_by_name(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -50,7 +50,7 @@ fn find_by_name(state: &GameState, name: &str) -> ObjectId {
 
 fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -62,7 +62,7 @@ fn on_battlefield(state: &GameState, name: &str) -> bool {
 
 fn count_objects_named_in_zone(state: &GameState, name: &str, zone: ZoneId) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.characteristics.name == name && o.zone == zone)
         .count()
@@ -70,7 +70,7 @@ fn count_objects_named_in_zone(state: &GameState, name: &str, zone: ZoneId) -> u
 
 fn count_tokens_named(state: &GameState, name: &str) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.is_token && o.characteristics.name == name)
         .count()
@@ -92,7 +92,7 @@ fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent
 /// Drain the stack completely (pass all until stack is empty).
 fn drain_stack(mut state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent>) {
     let mut all_events = Vec::new();
-    while !state.stack_objects.is_empty() {
+    while !state.stack_objects().is_empty() {
         let (s, ev) = pass_all(state, players);
         state = s;
         all_events.extend(ev);
@@ -162,7 +162,7 @@ fn test_chasm_skulker_death_trigger_creates_squid_tokens_from_lki() {
     // Add 3 +1/+1 counters to Chasm Skulker (simulates draw-trigger accumulation).
     let skulker_id = find_by_name(&state, "Chasm Skulker");
     state
-        .objects
+        .objects_mut()
         .get_mut(&skulker_id)
         .unwrap()
         .counters
@@ -170,10 +170,14 @@ fn test_chasm_skulker_death_trigger_creates_squid_tokens_from_lki() {
 
     // Mark lethal damage: Chasm Skulker is 1/1 base + 3 counters = 4/4;
     // 4 damage >= 4 toughness → SBA (CR 704.5g) destroys it.
-    state.objects.get_mut(&skulker_id).unwrap().damage_marked = 4;
+    state
+        .objects_mut()
+        .get_mut(&skulker_id)
+        .unwrap()
+        .damage_marked = 4;
 
     // Grant priority so PassPriority triggers SBA check.
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let (state, sba_events) = pass_all(state, &[p1, p2]);
 
     // Verify death occurred.
@@ -248,7 +252,7 @@ fn test_toothy_leaves_battlefield_draws_cards_from_lki_counters() {
     // Add 4 +1/+1 counters to Toothy.
     let toothy_id = find_by_name(&state, "Toothy, Imaginary Friend");
     state
-        .objects
+        .objects_mut()
         .get_mut(&toothy_id)
         .unwrap()
         .counters
@@ -256,15 +260,19 @@ fn test_toothy_leaves_battlefield_draws_cards_from_lki_counters() {
 
     // Record hand size before Toothy dies.
     let hand_before = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
 
     // Mark lethal damage: Toothy is 1/1 + 4 counters = 5/5; 5 damage >= 5 toughness.
-    state.objects.get_mut(&toothy_id).unwrap().damage_marked = 5;
+    state
+        .objects_mut()
+        .get_mut(&toothy_id)
+        .unwrap()
+        .damage_marked = 5;
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let (state, sba_events) = pass_all(state, &[p1, p2]);
 
     assert!(
@@ -282,7 +290,7 @@ fn test_toothy_leaves_battlefield_draws_cards_from_lki_counters() {
     let (state, draw_events) = drain_stack(state, &[p1, p2]);
 
     let hand_after = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -338,9 +346,13 @@ fn test_lki_counter_count_zero_counters_returns_zero_no_panic() {
 
     // Chasm Skulker has 0 counters. Mark lethal damage on the 1/1 (1 >= 1 toughness).
     let skulker_id = find_by_name(&state, "Chasm Skulker");
-    state.objects.get_mut(&skulker_id).unwrap().damage_marked = 1;
+    state
+        .objects_mut()
+        .get_mut(&skulker_id)
+        .unwrap()
+        .damage_marked = 1;
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let (state, _sba_events) = pass_all(state, &[p1, p2]);
 
     assert!(
@@ -390,15 +402,19 @@ fn test_lki_counter_count_multi_type_returns_requested_counter_type_only() {
     let skulker_id = find_by_name(&state, "Chasm Skulker");
     // Add 2 +1/+1 counters AND 5 Loyalty counters to verify type discrimination.
     {
-        let obj = state.objects.get_mut(&skulker_id).unwrap();
+        let obj = state.objects_mut().get_mut(&skulker_id).unwrap();
         obj.counters.insert(CounterType::PlusOnePlusOne, 2);
         obj.counters.insert(CounterType::Loyalty, 5);
     }
 
     // Chasm Skulker is now 3/3 (1+2/1+2 from counters). Mark 3 damage (lethal).
-    state.objects.get_mut(&skulker_id).unwrap().damage_marked = 3;
+    state
+        .objects_mut()
+        .get_mut(&skulker_id)
+        .unwrap()
+        .damage_marked = 3;
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let (state, _sba_events) = pass_all(state, &[p1, p2]);
 
     assert!(
@@ -460,7 +476,7 @@ fn test_pb_lki_cc_hash_determinism() {
     // Add 2 +1/+1 counters to Toothy.
     let toothy_id = find_by_name(&state, "Toothy, Imaginary Friend");
     state
-        .objects
+        .objects_mut()
         .get_mut(&toothy_id)
         .unwrap()
         .counters
@@ -477,8 +493,12 @@ fn test_pb_lki_cc_hash_determinism() {
     );
 
     // Kill Toothy — state changes.
-    state.objects.get_mut(&toothy_id).unwrap().damage_marked = 3;
-    state.turn.priority_holder = Some(p1);
+    state
+        .objects_mut()
+        .get_mut(&toothy_id)
+        .unwrap()
+        .damage_marked = 3;
+    state.turn_mut().priority_holder = Some(p1);
     let (state, _) = pass_all(state, &[p1, p2]);
 
     let hash_after_death = state.public_state_hash();
@@ -531,14 +551,14 @@ fn test_toothy_bounced_to_hand_draws_lki_counter_count() {
     // Add 3 +1/+1 counters to Toothy.
     let toothy_id = find_by_name(&state, "Toothy, Imaginary Friend");
     state
-        .objects
+        .objects_mut()
         .get_mut(&toothy_id)
         .unwrap()
         .counters
         .insert(CounterType::PlusOnePlusOne, 3);
 
     let hand_before = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -576,7 +596,7 @@ fn test_toothy_bounced_to_hand_draws_lki_counter_count() {
         "WhenLeavesBattlefield trigger must be queued after Toothy bounces"
     );
     for t in triggers {
-        state.pending_triggers.push_back(t);
+        state.pending_triggers_mut().push_back(t);
     }
 
     // Flush pending triggers onto the stack (sets priority).
@@ -587,11 +607,11 @@ fn test_toothy_bounced_to_hand_draws_lki_counter_count() {
     );
 
     // Drain the stack — WhenLeavesBattlefield trigger resolves → draw 3 cards.
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let (state, _) = drain_stack(state, &[p1, p2]);
 
     let hand_after = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -644,14 +664,14 @@ fn test_toothy_destroyed_draws_lki_counter_count() {
     // Add 3 +1/+1 counters to Toothy.
     let toothy_id = find_by_name(&state, "Toothy, Imaginary Friend");
     state
-        .objects
+        .objects_mut()
         .get_mut(&toothy_id)
         .unwrap()
         .counters
         .insert(CounterType::PlusOnePlusOne, 3);
 
     let hand_before = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -691,14 +711,14 @@ fn test_toothy_destroyed_draws_lki_counter_count() {
     // Fire check_triggers and drain stack.
     let triggers = check_triggers(&state, &destroy_events);
     for t in triggers {
-        state.pending_triggers.push_back(t);
+        state.pending_triggers_mut().push_back(t);
     }
     let _ = flush_pending_triggers(&mut state);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let (state, _) = drain_stack(state, &[p1, p2]);
 
     let hand_after = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -747,14 +767,14 @@ fn test_toothy_exiled_draws_lki_counter_count() {
     // Add 3 +1/+1 counters to Toothy.
     let toothy_id = find_by_name(&state, "Toothy, Imaginary Friend");
     state
-        .objects
+        .objects_mut()
         .get_mut(&toothy_id)
         .unwrap()
         .counters
         .insert(CounterType::PlusOnePlusOne, 3);
 
     let hand_before = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -786,14 +806,14 @@ fn test_toothy_exiled_draws_lki_counter_count() {
     // Fire check_triggers and drain stack.
     let triggers = check_triggers(&state, &exile_events);
     for t in triggers {
-        state.pending_triggers.push_back(t);
+        state.pending_triggers_mut().push_back(t);
     }
     let _ = flush_pending_triggers(&mut state);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let (state, _) = drain_stack(state, &[p1, p2]);
 
     let hand_after = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();

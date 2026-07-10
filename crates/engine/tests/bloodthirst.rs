@@ -28,7 +28,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -37,7 +37,7 @@ fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
 
 fn find_object_on_battlefield(state: &mtg_engine::GameState, name: &str) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
         .map(|(id, _)| *id)
@@ -68,12 +68,12 @@ fn cast_creature(
 ) -> mtg_engine::GameState {
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&caster)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Colorless, generic_cost);
-    state.turn.priority_holder = Some(caster);
+    state.turn_mut().priority_holder = Some(caster);
 
     let (state, _) = process_command(
         state,
@@ -200,11 +200,11 @@ fn test_bloodthirst_basic_opponent_damaged() {
 
     // Set up: opponent p2 was dealt damage this turn.
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .damage_received_this_turn = 3;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let bt_id = find_object(&state, "Bloodthirst Test Creature");
     let state = cast_creature(state, p1, bt_id, 2);
@@ -213,7 +213,7 @@ fn test_bloodthirst_basic_opponent_damaged() {
     let bf_id = find_object_on_battlefield(&state, "Bloodthirst Test Creature")
         .expect("CR 702.54a: Bloodthirst creature should be on the battlefield");
 
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -256,7 +256,7 @@ fn test_bloodthirst_no_damage_dealt() {
         .unwrap();
 
     // No damage dealt to anyone: damage_received_this_turn defaults to 0.
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let bt_id = find_object(&state, "Bloodthirst Test Creature");
     let state = cast_creature(state, p1, bt_id, 2);
@@ -265,7 +265,7 @@ fn test_bloodthirst_no_damage_dealt() {
     let bf_id = find_object_on_battlefield(&state, "Bloodthirst Test Creature")
         .expect("CR 702.54a: Bloodthirst creature should be on the battlefield");
 
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -309,11 +309,11 @@ fn test_bloodthirst_n_multiplier() {
 
     // Opponent took only 1 damage, but Bloodthirst 3 still gives 3 counters.
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .damage_received_this_turn = 1;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let bt_id = find_object(&state, "Bloodthirst Three Test");
     let state = cast_creature(state, p1, bt_id, 3);
@@ -322,7 +322,7 @@ fn test_bloodthirst_n_multiplier() {
     let bf_id = find_object_on_battlefield(&state, "Bloodthirst Three Test")
         .expect("Bloodthirst 3 creature should be on battlefield");
 
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -366,11 +366,11 @@ fn test_bloodthirst_multiple_instances() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .damage_received_this_turn = 5;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let bt_id = find_object(&state, "Bloodthirst Dual Test");
     let state = cast_creature(state, p1, bt_id, 2);
@@ -379,7 +379,7 @@ fn test_bloodthirst_multiple_instances() {
     let bf_id = find_object_on_battlefield(&state, "Bloodthirst Dual Test")
         .expect("Bloodthirst dual creature should be on battlefield");
 
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -426,16 +426,16 @@ fn test_bloodthirst_multiple_opponents_damaged() {
 
     // Both opponents took damage.
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .damage_received_this_turn = 2;
     state
-        .players
+        .players_mut()
         .get_mut(&p3)
         .unwrap()
         .damage_received_this_turn = 3;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let bt_id = find_object(&state, "Bloodthirst Test Creature");
     let state = cast_creature(state, p1, bt_id, 2);
@@ -444,7 +444,7 @@ fn test_bloodthirst_multiple_opponents_damaged() {
     let bf_id = find_object_on_battlefield(&state, "Bloodthirst Test Creature")
         .expect("Bloodthirst creature should be on battlefield");
 
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -488,12 +488,12 @@ fn test_bloodthirst_only_controller_damaged() {
 
     // Only the controller (p1) was dealt damage, not an opponent.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .damage_received_this_turn = 5;
     // p2 (opponent) took no damage.
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let bt_id = find_object(&state, "Bloodthirst Test Creature");
     let state = cast_creature(state, p1, bt_id, 2);
@@ -502,7 +502,7 @@ fn test_bloodthirst_only_controller_damaged() {
     let bf_id = find_object_on_battlefield(&state, "Bloodthirst Test Creature")
         .expect("Bloodthirst creature should be on battlefield");
 
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -548,13 +548,13 @@ fn test_bloodthirst_eliminated_opponent_not_counted() {
 
     // p2 has been eliminated (has_lost = true), but was dealt damage this turn.
     // p3 (living opponent) took no damage.
-    state.players.get_mut(&p2).unwrap().has_lost = true;
+    state.players_mut().get_mut(&p2).unwrap().has_lost = true;
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .damage_received_this_turn = 10;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let bt_id = find_object(&state, "Bloodthirst Test Creature");
     let state = cast_creature(state, p1, bt_id, 2);
@@ -563,7 +563,7 @@ fn test_bloodthirst_eliminated_opponent_not_counted() {
     let bf_id = find_object_on_battlefield(&state, "Bloodthirst Test Creature")
         .expect("Bloodthirst creature should be on battlefield");
 
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -606,11 +606,11 @@ fn test_bloodthirst_counter_added_event() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .damage_received_this_turn = 4;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let bt_id = find_object(&state, "Bloodthirst Test Creature");
     let state = cast_creature(state, p1, bt_id, 2);
@@ -621,7 +621,7 @@ fn test_bloodthirst_counter_added_event() {
         .expect("CR 702.54a: Bloodthirst creature should be on battlefield");
 
     // Verify 2 counters placed.
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()

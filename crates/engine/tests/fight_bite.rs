@@ -15,6 +15,7 @@
 //! - Bite is one-sided: only the source deals damage; target does not deal damage back.
 
 use im::OrdSet;
+use mtg_engine::state::test_util;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardEffectTarget, CardId, CardRegistry,
     CardType, Command, ContinuousEffect, Effect, EffectDuration, EffectFilter, EffectId,
@@ -31,7 +32,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -40,7 +41,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 fn find_object_on_battlefield(state: &GameState, name: &str) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
         .map(|(id, _)| *id)
@@ -48,7 +49,7 @@ fn find_object_on_battlefield(state: &GameState, name: &str) -> Option<ObjectId>
 
 fn life_total(state: &GameState, player: PlayerId) -> i32 {
     state
-        .players
+        .players()
         .get(&player)
         .map(|ps| ps.life_total)
         .unwrap_or_else(|| panic!("player {:?} not found", player))
@@ -78,12 +79,12 @@ fn cast_spell_two_targets(
     let mut state = state;
     // Fund with colorless mana.
     state
-        .players
+        .players_mut()
         .get_mut(&caster)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Colorless, 10);
-    state.turn.priority_holder = Some(caster);
+    state.turn_mut().priority_holder = Some(caster);
 
     let (state, _) = process_command(
         state,
@@ -219,7 +220,7 @@ fn test_fight_basic() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Test Fight Spell");
     let att_id = find_object(&state, "P1 Attacker");
@@ -232,7 +233,7 @@ fn test_fight_basic() {
 
     // CR 701.14a: P1 Attacker (3 power) → P2 Defender takes 3 damage.
     let def_dmg = state
-        .objects
+        .objects()
         .get(&def_id)
         .map(|o| o.damage_marked)
         .unwrap_or(0);
@@ -243,7 +244,7 @@ fn test_fight_basic() {
 
     // CR 701.14a: P2 Defender (2 power) → P1 Attacker takes 2 damage.
     let att_dmg = state
-        .objects
+        .objects()
         .get(&att_id)
         .map(|o| o.damage_marked)
         .unwrap_or(0);
@@ -296,7 +297,7 @@ fn test_fight_one_dies() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Test Fight Spell");
     let big_id = find_object(&state, "Big Creature");
@@ -321,7 +322,7 @@ fn test_fight_one_dies() {
         "CR 701.14a: Big Creature (5/5) should survive 2 damage from Small Creature"
     );
     let big_dmg = big_on_bf
-        .and_then(|id| state.objects.get(&id))
+        .and_then(|id| state.objects().get(&id))
         .map(|o| o.damage_marked)
         .unwrap_or(0);
     assert_eq!(
@@ -361,7 +362,7 @@ fn test_fight_both_die() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Test Fight Spell");
     let a_id = find_object(&state, "Creature A");
@@ -414,7 +415,7 @@ fn test_fight_self() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Test Fight Spell");
     let creature_id = find_object(&state, "Self Fighter");
@@ -467,7 +468,7 @@ fn test_fight_non_combat_damage() {
     let p1_life_before = life_total(&state, p1);
     let p2_life_before = life_total(&state, p2);
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Test Fight Spell");
     let a_id = find_object(&state, "Creature A");
@@ -490,12 +491,12 @@ fn test_fight_non_combat_damage() {
 
     // Both creatures took damage (fight was non-combat but still happened).
     let a_dmg = state
-        .objects
+        .objects()
         .get(&a_id)
         .map(|o| o.damage_marked)
         .unwrap_or(0);
     let b_dmg = state
-        .objects
+        .objects()
         .get(&b_id)
         .map(|o| o.damage_marked)
         .unwrap_or(0);
@@ -538,7 +539,7 @@ fn test_fight_deathtouch() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Test Fight Spell");
     let dt_id = find_object(&state, "Deathtouch Creature");
@@ -599,7 +600,7 @@ fn test_fight_lifelink() {
 
     let p1_life_before = life_total(&state, p1);
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Test Fight Spell");
     let ll_id = find_object(&state, "Lifelink Creature");
@@ -654,7 +655,7 @@ fn test_bite_basic() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Test Bite Spell");
     let src_id = find_object(&state, "Bite Source");
@@ -665,7 +666,7 @@ fn test_bite_basic() {
 
     // Target takes damage equal to source's power.
     let tgt_dmg = state
-        .objects
+        .objects()
         .get(&tgt_id)
         .map(|o| o.damage_marked)
         .unwrap_or(0);
@@ -676,7 +677,7 @@ fn test_bite_basic() {
 
     // Source takes NO damage (Bite is one-sided).
     let src_dmg = state
-        .objects
+        .objects()
         .get(&src_id)
         .map(|o| o.damage_marked)
         .unwrap_or(0);
@@ -728,7 +729,7 @@ fn test_bite_zero_power() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Test Bite Spell");
     let src_id = find_object(&state, "Zero Power");
@@ -739,7 +740,7 @@ fn test_bite_zero_power() {
 
     // Source has 0 power → 0 damage dealt.
     let tgt_dmg = state
-        .objects
+        .objects()
         .get(&tgt_id)
         .map(|o| o.damage_marked)
         .unwrap_or(0);
@@ -790,7 +791,7 @@ fn test_bite_lifelink() {
         .unwrap();
 
     let p1_life_before = life_total(&state, p1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Test Bite Spell");
     let src_id = find_object(&state, "Lifelink Biter");
@@ -808,7 +809,7 @@ fn test_bite_lifelink() {
 
     // Big Target took 3 damage.
     let tgt_dmg = state
-        .objects
+        .objects()
         .get(&tgt_id)
         .map(|o| o.damage_marked)
         .unwrap_or(0);
@@ -851,7 +852,7 @@ fn test_bite_source_creature_killed_before_resolution() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Test Bite Spell");
     let src_id = find_object(&state, "Bite Source");
@@ -863,8 +864,7 @@ fn test_bite_source_creature_killed_before_resolution() {
     // Before resolution: manually move the source creature to the graveyard
     // (simulating it being killed in response).
     let graveyard = ZoneId::Graveyard(p1);
-    state
-        .move_object_to_zone(src_id, graveyard)
+    test_util::move_object_to_zone(&mut state, src_id, graveyard)
         .expect("move source to graveyard");
 
     // Resolve: pass priority.
@@ -872,7 +872,7 @@ fn test_bite_source_creature_killed_before_resolution() {
 
     // CR 701.14b analog: source is not on the battlefield → no damage dealt.
     let tgt_dmg = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Bite Target")
         .map(|o| o.damage_marked)
@@ -915,7 +915,7 @@ fn test_fight_creature_left_battlefield() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Test Fight Spell");
     let a_id = find_object(&state, "Creature A");
@@ -926,8 +926,7 @@ fn test_fight_creature_left_battlefield() {
 
     // Before resolution: remove Creature B from the battlefield (bounced/exiled/killed).
     let graveyard = ZoneId::Graveyard(p2);
-    state
-        .move_object_to_zone(b_id, graveyard)
+    test_util::move_object_to_zone(&mut state, b_id, graveyard)
         .expect("move Creature B to graveyard");
 
     // Resolve the fight spell.
@@ -941,7 +940,7 @@ fn test_fight_creature_left_battlefield() {
         "Creature A should still be on battlefield"
     );
     let a_dmg = a_on_bf
-        .and_then(|id| state.objects.get(&id))
+        .and_then(|id| state.objects().get(&id))
         .map(|o| o.damage_marked)
         .unwrap_or(0);
     assert_eq!(
@@ -995,7 +994,7 @@ fn test_fight_target_not_creature() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Test Fight Spell");
     let a_id = find_object(&state, "Fighter A");
@@ -1007,7 +1006,7 @@ fn test_fight_target_not_creature() {
     // Before resolution: apply a continuous effect that removes Creature type from Fighter B.
     // SetTypeLine replaces the type line entirely — Fighter B is now an Enchantment, not a creature.
     // This simulates a response effect (e.g., Opalescence being removed, animation ending).
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(9001),
         source: None,
         timestamp: 1000,
@@ -1034,7 +1033,7 @@ fn test_fight_target_not_creature() {
         "Fighter A should still be on battlefield"
     );
     let a_dmg = a_on_bf
-        .and_then(|id| state.objects.get(&id))
+        .and_then(|id| state.objects().get(&id))
         .map(|o| o.damage_marked)
         .unwrap_or(0);
     assert_eq!(
@@ -1094,7 +1093,7 @@ fn test_bite_negative_power() {
 
     // Apply a -3 power modifier: 2 base - 3 = -1 effective power.
     // get_creature_power() clamps this to 0, so the bite deals 0 damage.
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(9002),
         source: None,
         timestamp: 1000,
@@ -1106,14 +1105,14 @@ fn test_bite_negative_power() {
         condition: None,
     });
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let state = cast_spell_two_targets(state, p1, spell_id, src_id_pre, tgt_id);
     let (state, events) = pass_all(state, &[p1, p2]);
 
     // Sturdy Target should have taken 0 damage (negative power clamped to 0).
     let tgt_dmg = state
-        .objects
+        .objects()
         .get(&tgt_id)
         .map(|o| o.damage_marked)
         .unwrap_or(0);

@@ -23,7 +23,7 @@ fn run_pass_sequence(num_passes: usize) -> GameState {
     let (mut state, _) = start_game(state).unwrap();
 
     for _ in 0..num_passes {
-        let holder = match state.turn.priority_holder {
+        let holder = match state.turn().priority_holder {
             Some(h) => h,
             None => return state, // game ended
         };
@@ -44,7 +44,7 @@ proptest! {
         // State should always be valid
         let active = state.active_players();
         // Either game is ongoing with active players or it ended
-        prop_assert!(!active.is_empty() || state.turn.priority_holder.is_none());
+        prop_assert!(!active.is_empty() || state.turn().priority_holder.is_none());
     }
 
     #[test]
@@ -52,7 +52,7 @@ proptest! {
     fn prop_priority_holder_always_valid(num_passes in 1..500usize) {
         let state = run_pass_sequence(num_passes);
 
-        if let Some(holder) = state.turn.priority_holder {
+        if let Some(holder) = state.turn().priority_holder {
             let player = state.player(holder).unwrap();
             prop_assert!(!player.has_lost, "priority holder {:?} has lost", holder);
             prop_assert!(!player.has_conceded, "priority holder {:?} has conceded", holder);
@@ -64,19 +64,19 @@ proptest! {
     fn prop_turn_number_monotonic(num_passes in 1..200usize) {
         let state = GameStateBuilder::four_player().build().unwrap();
         let (mut state, _) = start_game(state).unwrap();
-        let mut last_turn = state.turn.turn_number;
+        let mut last_turn = state.turn().turn_number;
 
         for _ in 0..num_passes {
-            let holder = match state.turn.priority_holder {
+            let holder = match state.turn().priority_holder {
                 Some(h) => h,
                 None => break,
             };
             match process_command(state.clone(), Command::PassPriority { player: holder }) {
                 Ok((new_state, _)) => {
-                    prop_assert!(new_state.turn.turn_number >= last_turn,
+                    prop_assert!(new_state.turn().turn_number >= last_turn,
                         "turn number decreased: {} -> {}",
-                        last_turn, new_state.turn.turn_number);
-                    last_turn = new_state.turn.turn_number;
+                        last_turn, new_state.turn().turn_number);
+                    last_turn = new_state.turn().turn_number;
                     state = new_state;
                 }
                 Err(_) => break,
@@ -101,10 +101,10 @@ proptest! {
 
         for _ in 0..num_passes {
             // The eliminated player should never hold priority
-            prop_assert!(state.turn.priority_holder != Some(target),
+            prop_assert!(state.turn().priority_holder != Some(target),
                 "eliminated player {:?} holds priority", target);
 
-            let holder = match state.turn.priority_holder {
+            let holder = match state.turn().priority_holder {
                 Some(h) => h,
                 None => break,
             };

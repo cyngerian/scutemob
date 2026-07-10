@@ -29,7 +29,7 @@ fn four_player_with_libraries(cards_per_player: usize) -> GameState {
 fn pass_until_advance(mut state: GameState) -> (GameState, Vec<GameEvent>) {
     let mut all_events = Vec::new();
     loop {
-        let holder = state.turn.priority_holder.expect("no priority holder");
+        let holder = state.turn().priority_holder.expect("no priority holder");
         let (new_state, events) = pass(state, holder);
         let advanced = events.iter().any(|e| {
             matches!(
@@ -52,8 +52,8 @@ fn test_turn_full_step_order() {
     let (mut state, _) = start_game(state).unwrap();
 
     // After start_game, we should be at Upkeep (Untap auto-advances since no priority)
-    assert_eq!(state.turn.step, Step::Upkeep);
-    assert_eq!(state.turn.phase, Phase::Beginning);
+    assert_eq!(state.turn().step, Step::Upkeep);
+    assert_eq!(state.turn().phase, Phase::Beginning);
 
     // CR 508.8: With no attackers declared, DeclareBlockers and CombatDamage
     // are skipped — DeclareAttackers advances directly to EndOfCombat.
@@ -72,9 +72,11 @@ fn test_turn_full_step_order() {
         let (new_state, _) = pass_until_advance(state);
         state = new_state;
         assert_eq!(
-            state.turn.step, *expected,
+            state.turn().step,
+            *expected,
             "expected step {:?}, got {:?}",
-            expected, state.turn.step
+            expected,
+            state.turn().step
         );
     }
 }
@@ -89,11 +91,11 @@ fn test_turn_phase_transitions() {
     let mut phases_seen = Vec::new();
 
     loop {
-        phases_seen.push((state.turn.step, state.turn.phase));
-        let old_turn = state.turn.turn_number;
+        phases_seen.push((state.turn().step, state.turn().phase));
+        let old_turn = state.turn().turn_number;
         let (new_state, _) = pass_until_advance(state);
         state = new_state;
-        if state.turn.turn_number > old_turn {
+        if state.turn().turn_number > old_turn {
             // New turn started
             break;
         }
@@ -127,7 +129,7 @@ fn test_four_player_turn_rotation() {
 
     for (i, expected) in expected_active.iter().enumerate() {
         assert_eq!(
-            state.turn.active_player,
+            state.turn().active_player,
             *expected,
             "turn {} should have active player {:?}",
             i + 1,
@@ -136,14 +138,14 @@ fn test_four_player_turn_rotation() {
 
         // Pass through the entire turn
         loop {
-            let old_turn = state.turn.turn_number;
-            let holder = match state.turn.priority_holder {
+            let old_turn = state.turn().turn_number;
+            let holder = match state.turn().priority_holder {
                 Some(h) => h,
                 None => break, // game ended
             };
             let (new_state, _) = pass(state, holder);
             state = new_state;
-            if state.turn.turn_number > old_turn {
+            if state.turn().turn_number > old_turn {
                 break;
             }
         }
@@ -158,24 +160,24 @@ fn test_ten_full_turn_cycles() {
 
     let target_turns = 40; // 10 cycles × 4 players
 
-    while state.turn.turn_number <= target_turns {
-        let holder = match state.turn.priority_holder {
+    while state.turn().turn_number <= target_turns {
+        let holder = match state.turn().priority_holder {
             Some(h) => h,
-            None => panic!("no priority holder at turn {}", state.turn.turn_number),
+            None => panic!("no priority holder at turn {}", state.turn().turn_number),
         };
         let (new_state, _) = pass(state, holder);
         state = new_state;
-        if state.turn.turn_number > target_turns {
+        if state.turn().turn_number > target_turns {
             break;
         }
     }
 
     // We should have completed at least 40 turns
     assert!(
-        state.turn.turn_number > target_turns,
+        state.turn().turn_number > target_turns,
         "expected to reach turn {}, got {}",
         target_turns + 1,
-        state.turn.turn_number
+        state.turn().turn_number
     );
 }
 
@@ -185,20 +187,20 @@ fn test_turn_number_increments() {
     let state = four_player_with_libraries(5);
     let (mut state, _) = start_game(state).unwrap();
 
-    assert_eq!(state.turn.turn_number, 1);
+    assert_eq!(state.turn().turn_number, 1);
 
     // Complete first turn
     loop {
-        let holder = state.turn.priority_holder.unwrap();
-        let old_turn = state.turn.turn_number;
+        let holder = state.turn().priority_holder.unwrap();
+        let old_turn = state.turn().turn_number;
         let (new_state, _) = pass(state, holder);
         state = new_state;
-        if state.turn.turn_number > old_turn {
+        if state.turn().turn_number > old_turn {
             break;
         }
     }
 
-    assert_eq!(state.turn.turn_number, 2);
+    assert_eq!(state.turn().turn_number, 2);
 }
 
 #[test]
@@ -218,20 +220,20 @@ fn test_turn_order_wraparound() {
     }
     let state = builder.build().unwrap();
 
-    assert_eq!(state.turn.active_player, PlayerId(4));
+    assert_eq!(state.turn().active_player, PlayerId(4));
 
     // Complete player 4's turn
     let mut state = state;
     loop {
-        let holder = state.turn.priority_holder.unwrap();
-        let old_turn = state.turn.turn_number;
+        let holder = state.turn().priority_holder.unwrap();
+        let old_turn = state.turn().turn_number;
         let (new_state, _) = pass(state, holder);
         state = new_state;
-        if state.turn.turn_number > old_turn {
+        if state.turn().turn_number > old_turn {
             break;
         }
     }
 
     // Should wrap back to player 1
-    assert_eq!(state.turn.active_player, PlayerId(1));
+    assert_eq!(state.turn().active_player, PlayerId(1));
 }

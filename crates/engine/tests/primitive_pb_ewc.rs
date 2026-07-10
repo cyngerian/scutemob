@@ -45,7 +45,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_by_name(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -54,7 +54,7 @@ fn find_by_name(state: &GameState, name: &str) -> ObjectId {
 
 fn find_on_battlefield(state: &GameState, name: &str) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
         .map(|(id, _)| *id)
@@ -102,14 +102,14 @@ fn cast_creature(
     mana: &[(ManaColor, u32)],
 ) -> (GameState, Vec<GameEvent>) {
     {
-        let pool = &mut state.players.get_mut(&caster).unwrap().mana_pool;
+        let pool = &mut state.players_mut().get_mut(&caster).unwrap().mana_pool;
         for &(color, n) in mana {
             if n > 0 {
                 pool.add(color, n);
             }
         }
     }
-    state.turn.priority_holder = Some(caster);
+    state.turn_mut().priority_holder = Some(caster);
     process_command(
         state,
         Command::CastSpell {
@@ -142,14 +142,14 @@ fn cast_x_spell(
     x_value: u32,
 ) -> (GameState, Vec<GameEvent>) {
     {
-        let pool = &mut state.players.get_mut(&caster).unwrap().mana_pool;
+        let pool = &mut state.players_mut().get_mut(&caster).unwrap().mana_pool;
         for &(color, n) in mana {
             if n > 0 {
                 pool.add(color, n);
             }
         }
     }
-    state.turn.priority_holder = Some(caster);
+    state.turn_mut().priority_holder = Some(caster);
     process_command(
         state,
         Command::CastSpell {
@@ -224,7 +224,7 @@ fn test_master_biomancer_counter_from_live_power_base() {
     // (EntersAsAdditionalType) with the same trigger filter — filter the count to
     // only EntersWithCounters so this canary keeps its original PB-EWC scope.
     let mb_repl_count: usize = state
-        .replacement_effects
+        .replacement_effects()
         .iter()
         .filter(|e| {
             matches!(
@@ -254,7 +254,7 @@ fn test_master_biomancer_counter_from_live_power_base() {
     let bf_mystic =
         find_on_battlefield(&state, "Elvish Mystic").expect("Elvish Mystic must be on battlefield");
     let counter_count = state
-        .objects
+        .objects()
         .get(&bf_mystic)
         .and_then(|o| o.counters.get(&CounterType::PlusOnePlusOne).copied())
         .unwrap_or(0);
@@ -310,7 +310,7 @@ fn test_master_biomancer_counter_tracks_pumped_power() {
     let mb_bf = find_on_battlefield(&state, "Master Biomancer")
         .expect("Master Biomancer must be on battlefield after casting");
     state
-        .objects
+        .objects_mut()
         .get_mut(&mb_bf)
         .unwrap()
         .counters
@@ -323,7 +323,7 @@ fn test_master_biomancer_counter_tracks_pumped_power() {
     let bf_mystic =
         find_on_battlefield(&state, "Elvish Mystic").expect("Elvish Mystic must be on battlefield");
     let counter_count = state
-        .objects
+        .objects()
         .get(&bf_mystic)
         .and_then(|o| o.counters.get(&CounterType::PlusOnePlusOne).copied())
         .unwrap_or(0);
@@ -377,7 +377,7 @@ fn test_ingenious_prodigy_x_value_replacement_counts() {
     let bf_prodigy = find_on_battlefield(&state, "Ingenious Prodigy")
         .expect("Ingenious Prodigy must be on battlefield");
     let counter_count = state
-        .objects
+        .objects()
         .get(&bf_prodigy)
         .and_then(|o| o.counters.get(&CounterType::PlusOnePlusOne).copied())
         .unwrap_or(0);
@@ -433,7 +433,7 @@ fn test_ingenious_prodigy_x_zero_no_counters() {
 
     let bf_prodigy = find_on_battlefield(&state, "Ingenious Prodigy")
         .expect("Ingenious Prodigy must be on battlefield");
-    let prodigy_obj = state.objects.get(&bf_prodigy).unwrap();
+    let prodigy_obj = state.objects().get(&bf_prodigy).unwrap();
     // Discriminating absence check: the counters OrdMap must not even contain
     // the PlusOnePlusOne key. A regression that did
     // `obj.counters.insert(PlusOnePlusOne, 0)` would be wrong game state

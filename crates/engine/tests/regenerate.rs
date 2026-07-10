@@ -27,7 +27,7 @@ use mtg_engine::{
 
 fn find_on_battlefield(state: &mtg_engine::GameState, name: &str) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
         .map(|(id, _)| *id)
@@ -35,19 +35,23 @@ fn find_on_battlefield(state: &mtg_engine::GameState, name: &str) -> Option<Obje
 
 fn is_tapped(state: &mtg_engine::GameState, id: ObjectId) -> bool {
     state
-        .objects
+        .objects()
         .get(&id)
         .map(|o| o.status.tapped)
         .unwrap_or(false)
 }
 
 fn damage_marked(state: &mtg_engine::GameState, id: ObjectId) -> u32 {
-    state.objects.get(&id).map(|o| o.damage_marked).unwrap_or(0)
+    state
+        .objects()
+        .get(&id)
+        .map(|o| o.damage_marked)
+        .unwrap_or(0)
 }
 
 fn deathtouch_damage(state: &mtg_engine::GameState, id: ObjectId) -> bool {
     state
-        .objects
+        .objects()
         .get(&id)
         .map(|o| o.deathtouch_damage)
         .unwrap_or(false)
@@ -114,9 +118,9 @@ fn test_regenerate_shield_prevents_destruction_by_spell() {
 
     // Register a regeneration shield.
     state
-        .replacement_effects
+        .replacement_effects_mut()
         .push_back(regen_shield(p1, creature_id, 0));
-    state.next_replacement_id = 1;
+    *state.next_replacement_id_mut() = 1;
 
     let (effect, mut ctx) = destroy_effect(creature_id);
     let events = mtg_engine::effects::execute_effect(&mut state, &effect, &mut ctx);
@@ -156,7 +160,7 @@ fn test_regenerate_shield_prevents_destruction_by_spell() {
 
     // Shield should be consumed (removed).
     assert!(
-        state.replacement_effects.is_empty(),
+        state.replacement_effects().is_empty(),
         "CR 701.19a: regeneration shield should be consumed after use"
     );
 }
@@ -191,9 +195,9 @@ fn test_regenerate_shield_prevents_sba_lethal_damage() {
 
     // Register a regeneration shield.
     state
-        .replacement_effects
+        .replacement_effects_mut()
         .push_back(regen_shield(p1, creature_id, 0));
-    state.next_replacement_id = 1;
+    *state.next_replacement_id_mut() = 1;
 
     let events = check_and_apply_sbas(&mut state);
 
@@ -265,9 +269,9 @@ fn test_regenerate_shield_prevents_sba_deathtouch_damage() {
 
     // Register a regeneration shield.
     state
-        .replacement_effects
+        .replacement_effects_mut()
         .push_back(regen_shield(p1, creature_id, 0));
-    state.next_replacement_id = 1;
+    *state.next_replacement_id_mut() = 1;
 
     let events = check_and_apply_sbas(&mut state);
 
@@ -326,9 +330,9 @@ fn test_regenerate_shield_is_one_shot() {
 
     // Register one regeneration shield.
     state
-        .replacement_effects
+        .replacement_effects_mut()
         .push_back(regen_shield(p1, creature_id, 0));
-    state.next_replacement_id = 1;
+    *state.next_replacement_id_mut() = 1;
 
     // First SBA pass: shield intercepts, creature survives.
     let events1 = check_and_apply_sbas(&mut state);
@@ -345,12 +349,12 @@ fn test_regenerate_shield_is_one_shot() {
 
     // Shield is now consumed.
     assert!(
-        state.replacement_effects.is_empty(),
+        state.replacement_effects().is_empty(),
         "CR 701.19a: shield should be consumed after first use"
     );
 
     // Apply lethal damage again.
-    if let Some(obj) = state.objects.get_mut(&creature_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&creature_id) {
         obj.damage_marked = 3;
     }
 
@@ -398,12 +402,12 @@ fn test_regenerate_multiple_shields() {
 
     // Register two regeneration shields.
     state
-        .replacement_effects
+        .replacement_effects_mut()
         .push_back(regen_shield(p1, creature_id, 0));
     state
-        .replacement_effects
+        .replacement_effects_mut()
         .push_back(regen_shield(p1, creature_id, 1));
-    state.next_replacement_id = 2;
+    *state.next_replacement_id_mut() = 2;
 
     // First SBA pass: first shield consumed, creature survives.
     let events1 = check_and_apply_sbas(&mut state);
@@ -419,13 +423,13 @@ fn test_regenerate_multiple_shields() {
     );
     // One shield remains.
     assert_eq!(
-        state.replacement_effects.len(),
+        state.replacement_effects().len(),
         1,
         "CR 701.19a: one shield should remain after first interception"
     );
 
     // Apply lethal damage again.
-    if let Some(obj) = state.objects.get_mut(&creature_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&creature_id) {
         obj.damage_marked = 3;
     }
 
@@ -443,12 +447,12 @@ fn test_regenerate_multiple_shields() {
     );
     // No shields remain.
     assert!(
-        state.replacement_effects.is_empty(),
+        state.replacement_effects().is_empty(),
         "CR 701.19a: both shields should be consumed after two interceptions"
     );
 
     // Apply lethal damage a third time.
-    if let Some(obj) = state.objects.get_mut(&creature_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&creature_id) {
         obj.damage_marked = 3;
     }
 
@@ -499,13 +503,13 @@ fn test_regenerate_removes_from_combat_attacker() {
     combat
         .attackers
         .insert(creature_id, mtg_engine::AttackTarget::Player(p2));
-    state.combat = Some(combat);
+    *state.combat_mut() = Some(combat);
 
     // Register a regeneration shield.
     state
-        .replacement_effects
+        .replacement_effects_mut()
         .push_back(regen_shield(p1, creature_id, 0));
-    state.next_replacement_id = 1;
+    *state.next_replacement_id_mut() = 1;
 
     let events = check_and_apply_sbas(&mut state);
 
@@ -523,7 +527,7 @@ fn test_regenerate_removes_from_combat_attacker() {
 
     // Creature should be removed from combat.
     let in_combat = state
-        .combat
+        .combat()
         .as_ref()
         .map(|c| c.attackers.contains_key(&creature_id))
         .unwrap_or(false);
@@ -578,13 +582,13 @@ fn test_regenerate_removes_from_combat_blocker() {
         .attackers
         .insert(attacker_id, mtg_engine::AttackTarget::Player(p1));
     combat.blockers.insert(blocker_id, attacker_id);
-    state.combat = Some(combat);
+    *state.combat_mut() = Some(combat);
 
     // Register a regeneration shield on the blocker.
     state
-        .replacement_effects
+        .replacement_effects_mut()
         .push_back(regen_shield(p1, blocker_id, 0));
-    state.next_replacement_id = 1;
+    *state.next_replacement_id_mut() = 1;
 
     let events = check_and_apply_sbas(&mut state);
 
@@ -602,7 +606,7 @@ fn test_regenerate_removes_from_combat_blocker() {
 
     // Blocker should be removed from combat.blockers.
     let in_combat = state
-        .combat
+        .combat()
         .as_ref()
         .map(|c| c.blockers.contains_key(&blocker_id))
         .unwrap_or(false);
@@ -648,9 +652,9 @@ fn test_regenerate_does_not_prevent_zero_toughness() {
 
     // Register a regeneration shield.
     state
-        .replacement_effects
+        .replacement_effects_mut()
         .push_back(regen_shield(p1, creature_id, 0));
-    state.next_replacement_id = 1;
+    *state.next_replacement_id_mut() = 1;
 
     let events = check_and_apply_sbas(&mut state);
 
@@ -670,7 +674,7 @@ fn test_regenerate_does_not_prevent_zero_toughness() {
 
     // Shield should still be present (not consumed).
     assert_eq!(
-        state.replacement_effects.len(),
+        state.replacement_effects().len(),
         1,
         "CR 704.5f: regeneration shield should NOT be consumed for zero-toughness death"
     );
@@ -726,13 +730,13 @@ fn test_regenerate_effect_emits_shield_created_event() {
         "CR 701.19a: RegenerationShieldCreated event should be emitted when Effect::Regenerate executes"
     );
 
-    // Shield registered in state.replacement_effects.
+    // Shield registered in state.replacement_effects().
     assert_eq!(
-        state.replacement_effects.len(),
+        state.replacement_effects().len(),
         1,
-        "CR 701.19a: regeneration shield should be registered in state.replacement_effects"
+        "CR 701.19a: regeneration shield should be registered in state.replacement_effects()"
     );
-    let shield = &state.replacement_effects[0];
+    let shield = &state.replacement_effects()[0];
     assert_eq!(
         shield.modification,
         ReplacementModification::Regenerate,
@@ -781,9 +785,9 @@ fn test_regenerate_not_applied_when_indestructible() {
 
     // Register a regeneration shield.
     state
-        .replacement_effects
+        .replacement_effects_mut()
         .push_back(regen_shield(p1, creature_id, 0));
-    state.next_replacement_id = 1;
+    *state.next_replacement_id_mut() = 1;
 
     let (effect, mut ctx) = destroy_effect(creature_id);
     let events = mtg_engine::effects::execute_effect(&mut state, &effect, &mut ctx);
@@ -796,7 +800,7 @@ fn test_regenerate_not_applied_when_indestructible() {
 
     // Shield should NOT be consumed (indestructible handled first).
     assert_eq!(
-        state.replacement_effects.len(),
+        state.replacement_effects().len(),
         1,
         "CR 702.12a/701.19a: regeneration shield should NOT be consumed when indestructible prevents destruction"
     );

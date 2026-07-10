@@ -34,7 +34,7 @@ fn cid(s: &str) -> CardId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -125,12 +125,12 @@ fn test_improvise_basic_tap_artifacts_reduce_generic_cost() {
 
     // Give p1 {U}{U} — pays the 2 colored blue pips. The 3 generic are paid by 3 artifacts.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Improvise Spell");
     let id1 = find_object(&state, "Artifact 1");
@@ -160,7 +160,11 @@ fn test_improvise_basic_tap_artifacts_reduce_generic_cost() {
     .expect("CR 702.126a: should succeed when tapping 3 artifacts for 3 generic pips");
 
     // Spell on the stack.
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "spell should be on the stack"
+    );
 
     // All 3 artifacts are tapped.
     for (name, id) in [
@@ -168,7 +172,7 @@ fn test_improvise_basic_tap_artifacts_reduce_generic_cost() {
         ("Artifact 2", id2),
         ("Artifact 3", id3),
     ] {
-        let obj = state.objects.get(&id);
+        let obj = state.objects().get(&id);
         // After CastSpell, the original ObjectId is still the artifact (it wasn't moved).
         assert!(
             obj.map(|o| o.status.tapped).unwrap_or(false),
@@ -180,7 +184,7 @@ fn test_improvise_basic_tap_artifacts_reduce_generic_cost() {
 
     // Mana pool empty (both blue pips consumed).
     assert!(
-        state.players.get(&p1).unwrap().mana_pool.is_empty(),
+        state.players().get(&p1).unwrap().mana_pool.is_empty(),
         "CR 702.126a: mana pool should be empty after paying {{U}}{{U}}"
     );
 
@@ -224,12 +228,12 @@ fn test_improvise_cannot_pay_colored_mana() {
 
     // Give enough blue to pay the real cost (in case validation passes, we'd need it).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Blue Spell");
     let sol_id = find_object(&state, "Sol Ring");
@@ -294,12 +298,12 @@ fn test_improvise_reject_no_keyword() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Plain Sorcery");
     let art_id = find_object(&state, "Sol Ring");
@@ -359,7 +363,7 @@ fn test_improvise_reject_tapped_artifact() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     // No mana in pool — the artifact should pay for the {1} but it's tapped.
 
     let spell_id = find_object(&state, "Improvise Spell");
@@ -420,7 +424,7 @@ fn test_improvise_reject_not_artifact() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Improvise Spell");
     let creature_id = find_object(&state, "Llanowar Elves");
@@ -480,7 +484,7 @@ fn test_improvise_reject_opponent_artifact() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Improvise Spell");
     let art_id = find_object(&state, "Opponent Sol Ring");
@@ -543,12 +547,12 @@ fn test_improvise_reject_too_many_artifacts() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Improvise Spell");
     let id1 = find_object(&state, "Artifact 1");
@@ -606,18 +610,18 @@ fn test_improvise_zero_artifacts_normal_cast() {
 
     // Pay the full {2}{U} from the mana pool.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Improvise Spell");
     let art_id = find_object(&state, "Sol Ring");
@@ -645,10 +649,14 @@ fn test_improvise_zero_artifacts_normal_cast() {
     .expect("CR 702.126a: should succeed with zero artifacts (normal full-mana cast)");
 
     // Spell on stack.
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "spell should be on the stack"
+    );
 
     // Artifact NOT tapped (wasn't used for improvise).
-    let art_obj = state.objects.get(&art_id);
+    let art_obj = state.objects().get(&art_id);
     assert!(
         art_obj.map(|o| !o.status.tapped).unwrap_or(false),
         "CR 702.126a: artifact should remain untapped when not used for improvise"
@@ -656,7 +664,7 @@ fn test_improvise_zero_artifacts_normal_cast() {
 
     // Mana pool empty.
     assert!(
-        state.players.get(&p1).unwrap().mana_pool.is_empty(),
+        state.players().get(&p1).unwrap().mana_pool.is_empty(),
         "mana pool should be empty after paying full cost"
     );
 }
@@ -706,7 +714,7 @@ fn test_improvise_with_commander_tax() {
 
     // Find the commander in the command zone.
     let card_obj_id = *state
-        .zones
+        .zones()
         .get(&ZoneId::Command(p1))
         .unwrap()
         .object_ids()
@@ -716,7 +724,7 @@ fn test_improvise_with_commander_tax() {
     // Simulate 1 prior cast: set commander_tax to 1 (= {2} additional cost).
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .commander_tax
@@ -724,12 +732,12 @@ fn test_improvise_with_commander_tax() {
 
     // Give p1 only {U} — the 4 generic pips (2 base + 2 tax) will be paid by 4 artifacts.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let id1 = find_object(&state, "Art 1");
     let id2 = find_object(&state, "Art 2");
@@ -762,14 +770,14 @@ fn test_improvise_with_commander_tax() {
 
     // Spell on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "commander should be on the stack"
     );
 
     // Tax counter incremented to 2.
     let tax = state
-        .players
+        .players()
         .get(&p1)
         .unwrap()
         .commander_tax
@@ -783,7 +791,7 @@ fn test_improvise_with_commander_tax() {
 
     // Mana pool empty.
     assert!(
-        state.players.get(&p1).unwrap().mana_pool.is_empty(),
+        state.players().get(&p1).unwrap().mana_pool.is_empty(),
         "mana pool should be empty after paying {{U}}"
     );
 
@@ -842,12 +850,12 @@ fn test_improvise_combined_with_convoke() {
 
     // Give p1 {U} — the 4 generic are covered by 2 convoke + 2 improvise.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Double Keyword Spell");
     let c1_id = find_object(&state, "Creature 1");
@@ -878,7 +886,11 @@ fn test_improvise_combined_with_convoke() {
     .expect("edge case: spell with both convoke and improvise should succeed");
 
     // Spell on the stack.
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "spell should be on the stack"
+    );
 
     // 4 PermanentTapped events (2 convoke + 2 improvise).
     let tapped_count = events
@@ -892,7 +904,7 @@ fn test_improvise_combined_with_convoke() {
 
     // Mana pool empty.
     assert!(
-        state.players.get(&p1).unwrap().mana_pool.is_empty(),
+        state.players().get(&p1).unwrap().mana_pool.is_empty(),
         "mana pool should be empty after paying {{U}}"
     );
 }
@@ -921,12 +933,12 @@ fn test_improvise_artifact_creature_can_be_used() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Improvise Spell");
     let ac_id = find_object(&state, "Ornithopter");
@@ -954,10 +966,14 @@ fn test_improvise_artifact_creature_can_be_used() {
     .expect("ruling: artifact creature should be valid for improvise");
 
     // Spell on the stack.
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "spell should be on the stack"
+    );
 
     // Artifact creature is tapped.
-    let obj = state.objects.get(&ac_id);
+    let obj = state.objects().get(&ac_id);
     assert!(
         obj.map(|o| o.status.tapped).unwrap_or(false),
         "ruling: artifact creature should be tapped after improvise"
@@ -991,12 +1007,12 @@ fn test_improvise_summoning_sickness_irrelevant() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Improvise Spell");
     let ac_id = find_object(&state, "New Construct");
@@ -1024,5 +1040,9 @@ fn test_improvise_summoning_sickness_irrelevant() {
     .expect("ruling: summoning sickness should NOT prevent improvise");
 
     // Spell on the stack.
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "spell should be on the stack"
+    );
 }

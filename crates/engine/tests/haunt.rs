@@ -34,7 +34,7 @@ fn p2() -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -43,7 +43,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 fn find_object_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -51,7 +51,7 @@ fn find_object_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<Ob
 
 fn count_in_zone(state: &GameState, zone: ZoneId) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.zone == zone)
         .count()
@@ -167,13 +167,13 @@ fn test_haunt_creature_dies_puts_haunt_exile_trigger_on_stack() {
 
     // HauntExileTrigger should be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.55a: HauntExileTrigger should be on the stack after haunt creature dies"
     );
     assert!(
         matches!(
-            state.stack_objects[0].kind,
+            state.stack_objects()[0].kind,
             StackObjectKind::KeywordTrigger {
                 keyword: KeywordAbility::Haunt,
                 ..
@@ -254,7 +254,7 @@ fn test_haunt_exile_trigger_resolution_exiles_card_with_haunting_target() {
 
     // The exiled haunt card should have haunting_target set to Target Creature's ObjectId.
     let exiled_obj = state
-        .objects
+        .objects()
         .values()
         .find(|obj| obj.zone == ZoneId::Exile && obj.characteristics.name == "Test Haunt Creature")
         .expect("Test Haunt Creature should be in exile");
@@ -296,7 +296,7 @@ fn test_haunt_haunted_creature_dies_fires_trigger_from_exile() {
     // Phase 1: haunt creature dies.
     let (state, _) = pass_all(state, &[p1, p2]);
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "setup: HauntExileTrigger should be on stack after haunt creature dies"
     );
@@ -309,7 +309,7 @@ fn test_haunt_haunted_creature_dies_fires_trigger_from_exile() {
         "setup: haunt card should be in exile after trigger resolves"
     );
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "setup: stack should be empty after HauntExileTrigger resolves"
     );
@@ -317,7 +317,7 @@ fn test_haunt_haunted_creature_dies_fires_trigger_from_exile() {
     // Mark Target Creature as dying (lethal damage).
     let target_id = find_object(&state, "Target Creature");
     let mut state = state;
-    let target_obj = state.objects.get_mut(&target_id).unwrap();
+    let target_obj = state.objects_mut().get_mut(&target_id).unwrap();
     target_obj.damage_marked = 2; // 2/2 with 2 damage → lethal
 
     // Phase 3: Target Creature dies → HauntedCreatureDiesTrigger fires from exile.
@@ -332,13 +332,13 @@ fn test_haunt_haunted_creature_dies_fires_trigger_from_exile() {
 
     // HauntedCreatureDiesTrigger should be on the stack.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.55c: HauntedCreatureDiesTrigger should be on the stack after haunted creature dies"
     );
     assert!(
         matches!(
-            state.stack_objects[0].kind,
+            state.stack_objects()[0].kind,
             StackObjectKind::KeywordTrigger {
                 keyword: KeywordAbility::Haunt,
                 ..
@@ -379,7 +379,7 @@ fn test_haunt_no_creatures_available_fizzles() {
     // Phase 1: SBA kills haunt creature → HauntExileTrigger on stack.
     let (state, _) = pass_all(state, &[p1, p2]);
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "HauntExileTrigger should be on stack"
     );
@@ -439,25 +439,25 @@ fn test_haunt_card_removed_from_exile_no_trigger() {
     // Move it to p1's graveyard by directly manipulating state.
     let mut state = state;
     let exiled_haunt_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.zone == ZoneId::Exile)
         .map(|(&id, _)| id)
         .expect("haunt card should be in exile");
-    let haunt_obj = state.objects.get_mut(&exiled_haunt_id).unwrap();
+    let haunt_obj = state.objects_mut().get_mut(&exiled_haunt_id).unwrap();
     haunt_obj.zone = ZoneId::Graveyard(p1);
     haunt_obj.haunting_target = None; // cleared when card leaves exile
 
     // Now mark Target Creature as dying.
     let target_id = find_object(&state, "Target Creature");
-    let target_obj = state.objects.get_mut(&target_id).unwrap();
+    let target_obj = state.objects_mut().get_mut(&target_id).unwrap();
     target_obj.damage_marked = 2;
 
     // Phase 3: Target Creature dies. With no haunt card in exile, no trigger should fire.
     let (state, _) = pass_all(state, &[p1, p2]);
 
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "CR 702.55c: no HauntedCreatureDiesTrigger should fire if haunt card is not in exile"
     );
@@ -497,14 +497,14 @@ fn test_haunt_creature_exiled_directly_does_not_trigger_haunt() {
 
     // No haunt trigger should fire — the haunt exile trigger only fires on death.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "CR 702.55a: haunt trigger does NOT fire when creature is exiled directly (not dying)"
     );
 
     // No haunting_target should be set on the exiled card.
     let exiled_obj = state
-        .objects
+        .objects()
         .values()
         .find(|obj| obj.zone == ZoneId::Exile && obj.characteristics.name == "Test Haunt Creature")
         .expect("Test Haunt Creature should be in exile");
@@ -550,7 +550,7 @@ fn test_haunt_full_lifecycle() {
         "lifecycle step 1: haunt creature should die"
     );
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "lifecycle step 1: trigger on stack"
     );
@@ -572,7 +572,7 @@ fn test_haunt_full_lifecycle() {
 
     // Verify haunting_target points to Target Creature.
     let exiled_obj = state
-        .objects
+        .objects()
         .values()
         .find(|obj| obj.zone == ZoneId::Exile)
         .expect("haunt card should be in exile");
@@ -585,7 +585,7 @@ fn test_haunt_full_lifecycle() {
     // Step 3: Kill the haunted creature → HauntedCreatureDiesTrigger fires.
     let mut state = state;
     let target_id_current = find_object(&state, "Target Creature");
-    let target_obj = state.objects.get_mut(&target_id_current).unwrap();
+    let target_obj = state.objects_mut().get_mut(&target_id_current).unwrap();
     target_obj.damage_marked = 2;
 
     let (state, events3) = pass_all(state, &[p1, p2]);
@@ -596,13 +596,13 @@ fn test_haunt_full_lifecycle() {
         "lifecycle step 3: Target Creature should die"
     );
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "lifecycle step 3: HauntedCreatureDiesTrigger on stack"
     );
     assert!(
         matches!(
-            state.stack_objects[0].kind,
+            state.stack_objects()[0].kind,
             StackObjectKind::KeywordTrigger {
                 keyword: KeywordAbility::Haunt,
                 ..
@@ -614,7 +614,7 @@ fn test_haunt_full_lifecycle() {
     // Step 4: HauntedCreatureDiesTrigger resolves → haunt effect fires.
     let (state, _) = pass_all(state, &[p1, p2]);
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         0,
         "lifecycle step 4: stack should be empty after haunt effect resolves"
     );
@@ -657,8 +657,8 @@ fn test_haunt_multiplayer_controller_of_trigger() {
 
     // P1's haunt creature dies; HauntExileTrigger should be controlled by P1.
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.stack_objects.len(), 1);
-    let haunt_exile_trigger = &state.stack_objects[0];
+    assert_eq!(state.stack_objects().len(), 1);
+    let haunt_exile_trigger = &state.stack_objects()[0];
     assert_eq!(
         haunt_exile_trigger.controller, p1,
         "CR 702.55a: HauntExileTrigger should be controlled by the haunt creature's controller"
@@ -670,14 +670,14 @@ fn test_haunt_multiplayer_controller_of_trigger() {
     // Kill P2's creature to fire HauntedCreatureDiesTrigger.
     let mut state = state;
     let p2_creature_id = find_object(&state, "P2 Creature");
-    let p2_obj = state.objects.get_mut(&p2_creature_id).unwrap();
+    let p2_obj = state.objects_mut().get_mut(&p2_creature_id).unwrap();
     p2_obj.damage_marked = 2;
 
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // HauntedCreatureDiesTrigger should be on the stack, controlled by P1.
-    assert_eq!(state.stack_objects.len(), 1);
-    let haunted_dies_trigger = &state.stack_objects[0];
+    assert_eq!(state.stack_objects().len(), 1);
+    let haunted_dies_trigger = &state.stack_objects()[0];
     assert!(
         matches!(
             haunted_dies_trigger.kind,

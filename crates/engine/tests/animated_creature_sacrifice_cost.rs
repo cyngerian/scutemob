@@ -30,7 +30,7 @@ fn p2() -> PlayerId {
 
 fn find_obj(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -39,7 +39,7 @@ fn find_obj(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
 
 fn life_total(state: &mtg_engine::GameState, player: PlayerId) -> i32 {
     state
-        .players
+        .players()
         .get(&player)
         .map(|p| p.life_total)
         .unwrap_or_default()
@@ -155,7 +155,7 @@ fn test_animated_artifact_sacrifice_self_emits_creature_died() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1());
+    state.turn_mut().priority_holder = Some(p1());
 
     let artifact_id = find_obj(&state, "Sacrificial Rock");
 
@@ -273,7 +273,7 @@ fn test_animated_artifact_sacrifice_filter_emits_creature_died() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1());
+    state.turn_mut().priority_holder = Some(p1());
 
     let altar_id = find_obj(&state, "Carnage Altar");
     let fodder_id = find_obj(&state, "Fodder Artifact");

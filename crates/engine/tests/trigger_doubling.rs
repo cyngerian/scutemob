@@ -203,14 +203,14 @@ fn test_panharmonicon_doubles_etb_trigger() {
     //  Here we're testing the trigger doubling mechanism, not the registration pathway.)
     let mut state = state;
     let panharmonicon_obj_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Test Panharmonicon")
         .map(|(id, _)| *id)
         .unwrap();
 
     state
-        .trigger_doublers
+        .trigger_doublers_mut()
         .push_back(mtg_engine::TriggerDoubler {
             source: panharmonicon_obj_id,
             controller: p1,
@@ -219,10 +219,15 @@ fn test_panharmonicon_doubles_etb_trigger() {
         });
 
     // Give p1 enough mana to cast the entering creature (MV=2).
-    state.players.get_mut(&p1).unwrap().mana_pool.colorless = 2;
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .colorless = 2;
 
     let entering_hand_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Entering Creature")
         .map(|(id, _)| *id)
@@ -270,7 +275,7 @@ fn test_panharmonicon_doubles_etb_trigger() {
 
     // The stack should have exactly 2 triggered abilities.
     let trigger_stack_count = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .filter(|s| matches!(s.kind, StackObjectKind::TriggeredAbility { .. }))
         .count();
@@ -364,20 +369,20 @@ fn test_two_panharmonicons_triple_triggers() {
     let mut state = state;
 
     let alpha_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Panharmonicon Alpha")
         .map(|(id, _)| *id)
         .unwrap();
     let beta_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Panharmonicon Beta")
         .map(|(id, _)| *id)
         .unwrap();
 
     state
-        .trigger_doublers
+        .trigger_doublers_mut()
         .push_back(mtg_engine::TriggerDoubler {
             source: alpha_id,
             controller: p1,
@@ -385,7 +390,7 @@ fn test_two_panharmonicons_triple_triggers() {
             additional_triggers: 1,
         });
     state
-        .trigger_doublers
+        .trigger_doublers_mut()
         .push_back(mtg_engine::TriggerDoubler {
             source: beta_id,
             controller: p1,
@@ -393,10 +398,15 @@ fn test_two_panharmonicons_triple_triggers() {
             additional_triggers: 1,
         });
 
-    state.players.get_mut(&p1).unwrap().mana_pool.colorless = 1;
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .colorless = 1;
 
     let entering_hand_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Entering Creature 2")
         .map(|(id, _)| *id)
@@ -439,7 +449,7 @@ fn test_two_panharmonicons_triple_triggers() {
     );
 
     let trigger_stack_count = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .filter(|s| matches!(s.kind, StackObjectKind::TriggeredAbility { .. }))
         .count();
@@ -533,14 +543,14 @@ fn test_panharmonicon_removal_doesnt_cancel_already_triggered() {
     let mut state = state;
 
     let panharmonicon_obj_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Panharmonicon Removal Test")
         .map(|(id, _)| *id)
         .unwrap();
 
     state
-        .trigger_doublers
+        .trigger_doublers_mut()
         .push_back(mtg_engine::TriggerDoubler {
             source: panharmonicon_obj_id,
             controller: p1,
@@ -548,10 +558,15 @@ fn test_panharmonicon_removal_doesnt_cancel_already_triggered() {
             additional_triggers: 1,
         });
 
-    state.players.get_mut(&p1).unwrap().mana_pool.colorless = 1;
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .colorless = 1;
 
     let entering_hand_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Entering Creature 3")
         .map(|(id, _)| *id)
@@ -584,7 +599,7 @@ fn test_panharmonicon_removal_doesnt_cancel_already_triggered() {
 
     // Verify the stack has 2 triggered abilities from Panharmonicon doubling.
     let trigger_stack_count_before = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .filter(|s| matches!(s.kind, StackObjectKind::TriggeredAbility { .. }))
         .count();
@@ -599,13 +614,13 @@ fn test_panharmonicon_removal_doesnt_cancel_already_triggered() {
     // (In a real game this happens via SBA or destruction; here we directly remove it.)
     let mut state = state;
     state
-        .trigger_doublers
+        .trigger_doublers_mut()
         .retain(|d| d.source != panharmonicon_obj_id);
 
     // The stack should STILL have 2 triggered abilities — they don't disappear when
     // Panharmonicon is removed. Triggers already on the stack are independent.
     let trigger_stack_count_after = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .filter(|s| matches!(s.kind, StackObjectKind::TriggeredAbility { .. }))
         .count();
@@ -626,7 +641,7 @@ fn test_panharmonicon_removal_doesnt_cancel_already_triggered() {
 ///   CardDefinition::TriggerDoubling → cast → resolve → ETB → static ability
 ///   registration → trigger_doublers populated → doubling works for next ETB.
 ///
-/// Previous tests inject TriggerDoubler directly into state.trigger_doublers.
+/// Previous tests inject TriggerDoubler directly into state.trigger_doublers().
 /// This test exercises the real registration pathway.
 #[test]
 fn test_panharmonicon_registration_via_resolution() {
@@ -700,10 +715,15 @@ fn test_panharmonicon_registration_via_resolution() {
 
     // Give p1 enough mana: 4 for Panharmonicon + 1 for entering creature.
     let mut state = state;
-    state.players.get_mut(&p1).unwrap().mana_pool.colorless = 5;
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .colorless = 5;
 
     let pharm_hand_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Reg-Test Panharmonicon")
         .map(|(id, _)| *id)
@@ -740,18 +760,18 @@ fn test_panharmonicon_registration_via_resolution() {
 
     // The TriggerDoubler must now be registered (no manual injection).
     assert_eq!(
-        state.trigger_doublers.len(),
+        state.trigger_doublers().len(),
         1,
         "After Panharmonicon resolves via casting, trigger_doublers should have 1 entry \
          (registered by register_static_continuous_effects); got {}",
-        state.trigger_doublers.len()
+        state.trigger_doublers().len()
     );
 
     // Step 2b: Drain all Watcher triggers from Panharmonicon's own ETB off the stack.
     // Panharmonicon is an artifact, so its own entry may trigger (and double) the Watcher.
     // One call to pass_all_four resolves exactly one stack item; loop until empty.
     let mut state = state;
-    while !state.stack_objects.is_empty() {
+    while !state.stack_objects().is_empty() {
         let (s, _) = pass_all_four(state, [p1, p2, p3, p4]);
         state = s;
     }
@@ -759,7 +779,7 @@ fn test_panharmonicon_registration_via_resolution() {
     // Step 3: Cast the entering creature (with 1 remaining mana).
     // Stack must be empty before casting a sorcery-speed spell (CR 307.1).
     let entering_hand_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Reg-Test Entering")
         .map(|(id, _)| *id)
@@ -903,23 +923,28 @@ fn test_panharmonicon_doubles_self_etb_trigger() {
 
     // Register Panharmonicon's TriggerDoubler manually (already on battlefield).
     let pharm_obj_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Panharmonicon SelfETB Test")
         .map(|(id, _)| *id)
         .unwrap();
 
-    state.trigger_doublers.push_back(TriggerDoubler {
+    state.trigger_doublers_mut().push_back(TriggerDoubler {
         source: pharm_obj_id,
         controller: p1,
         filter: TriggerDoublerFilter::ArtifactOrCreatureETB,
         additional_triggers: 1,
     });
 
-    state.players.get_mut(&p1).unwrap().mana_pool.colorless = 2;
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .colorless = 2;
 
     let creature_hand_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Self-ETB Creature")
         .map(|(id, _)| *id)
@@ -1047,23 +1072,28 @@ fn test_panharmonicon_does_not_double_enchantment_etb() {
     let mut state = state;
 
     let pharm_obj_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Panharmonicon No-Enchantment")
         .map(|(id, _)| *id)
         .unwrap();
 
-    state.trigger_doublers.push_back(TriggerDoubler {
+    state.trigger_doublers_mut().push_back(TriggerDoubler {
         source: pharm_obj_id,
         controller: p1,
         filter: TriggerDoublerFilter::ArtifactOrCreatureETB,
         additional_triggers: 1,
     });
 
-    state.players.get_mut(&p1).unwrap().mana_pool.colorless = 2;
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .colorless = 2;
 
     let enchantment_hand_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Test Enchantment")
         .map(|(id, _)| *id)
@@ -1215,23 +1245,28 @@ fn test_any_permanent_etb_doubler_doubles_enchantment() {
     let mut state = state;
 
     let doubler_obj_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Any-Perm Doubler")
         .map(|(id, _)| *id)
         .unwrap();
 
-    state.trigger_doublers.push_back(TriggerDoubler {
+    state.trigger_doublers_mut().push_back(TriggerDoubler {
         source: doubler_obj_id,
         controller: p1,
         filter: TriggerDoublerFilter::AnyPermanentETB,
         additional_triggers: 1,
     });
 
-    state.players.get_mut(&p1).unwrap().mana_pool.colorless = 2;
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .colorless = 2;
 
     let ench_hand_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Enchantment For AnyPerm Test")
         .map(|(id, _)| *id)
@@ -1384,13 +1419,13 @@ fn test_land_etb_doubler_doubles_landfall_not_creature() {
     let mut state = state;
 
     let doubler_obj_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "LandETB Doubler")
         .map(|(id, _)| *id)
         .unwrap();
 
-    state.trigger_doublers.push_back(TriggerDoubler {
+    state.trigger_doublers_mut().push_back(TriggerDoubler {
         source: doubler_obj_id,
         controller: p1,
         filter: TriggerDoublerFilter::LandETB,
@@ -1398,7 +1433,7 @@ fn test_land_etb_doubler_doubles_landfall_not_creature() {
     });
 
     let land_hand_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Test Basic Land LandETB")
         .map(|(id, _)| *id)
@@ -1460,23 +1495,28 @@ fn test_land_etb_doubler_doubles_landfall_not_creature() {
     let mut state2 = state2;
 
     let doubler2_obj_id = state2
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "LandETB Doubler2")
         .map(|(id, _)| *id)
         .unwrap();
 
-    state2.trigger_doublers.push_back(TriggerDoubler {
+    state2.trigger_doublers_mut().push_back(TriggerDoubler {
         source: doubler2_obj_id,
         controller: p1,
         filter: TriggerDoublerFilter::LandETB,
         additional_triggers: 1,
     });
 
-    state2.players.get_mut(&p1).unwrap().mana_pool.colorless = 1;
+    state2
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .colorless = 1;
 
     let creature_hand_id = state2
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Test Creature LandETB")
         .map(|(id, _)| *id)
@@ -1622,13 +1662,13 @@ fn test_panharmonicon_doubles_carddef_etb_trigger() {
     let mut state = state;
 
     let pharm_obj_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Panharmonicon CardDef ETB")
         .map(|(id, _)| *id)
         .unwrap();
 
-    state.trigger_doublers.push_back(TriggerDoubler {
+    state.trigger_doublers_mut().push_back(TriggerDoubler {
         source: pharm_obj_id,
         controller: p1,
         filter: TriggerDoublerFilter::ArtifactOrCreatureETB,
@@ -1636,10 +1676,15 @@ fn test_panharmonicon_doubles_carddef_etb_trigger() {
     });
 
     // Give p1 enough mana to cast the creature (MV=2).
-    state.players.get_mut(&p1).unwrap().mana_pool.colorless = 2;
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .colorless = 2;
 
     let creature_hand_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "CardDef ETB Creature")
         .map(|(id, _)| *id)

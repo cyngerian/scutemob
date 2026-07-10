@@ -14,6 +14,7 @@
 //! - Copies of a dashed creature do NOT inherit was_dashed; no haste, no return trigger (Ruling 2014-11-24).
 //! - Commander tax applies on top of dash cost (CR 118.9d).
 
+use mtg_engine::state::test_util;
 use mtg_engine::state::types::AltCostKind;
 use mtg_engine::state::types::SuperType;
 use mtg_engine::{
@@ -30,7 +31,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -39,7 +40,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -136,12 +137,12 @@ fn test_dash_basic_cast_with_dash_cost() {
 
     // Pay {R} — dash cost instead of mana cost {1}{R}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Goblin Raider");
 
@@ -170,17 +171,17 @@ fn test_dash_basic_cast_with_dash_cost() {
 
     // Spell is on the stack with was_dashed = true.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.109a: dashed spell should be on the stack"
     );
     assert!(
-        state.stack_objects[0].was_dashed,
+        state.stack_objects()[0].was_dashed,
         "CR 702.109a: was_dashed should be true on stack object"
     );
 
     // Mana consumed: {R} = 1 mana total (not {1}{R} = 2 mana).
-    let pool = &state.players[&p1].mana_pool;
+    let pool = &state.players()[&p1].mana_pool;
     assert_eq!(
         pool.white + pool.blue + pool.black + pool.red + pool.green + pool.colorless,
         0,
@@ -199,13 +200,13 @@ fn test_dash_basic_cast_with_dash_cost() {
     // cast_alt_cost is set to Dash on the permanent.
     let bf_id = find_in_zone(&state, "Goblin Raider", ZoneId::Battlefield).unwrap();
     assert!(
-        state.objects[&bf_id].cast_alt_cost == Some(mtg_engine::state::types::AltCostKind::Dash),
+        state.objects()[&bf_id].cast_alt_cost == Some(mtg_engine::state::types::AltCostKind::Dash),
         "CR 702.109a: cast_alt_cost should be Some(Dash) on battlefield permanent"
     );
 
     // Haste is granted: permanent has the Haste keyword.
     assert!(
-        state.objects[&bf_id]
+        state.objects()[&bf_id]
             .characteristics
             .keywords
             .contains(&KeywordAbility::Haste),
@@ -236,18 +237,18 @@ fn test_dash_normal_cast_no_return() {
 
     // Pay {1}{R} — normal mana cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Goblin Raider");
 
@@ -287,13 +288,13 @@ fn test_dash_normal_cast_no_return() {
 
     // cast_alt_cost is None (normal cast, not dashed).
     assert!(
-        state.objects[&bf_id].cast_alt_cost.is_none(),
+        state.objects()[&bf_id].cast_alt_cost.is_none(),
         "CR 702.109a: cast_alt_cost should be None for normally cast creature"
     );
 
     // Advance to End step — no DashReturnTrigger should fire.
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::End, "should advance to End step");
+    assert_eq!(state.turn().step, Step::End, "should advance to End step");
 
     // Pass priority at End step — creature should still be on battlefield.
     let (state, _) = pass_all(state, &[p1, p2]);
@@ -333,12 +334,12 @@ fn test_dash_return_to_hand_at_end_step() {
 
     // Pay {R} — dash cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Goblin Raider");
 
@@ -377,7 +378,7 @@ fn test_dash_return_to_hand_at_end_step() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     assert_eq!(
-        state.turn.step,
+        state.turn().step,
         Step::End,
         "should have advanced to End step"
     );
@@ -431,12 +432,12 @@ fn test_dash_creature_left_battlefield_before_end_step() {
 
     // Pay {R} — dash cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Goblin Raider");
 
@@ -473,8 +474,7 @@ fn test_dash_creature_left_battlefield_before_end_step() {
 
     // Manually move the creature to the graveyard (simulate dying before end step).
     let bf_id = find_in_zone(&state, "Goblin Raider", ZoneId::Battlefield).unwrap();
-    state
-        .move_object_to_zone(bf_id, ZoneId::Graveyard(p1))
+    test_util::move_object_to_zone(&mut state, bf_id, ZoneId::Graveyard(p1))
         .expect("move to graveyard should succeed");
 
     assert!(
@@ -484,7 +484,7 @@ fn test_dash_creature_left_battlefield_before_end_step() {
 
     // Advance to End step.
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::End, "should advance to End step");
+    assert_eq!(state.turn().step, Step::End, "should advance to End step");
 
     // Resolve trigger at End step (it fires but finds creature not on battlefield).
     let (state, end_events) = pass_all(state, &[p1, p2]);
@@ -531,12 +531,12 @@ fn test_dash_alternative_cost_exclusivity_with_flashback() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Goblin Raider");
 
@@ -589,12 +589,12 @@ fn test_dash_alternative_cost_exclusivity_with_flashback() {
         .unwrap();
 
     state2
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
-    state2.turn.priority_holder = Some(p1);
+    state2.turn_mut().priority_holder = Some(p1);
 
     let no_dash_id = find_object(&state2, "Vanilla Bear");
 
@@ -653,12 +653,12 @@ fn test_dash_cannot_combine_with_evoke() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Goblin Raider");
 
@@ -757,7 +757,7 @@ fn test_dash_commander_tax_applies() {
     // Set commander tax to 2 (simulates having cast the commander once before).
     let commander_card_id = CardId("goblin-raider".to_string());
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .commander_ids
@@ -765,19 +765,19 @@ fn test_dash_commander_tax_applies() {
     // Commander tax entry stores the NUMBER OF TIMES already cast.
     // apply_commander_tax multiplies by 2: 1 cast = {2} additional mana.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .commander_tax
         .insert(commander_card_id, 1);
 
     let cmd_obj_id = find_object(&state, "Goblin Raider");
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Pay {R} dash cost — should FAIL because commander tax {2} is owed
     // (total needed: {R} + {2} = {2}{R} = 3 mana, but only providing 1).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -811,7 +811,7 @@ fn test_dash_commander_tax_applies() {
     // Now pay {2}{R} (dash cost {R} + {2} commander tax) — should succeed.
     // State already has {R} from the earlier add. Set pool to {2}{C} + {R} = 3 mana.
     {
-        let player = state.players.get_mut(&p1).unwrap();
+        let player = state.players_mut().get_mut(&p1).unwrap();
         player.mana_pool.colorless = 2;
         player.mana_pool.red = 1;
     }

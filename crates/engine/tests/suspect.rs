@@ -11,6 +11,7 @@
 //! - CR 701.60a: Unsuspect removes the designation.
 //! - Ruling 2024-02-02: Suspected creatures can still attack.
 
+use mtg_engine::state::test_util;
 use mtg_engine::{
     calculate_characteristics, process_command, AttackTarget, CardRegistry, Command, GameState,
     GameStateBuilder, KeywordAbility, ObjectId, ObjectSpec, PlayerId, Step, ZoneId,
@@ -20,7 +21,7 @@ use mtg_engine::{
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -30,14 +31,14 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 /// Directly suspect a creature in state by setting the is_suspected flag.
 /// This simulates Effect::Suspect resolution without going through the full engine.
 fn suspect_creature(state: &mut GameState, id: ObjectId) {
-    if let Some(obj) = state.objects.get_mut(&id) {
+    if let Some(obj) = state.objects_mut().get_mut(&id) {
         obj.designations.insert(mtg_engine::Designations::SUSPECTED);
     }
 }
 
 /// Directly unsuspect a creature in state by clearing the is_suspected flag.
 fn unsuspect_creature(state: &mut GameState, id: ObjectId) {
-    if let Some(obj) = state.objects.get_mut(&id) {
+    if let Some(obj) = state.objects_mut().get_mut(&id) {
         obj.designations.remove(mtg_engine::Designations::SUSPECTED);
     }
 }
@@ -100,7 +101,7 @@ fn test_suspect_basic_cant_block() {
     suspect_creature(&mut state, blocker_id);
 
     // Set up combat state with the attacker declared.
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -192,7 +193,7 @@ fn test_suspect_menace_evasion() {
     );
 
     // Set up combat with the suspected creature as attacker.
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -233,7 +234,7 @@ fn test_suspect_idempotent() {
     suspect_creature(&mut state, id);
     assert!(
         state
-            .objects
+            .objects()
             .get(&id)
             .unwrap()
             .designations
@@ -245,7 +246,7 @@ fn test_suspect_idempotent() {
     suspect_creature(&mut state, id);
     assert!(
         state
-            .objects
+            .objects()
             .get(&id)
             .unwrap()
             .designations
@@ -284,7 +285,7 @@ fn test_suspect_zone_change_clears() {
     suspect_creature(&mut state, id);
     assert!(
         state
-            .objects
+            .objects()
             .get(&id)
             .unwrap()
             .designations
@@ -293,13 +294,12 @@ fn test_suspect_zone_change_clears() {
     );
 
     // Bounce to hand (zone change should clear is_suspected).
-    state
-        .move_object_to_zone(id, ZoneId::Hand(p1))
+    test_util::move_object_to_zone(&mut state, id, ZoneId::Hand(p1))
         .unwrap_or_else(|e| panic!("move_object_to_zone failed: {:?}", e));
 
     // The creature in hand should have is_suspected = false.
     let in_hand = state
-        .objects
+        .objects()
         .values()
         .find(|obj| obj.characteristics.name == "Bounce Target" && obj.zone == ZoneId::Hand(p1))
         .expect("Bounce Target should be in hand after bounce");
@@ -338,7 +338,7 @@ fn test_unsuspect_removes_menace_and_blocking_restriction() {
     suspect_creature(&mut state, target_id);
     assert!(
         state
-            .objects
+            .objects()
             .get(&target_id)
             .unwrap()
             .designations
@@ -349,7 +349,7 @@ fn test_unsuspect_removes_menace_and_blocking_restriction() {
     unsuspect_creature(&mut state, target_id);
     assert!(
         !state
-            .objects
+            .objects()
             .get(&target_id)
             .unwrap()
             .designations
@@ -365,7 +365,7 @@ fn test_unsuspect_removes_menace_and_blocking_restriction() {
     );
 
     // Creature should now be able to block.
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs
@@ -406,7 +406,7 @@ fn test_suspect_not_copiable() {
     suspect_creature(&mut state, original_id);
     assert!(
         state
-            .objects
+            .objects()
             .get(&original_id)
             .unwrap()
             .designations
@@ -417,7 +417,7 @@ fn test_suspect_not_copiable() {
     // Verify that the is_suspected flag is NOT in the characteristics
     // (copiable values). It should only be on the raw GameObject.
     let chars = state
-        .objects
+        .objects()
         .get(&original_id)
         .unwrap()
         .characteristics
@@ -429,7 +429,7 @@ fn test_suspect_not_copiable() {
 
     // The suspected field is on the GameObject, not Characteristics.
     // is_suspected is set only on the raw object, not propagated to characteristics.
-    let obj = state.objects.get(&original_id).unwrap();
+    let obj = state.objects().get(&original_id).unwrap();
     assert!(
         obj.designations
             .contains(mtg_engine::Designations::SUSPECTED),
@@ -466,7 +466,7 @@ fn test_suspect_baseline_non_suspected_can_block() {
     let blocker_id = find_object(&state, "Normal Blocker");
 
     let mut state = state;
-    state.combat = Some({
+    *state.combat_mut() = Some({
         let mut cs = mtg_engine::CombatState::new(p1);
         cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
         cs

@@ -27,7 +27,7 @@ fn p(n: u64) -> PlayerId {
 /// Find an object in the game state by name (panics if not found).
 fn find_by_name(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -38,7 +38,7 @@ fn find_by_name(state: &GameState, name: &str) -> ObjectId {
 #[allow(dead_code)]
 fn find_by_name_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -47,7 +47,7 @@ fn find_by_name_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<O
 /// Count objects with a given name on the battlefield.
 fn count_on_battlefield(state: &GameState, name: &str) -> usize {
     state
-        .objects
+        .objects()
         .values()
         .filter(|obj| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
         .count()
@@ -162,7 +162,7 @@ fn test_blood_token_has_activated_ability() {
         .unwrap();
 
     let obj = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Blood")
         .expect("Blood token should be on battlefield");
@@ -218,22 +218,22 @@ fn test_blood_token_activation_basic() {
 
     // Give p1 {1} mana.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Place the dummy card into p1's hand.
     let dummy_id = find_by_name(&state, "Dummy Card");
-    if let Some(obj) = state.objects.get_mut(&dummy_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&dummy_id) {
         obj.zone = ZoneId::Hand(p1);
     }
 
     let blood_id = find_by_name(&state, "Blood");
     let initial_hand_count = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -260,7 +260,7 @@ fn test_blood_token_activation_basic() {
 
     // The discard happens at activation time (cost) — hand should be empty now.
     let hand_after_activate = state_after_activate
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -271,7 +271,7 @@ fn test_blood_token_activation_basic() {
 
     // Blood is still drawing (ability is on stack; draw hasn't happened yet).
     let hand_before_resolve = state_after_activate
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -288,7 +288,7 @@ fn test_blood_token_activation_basic() {
 
     // Player drew 1 card after resolution.
     let final_hand_count = state_final
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -324,15 +324,15 @@ fn test_blood_token_discard_is_cost() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let dummy_id = find_by_name(&state, "Dummy Card");
-    if let Some(obj) = state.objects.get_mut(&dummy_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&dummy_id) {
         obj.zone = ZoneId::Hand(p1);
     }
 
@@ -355,7 +355,7 @@ fn test_blood_token_discard_is_cost() {
     // The discard happened at activation, before ability resolves.
     // Hand should be empty immediately after activation.
     let hand_count = state_after_activate
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -366,14 +366,14 @@ fn test_blood_token_discard_is_cost() {
 
     // The ability should be on the stack (not yet resolved).
     assert!(
-        !state_after_activate.stack_objects.is_empty(),
+        !state_after_activate.stack_objects().is_empty(),
         "CR 602.2: Blood ability should be on the stack after activation"
     );
 
     // The discarded card should be in the graveyard.
     assert!(
         state_after_activate
-            .objects
+            .objects()
             .values()
             .any(|o| o.zone == ZoneId::Graveyard(p1)),
         "CR 602.2: Discarded card should be in the graveyard"
@@ -399,15 +399,15 @@ fn test_blood_token_uses_stack() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let discard_id = find_by_name(&state, "Discard Target");
-    if let Some(obj) = state.objects.get_mut(&discard_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&discard_id) {
         obj.zone = ZoneId::Hand(p1);
     }
     let blood_id = find_by_name(&state, "Blood");
@@ -428,7 +428,7 @@ fn test_blood_token_uses_stack() {
 
     // Stack must NOT be empty — Blood's ability uses the stack (CR 602.2).
     assert!(
-        !state_after_activate.stack_objects.is_empty(),
+        !state_after_activate.stack_objects().is_empty(),
         "CR 602.2: Blood ability should be on the stack after activation"
     );
 }
@@ -450,10 +450,10 @@ fn test_blood_token_activation_no_mana() {
         .unwrap();
 
     // No mana at all.
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let dummy_id = find_by_name(&state, "Dummy Card");
-    if let Some(obj) = state.objects.get_mut(&dummy_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&dummy_id) {
         obj.zone = ZoneId::Hand(p1);
     }
     let blood_id = find_by_name(&state, "Blood");
@@ -501,15 +501,15 @@ fn test_blood_token_activation_already_tapped() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let dummy_id = find_by_name(&state, "Dummy Card");
-    if let Some(obj) = state.objects.get_mut(&dummy_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&dummy_id) {
         obj.zone = ZoneId::Hand(p1);
     }
     let blood_id = find_by_name(&state, "Blood");
@@ -557,12 +557,12 @@ fn test_blood_token_activation_no_cards_in_hand() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let blood_id = find_by_name(&state, "Blood");
 
@@ -606,15 +606,15 @@ fn test_blood_token_sba_ceases_to_exist() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let dummy_id = find_by_name(&state, "Dummy Card");
-    if let Some(obj) = state.objects.get_mut(&dummy_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&dummy_id) {
         obj.zone = ZoneId::Hand(p1);
     }
     let blood_id = find_by_name(&state, "Blood");
@@ -637,7 +637,7 @@ fn test_blood_token_sba_ceases_to_exist() {
     // Token is in the graveyard before SBA check (post-sacrifice, pre-SBA).
     assert!(
         after_activate
-            .objects
+            .objects()
             .values()
             .any(|o| o.characteristics.name == "Blood" && o.zone == ZoneId::Graveyard(p1)),
         "Blood should be in graveyard before SBA check"
@@ -657,7 +657,7 @@ fn test_blood_token_sba_ceases_to_exist() {
     // Token no longer exists in any zone.
     assert!(
         !after_sba
-            .objects
+            .objects()
             .values()
             .any(|o| o.characteristics.name == "Blood"),
         "CR 704.5d: Blood token should no longer exist in any zone after SBA"
@@ -685,26 +685,26 @@ fn test_blood_token_not_affected_by_summoning_sickness() {
 
     // Manually set summoning sickness on the Blood token (simulates entering this turn).
     let blood_id = find_by_name(&state, "Blood");
-    if let Some(obj) = state.objects.get_mut(&blood_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&blood_id) {
         obj.has_summoning_sickness = true;
     }
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let dummy_id = find_by_name(&state, "Dummy Card");
-    if let Some(obj) = state.objects.get_mut(&dummy_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&dummy_id) {
         obj.zone = ZoneId::Hand(p1);
     }
 
     // Blood is NOT a creature — summoning sickness check only applies to creatures.
     let blood_obj = state
-        .objects
+        .objects()
         .get(&blood_id)
         .expect("Blood should be in state");
     assert!(
@@ -754,15 +754,15 @@ fn test_blood_token_only_controller_can_activate() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let dummy_id = find_by_name(&state, "Dummy Card");
-    if let Some(obj) = state.objects.get_mut(&dummy_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&dummy_id) {
         obj.zone = ZoneId::Hand(p2);
     }
     let blood_id = find_by_name(&state, "Blood");
@@ -857,15 +857,15 @@ fn test_blood_token_activation_sacrifice_removes_from_battlefield() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let dummy_id = find_by_name(&state, "Dummy Card");
-    if let Some(obj) = state.objects.get_mut(&dummy_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&dummy_id) {
         obj.zone = ZoneId::Hand(p1);
     }
     let blood_id = find_by_name(&state, "Blood");
@@ -917,12 +917,12 @@ fn test_blood_token_discard_must_be_from_hand() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let grave_card_id = find_by_name(&state, "Graveyard Card");
     let blood_id = find_by_name(&state, "Blood");

@@ -3,6 +3,7 @@
 //! CR 305.1 — playing a land
 //! CR 605   — mana abilities
 
+use mtg_engine::state::test_util;
 use mtg_engine::{
     Command, GameEvent, GameStateBuilder, GameStateError, ManaAbility, ManaColor, ManaPool,
     ObjectSpec, PlayerId, Step, ZoneId,
@@ -115,9 +116,9 @@ fn test_play_land_resets_priority_round() {
     .unwrap();
 
     // Active player still has priority
-    assert_eq!(new_state.turn.priority_holder, Some(PlayerId(1)));
+    assert_eq!(new_state.turn().priority_holder, Some(PlayerId(1)));
     // Priority round reset
-    assert!(new_state.turn.players_passed.is_empty());
+    assert!(new_state.turn().players_passed.is_empty());
 }
 
 #[test]
@@ -247,8 +248,8 @@ fn test_play_land_stack_nonempty_fails() {
 
     // Manually push a fake StackObject to simulate a non-empty stack.
     let mut state = state;
-    let fake_id = state.next_object_id();
-    state.stack_objects.push_back(StackObject {
+    let fake_id = test_util::next_object_id(&mut state);
+    state.stack_objects_mut().push_back(StackObject {
         id: fake_id,
         controller: PlayerId(1),
         kind: StackObjectKind::Spell {
@@ -474,7 +475,7 @@ fn test_tap_for_mana_player_retains_priority() {
         .build()
         .unwrap();
 
-    assert_eq!(state.turn.priority_holder, Some(PlayerId(1)));
+    assert_eq!(state.turn().priority_holder, Some(PlayerId(1)));
 
     let land_id = state.objects_in_zone(&ZoneId::Battlefield)[0].id;
 
@@ -489,7 +490,7 @@ fn test_tap_for_mana_player_retains_priority() {
     .unwrap();
 
     // Priority is still with player 1
-    assert_eq!(new_state.turn.priority_holder, Some(PlayerId(1)));
+    assert_eq!(new_state.turn().priority_holder, Some(PlayerId(1)));
 }
 
 #[test]

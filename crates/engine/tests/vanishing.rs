@@ -29,7 +29,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -37,7 +37,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 }
 
 fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
-    state.objects.iter().find_map(|(&id, obj)| {
+    state.objects().iter().find_map(|(&id, obj)| {
         if obj.characteristics.name == name && obj.zone == zone {
             Some(id)
         } else {
@@ -57,7 +57,7 @@ fn in_graveyard(state: &GameState, name: &str, owner: PlayerId) -> bool {
 /// Count time counters on the named object (wherever it is).
 fn time_counters(state: &GameState, name: &str) -> u32 {
     state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == name)
         .and_then(|o| o.counters.get(&CounterType::Time).copied())
@@ -209,7 +209,7 @@ fn test_vanishing_etb_places_time_counters() {
     // For direct-placement tests, we verify the keyword is present correctly.
     // The actual ETB counter placement is tested via the full cast flow.
     assert!(
-        state.objects[&obj_id]
+        state.objects()[&obj_id]
             .characteristics
             .keywords
             .contains(&KeywordAbility::Vanishing(3)),
@@ -249,18 +249,18 @@ fn test_vanishing_etb_counters_on_cast() {
     // Give p1 enough mana to cast.
     use mtg_engine::ManaColor;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Test Vanishing 3 Creature");
 
@@ -328,15 +328,15 @@ fn test_vanishing_upkeep_removes_counter() {
 
     // Manually place 3 time counters.
     let obj_id = find_object(&state, "Test Vanishing 3 Creature");
-    if let Some(obj) = state.objects.get_mut(&obj_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&obj_id) {
         obj.counters = obj.counters.update(CounterType::Time, 3);
     }
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Advance Untap -> Upkeep (enter_step queues Vanishing counter-removal trigger).
     let (state, _) = pass_all(state, &[p1, p2]);
     assert_eq!(
-        state.turn.step,
+        state.turn().step,
         Step::Upkeep,
         "should be at Upkeep after advancing from Untap"
     );
@@ -390,10 +390,10 @@ fn test_vanishing_sacrifice_on_last_counter() {
 
     // Place exactly 1 time counter (last one).
     let obj_id = find_object(&state, "Test Vanishing 3 Creature");
-    if let Some(obj) = state.objects.get_mut(&obj_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&obj_id) {
         obj.counters = obj.counters.update(CounterType::Time, 1);
     }
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Advance Untap -> Upkeep (queues Vanishing counter-removal trigger).
     let (state, _) = pass_all(state, &[p1, p2]);
@@ -408,7 +408,7 @@ fn test_vanishing_sacrifice_on_last_counter() {
         "CR 702.63a: last counter removed, should have 0 counters"
     );
     assert!(
-        state.stack_objects.iter().any(|so| matches!(
+        state.stack_objects().iter().any(|so| matches!(
             &so.kind,
             StackObjectKind::KeywordTrigger {
                 keyword: KeywordAbility::Vanishing(_),
@@ -460,14 +460,14 @@ fn test_vanishing_full_lifecycle() {
 
     // Place 2 time counters (simulating ETB placement).
     let obj_id = find_object(&state, "Test Vanishing 2 Creature");
-    if let Some(obj) = state.objects.get_mut(&obj_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&obj_id) {
         obj.counters = obj.counters.update(CounterType::Time, 2);
     }
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // === Upkeep 1: advance to Upkeep, counter trigger fires ===
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::Upkeep);
+    assert_eq!(state.turn().step, Step::Upkeep);
 
     let (state, _) = pass_all(state, &[p1, p2]);
 
@@ -483,7 +483,7 @@ fn test_vanishing_full_lifecycle() {
     );
     // No sacrifice trigger yet.
     assert!(
-        !state.stack_objects.iter().any(|so| matches!(
+        !state.stack_objects().iter().any(|so| matches!(
             &so.kind,
             StackObjectKind::KeywordTrigger {
                 keyword: KeywordAbility::Vanishing(_),
@@ -499,12 +499,12 @@ fn test_vanishing_full_lifecycle() {
     // Since advancing through draw step requires empty library handling, manually
     // set the active player's turn to p1 and step to Untap.
     let mut state = state;
-    state.turn.step = Step::Untap;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().step = Step::Untap;
+    state.turn_mut().priority_holder = Some(p1);
 
     // === Upkeep 2: advance to Upkeep, last counter trigger fires ===
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::Upkeep);
+    assert_eq!(state.turn().step, Step::Upkeep);
 
     // Resolve Vanishing counter-removal trigger -> removes last counter -> queues Vanishing sacrifice trigger.
     let (state, _) = pass_all(state, &[p1, p2]);
@@ -548,15 +548,15 @@ fn test_vanishing_without_number_no_etb_counters() {
         .unwrap();
 
     // No counters placed externally.
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Advance Untap -> Upkeep.
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::Upkeep);
+    assert_eq!(state.turn().step, Step::Upkeep);
 
     // CR 702.63b: No upkeep trigger should fire (intervening-if: no time counter present).
     assert!(
-        !state.stack_objects.iter().any(|so| matches!(
+        !state.stack_objects().iter().any(|so| matches!(
             &so.kind,
             StackObjectKind::KeywordTrigger {
                 keyword: KeywordAbility::Vanishing(_),
@@ -601,18 +601,18 @@ fn test_vanishing_multiplayer_only_active_player() {
 
     // Place 3 time counters on p1's creature.
     let obj_id = find_object(&state, "Test Vanishing 3 Creature");
-    if let Some(obj) = state.objects.get_mut(&obj_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&obj_id) {
         obj.counters = obj.counters.update(CounterType::Time, 3);
     }
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     // Advance p2's Untap -> p2's Upkeep.
     let (state, _) = pass_all(state, &[p2, p1]);
-    assert_eq!(state.turn.step, Step::Upkeep);
+    assert_eq!(state.turn().step, Step::Upkeep);
 
     // No Vanishing counter-removal trigger for p1's permanent during p2's upkeep.
     assert!(
-        !state.stack_objects.iter().any(|so| matches!(
+        !state.stack_objects().iter().any(|so| matches!(
             &so.kind,
             StackObjectKind::KeywordTrigger {
                 keyword: KeywordAbility::Vanishing(_),
@@ -660,18 +660,18 @@ fn test_vanishing_multiple_instances() {
 
     // Place 4 time counters.
     let obj_id = find_object(&state, "Test Vanishing 3 Creature");
-    if let Some(obj) = state.objects.get_mut(&obj_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&obj_id) {
         obj.counters = obj.counters.update(CounterType::Time, 4);
     }
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     // Advance Untap -> Upkeep -> two Vanishing counter-removal triggers queued.
     let (state, _) = pass_all(state, &[p1, p2]);
-    assert_eq!(state.turn.step, Step::Upkeep);
+    assert_eq!(state.turn().step, Step::Upkeep);
 
     // Two triggers on the stack (one per Vanishing instance).
     let vanishing_counter_triggers = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .filter(|so| {
             matches!(

@@ -31,7 +31,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -95,7 +95,7 @@ fn test_crew_basic_vehicle_becomes_creature() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let vehicle_id = find_object(&state, "Test Copter");
     let pilot_id = find_object(&state, "Test Pilot");
@@ -118,7 +118,7 @@ fn test_crew_basic_vehicle_becomes_creature() {
     assert!(activated, "should emit AbilityActivated event");
 
     // Crew creature should be tapped.
-    let pilot = state.objects.get(&pilot_id).unwrap();
+    let pilot = state.objects().get(&pilot_id).unwrap();
     assert!(pilot.status.tapped, "crew creature should be tapped");
 
     // Resolve the crew ability (both players pass).
@@ -166,7 +166,7 @@ fn test_crew_insufficient_power_rejected() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let vehicle_id = find_object(&state, "Test Copter");
     let pilot_id = find_object(&state, "Weak Pilot");
@@ -218,7 +218,7 @@ fn test_crew_multiple_creatures() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let vehicle_id = find_object(&state, "Test Copter");
     let id_a = find_object(&state, "Pilot A");
@@ -238,15 +238,15 @@ fn test_crew_multiple_creatures() {
 
     // All three should be tapped.
     assert!(
-        state.objects[&id_a].status.tapped,
+        state.objects()[&id_a].status.tapped,
         "Pilot A should be tapped"
     );
     assert!(
-        state.objects[&id_b].status.tapped,
+        state.objects()[&id_b].status.tapped,
         "Pilot B should be tapped"
     );
     assert!(
-        state.objects[&id_c].status.tapped,
+        state.objects()[&id_c].status.tapped,
         "Pilot C should be tapped"
     );
 
@@ -285,7 +285,7 @@ fn test_crew_excess_creatures_allowed() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let vehicle_id = find_object(&state, "Test Copter");
     let id_a = find_object(&state, "Big Pilot A");
@@ -303,11 +303,11 @@ fn test_crew_excess_creatures_allowed() {
     .unwrap();
 
     assert!(
-        state.objects[&id_a].status.tapped,
+        state.objects()[&id_a].status.tapped,
         "excess crew creature should be tapped"
     );
     assert!(
-        state.objects[&id_b].status.tapped,
+        state.objects()[&id_b].status.tapped,
         "excess crew creature should be tapped"
     );
 }
@@ -333,7 +333,7 @@ fn test_crew_vehicle_cannot_crew_itself() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let vehicle_id = find_object(&state, "Test Copter");
 
@@ -377,14 +377,14 @@ fn test_crew_summoning_sick_creature_can_crew() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let vehicle_id = find_object(&state, "Test Copter");
     let pilot_id = find_object(&state, "Sick Pilot");
 
     // Manually set summoning sickness flag.
     state
-        .objects
+        .objects_mut()
         .get_mut(&pilot_id)
         .unwrap()
         .has_summoning_sickness = true;
@@ -427,7 +427,7 @@ fn test_crew_tapped_creature_rejected() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let vehicle_id = find_object(&state, "Test Copter");
     let pilot_id = find_object(&state, "Tired Pilot");
@@ -474,7 +474,7 @@ fn test_crew_not_a_creature_rejected() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let vehicle_id = find_object(&state, "Test Copter");
     let artifact_id = find_object(&state, "Sol Ring");
@@ -523,7 +523,7 @@ fn test_crew_already_crewed_vehicle_is_legal() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let vehicle_id = find_object(&state, "Test Copter");
     let id_a = find_object(&state, "Pilot A");
@@ -549,8 +549,8 @@ fn test_crew_already_crewed_vehicle_is_legal() {
     );
 
     // Reset priority for second crew.
-    state.turn.priority_holder = Some(p1);
-    state.turn.players_passed = im::OrdSet::new();
+    state.turn_mut().priority_holder = Some(p1);
+    state.turn_mut().players_passed = im::OrdSet::new();
 
     // Second crew with Pilot B — this should succeed (already a creature, but legal).
     let result = process_command(
@@ -590,7 +590,7 @@ fn test_crew_effect_expires_at_end_of_turn() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let vehicle_id = find_object(&state, "Test Copter");
     let pilot_id = find_object(&state, "Test Pilot");
@@ -654,7 +654,7 @@ fn test_crew_vehicle_has_printed_power_and_toughness() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let vehicle_id = find_object(&state, "Big Hauler");
     let id_a = find_object(&state, "Pilot A");
@@ -703,7 +703,7 @@ fn test_crew_no_etb_trigger() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let vehicle_id = find_object(&state, "Test Copter");
     let pilot_id = find_object(&state, "Test Pilot");
@@ -757,7 +757,7 @@ fn test_crew_duplicate_creature_rejected() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let vehicle_id = find_object(&state, "Test Copter");
     let pilot_id = find_object(&state, "Test Pilot");
@@ -802,7 +802,7 @@ fn test_crew_opponent_creature_rejected() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let vehicle_id = find_object(&state, "Test Copter");
     let opp_pilot_id = find_object(&state, "Opponent Pilot");
@@ -852,7 +852,7 @@ fn test_crew_requires_priority() {
         .unwrap();
 
     // p2 holds priority, NOT p1.
-    state.turn.priority_holder = Some(p2);
+    state.turn_mut().priority_holder = Some(p2);
 
     let vehicle_id = find_object(&state, "Test Copter");
     let pilot_id = find_object(&state, "Test Pilot");

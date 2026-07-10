@@ -66,7 +66,7 @@ fn mana_pool(state: &GameState, player: PlayerId) -> (u32, u32, u32, u32, u32, u
 fn register_replacement_effects(state: &mut GameState, registry: &Arc<CardRegistry>) {
     use mtg_engine::CardId;
     let battlefield_objects: Vec<(ObjectId, PlayerId, Option<CardId>)> = state
-        .objects
+        .objects()
         .iter()
         .filter(|(_, obj)| matches!(obj.zone, ZoneId::Battlefield))
         .map(|(id, obj)| (*id, obj.controller, obj.card_id.clone()))
@@ -108,7 +108,7 @@ fn test_mana_trigger_land_adds_extra_mana() {
         .unwrap();
 
     let forest_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Forest" && o.zone == ZoneId::Battlefield)
         .map(|o| o.id)
@@ -169,13 +169,13 @@ fn test_mana_trigger_swamp_subtype_filter() {
         .unwrap();
 
     let swamp_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Swamp" && o.zone == ZoneId::Battlefield)
         .map(|o| o.id)
         .unwrap();
     let forest_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Forest" && o.zone == ZoneId::Battlefield)
         .map(|o| o.id)
@@ -245,16 +245,16 @@ fn test_mana_trigger_creature_filter() {
 
     // Remove summoning sickness so Llanowar Elves can tap.
     let elves_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Llanowar Elves" && o.zone == ZoneId::Battlefield)
         .map(|o| o.id)
         .unwrap();
-    if let Some(obj) = state.objects.get_mut(&elves_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&elves_id) {
         obj.has_summoning_sickness = false;
     }
     let forest_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Forest" && o.zone == ZoneId::Battlefield)
         .map(|o| o.id)
@@ -324,7 +324,7 @@ fn test_mana_trigger_enchanted_land() {
 
     // Get IDs.
     let mut forest_ids: Vec<mtg_engine::ObjectId> = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.characteristics.name == "Forest" && o.zone == ZoneId::Battlefield)
         .map(|o| o.id)
@@ -333,14 +333,14 @@ fn test_mana_trigger_enchanted_land() {
     let forest_a_id = forest_ids[0];
     let forest_b_id = forest_ids[1];
     let wg_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Wild Growth" && o.zone == ZoneId::Battlefield)
         .map(|o| o.id)
         .unwrap();
 
     // Attach Wild Growth to Forest A.
-    if let Some(obj) = state.objects.get_mut(&wg_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&wg_id) {
         obj.attached_to = Some(forest_a_id);
     }
 
@@ -408,7 +408,7 @@ fn test_mana_multiplier_double() {
     register_replacement_effects(&mut state, &registry);
 
     let forest_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Forest" && o.zone == ZoneId::Battlefield)
         .map(|o| o.id)
@@ -457,12 +457,12 @@ fn test_mana_multiplier_triple() {
 
     // Remove summoning sickness from the Elemental (just in case it was treated as creature).
     let ancient_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Nyxbloom Ancient")
         .map(|o| o.id)
         .unwrap();
-    if let Some(obj) = state.objects.get_mut(&ancient_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&ancient_id) {
         obj.has_summoning_sickness = false;
     }
 
@@ -470,7 +470,7 @@ fn test_mana_multiplier_triple() {
     register_replacement_effects(&mut state, &registry);
 
     let forest_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Forest" && o.zone == ZoneId::Battlefield)
         .map(|o| o.id)
@@ -523,7 +523,7 @@ fn test_mana_multiplier_stacks_multiplicatively() {
     register_replacement_effects(&mut state, &registry);
 
     let forest_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Forest" && o.zone == ZoneId::Battlefield)
         .map(|o| o.id)
@@ -578,12 +578,12 @@ fn test_mana_multiplier_does_not_affect_triggered_mana() {
         .unwrap();
 
     let ancient_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Nyxbloom Ancient")
         .map(|o| o.id)
         .unwrap();
-    if let Some(obj) = state.objects.get_mut(&ancient_id) {
+    if let Some(obj) = state.objects_mut().get_mut(&ancient_id) {
         obj.has_summoning_sickness = false;
     }
 
@@ -591,7 +591,7 @@ fn test_mana_multiplier_does_not_affect_triggered_mana() {
     register_replacement_effects(&mut state, &registry);
 
     let forest_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Forest" && o.zone == ZoneId::Battlefield)
         .map(|o| o.id)
@@ -649,7 +649,7 @@ fn test_zendikar_resurgent_registered_on_battlefield() {
     // WheneverYouCastSpell (creature draw trigger) is converted to triggered_ability.
     // WhenTappedForMana is NOT — it's handled via card-registry scan in handle_tap_for_mana.
     let resurgent_obj = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Zendikar Resurgent" && o.zone == ZoneId::Battlefield)
         .unwrap();
@@ -662,7 +662,7 @@ fn test_zendikar_resurgent_registered_on_battlefield() {
 
     // Verify the land-mana trigger works: tapping Forest with Resurgent produces 2G.
     let forest_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Forest" && o.zone == ZoneId::Battlefield)
         .map(|o| o.id)
@@ -720,7 +720,7 @@ fn test_mana_trigger_only_fires_on_tap_abilities() {
     // WhenTappedForMana is NOT stored in triggered_abilities on the object.
     // It is handled via card-registry scan in handle_tap_for_mana (mana.rs).
     let wake_obj = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Mirari's Wake" && o.zone == ZoneId::Battlefield)
         .unwrap();
@@ -733,7 +733,7 @@ fn test_mana_trigger_only_fires_on_tap_abilities() {
 
     // Verify the trigger mechanism works: tapping Forest with Wake on battlefield produces 2G.
     let forest_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Forest" && o.zone == ZoneId::Battlefield)
         .map(|o| o.id)
@@ -798,7 +798,7 @@ fn test_mana_trigger_forbidden_orchard() {
         .unwrap();
 
     let orchard_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Forbidden Orchard" && o.zone == ZoneId::Battlefield)
         .map(|o| o.id)
@@ -820,12 +820,12 @@ fn test_mana_trigger_forbidden_orchard() {
     // Verify: exactly one PendingTrigger of kind Normal with ability_index=1.
     // (Index 0 is the mana Activated ability; index 1 is the Spirit token Triggered ability.)
     assert_eq!(
-        state.pending_triggers.len(),
+        state.pending_triggers().len(),
         1,
         "CR 605.5a: Forbidden Orchard Spirit token trigger (has target) must be queued as a \
          normal triggered ability, not resolved immediately as a triggered mana ability"
     );
-    let trigger = &state.pending_triggers[0];
+    let trigger = &state.pending_triggers()[0];
     assert_eq!(
         trigger.kind,
         mtg_engine::state::stubs::PendingTriggerKind::Normal,
@@ -844,7 +844,7 @@ fn test_mana_trigger_forbidden_orchard() {
 
     // Verify: a Spirit creature token exists on the battlefield.
     let spirit_count = state
-        .objects
+        .objects()
         .values()
         .filter(|o| {
             o.zone == ZoneId::Battlefield

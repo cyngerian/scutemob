@@ -32,7 +32,7 @@ fn cid(s: &str) -> CardId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -136,12 +136,12 @@ fn test_spell_cost_modifier_noncreature_increase() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Lightning Bolt Test");
 
@@ -154,14 +154,14 @@ fn test_spell_cost_modifier_noncreature_increase() {
 
     // Give p1 one more mana — now {3} available, should succeed.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
     let (state, _) = cast_spell(state, p1, spell_id)
         .expect("CR 601.2f: should succeed with enough mana after Thalia increase");
-    assert_eq!(state.stack_objects.len(), 1);
+    assert_eq!(state.stack_objects().len(), 1);
 }
 
 // ── Test 2: Warchief-style tribal cost reduction (Controller only) ──────────
@@ -208,26 +208,26 @@ fn test_spell_cost_modifier_tribal_reduction_controller_only() {
 
     // Give p1 {1}{R} — enough for the reduced cost (2-1=1 generic + 1 red).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let goblin_id = find_object(&state, "Goblin Grunt");
 
     let (state, _) = cast_spell(state, p1, goblin_id)
         .expect("CR 601.2f: Goblin spell should cost {1} less with Warchief");
-    assert_eq!(state.stack_objects.len(), 1);
+    assert_eq!(state.stack_objects().len(), 1);
     assert!(
-        state.players.get(&p1).unwrap().mana_pool.is_empty(),
+        state.players().get(&p1).unwrap().mana_pool.is_empty(),
         "CR 601.2f: all mana should be consumed"
     );
 }
@@ -278,26 +278,26 @@ fn test_spell_cost_modifiers_stack_additively() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let goblin_id = find_object(&state, "Goblin Elite");
 
     let (state, _) = cast_spell(state, p1, goblin_id)
         .expect("CR 601.2f: two warchiefs should reduce cost by {2}");
-    assert_eq!(state.stack_objects.len(), 1);
+    assert_eq!(state.stack_objects().len(), 1);
     assert!(
-        state.players.get(&p1).unwrap().mana_pool.is_empty(),
+        state.players().get(&p1).unwrap().mana_pool.is_empty(),
         "CR 601.2f: all mana consumed"
     );
 }
@@ -349,19 +349,19 @@ fn test_spell_cost_modifier_generic_cannot_go_below_zero() {
 
     // Only give {R} — the reduced cost should be {R} (0 generic).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let goblin_id = find_object(&state, "Goblin Runt");
 
     let (state, _) = cast_spell(state, p1, goblin_id)
         .expect("CR 601.2f: cost reduced to {R} only (generic cannot go below 0)");
-    assert_eq!(state.stack_objects.len(), 1);
-    assert!(state.players.get(&p1).unwrap().mana_pool.is_empty());
+    assert_eq!(state.stack_objects().len(), 1);
+    assert!(state.players().get(&p1).unwrap().mana_pool.is_empty());
 }
 
 // ── Test 5: Eminence from command zone ──────────────────────────────────────
@@ -418,25 +418,25 @@ fn test_spell_cost_modifier_eminence_from_command_zone() {
 
     // Give {2}{R} — the eminence-reduced cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let dragon_id = find_object(&state, "Dragon Whelp");
 
     let (state, _) = cast_spell(state, p1, dragon_id)
         .expect("CR 601.2f: Dragon spell should cost {1} less with Eminence from command zone");
-    assert_eq!(state.stack_objects.len(), 1);
-    assert!(state.players.get(&p1).unwrap().mana_pool.is_empty());
+    assert_eq!(state.stack_objects().len(), 1);
+    assert!(state.players().get(&p1).unwrap().mana_pool.is_empty());
 }
 
 // ── Test 6: Self-cost-reduction — PerPermanent (Blasphemous Act style) ──────
@@ -507,25 +507,25 @@ fn test_self_cost_reduction_per_permanent() {
 
     // Cost: {8}{R} - 6 creatures = {2}{R}. Give {2}{R}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Blast Test");
 
     let (state, _) = cast_spell(state, p1, spell_id)
         .expect("CR 601.2f: spell should cost {2}{R} with 6 creatures on battlefield");
-    assert_eq!(state.stack_objects.len(), 1);
-    assert!(state.players.get(&p1).unwrap().mana_pool.is_empty());
+    assert_eq!(state.stack_objects().len(), 1);
+    assert!(state.players().get(&p1).unwrap().mana_pool.is_empty());
 }
 
 // ── Test 7: Self-cost-reduction — TotalPowerOfCreatures (Ghalta style) ──────
@@ -582,25 +582,25 @@ fn test_self_cost_reduction_total_power() {
 
     // Cost: {10}{G}{G} - 8 power = {2}{G}{G}. Give {2}{G}{G}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Ghalta Test");
 
     let (state, _) = cast_spell(state, p1, spell_id)
         .expect("CR 601.2f: Ghalta should cost {2}{G}{G} with 8 total power controlled");
-    assert_eq!(state.stack_objects.len(), 1);
-    assert!(state.players.get(&p1).unwrap().mana_pool.is_empty());
+    assert_eq!(state.stack_objects().len(), 1);
+    assert!(state.players().get(&p1).unwrap().mana_pool.is_empty());
 }
 
 // ── Test 8: Historic filter (Jhoira's Familiar style) ───────────────────────
@@ -652,19 +652,19 @@ fn test_spell_cost_modifier_historic_filter() {
 
     // {3} artifact - 1 reduction = {2}. Give {2}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let artifact_id = find_object(&state, "Test Artifact");
 
     let (state, _) = cast_spell(state, p1, artifact_id)
         .expect("CR 700.6: artifact spell is historic and should cost {1} less");
-    assert_eq!(state.stack_objects.len(), 1);
-    assert!(state.players.get(&p1).unwrap().mana_pool.is_empty());
+    assert_eq!(state.stack_objects().len(), 1);
+    assert!(state.players().get(&p1).unwrap().mana_pool.is_empty());
 }
 
 // ── Test 9: Self-cost-reduction — CardTypesInGraveyard (Emrakul style) ──────
@@ -733,19 +733,19 @@ fn test_self_cost_reduction_card_types_in_graveyard() {
 
     // 5 distinct types in graveyard → reduce {13} by 5 = {8}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 8);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Emrakul Test");
 
     let (state, _) = cast_spell(state, p1, spell_id)
         .expect("CR 601.2f: Emrakul-style spell should cost {8} with 5 card types in graveyard");
-    assert_eq!(state.stack_objects.len(), 1);
-    assert!(state.players.get(&p1).unwrap().mana_pool.is_empty());
+    assert_eq!(state.stack_objects().len(), 1);
+    assert!(state.players().get(&p1).unwrap().mana_pool.is_empty());
 
     // Negative case: with only {7}, casting should fail (cost is {8}).
     let spell2 = ObjectSpec::card(p1, "Emrakul Test 2")
@@ -776,12 +776,12 @@ fn test_self_cost_reduction_card_types_in_graveyard() {
         .unwrap();
     // No graveyard cards → no reduction → cost is {13}.
     state2
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 12);
-    state2.turn.priority_holder = Some(p1);
+    state2.turn_mut().priority_holder = Some(p1);
     let spell2_id = find_object(&state2, "Emrakul Test 2");
     let result = cast_spell(state2, p1, spell2_id);
     assert!(
@@ -842,19 +842,19 @@ fn test_self_cost_reduction_basic_land_types() {
 
     // 3 basic land types × per=2 → reduce {12} by 6 = {6}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 6);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Scion Test");
 
     let (state, _) = cast_spell(state, p1, spell_id)
         .expect("CR 601.2f: Domain-style spell should cost {6} with 3 basic land types");
-    assert_eq!(state.stack_objects.len(), 1);
-    assert!(state.players.get(&p1).unwrap().mana_pool.is_empty());
+    assert_eq!(state.stack_objects().len(), 1);
+    assert!(state.players().get(&p1).unwrap().mana_pool.is_empty());
 }
 
 // ── Test 11: Self-cost-reduction — TotalManaValue (Earthquake Dragon style) ─
@@ -935,25 +935,25 @@ fn test_self_cost_reduction_total_mana_value() {
 
     // Total MV of p1's Dragons = 8 → reduce {14}{G} by 8 = {6}{G}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 6);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Eq Dragon Test");
 
     let (state, _) = cast_spell(state, p1, spell_id)
         .expect("CR 601.2f: Earthquake Dragon-style spell should cost {6}{G} with MV=8 Dragons");
-    assert_eq!(state.stack_objects.len(), 1);
-    assert!(state.players.get(&p1).unwrap().mana_pool.is_empty());
+    assert_eq!(state.stack_objects().len(), 1);
+    assert!(state.players().get(&p1).unwrap().mana_pool.is_empty());
 }
 
 // ── Test 12: The Ur-Dragon exclude_self — eminence does not reduce its own cost ─
@@ -1043,42 +1043,42 @@ fn test_spell_cost_modifier_ur_dragon_exclude_self() {
     // So the eminence modifier DOES apply to the hand copy (different object).
     // This test verifies the hand copy gets the reduction: costs {3}{W}{U}{B}{R}{G}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let hand_id = find_object(&state, "Ur Dragon Hand");
 
@@ -1088,8 +1088,8 @@ fn test_spell_cost_modifier_ur_dragon_exclude_self() {
     let (state, _) = cast_spell(state, p1, hand_id).expect(
         "CR 601.2f: Ur-Dragon hand copy costs {3}{W}{U}{B}{R}{G} (eminence from command zone copy)",
     );
-    assert_eq!(state.stack_objects.len(), 1);
-    assert!(state.players.get(&p1).unwrap().mana_pool.is_empty());
+    assert_eq!(state.stack_objects().len(), 1);
+    assert!(state.players().get(&p1).unwrap().mana_pool.is_empty());
 
     // Negative: casting with only {4} generic fails (cost is {3}+5 colored, not free).
     let ur_dragon_hand2 = ObjectSpec::card(p1, "Ur Dragon Hand2")
@@ -1157,42 +1157,42 @@ fn test_spell_cost_modifier_ur_dragon_exclude_self() {
 
     // Give only {2} generic + colored (not enough for {3}{W}{U}{B}{R}{G}).
     state2
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
     state2
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::White, 1);
     state2
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state2
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
     state2
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
     state2
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 1);
-    state2.turn.priority_holder = Some(p1);
+    state2.turn_mut().priority_holder = Some(p1);
 
     let hand2_id = find_object(&state2, "Ur Dragon Hand2");
     let result2 = cast_spell(state2, p1, hand2_id);
@@ -1255,25 +1255,25 @@ fn test_spell_cost_filter_color_and_creature_reduces_matching() {
 
     // Provide {1}{B} — exactly reduced cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Vampire Test");
     let (state, _) = cast_spell(state, p1, spell_id).expect(
         "CR 601.2f: black creature spell should cost {1}{B} with ColorAndCreature(Black) reduction",
     );
     assert!(
-        state.players.get(&p1).unwrap().mana_pool.is_empty(),
+        state.players().get(&p1).unwrap().mana_pool.is_empty(),
         "mana should be fully spent"
     );
 }
@@ -1327,17 +1327,17 @@ fn test_spell_cost_filter_color_and_creature_no_match_noncreature() {
     // Only provide {0} generic — fails because noncreature isn't reduced.
     // Actually the instant costs {B} so we need {B}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Dark Ritual Test");
     let (state, _) = cast_spell(state, p1, spell_id)
         .expect("CR 601.2f: black instant costs full {B} (not reduced by ColorAndCreature)");
-    assert!(state.players.get(&p1).unwrap().mana_pool.is_empty());
+    assert!(state.players().get(&p1).unwrap().mana_pool.is_empty());
 }
 
 #[test]
@@ -1407,30 +1407,30 @@ fn test_spell_cost_filter_chosen_creature_subtype() {
     // Set chosen_creature_type = Goblin on the incubator object.
     let incubator_id = find_object(&state, "Incubator Test");
     state
-        .objects
+        .objects_mut()
         .get_mut(&incubator_id)
         .unwrap()
         .chosen_creature_type = Some(SubType("Goblin".to_string()));
 
     // Pay {1}{R} for Goblin (reduced from {3}{R}).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let goblin_id = find_object(&state, "Goblin Test");
     let (state, _) = cast_spell(state.clone(), p1, goblin_id)
         .expect("CR 601.2f: Goblin spell should cost {{1}}{{R}} with incubator choosing Goblin");
-    assert!(state.players.get(&p1).unwrap().mana_pool.is_empty());
+    assert!(state.players().get(&p1).unwrap().mana_pool.is_empty());
 }
 
 // ── PB-29: New SelfCostReduction variants ────────────────────────────────────
@@ -1486,23 +1486,23 @@ fn test_self_cost_reduction_conditional_keyword_flying() {
 
     // With flying creature: {2}{U} - 1 = {1}{U}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Winged Test");
     let (state, _) = cast_spell(state, p1, spell_id)
         .expect("CR 601.2f: should cost {1}{U} when controlling a flyer");
-    assert!(state.players.get(&p1).unwrap().mana_pool.is_empty());
+    assert!(state.players().get(&p1).unwrap().mana_pool.is_empty());
 }
 
 #[test]
@@ -1555,18 +1555,18 @@ fn test_self_cost_reduction_conditional_keyword_no_match() {
 
     // Attempt with only {1}{U} — should fail (needs {2}{U}).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Winged Test2");
     let result = cast_spell(state, p1, spell_id);
@@ -1640,23 +1640,23 @@ fn test_self_cost_reduction_max_opponent_permanents_1v1() {
 
     // {7}{RR} - 3 artifacts = {4}{RR}. Give {4}{RR}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 4);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Dragon Test");
     let (state, _) = cast_spell(state, p1, spell_id)
         .expect("CR 601.2f: dragon should cost {4}{RR} with opponent having 3 artifacts");
-    assert!(state.players.get(&p1).unwrap().mana_pool.is_empty());
+    assert!(state.players().get(&p1).unwrap().mana_pool.is_empty());
 }
 
 #[test]
@@ -1741,23 +1741,23 @@ fn test_self_cost_reduction_max_opponent_permanents_multiplayer() {
 
     // Max opponent artifacts = 5 (from p3). Cost: {7}{RR} - 5 = {2}{RR}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Dragon Multi Test");
     let (state, _) = cast_spell(state, p1, spell_id)
         .expect("CR 601.2f: dragon should cost {2}{RR} with max opponent having 5 artifacts");
-    assert!(state.players.get(&p1).unwrap().mana_pool.is_empty());
+    assert!(state.players().get(&p1).unwrap().mana_pool.is_empty());
 }
 
 // ── PB-29: SelfActivatedCostReduction tests ──────────────────────────────────
@@ -1838,12 +1838,12 @@ fn test_activated_ability_self_cost_reduction_per_legendary() {
 
     // Cost: {4} - 2 legendary = {2}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let source_id = find_object(&state, "Channel Land Test");
     let (state, _) = process_command(
@@ -1860,7 +1860,7 @@ fn test_activated_ability_self_cost_reduction_per_legendary() {
     )
     .expect("CR 602.2b: ability should cost 2 generic with 2 legendary creatures");
     assert!(
-        state.players.get(&p1).unwrap().mana_pool.is_empty(),
+        state.players().get(&p1).unwrap().mana_pool.is_empty(),
         "mana should be fully spent"
     );
 }
@@ -1931,7 +1931,7 @@ fn test_activated_ability_self_cost_reduction_floor_zero() {
         .unwrap();
 
     // Cost reduced to {0} (floor). Give {0} mana — should succeed.
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let source_id = find_object(&state, "Channel Floor Test");
     let (state, _) = process_command(
@@ -1948,7 +1948,7 @@ fn test_activated_ability_self_cost_reduction_floor_zero() {
     )
     .expect("CR 601.2f: cost should floor at {0}, not go negative");
     assert!(
-        state.players.get(&p1).unwrap().mana_pool.is_empty(),
+        state.players().get(&p1).unwrap().mana_pool.is_empty(),
         "no mana needed at {{0}} cost"
     );
 }
@@ -2044,12 +2044,12 @@ fn test_activated_ability_self_cost_reduction_vampires() {
 
     // Cost: {5} - 3 vampires = {2}. The tap is free (already untapped).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let source_id = find_object(&state, "Estate Test");
     let (state, _) = process_command(
@@ -2065,5 +2065,5 @@ fn test_activated_ability_self_cost_reduction_vampires() {
         },
     )
     .expect("CR 602.2b: Blood token ability should cost {2} with 3 Vampires");
-    assert!(state.players.get(&p1).unwrap().mana_pool.is_empty());
+    assert!(state.players().get(&p1).unwrap().mana_pool.is_empty());
 }

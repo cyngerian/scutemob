@@ -29,7 +29,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_by_name(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -72,7 +72,7 @@ fn build_with_land(name: &str) -> GameState {
         .build()
         .expect("state should build");
 
-    state.turn.priority_holder = Some(p(1));
+    state.turn_mut().priority_holder = Some(p(1));
     state
 }
 
@@ -83,7 +83,7 @@ fn battlefield_forge_colorless_tap_no_damage() {
     // CR 605: {T}: Add {C} — no side effect.
     let state = build_with_land("Battlefield Forge");
     let land_id = find_by_name(&state, "Battlefield Forge");
-    let life_before = state.players[&p(1)].life_total;
+    let life_before = state.players()[&p(1)].life_total;
 
     let (state, events) = process_command(
         state,
@@ -96,7 +96,7 @@ fn battlefield_forge_colorless_tap_no_damage() {
     .expect("tap for colorless should succeed");
 
     // Life should be unchanged.
-    assert_eq!(state.players[&p(1)].life_total, life_before);
+    assert_eq!(state.players()[&p(1)].life_total, life_before);
     // Should have ManaAdded but no DamageDealt.
     assert!(
         events
@@ -119,7 +119,7 @@ fn battlefield_forge_colored_tap_deals_damage() {
     // CR 605: {T}: Add {W}. This land deals 1 damage to you. (ability_index 1)
     let state = build_with_land("Battlefield Forge");
     let land_id = find_by_name(&state, "Battlefield Forge");
-    let life_before = state.players[&p(1)].life_total;
+    let life_before = state.players()[&p(1)].life_total;
 
     let (state, events) = process_command(
         state,
@@ -132,7 +132,7 @@ fn battlefield_forge_colored_tap_deals_damage() {
     .expect("tap for colored mana should succeed");
 
     // Life should decrease by 1.
-    assert_eq!(state.players[&p(1)].life_total, life_before - 1);
+    assert_eq!(state.players()[&p(1)].life_total, life_before - 1);
     // Should have both ManaAdded and DamageDealt events.
     assert!(events
         .iter()
@@ -149,7 +149,7 @@ fn battlefield_forge_second_colored_tap_deals_damage() {
     // CR 605: {T}: Add {R}. This land deals 1 damage to you. (ability_index 2)
     let state = build_with_land("Battlefield Forge");
     let land_id = find_by_name(&state, "Battlefield Forge");
-    let life_before = state.players[&p(1)].life_total;
+    let life_before = state.players()[&p(1)].life_total;
 
     let (state, events) = process_command(
         state,
@@ -162,7 +162,7 @@ fn battlefield_forge_second_colored_tap_deals_damage() {
     .expect("tap for red mana should succeed");
 
     // Life should decrease by 1.
-    assert_eq!(state.players[&p(1)].life_total, life_before - 1);
+    assert_eq!(state.players()[&p(1)].life_total, life_before - 1);
     // Should have both ManaAdded and DamageDealt events.
     assert!(events
         .iter()
@@ -189,7 +189,7 @@ fn all_pain_lands_deal_damage_on_colored_tap() {
     for name in &pain_lands {
         let state = build_with_land(name);
         let land_id = find_by_name(&state, name);
-        let life_before = state.players[&p(1)].life_total;
+        let life_before = state.players()[&p(1)].life_total;
 
         let (state, events) = process_command(
             state,
@@ -202,7 +202,7 @@ fn all_pain_lands_deal_damage_on_colored_tap() {
         .unwrap_or_else(|e| panic!("{}: colored tap failed: {:?}", name, e));
 
         assert_eq!(
-            state.players[&p(1)].life_total,
+            state.players()[&p(1)].life_total,
             life_before - 1,
             "{}: should deal 1 damage",
             name
@@ -235,7 +235,7 @@ fn all_pain_lands_deal_damage_on_second_colored_tap() {
     for name in &pain_lands {
         let state = build_with_land(name);
         let land_id = find_by_name(&state, name);
-        let life_before = state.players[&p(1)].life_total;
+        let life_before = state.players()[&p(1)].life_total;
 
         let (state, events) = process_command(
             state,
@@ -248,7 +248,7 @@ fn all_pain_lands_deal_damage_on_second_colored_tap() {
         .unwrap_or_else(|e| panic!("{}: second colored tap failed: {:?}", name, e));
 
         assert_eq!(
-            state.players[&p(1)].life_total,
+            state.players()[&p(1)].life_total,
             life_before - 1,
             "{}: second colored ability should deal 1 damage",
             name
@@ -329,17 +329,17 @@ fn shivan_reef_produces_exactly_one_blue_or_red() {
     .expect("tap for blue mana should succeed");
 
     assert_eq!(
-        state_blue.players[&p(1)].life_total,
+        state_blue.players()[&p(1)].life_total,
         39,
         "blue tap should deal 1 damage"
     );
     assert_eq!(
-        state_blue.players[&p(1)].mana_pool.blue,
+        state_blue.players()[&p(1)].mana_pool.blue,
         1,
         "should have exactly 1 blue mana"
     );
     assert_eq!(
-        state_blue.players[&p(1)].mana_pool.red,
+        state_blue.players()[&p(1)].mana_pool.red,
         0,
         "should have 0 red mana from blue ability"
     );
@@ -359,17 +359,17 @@ fn shivan_reef_produces_exactly_one_blue_or_red() {
     .expect("tap for red mana should succeed");
 
     assert_eq!(
-        state_red.players[&p(1)].life_total,
+        state_red.players()[&p(1)].life_total,
         39,
         "red tap should deal 1 damage"
     );
     assert_eq!(
-        state_red.players[&p(1)].mana_pool.red,
+        state_red.players()[&p(1)].mana_pool.red,
         1,
         "should have exactly 1 red mana"
     );
     assert_eq!(
-        state_red.players[&p(1)].mana_pool.blue,
+        state_red.players()[&p(1)].mana_pool.blue,
         0,
         "should have 0 blue mana from red ability"
     );

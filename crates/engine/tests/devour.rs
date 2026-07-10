@@ -29,7 +29,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -38,7 +38,7 @@ fn find_object(state: &mtg_engine::GameState, name: &str) -> ObjectId {
 
 fn find_object_on_battlefield(state: &mtg_engine::GameState, name: &str) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
         .map(|(id, _)| *id)
@@ -50,7 +50,7 @@ fn find_object_in_graveyard(
     name: &str,
 ) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == ZoneId::Graveyard(player))
         .map(|(id, _)| *id)
@@ -82,12 +82,12 @@ fn cast_devour_creature(
 ) -> mtg_engine::GameState {
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&caster)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Colorless, generic_cost);
-    state.turn.priority_holder = Some(caster);
+    state.turn_mut().priority_holder = Some(caster);
 
     let (state, _) = process_command(
         state,
@@ -250,7 +250,7 @@ fn test_devour_basic_one_sacrifice() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let devour_id = find_object(&state, "Devour One");
     let fodder_id = find_object(&state, "Fodder Alpha");
@@ -266,7 +266,7 @@ fn test_devour_basic_one_sacrifice() {
         .expect("CR 702.82a: Devour creature should be on the battlefield");
 
     // Verify: exactly 1 +1/+1 counter (Devour 1 × 1 creature).
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -346,7 +346,7 @@ fn test_devour_multiple_sacrifices() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let devour_id = find_object(&state, "Devour One");
     let fodder_a_id = find_object(&state, "Fodder Alpha");
@@ -358,7 +358,7 @@ fn test_devour_multiple_sacrifices() {
     let bf_id = find_object_on_battlefield(&state, "Devour One")
         .expect("CR 702.82a: Devour creature should be on the battlefield");
 
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -425,7 +425,7 @@ fn test_devour_n_multiplier() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let devour_id = find_object(&state, "Devour Three");
     let fodder_a_id = find_object(&state, "Fodder Alpha");
@@ -437,7 +437,7 @@ fn test_devour_n_multiplier() {
     let bf_id = find_object_on_battlefield(&state, "Devour Three")
         .expect("CR 702.82a: Devour creature should be on the battlefield");
 
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -488,7 +488,7 @@ fn test_devour_zero_sacrifice() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let devour_id = find_object(&state, "Devour One");
 
@@ -500,7 +500,7 @@ fn test_devour_zero_sacrifice() {
         .expect("CR 702.82a: Devour creature should still enter the battlefield");
 
     // No counters should be placed.
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -545,7 +545,7 @@ fn test_devour_no_eligible_creatures() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let devour_id = find_object(&state, "Devour One");
 
@@ -555,7 +555,7 @@ fn test_devour_no_eligible_creatures() {
     let bf_id = find_object_on_battlefield(&state, "Devour One")
         .expect("CR 702.82a: Devour creature should enter normally");
 
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -607,7 +607,7 @@ fn test_devour_only_own_creatures() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let devour_id = find_object(&state, "Devour One");
     let opp_fodder_id = find_object(&state, "Opponent Fodder");
@@ -615,12 +615,12 @@ fn test_devour_only_own_creatures() {
     // Attempt to sacrifice P2's creature — should be rejected at cast time.
     let mut mana_state = state.clone();
     mana_state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Colorless, 3);
-    mana_state.turn.priority_holder = Some(p1);
+    mana_state.turn_mut().priority_holder = Some(p1);
 
     let result = process_command(
         mana_state,
@@ -683,7 +683,7 @@ fn test_devour_cannot_sacrifice_self() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let devour_id = find_object(&state, "Devour One");
 
@@ -693,12 +693,12 @@ fn test_devour_cannot_sacrifice_self() {
     // so a hand card cannot be a sacrifice target anyway.
     let mut mana_state = state.clone();
     mana_state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(mtg_engine::ManaColor::Colorless, 3);
-    mana_state.turn.priority_holder = Some(p1);
+    mana_state.turn_mut().priority_holder = Some(p1);
 
     let result = process_command(
         mana_state,
@@ -784,7 +784,7 @@ fn test_devour_creatures_go_to_graveyard() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let devour_id = find_object(&state, "Devour One");
     let fodder_a_id = find_object(&state, "Fodder Alpha");
@@ -870,7 +870,7 @@ fn test_devour_multiple_instances() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let devour_id = find_object(&state, "Devour Dual Test");
     let fodder_a_id = find_object(&state, "Fodder Alpha");
@@ -882,7 +882,7 @@ fn test_devour_multiple_instances() {
     let bf_id = find_object_on_battlefield(&state, "Devour Dual Test")
         .expect("CR 702.82c: Devour creature should be on the battlefield");
 
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()
@@ -947,7 +947,7 @@ fn test_devour_creatures_devoured_tracking() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let devour_id = find_object(&state, "Devour One");
     let fodder_a_id = find_object(&state, "Fodder Alpha");
@@ -968,14 +968,14 @@ fn test_devour_creatures_devoured_tracking() {
         .expect("CR 702.82b: Devour creature should be on the battlefield");
 
     // Verify `creatures_devoured` is set to 3.
-    let devoured_count = state.objects[&bf_id].creatures_devoured;
+    let devoured_count = state.objects()[&bf_id].creatures_devoured;
     assert_eq!(
         devoured_count, 3,
         "CR 702.82b: creatures_devoured should track the number of sacrificed creatures"
     );
 
     // Also verify counter count matches (3 devoured × Devour 1 = 3 counters).
-    let counter_count = state.objects[&bf_id]
+    let counter_count = state.objects()[&bf_id]
         .counters
         .get(&CounterType::PlusOnePlusOne)
         .copied()

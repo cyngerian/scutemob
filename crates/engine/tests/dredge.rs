@@ -27,7 +27,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -36,13 +36,13 @@ fn find_object(state: &GameState, name: &str) -> mtg_engine::ObjectId {
 
 fn object_in_zone(state: &GameState, name: &str, zone: ZoneId) -> bool {
     state
-        .objects
+        .objects()
         .values()
         .any(|o| o.characteristics.name == name && o.zone == zone)
 }
 
 fn count_in_zone(state: &GameState, zone: ZoneId) -> usize {
-    state.objects.values().filter(|o| o.zone == zone).count()
+    state.objects().values().filter(|o| o.zone == zone).count()
 }
 
 /// Pass priority for all listed players once.
@@ -96,8 +96,8 @@ fn build_upkeep_state(
 
     let mut state = builder.build().unwrap();
     // CR 103.8: mark as NOT first turn so draw step draw is not skipped.
-    state.turn.is_first_turn_of_game = false;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().is_first_turn_of_game = false;
+    state.turn_mut().priority_holder = Some(p1);
     state
 }
 
@@ -303,7 +303,7 @@ fn test_dredge_decline_draws_normally() {
         b
     });
 
-    let cards_drawn_before = state.players[&p1].cards_drawn_this_turn;
+    let cards_drawn_before = state.players()[&p1].cards_drawn_this_turn;
 
     // Advance to DredgeChoiceRequired.
     let (state, _events) = pass_all(state, &[p1, p2]);
@@ -330,7 +330,7 @@ fn test_dredge_decline_draws_normally() {
     );
 
     // cards_drawn_this_turn incremented.
-    let cards_drawn_after = state.players[&p1].cards_drawn_this_turn;
+    let cards_drawn_after = state.players()[&p1].cards_drawn_this_turn;
     assert_eq!(
         cards_drawn_after,
         cards_drawn_before + 1,
@@ -535,7 +535,7 @@ fn test_dredge_does_not_increment_cards_drawn_counter() {
         b
     });
 
-    let cards_drawn_before = state.players[&p1].cards_drawn_this_turn;
+    let cards_drawn_before = state.players()[&p1].cards_drawn_this_turn;
 
     // Advance to DredgeChoiceRequired.
     let (state, events) = pass_all(state, &[p1, p2]);
@@ -565,7 +565,7 @@ fn test_dredge_does_not_increment_cards_drawn_counter() {
     )
     .unwrap();
 
-    let cards_drawn_after = state.players[&p1].cards_drawn_this_turn;
+    let cards_drawn_after = state.players()[&p1].cards_drawn_this_turn;
 
     assert_eq!(
         cards_drawn_after, cards_drawn_before,
@@ -697,8 +697,8 @@ fn test_dredge_invalid_command_card_not_in_graveyard() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
-    state.turn.is_first_turn_of_game = false;
+    state.turn_mut().priority_holder = Some(p1);
+    state.turn_mut().is_first_turn_of_game = false;
 
     let dredge_card_id = find_object(&state, "Dredge Three");
 
@@ -830,8 +830,8 @@ fn test_dredge_during_effect_draw_not_just_draw_step() {
         .build()
         .unwrap();
 
-    state.turn.is_first_turn_of_game = false;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().is_first_turn_of_game = false;
+    state.turn_mut().priority_holder = Some(p1);
 
     // Get the dredge card's ObjectId before executing the effect.
     let dredge_card_id = find_object(&state, "Dredge Two");
@@ -972,8 +972,8 @@ fn test_dredge_milled_card_available_for_second_draw() {
         .build()
         .unwrap();
 
-    state.turn.is_first_turn_of_game = false;
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().is_first_turn_of_game = false;
+    state.turn_mut().priority_holder = Some(p1);
 
     // Verify initial setup: Dredge Three in graveyard, 5 cards in library.
     assert!(
@@ -1059,7 +1059,7 @@ fn test_dredge_milled_card_available_for_second_draw() {
     // The newly-milled Dredge Two should be among the options.
     // Library has 2 cards left (Card3, Card4) — Dredge Two needs >= 2, so it's eligible.
     let dredge_two_obj = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Dredge Two" && o.zone == ZoneId::Graveyard(p1));
     let dredge_two_id = dredge_two_obj

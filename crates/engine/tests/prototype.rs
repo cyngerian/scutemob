@@ -14,6 +14,7 @@
 //! - Card without Prototype ability cannot be cast with prototype: true (CR 702.160a).
 //! - SBAs apply to prototype P/T (CR 704.5f).
 
+use mtg_engine::state::test_util;
 use mtg_engine::state::types::AltCostKind;
 use mtg_engine::{
     process_command, AbilityDefinition, AltCastDetails, CardDefinition, CardId, CardRegistry,
@@ -29,7 +30,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -38,7 +39,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -182,18 +183,18 @@ fn test_prototype_basic_cast() {
 
     // Pay {2}{R} — prototype cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Blitz Automaton");
 
@@ -222,17 +223,17 @@ fn test_prototype_basic_cast() {
 
     // Spell is on the stack with was_prototyped = true.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 718.3: prototyped spell should be on the stack"
     );
     assert!(
-        state.stack_objects[0].was_prototyped,
+        state.stack_objects()[0].was_prototyped,
         "CR 718.3b: was_prototyped should be true on stack object"
     );
 
     // Mana consumed: {2}{R} = 3 mana total (not {7}).
-    let pool = &state.players[&p1].mana_pool;
+    let pool = &state.players()[&p1].mana_pool;
     assert_eq!(
         pool.white + pool.blue + pool.black + pool.red + pool.green + pool.colorless,
         0,
@@ -249,7 +250,7 @@ fn test_prototype_basic_cast() {
     );
 
     let bf_id = find_in_zone(&state, "Blitz Automaton", ZoneId::Battlefield).unwrap();
-    let obj = &state.objects[&bf_id];
+    let obj = &state.objects()[&bf_id];
 
     // Prototype P/T.
     assert_eq!(
@@ -304,12 +305,12 @@ fn test_prototype_normal_cast() {
 
     // Pay {7} — normal cost (all colorless).
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 7);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Blitz Automaton");
 
@@ -338,12 +339,12 @@ fn test_prototype_normal_cast() {
 
     // was_prototyped = false on stack.
     assert!(
-        !state.stack_objects[0].was_prototyped,
+        !state.stack_objects()[0].was_prototyped,
         "CR 718.4: was_prototyped should be false for normal cast"
     );
 
     // Mana consumed: {7}.
-    let pool = &state.players[&p1].mana_pool;
+    let pool = &state.players()[&p1].mana_pool;
     assert_eq!(
         pool.white + pool.blue + pool.black + pool.red + pool.green + pool.colorless,
         0,
@@ -359,7 +360,7 @@ fn test_prototype_normal_cast() {
     );
 
     let bf_id = find_in_zone(&state, "Blitz Automaton", ZoneId::Battlefield).unwrap();
-    let obj = &state.objects[&bf_id];
+    let obj = &state.objects()[&bf_id];
 
     // Printed P/T.
     assert_eq!(
@@ -409,18 +410,18 @@ fn test_prototype_color_change() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Blitz Automaton");
     let (state, _) = process_command(
@@ -448,21 +449,21 @@ fn test_prototype_color_change() {
 
     let bf_id = find_in_zone(&state, "Blitz Automaton", ZoneId::Battlefield).unwrap();
     assert!(
-        state.objects[&bf_id]
+        state.objects()[&bf_id]
             .characteristics
             .colors
             .contains(&Color::Red),
         "CR 718.3b / CR 105.2: prototype {{2}}{{R}} should make permanent red"
     );
     assert!(
-        !state.objects[&bf_id]
+        !state.objects()[&bf_id]
             .characteristics
             .colors
             .contains(&Color::Blue),
         "CR 718.3b: prototype {{2}}{{R}} should not be blue"
     );
     assert!(
-        !state.objects[&bf_id]
+        !state.objects()[&bf_id]
             .characteristics
             .colors
             .contains(&Color::White),
@@ -492,18 +493,18 @@ fn test_prototype_mana_value() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Blitz Automaton");
     let (state, _) = process_command(
@@ -530,7 +531,7 @@ fn test_prototype_mana_value() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     let bf_id = find_in_zone(&state, "Blitz Automaton", ZoneId::Battlefield).unwrap();
-    let mana_cost = state.objects[&bf_id]
+    let mana_cost = state.objects()[&bf_id]
         .characteristics
         .mana_cost
         .as_ref()
@@ -574,18 +575,18 @@ fn test_prototype_leaves_battlefield_resumes_normal() {
 
     // Cast prototyped.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Blitz Automaton");
     let (state, _) = process_command(
@@ -614,11 +615,11 @@ fn test_prototype_leaves_battlefield_resumes_normal() {
     // Verify prototyped on battlefield.
     let bf_id = find_in_zone(&state, "Blitz Automaton", ZoneId::Battlefield).unwrap();
     assert!(
-        state.objects[&bf_id].is_prototyped,
+        state.objects()[&bf_id].is_prototyped,
         "precondition: permanent should be prototyped on battlefield"
     );
     assert_eq!(
-        state.objects[&bf_id].characteristics.power,
+        state.objects()[&bf_id].characteristics.power,
         Some(3),
         "precondition: prototype P/T should be 3/2 on battlefield"
     );
@@ -633,7 +634,7 @@ fn test_prototype_leaves_battlefield_resumes_normal() {
         let mut s = state.clone();
         // Move from battlefield to hand: this triggers CR 400.7 — new object, is_prototyped cleared.
         // Use the engine's move_object_to_zone which resets flags.
-        let result = s.move_object_to_zone(bf_id, ZoneId::Hand(p1));
+        let result = test_util::move_object_to_zone(&mut s, bf_id, ZoneId::Hand(p1));
         assert!(result.is_ok(), "move_object_to_zone to hand should succeed");
         s
     };
@@ -642,21 +643,21 @@ fn test_prototype_leaves_battlefield_resumes_normal() {
     let hand_id = find_in_zone(&hand_state, "Blitz Automaton", ZoneId::Hand(p1))
         .expect("Blitz Automaton should be in p1's hand after bounce");
     assert!(
-        !hand_state.objects[&hand_id].is_prototyped,
+        !hand_state.objects()[&hand_id].is_prototyped,
         "CR 718.4: is_prototyped should be false after zone change to hand (CR 400.7)"
     );
     // CR 718.4: characteristics should revert to printed values after zone change.
     assert_eq!(
-        hand_state.objects[&hand_id].characteristics.power,
+        hand_state.objects()[&hand_id].characteristics.power,
         Some(6),
         "CR 718.4: power should revert to printed value 6 in hand"
     );
     assert_eq!(
-        hand_state.objects[&hand_id].characteristics.toughness,
+        hand_state.objects()[&hand_id].characteristics.toughness,
         Some(4),
         "CR 718.4: toughness should revert to printed value 4 in hand"
     );
-    let mc = hand_state.objects[&hand_id]
+    let mc = hand_state.objects()[&hand_id]
         .characteristics
         .mana_cost
         .as_ref()
@@ -667,7 +668,7 @@ fn test_prototype_leaves_battlefield_resumes_normal() {
         "CR 718.4: mana value should revert to 7 in hand"
     );
     assert!(
-        hand_state.objects[&hand_id]
+        hand_state.objects()[&hand_id]
             .characteristics
             .colors
             .is_empty(),
@@ -716,7 +717,7 @@ fn test_prototype_in_graveyard_normal_chars() {
 
     let gy_id = find_in_zone(&state, "Blitz Automaton", ZoneId::Graveyard(p1))
         .expect("Blitz Automaton should be in graveyard");
-    let obj = &state.objects[&gy_id];
+    let obj = &state.objects()[&gy_id];
 
     // CR 718.4: graveyard object has normal (printed) characteristics.
     assert!(
@@ -819,18 +820,18 @@ fn test_prototype_retains_keyword_ability() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Haste Automaton");
     let (state, _) = process_command(
@@ -857,7 +858,7 @@ fn test_prototype_retains_keyword_ability() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     let bf_id = find_in_zone(&state, "Haste Automaton", ZoneId::Battlefield).unwrap();
-    let obj = &state.objects[&bf_id];
+    let obj = &state.objects()[&bf_id];
 
     // CR 718.5: Haste ability should still be present after prototyped cast.
     assert!(
@@ -905,12 +906,12 @@ fn test_prototype_negative_not_prototype_keyword() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Plain Construct");
 
@@ -985,7 +986,7 @@ fn test_prototype_sba_toughness_check() {
     let bf_id = find_in_zone(&state, "Blitz Automaton", ZoneId::Battlefield)
         .expect("should be on battlefield");
     {
-        let obj = state.objects.get_mut(&bf_id).unwrap();
+        let obj = state.objects_mut().get_mut(&bf_id).unwrap();
         obj.is_prototyped = true;
         // Set toughness to 0 — simulates a -2 effect on a 2-toughness prototyped creature.
         obj.characteristics.toughness = Some(0);
@@ -1026,18 +1027,18 @@ fn test_prototype_stack_characteristics() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Blitz Automaton");
     let (state, _) = process_command(
@@ -1064,24 +1065,24 @@ fn test_prototype_stack_characteristics() {
 
     // The spell is now on the stack. Verify the source object's characteristics.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "precondition: one spell on the stack"
     );
 
     // The stack_object flag.
     assert!(
-        state.stack_objects[0].was_prototyped,
+        state.stack_objects()[0].was_prototyped,
         "CR 718.3b: was_prototyped should be true on the StackObject"
     );
 
     // The source card on the stack should have prototype characteristics.
     // source_object is inside StackObjectKind::Spell.
-    let source_id = match &state.stack_objects[0].kind {
+    let source_id = match &state.stack_objects()[0].kind {
         mtg_engine::StackObjectKind::Spell { source_object } => *source_object,
         other => panic!("expected Spell on stack, got {:?}", other),
     };
-    if let Some(source_obj) = state.objects.get(&source_id) {
+    if let Some(source_obj) = state.objects().get(&source_id) {
         // Mana cost should be prototype cost {2}{R}.
         if let Some(mc) = &source_obj.characteristics.mana_cost {
             assert_eq!(

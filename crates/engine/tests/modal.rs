@@ -30,7 +30,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -197,18 +197,18 @@ fn build_state_with_modal_spell(registry: Arc<CardRegistry>) -> mtg_engine::Game
 
     // Add 2 blue + 1 colorless mana for {1}{U} cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     state
 }
@@ -223,9 +223,9 @@ fn test_modal_choose_one_mode_zero() {
     let p2 = p(2);
     let registry = modal_registry();
     let state = build_state_with_modal_spell(registry);
-    let initial_life = state.players[&p1].life_total;
+    let initial_life = state.players()[&p1].life_total;
     let initial_hand = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count()
@@ -255,9 +255,13 @@ fn test_modal_choose_one_mode_zero() {
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
 
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
     assert_eq!(
-        state.stack_objects[0].modes_chosen,
+        state.stack_objects().len(),
+        1,
+        "spell should be on the stack"
+    );
+    assert_eq!(
+        state.stack_objects()[0].modes_chosen,
         vec![0],
         "CR 700.2a: modes_chosen should be [0]"
     );
@@ -267,13 +271,13 @@ fn test_modal_choose_one_mode_zero() {
 
     // Mode 0 (GainLife 3) fired.
     assert_eq!(
-        state.players[&p1].life_total,
+        state.players()[&p1].life_total,
         initial_life + 3,
         "CR 700.2a: mode 0 (GainLife 3) should have fired"
     );
     // Mode 1 (DrawCards 2) did NOT fire.
     let hand_after = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -293,9 +297,9 @@ fn test_modal_choose_one_mode_one() {
     let p2 = p(2);
     let registry = modal_registry();
     let state = build_state_with_modal_spell(registry);
-    let initial_life = state.players[&p1].life_total;
+    let initial_life = state.players()[&p1].life_total;
     let initial_hand = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count()
@@ -329,7 +333,7 @@ fn test_modal_choose_one_mode_one() {
 
     // Mode 1 (DrawCards 2) fired: hand grew by 2.
     let hand_after = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -340,7 +344,8 @@ fn test_modal_choose_one_mode_one() {
     );
     // Mode 0 (GainLife) did NOT fire: life unchanged.
     assert_eq!(
-        state.players[&p1].life_total, initial_life,
+        state.players()[&p1].life_total,
+        initial_life,
         "CR 700.2a: mode 0 (GainLife) should NOT have fired when mode 1 chosen"
     );
 }
@@ -355,9 +360,9 @@ fn test_modal_choose_one_mode_two() {
     let p2 = p(2);
     let registry = modal_registry();
     let state = build_state_with_modal_spell(registry);
-    let initial_life = state.players[&p1].life_total;
+    let initial_life = state.players()[&p1].life_total;
     let initial_hand = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count()
@@ -391,13 +396,13 @@ fn test_modal_choose_one_mode_two() {
 
     // Mode 2 (DealDamage 2) fired: life decreased by 2.
     assert_eq!(
-        state.players[&p1].life_total,
+        state.players()[&p1].life_total,
         initial_life - 2,
         "CR 700.2a: mode 2 (DealDamage 2) should have fired"
     );
     // Mode 0/1 did NOT fire.
     let hand_after = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -446,22 +451,22 @@ fn test_modal_choose_two_modes() {
 
     // {2}{U} = 3 mana total.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
-    let initial_life = state.players[&p1].life_total;
+    let initial_life = state.players()[&p1].life_total;
     let initial_hand = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count()
@@ -496,13 +501,13 @@ fn test_modal_choose_two_modes() {
     // Mode 0 (GainLife 3) fired AND mode 2 (DealDamage 2) fired.
     // Net life: initial + 3 - 2 = initial + 1.
     assert_eq!(
-        state.players[&p1].life_total,
+        state.players()[&p1].life_total,
         initial_life + 1,
         "CR 700.2: mode 0 (GainLife 3) + mode 2 (DealDamage 2) should both execute"
     );
     // Mode 1 (DrawCards) did NOT fire.
     let hand_after = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -522,7 +527,7 @@ fn test_modal_default_auto_selects_mode_zero() {
     let p2 = p(2);
     let registry = modal_registry();
     let state = build_state_with_modal_spell(registry);
-    let initial_life = state.players[&p1].life_total;
+    let initial_life = state.players()[&p1].life_total;
 
     let spell_id = find_object(&state, "Modal Test Spell");
 
@@ -552,7 +557,7 @@ fn test_modal_default_auto_selects_mode_zero() {
 
     // Mode 0 (GainLife 3) auto-selected and fired.
     assert_eq!(
-        state.players[&p1].life_total,
+        state.players()[&p1].life_total,
         initial_life + 3,
         "Backward compat: empty modes_chosen auto-selects mode[0] (GainLife 3)"
     );
@@ -568,7 +573,7 @@ fn test_modal_invalid_index_rejected() {
     let registry = modal_registry();
     let mut state = build_state_with_modal_spell(registry);
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let spell_id = find_object(&state, "Modal Test Spell");
 
     let result = process_command(
@@ -616,12 +621,12 @@ fn test_modal_duplicate_index_rejected() {
 
     // Add extra mana to allow for the choose-one max_modes check to be reached.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let spell_id = find_object(&state, "Modal Test Spell");
 
     let result = process_command(
@@ -677,18 +682,18 @@ fn test_modal_too_few_modes_rejected() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Choose Two Spell");
 
@@ -729,7 +734,7 @@ fn test_modal_too_many_modes_rejected() {
     let registry = modal_registry();
     let mut state = build_state_with_modal_spell(registry);
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let spell_id = find_object(&state, "Modal Test Spell");
 
     let result = process_command(
@@ -847,22 +852,22 @@ fn test_modal_entwine_overrides_modes_chosen() {
 
     // {1}{U} + entwine {2} = 4 mana.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
-    let initial_life = state.players[&p1].life_total;
+    let initial_life = state.players()[&p1].life_total;
     let initial_hand = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count()
@@ -893,7 +898,7 @@ fn test_modal_entwine_overrides_modes_chosen() {
     .unwrap_or_else(|e| panic!("cast with entwine failed: {:?}", e));
 
     assert!(
-        state.stack_objects[0]
+        state.stack_objects()[0]
             .additional_costs
             .iter()
             .any(|c| matches!(c, AdditionalCost::Entwine)),
@@ -904,12 +909,12 @@ fn test_modal_entwine_overrides_modes_chosen() {
 
     // BOTH modes executed because entwine takes precedence.
     assert_eq!(
-        state.players[&p1].life_total,
+        state.players()[&p1].life_total,
         initial_life + 3,
         "CR 702.42b: mode 0 (GainLife 3) should execute with entwine"
     );
     let hand_after = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -970,12 +975,12 @@ fn test_modal_non_modal_spell_with_modes_chosen_rejected() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Plain Sorcery");
 
@@ -1017,7 +1022,7 @@ fn test_modal_modes_chosen_stored_on_stack_object() {
     let registry = modal_registry();
     let mut state = build_state_with_modal_spell(registry);
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     let spell_id = find_object(&state, "Modal Test Spell");
 
     let (state, _) = process_command(
@@ -1042,9 +1047,13 @@ fn test_modal_modes_chosen_stored_on_stack_object() {
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
 
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
     assert_eq!(
-        state.stack_objects[0].modes_chosen,
+        state.stack_objects().len(),
+        1,
+        "spell should be on the stack"
+    );
+    assert_eq!(
+        state.stack_objects()[0].modes_chosen,
         vec![2],
         "CR 700.2a / 601.2b: modes_chosen [2] must be stored on the StackObject"
     );
@@ -1065,7 +1074,7 @@ fn test_modal_copy_inherits_modes() {
 
     // Record initial hand size (minus the spell).
     let initial_hand = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count()
@@ -1097,17 +1106,17 @@ fn test_modal_copy_inherits_modes() {
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
 
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "original should be on the stack"
     );
     assert_eq!(
-        state.stack_objects[0].modes_chosen,
+        state.stack_objects()[0].modes_chosen,
         vec![1],
         "CR 601.2b: original modes_chosen should be [1]"
     );
 
-    let original_stack_id: ObjectId = state.stack_objects[0].id;
+    let original_stack_id: ObjectId = state.stack_objects()[0].id;
 
     // Copy the spell on the stack directly (simulating a copy effect).
     let (copy_id, _copy_event) =
@@ -1115,14 +1124,14 @@ fn test_modal_copy_inherits_modes() {
             .unwrap_or_else(|e| panic!("copy_spell_on_stack failed: {:?}", e));
 
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "original + copy should be on the stack"
     );
 
     // Find the copy and verify modes_chosen is inherited.
     let copy_obj = state
-        .stack_objects
+        .stack_objects()
         .iter()
         .find(|s| s.id == copy_id)
         .expect("copy stack object not found");
@@ -1140,7 +1149,7 @@ fn test_modal_copy_inherits_modes() {
 
     // Both the copy and the original executed mode 1 (DrawCards 2): +4 cards total.
     let hand_after = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
@@ -1226,22 +1235,22 @@ fn test_modal_allow_duplicate_modes() {
 
     // {2}{U} = 3 mana.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Blue, 1);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 2);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
-    let initial_life = state.players[&p1].life_total;
+    let initial_life = state.players()[&p1].life_total;
     let initial_hand = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count()
@@ -1272,9 +1281,13 @@ fn test_modal_allow_duplicate_modes() {
     )
     .unwrap_or_else(|e| panic!("cast with duplicate modes failed: {:?}", e));
 
-    assert_eq!(state.stack_objects.len(), 1, "spell should be on the stack");
     assert_eq!(
-        state.stack_objects[0].modes_chosen,
+        state.stack_objects().len(),
+        1,
+        "spell should be on the stack"
+    );
+    assert_eq!(
+        state.stack_objects()[0].modes_chosen,
         vec![0, 0],
         "CR 700.2d: modes_chosen [0, 0] should be stored on the StackObject"
     );
@@ -1283,13 +1296,13 @@ fn test_modal_allow_duplicate_modes() {
 
     // Mode 0 (GainLife 3) executed TWICE → life = initial + 6.
     assert_eq!(
-        state.players[&p1].life_total,
+        state.players()[&p1].life_total,
         initial_life + 6,
         "CR 700.2d: mode 0 (GainLife 3) chosen twice must execute twice — expect +6 life"
     );
     // Mode 1 (DrawCards) did NOT execute.
     let hand_after = state
-        .objects
+        .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();

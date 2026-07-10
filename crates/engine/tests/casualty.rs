@@ -30,7 +30,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -42,7 +42,7 @@ fn find_object_in_zone(
     name: &str,
     zone: ZoneId,
 ) -> Option<mtg_engine::ObjectId> {
-    state.objects.iter().find_map(|(&id, obj)| {
+    state.objects().iter().find_map(|(&id, obj)| {
         if obj.characteristics.name == name && obj.zone == zone {
             Some(id)
         } else {
@@ -202,12 +202,12 @@ fn setup_casualty_state(
 
     // Add {R} mana.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Casualty Bolt");
     (state, p1, p2, spell_id)
@@ -227,7 +227,7 @@ fn test_casualty_basic_copy() {
     let (state, _p1, _p2, spell_id) = setup_casualty_state(vec![creature]);
 
     let creature_id = find_object(&state, "Soldier Token");
-    let initial_life = state.players[&p1].life_total;
+    let initial_life = state.players()[&p1].life_total;
 
     // Cast Casualty Bolt while sacrificing the 1/1 soldier token.
     let (state, _) = process_command(
@@ -265,13 +265,13 @@ fn test_casualty_basic_copy() {
     // The stack should have 2 objects: the trigger on top, then the spell below.
     // (Trigger is pushed after the spell, so it resolves first via LIFO.)
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         2,
         "CR 702.153a: after paying casualty cost, stack should have the spell + the casualty trigger"
     );
 
     // The original spell should be marked was_casualty_paid = true.
-    let original = state.stack_objects.iter().find(|o| o.was_casualty_paid);
+    let original = state.stack_objects().iter().find(|o| o.was_casualty_paid);
     assert!(
         original.is_some(),
         "CR 702.153a: original spell's was_casualty_paid should be true after paying casualty cost"
@@ -280,7 +280,7 @@ fn test_casualty_basic_copy() {
     // The top of stack should be the CasualtyTrigger.
     use mtg_engine::StackObjectKind;
     let top = state
-        .stack_objects
+        .stack_objects()
         .back()
         .expect("stack must have at least 1 object");
     assert!(
@@ -301,12 +301,12 @@ fn test_casualty_basic_copy() {
     // (Copy was pushed on top when trigger resolved, then the trigger was consumed.)
     // Actually: trigger resolves -> copy pushed -> stack = [original, copy]; copy is on top.
     assert!(
-        state.stack_objects.len() >= 2,
+        state.stack_objects().len() >= 2,
         "CR 702.153a: after CasualtyTrigger resolves, both copy and original spell should be on stack"
     );
 
     // The copy should have is_copy = true.
-    let copy_obj = state.stack_objects.iter().find(|o| o.is_copy).expect(
+    let copy_obj = state.stack_objects().iter().find(|o| o.is_copy).expect(
         "CR 702.153a: a copy spell (is_copy=true) should be on stack after trigger resolves",
     );
 
@@ -318,7 +318,7 @@ fn test_casualty_basic_copy() {
     // Resolve the copy: both players pass priority.
     let (state, _) = pass_all(state, &[p1, p(2)]);
     // Copy resolves -> gain 2 life.
-    let life_after_copy = state.players[&p1].life_total;
+    let life_after_copy = state.players()[&p1].life_total;
     assert_eq!(
         life_after_copy,
         initial_life + 2,
@@ -327,7 +327,7 @@ fn test_casualty_basic_copy() {
 
     // Resolve the original: both players pass priority.
     let (state, _) = pass_all(state, &[p1, p(2)]);
-    let life_after_original = state.players[&p1].life_total;
+    let life_after_original = state.players()[&p1].life_total;
     assert_eq!(
         life_after_original,
         initial_life + 4,
@@ -370,12 +370,12 @@ fn test_casualty_power_threshold() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Red, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Casualty2 Bolt");
     let weak_id = find_object(&state, "Weak Creature");
@@ -446,7 +446,7 @@ fn test_casualty_power_threshold() {
 fn test_casualty_optional_no_sacrifice() {
     let p1 = p(1);
     let (state, _p1, _p2, spell_id) = setup_casualty_state(vec![]);
-    let initial_life = state.players[&p1].life_total;
+    let initial_life = state.players()[&p1].life_total;
 
     // Cast without providing a sacrifice.
     let (state, _) = process_command(
@@ -473,14 +473,14 @@ fn test_casualty_optional_no_sacrifice() {
 
     // Only the spell should be on the stack -- no trigger.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "CR 702.153a: no CasualtyTrigger when sacrifice was not paid"
     );
 
     // The stack object should not be marked was_casualty_paid.
     assert!(
-        !state.stack_objects[0].was_casualty_paid,
+        !state.stack_objects()[0].was_casualty_paid,
         "CR 702.153a: was_casualty_paid must be false when casualty was not paid"
     );
 
@@ -489,7 +489,7 @@ fn test_casualty_optional_no_sacrifice() {
 
     // Spell resolves once -- gain 2 life.
     assert_eq!(
-        state.players[&p1].life_total,
+        state.players()[&p1].life_total,
         initial_life + 2,
         "CR 702.153a: non-casualty cast should gain life exactly once"
     );
@@ -610,12 +610,12 @@ fn test_casualty_no_keyword_sacrifice_ignored() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let spell_id = find_object(&state, "Plain Instant");
     let creature_id = find_object(&state, "Any Creature");
@@ -661,7 +661,7 @@ fn test_casualty_copy_is_not_cast() {
     let (state, _p1, _p2, spell_id) = setup_casualty_state(vec![creature]);
 
     let creature_id = find_object(&state, "Soldier Token");
-    let spells_before = state.players[&p1].spells_cast_this_turn;
+    let spells_before = state.players()[&p1].spells_cast_this_turn;
 
     // Cast with casualty.
     let (state, _) = process_command(
@@ -691,7 +691,7 @@ fn test_casualty_copy_is_not_cast() {
 
     // After cast, spells_cast_this_turn should be spells_before + 1 (original only).
     assert_eq!(
-        state.players[&p1].spells_cast_this_turn,
+        state.players()[&p1].spells_cast_this_turn,
         spells_before + 1,
         "Ruling 2022-04-29: only the original spell is 'cast'; spells_cast_this_turn should be +1"
     );
@@ -701,13 +701,13 @@ fn test_casualty_copy_is_not_cast() {
 
     // After trigger resolves, spells_cast_this_turn should still be +1, not +2.
     assert_eq!(
-        state.players[&p1].spells_cast_this_turn,
+        state.players()[&p1].spells_cast_this_turn,
         spells_before + 1,
         "Ruling 2022-04-29: casualty copy is not cast; spells_cast_this_turn should remain +1"
     );
 
     // Verify the copy exists on stack with is_copy = true.
-    let copy = state.stack_objects.iter().find(|o| o.is_copy);
+    let copy = state.stack_objects().iter().find(|o| o.is_copy);
     assert!(
         copy.is_some(),
         "Ruling 2022-04-29: copy created by casualty trigger should have is_copy = true"

@@ -44,7 +44,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, o)| o.characteristics.name == name)
         .map(|(&id, _)| id)
@@ -175,7 +175,7 @@ fn test_mossborn_hydra_landfall_doubles_counters() {
 
         // Pre-place N +1/+1 counters on the stub creature.
         {
-            let obj = state.objects.get_mut(&hydra).unwrap();
+            let obj = state.objects_mut().get_mut(&hydra).unwrap();
             obj.counters.insert(CounterType::PlusOnePlusOne, initial);
         }
 
@@ -193,7 +193,7 @@ fn test_mossborn_hydra_landfall_doubles_counters() {
         execute_effect(&mut state, &effect, &mut ctx);
 
         let actual = state
-            .objects
+            .objects()
             .get(&hydra)
             .unwrap()
             .counters
@@ -239,7 +239,7 @@ fn test_mossborn_hydra_landfall_with_zero_counters_is_noop() {
     execute_effect(&mut state, &effect, &mut ctx);
 
     let counters = state
-        .objects
+        .objects()
         .get(&hydra)
         .unwrap()
         .counters

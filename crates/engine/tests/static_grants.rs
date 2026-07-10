@@ -24,12 +24,12 @@ fn p2() -> PlayerId {
 
 /// Find objects by name on the battlefield.
 fn find_on_battlefield(state: &mtg_engine::GameState, name: &str) -> ObjectId {
-    let bf = state.zones.get(&ZoneId::Battlefield).unwrap();
+    let bf = state.zones().get(&ZoneId::Battlefield).unwrap();
     *bf.object_ids()
         .iter()
         .find(|id| {
             state
-                .objects
+                .objects()
                 .get(id)
                 .map(|o| o.characteristics.name == name)
                 .unwrap_or(false)
@@ -58,7 +58,7 @@ fn test_creatures_you_control_grants_keyword_to_own_creatures_only() {
     let p1_bear = find_on_battlefield(&state, "P1 Bear");
     let p2_bear = find_on_battlefield(&state, "P2 Bear");
 
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(100),
         source: Some(source_id),
         timestamp: 10,
@@ -98,7 +98,7 @@ fn test_creatures_you_control_excludes_non_creatures() {
     let source_id = find_on_battlefield(&state, "Source");
     let land_id = find_on_battlefield(&state, "P1 Land");
 
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(100),
         source: Some(source_id),
         timestamp: 10,
@@ -138,7 +138,7 @@ fn test_other_creatures_you_control_excludes_source() {
     let p1_goblin = find_on_battlefield(&state, "P1 Goblin");
     let p2_elf = find_on_battlefield(&state, "P2 Elf");
 
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(100),
         source: Some(source_id),
         timestamp: 10,
@@ -207,7 +207,7 @@ fn test_other_creatures_with_subtype_filters_correctly() {
     let p1_goblin = find_on_battlefield(&state, "P1 Goblin");
     let p2_vamp = find_on_battlefield(&state, "P2 Vampire");
 
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(100),
         source: Some(source_id),
         timestamp: 10,
@@ -259,7 +259,7 @@ fn test_creatures_you_control_no_source_matches_nothing() {
 
     let bear_id = find_on_battlefield(&state, "Bear");
 
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(100),
         source: None,
         timestamp: 10,
@@ -297,7 +297,7 @@ fn test_multiple_controllers_grant_independently() {
     let p2_soldier = find_on_battlefield(&state, "P2 Soldier");
 
     // P1's enchantment grants haste
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(100),
         source: Some(p1_src),
         timestamp: 10,
@@ -310,7 +310,7 @@ fn test_multiple_controllers_grant_independently() {
     });
 
     // P2's enchantment grants flying
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(101),
         source: Some(p2_src),
         timestamp: 11,
@@ -354,7 +354,7 @@ fn test_creatures_opponents_control_debuff() {
     let p1_bear = find_on_battlefield(&state, "P1 Bear");
     let p2_bear = find_on_battlefield(&state, "P2 Bear");
 
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(200),
         source: Some(source_id),
         timestamp: 10,
@@ -413,7 +413,7 @@ fn test_creatures_opponents_control_multiplayer() {
     let p3_bear = find_on_battlefield(&state, "P3 Bear");
     let p4_bear = find_on_battlefield(&state, "P4 Bear");
 
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(200),
         source: Some(source_id),
         timestamp: 10,
@@ -434,7 +434,7 @@ fn test_creatures_opponents_control_multiplayer() {
 }
 
 /// CR 604.2 / CR 613.1f / CR 611.3a: "Attacking creatures you control have deathtouch."
-/// Only creatures in state.combat.attackers get the keyword.
+/// Only creatures in state.combat().attackers get the keyword.
 #[test]
 fn test_attacking_creatures_you_control_grants_keyword() {
     let mut state = GameStateBuilder::new()
@@ -451,7 +451,7 @@ fn test_attacking_creatures_you_control_grants_keyword() {
     let sitter_id = find_on_battlefield(&state, "Sitting Bear");
 
     // Set up combat: Attacking Bear is attacking p2
-    state.combat = Some(CombatState {
+    *state.combat_mut() = Some(CombatState {
         attacking_player: p1(),
         attackers: [(attacker_id, AttackTarget::Player(p2()))]
             .into_iter()
@@ -466,7 +466,7 @@ fn test_attacking_creatures_you_control_grants_keyword() {
         exerted_attackers: im::OrdSet::new(),
     });
 
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(200),
         source: Some(source_id),
         timestamp: 10,
@@ -495,7 +495,7 @@ fn test_attacking_creatures_you_control_grants_keyword() {
     );
 }
 
-/// CR 611.3a: AttackingCreaturesYouControl matches nothing when state.combat is None.
+/// CR 611.3a: AttackingCreaturesYouControl matches nothing when state.combat() is None.
 #[test]
 fn test_attacking_creatures_filter_outside_combat() {
     let mut state = GameStateBuilder::new()
@@ -508,10 +508,10 @@ fn test_attacking_creatures_filter_outside_combat() {
     let source_id = find_on_battlefield(&state, "Source");
     let bear_id = find_on_battlefield(&state, "Bear");
 
-    // No combat state — state.combat is None
-    assert!(state.combat.is_none());
+    // No combat state — state.combat() is None
+    assert!(state.combat().is_none());
 
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(200),
         source: Some(source_id),
         timestamp: 10,
@@ -558,7 +558,7 @@ fn test_creatures_you_control_with_subtype_includes_self() {
     let p1_elf = find_on_battlefield(&state, "P1 Elf");
     let p2_elf = find_on_battlefield(&state, "P2 Elf");
 
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(200),
         source: Some(source_id),
         timestamp: 10,
@@ -609,7 +609,7 @@ fn test_creatures_you_control_with_supertype_legendary() {
     let p1_commoner = find_on_battlefield(&state, "P1 Commoner");
     let p2_legend = find_on_battlefield(&state, "P2 Legend");
 
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(200),
         source: Some(source_id),
         timestamp: 10,
@@ -658,7 +658,7 @@ fn test_creatures_you_control_with_color_red() {
     let p1_blue = find_on_battlefield(&state, "P1 Blue Bear");
     let p2_red = find_on_battlefield(&state, "P2 Red Bear");
 
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(200),
         source: Some(source_id),
         timestamp: 10,
@@ -711,7 +711,7 @@ fn test_artifacts_you_control_grants_shroud() {
     let p1_creature = find_on_battlefield(&state, "P1 Creature");
     let p2_artifact = find_on_battlefield(&state, "P2 Artifact");
 
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(200),
         source: Some(source_id),
         timestamp: 10,
@@ -776,7 +776,7 @@ fn test_other_creatures_excluding_subtype_non_human() {
     let p1_human = find_on_battlefield(&state, "P1 Human");
     let p2_zombie = find_on_battlefield(&state, "P2 Zombie");
 
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(200),
         source: Some(source_id),
         timestamp: 10,
@@ -837,7 +837,7 @@ fn test_creatures_excluding_subtype_spell_effect() {
     let p2_wolf = find_on_battlefield(&state, "P2 Wolf");
 
     // Spell effect: source is p1_wolf (the spell's controller's creature); includes itself
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(200),
         source: Some(p1_wolf),
         timestamp: 10,
@@ -894,7 +894,7 @@ fn test_attacking_creatures_with_subtype() {
     let p2_attacking_vamp = find_on_battlefield(&state, "P2 Attacking Vampire");
 
     // Set up combat: P1's Attacking Vampire + P2's are attacking p2/p1 respectively
-    state.combat = Some(CombatState {
+    *state.combat_mut() = Some(CombatState {
         attacking_player: p1(),
         attackers: [
             (attacking_vamp, AttackTarget::Player(p2())),
@@ -912,7 +912,7 @@ fn test_attacking_creatures_with_subtype() {
         exerted_attackers: im::OrdSet::new(),
     });
 
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(200),
         source: Some(source_id),
         timestamp: 10,
@@ -976,7 +976,7 @@ fn test_all_creatures_with_subtype_no_controller() {
     let p2_dragon = find_on_battlefield(&state, "P2 Dragon");
     let p1_goblin = find_on_battlefield(&state, "P1 Goblin");
 
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(200),
         source: Some(source_id),
         timestamp: 10,
@@ -1038,7 +1038,7 @@ fn test_other_creatures_with_subtypes_or() {
     let p1_goblin = find_on_battlefield(&state, "P1 Goblin");
     let p2_ninja = find_on_battlefield(&state, "P2 Ninja");
 
-    state.continuous_effects.push_back(ContinuousEffect {
+    state.continuous_effects_mut().push_back(ContinuousEffect {
         id: EffectId(200),
         source: Some(source_id),
         timestamp: 10,

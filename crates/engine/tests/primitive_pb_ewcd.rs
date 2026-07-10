@@ -45,7 +45,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_by_name(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -54,7 +54,7 @@ fn find_by_name(state: &GameState, name: &str) -> ObjectId {
 
 fn find_on_battlefield(state: &GameState, name: &str) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
         .map(|(id, _)| *id)
@@ -101,14 +101,14 @@ fn cast_creature(
     mana: &[(ManaColor, u32)],
 ) -> (GameState, Vec<GameEvent>) {
     {
-        let pool = &mut state.players.get_mut(&caster).unwrap().mana_pool;
+        let pool = &mut state.players_mut().get_mut(&caster).unwrap().mana_pool;
         for &(color, n) in mana {
             if n > 0 {
                 pool.add(color, n);
             }
         }
     }
-    state.turn.priority_holder = Some(caster);
+    state.turn_mut().priority_holder = Some(caster);
     process_command(
         state,
         Command::CastSpell {
@@ -287,7 +287,7 @@ fn test_dragonstorm_globe_dragon_etb_gets_extra_counter() {
     // Verify the replacement is registered with the Dragon subtype filter, bound
     // to p1 (not the PlayerId(0) placeholder).
     let globe_repl_count: usize = state
-        .replacement_effects
+        .replacement_effects()
         .iter()
         .filter(|e| {
             matches!(
@@ -324,7 +324,7 @@ fn test_dragonstorm_globe_dragon_etb_gets_extra_counter() {
     let bf_dragon = find_on_battlefield(&state, "Parapet Thrasher")
         .expect("Parapet Thrasher must be on battlefield after casting");
     let counter_count = state
-        .objects
+        .objects()
         .get(&bf_dragon)
         .and_then(|o| o.counters.get(&CounterType::PlusOnePlusOne).copied())
         .unwrap_or(0);
@@ -383,7 +383,7 @@ fn test_dragonstorm_globe_non_dragon_etb_no_counter() {
     let bf_mystic = find_on_battlefield(&state, "Elvish Mystic")
         .expect("Elvish Mystic must be on battlefield after casting");
     let counter_count = state
-        .objects
+        .objects()
         .get(&bf_mystic)
         .and_then(|o| o.counters.get(&CounterType::PlusOnePlusOne).copied())
         .unwrap_or(0);
@@ -409,7 +409,7 @@ fn test_dragonstorm_globe_non_dragon_etb_no_counter() {
 /// the same rebind for `CreatureControlledByOfSubtype` (the EWC-D primary variant).
 ///
 /// CR 614.12: replacement effects bind the controller's identity at registration
-/// time; the `PlayerId(0)` placeholder must never survive into `state.replacement_effects`.
+/// time; the `PlayerId(0)` placeholder must never survive into `state.replacement_effects()`.
 #[test]
 fn test_bind_object_filter_rebinds_owned_by_opponents_of_for_wouldenterbattlefield() {
     use mtg_engine::bind_object_filter;

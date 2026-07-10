@@ -33,7 +33,7 @@ fn p(n: u64) -> PlayerId {
 /// Find an object by name in the game state (panics if not found).
 fn find_by_name(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -124,7 +124,7 @@ fn test_proliferate_basic_plus_one_counter() {
 
     // CR 701.34a: Spike Feeder should now have 3 +1/+1 counters (2 + 1).
     let spike = state
-        .objects
+        .objects()
         .values()
         .find(|obj| obj.characteristics.name == "Spike Feeder")
         .expect("Spike Feeder must be in state");
@@ -187,7 +187,7 @@ fn test_proliferate_minus_one_counter() {
 
     // CR 701.34a: Hapless Zombie should now have 2 -1/-1 counters.
     let zombie = state
-        .objects
+        .objects()
         .values()
         .find(|obj| obj.characteristics.name == "Hapless Zombie")
         .expect("Hapless Zombie must be in state");
@@ -241,7 +241,7 @@ fn test_proliferate_charge_counter_on_artifact() {
 
     // CR 701.34a: Contagion Clasp should now have 2 charge counters.
     let clasp = state
-        .objects
+        .objects()
         .values()
         .find(|obj| obj.characteristics.name == "Contagion Clasp")
         .expect("Contagion Clasp must be in state");
@@ -290,7 +290,7 @@ fn test_proliferate_loyalty_counter_on_planeswalker() {
 
     // CR 701.34a + CR 122.1e: Sorin should now have 4 loyalty counters (3 + 1).
     let sorin = state
-        .objects
+        .objects()
         .get(&sorin_id)
         .expect("Sorin Markov must still be on battlefield");
 
@@ -352,7 +352,7 @@ fn test_proliferate_poison_counter_on_player() {
     let (state, events) = run_proliferate(state, p1);
 
     // CR 701.34a: p2 should now have 6 poison counters.
-    let p2_state = state.players.get(&p2).expect("p2 must exist");
+    let p2_state = state.players().get(&p2).expect("p2 must exist");
     assert_eq!(
         p2_state.poison_counters, 6,
         "p2 must have 6 poison counters after proliferate; got {}",
@@ -406,7 +406,7 @@ fn test_proliferate_multiple_counter_types() {
     let (state, events) = run_proliferate(state, p1);
 
     let artifact = state
-        .objects
+        .objects()
         .values()
         .find(|obj| obj.characteristics.name == "Multi Counter Artifact")
         .expect("Multi Counter Artifact must be in state");
@@ -481,7 +481,7 @@ fn test_proliferate_multiple_targets() {
 
     // Spike A: 2 → 3.
     let spike_a = state
-        .objects
+        .objects()
         .values()
         .find(|obj| obj.characteristics.name == "Spike A")
         .expect("Spike A must be in state");
@@ -498,7 +498,7 @@ fn test_proliferate_multiple_targets() {
 
     // Spike B: 1 → 2.
     let spike_b = state
-        .objects
+        .objects()
         .values()
         .find(|obj| obj.characteristics.name == "Spike B")
         .expect("Spike B must be in state");
@@ -514,7 +514,7 @@ fn test_proliferate_multiple_targets() {
     );
 
     // p3 poison: 3 → 4.
-    let p3_state = state.players.get(&p3).expect("p3 must exist");
+    let p3_state = state.players().get(&p3).expect("p3 must exist");
     assert_eq!(
         p3_state.poison_counters, 4,
         "p3 must have 4 poison counters; got {}",
@@ -588,7 +588,7 @@ fn test_proliferate_no_counters_noop() {
 
     // Vanilla creature must still have no counters.
     let creature = state
-        .objects
+        .objects()
         .values()
         .find(|obj| obj.characteristics.name == "Vanilla Creature")
         .expect("Vanilla Creature must be in state");
@@ -688,7 +688,7 @@ fn test_proliferate_ignores_non_battlefield() {
 
     // Graveyard Spike must still have 3 counters (unchanged).
     let grave_spike = state
-        .objects
+        .objects()
         .values()
         .find(|obj| obj.characteristics.name == "Graveyard Spike")
         .expect("Graveyard Spike must be in state");
@@ -736,7 +736,7 @@ fn test_proliferate_zero_poison_player_unaffected() {
     let (state, _events) = run_proliferate(state, p1);
 
     // p1 poison: 3 → 4.
-    let p1_state = state.players.get(&p1).expect("p1 must exist");
+    let p1_state = state.players().get(&p1).expect("p1 must exist");
     assert_eq!(
         p1_state.poison_counters, 4,
         "p1 must have 4 poison counters after proliferate; got {}",
@@ -744,7 +744,7 @@ fn test_proliferate_zero_poison_player_unaffected() {
     );
 
     // p2 poison: still 0.
-    let p2_state = state.players.get(&p2).expect("p2 must exist");
+    let p2_state = state.players().get(&p2).expect("p2 must exist");
     assert_eq!(
         p2_state.poison_counters, 0,
         "p2 must still have 0 poison counters (was not eligible); got {}",
@@ -811,7 +811,7 @@ fn test_whenever_you_proliferate_trigger_fires() {
 
     let mut state = state;
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
@@ -848,7 +848,7 @@ fn test_whenever_you_proliferate_trigger_fires() {
 
     // CR 701.34: Core Prowler should have 1 +1/+1 counter from the trigger.
     let prowler = state
-        .objects
+        .objects()
         .values()
         .find(|obj| obj.characteristics.name == "Core Prowler" && obj.zone == ZoneId::Battlefield)
         .expect("Core Prowler must be on the battlefield");
@@ -906,7 +906,7 @@ fn test_proliferate_multiplayer_affects_all_players() {
     let (state, events) = run_proliferate(state, p1);
 
     // p2 poison: 2 → 3.
-    let p2_state = state.players.get(&p2).expect("p2 must exist");
+    let p2_state = state.players().get(&p2).expect("p2 must exist");
     assert_eq!(
         p2_state.poison_counters, 3,
         "p2 must have 3 poison after proliferate; got {}",
@@ -914,7 +914,7 @@ fn test_proliferate_multiplayer_affects_all_players() {
     );
 
     // p3 poison: 5 → 6.
-    let p3_state = state.players.get(&p3).expect("p3 must exist");
+    let p3_state = state.players().get(&p3).expect("p3 must exist");
     assert_eq!(
         p3_state.poison_counters, 6,
         "p3 must have 6 poison after proliferate; got {}",
@@ -922,7 +922,7 @@ fn test_proliferate_multiplayer_affects_all_players() {
     );
 
     // p4 poison: still 0.
-    let p4_state = state.players.get(&p4).expect("p4 must exist");
+    let p4_state = state.players().get(&p4).expect("p4 must exist");
     assert_eq!(
         p4_state.poison_counters, 0,
         "p4 must still have 0 poison (was not eligible); got {}",
@@ -931,7 +931,7 @@ fn test_proliferate_multiplayer_affects_all_players() {
 
     // Opponent Spike: 1 → 2 +1/+1 counters.
     let spike = state
-        .objects
+        .objects()
         .values()
         .find(|obj| obj.characteristics.name == "Opponent Spike")
         .expect("Opponent Spike must be in state");
@@ -948,7 +948,7 @@ fn test_proliferate_multiplayer_affects_all_players() {
 
     // Opponent Artifact: 2 → 3 charge counters.
     let artifact = state
-        .objects
+        .objects()
         .values()
         .find(|obj| obj.characteristics.name == "Opponent Artifact")
         .expect("Opponent Artifact must be in state");
@@ -1012,7 +1012,7 @@ fn test_proliferate_auto_select_adds_own_poison() {
 
     // Auto-select-all: p1's own poison is incremented to 10 (game-losing).
     // In real MTG, p1 would choose to exclude themselves.
-    let p1_state = state.players.get(&p1).expect("p1 must exist");
+    let p1_state = state.players().get(&p1).expect("p1 must exist");
     assert_eq!(
         p1_state.poison_counters, 10,
         // TODO(M10+): This behavior is incorrect; interactive choice must allow opting out.
@@ -1031,7 +1031,7 @@ fn test_proliferate_auto_select_adds_own_poison() {
     );
 
     // p2 is unaffected (no poison counters to proliferate).
-    let p2_state = state.players.get(&p2).expect("p2 must exist");
+    let p2_state = state.players().get(&p2).expect("p2 must exist");
     assert_eq!(
         p2_state.poison_counters, 0,
         "p2 must still have 0 poison counters; got {}",

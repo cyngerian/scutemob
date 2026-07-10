@@ -12,6 +12,7 @@
 //! - CR 118.9a: Bestow cannot be combined with other alternative costs (flashback, evoke).
 //! - CR 118.9c: Mana value is unchanged when cast bestowed (printed mana cost).
 
+use mtg_engine::state::test_util;
 use mtg_engine::state::types::AltCostKind;
 use mtg_engine::state::CardType;
 use mtg_engine::{
@@ -28,7 +29,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &mtg_engine::GameState, name: &str) -> mtg_engine::ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -145,18 +146,18 @@ fn test_bestow_cast_as_aura_basic() {
 
     // Pay {3}{G}{G} — bestow cost instead of mana cost {1}{G}{G}.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let satyr_id = find_object(&state, "Mock Bestow Satyr");
     let bear_id = find_object(&state, "Mock Bear");
@@ -186,11 +187,11 @@ fn test_bestow_cast_as_aura_basic() {
 
     // CR 702.103b: Spell on stack — was_bestowed = true.
     assert_eq!(
-        state.stack_objects.len(),
+        state.stack_objects().len(),
         1,
         "Bestow spell should be on the stack"
     );
-    let stack_entry = &state.stack_objects[0];
+    let stack_entry = &state.stack_objects()[0];
     assert!(
         stack_entry.was_bestowed,
         "CR 702.103b: was_bestowed should be true on stack object"
@@ -202,7 +203,7 @@ fn test_bestow_cast_as_aura_basic() {
     else {
         panic!("Expected Spell stack object");
     };
-    let stack_source = state.objects.get(&source_object).unwrap();
+    let stack_source = state.objects().get(&source_object).unwrap();
     assert!(
         stack_source
             .characteristics
@@ -233,7 +234,7 @@ fn test_bestow_cast_as_aura_basic() {
     );
 
     // Mana consumed: {3}{G}{G} = 5 total.
-    let pool = &state.players[&p1].mana_pool;
+    let pool = &state.players()[&p1].mana_pool;
     assert_eq!(
         pool.total(),
         0,
@@ -245,7 +246,7 @@ fn test_bestow_cast_as_aura_basic() {
 
     // CR 702.103b: Permanent on battlefield with is_bestowed=true, attached to bear.
     let satyr_bf = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Mock Bestow Satyr" && o.zone == ZoneId::Battlefield)
         .expect("Satyr should be on battlefield after resolution");
@@ -279,7 +280,7 @@ fn test_bestow_cast_as_aura_basic() {
     );
 
     // Bear should have Satyr in its attachments.
-    let bear_obj = state.objects.get(&bear_id).unwrap();
+    let bear_obj = state.objects().get(&bear_id).unwrap();
     assert!(
         bear_obj.attachments.contains(&satyr_bf.id),
         "Bear.attachments should contain the bestowed Satyr"
@@ -336,18 +337,18 @@ fn test_bestow_cast_normally_as_creature() {
 
     // Pay {1}{G}{G} — normal mana cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let satyr_id = find_object(&state, "Mock Bestow Satyr");
 
@@ -375,19 +376,19 @@ fn test_bestow_cast_normally_as_creature() {
     .unwrap_or_else(|e| panic!("CastSpell normally failed: {:?}", e));
 
     // Stack entry should have was_bestowed=false.
-    assert_eq!(state.stack_objects.len(), 1);
+    assert_eq!(state.stack_objects().len(), 1);
     assert!(
-        !state.stack_objects[0].was_bestowed,
+        !state.stack_objects()[0].was_bestowed,
         "Normal cast should have was_bestowed=false"
     );
 
     // Source on stack should have Creature type, NOT Aura subtype.
     let mtg_engine::state::stack::StackObjectKind::Spell { source_object } =
-        state.stack_objects[0].kind.clone()
+        state.stack_objects()[0].kind.clone()
     else {
         panic!("Expected Spell");
     };
-    let stack_source = state.objects.get(&source_object).unwrap();
+    let stack_source = state.objects().get(&source_object).unwrap();
     assert!(
         stack_source
             .characteristics
@@ -408,7 +409,7 @@ fn test_bestow_cast_normally_as_creature() {
 
     // Permanent on battlefield as enchantment creature.
     let satyr_bf = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Mock Bestow Satyr" && o.zone == ZoneId::Battlefield)
         .expect("Satyr should be on battlefield");
@@ -479,18 +480,18 @@ fn test_bestow_target_illegal_at_resolution_becomes_creature() {
 
     // Pay {3}{G}{G} — bestow cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 2);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 3);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let satyr_id = find_object(&state, "Mock Bestow Satyr");
     let bear_id = find_object(&state, "Mock Bear");
@@ -520,7 +521,7 @@ fn test_bestow_target_illegal_at_resolution_becomes_creature() {
 
     // Simulate target leaving the battlefield before resolution.
     // Move the bear to the graveyard (CR 400.7: new object, original bear_id is dead).
-    let _ = state.move_object_to_zone(bear_id, ZoneId::Graveyard(p1));
+    let _ = test_util::move_object_to_zone(&mut state, bear_id, ZoneId::Graveyard(p1));
 
     // Both players pass → the bestowed spell resolves.
     let (state, resolve_events) = pass_all(state, &[p1, p2]);
@@ -537,7 +538,7 @@ fn test_bestow_target_illegal_at_resolution_becomes_creature() {
 
     // CR 702.103e: Permanent enters battlefield as enchantment creature (not Aura).
     let satyr_bf = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.characteristics.name == "Mock Bestow Satyr" && o.zone == ZoneId::Battlefield)
         .expect("CR 702.103e: Satyr should be on battlefield as creature");
@@ -604,31 +605,31 @@ fn test_bestow_unattach_reverts_to_creature() {
     let bear_id = find_object(&state, "Mock Bear");
 
     // Manually set up the bestowed attachment state.
-    if let Some(satyr_obj) = state.objects.get_mut(&satyr_id) {
+    if let Some(satyr_obj) = state.objects_mut().get_mut(&satyr_id) {
         satyr_obj
             .designations
             .insert(mtg_engine::Designations::BESTOWED);
         satyr_obj.attached_to = Some(bear_id);
     }
-    if let Some(bear_obj) = state.objects.get_mut(&bear_id) {
+    if let Some(bear_obj) = state.objects_mut().get_mut(&bear_id) {
         bear_obj.attachments.push_back(satyr_id);
     }
 
     // Verify setup.
     assert!(
-        state.objects[&satyr_id]
+        state.objects()[&satyr_id]
             .designations
             .contains(mtg_engine::Designations::BESTOWED),
         "Setup: satyr should be bestowed"
     );
     assert_eq!(
-        state.objects[&satyr_id].attached_to,
+        state.objects()[&satyr_id].attached_to,
         Some(bear_id),
         "Setup: satyr should be attached to bear"
     );
 
     // Now move the bear to the graveyard (simulating the enchanted creature dying).
-    let _ = state.move_object_to_zone(bear_id, ZoneId::Graveyard(p1));
+    let _ = test_util::move_object_to_zone(&mut state, bear_id, ZoneId::Graveyard(p1));
 
     // Run SBA check.
     let sba_events = check_and_apply_sbas(&mut state);
@@ -655,14 +656,14 @@ fn test_bestow_unattach_reverts_to_creature() {
 
     // CR 702.103f: Satyr should still be on the battlefield.
     assert_eq!(
-        state.objects[&satyr_id].zone,
+        state.objects()[&satyr_id].zone,
         ZoneId::Battlefield,
         "CR 702.103f: Reverted bestow permanent should remain on battlefield"
     );
 
     // CR 702.103f: is_bestowed should be false now.
     assert!(
-        !state.objects[&satyr_id]
+        !state.objects()[&satyr_id]
             .designations
             .contains(mtg_engine::Designations::BESTOWED),
         "CR 702.103f: is_bestowed should be false after revert"
@@ -670,13 +671,14 @@ fn test_bestow_unattach_reverts_to_creature() {
 
     // CR 702.103f: attached_to should be cleared.
     assert_eq!(
-        state.objects[&satyr_id].attached_to, None,
+        state.objects()[&satyr_id].attached_to,
+        None,
         "CR 702.103f: attached_to should be None after revert"
     );
 
     // CR 702.103f: Satyr should now have Creature type.
     assert!(
-        state.objects[&satyr_id]
+        state.objects()[&satyr_id]
             .characteristics
             .card_types
             .contains(&CardType::Creature),
@@ -685,7 +687,7 @@ fn test_bestow_unattach_reverts_to_creature() {
 
     // CR 702.103f: Satyr should NOT have Aura subtype anymore.
     assert!(
-        !state.objects[&satyr_id]
+        !state.objects()[&satyr_id]
             .characteristics
             .subtypes
             .contains(&SubType("Aura".to_string())),
@@ -731,18 +733,18 @@ fn test_bestow_alternative_cost_pays_bestow_cost() {
 
         // Pay only {1}{G}{G} — the printed mana cost, not the bestow cost.
         state
-            .players
+            .players_mut()
             .get_mut(&p1)
             .unwrap()
             .mana_pool
             .add(ManaColor::Green, 2);
         state
-            .players
+            .players_mut()
             .get_mut(&p1)
             .unwrap()
             .mana_pool
             .add(ManaColor::Colorless, 1);
-        state.turn.priority_holder = Some(p1);
+        state.turn_mut().priority_holder = Some(p1);
 
         let satyr_id = find_object(&state, "Mock Bestow Satyr");
         let bear_id = find_object(&state, "Mock Bear");
@@ -800,18 +802,18 @@ fn test_bestow_alternative_cost_pays_bestow_cost() {
             .unwrap();
 
         state
-            .players
+            .players_mut()
             .get_mut(&p1)
             .unwrap()
             .mana_pool
             .add(ManaColor::Green, 2);
         state
-            .players
+            .players_mut()
             .get_mut(&p1)
             .unwrap()
             .mana_pool
             .add(ManaColor::Colorless, 3);
-        state.turn.priority_holder = Some(p1);
+        state.turn_mut().priority_holder = Some(p1);
 
         let satyr_id = find_object(&state, "Mock Bestow Satyr");
         let bear_id = find_object(&state, "Mock Bear");
@@ -888,18 +890,18 @@ fn test_bestow_cannot_combine_with_flashback() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Green, 5);
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 5);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let satyr_id = find_object(&state, "Mock Bestow Satyr");
 
@@ -996,12 +998,12 @@ fn test_bestow_cannot_combine_with_evoke() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 5);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Dual Card");
 
@@ -1071,12 +1073,12 @@ fn test_bestow_non_bestow_spell_rejected() {
         .unwrap();
 
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Colorless, 5);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let _ = bear; // suppress unused warning
     let bear_id = find_object(&state, "Mock Bear");
@@ -1141,7 +1143,7 @@ fn test_bestow_enters_without_casting_is_creature() {
         .unwrap();
 
     let satyr_id = find_object(&state, "Mock Bestow Satyr");
-    let satyr_obj = &state.objects[&satyr_id];
+    let satyr_obj = &state.objects()[&satyr_id];
 
     // Should be on the battlefield.
     assert_eq!(

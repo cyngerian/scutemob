@@ -17,6 +17,7 @@
 //! - Unearth is NOT a cast: no cast triggers, spells_cast_this_turn unchanged (ruling 2008-10-01).
 //! - Exile effects are not abilities on the creature: persist even if creature loses all abilities (ruling).
 
+use mtg_engine::state::test_util;
 use mtg_engine::state::types::AltCostKind;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
@@ -32,7 +33,7 @@ fn p(n: u64) -> PlayerId {
 
 fn find_object(state: &GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -41,7 +42,7 @@ fn find_object(state: &GameState, name: &str) -> ObjectId {
 
 fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId> {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name && obj.zone == zone)
         .map(|(id, _)| *id)
@@ -135,12 +136,12 @@ fn test_unearth_basic_return_to_battlefield() {
 
     // Give p1 {B} mana for unearth cost.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Dregscape Zombie");
 
@@ -194,7 +195,7 @@ fn test_unearth_basic_return_to_battlefield() {
     // Creature has haste.
     let zombie_id = find_in_zone(&state, "Dregscape Zombie", ZoneId::Battlefield)
         .expect("zombie should be on battlefield");
-    let obj = state.objects.get(&zombie_id).unwrap();
+    let obj = state.objects().get(&zombie_id).unwrap();
     assert!(
         obj.characteristics
             .keywords
@@ -234,12 +235,12 @@ fn test_unearth_sorcery_speed_restriction() {
             .unwrap();
 
         state
-            .players
+            .players_mut()
             .get_mut(&p1)
             .unwrap()
             .mana_pool
             .add(ManaColor::Black, 1);
-        state.turn.priority_holder = Some(p1);
+        state.turn_mut().priority_holder = Some(p1);
 
         let card_id = find_object(&state, "Dregscape Zombie");
 
@@ -269,12 +270,12 @@ fn test_unearth_sorcery_speed_restriction() {
             .unwrap();
 
         state
-            .players
+            .players_mut()
             .get_mut(&p1)
             .unwrap()
             .mana_pool
             .add(ManaColor::Black, 1);
-        state.turn.priority_holder = Some(p1);
+        state.turn_mut().priority_holder = Some(p1);
 
         let card_id = find_object(&state, "Dregscape Zombie");
 
@@ -310,12 +311,12 @@ fn test_unearth_sorcery_speed_restriction() {
             .unwrap();
 
         state
-            .players
+            .players_mut()
             .get_mut(&p1)
             .unwrap()
             .mana_pool
             .add(ManaColor::Black, 1);
-        state.turn.priority_holder = Some(p1);
+        state.turn_mut().priority_holder = Some(p1);
 
         let card_id = find_object(&state, "Dregscape Zombie");
 
@@ -357,12 +358,12 @@ fn test_unearth_exile_at_end_step() {
 
     // Give p1 {B} mana.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Dregscape Zombie");
 
@@ -390,7 +391,7 @@ fn test_unearth_exile_at_end_step() {
 
     // Now we should be at Step::End. The end_step_actions queue the unearth trigger.
     assert_eq!(
-        state.turn.step,
+        state.turn().step,
         Step::End,
         "should have advanced to End step"
     );
@@ -442,12 +443,12 @@ fn test_unearth_replacement_exile_on_bounce() {
 
     // Give p1 {B} mana.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Dregscape Zombie");
 
@@ -475,7 +476,7 @@ fn test_unearth_replacement_exile_on_bounce() {
         .expect("zombie should be on battlefield");
 
     // Use check_zone_change_replacement directly to verify replacement fires.
-    let owner = state.objects.get(&zombie_id).unwrap().owner;
+    let owner = state.objects().get(&zombie_id).unwrap().owner;
     let action = mtg_engine::rules::replacement::check_zone_change_replacement(
         &state,
         zombie_id,
@@ -498,8 +499,7 @@ fn test_unearth_replacement_exile_on_bounce() {
     );
 
     // Actually perform the zone move via the replacement (to exile).
-    let (new_id, _old) = state
-        .move_object_to_zone(zombie_id, ZoneId::Exile)
+    let (new_id, _old) = test_util::move_object_to_zone(&mut state, zombie_id, ZoneId::Exile)
         .expect("move to exile should succeed");
     let _ = new_id;
 
@@ -538,12 +538,12 @@ fn test_unearth_replacement_exile_on_destroy() {
 
     // Give p1 {B} mana.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Dregscape Zombie");
 
@@ -567,7 +567,7 @@ fn test_unearth_replacement_exile_on_destroy() {
 
     let zombie_id = find_in_zone(&state, "Dregscape Zombie", ZoneId::Battlefield)
         .expect("zombie should be on battlefield");
-    let owner = state.objects.get(&zombie_id).unwrap().owner;
+    let owner = state.objects().get(&zombie_id).unwrap().owner;
 
     // Verify the replacement redirects a Battlefield→Graveyard move to Exile.
     // This is the path taken by SBAs (lethal damage, deathtouch) and destroy effects.
@@ -592,8 +592,7 @@ fn test_unearth_replacement_exile_on_destroy() {
     );
 
     // Actually perform the redirect to exile.
-    let (new_id, _old) = state
-        .move_object_to_zone(zombie_id, ZoneId::Exile)
+    let (new_id, _old) = test_util::move_object_to_zone(&mut state, zombie_id, ZoneId::Exile)
         .expect("move to exile should succeed");
     let _ = new_id;
 
@@ -634,12 +633,12 @@ fn test_unearth_exile_does_not_replace_actual_exile() {
 
     // Give p1 {B} mana.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Dregscape Zombie");
 
@@ -656,7 +655,7 @@ fn test_unearth_exile_does_not_replace_actual_exile() {
 
     let zombie_id = find_in_zone(&state, "Dregscape Zombie", ZoneId::Battlefield)
         .expect("zombie should be on battlefield");
-    let owner = state.objects.get(&zombie_id).unwrap().owner;
+    let owner = state.objects().get(&zombie_id).unwrap().owner;
 
     // Check that attempting to exile directly does NOT trigger the replacement.
     let action = mtg_engine::rules::replacement::check_zone_change_replacement(
@@ -678,8 +677,7 @@ fn test_unearth_exile_does_not_replace_actual_exile() {
     );
 
     // Move to exile directly -- should work fine.
-    let _ = state
-        .move_object_to_zone(zombie_id, ZoneId::Exile)
+    let _ = test_util::move_object_to_zone(&mut state, zombie_id, ZoneId::Exile)
         .expect("move to exile should succeed");
 
     assert!(
@@ -716,12 +714,12 @@ fn test_unearth_card_removed_before_resolution() {
 
     // Give p1 {B} mana.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Dregscape Zombie");
 
@@ -739,8 +737,7 @@ fn test_unearth_card_removed_before_resolution() {
     // (Simulating an opponent exiling it in response.)
     let grave_card_id = find_in_zone(&state, "Dregscape Zombie", ZoneId::Graveyard(p1))
         .expect("zombie should be in graveyard");
-    let _ = state
-        .move_object_to_zone(grave_card_id, ZoneId::Exile)
+    let _ = test_util::move_object_to_zone(&mut state, grave_card_id, ZoneId::Exile)
         .expect("exile from graveyard should work");
 
     assert!(
@@ -790,14 +787,14 @@ fn test_unearth_is_not_a_cast() {
 
     // Give p1 {B} mana.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
-    let spells_before = state.players.get(&p1).unwrap().spells_cast_this_turn;
+    let spells_before = state.players().get(&p1).unwrap().spells_cast_this_turn;
 
     let card_id = find_object(&state, "Dregscape Zombie");
 
@@ -820,7 +817,7 @@ fn test_unearth_is_not_a_cast() {
     );
 
     // spells_cast_this_turn unchanged.
-    let spells_after = state.players.get(&p1).unwrap().spells_cast_this_turn;
+    let spells_after = state.players().get(&p1).unwrap().spells_cast_this_turn;
     assert_eq!(
         spells_before, spells_after,
         "ruling: unearth is NOT a cast; spells_cast_this_turn should not increase"
@@ -870,12 +867,12 @@ fn test_unearth_creature_has_haste() {
 
     // Give p1 {B} mana.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Dregscape Zombie");
 
@@ -892,7 +889,7 @@ fn test_unearth_creature_has_haste() {
 
     let zombie_id = find_in_zone(&state, "Dregscape Zombie", ZoneId::Battlefield)
         .expect("zombie should be on battlefield");
-    let obj = state.objects.get(&zombie_id).unwrap();
+    let obj = state.objects().get(&zombie_id).unwrap();
 
     // Has haste keyword (CR 702.84a).
     assert!(
@@ -932,12 +929,12 @@ fn test_unearth_loses_abilities_still_exiled_by_replacement() {
 
     // Give p1 {B} mana.
     state
-        .players
+        .players_mut()
         .get_mut(&p1)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = find_object(&state, "Dregscape Zombie");
 
@@ -956,7 +953,7 @@ fn test_unearth_loses_abilities_still_exiled_by_replacement() {
     let zombie_id = find_in_zone(&state, "Dregscape Zombie", ZoneId::Battlefield)
         .expect("zombie should be on battlefield");
     state
-        .objects
+        .objects_mut()
         .get_mut(&zombie_id)
         .unwrap()
         .characteristics
@@ -965,12 +962,12 @@ fn test_unearth_loses_abilities_still_exiled_by_replacement() {
 
     // Verify was_unearthed is still set even after clearing keywords.
     assert!(
-        state.objects.get(&zombie_id).unwrap().was_unearthed,
+        state.objects().get(&zombie_id).unwrap().was_unearthed,
         "was_unearthed flag should persist even after clearing keywords"
     );
 
     // Check that the replacement still fires (bounce → exile).
-    let owner = state.objects.get(&zombie_id).unwrap().owner;
+    let owner = state.objects().get(&zombie_id).unwrap().owner;
     let action = mtg_engine::rules::replacement::check_zone_change_replacement(
         &state,
         zombie_id,
@@ -1020,12 +1017,12 @@ fn test_unearth_multiplayer_only_active_player() {
 
     // Give p2 {B} mana.
     state
-        .players
+        .players_mut()
         .get_mut(&p2)
         .unwrap()
         .mana_pool
         .add(ManaColor::Black, 1);
-    state.turn.priority_holder = Some(p2); // p2 has priority
+    state.turn_mut().priority_holder = Some(p2); // p2 has priority
 
     let card_id = find_object(&state, "Dregscape Zombie");
 
@@ -1066,7 +1063,7 @@ fn test_unearth_requires_mana_payment() {
         .build()
         .unwrap();
 
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
     // Do NOT add any mana to p1's pool.
 
     let card_id = find_object(&state, "Dregscape Zombie");

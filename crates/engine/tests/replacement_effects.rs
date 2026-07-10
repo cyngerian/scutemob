@@ -5,6 +5,7 @@
 //!            loop prevention, self-replacement priority, OrderReplacements command.
 //! Session 5: prevention effects — PreventDamage shields, PreventAllDamage, depletion.
 
+use mtg_engine::state::test_util;
 use std::collections::HashSet;
 
 use mtg_engine::rules::replacement::{self, ReplacementResult};
@@ -181,8 +182,8 @@ fn test_builder_adds_replacement_effect() {
         .build()
         .unwrap();
 
-    assert_eq!(state.replacement_effects.len(), 1);
-    assert_eq!(state.replacement_effects[0], effect);
+    assert_eq!(state.replacement_effects().len(), 1);
+    assert_eq!(state.replacement_effects()[0], effect);
 }
 
 #[test]
@@ -208,9 +209,9 @@ fn test_builder_adds_multiple_replacement_effects() {
         .build()
         .unwrap();
 
-    assert_eq!(state.replacement_effects.len(), 2);
-    assert_eq!(state.replacement_effects[0], effect1);
-    assert_eq!(state.replacement_effects[1], effect2);
+    assert_eq!(state.replacement_effects().len(), 2);
+    assert_eq!(state.replacement_effects()[0], effect1);
+    assert_eq!(state.replacement_effects()[1], effect2);
 }
 
 #[test]
@@ -225,7 +226,7 @@ fn test_builder_advances_replacement_id_counter() {
         .unwrap();
 
     // Counter should be past the highest pre-set ID (5 → next is 6)
-    assert_eq!(state.next_replacement_id, 6);
+    assert_eq!(state.next_replacement_id_counter(), 6);
 }
 
 #[test]
@@ -237,14 +238,14 @@ fn test_game_state_next_replacement_id() {
         .build()
         .unwrap();
 
-    let id1 = state.next_replacement_id();
-    let id2 = state.next_replacement_id();
-    let id3 = state.next_replacement_id();
+    let id1 = test_util::next_replacement_id(&mut state);
+    let id2 = test_util::next_replacement_id(&mut state);
+    let id3 = test_util::next_replacement_id(&mut state);
 
     assert_eq!(id1, ReplacementId(0));
     assert_eq!(id2, ReplacementId(1));
     assert_eq!(id3, ReplacementId(2));
-    assert_eq!(state.next_replacement_id, 3);
+    assert_eq!(state.next_replacement_id_counter(), 3);
 }
 
 #[test]
@@ -252,8 +253,8 @@ fn test_game_state_next_replacement_id() {
 /// Source: M8 Session 1 baseline validation
 fn test_default_state_has_no_replacement_effects() {
     let state = GameStateBuilder::four_player().build().unwrap();
-    assert!(state.replacement_effects.is_empty());
-    assert_eq!(state.next_replacement_id, 0);
+    assert!(state.replacement_effects().is_empty());
+    assert_eq!(state.next_replacement_id_counter(), 0);
 }
 
 // ── ObjectFilter / PlayerFilter / DamageTargetFilter equality tests ──
@@ -785,7 +786,7 @@ fn test_order_replacements_command_emits_applied_event() {
 
     // Event should be in history
     assert!(
-        new_state.history.iter().any(|e| {
+        new_state.history().iter().any(|e| {
             matches!(e, GameEvent::ReplacementEffectApplied { effect_id, .. } if *effect_id == ReplacementId(1))
         }),
         "applied event should be in history"
@@ -1069,7 +1070,7 @@ fn test_creature_dies_no_replacement_goes_to_graveyard() {
     );
 
     // No pending zone changes.
-    assert!(state.pending_zone_changes.is_empty());
+    assert!(state.pending_zone_changes().is_empty());
 }
 
 // ── Creature dies with "exile instead" replacement → goes to exile ──
@@ -1294,7 +1295,7 @@ fn test_commander_dies_with_rest_in_peace_needs_choice() {
 
     // No pending zone changes from replacement system (the SBA choice is separate).
     assert!(
-        state.pending_zone_changes.is_empty(),
+        state.pending_zone_changes().is_empty(),
         "no pending replacement zone changes"
     );
 
@@ -1418,7 +1419,7 @@ fn test_commander_dies_with_rip_player_chooses_command_zone() {
         "command zone should be empty — owner chose not to return"
     );
     assert!(
-        state.pending_commander_zone_choices.is_empty(),
+        state.pending_commander_zone_choices().is_empty(),
         "pending choice should be cleared after LeaveCommanderInZone"
     );
 }
@@ -1661,7 +1662,7 @@ fn test_register_commander_replacements_creates_effects() {
         .unwrap();
 
     assert_eq!(
-        state.replacement_effects.len(),
+        state.replacement_effects().len(),
         0,
         "no replacement effects before registration"
     );
@@ -1670,14 +1671,14 @@ fn test_register_commander_replacements_creates_effects() {
 
     // Should have 2 effects: one for hand, one for library (M9 model).
     assert_eq!(
-        state.replacement_effects.len(),
+        state.replacement_effects().len(),
         2,
         "should have 2 replacement effects for commander (hand + library)"
     );
 
     // One should trigger on WouldChangeZone to Hand (CR 903.9b).
     assert!(
-        state.replacement_effects.iter().any(|e| matches!(
+        state.replacement_effects().iter().any(|e| matches!(
             &e.trigger,
             ReplacementTrigger::WouldChangeZone {
                 to: ZoneType::Hand,
@@ -1689,7 +1690,7 @@ fn test_register_commander_replacements_creates_effects() {
 
     // One should trigger on WouldChangeZone to Library (CR 903.9b).
     assert!(
-        state.replacement_effects.iter().any(|e| matches!(
+        state.replacement_effects().iter().any(|e| matches!(
             &e.trigger,
             ReplacementTrigger::WouldChangeZone {
                 to: ZoneType::Library,
@@ -1701,7 +1702,7 @@ fn test_register_commander_replacements_creates_effects() {
 
     // Both should redirect to Command zone.
     assert!(
-        state.replacement_effects.iter().all(|e| matches!(
+        state.replacement_effects().iter().all(|e| matches!(
             &e.modification,
             ReplacementModification::RedirectToZone(ZoneType::Command)
         )),
@@ -1711,7 +1712,7 @@ fn test_register_commander_replacements_creates_effects() {
     // Both should be controlled by P1.
     assert!(
         state
-            .replacement_effects
+            .replacement_effects()
             .iter()
             .all(|e| e.controller == PlayerId(1)),
         "both should be controlled by commander owner"
@@ -1767,12 +1768,12 @@ fn test_pending_zone_change_skipped_in_sba() {
 
     // First SBA pass creates the pending zone change.
     let _events1 = mtg_engine::check_and_apply_sbas(&mut state);
-    assert_eq!(state.pending_zone_changes.len(), 1);
+    assert_eq!(state.pending_zone_changes().len(), 1);
 
     // Second SBA pass should NOT move the creature again or create another pending.
     let events2 = mtg_engine::check_and_apply_sbas(&mut state);
     assert_eq!(
-        state.pending_zone_changes.len(),
+        state.pending_zone_changes().len(),
         1,
         "should still have exactly one pending zone change"
     );
@@ -1978,7 +1979,7 @@ fn test_etb_land_enters_tapped_replacement() {
         .with_replacement_effect(enters_tapped)
         .build()
         .unwrap();
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let land_id = state.objects_in_zone(&ZoneId::Hand(p1)).first().unwrap().id;
 
@@ -2055,7 +2056,7 @@ fn test_etb_permanent_enters_with_counters() {
     // Apply ETB replacements directly to simulate the ETB path.
     let events = mtg_engine::rules::replacement::apply_etb_replacements(&mut state, bear_id, p1);
 
-    let bear = state.objects.get(&bear_id).unwrap();
+    let bear = state.objects().get(&bear_id).unwrap();
     assert_eq!(
         bear.counters
             .get(&CounterType::PlusOnePlusOne)
@@ -2116,7 +2117,7 @@ fn test_etb_replacement_does_not_fire_for_non_matching_filter() {
 
     let events = mtg_engine::rules::replacement::apply_etb_replacements(&mut state, land_id, p1);
 
-    let land = state.objects.get(&land_id).unwrap();
+    let land = state.objects().get(&land_id).unwrap();
     assert!(
         !land.status.tapped,
         "land should not be tapped — AnyCreature filter doesn't match lands"
@@ -2154,7 +2155,7 @@ fn test_dimir_guildgate_enters_tapped_via_card_definition() {
         .with_registry(registry)
         .build()
         .unwrap();
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let gate_id = state.objects_in_zone(&ZoneId::Hand(p1)).first().unwrap().id;
 
@@ -2185,7 +2186,7 @@ fn test_dimir_guildgate_enters_tapped_via_card_definition() {
         "PermanentTapped event should be emitted for Dimir Guildgate's ETB replacement"
     );
     // MR-M8-12: self-ETB replacements now route through the replacement-effect
-    // framework — they are registered in `state.replacement_effects` with a real
+    // framework — they are registered in `state.replacement_effects()` with a real
     // ReplacementId, so applying one emits ReplacementEffectApplied just like a
     // global replacement does.
     assert!(
@@ -2285,11 +2286,14 @@ fn test_prevention_shield_depletes_and_is_removed() {
 
     // Shield counter should be gone and effect should be removed.
     assert!(
-        !state.prevention_counters.contains_key(&shield_id),
+        !state.prevention_counters().contains_key(&shield_id),
         "prevention counter should be removed after shield is exhausted"
     );
     assert!(
-        !state.replacement_effects.iter().any(|e| e.id == shield_id),
+        !state
+            .replacement_effects()
+            .iter()
+            .any(|e| e.id == shield_id),
         "ReplacementEffect should be removed when shield counter reaches 0"
     );
 
@@ -2352,7 +2356,10 @@ fn test_prevent_all_damage() {
 
     // Effect is NOT consumed — it should still be active.
     assert!(
-        state.replacement_effects.iter().any(|e| e.id == shield_id),
+        state
+            .replacement_effects()
+            .iter()
+            .any(|e| e.id == shield_id),
         "PreventAllDamage effect should remain active (not consumed)"
     );
 
@@ -2421,12 +2428,12 @@ fn test_two_prevention_effects_sequential() {
 
     // Shield A should be exhausted and removed.
     assert!(
-        !state.replacement_effects.iter().any(|e| e.id == shield_a),
+        !state.replacement_effects().iter().any(|e| e.id == shield_a),
         "shield_a (3-cap) should be removed after exhaustion"
     );
     // Shield B should have 1 remaining.
     assert_eq!(
-        state.prevention_counters.get(&shield_b).copied(),
+        state.prevention_counters().get(&shield_b).copied(),
         Some(1),
         "shield_b (4-cap) should have 1 remaining after preventing 3"
     );
@@ -2473,12 +2480,12 @@ fn test_until_end_of_turn_replacement_expires_at_cleanup() {
 
     // Effect should be active before cleanup.
     assert_eq!(
-        state.replacement_effects.len(),
+        state.replacement_effects().len(),
         1,
         "effect should be registered before cleanup"
     );
     assert!(
-        state.prevention_counters.contains_key(&shield_id),
+        state.prevention_counters().contains_key(&shield_id),
         "prevention counter should exist before cleanup"
     );
 
@@ -2487,12 +2494,12 @@ fn test_until_end_of_turn_replacement_expires_at_cleanup() {
 
     // Effect should be gone after cleanup.
     assert_eq!(
-        state.replacement_effects.len(),
+        state.replacement_effects().len(),
         0,
         "UntilEndOfTurn replacement effect should be removed at cleanup (CR 514.2)"
     );
     assert!(
-        !state.prevention_counters.contains_key(&shield_id),
+        !state.prevention_counters().contains_key(&shield_id),
         "prevention counter for expired effect should also be removed"
     );
 }
@@ -2536,25 +2543,25 @@ fn test_indefinite_replacement_survives_cleanup() {
         .build()
         .unwrap();
 
-    assert_eq!(state.replacement_effects.len(), 2);
+    assert_eq!(state.replacement_effects().len(), 2);
 
     mtg_engine::rules::layers::expire_end_of_turn_effects(&mut state);
 
     // Only the UntilEndOfTurn effect should be removed.
     assert_eq!(
-        state.replacement_effects.len(),
+        state.replacement_effects().len(),
         1,
         "only UntilEndOfTurn should be removed; Indefinite should survive"
     );
     assert!(
         state
-            .replacement_effects
+            .replacement_effects()
             .iter()
             .any(|e| e.id == indefinite_id),
         "the Indefinite effect should still be present"
     );
     assert!(
-        !state.replacement_effects.iter().any(|e| e.id == eot_id),
+        !state.replacement_effects().iter().any(|e| e.id == eot_id),
         "the UntilEndOfTurn effect should have been removed"
     );
 }
@@ -2643,7 +2650,7 @@ fn test_destroy_permanent_emits_choice_required_for_multiple_replacements() {
 
     // Creature should still be on battlefield (or in pending_zone_changes), not yet moved.
     assert_eq!(
-        state.pending_zone_changes.len(),
+        state.pending_zone_changes().len(),
         1,
         "a PendingZoneChange should have been created"
     );
@@ -2734,7 +2741,7 @@ fn test_exile_object_emits_choice_required_for_multiple_replacements() {
         "CR 616.1: ExileObject should emit ReplacementChoiceRequired when multiple replacements apply"
     );
     assert_eq!(
-        state.pending_zone_changes.len(),
+        state.pending_zone_changes().len(),
         1,
         "a PendingZoneChange should have been created"
     );
@@ -2796,13 +2803,15 @@ fn test_zone_change_events_enchantment_emits_permanent_destroyed() {
 
     // Manually insert a pending zone change so we can call process_command.
     use mtg_engine::state::replacement_effect::PendingZoneChange;
-    state.pending_zone_changes.push_back(PendingZoneChange {
-        object_id: enchantment_id,
-        original_from: ZoneType::Battlefield,
-        original_destination: ZoneType::Graveyard,
-        affected_player: PlayerId(1),
-        already_applied: Vec::new(),
-    });
+    state
+        .pending_zone_changes_mut()
+        .push_back(PendingZoneChange {
+            object_id: enchantment_id,
+            original_from: ZoneType::Battlefield,
+            original_destination: ZoneType::Graveyard,
+            affected_player: PlayerId(1),
+            already_applied: Vec::new(),
+        });
 
     // Player 1 resolves the choice by picking effect_b (self-replacement to Exile).
     let (state, events) = mtg_engine::process_command(
@@ -3009,8 +3018,13 @@ fn test_leyline_of_the_void_opponent_only_filter() {
         .first()
         .unwrap()
         .id;
-    let leyline_cid = state.objects.get(&leyline_obj_id).unwrap().card_id.clone();
-    let reg = state.card_registry.clone();
+    let leyline_cid = state
+        .objects()
+        .get(&leyline_obj_id)
+        .unwrap()
+        .card_id
+        .clone();
+    let reg = state.card_registry().clone();
     mtg_engine::rules::replacement::register_permanent_replacement_abilities(
         &mut state,
         leyline_obj_id,
@@ -3021,7 +3035,7 @@ fn test_leyline_of_the_void_opponent_only_filter() {
 
     // Extract the registered filter — it should be OwnedByOpponentsOf(p1).
     let leyline_filter = state
-        .replacement_effects
+        .replacement_effects()
         .iter()
         .find(|e| e.source == Some(leyline_obj_id))
         .map(|e| {
@@ -3040,14 +3054,14 @@ fn test_leyline_of_the_void_opponent_only_filter() {
 
     // Find the two graveyard objects by owner.
     let p1_card_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.owner == p1 && o.zone == ZoneId::Graveyard(p1))
         .map(|o| o.id)
         .expect("p1's Forest should be in graveyard");
 
     let p2_card_id = state
-        .objects
+        .objects()
         .values()
         .find(|o| o.owner == p2 && o.zone == ZoneId::Graveyard(p2))
         .map(|o| o.id)
@@ -3088,7 +3102,7 @@ fn test_hash_cleanup_sba_rounds_affects_hash() {
     );
 
     // Advance cleanup_sba_rounds in state2 only.
-    state2.turn.cleanup_sba_rounds = 1;
+    state2.turn_mut().cleanup_sba_rounds = 1;
 
     // Hashes must now differ.
     assert_ne!(
@@ -3130,7 +3144,7 @@ fn test_cc33_sylvan_library_draw_tracking() {
 
     // Initial state: no cards drawn yet.
     assert_eq!(
-        state.players.get(&p1).unwrap().cards_drawn_this_turn,
+        state.players().get(&p1).unwrap().cards_drawn_this_turn,
         0,
         "cards_drawn_this_turn should start at 0"
     );
@@ -3138,7 +3152,7 @@ fn test_cc33_sylvan_library_draw_tracking() {
     // Draw first card: counter increments to 1.
     draw_card(&mut state, p1).unwrap();
     assert_eq!(
-        state.players.get(&p1).unwrap().cards_drawn_this_turn,
+        state.players().get(&p1).unwrap().cards_drawn_this_turn,
         1,
         "after first draw, cards_drawn_this_turn should be 1"
     );
@@ -3146,7 +3160,7 @@ fn test_cc33_sylvan_library_draw_tracking() {
     // Draw second card: counter increments to 2.
     draw_card(&mut state, p1).unwrap();
     assert_eq!(
-        state.players.get(&p1).unwrap().cards_drawn_this_turn,
+        state.players().get(&p1).unwrap().cards_drawn_this_turn,
         2,
         "after second draw, cards_drawn_this_turn should be 2"
     );
@@ -3154,14 +3168,14 @@ fn test_cc33_sylvan_library_draw_tracking() {
     // Draw third card: counter increments to 3.
     draw_card(&mut state, p1).unwrap();
     assert_eq!(
-        state.players.get(&p1).unwrap().cards_drawn_this_turn,
+        state.players().get(&p1).unwrap().cards_drawn_this_turn,
         3,
         "after third draw, cards_drawn_this_turn should be 3"
     );
 
     // p2 drawing does NOT affect p1's counter.
     assert_eq!(
-        state.players.get(&p2).unwrap().cards_drawn_this_turn,
+        state.players().get(&p2).unwrap().cards_drawn_this_turn,
         0,
         "p2's cards_drawn_this_turn should still be 0 (only p1 drew cards)"
     );
@@ -3169,7 +3183,7 @@ fn test_cc33_sylvan_library_draw_tracking() {
     // Simulate turn start: reset_turn_state resets the counter to 0.
     reset_turn_state(&mut state, p1);
     assert_eq!(
-        state.players.get(&p1).unwrap().cards_drawn_this_turn,
+        state.players().get(&p1).unwrap().cards_drawn_this_turn,
         0,
         "after reset_turn_state, cards_drawn_this_turn should reset to 0"
     );
@@ -3262,7 +3276,7 @@ fn test_etb_self_and_global_replacement_both_apply() {
         .unwrap();
 
     let creature_id = state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == "Enters Tapped Creature")
         .map(|(id, _)| *id)
@@ -3281,7 +3295,7 @@ fn test_etb_self_and_global_replacement_both_apply() {
     let _global_evts =
         mtg_engine::rules::replacement::apply_etb_replacements(&mut state, creature_id, p1);
 
-    let creature = state.objects.get(&creature_id).unwrap();
+    let creature = state.objects().get(&creature_id).unwrap();
 
     // Self-replacement: creature must be tapped.
     assert!(
@@ -3378,7 +3392,7 @@ fn basic_land_def(id: &str, name: &str, subtype: &str) -> CardDefinition {
 /// Helper: find an object by name in the game state.
 fn find_cond_etb_by_name(state: &mtg_engine::GameState, name: &str) -> ObjectId {
     state
-        .objects
+        .objects()
         .iter()
         .find(|(_, obj)| obj.characteristics.name == name)
         .map(|(id, _)| *id)
@@ -3433,7 +3447,7 @@ fn test_conditional_etb_check_land_condition_met() {
         &registry,
     );
 
-    let obj = state.objects.get(&check_land_id).unwrap();
+    let obj = state.objects().get(&check_land_id).unwrap();
     assert!(
         !obj.status.tapped,
         "CR 614.1c: Check-land should enter untapped when controller has a Plains"
@@ -3486,7 +3500,7 @@ fn test_conditional_etb_check_land_condition_not_met() {
         &registry,
     );
 
-    let obj = state.objects.get(&check_land_id).unwrap();
+    let obj = state.objects().get(&check_land_id).unwrap();
     assert!(
         obj.status.tapped,
         "CR 614.1c: Check-land should enter tapped when controller has no Plains/Island"
@@ -3545,7 +3559,7 @@ fn test_conditional_etb_fast_land() {
         &registry,
     );
     assert!(
-        !state.objects.get(&fast_land_id).unwrap().status.tapped,
+        !state.objects().get(&fast_land_id).unwrap().status.tapped,
         "Fast-land: 2 other lands → enters untapped"
     );
 
@@ -3587,7 +3601,7 @@ fn test_conditional_etb_fast_land() {
         &registry,
     );
     assert!(
-        state2.objects.get(&fast_land_id2).unwrap().status.tapped,
+        state2.objects().get(&fast_land_id2).unwrap().status.tapped,
         "Fast-land: 3 other lands → enters tapped"
     );
 }
@@ -3628,7 +3642,7 @@ fn test_conditional_etb_bond_land() {
         &registry,
     );
     assert!(
-        !state4.objects.get(&bond_id4).unwrap().status.tapped,
+        !state4.objects().get(&bond_id4).unwrap().status.tapped,
         "Bond-land: 3 opponents → enters untapped"
     );
 
@@ -3655,7 +3669,7 @@ fn test_conditional_etb_bond_land() {
         &registry,
     );
     assert!(
-        state2.objects.get(&bond_id2).unwrap().status.tapped,
+        state2.objects().get(&bond_id2).unwrap().status.tapped,
         "Bond-land: 1 opponent → enters tapped"
     );
 }
@@ -3711,7 +3725,7 @@ fn test_conditional_etb_battle_land() {
         &registry,
     );
     assert!(
-        !state.objects.get(&battle_id).unwrap().status.tapped,
+        !state.objects().get(&battle_id).unwrap().status.tapped,
         "Battle-land: 2 basic lands → enters untapped"
     );
 
@@ -3744,7 +3758,7 @@ fn test_conditional_etb_battle_land() {
         &registry,
     );
     assert!(
-        state2.objects.get(&battle_id2).unwrap().status.tapped,
+        state2.objects().get(&battle_id2).unwrap().status.tapped,
         "Battle-land: 1 basic land → enters tapped"
     );
 }
@@ -3796,7 +3810,7 @@ fn test_conditional_etb_slow_land() {
         &registry,
     );
     assert!(
-        !state.objects.get(&slow_id).unwrap().status.tapped,
+        !state.objects().get(&slow_id).unwrap().status.tapped,
         "Slow-land: 2 other lands → enters untapped"
     );
 
@@ -3828,7 +3842,7 @@ fn test_conditional_etb_slow_land() {
         &registry,
     );
     assert!(
-        state2.objects.get(&slow_id2).unwrap().status.tapped,
+        state2.objects().get(&slow_id2).unwrap().status.tapped,
         "Slow-land: 1 other land → enters tapped"
     );
 }
@@ -3892,7 +3906,7 @@ fn test_conditional_etb_subtype_count_land() {
         &registry,
     );
     assert!(
-        !state.objects.get(&sanctuary_id).unwrap().status.tapped,
+        !state.objects().get(&sanctuary_id).unwrap().status.tapped,
         "Mystic Sanctuary: 3 other Islands → enters untapped"
     );
 
@@ -3932,7 +3946,7 @@ fn test_conditional_etb_subtype_count_land() {
         &registry,
     );
     assert!(
-        state2.objects.get(&sanctuary_id2).unwrap().status.tapped,
+        state2.objects().get(&sanctuary_id2).unwrap().status.tapped,
         "Mystic Sanctuary: 2 other Islands → enters tapped"
     );
 }
@@ -3983,7 +3997,7 @@ fn test_conditional_etb_reveal_land() {
         &registry,
     );
     assert!(
-        !state.objects.get(&reveal_id).unwrap().status.tapped,
+        !state.objects().get(&reveal_id).unwrap().status.tapped,
         "Reveal-land: Island in hand → enters untapped"
     );
 
@@ -4010,7 +4024,7 @@ fn test_conditional_etb_reveal_land() {
         &registry,
     );
     assert!(
-        state2.objects.get(&reveal_id2).unwrap().status.tapped,
+        state2.objects().get(&reveal_id2).unwrap().status.tapped,
         "Reveal-land: no matching card in hand → enters tapped"
     );
 }
@@ -4043,7 +4057,7 @@ fn test_shockland_enters_tapped_deterministic_fallback() {
         .with_registry(registry)
         .build()
         .unwrap();
-    state.turn.priority_holder = Some(p1);
+    state.turn_mut().priority_holder = Some(p1);
 
     let card_id = state.objects_in_zone(&ZoneId::Hand(p1)).first().unwrap().id;
 
@@ -4115,7 +4129,7 @@ fn test_all_shocklands_enter_tapped() {
             .with_registry(registry)
             .build()
             .unwrap();
-        state.turn.priority_holder = Some(p1);
+        state.turn_mut().priority_holder = Some(p1);
 
         let card_id = state.objects_in_zone(&ZoneId::Hand(p1)).first().unwrap().id;
 
@@ -4193,7 +4207,7 @@ fn self_etb_tapped_creature_def(id: &str, name: &str) -> CardDefinition {
 
 #[test]
 /// MR-M8-12 / CR 614.15 — a self-ETB replacement from a card definition is now
-/// registered in `state.replacement_effects` and applied through the
+/// registered in `state.replacement_effects()` and applied through the
 /// `find_applicable` / `determine_action` framework (not inline).
 fn test_mr_m8_12_self_etb_registered_in_framework() {
     let p1 = PlayerId(1);
@@ -4213,7 +4227,7 @@ fn test_mr_m8_12_self_etb_registered_in_framework() {
 
     let creature_id = find_cond_etb_by_name(&state, "Tapped Walker");
     assert!(
-        state.replacement_effects.is_empty(),
+        state.replacement_effects().is_empty(),
         "no replacement effects registered before ETB processing"
     );
 
@@ -4227,10 +4241,10 @@ fn test_mr_m8_12_self_etb_registered_in_framework() {
 
     // The self-ETB replacement is now a real entry in the framework's registry.
     let self_entry = state
-        .replacement_effects
+        .replacement_effects()
         .iter()
         .find(|e| e.is_self_replacement)
-        .expect("MR-M8-12: self-ETB replacement must be registered in state.replacement_effects");
+        .expect("MR-M8-12: self-ETB replacement must be registered in state.replacement_effects()");
     assert!(
         matches!(
             self_entry.trigger,
@@ -4249,7 +4263,7 @@ fn test_mr_m8_12_self_etb_registered_in_framework() {
     // It was applied via the framework: creature is tapped + a ReplacementEffectApplied
     // event fired (proving it went through emit_etb_modification with a real id).
     assert!(
-        state.objects.get(&creature_id).unwrap().status.tapped,
+        state.objects().get(&creature_id).unwrap().status.tapped,
         "MR-M8-12: self-ETB EntersTapped must still apply"
     );
     assert!(
@@ -4275,7 +4289,7 @@ fn test_mr_m8_12_self_etb_registered_in_framework() {
 
 #[test]
 /// MR-M8-16 — a `WhileSourceOnBattlefield` replacement effect is removed from
-/// `state.replacement_effects` when its source leaves the battlefield, so the
+/// `state.replacement_effects()` when its source leaves the battlefield, so the
 /// vector does not grow unbounded over a long game.
 fn test_mr_m8_16_stale_replacement_effect_gc_on_leave() {
     let p1 = PlayerId(1);
@@ -4322,17 +4336,16 @@ fn test_mr_m8_16_stale_replacement_effect_gc_on_leave() {
         &registry,
     );
     assert_eq!(
-        state.replacement_effects.len(),
+        state.replacement_effects().len(),
         1,
         "the global ETB replacement is registered while the source is on the battlefield"
     );
 
     // Source leaves the battlefield → its WhileSourceOnBattlefield effect is GC'd.
-    state
-        .move_object_to_zone(tapper_id, ZoneId::Graveyard(p1))
+    test_util::move_object_to_zone(&mut state, tapper_id, ZoneId::Graveyard(p1))
         .expect("move to graveyard");
     assert!(
-        state.replacement_effects.is_empty(),
+        state.replacement_effects().is_empty(),
         "MR-M8-16: stale WhileSourceOnBattlefield effect must be removed when its source leaves"
     );
 }
