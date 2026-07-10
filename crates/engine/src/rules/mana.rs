@@ -125,8 +125,9 @@ pub fn handle_tap_for_mana(
     // 5. Fetch the mana ability via layer-resolved characteristics.
     // CR 613.1f: Use calc'd chars so granted abilities (Cryptolith Rite, Chromatic Lantern)
     // and ability-removal (Humility) both apply. W3-LC audit fix.
-    let resolved_chars = crate::rules::layers::calculate_characteristics(state, source)
-        .unwrap_or_else(|| obj.characteristics.clone());
+    // SR-14 IMPOSSIBLE: `source` was validated present via `state.object(source)?`
+    // above with no intervening zone change, so calc cannot be None here.
+    let resolved_chars = crate::rules::layers::expect_characteristics(state, source);
     let ability = resolved_chars
         .mana_abilities
         .get(ability_index)
@@ -146,8 +147,8 @@ pub fn handle_tap_for_mana(
         // CR 613.1d/613.1f: Use layer-resolved types and keywords so animated
         // permanents (e.g., Nissa-animated lands) respect summoning sickness and
         // layer-granted haste (e.g., Fervor) is recognized.
-        let tap_chars = crate::rules::layers::calculate_characteristics(state, source)
-            .unwrap_or_else(|| obj.characteristics.clone());
+        // SR-14 IMPOSSIBLE: `source` still present (validated above, tapped only later).
+        let tap_chars = crate::rules::layers::expect_characteristics(state, source);
         if tap_chars.card_types.contains(&CardType::Creature)
             && obj.has_summoning_sickness
             && !tap_chars.keywords.contains(&KeywordAbility::Haste)
@@ -179,10 +180,12 @@ pub fn handle_tap_for_mana(
             let obj = state.object(source)?;
             // CR 613.1d: Use layer-resolved types for sacrifice creature check
             // (animated artifacts/lands are creatures per layer 4).
+            // `pre_chars_opt` is threaded into the death event as an
+            // Option<Characteristics> LKI snapshot (CR 603.10a), so it stays an Option.
             let pre_chars_opt = crate::rules::layers::calculate_characteristics(state, source);
-            let sac_chars = pre_chars_opt
-                .clone()
-                .unwrap_or_else(|| obj.characteristics.clone());
+            // SR-14 IMPOSSIBLE: `source` validated present via `state.object(source)?`
+            // just above; the sacrifice move has not happened yet, so calc is not None.
+            let sac_chars = crate::rules::layers::expect_characteristics(state, source);
             let lki_power = sac_chars.power.or(obj.characteristics.power);
             (
                 sac_chars.card_types.contains(&CardType::Creature),
@@ -335,9 +338,12 @@ fn apply_mana_production_replacements(
                 let passes_source_filter = match sf {
                     ReplacementManaSourceFilter::Any => true,
                     ReplacementManaSourceFilter::AnyLand => source_obj
-                        .map(|o| {
-                            crate::rules::layers::calculate_characteristics(state, source_perm)
-                                .unwrap_or_else(|| o.characteristics.clone())
+                        .map(|_o| {
+                            // SR-14 IMPOSSIBLE: inside `source_obj.map`, so `source_perm`
+                            // is present and calc cannot be None. (The outer
+                            // `.unwrap_or(false)` is the real fizzle guard: the tapped
+                            // source may already be gone after a sacrifice cost.)
+                            crate::rules::layers::expect_characteristics(state, source_perm)
                                 .card_types
                                 .contains(&crate::state::types::CardType::Land)
                         })

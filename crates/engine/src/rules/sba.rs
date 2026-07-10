@@ -103,8 +103,7 @@ fn check_ascend(
     for pid in player_ids {
         // Skip players who already have the city's blessing (CR 702.131c: permanent).
         let already_has = state
-            .players
-            .get(&pid)
+            .expect_player(pid)
             .map(|p| p.has_citys_blessing)
             .unwrap_or(true); // treat missing player as already having it (skip)
         if already_has {
@@ -133,7 +132,7 @@ fn check_ascend(
             })
             .count();
         if permanent_count >= 10 {
-            if let Some(p) = state.players.get_mut(&pid) {
+            if let Some(p) = state.expect_player_mut(pid) {
                 p.has_citys_blessing = true;
             }
             events.push(GameEvent::CitysBlessingGained { player: pid });
@@ -236,7 +235,7 @@ fn check_player_sbas(state: &mut GameState) -> Vec<GameEvent> {
     let mut events = Vec::new();
     let player_ids: Vec<PlayerId> = state.players.keys().copied().collect();
     for id in player_ids {
-        let Some(player) = state.players.get(&id) else {
+        let Some(player) = state.expect_player(id) else {
             continue;
         };
         if player.has_lost || player.has_conceded {
@@ -244,7 +243,7 @@ fn check_player_sbas(state: &mut GameState) -> Vec<GameEvent> {
         }
         // CR 704.5a: life total ≤ 0.
         if player.life_total <= 0 {
-            if let Some(p) = state.players.get_mut(&id) {
+            if let Some(p) = state.expect_player_mut(id) {
                 p.has_lost = true;
             }
             events.push(GameEvent::PlayerLost {
@@ -259,7 +258,7 @@ fn check_player_sbas(state: &mut GameState) -> Vec<GameEvent> {
         }
         // CR 704.5c: 10+ poison counters.
         if player.poison_counters >= 10 {
-            if let Some(p) = state.players.get_mut(&id) {
+            if let Some(p) = state.expect_player_mut(id) {
                 p.has_lost = true;
             }
             events.push(GameEvent::PlayerLost {
@@ -273,8 +272,9 @@ fn check_player_sbas(state: &mut GameState) -> Vec<GameEvent> {
             continue;
         }
         // CR 704.5u (Commander): 21+ combat damage from a single commander.
-        // MR-M4-01: use if-let instead of unwrap — player may have been removed mid-pass.
-        let Some(player_ref) = state.players.get(&id) else {
+        // Players are never removed from state.players (CR 800.4a removes their objects,
+        // not the PlayerState), so a missing id here is an engine bug, not a fizzle.
+        let Some(player_ref) = state.expect_player(id) else {
             continue;
         };
         let lost_to_cmdr = player_ref
@@ -282,7 +282,7 @@ fn check_player_sbas(state: &mut GameState) -> Vec<GameEvent> {
             .values()
             .any(|by_card| by_card.values().any(|&dmg| dmg >= 21));
         if lost_to_cmdr {
-            if let Some(p) = state.players.get_mut(&id) {
+            if let Some(p) = state.expect_player_mut(id) {
                 p.has_lost = true;
             }
             events.push(GameEvent::PlayerLost {
@@ -319,8 +319,7 @@ pub fn transfer_initiative_on_player_leave(
     let active = state.turn.active_player;
     let active_is_eligible = active != leaving_player
         && state
-            .players
-            .get(&active)
+            .expect_player(active)
             .map(|p| !p.has_lost && !p.has_conceded)
             .unwrap_or(false);
     let new_holder = if active_is_eligible {
@@ -336,8 +335,7 @@ pub fn transfer_initiative_on_player_leave(
         (1..n).find_map(|offset| {
             let candidate = turn_order[(leaving_pos + offset) % n];
             let is_active = state
-                .players
-                .get(&candidate)
+                .expect_player(candidate)
                 .map(|p| !p.has_lost && !p.has_conceded)
                 .unwrap_or(false);
             // The leaving player may still have has_lost == true but is being eliminated now.
@@ -381,8 +379,7 @@ pub fn transfer_monarch_on_player_leave(
     let active = state.turn.active_player;
     let active_is_eligible = active != leaving_player
         && state
-            .players
-            .get(&active)
+            .expect_player(active)
             .map(|p| !p.has_lost && !p.has_conceded)
             .unwrap_or(false);
     let new_monarch = if active_is_eligible {
@@ -397,8 +394,7 @@ pub fn transfer_monarch_on_player_leave(
         (1..n).find_map(|offset| {
             let candidate = turn_order[(leaving_pos + offset) % n];
             let is_active = state
-                .players
-                .get(&candidate)
+                .expect_player(candidate)
                 .map(|p| !p.has_lost && !p.has_conceded)
                 .unwrap_or(false);
             if is_active && candidate != leaving_player {
@@ -433,11 +429,13 @@ fn check_token_sbas(state: &mut GameState) -> Vec<GameEvent> {
         .map(|(id, _)| *id)
         .collect();
     for id in token_ids {
-        // Remove from its zone and from the objects map.
-        if let Some(obj) = state.objects.get(&id) {
+        // Remove from its zone and from the objects map. `id` was just read out of
+        // `state.objects` (token_ids, above) and each id is removed exactly once, so it
+        // is still live here — a missing object would be an engine bug.
+        if let Some(obj) = state.expect_object(id) {
             let zone_id = obj.zone;
-            // Remove from zone.
-            if let Some(zone) = state.zones.get_mut(&zone_id) {
+            // Remove from zone. Zones are never removed, so obj.zone always exists.
+            if let Some(zone) = state.expect_zone_mut(&zone_id) {
                 zone.remove(&id);
             }
         }
@@ -537,8 +535,11 @@ fn check_creature_sbas(
                 continue; // Skip destruction -- permanent stays on battlefield
             }
         }
+        // CR 400.7 / 608.2b: `id` was collected into `dying` before this removing loop, so
+        // an earlier iteration (or replacement) may already have moved it off the
+        // battlefield. A missing object here is a legitimate fizzle, not a bug.
         let (owner, pre_death_controller, pre_death_counters, pre_death_power, pre_death_chars) =
-            match state.objects.get(&id) {
+            match state.lki_object(id) {
                 Some(obj) => {
                     // CR 603.10a / CR 613.1d: capture full layer-resolved characteristics BEFORE
                     // move_object_to_zone (which destroys battlefield-only continuous effects).
@@ -575,8 +576,11 @@ fn check_creature_sbas(
         );
         match action {
             replacement::ZoneChangeAction::Proceed => {
-                // No replacement — move to graveyard normally.
-                if let Ok((new_id, _)) = state.move_object_to_zone(id, ZoneId::Graveyard(owner)) {
+                // No replacement — move to graveyard normally. `id` was just confirmed
+                // live (Some arm above) and Graveyard(owner) always exists.
+                if let Some((new_id, _)) =
+                    state.expect_move_object_to_zone(id, ZoneId::Graveyard(owner))
+                {
                     // CR 708.9: Emit reveal before CreatureDied.
                     if let Some(reveal) = face_down_reveal.clone() {
                         events.push(reveal);
@@ -600,9 +604,10 @@ fn check_creature_sbas(
                 events: repl_events,
                 ..
             } => {
-                // Single replacement auto-applied — redirect zone.
+                // Single replacement auto-applied — redirect zone. `id` is live (Some arm
+                // above) and `to` is a builder-created zone, so the move cannot fail.
                 events.extend(repl_events);
-                if let Ok((new_id, _)) = state.move_object_to_zone(id, to) {
+                if let Some((new_id, _)) = state.expect_move_object_to_zone(id, to) {
                     // CR 708.9: Emit face-down reveal before the zone-change event.
                     if let Some(reveal) = face_down_reveal.clone() {
                         events.push(reveal);
@@ -711,7 +716,9 @@ fn check_planeswalker_sbas(
         if state.pending_zone_changes.iter().any(|p| p.object_id == id) {
             continue;
         }
-        let owner = match state.objects.get(&id) {
+        // CR 400.7 / 608.2b: `id` was collected into `dying` before this removing loop, so
+        // an earlier iteration may already have moved it. A missing object is a fizzle.
+        let owner = match state.lki_object(id) {
             Some(obj) => obj.owner,
             None => continue,
         };
@@ -726,7 +733,10 @@ fn check_planeswalker_sbas(
         );
         match action {
             replacement::ZoneChangeAction::Proceed => {
-                if let Ok((new_id, _)) = state.move_object_to_zone(id, ZoneId::Graveyard(owner)) {
+                // `id` is live (Some arm above); Graveyard(owner) always exists.
+                if let Some((new_id, _)) =
+                    state.expect_move_object_to_zone(id, ZoneId::Graveyard(owner))
+                {
                     events.push(GameEvent::PlaneswalkerDied {
                         object_id: id,
                         new_grave_id: new_id,
@@ -738,8 +748,9 @@ fn check_planeswalker_sbas(
                 events: repl_events,
                 ..
             } => {
+                // `id` is live (Some arm above) and `to` is a builder-created zone.
                 events.extend(repl_events);
-                if let Ok((new_id, _)) = state.move_object_to_zone(id, to) {
+                if let Some((new_id, _)) = state.expect_move_object_to_zone(id, to) {
                     match to {
                         ZoneId::Exile => {
                             events.push(GameEvent::ObjectExiled {
@@ -856,11 +867,15 @@ fn check_saga_sbas(state: &mut GameState) -> Vec<GameEvent> {
             continue; // Don't sacrifice yet — chapter ability still on the stack.
         }
         // Sacrifice the Saga (move to graveyard).
-        let owner = match state.objects.get(&saga_id) {
+        // CR 400.7 / 608.2b: saga_id comes from the pre-loop `sagas` snapshot, so it may
+        // already have been moved. A missing object here is a fizzle, not a bug.
+        let owner = match state.lki_object(saga_id) {
             Some(obj) => obj.owner,
             None => continue,
         };
-        let Ok((new_id, _)) = state.move_object_to_zone(saga_id, ZoneId::Graveyard(owner)) else {
+        // saga_id is live (Some arm above); Graveyard(owner) always exists.
+        let Some((new_id, _)) = state.expect_move_object_to_zone(saga_id, ZoneId::Graveyard(owner))
+        else {
             continue;
         };
         events.push(GameEvent::PermanentDestroyed {
@@ -895,8 +910,8 @@ fn check_legendary_rule(state: &mut GameState) -> Vec<GameEvent> {
         }
         // CR 613.1d/613.1: Use layer-resolved supertypes and name for legend rule.
         // Copy effects (Layer 1) can change name; type-changing can grant/remove Legendary.
-        let chars = crate::rules::layers::calculate_characteristics(state, *id)
-            .unwrap_or_else(|| obj.characteristics.clone());
+        // `id` is a live key of `state.objects`, so calculate_characteristics cannot be None.
+        let chars = crate::rules::layers::expect_characteristics(state, *id);
         if !chars.supertypes.contains(&SuperType::Legendary) {
             continue;
         }
@@ -917,12 +932,17 @@ fn check_legendary_rule(state: &mut GameState) -> Vec<GameEvent> {
         let to_remove = &ids[..ids.len() - 1];
         let mut graves: Vec<(ObjectId, ObjectId)> = Vec::new();
         for &old_id in to_remove {
-            let owner = match state.objects.get(&old_id) {
+            // CR 400.7 / 608.2b: old_id comes from the pre-loop `ids` snapshot and this loop
+            // moves legendaries to the graveyard, so it may already be gone — a fizzle.
+            let owner = match state.lki_object(old_id) {
                 Some(obj) => obj.owner,
                 None => continue,
             };
-            // Use owner of the object, not the controller (could differ).
-            if let Ok((new_id, _)) = state.move_object_to_zone(old_id, ZoneId::Graveyard(owner)) {
+            // Use owner of the object, not the controller (could differ). old_id is live
+            // (Some arm above); Graveyard(owner) always exists.
+            if let Some((new_id, _)) =
+                state.expect_move_object_to_zone(old_id, ZoneId::Graveyard(owner))
+            {
                 graves.push((old_id, new_id));
             }
         }
@@ -1062,8 +1082,8 @@ fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
                 return false;
             }
             // CR 613.1d: Use layer-resolved subtypes for Aura check (type-changing effects).
-            let aura_chars = calculate_characteristics(state, **aura_id)
-                .unwrap_or_else(|| obj.characteristics.clone());
+            // `**aura_id` is a live key of this iteration, so calc is never None here.
+            let aura_chars = crate::rules::layers::expect_characteristics(state, **aura_id);
             if !aura_chars.subtypes.contains(subtype_aura) {
                 return false;
             }
@@ -1092,18 +1112,14 @@ fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
                     // CR 704.5m / 303.4c: if this Aura has an Enchant keyword, check
                     // that the attached object still satisfies the restriction
                     // (layer-computed characteristics, so type-change effects apply).
-                    let aura_keywords = calculate_characteristics(state, **aura_id)
-                        .map(|c| c.keywords)
-                        .unwrap_or_default();
+                    // `**aura_id` is a live iteration key, so calc is never None here.
+                    let aura_keywords =
+                        crate::rules::layers::expect_characteristics(state, **aura_id).keywords;
                     if let Some(enchant_target) = get_enchant_target(&aura_keywords) {
-                        let target_chars =
-                            calculate_characteristics(state, target_id).or_else(|| {
-                                state
-                                    .objects
-                                    .get(&target_id)
-                                    .map(|o| o.characteristics.clone())
-                            });
-                        if let Some(tc) = target_chars {
+                        // `target_gone` was checked false above, so the target is on the
+                        // battlefield and its characteristics are always computable.
+                        let tc = crate::rules::layers::expect_characteristics(state, target_id);
+                        {
                             // CR 704.5m: for Filtered enchant targets, compare controllers.
                             let aura_ctrl = obj.controller;
                             // PB-Q4-L01: `target_gone` was already checked false above, so
@@ -1128,19 +1144,18 @@ fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
                         }
                     }
                     // CR 702.16c: the aura is illegal if the target has protection from
-                    // a quality that the aura's characteristics match.
-                    let target_keywords = calculate_characteristics(state, target_id)
-                        .map(|c| c.keywords)
-                        .unwrap_or_default();
-                    let aura_chars = calculate_characteristics(state, **aura_id);
-                    if let Some(ac) = &aura_chars {
-                        if super::protection::attachment_is_illegal_due_to_protection(
-                            &target_keywords,
-                            ac,
-                            Some(obj.controller),
-                        ) {
-                            return true;
-                        }
+                    // a quality that the aura's characteristics match. The target is present
+                    // (target_gone was checked false above) and **aura_id is a live iteration
+                    // key, so neither calc can be None here.
+                    let target_keywords =
+                        crate::rules::layers::expect_characteristics(state, target_id).keywords;
+                    let aura_chars = crate::rules::layers::expect_characteristics(state, **aura_id);
+                    if super::protection::attachment_is_illegal_due_to_protection(
+                        &target_keywords,
+                        &aura_chars,
+                        Some(obj.controller),
+                    ) {
+                        return true;
                     }
                     false
                 }
@@ -1161,16 +1176,19 @@ fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
         });
     // CR 702.103f: For bestowed Auras — clear attachment, revert to creature.
     for aura_id in bestowed_auras {
-        // Clear the attachment link on the target.
-        if let Some(obj) = state.objects.get(&aura_id) {
+        // Clear the attachment link on the target. aura_id comes from `bestowed_auras`
+        // and this loop only reverts (never removes), so the aura is still live.
+        if let Some(obj) = state.expect_object(aura_id) {
             if let Some(target_id) = obj.attached_to {
-                if let Some(target) = state.objects.get_mut(&target_id) {
+                // CR 400.7: the attached target may have changed zones (that is often why
+                // the Aura became illegal), so a missing target object is a fizzle.
+                if let Some(target) = state.lki_object_mut(target_id) {
                     target.attachments.retain(|id| *id != aura_id);
                 }
             }
         }
         // Revert the bestowed Aura to an enchantment creature.
-        if let Some(obj) = state.objects.get_mut(&aura_id) {
+        if let Some(obj) = state.expect_object_mut(aura_id) {
             obj.attached_to = None;
             obj.designations.remove(Designations::BESTOWED);
             // Remove Aura subtype and enchant creature keyword.
@@ -1185,11 +1203,14 @@ fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
     }
     // CR 704.5m: Normal illegal Auras go to the graveyard.
     for id in normal_auras {
-        let (owner, pre_lba_counters) = match state.objects.get(&id) {
+        // CR 400.7 / 608.2b: `id` comes from the pre-loop `normal_auras` snapshot and this
+        // loop moves auras to the graveyard, so it may already be gone — a fizzle.
+        let (owner, pre_lba_counters) = match state.lki_object(id) {
             Some(obj) => (obj.owner, obj.counters.clone()),
             None => continue,
         };
-        if let Ok((new_id, _)) = state.move_object_to_zone(id, ZoneId::Graveyard(owner)) {
+        // `id` is live (Some arm above); Graveyard(owner) always exists.
+        if let Some((new_id, _)) = state.expect_move_object_to_zone(id, ZoneId::Graveyard(owner)) {
             events.push(GameEvent::AuraFellOff {
                 object_id: id,
                 new_grave_id: new_id,
@@ -1317,14 +1338,18 @@ fn check_equipment_sbas(
         .collect();
     for id in all_illegal {
         // Unattach: clear attached_to on equipment and remove from target's attachments.
-        let target_id = state.objects.get(&id).and_then(|obj| obj.attached_to);
-        if let Some(obj) = state.objects.get_mut(&id) {
+        // `id` comes from `all_illegal` and this loop only clears links (never removes an
+        // object), so the equipment itself is still live.
+        let target_id = state.expect_object(id).and_then(|obj| obj.attached_to);
+        if let Some(obj) = state.expect_object_mut(id) {
             obj.attached_to = None;
             // CR 702.151b: clear reconfigure flag when SBA unattaches the Equipment.
             obj.designations.remove(Designations::RECONFIGURED);
         }
         if let Some(target_id) = target_id {
-            if let Some(target) = state.objects.get_mut(&target_id) {
+            // CR 400.7: the equipped permanent may have left the battlefield (a common
+            // reason the equipment is illegal), so a missing target object is a fizzle.
+            if let Some(target) = state.lki_object_mut(target_id) {
                 target.attachments.retain(|&x| x != id);
             }
         }
@@ -1360,7 +1385,9 @@ fn check_counter_annihilation(state: &mut GameState) -> Vec<GameEvent> {
         .map(|(id, _)| *id)
         .collect();
     for id in ids {
-        let Some(obj) = state.objects.get_mut(&id) else {
+        // `id` was just collected from `state.objects` and this loop only edits counters,
+        // so the object is still live — a missing object would be an engine bug.
+        let Some(obj) = state.expect_object_mut(id) else {
             continue;
         };
         let plus = obj
@@ -1454,12 +1481,14 @@ fn check_soulbond_unpairing(state: &mut GameState) {
             None
         })
         .collect();
-    // Clear paired_with on both objects.
+    // Clear paired_with on both objects. Both ids were established present when
+    // `pairs_to_clear` was built (`a` from the live iteration, `b` via a successful
+    // `state.objects.get`), and this loop removes nothing — so both are still live.
     for (a, b) in pairs_to_clear {
-        if let Some(obj) = state.objects.get_mut(&a) {
+        if let Some(obj) = state.expect_object_mut(a) {
             obj.paired_with = None;
         }
-        if let Some(obj) = state.objects.get_mut(&b) {
+        if let Some(obj) = state.expect_object_mut(b) {
             obj.paired_with = None;
         }
     }
@@ -1517,7 +1546,7 @@ fn check_dungeon_completion_sba(state: &mut GameState) -> Vec<GameEvent> {
         state.dungeon_state.remove(&player_id);
         // CR 309.7: Player "completes" the dungeon when it is removed from the game.
         // Increment dungeons_completed and add to the set.
-        if let Some(ps) = state.players.get_mut(&player_id) {
+        if let Some(ps) = state.expect_player_mut(player_id) {
             ps.dungeons_completed += 1;
             ps.dungeons_completed_set.insert(ds.dungeon);
         }
@@ -1563,16 +1592,17 @@ fn check_ring_bearer_sba(state: &mut GameState) {
     for player_id in players_to_clear {
         // Also clear RING_BEARER designation from any lingering object.
         let bearer_id = state
-            .players
-            .get(&player_id)
+            .expect_player(player_id)
             .and_then(|ps| ps.ring_bearer_id);
         if let Some(bid) = bearer_id {
-            if let Some(obj) = state.objects.get_mut(&bid) {
+            // CR 400.7 / 701.54a: the ring-bearer may have left the battlefield (a reason we
+            // clear it), so its old ObjectId may name nothing — a legitimate fizzle.
+            if let Some(obj) = state.lki_object_mut(bid) {
                 obj.designations.remove(Designations::RING_BEARER);
             }
         }
         // Clear ring_bearer_id on the player.
-        if let Some(ps) = state.players.get_mut(&player_id) {
+        if let Some(ps) = state.expect_player_mut(player_id) {
             ps.ring_bearer_id = None;
         }
     }

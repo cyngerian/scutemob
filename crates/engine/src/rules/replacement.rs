@@ -393,9 +393,10 @@ pub fn object_matches_filter(state: &GameState, obj_id: ObjectId, filter: &Objec
         ObjectFilter::AnyCreature => state
             .objects
             .get(&obj_id)
-            .map(|o| {
-                crate::rules::layers::calculate_characteristics(state, obj_id)
-                    .unwrap_or_else(|| o.characteristics.clone())
+            .map(|_| {
+                // SR-14: obj_id is proven present by the enclosing `.map`, so
+                // calculate_characteristics is total here (CR 613.1d).
+                crate::rules::layers::expect_characteristics(state, obj_id)
                     .card_types
                     .contains(&CardType::Creature)
             })
@@ -403,9 +404,9 @@ pub fn object_matches_filter(state: &GameState, obj_id: ObjectId, filter: &Objec
         ObjectFilter::HasCardType(ct) => state
             .objects
             .get(&obj_id)
-            .map(|o| {
-                crate::rules::layers::calculate_characteristics(state, obj_id)
-                    .unwrap_or_else(|| o.characteristics.clone())
+            .map(|_| {
+                // SR-14: obj_id is proven present by the enclosing `.map` (CR 613.1d).
+                crate::rules::layers::expect_characteristics(state, obj_id)
                     .card_types
                     .contains(ct)
             })
@@ -438,8 +439,8 @@ pub fn object_matches_filter(state: &GameState, obj_id: ObjectId, filter: &Objec
             .objects
             .get(&obj_id)
             .map(|o| {
-                let is_creature = crate::rules::layers::calculate_characteristics(state, obj_id)
-                    .unwrap_or_else(|| o.characteristics.clone())
+                // SR-14: obj_id is proven present by the enclosing `.map` (CR 613.1d).
+                let is_creature = crate::rules::layers::expect_characteristics(state, obj_id)
                     .card_types
                     .contains(&CardType::Creature);
                 is_creature && o.controller == *player_id
@@ -454,8 +455,8 @@ pub fn object_matches_filter(state: &GameState, obj_id: ObjectId, filter: &Objec
             .objects
             .get(&obj_id)
             .map(|o| {
-                let chars = crate::rules::layers::calculate_characteristics(state, obj_id)
-                    .unwrap_or_else(|| o.characteristics.clone());
+                // SR-14: obj_id is proven present by the enclosing `.map` (CR 613.1d).
+                let chars = crate::rules::layers::expect_characteristics(state, obj_id);
                 let is_creature = chars.card_types.contains(&CardType::Creature);
                 let has_subtype = chars.subtypes.contains(subtype);
                 is_creature && has_subtype && o.controller == *player_id
@@ -588,7 +589,11 @@ pub fn check_would_draw_replacement(state: &GameState, player: PlayerId) -> Draw
     //   2. The player has >= n cards in their library (CR 702.52b).
     let graveyard_zone = ZoneId::Graveyard(player);
     let library_zone = ZoneId::Library(player);
-    let library_count = state.zones.get(&library_zone).map(|z| z.len()).unwrap_or(0);
+    // SR-14: the library zone is built before turn 1 and never removed (ground truth 2).
+    let library_count = state
+        .expect_zone(&library_zone)
+        .map(|z| z.len())
+        .unwrap_or(0);
     let mut dredge_options: Vec<(ObjectId, u32)> = state
         .objects
         .values()
@@ -714,7 +719,9 @@ pub fn check_zone_change_replacement(
     // Per ruling: "If the spell or ability is actually trying to exile it, it
     // succeeds at exiling it." -- only redirect if destination is not already exile.
     if from == ZoneType::Battlefield && to != ZoneType::Exile {
-        if let Some(obj) = state.objects.get(&object_id) {
+        // SR-14: object_id is the subject of the current would-move event — the
+        // caller is about to move it, so it is live here (not LKI).
+        if let Some(obj) = state.expect_object(object_id) {
             if obj.was_unearthed {
                 // Redirect to exile (CR 702.84a).
                 return ZoneChangeAction::Redirect {
@@ -736,7 +743,8 @@ pub fn check_zone_change_replacement(
     // the battlefield via a disturb cast. It persists regardless of ability loss.
     // Only applies when moving from battlefield to graveyard (not other zones).
     if from == ZoneType::Battlefield && to == ZoneType::Graveyard {
-        if let Some(obj) = state.objects.get(&object_id) {
+        // SR-14: object_id is the subject of the current would-move event (live).
+        if let Some(obj) = state.expect_object(object_id) {
             if obj.was_cast_disturbed {
                 return ZoneChangeAction::Redirect {
                     to: ZoneId::Exile,
@@ -924,10 +932,14 @@ pub fn resolve_pending_zone_change(
             // CR 603.10a: capture LKI power before move_object_to_zone for SourcePowerAtLKI.
             // CR 603.10a / CR 613.1d: capture full characteristics for filtered death triggers.
             let oid = pending.object_id;
+            // SR-14: oid is the pending object about to be moved just below — it is
+            // still live at this point (the move has not happened yet). The inner
+            // `calculate_characteristics` stays: `pre_chars` is deliberately kept as an
+            // Option and threaded through as the LKI snapshot, so its `None` is not a
+            // swallowed lookup.
             let (pre_move_controller, pre_death_counters, pre_death_power_repl, repl_pre_chars) =
                 state
-                    .objects
-                    .get(&oid)
+                    .expect_object(oid)
                     .map(|o| {
                         let pre_chars = crate::rules::layers::calculate_characteristics(state, oid);
                         let lki_power = pre_chars
@@ -938,7 +950,9 @@ pub fn resolve_pending_zone_change(
                     })
                     .unwrap_or((pending.affected_player, Default::default(), None, None));
             // Do the zone move
-            if let Ok((new_id, _old)) = state.move_object_to_zone(pending.object_id, final_dest) {
+            if let Some((new_id, _old)) =
+                state.expect_move_object_to_zone(pending.object_id, final_dest)
+            {
                 events.extend(zone_change_events(
                     state,
                     pending.object_id,
@@ -1141,7 +1155,8 @@ pub fn apply_self_etb_from_definition(
     // equal to its printed loyalty number." This is an intrinsic replacement effect.
     if let Some(loyalty) = def.starting_loyalty {
         if loyalty > 0 {
-            if let Some(obj) = state.objects.get_mut(&new_id) {
+            // SR-14: new_id is the permanent that just entered — live here.
+            if let Some(obj) = state.expect_object_mut(new_id) {
                 let current = obj
                     .counters
                     .get(&CounterType::Loyalty)
@@ -1158,7 +1173,8 @@ pub fn apply_self_etb_from_definition(
         .iter()
         .any(|a| matches!(a, AbilityDefinition::SagaChapter { .. }));
     if has_saga_chapters {
-        if let Some(obj) = state.objects.get_mut(&new_id) {
+        // SR-14: new_id is the permanent that just entered — live here.
+        if let Some(obj) = state.expect_object_mut(new_id) {
             let current = obj.counters.get(&CounterType::Lore).copied().unwrap_or(0);
             obj.counters.insert(CounterType::Lore, current + 1);
         }
@@ -1173,7 +1189,8 @@ pub fn apply_self_etb_from_definition(
         .iter()
         .any(|a| matches!(a, AbilityDefinition::ClassLevel { .. }));
     if has_class_levels {
-        if let Some(obj) = state.objects.get_mut(&new_id) {
+        // SR-14: new_id is the permanent that just entered — live here.
+        if let Some(obj) = state.expect_object_mut(new_id) {
             obj.class_level = 1;
         }
     }
@@ -1241,7 +1258,10 @@ pub fn queue_carddef_etb_triggers(
     use crate::state::stubs::{ETBSuppressFilter, PendingTrigger, PendingTriggerKind};
     use crate::state::types::{CounterType, KeywordAbility, SubType};
     // CR 708.3: Face-down permanents have no triggered abilities.
-    if let Some(obj) = state.objects.get(&new_id) {
+    // CR 400.7: `new_id` is passed in by the caller; an earlier ETB replacement in the
+    // same batch (or a harness) may leave no live object for this id, so its absence is
+    // a legal fizzle (no permanent here means no face-down suppression to apply).
+    if let Some(obj) = state.lki_object(new_id) {
         if obj.status.face_down && obj.face_down_as.is_some() {
             return Vec::new();
         }
@@ -1268,14 +1288,15 @@ pub fn queue_carddef_etb_triggers(
                 // Check if this effect's filter applies to new_id.
                 // We need base characteristics to evaluate filter predicates.
                 // Use the object's stored characteristics as the filter basis.
+                // CR 400.7: `new_id` may name a permanent that already left (an earlier
+                // same-batch ETB replacement, or a harness call); absence defaults to
+                // Exile/empty chars, i.e. the suppressor simply does not apply.
                 let obj_zone = state
-                    .objects
-                    .get(&new_id)
+                    .lki_object(new_id)
                     .map(|o| o.zone)
                     .unwrap_or(crate::state::zone::ZoneId::Exile);
                 let chars = state
-                    .objects
-                    .get(&new_id)
+                    .lki_object(new_id)
                     .map(|o| o.characteristics.clone())
                     .unwrap_or_default();
                 layers::effect_applies_to_object(state, e, new_id, obj_zone, &chars)
@@ -1414,7 +1435,8 @@ pub fn queue_carddef_etb_triggers(
             if permanent_on_bf {
                 // Bot choice: put N +1/+1 counters on it (CR 702.123a).
                 if n > 0 {
-                    if let Some(obj) = state.objects.get_mut(&new_id) {
+                    // SR-14: guarded by `permanent_on_bf` above — new_id is live here.
+                    if let Some(obj) = state.expect_object_mut(new_id) {
                         let current = obj
                             .counters
                             .get(&CounterType::PlusOnePlusOne)
@@ -1507,7 +1529,9 @@ fn emit_etb_modification(
         | Some(ReplacementModification::EntersTappedUnlessPayLife(_)) => {
             // EntersTappedUnlessPayLife: deterministic fallback (pre-M10) — always
             // enters tapped. Interactive "may pay N life" choice deferred to M10.
-            if let Some(obj) = state.objects.get_mut(&new_id) {
+            // SR-14: new_id is the entering permanent whose ETB modification is being
+            // applied — live here.
+            if let Some(obj) = state.expect_object_mut(new_id) {
                 obj.status.tapped = true;
             }
             if let Some(id) = effect_id {
@@ -1551,7 +1575,8 @@ fn emit_etb_modification(
                 apply_counter_replacement(state, controller, new_id, &counter, raw_count);
             evts.extend(repl_events);
             if modified_count > 0 {
-                if let Some(obj) = state.objects.get_mut(&new_id) {
+                // SR-14: new_id is the entering permanent — live here.
+                if let Some(obj) = state.expect_object_mut(new_id) {
                     let cur = obj.counters.get(&counter).copied().unwrap_or(0);
                     obj.counters.insert(counter.clone(), cur + modified_count);
                 }
@@ -1584,8 +1609,9 @@ fn emit_etb_modification(
                     if obj.controller == controller
                         && matches!(obj.zone, crate::state::zone::ZoneId::Battlefield)
                     {
-                        let chars = crate::rules::layers::calculate_characteristics(state, obj.id)
-                            .unwrap_or_else(|| obj.characteristics.clone());
+                        // SR-14: obj is a live `state.objects.values()` loop var, so
+                        // calculate_characteristics is total (CR 613.1d).
+                        let chars = crate::rules::layers::expect_characteristics(state, obj.id);
                         if chars
                             .card_types
                             .contains(&crate::state::types::CardType::Creature)
@@ -1602,7 +1628,8 @@ fn emit_etb_modification(
                     .map(|(st, _)| st)
                     .unwrap_or(default_type)
             };
-            if let Some(obj) = state.objects.get_mut(&new_id) {
+            // SR-14: new_id is the entering permanent — live here.
+            if let Some(obj) = state.expect_object_mut(new_id) {
                 obj.chosen_creature_type = Some(chosen);
             }
         }
@@ -1619,8 +1646,8 @@ fn emit_etb_modification(
                     if obj.controller == controller
                         && matches!(obj.zone, crate::state::zone::ZoneId::Battlefield)
                     {
-                        let chars = crate::rules::layers::calculate_characteristics(state, obj.id)
-                            .unwrap_or_else(|| obj.characteristics.clone());
+                        // SR-14: obj is a live `state.objects.values()` loop var (CR 613.1d/e).
+                        let chars = crate::rules::layers::expect_characteristics(state, obj.id);
                         for c in &chars.colors {
                             *color_counts.entry(*c).or_insert(0usize) += 1;
                         }
@@ -1643,7 +1670,8 @@ fn emit_etb_modification(
                         .unwrap_or(default_color)
                 }
             };
-            if let Some(obj) = state.objects.get_mut(&new_id) {
+            // SR-14: new_id is the entering permanent — live here.
+            if let Some(obj) = state.expect_object_mut(new_id) {
                 obj.chosen_color = Some(chosen);
             }
         }
@@ -1660,7 +1688,8 @@ fn emit_etb_modification(
             // OrdSet semantics: idempotent insert. If the printed type set already
             // contains the subtype (or this replacement was somehow applied twice),
             // the second insert is a no-op (CR 614.5 also forbids double-application).
-            if let Some(obj) = state.objects.get_mut(&new_id) {
+            // SR-14: new_id is the entering permanent — live here.
+            if let Some(obj) = state.expect_object_mut(new_id) {
                 obj.characteristics.subtypes.insert(subtype.clone());
             }
             if let Some(id) = effect_id {
@@ -1955,9 +1984,9 @@ pub fn register_static_continuous_effects(
         return;
     };
     // Get the controller of the entering permanent for TriggerDoubler registration.
+    // SR-14: new_id is the entering permanent — live here.
     let controller = state
-        .objects
-        .get(&new_id)
+        .expect_object(new_id)
         .map(|obj| obj.controller)
         .unwrap_or_else(|| crate::state::player::PlayerId(0));
     for ability in &def.abilities {
@@ -2199,6 +2228,9 @@ pub fn apply_damage_prevention(
     let source_controller = state.objects.get(&source).map(|o| o.controller);
     match target {
         CombatDamageTarget::Creature(target_id) | CombatDamageTarget::Planeswalker(target_id) => {
+            // SR-14 FIZZLE (CR 608.2b): the damage target is a resolved target that may
+            // have left its zone before damage is dealt; `None` means no keywords to read
+            // for protection, and the (now-absent) target's damage does nothing downstream.
             let target_keywords =
                 crate::rules::layers::calculate_characteristics(state, *target_id)
                     .map(|c| c.keywords)
@@ -2220,7 +2252,8 @@ pub fn apply_damage_prevention(
             // temporary protection qualities (CR 611.2b).
             let source_chars = crate::rules::protection::source_characteristics(state, source);
             if let Some(sc) = &source_chars {
-                if let Some(player) = state.players.get(player_id) {
+                // SR-14: players are never removed from state.players (ground truth 1).
+                if let Some(player) = state.expect_player(*player_id) {
                     let qualities: Vec<_> = player
                         .protection_qualities
                         .iter()
@@ -2405,8 +2438,12 @@ pub fn handle_choose_dredge(
                     })?
             };
             // Step 2: Validate library has >= n cards (CR 702.52b).
+            // SR-14: the library zone is never removed (ground truth 2).
             let library_zone = ZoneId::Library(player);
-            let library_count = state.zones.get(&library_zone).map(|z| z.len()).unwrap_or(0);
+            let library_count = state
+                .expect_zone(&library_zone)
+                .map(|z| z.len())
+                .unwrap_or(0);
             if (dredge_n as usize) > library_count {
                 return Err(GameStateError::InvalidCommand(format!(
                     "cannot dredge {}: library has only {} cards (need {})",
@@ -2416,10 +2453,14 @@ pub fn handle_choose_dredge(
             let mut events = Vec::new();
             // Step 3: Mill n cards from the top of library.
             for _ in 0..dredge_n {
-                let top = state.zones.get(&library_zone).and_then(|z| z.top());
+                // SR-14: the library zone is never removed (ground truth 2); `z.top()`
+                // returning None is the legal empty-library case.
+                let top = state.expect_zone(&library_zone).and_then(|z| z.top());
                 if let Some(top_id) = top {
-                    if let Ok((new_id, _)) =
-                        state.move_object_to_zone(top_id, ZoneId::Graveyard(player))
+                    // SR-14: top_id was just read from the live library top and the
+                    // graveyard always exists — the move cannot fail.
+                    if let Some((new_id, _)) =
+                        state.expect_move_object_to_zone(top_id, ZoneId::Graveyard(player))
                     {
                         events.push(GameEvent::CardMilled { player, new_id });
                     }
@@ -2459,7 +2500,8 @@ fn draw_card_skipping_dredge(
 ) -> Result<Vec<GameEvent>, GameStateError> {
     use crate::rules::events::LossReason;
     // Eliminated / conceded players cannot draw.
-    if let Some(p) = state.players.get(&player) {
+    // SR-14: players are never removed from state.players (ground truth 1).
+    if let Some(p) = state.expect_player(player) {
         if p.has_lost || p.has_conceded {
             return Ok(vec![]);
         }
@@ -2502,11 +2544,14 @@ fn draw_card_skipping_dredge(
     }
     // Perform the actual draw.
     let library_zone = ZoneId::Library(player);
-    let top_id = match state.zones.get(&library_zone).and_then(|z| z.top()) {
+    // SR-14: the library zone is never removed (ground truth 2); `z.top()` returning
+    // None is the legal empty-library case, handled below as CR 104.3b loss.
+    let top_id = match state.expect_zone(&library_zone).and_then(|z| z.top()) {
         Some(id) => id,
         None => {
             // Library empty — player loses (CR 104.3b).
-            if let Some(p) = state.players.get_mut(&player) {
+            // SR-14: players are never removed (ground truth 1).
+            if let Some(p) = state.expect_player_mut(player) {
                 p.has_lost = true;
             }
             return Ok(vec![GameEvent::PlayerLost {
@@ -2516,7 +2561,8 @@ fn draw_card_skipping_dredge(
         }
     };
     let (new_id, _) = state.move_object_to_zone(top_id, ZoneId::Hand(player))?;
-    if let Some(p) = state.players.get_mut(&player) {
+    // SR-14: players are never removed (ground truth 1).
+    if let Some(p) = state.expect_player_mut(player) {
         p.has_drawn_for_turn = true;
         p.cards_drawn_this_turn += 1;
     }
@@ -2567,12 +2613,13 @@ pub fn apply_regeneration(
 ) -> Vec<GameEvent> {
     let mut events = Vec::new();
     // 1. Remove all damage
-    if let Some(obj) = state.objects.get_mut(&object_id) {
+    // SR-14: object_id is the permanent being regenerated — live at replacement time.
+    if let Some(obj) = state.expect_object_mut(object_id) {
         obj.damage_marked = 0;
         obj.deathtouch_damage = false;
     }
     // 2. Tap the permanent
-    if let Some(obj) = state.objects.get_mut(&object_id) {
+    if let Some(obj) = state.expect_object_mut(object_id) {
         obj.status.tapped = true;
     }
     // 3. Remove from combat (if attacking or blocking)
@@ -2646,7 +2693,8 @@ pub fn check_umbra_armor(state: &GameState, object_id: ObjectId) -> Vec<ObjectId
             }
             // Use layer-resolved characteristics to check for UmbraArmor
             // (respects Humility / Dress Down ability removal -- CR 702.89a).
-            let chars = crate::rules::layers::calculate_characteristics(state, *aura_id)?;
+            // SR-14: aura_id is a live `state.objects.iter()` loop key (CR 702.89a).
+            let chars = crate::rules::layers::expect_characteristics(state, *aura_id);
             if chars.keywords.contains(&KeywordAbility::UmbraArmor) {
                 Some(*aura_id)
             } else {
@@ -2679,7 +2727,8 @@ pub fn apply_umbra_armor(
 ) -> Vec<GameEvent> {
     let mut events = Vec::new();
     // 1. Remove all damage from the protected permanent and clear deathtouch flag.
-    if let Some(obj) = state.objects.get_mut(&protected_id) {
+    // SR-14: protected_id is the permanent being protected from destruction — live here.
+    if let Some(obj) = state.expect_object_mut(protected_id) {
         obj.damage_marked = 0;
         obj.deathtouch_damage = false;
     }
@@ -2691,9 +2740,11 @@ pub fn apply_umbra_armor(
     // Note: standard zone-change replacements on the Aura (e.g., commander redirect)
     // are handled by the existing pending_zone_changes / SBA flow, not here.
     // We simply move it directly (701.8a: destroy = move to graveyard).
+    // SR-14: aura_id was confirmed present at the `aura_owner` match above, and the
+    // graveyard always exists — the move cannot fail.
     if state
-        .move_object_to_zone(aura_id, ZoneId::Graveyard(aura_owner))
-        .is_ok()
+        .expect_move_object_to_zone(aura_id, ZoneId::Graveyard(aura_owner))
+        .is_some()
     {
         events.push(GameEvent::UmbraArmorApplied {
             protected_id,

@@ -22,6 +22,7 @@ use super::sba;
 use super::suspend;
 use super::turn_actions;
 use super::turn_structure;
+use crate::state::diagnostics::debug_assert_object_live;
 use crate::state::error::GameStateError;
 use crate::state::game_object::Designations;
 use crate::state::player::PlayerId;
@@ -596,7 +597,11 @@ fn handle_pay_echo(
     let source_info = state.objects.get(&permanent).and_then(|obj| {
         if obj.zone == ZoneId::Battlefield {
             // CR 603.10a / CR 613.1d: capture full layer-resolved characteristics BEFORE any zone move.
-            let pre_chars = crate::rules::layers::calculate_characteristics(state, permanent);
+            // `permanent` is present (this closure runs inside `state.objects.get(&permanent)`),
+            // so calculate_characteristics cannot return None (its only failure is an absent id).
+            let pre_chars = Some(crate::rules::layers::expect_characteristics(
+                state, permanent,
+            ));
             let lki_power = pre_chars
                 .as_ref()
                 .and_then(|c| c.power)
@@ -618,7 +623,8 @@ fn handle_pay_echo(
         return Ok(events);
     };
     // CR 702.30a: Clear the echo_pending flag regardless of pay/sacrifice.
-    if let Some(obj) = state.objects.get_mut(&permanent) {
+    // `permanent` was just proven live via the `source_info` guard above.
+    if let Some(obj) = state.expect_object_mut(permanent) {
         obj.designations.remove(Designations::ECHO_PENDING);
     }
     if pay {
@@ -637,7 +643,7 @@ fn handle_pay_echo(
             )));
         }
         // Deduct the mana.
-        if let Some(p) = state.players.get_mut(&player) {
+        if let Some(p) = state.expect_player_mut(player) {
             casting::pay_cost(&mut p.mana_pool, &echo_cost);
         }
         events.push(GameEvent::EchoPaid { player, permanent });
@@ -769,7 +775,11 @@ fn handle_pay_cumulative_upkeep(
     let source_info = state.objects.get(&permanent).and_then(|obj| {
         if obj.zone == ZoneId::Battlefield {
             // CR 603.10a / CR 613.1d: capture full layer-resolved characteristics BEFORE any zone move.
-            let pre_chars = crate::rules::layers::calculate_characteristics(state, permanent);
+            // `permanent` is present (this closure runs inside `state.objects.get(&permanent)`),
+            // so calculate_characteristics cannot return None (its only failure is an absent id).
+            let pre_chars = Some(crate::rules::layers::expect_characteristics(
+                state, permanent,
+            ));
             let lki_power = pre_chars
                 .as_ref()
                 .and_then(|c| c.power)
@@ -791,9 +801,9 @@ fn handle_pay_cumulative_upkeep(
         return Ok(events);
     };
     // Count age counters (already incremented during trigger resolution).
+    // `permanent` was just proven live via `source_info` above; absent-counter still yields 0.
     let age_count = state
-        .objects
-        .get(&permanent)
+        .expect_object(permanent)
         .and_then(|obj| {
             obj.counters
                 .get(&crate::state::types::CounterType::Age)
@@ -817,14 +827,14 @@ fn handle_pay_cumulative_upkeep(
                         player
                     )));
                 }
-                if let Some(p) = state.players.get_mut(&player) {
+                if let Some(p) = state.expect_player_mut(player) {
                     casting::pay_cost(&mut p.mana_pool, &total_cost);
                 }
             }
             CumulativeUpkeepCost::Life(amount) => {
                 // CR 702.24a: Pay amount * age_count life.
                 let total_life = amount * age_count;
-                if let Some(p) = state.players.get_mut(&player) {
+                if let Some(p) = state.expect_player_mut(player) {
                     p.life_lost_this_turn += total_life;
                     p.life_total -= total_life as i32;
                 }
@@ -1017,7 +1027,7 @@ fn handle_pay_recover(
             )));
         }
         // Deduct the mana.
-        if let Some(p) = state.players.get_mut(&player) {
+        if let Some(p) = state.expect_player_mut(player) {
             casting::pay_cost(&mut p.mana_pool, &recover_cost);
         }
         // Return card from graveyard to owner's hand (CR 702.59a).
@@ -1298,9 +1308,11 @@ fn handle_activate_craft(
                 // For battlefield permanents, use layer-resolved characteristics.
                 // For graveyard cards, use base characteristics (CR 702.167b).
                 let has_type = if mat_zone == ZoneId::Battlefield {
-                    crate::rules::layers::calculate_characteristics(state, *mat_id)
-                        .map(|c| c.card_types.contains(&req_type))
-                        .unwrap_or_else(|| mat_obj.characteristics.card_types.contains(&req_type))
+                    // `mat_id` was just proven live at the top of this loop iteration;
+                    // calculate_characteristics is total for a live id (CR 613.1d).
+                    crate::rules::layers::expect_characteristics(state, *mat_id)
+                        .card_types
+                        .contains(&req_type)
                 } else {
                     mat_obj.characteristics.card_types.contains(&req_type)
                 };
@@ -1314,7 +1326,7 @@ fn handle_activate_craft(
         }
     }
     // Pay the mana cost (CR 702.167a).
-    if let Some(p) = state.players.get_mut(&player) {
+    if let Some(p) = state.expect_player_mut(player) {
         casting::pay_cost(&mut p.mana_pool, &craft_cost);
     }
     events.push(GameEvent::ManaCostPaid {
@@ -1337,9 +1349,9 @@ fn handle_activate_craft(
     // CR 702.167a: Return the exiled card to the battlefield transformed.
     // The card that was exiled as cost (exiled_source_id) now enters transformed.
     // CR 702.167a: "If the card isn't a DFC, it stays in exile."
+    // `exiled_source_id` was just returned by the move above; card_id None is a legit tokenless read.
     let source_card_id = state
-        .objects
-        .get(&exiled_source_id)
+        .expect_object(exiled_source_id)
         .and_then(|o| o.card_id.clone());
     let is_dfc = source_card_id
         .as_ref()
@@ -1356,6 +1368,10 @@ fn handle_activate_craft(
             state.move_object_to_zone(exiled_source_id, ZoneId::Battlefield)?;
         // Set is_transformed = true (back face up) on the new permanent.
         // Also track the exiled materials for CR 702.167c abilities.
+        // `battlefield_id` was just returned by the move above; the block reads
+        // `state.timestamp_counter` while `obj` is borrowed, so keep the disjoint
+        // field access and assert liveness separately.
+        debug_assert_object_live!(state, battlefield_id);
         if let Some(obj) = state.objects.get_mut(&battlefield_id) {
             obj.is_transformed = true;
             obj.last_transform_timestamp = state.timestamp_counter;
@@ -1506,13 +1522,13 @@ fn handle_turn_face_up(
     let is_megamorph_flip =
         face_down_as == FaceDownKind::Megamorph && method == TurnFaceUpMethod::MorphCost;
     // Turn the permanent face up: clear face_down and face_down_as.
-    if let Some(obj) = state.objects.get_mut(&permanent) {
+    if let Some(obj) = state.expect_object_mut(permanent) {
         obj.status.face_down = false;
         obj.face_down_as = None;
     }
     // CR 702.37b: Megamorph gets +1/+1 counter when turned face up via megamorph cost.
     if is_megamorph_flip {
-        if let Some(obj) = state.objects.get_mut(&permanent) {
+        if let Some(obj) = state.expect_object_mut(permanent) {
             let current = obj
                 .counters
                 .get(&crate::state::types::CounterType::PlusOnePlusOne)
@@ -1661,7 +1677,7 @@ fn enter_step(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
                     // All active players lose — game is a draw.
                     let active_players: Vec<_> = state.active_players();
                     for p in active_players {
-                        if let Some(player) = state.players.get_mut(&p) {
+                        if let Some(player) = state.expect_player_mut(p) {
                             player.has_lost = true;
                         }
                     }
@@ -1700,7 +1716,7 @@ fn enter_step(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
                     // All active players lose — game is a draw.
                     let active_players: Vec<_> = state.active_players();
                     for p in active_players {
-                        if let Some(player) = state.players.get_mut(&p) {
+                        if let Some(player) = state.expect_player_mut(p) {
                             player.has_lost = true;
                         }
                     }
@@ -1779,7 +1795,7 @@ fn handle_concede(
             .cloned()
             .collect();
         state.continuous_effects = keep;
-        if let Some(ps) = state.players.get_mut(&player) {
+        if let Some(ps) = state.expect_player_mut(player) {
             ps.temporary_protection_qualities.clear();
         }
     }
@@ -1880,8 +1896,7 @@ fn place_opening_hand_permanents(
     for player_id in player_ids {
         // Collect (ObjectId, CardId) pairs in hand before moving.
         let hand_ids: Vec<crate::state::game_object::ObjectId> = state
-            .zones
-            .get(&ZoneId::Hand(player_id))
+            .expect_zone(&ZoneId::Hand(player_id))
             .map(|z| z.object_ids())
             .unwrap_or_default();
         let hand_entries: Vec<(
@@ -1890,7 +1905,8 @@ fn place_opening_hand_permanents(
         )> = hand_ids
             .into_iter()
             .map(|obj_id| {
-                let card_id = state.objects.get(&obj_id).and_then(|o| o.card_id.clone());
+                // obj_id came from the live Hand zone just above; card_id None is a legit token read.
+                let card_id = state.expect_object(obj_id).and_then(|o| o.card_id.clone());
                 (obj_id, card_id)
             })
             .collect();
@@ -2113,7 +2129,7 @@ pub fn handle_venture_into_dungeon(
             if ds.current_room == bottommost {
                 // CR 701.49c: On the bottommost room — complete the dungeon, then start new.
                 state.dungeon_state.remove(&player);
-                if let Some(ps) = state.players.get_mut(&player) {
+                if let Some(ps) = state.expect_player_mut(player) {
                     ps.dungeons_completed += 1;
                     ps.dungeons_completed_set.insert(ds.dungeon);
                 }
@@ -2195,8 +2211,9 @@ pub fn handle_ring_tempts_you(
                     && obj.is_phased_in()
                     && obj.controller == player
                     // CR 613.1d: Use layer-resolved types (animated permanents are creatures).
-                    && crate::rules::layers::calculate_characteristics(state, obj.id)
-                        .unwrap_or_else(|| obj.characteristics.clone())
+                    // obj.id comes from the live `state.objects` iteration, so characteristics
+                    // are total; expect_characteristics keeps the layer-resolved types.
+                    && crate::rules::layers::expect_characteristics(state, obj.id)
                         .card_types
                         .contains(&CardType::Creature)
             })
@@ -2207,21 +2224,25 @@ pub fn handle_ring_tempts_you(
     };
     // Step 3: Choose ring-bearer — deterministic: lowest ObjectId creature.
     if let Some(&chosen_id) = creature_ids.first() {
-        let previous_bearer_id = state.players.get(&player).and_then(|ps| ps.ring_bearer_id);
+        let previous_bearer_id = state.expect_player(player).and_then(|ps| ps.ring_bearer_id);
         // Step 4: Clear RING_BEARER from previous ring-bearer if it's a different creature.
         if let Some(prev_id) = previous_bearer_id {
             if prev_id != chosen_id {
-                if let Some(prev_obj) = state.objects.get_mut(&prev_id) {
+                // CR 400.7: the stored ring_bearer_id may name a creature that has since
+                // left the battlefield (cleared by SBA on zone change, per below); a stale
+                // id is a legal fizzle, so nothing to clear.
+                if let Some(prev_obj) = state.lki_object_mut(prev_id) {
                     prev_obj.designations.remove(Designations::RING_BEARER);
                 }
             }
         }
         // Step 5: Set RING_BEARER on the chosen creature.
-        if let Some(chosen_obj) = state.objects.get_mut(&chosen_id) {
+        // chosen_id was just collected from the live `state.objects` iteration above.
+        if let Some(chosen_obj) = state.expect_object_mut(chosen_id) {
             chosen_obj.designations.insert(Designations::RING_BEARER);
         }
         // Update player's ring_bearer_id.
-        if let Some(ps) = state.players.get_mut(&player) {
+        if let Some(ps) = state.expect_player_mut(player) {
             ps.ring_bearer_id = Some(chosen_id);
         }
         // Step 6: Emit RingBearerChosen (fires even when re-choosing same creature).
@@ -2417,13 +2438,9 @@ fn handle_activate_loyalty_ability(
     // paying the loyalty cost, so an illegal activation doesn't burn loyalty.
     // Mirrors the activated-ability path in rules/abilities.rs.
     if !ability_targets.is_empty() {
-        let source_chars =
-            crate::rules::layers::calculate_characteristics(state, source).or_else(|| {
-                state
-                    .objects
-                    .get(&source)
-                    .map(|o| o.characteristics.clone())
-            });
+        // `source` was validated on the battlefield above with no intervening zone move,
+        // so calculate_characteristics is total (its only failure is an absent id).
+        let source_chars = Some(crate::rules::layers::expect_characteristics(state, source));
         crate::rules::casting::validate_targets_with_source(
             state,
             &targets,
@@ -2434,9 +2451,9 @@ fn handle_activate_loyalty_ability(
         )?;
     }
     // CR 606.6: Validate sufficient loyalty counters for negative costs.
+    // `source` was validated live above; absent Loyalty counter still yields 0.
     let current_loyalty = state
-        .objects
-        .get(&source)
+        .expect_object(source)
         .and_then(|o| o.counters.get(&CounterType::Loyalty).copied())
         .unwrap_or(0);
     let effective_cost = match cost {
@@ -2455,6 +2472,10 @@ fn handle_activate_loyalty_ability(
         )));
     }
     // Pay the loyalty cost (CR 606.4).
+    // `source` is proven live above (loyalty read via expect_object); keep the raw
+    // field access so it borrows only `state.objects`, leaving the `state.card_registry`
+    // borrow held by `def`/`effect` free (SR-4 disjoint-borrow hazard).
+    debug_assert_object_live!(state, source);
     if let Some(obj) = state.objects.get_mut(&source) {
         let new_loyalty = (current_loyalty as i32 + effective_cost) as u32;
         obj.counters.insert(CounterType::Loyalty, new_loyalty);
@@ -2472,7 +2493,9 @@ fn handle_activate_loyalty_ability(
                 zone_at_cast: None,
             },
             crate::state::targeting::Target::Object(id) => {
-                let zone = state.objects.get(id).map(|o| o.zone);
+                // CR 608.2b: a declared target may have left its zone; a stale id captures
+                // no zone (zone_at_cast = None), which the SpellTarget explicitly permits.
+                let zone = state.lki_object(*id).map(|o| o.zone);
                 crate::state::targeting::SpellTarget {
                     target: crate::state::targeting::Target::Object(*id),
                     zone_at_cast: zone,
