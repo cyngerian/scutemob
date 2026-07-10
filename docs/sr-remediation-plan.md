@@ -37,7 +37,7 @@ Full evidence (file:line) is in each task's ESM description — run
 | 2 | scutemob-54 | SR-2: Registry gate (invariant #9) | M | **DONE 2026-07-10.** Superseded archived scutemob-48. Card-authoring waves unblocked. Follow-up: `scutemob-64` (SR-12). |
 | 3 | scutemob-55 | SR-3: Seal GameState | M–L | **DONE 2026-07-10.** Invariant #3 machine-enforced. CI gained `cargo build --workspace` — do not drop it. |
 | 4 | scutemob-56 | SR-4: Silent-failure sweep | M–L | **DONE 2026-07-10.** 398 sites classified; `state::diagnostics` vocabulary added. Follow-ups: `scutemob-65` (SR-13), `scutemob-66` (SR-14). |
-| 5 | scutemob-57 | SR-5: KeywordAbility catch-all audit | M | Pairs naturally with SR-4 (same files) — **do this next**; SR-4 just mapped the terrain. |
+| 5 | scutemob-57 | SR-5: KeywordAbility catch-all audit | M | **DONE 2026-07-10.** Premise was a misattribution — see the gotcha. `state::keyword_registry` is the compile gate. Follow-up: `scutemob-67` (SR-15). |
 | 6 | scutemob-58 | SR-6: Extract card-defs crate | M | Wide blast radius. Coordinate with card authoring (collision rules). |
 | 7 | scutemob-59 | SR-7: PendingTrigger → TriggerData cutover | M | Requires HASH_SCHEMA_VERSION bump; read `state/hash.rs` header first. |
 | 8 | scutemob-60 | SR-8: Protocol versioning policy | M | Hard blocker before M10's first networked client. Design + implement. |
@@ -47,6 +47,7 @@ Full evidence (file:line) is in each task's ESM description — run
 | 12 | scutemob-64 | SR-12: Unbypassable invariant-9 gate + marker anti-rot | M | Discovered during SR-2 review. `GameStateBuilder`/`start_game` skip `validate_deck`; only the Inert marker class has a rot guard. |
 | 13 | scutemob-65 | SR-13: Damage-source characteristics must use LKI | M | Discovered during SR-4. Wither/infect "function no matter what zone" (CR 702.80c/702.90e) but the engine reads the source through a live lookup and treats a dead source as having neither. Real bug, not an assert. |
 | 14 | scutemob-66 | SR-14: Extend the SR-4 diagnostics vocabulary to the rest of `rules/` | M | Discovered during SR-4, which scoped to its two named files. ~200 unswept `calculate_characteristics` sites; method is written up in `docs/sr-4-silent-failure-audit.md`. |
+| 15 | scutemob-67 | SR-15: Catch-all audit for the *other* dispatch enums | M | Discovered during SR-5. The ~117 catch-alls SR-5 was sent to find are real but sit on `AbilityDefinition` (20), `ZoneId` (19), `ZoneChangeAction` (17), … — `AbilityDefinition` is a genuine dispatch table. Registry pattern from SR-5 transfers directly. |
 
 Order is a recommendation, not a dependency chain. Hard constraints only:
 
@@ -256,9 +257,38 @@ Task-specific extras:
      blocks needed `card_registry` / `timestamp_counter` alongside. Hence the
      `debug_assert_object_live!` macro — the assert without the borrow. Expect this in
      any future accessor migration.
-- **SR-5:** "expected fizzle" classifications must cite the CR rule
-  (608.2b etc.) per project test convention; use the mtg-rules MCP server, and
-  remember CR text is authoritative over card rulings.
+- **SR-5: DONE (2026-07-10).** Full record in `docs/sr-5-keyword-catchall-audit.md`.
+  What mattered:
+  1. **The task's premise was wrong, and implementing it literally would have been a
+     large useless diff.** "~117 `_ => {}` catch-alls on `KeywordAbility`" — the count
+     is right, the enum is not. Group the catch-alls by the enum their arms *name* and
+     only **2** are on `KeywordAbility`; the rest are on `AbilityDefinition` (20),
+     `ZoneId` (19), `ZoneChangeAction` (17), … Filed as `scutemob-67` (SR-15).
+     **Check a task's premise with a script before you build the fix it implies.**
+  2. **The real hazard had no syntax to grep for.** A keyword is read via
+     `keywords.contains(&KeywordAbility::Flying)` — ~350 reads, no `match`, no arm, no
+     wildcard. A new variant isn't *swallowed*; it is simply never mentioned. All 13
+     of the actual `KeywordAbility` catch-alls are `filter_map` **projections**
+     (`Fabricate(n) => Some(n), _ => None`) where the wildcard is the correct answer.
+     None were changed.
+  3. **`hash.rs` was already an exhaustive compile gate** (166 arms), as is the replay
+     viewer's `view_model.rs`. So "adding a variant fails to compile" was *already*
+     true before this task — but it only forces you to assign a hash byte and a
+     display string. Neither is behavior. The registry forces a behavior
+     classification, which is the thing the acceptance criterion was actually after.
+  4. **Every derived set needs a non-vacuity guard, and this is not theoretical.** On
+     the first run `declared_variants()` had a broken state machine and returned zero
+     variants — and `registry_sites_match_the_source_tree` reported **pass**, because
+     it was comparing empty against empty for all 166 keywords. Only the two
+     `*_is_not_vacuous` guards failed. Assert the denominator, always.
+  5. **Demonstrate a gate adversarially, not existentially.** Not "a new variant fails
+     to compile" but "here are the four cheapest ways to make it compile and pass, and
+     here is what catches each." Four stages, four different failures.
+  6. Original brief (still binding for any keyword classed as needing no dispatch):
+     "expected fizzle" / "no dispatch needed" claims cite the CR rule via the mtg-rules
+     MCP server; CR text is authoritative over card rulings. All 18 marker keywords'
+     citations were verified against rule text and matched their `types.rs` doc
+     comments.
 - **SR-6:** the defs import `crate::cards::helpers::*` — the DSL types and
   helpers prelude must move (or re-export) cleanly for defs to compile in the
   new crate. `build.rs` moves with the defs.
@@ -270,6 +300,44 @@ Task-specific extras:
 
 _One entry per session, newest first. Format:_
 `- YYYY-MM-DD — SR-<N> (scutemob-<id>) — <status: done / in progress / blocked> — <one-line outcome + hazards + pointer for next session>`
+
+- 2026-07-10 — SR-5 (scutemob-57) — **done** — A new `KeywordAbility` variant can no
+  longer be silently inert. New `crates/engine/src/state/keyword_registry.rs`:
+  `handling(&KeywordAbility) -> KeywordHandling` is an exhaustive match over all 166
+  variants, classifying each as `Handled { sites }` (engine code branches on it, at
+  these files) or `Marker { carrier, cr }` (presence marker only; the rules text is
+  implemented by `carrier`, per the cited CR). 148 Handled, 18 Marker. Adding a variant
+  is a compile error until classified. `crates/engine/tests/keyword_registry.rs` closes
+  what a compile error cannot: `all_keywords()` is checked against the enum declaration
+  parsed out of `types.rs` via `include_str!`; each `Handled` site set is checked for
+  **exact equality** against a comment-stripped scan of the source tree (so a keyword
+  losing its last dispatch site, or a `Marker` gaining one, fails); the 18 markers are
+  pinned by name. All 18 marker CR citations verified against rule text on the
+  mtg-rules MCP server. 3129 tests pass (3123 + 6). All four gates clean.
+  **Hazards discovered:** all written up in the SR-5 gotcha above — chiefly
+  (a) **the task's premise was a misattribution.** Only 2 of the ~117 `_ => {}` arms in
+  the six named files are on `KeywordAbility`; building what the brief literally asked
+  for (expand catch-alls into explicit listings) would have added ~2 000 lines and
+  caught nothing. (b) The real hazard is `keywords.contains(&KeywordAbility::X)` —
+  ~350 reads, no match arm, nothing to grep. (c) **A green test proved nothing until
+  the non-vacuity guards existed**: the site-equality test passed while the variant
+  parser was returning zero variants, because empty == empty for all 166 keywords.
+  (d) `hash.rs` and the replay viewer's `view_model.rs` were already exhaustive, so
+  "new variant → compile error" was true before this task; it just wasn't a *useful*
+  error. (e) **`/review` found the one escape I left open** — `Handled { sites: &[] }`
+  on a keyword nothing reads compares `{} == {}` against the source scan and passes.
+  One assertion closed it. Third SR task running where the review caught the gap in the
+  gate rather than a bug in the code; the pattern is that the author checks whether the
+  gate fires, not whether it can be satisfied *without* firing.
+  **Deliberately not closed:** `scutemob-67` (SR-15) — the ~117 catch-alls really do
+  exist, on `AbilityDefinition` (20), `ZoneId` (19), `ZoneChangeAction` (17) and
+  others. `AbilityDefinition` is a real dispatch table with the exact hazard SR-5 was
+  chartered to fix, one enum over. The registry pattern transfers directly. Also
+  unchanged: the 13 `filter_map` projection catch-alls, which are correct.
+  **Next session:** SR-6 (`scutemob-58`, extract card-defs crate — wide blast radius,
+  check the collision rules first) or SR-11 (`scutemob-63`, pin the toolchain) as cheap
+  filler. Note the SR-4/SR-5 pairing paid off exactly as the plan predicted: the terrain
+  was already mapped and SR-5 spent its budget on the gate rather than on reading.
 
 - 2026-07-10 — SR-4 (scutemob-56) — **done** — The LKI-vs-bug distinction is now a
   property of the code. New `crates/engine/src/state/diagnostics.rs` supplies two

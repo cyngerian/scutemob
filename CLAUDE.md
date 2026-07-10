@@ -28,7 +28,7 @@
   accessors, gated on the `test-util` feature (self dev-dependency). **`cargo build
   --workspace` is the only gate that proves the seal** — `test --all` and `clippy
   --all-targets` enable `test-util` workspace-wide via feature unification. It is a CI step.
-- **Tests**: **3123 passing**; build/clippy/fmt clean
+- **Tests**: **3129 passing**; build/clippy/fmt clean
 - **CI**: **LIVE and green** since 2026-07-10 (SR-1, merge `e9742dc2`) — single Ubuntu job (fmt + clippy + `build --workspace` + full tests) on push/PR to main + workflow_dispatch; rust-cache@v2, 45m timeout. Caveat: CI rustc floats to latest stable (1.97.0) vs local 1.95.0 — new lints can redden CI with no code change until SR-11 (`scutemob-63`) pins the toolchain. SR remediation track ACTIVE: `docs/sr-remediation-plan.md` (tasks `scutemob-53..64`, SR-1/SR-2/SR-3 done).
 - **Abilities**: ~199 validated; 42/42 P1; 17/17 P2; 40/40 P3; 95/95 P4 implemented (9 permanent-n/a; 1 deferred: Banding)
 - **Primitives**: PB-0..PB-37 + named-letter chain (PB-A/B/E/J/M/S/X/Q/Q4/N/D/P/L/T/SFT/CC-{W,B,C,A}/TS/LKI-CC/CD/LKI-Power/EWC/XS/XS-E/XA/EAT/XA2/EWC-D) all DONE. PB-Q2/Q3/Q5 reserved.
@@ -44,7 +44,17 @@
   **New code in these files must pick a side** — a bare `state.objects.get_mut(&id)` no
   longer says which it is. Method: `docs/sr-4-silent-failure-audit.md`. The rest of
   `rules/` is not yet swept (`scutemob-66`).
-- **Last Updated**: 2026-07-10 (SR-4 — 398 swallow-sites in effects/resolution classified LKI-vs-bug; `state::diagnostics` vocabulary; 3123 tests. Earlier same day: SR-3 — invariant #3 machine-enforced: GameState sealed, 287 files migrated, `cargo build --workspace` added to CI as the seal gate. SR-2 — invariant #9 registry gate; clean coverage 57.6%. The prior 56.2% was an undercount: the authoring report's `abilities: vec![]` regex also matched nested `mana_abilities: vec![]`. SR-1 — CI live.)
+- **Every `KeywordAbility` variant must declare where its behavior lives (SR-5).**
+  `state::keyword_registry::handling` is an exhaustive match classifying all 166
+  variants as `Handled { sites }` (engine code branches on it, at exactly these files)
+  or `Marker { carrier, cr }` (presence marker; the rules text is implemented by
+  `carrier`, per the cited CR — 18 of these). **Adding a variant is a compile error
+  until you classify it**, and `tests/keyword_registry.rs` then checks the claim
+  against the source tree: declared site sets must exactly equal a comment-stripped
+  scan, so a keyword that loses its last dispatch site — or a `Marker` that gains one —
+  fails the suite. Audit: `docs/sr-5-keyword-catchall-audit.md`. The same hazard on
+  `AbilityDefinition` / `ZoneChangeAction` is not yet gated (`scutemob-67`).
+- **Last Updated**: 2026-07-10 (SR-5 — `state::keyword_registry` gates new KeywordAbility variants; the task's "117 KeywordAbility catch-alls" premise was a misattribution — only 2 of them are on that enum, the rest sit on `AbilityDefinition`/`ZoneId`/`ZoneChangeAction`, filed as `scutemob-67`; 3129 tests. Earlier same day: SR-4 — 398 swallow-sites in effects/resolution classified LKI-vs-bug; `state::diagnostics` vocabulary. SR-3 — invariant #3 machine-enforced: GameState sealed, 287 files migrated, `cargo build --workspace` added to CI as the seal gate. SR-2 — invariant #9 registry gate; clean coverage 57.6%. The prior 56.2% was an undercount: the authoring report's `abilities: vec![]` regex also matched nested `mana_abilities: vec![]`. SR-1 — CI live.)
 
 ### What Exists (M0-M9.5 + Engine Core Complete + all P3/P4 abilities)
 
