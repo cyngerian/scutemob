@@ -40,7 +40,7 @@ Full evidence (file:line) is in each task's ESM description — run
 | 5 | scutemob-57 | SR-5: KeywordAbility catch-all audit | M | **DONE 2026-07-10.** Premise was a misattribution — see the gotcha. `state::keyword_registry` is the compile gate. Follow-up: `scutemob-67` (SR-15). |
 | 6 | scutemob-58 | SR-6: Extract card-defs crate | M | **DONE 2026-07-10.** Three crates now: `card-types` ← `card-defs` ← `engine`. Engine edits leave the defs `Fresh`. Card-authoring paths moved — see the gotcha. |
 | 7 | scutemob-59 | SR-7: PendingTrigger → TriggerData cutover | M | **DONE 2026-07-10.** `HASH_SCHEMA_VERSION` 36 → 37. `PendingTrigger::blank` is now the only way to build one, enforced by `tests/pending_trigger_shape.rs`. |
-| 8 | scutemob-60 | SR-8: Protocol versioning policy | M | Hard blocker before M10's first networked client. Design + implement. |
+| 8 | scutemob-60 | SR-8: Protocol versioning policy | M | **DONE 2026-07-10.** Strict lockstep; `Envelope`/`PROTOCOL_VERSION` in `rules/protocol.rs`. The M10 blocker is cleared. Policy: `docs/mtg-engine-protocol-versioning.md`. |
 | 9 | scutemob-61 | SR-9: Test infra consolidation | L | Three sub-items (binaries / equivalence test / script triage). **Split into 2–3 ESM subtasks at dispatch time.** |
 | 10 | scutemob-62 | SR-10: Dependency & lint hygiene | S–M | Four independent chores; safe filler work between larger tasks. |
 | 11 | scutemob-63 | SR-11: Pin the Rust toolchain | S | Discovered during SR-1. CI floats to newest stable; new lints redden CI with no commit, and the local clippy gate can't reproduce them. Pairs well with SR-10. |
@@ -396,6 +396,61 @@ Task-specific extras:
      serialized state never carries a pending one in practice), but it is a live trap for
      M10 networking and for rewind/replay. Filed as `scutemob-68` (SR-16) rather than
      widened into this task.
+- **SR-8: DONE (2026-07-10).** The brief's premise held up — unusually, for this track.
+  `crates/network` really was a 4-line doc-comment stub, no replay log existed, and nothing
+  in production serialized a `Command` or `GameEvent` anywhere. So SR-8 was greenfield: no
+  migration, no compatibility shims, just get the policy right before M10 makes it
+  expensive. What mattered:
+  1. **The wire surface is 90 types, not 2.** `GameEvent::CreatureDied` carries
+     `Option<Characteristics>` (added for LKI, CR 603.10a), and `Characteristics` holds
+     `Vector<AbilityInstance>`, which reaches `Effect` → `TargetFilter` → **the entire card
+     DSL**, across both `engine` and `card-types`. Consequence: **adding an `Effect` variant
+     is a wire change**, so most PBs will bump `PROTOCOL_VERSION`. Measure the closure before
+     reasoning about "the protocol"; the two enums named in the task are the roots, not the
+     surface. It bottoms out cleanly — `GameState` is *not* reachable — which is the only
+     reason protocol versioning and `HASH_SCHEMA_VERSION` can stay separate concerns, and
+     that boundary is now asserted (`CLOSURE_MUST_NOT_CONTAIN`).
+  2. **A hand-bumped version constant is the disease, not the cure.** The task as written
+     ("implement the tag, define mismatch handling") would have delivered exactly the process
+     guarantee this track exists to delete: a `PROTOCOL_VERSION: u32 = 1` that is correct only
+     while every future author remembers it — the same shape as `HASH_SCHEMA_VERSION`, whose
+     sentinel tests force you to *notice* a bump but never force you to *make* one. So the
+     version is backed by `PROTOCOL_SCHEMA_FINGERPRINT`, a blake3 digest of the closure's
+     normalized declaration text, recomputed from source. **When a task hands you a constant,
+     ask what makes it true.**
+  3. **The compiler is not the gate, and believing it is was the trap.** Adding a `GameEvent`
+     variant *does* fail to compile (`hash.rs` is exhaustive). But that error only tells the
+     author to assign a hash byte; once they do, the workspace builds clean, all 3 100+ other
+     tests pass, and the wire has silently changed. Verified by doing it. This is SR-5's
+     finding one enum over. Conversely, the three attacks `rustc` cannot see at all —
+     `#[serde(skip)]`, `#[serde(rename)]`, `#[serde(rename_all)]` — are caught *only* by the
+     digest, which is why container and field attributes are hashed rather than stripped.
+  4. **Two under-inclusion holes surfaced while writing the guards, not after.**
+     `pub type RoomIndex = usize;` is wire-bearing but is neither enum nor struct — caught by
+     `every_referenced_type_resolves`, which refuses to let an unresolved type name pass.
+     And `EnchantControllerConstraint`'s `#[derive(...)]` is **rustfmt-wrapped across three
+     lines**, so a line-based attribute walk saw `)]`, concluded "not an attribute", and
+     dropped that type's entire serde config out of the digest, silently. Caught by
+     `every_closure_type_shows_its_serialize_derive`. **Write the denominator guard first; it
+     finds the bug in the scanner you were about to trust.**
+  5. **Stage the version check ahead of the payload parse.** The obvious one-pass
+     `from_str::<Envelope<T>>` also rejects old messages — as `unknown variant 'Foo' at line 1
+     column 42`. A client can act on `VersionMismatch`; it can only guess at that. The staging
+     is pinned by `version_is_checked_before_the_payload_is_parsed`.
+  6. **`/review` found the frame nobody was pointed at.** The closure was rooted at `Command`
+     and `GameEvent` — "the two enums that *are* the protocol" — but `encode_replay_log` puts
+     a **third** frame on the wire, `ReplayLog`, which nothing reachable from those two
+     mentions. Its `Vec<Command>` contents were covered; its own two-field frame was not, so
+     adding a field to it changed the replay-log format and tripped nothing. Sixth consecutive
+     SR task where the review found a hole in the *gate*. The pattern is stable enough to
+     name: **the author verifies the gate fires on the thing they were thinking about, and
+     never enumerates the things the gate is not pointed at.** Also generic: `Envelope<T>`
+     cannot be walked (`T` resolves to nothing), so its field names are pinned by a separate
+     test — renaming `payload` to `body` was invisible to everything else.
+  7. **One legitimate reason to re-pin without bumping**: widening the closure's *definition*
+     (a new `SCAN_ROOTS` / `PROTOCOL_ROOTS` / `EXTERNAL_TYPES` entry) moves the digest because
+     coverage grew, not because the wire did. Written down in both `protocol.rs` and the doc,
+     because otherwise it is indistinguishable from cheating.
 - **SR-9(b):** the equivalence test's whole point is that
   `enrich_spec_from_def` shadow-implements object construction — if hashes
   diverge, the harness is wrong until proven otherwise, not the engine.
@@ -404,6 +459,83 @@ Task-specific extras:
 
 _One entry per session, newest first. Format:_
 `- YYYY-MM-DD — SR-<N> (scutemob-<id>) — <status: done / in progress / blocked> — <one-line outcome + hazards + pointer for next session>`
+
+- 2026-07-10 — SR-8 (scutemob-60) — **done** — The M10 blocker is cleared: `Command` /
+  `GameEvent` / replay-log streams now carry a version tag, and the version tag is itself
+  machine-checked. **Policy is strict lockstep** — a message declares `protocol_version` and is
+  accepted iff it equals `PROTOCOL_VERSION` exactly; older *and newer* are rejected with a typed
+  `ProtocolError::VersionMismatch`. No negotiation, no forward compatibility. The rationale is
+  invariant #9: a client that tolerates an unknown `GameEvent` variant holds a history it cannot
+  correctly rewind and *cannot tell that it does*, so the corruption surfaces arbitrarily far
+  from its cause. A refused connection is legible; a corrupted history is not. And in a
+  trusted-playgroup single-server deployment all clients ship from one build anyway, so lockstep
+  costs nothing and buys a loud failure. Decoding is **staged** (probe the version → reject →
+  only then parse the payload), so a mismatch never surfaces as an opaque serde error.
+  `ReplayLog` carries two versions and checks both: `protocol_version` answers "can I read these
+  commands", `hash_schema_version` answers "can my state hashes be compared with the recorded
+  ones" — passing the first does not imply passing the second.
+  New: `crates/engine/src/rules/protocol.rs` (`PROTOCOL_VERSION`, `PROTOCOL_SCHEMA_FINGERPRINT`,
+  `Envelope<T>`, `ProtocolError`, `ReplayLog`, `encode`/`decode`), `docs/mtg-engine-protocol-versioning.md`.
+  **New gates:** `tests/protocol_schema.rs` (11) + `tests/protocol_roundtrip.rs` (17). 3162 tests
+  pass (3134 baseline + 28), 316 suites. All four verification gates clean; `cargo build
+  --workspace` explicitly re-run.
+  **The gate is the point.** `PROTOCOL_SCHEMA_FINGERPRINT` is a blake3 digest of the normalized
+  declaration text — attributes included — of the **transitive type closure** of the three wire
+  frames, parsed out of `crates/{engine,card-types}/src`. Change the wire and it fails, names the
+  drift, prints the new digest. Without it, `PROTOCOL_VERSION` would be exactly the hand-maintained
+  constant this track exists to eliminate.
+  **Hazards discovered:** all seven written up in the SR-8 gotcha above — chiefly
+  (a) **the wire surface is 90 types, not 2.** `GameEvent::CreatureDied` carries
+  `Option<Characteristics>` → `AbilityInstance` → `Effect` → the whole card DSL. Adding an
+  `Effect` variant is a wire change, so most PBs will bump the version; that is what strict
+  lockstep *means*, not gate noise. `GameState` is not in the closure, which is the whole reason
+  this and `HASH_SCHEMA_VERSION` remain separate — now asserted. (b) **The compiler is not the
+  gate.** Adding a `GameEvent` variant fails to compile (`hash.rs` is exhaustive), but that error
+  only demands a hash byte; satisfy it and the workspace builds clean with every other test green
+  while the wire has silently moved. Verified by actually doing it. The three attacks `rustc`
+  cannot see at all (`serde(skip)` / `rename` / `rename_all`) are caught by the digest alone.
+  (c) **Two under-inclusion holes were found by the denominator guards while those guards were
+  being written**: `pub type RoomIndex = usize` is wire-bearing but is neither enum nor struct,
+  and `EnchantControllerConstraint`'s `#[derive(...)]` is rustfmt-wrapped across lines, so the
+  original line-based attribute walk dropped its entire serde config out of the digest, silently.
+  **Demonstrated adversarially** (per SR-5's lesson), eleven attacks, eleven distinct outcomes —
+  and the table records which attacks `rustc` kills *before* they reach the gate, because a demo
+  that stops at a compile error measures the compiler, not the gate. Both are in the doc.
+  **`/review` (Opus) returned 3/3 PASS, 0 HIGH, 1 MEDIUM, 4 LOW** — and, for the **sixth**
+  consecutive SR task, every substantive finding was a hole in the *gate*, not a bug in the code.
+  The MEDIUM is the one worth remembering: the closure was rooted at `Command` and `GameEvent`,
+  but `encode_replay_log` puts a **third** frame on the wire, `ReplayLog`, which neither root
+  reaches. Adding a field to it compiled clean and tripped nothing — in the one place the
+  acceptance criteria explicitly named ("replay-log compatibility"). Now a `PROTOCOL_ROOTS` entry,
+  fix verified by re-running the attack. Two LOWs became machine guards rather than comments
+  (`declared_type_names_are_unique`; `no_workspace_type_shadows_an_external_type_name`), because
+  each was a way to satisfy the gate *without* firing it. `Envelope<T>` is generic and cannot be
+  walked, so its field names are pinned by their own test.
+  **The pattern, stated:** the author verifies the gate fires on the thing they were thinking
+  about, and never enumerates the things the gate is not pointed at. Six for six. Next SR author:
+  before `/review`, list every serialized frame / dispatch site / derived set your gate does *not*
+  cover, and justify each omission in writing.
+  **Deliberately not closed:** `scutemob-68` (SR-16) — `PendingTrigger`'s `#[serde(skip)]` fields.
+  `PendingTrigger` is *not* in the `Command`/`GameEvent` closure, so it is a **state-sync** bug,
+  not a protocol one; SR-8's gate cannot see it and should not. M10 state sync will hit it. Also
+  open by design: `im`'s serialized shape is allowlisted (`EXTERNAL_TYPES`) and a `Cargo.toml`
+  bump could move the wire without moving the digest — flag it when SR-10 touches deps. And the
+  staged decode's field-name probe is JSON-specific: if the roadmap's optional MessagePack upgrade
+  lands, use named-field mode or move the tag into the WebSocket subprotocol string.
+  **Note for the collector:** the 26 `.claude/skills/*/SKILL.md` deletions SR-7 flagged were
+  *still* present in this worktree at session start. Left unstaged again. Worktree provisioning
+  is dropping them; worth a look before it bites someone who runs `git add -A`.
+  **Next session:** SR-9 (`scutemob-61`, test-infra consolidation — split into 2–3 ESM subtasks at
+  dispatch time per the inventory table), or SR-11 (`scutemob-63`, pin the toolchain) — which SR-8
+  has just made materially more valuable, and this was **measured, not assumed**. The digest hashes
+  *normalized declaration text*; `normalize_ws` collapses whitespace runs, so I expected rustfmt
+  churn to be absorbed. It is not: rewrapping a long field type inserts a **trailing comma**
+  (`Vector<\n AbilityInstance,\n>`), which is a token, so the digest moves with no wire change.
+  Confirmed by rewrapping `Characteristics::abilities` and watching the gate fire. It errs in the
+  safe direction (a spurious bump, never a missed one) and `cargo fmt --check` keeps the tree
+  canonical — so this can *only* fire when rustfmt's version changes, i.e. exactly the toolchain
+  float SR-11 is chartered to kill. Third accepted false positive, documented in both the test
+  header and the policy doc.
 
 - 2026-07-10 — SR-7 (scutemob-59) — **done** — The `PendingTrigger` → `TriggerData` cutover
   is finished and can no longer un-finish itself. All 13 per-keyword `Option` fields deleted

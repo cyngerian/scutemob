@@ -77,7 +77,28 @@
   would otherwise make the trigger a silent no-op. **New per-kind state goes in a
   `TriggerData` variant, never as a field on the struct** — a new field fails the suite.
   `HASH_SCHEMA_VERSION` is now **37**.
-- **Last Updated**: 2026-07-10 (SR-7 — `PendingTrigger` → `TriggerData` cutover finished: 13
+- **Serialized `Command` / `GameEvent` / replay-log streams carry a version tag (SR-8).**
+  Policy is **strict lockstep**: `rules::protocol::Envelope<T>` declares `protocol_version`,
+  and a receiver accepts it iff it equals `PROTOCOL_VERSION` **exactly** — older *and newer*
+  are rejected with `ProtocolError::VersionMismatch`. No negotiation, no forward compat: per
+  invariant #9, a client that tolerates an unknown event variant holds a history it cannot
+  rewind and cannot tell that it does. `decode` is **staged** (probe version → reject → parse
+  payload) so a mismatch is never an opaque serde error. `ReplayLog` also carries
+  `hash_schema_version` and checks it separately. **The version is machine-checked**:
+  `PROTOCOL_SCHEMA_FINGERPRINT` pins a blake3 digest of the **90-type transitive closure** of
+  the three wire frames, and `tests/protocol_schema.rs` recomputes it from source — so
+  `#[serde(skip)]`/`rename`/`rename_all` (all invisible to rustc) and any shape change fail the
+  build. The closure reaches `Characteristics` → `Effect` → the whole card DSL, so **adding an
+  `Effect` variant is a wire change and most PBs will bump `PROTOCOL_VERSION`**; it stops at
+  `GameState`, which is why this and `HASH_SCHEMA_VERSION` stay separate. `PROTOCOL_VERSION` is
+  **1**. Policy: `docs/mtg-engine-protocol-versioning.md`. **This was M10's hard blocker.**
+- **Last Updated**: 2026-07-10 (SR-8 — protocol versioning: strict lockstep + a fingerprint that
+  makes the version number machine-checked rather than remembered. Two under-inclusion holes were
+  found by the gate's own denominator guards while they were being written (a `pub type` alias on
+  the wire; a rustfmt-wrapped `#[derive]` that silently dropped a type's serde config out of the
+  digest), and `/review` found a third — `ReplayLog` is a wire frame in its own right and was not
+  a fingerprint root. Sixth consecutive SR task whose review findings were holes in the *gate*,
+  not bugs in the code. 3162 tests. Earlier same day: SR-7 — `PendingTrigger` → `TriggerData` cutover finished: 13
   always-`None`, never-read per-keyword fields deleted (29 fields → 16), 32 hand-rolled
   literals collapsed onto `blank()` (−850 lines in `rules/`), `HASH_SCHEMA_VERSION` 36 → 37
   and 28 sentinel tests bumped; zero behavior change. New `tests/pending_trigger_shape.rs`

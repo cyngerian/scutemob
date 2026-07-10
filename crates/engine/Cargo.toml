@@ -19,6 +19,8 @@ thiserror = "2"
 
 [dev-dependencies]
 mtg-engine = { path = ".", features = ["test-util"] }
+# Used by tests/protocol_schema.rs to digest the Command/GameEvent type closure.
+blake3 = "1"
 criterion = { version = "0.5", features = ["html_reports"] }
 im = { version = "15", features = ["serde"] }
 proptest = "1"
