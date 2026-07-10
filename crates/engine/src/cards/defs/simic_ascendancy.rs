@@ -38,9 +38,25 @@ pub fn card() -> CardDefinition {
             // triggering event (e.g. a Master Biomancer-style multi-counter placement), and no
             // such `EffectAmount` variant exists — only `EffectAmount::Fixed`/`XValue`/etc.
             // Authoring with `Fixed(1)` would be wrong whenever 2+ counters land at once.
-            // ENGINE-BLOCKED: "At the beginning of your upkeep, if this enchantment has twenty
-            // or more growth counters on it, you win the game." — win-the-game effect gated on
-            // a counter-count condition is a separate primitive (PB-AC8).
+            // "At the beginning of your upkeep, if this enchantment has twenty or more growth
+            // counters on it, you win the game." — now expressible via Effect::WinGame +
+            // Condition::SourceHasCounters (PB-AC8). Growth counters modeled as
+            // CounterType::Custom("growth") since no dedicated enum variant exists (matches
+            // the Custom-counter convention used elsewhere, e.g. Dragon's Hoard "gold").
+            // Still PARTIAL overall: the counter-placement effect above remains blocked, so
+            // growth counters can never actually reach 20 without a manual test harness setup.
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::AtBeginningOfYourUpkeep,
+                effect: Effect::WinGame,
+                intervening_if: Some(Condition::SourceHasCounters {
+                    counter: CounterType::Custom("growth".to_string()),
+                    min: 20,
+                }),
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         ..Default::default()
     }

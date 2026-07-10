@@ -14,8 +14,8 @@
 
 use mtg_engine::{
     process_command, AttackTarget, CardId, CardRegistry, Command, Effect, EffectAmount, GameEvent,
-    GameState, GameStateBuilder, ObjectId, ObjectSpec, PlayerId, PlayerTarget, Step, TriggerEvent,
-    TriggeredAbilityDef, ZoneId,
+    GameState, GameStateBuilder, ObjectId, ObjectSpec, PlayerId, PlayerTarget, Step, TargetFilter,
+    TriggerEvent, TriggeredAbilityDef, ZoneId,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -793,5 +793,89 @@ fn test_whenever_creature_you_control_deals_combat_damage_ignores_opponent() {
         hand_count(&state, p1),
         initial_hand,
         "CoastalPiracy must NOT fire when P2's creature deals combat damage to P1 (P2 controls attacker, not P1)"
+    );
+}
+
+// ── Tests: combat_damage_filter is_token (PB-AC8 / Curiosity Crafter) ─────────
+
+/// Build a Curiosity-Crafter-style trigger: fires only when a *token* creature
+/// you control deals combat damage to a player.
+fn combat_damage_token_only_trigger_draw() -> TriggeredAbilityDef {
+    let mut t = combat_damage_trigger_draw();
+    t.description =
+        "Whenever a creature token you control deals combat damage to a player, draw a card."
+            .to_string();
+    t.combat_damage_filter = Some(TargetFilter {
+        is_token: true,
+        ..Default::default()
+    });
+    t
+}
+
+/// Runs one unblocked attack by `attacker_is_token` and returns whether the
+/// controller drew a card from the token-filtered combat-damage trigger.
+fn token_filter_draws(attacker_is_token: bool) -> bool {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let crafter = ObjectSpec::creature(p1, "CuriosityCrafter", 3, 3)
+        .in_zone(ZoneId::Battlefield)
+        .with_card_id(CardId("curiosity-crafter".to_string()))
+        .with_triggered_ability(combat_damage_token_only_trigger_draw());
+
+    let mut attacker =
+        ObjectSpec::creature(p1, "Attacker", 3, 3).with_card_id(CardId("attacker".to_string()));
+    if attacker_is_token {
+        attacker = attacker.token();
+    }
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(CardRegistry::new(vec![]))
+        .object(crafter)
+        .object(attacker)
+        .object(library_card(p1, "lib1", "LibCard1"))
+        .active_player(p1)
+        .at_step(Step::DeclareAttackers)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_obj(&state, "Attacker");
+    let initial_hand = hand_count(&state, p1);
+
+    let (state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
+            exert_choices: vec![],
+        },
+    )
+    .expect("DeclareAttackers");
+
+    let (state, _) = pass_all(state, &[p1, p2]);
+    let (state, _) = pass_all(state, &[p1, p2]);
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    hand_count(&state, p1) > initial_hand
+}
+
+/// CR 510.3a: a token creature dealing combat damage satisfies `is_token`.
+#[test]
+fn test_combat_damage_token_filter_fires_for_token_attacker() {
+    assert!(
+        token_filter_draws(true),
+        "token-only combat-damage trigger must fire when the dealing creature IS a token"
+    );
+}
+
+/// CR 510.3a: negative control — a nontoken creature must NOT satisfy `is_token`.
+#[test]
+fn test_combat_damage_token_filter_does_not_fire_for_nontoken_attacker() {
+    assert!(
+        !token_filter_draws(false),
+        "token-only combat-damage trigger must NOT fire when the dealing creature is nontoken"
     );
 }

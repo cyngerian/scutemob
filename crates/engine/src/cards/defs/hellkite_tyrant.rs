@@ -16,11 +16,27 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             AbilityDefinition::Keyword(KeywordAbility::Trample),
-            // TODO: Triggered ability — whenever this deals combat damage to a player, gain control
-            // of all artifacts that player controls.
-            // DSL gap: no "gain control of all permanents of type" effect targeting a damaged player.
-            // TODO: Triggered ability — at the beginning of your upkeep, if you control 20+ artifacts,
-            // you win the game. DSL gap: no count-threshold winning condition.
+            // TODO: ENGINE-BLOCKED — "Whenever this creature deals combat damage to a player,
+            // gain control of all artifacts that player controls." DSL gap: no "gain control of
+            // all permanents of type" effect targeting the damaged player. PARTIAL per PB-AC8 roster.
+            // "At the beginning of your upkeep, if you control twenty or more artifacts, you win
+            // the game." — now expressible via Effect::WinGame + Condition::YouControlNOrMoreWithFilter
+            // (PB-AC8). CR 603.4 intervening-if re-checked at resolution.
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::AtBeginningOfYourUpkeep,
+                effect: Effect::WinGame,
+                intervening_if: Some(Condition::YouControlNOrMoreWithFilter {
+                    count: 20,
+                    filter: TargetFilter {
+                        has_card_type: Some(CardType::Artifact),
+                        ..Default::default()
+                    },
+                }),
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         ..Default::default()
     }

@@ -1,7 +1,7 @@
 ---
 pb: PB-AC8
 title: Static restrictions, win-cons, no-max-hand
-phase: implement
+phase: review
 plan_file: memory/primitives/pb-plan-AC8.md
 review_file: memory/primitives/pb-review-AC8.md
 ---

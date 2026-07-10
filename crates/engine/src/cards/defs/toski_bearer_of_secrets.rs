@@ -18,7 +18,8 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // Indestructible — correct standalone.
             AbilityDefinition::Keyword(KeywordAbility::Indestructible),
-            // TODO: "Toski attacks each combat if able." — MustAttack restriction not in DSL.
+            // Toski attacks each combat if able.
+            AbilityDefinition::Keyword(KeywordAbility::MustAttackEachCombat),
             // CR 510.3a: "Whenever a creature you control deals combat damage to a player,
             // draw a card." PB-23: WheneverCreatureYouControlDealsCombatDamageToPlayer.
             AbilityDefinition::Triggered {
