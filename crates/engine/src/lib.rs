@@ -21,6 +21,7 @@ pub use rules::commander::{
 };
 pub use rules::engine::{
     handle_ring_tempts_you, handle_venture_into_dungeon, process_command, start_game,
+    start_game_allowing_incomplete,
 };
 pub use rules::events::{CombatDamageAssignment, CombatDamageTarget};
 pub use rules::layers::calculate_characteristics;

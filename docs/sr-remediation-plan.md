@@ -47,7 +47,7 @@ Full evidence (file:line) is in each task's ESM description — run
 | 9c | scutemob-71 | SR-9c: Golden-script corpus triage | M | **DONE 2026-07-10.** 94→**210 approved**, **61 retired** (each with a recorded reason), **0 pending**. Six scripts didn't even deserialize; the replay checker passed 244 unimplemented-path + 583 `zones.stack` assertions vacuously — all closed. Gate: `run_all_scripts.rs`. |
 | 10 | scutemob-62 | SR-10: Dependency & lint hygiene | S–M | **DONE 2026-07-10.** im→imbl migrated (704/705 refs ordered collections), rand 0.9, `[workspace.lints]` (non-vacuous), CastSpell boxed (`PROTOCOL_VERSION` 1→2). Chore C bakes toolchain-float into local builds → makes SR-11 more urgent. |
 | 11 | scutemob-63 | SR-11: Pin the Rust toolchain | S | **DONE 2026-07-10.** `rust-toolchain.toml` pins exact stable `1.95.0` (single source of truth); CI reads `channel` from it and verifies the installed rustc matches. Local `clippy -D warnings` is now an authoritative CI preview. |
-| 12 | scutemob-64 | SR-12: Unbypassable invariant-9 gate + marker anti-rot | M | Discovered during SR-2 review. `GameStateBuilder`/`start_game` skip `validate_deck`; only the Inert marker class has a rot guard. |
+| 12 | scutemob-64 | SR-12: Unbypassable invariant-9 gate + marker anti-rot | M | **DONE 2026-07-10.** `start_game` now runs a completeness pre-game check (the choke point every assembly path shares); explicit opt-out `start_game_allowing_incomplete`. Deviation-language source scan guards Partial/KnownWrong; 6-entry reviewed allowlist. Fuzzer `random_deck` filters to Complete. |
 | 13 | scutemob-65 | SR-13: Damage-source characteristics must use LKI | M | Discovered during SR-4. Wither/infect "function no matter what zone" (CR 702.80c/702.90e) but the engine reads the source through a live lookup and treats a dead source as having neither. Real bug, not an assert. |
 | 14 | scutemob-66 | SR-14: Extend the SR-4 diagnostics vocabulary to the rest of `rules/` | M | Discovered during SR-4, which scoped to its two named files. ~200 unswept `calculate_characteristics` sites; method is written up in `docs/sr-4-silent-failure-audit.md`. |
 | 15 | scutemob-67 | SR-15: Catch-all audit for the *other* dispatch enums | M | Discovered during SR-5. The ~117 catch-alls SR-5 was sent to find are real but sit on `AbilityDefinition` (20), `ZoneId` (19), `ZoneChangeAction` (17), … — `AbilityDefinition` is a genuine dispatch table. Registry pattern from SR-5 transfers directly. |
@@ -612,6 +612,60 @@ Task-specific extras:
      (Project-Scoped Version Pinning + CI sections): the local gate is only as authoritative
      as the pin, so bump `channel` and `rustup install` deliberately, then re-run the full
      gate to surface new lints.
+- **SR-12: DONE (2026-07-10).** Both halves of the brief held up. What mattered:
+  1. **`start_game` is the only choke point, so the gate goes there — not on the builder.**
+     `GameStateBuilder` is a test utility that assembles objects field-by-field; there is no
+     single "assemble a game" method on it to guard. Every path that actually *runs* a game —
+     the simulator's `driver.rs`, the fuzzer, and any future production caller — funnels through
+     `start_game(state)`. So the completeness check lives in `start_game`, which scans
+     `state.objects` and refuses any object whose `card_id` resolves to a **known but
+     non-`Complete`** registry def (`GameStateError::IncompleteCardsInGame`). The explicit
+     opt-out is a sibling fn, `start_game_allowing_incomplete`, not a flag — a distinct symbol is
+     greppable and cannot be defaulted-through.
+  2. **Scope the gate to "known but non-Complete", not "unknown".** An object whose `card_id` is
+     *absent* from the registry is a different axis (`UnknownCard`) and, critically, hundreds of
+     existing tests place naked objects or set a `card_id` against an **empty** registry. Gating
+     unknown ids here would redden all of them. `registry.get(cid)?` returning `None` is a pass,
+     by construction — the gate only fires on a def that exists and is marked. This is the same
+     precision `validate_deck` already has (it reports `UnknownCard` and `IncompleteCard`
+     separately).
+  3. **The gate found exactly one legitimate opt-out in the whole suite, and it is instructive.**
+     `test_leyline_opening_hand` places Leyline of the Void — whose def is **`known-wrong`**
+     ("begin the game on the battlefield" is not modelled on the def; the test drives the
+     engine's pre-game placement instead) — and calls `start_game`. That is precisely the case
+     the opt-out exists for; switched to `start_game_allowing_incomplete`. **A card marked
+     non-Complete for reason X can still be the subject of a test about behaviour Y**, and that
+     test is not wrong — it just has to say "yes, incomplete, on purpose."
+  4. **The fuzzer was silently building games out of 742 non-Complete cards.** `random_deck`
+     drew commanders and deck cards straight from `all_cards()` with no completeness filter, so
+     most fuzz games included inert/partial/known-wrong cards — the exact ungated inventory this
+     task exists to close. With the gate in place those games would now `IncompleteCardsInGame`
+     at `run_game`; filtering `random_deck` to `is_complete()` up front keeps the fuzzer
+     exercising real play. The gate *forced* the fuzzer to become correct — a process guarantee
+     converted to a machine one, on the nose.
+  5. **The Partial/KnownWrong anti-rot guard has to be a source scan, because the deviation is a
+     comment.** The Inert class is checkable at runtime (`abilities.is_empty() && oracle_text
+     non-empty`), but "this clause is Simplified / an approximation / modeled as X" lives only in
+     a `//` comment that never reaches the compiled `CardDefinition`. So the guard
+     (`tests/core/completeness_deviation_scan.rs`) reads the def source and requires any file
+     matching a deviation needle (`simplif|modeled/modelled as|deviation|approximat`, lower-cased)
+     to either carry a non-`Complete` marker fragment or be on a **reviewed 6-entry allowlist**.
+     Same technique as SR-5's keyword registry and SR-8's fingerprint.
+  6. **The allowlist is all false positives, and every one is "modeled as" / "approximation" used
+     to describe *faithful* modeling.** 136 files match the needles; 130 already carry a marker.
+     The 6 that don't are Complete cards whose comment says "Modeled as two separate triggers"
+     (a faithful decomposition), "not an overbroad generic-creature approximation" (explicitly
+     *denying* a deviation), or "fixes the previous approximation" (describing a since-fixed one).
+     Reviewed and documented in-test with a per-entry reason; the value of keeping the needle set
+     broad (`modeled as` catches real "we modeled it as X but the card does Y" deviations) is worth
+     the six-entry allowlist. Per SR policy the allowlist is guarded:
+     `every_allowlist_entry_is_live_and_necessary` fails if an entry stops matching a needle
+     (dead weight) or gains a marker (redundant), so it cannot silently mask a future real
+     deviation.
+  7. **Every derived set is denominator-guarded** (SR track rule): the scan asserts it reaches
+     >1500 files, the deviation detector asserts ≥50 hits, and the marker detector asserts ≥700 —
+     without these an absence-shaped gate ("no offenders") passes vacuously if the path is wrong
+     or a needle typo stops matching.
 
 ## Session Log
 

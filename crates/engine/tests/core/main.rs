@@ -9,6 +9,7 @@ mod builder_tests;
 mod card_def_fixes;
 mod card_registry_gate;
 mod cda_tests;
+mod completeness_deviation_scan;
 mod concede;
 mod corner_case_gaps;
 mod deck_validation;

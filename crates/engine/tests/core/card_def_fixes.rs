@@ -16,10 +16,10 @@
 use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::player::CardId;
 use mtg_engine::{
-    all_cards, calculate_characteristics, process_command, start_game, CardRegistry, CardType,
-    Command, ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, GameEvent,
-    GameState, GameStateBuilder, KeywordAbility, LayerModification, ManaColor, ManaCost, ObjectId,
-    ObjectSpec, PlayerId, Step, TriggerCondition, ZoneId,
+    all_cards, calculate_characteristics, process_command, start_game_allowing_incomplete,
+    CardRegistry, CardType, Command, ContinuousEffect, EffectDuration, EffectFilter, EffectId,
+    EffectLayer, GameEvent, GameState, GameStateBuilder, KeywordAbility, LayerModification,
+    ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerId, Step, TriggerCondition, ZoneId,
 };
 
 // ── Helper: find an object by name ───────────────────────────────────────────
@@ -941,7 +941,12 @@ fn test_leyline_opening_hand() {
 
     // CR 113.6b: start_game should place Leyline on the battlefield
     // before the first turn begins (pre-game action, not cast or resolved).
-    let (final_state, events) = start_game(state).expect("start_game failed");
+    //
+    // SR-12: Leyline of the Void's def is marked `known-wrong` (its "begin the
+    // game on the battlefield" clause is not modelled on the def itself — this
+    // test drives the engine's pre-game placement instead). start_game now
+    // refuses non-Complete cards, so this scenario uses the explicit opt-out.
+    let (final_state, events) = start_game_allowing_incomplete(state).expect("start_game failed");
 
     // Leyline must now be on the battlefield.
     let battlefield_objects = final_state.objects_in_zone(&ZoneId::Battlefield);
