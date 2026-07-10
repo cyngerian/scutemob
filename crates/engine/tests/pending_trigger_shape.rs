@@ -83,11 +83,15 @@ fn workspace_root() -> PathBuf {
         .to_path_buf()
 }
 
-/// Blank out line comments, block comments, and string literals, preserving byte
-/// positions and newlines.
+/// Blank out line comments, block comments, and string literals (raw strings
+/// included), preserving byte positions and newlines.
 ///
 /// Without this, the doc comments in *this very file* — which spell
 /// `PendingTrigger { .. }` in prose — would be scanned as construction sites.
+///
+/// Raw strings must be handled before plain ones: an unescaped `"` inside
+/// `r#"…"…"#` would otherwise desync quote-blanking for the rest of the file, and a
+/// scanner that mis-slices is a scanner that reports whatever it likes.
 fn strip_comments_and_strings(src: &str) -> String {
     let b: Vec<u8> = src.bytes().collect();
     let mut out = b.clone();
@@ -124,6 +128,35 @@ fn strip_comments_and_strings(src: &str) -> String {
             }
             blank(&mut out, i, j);
             i = j;
+        } else if b[i] == b'r'
+            && i + 1 < n
+            && (b[i + 1] == b'"' || b[i + 1] == b'#')
+            // ...and the `r` starts a token, rather than ending one (`hasher`, `for`).
+            && (i == 0 || !(b[i - 1].is_ascii_alphanumeric() || b[i - 1] == b'_'))
+        {
+            // Raw string: r"…" / r#"…"# / r##"…"## …  Terminated by `"` followed by
+            // exactly as many `#` as opened it; backslashes are not escapes.
+            let mut hashes = 0usize;
+            let mut j = i + 1;
+            while j < n && b[j] == b'#' {
+                hashes += 1;
+                j += 1;
+            }
+            if j < n && b[j] == b'"' {
+                j += 1;
+                while j < n {
+                    if b[j] == b'"' && b[j + 1..].iter().take(hashes).all(|&h| h == b'#') {
+                        j += 1 + hashes;
+                        break;
+                    }
+                    j += 1;
+                }
+                blank(&mut out, i, j);
+                i = j;
+            } else {
+                // A bare identifier starting with `r`, e.g. `record`.
+                i += 1;
+            }
         } else if b[i] == b'"' {
             let mut j = i + 1;
             while j < n {
@@ -354,6 +387,58 @@ fn every_pending_trigger_literal_uses_blank() {
     );
 }
 
+/// Gate 2 scans for the literal token `PendingTrigger`, so a hand-rolled literal
+/// written as `Self { .. }` inside an `impl PendingTrigger` (or `impl .. for
+/// PendingTrigger`) block would slip past it. Close that by forbidding `Self { .. }`
+/// in every file that opens such a block.
+///
+/// Today those are exactly two: `stubs.rs` (`impl PendingTrigger`, whose `blank()`
+/// names the type explicitly) and `hash.rs` (`impl HashInto for PendingTrigger`,
+/// which constructs nothing). Neither uses `Self { .. }`, and neither may start.
+#[test]
+fn no_pending_trigger_impl_block_uses_a_self_literal() {
+    let mut impl_files = Vec::new();
+
+    for (path, src) in scanned_files() {
+        let clean = strip_comments_and_strings(&src);
+        let opens_impl = clean.lines().any(|l| {
+            let l = l.trim_start();
+            l.starts_with("impl")
+                && l.contains("PendingTrigger")
+                && !l.contains("PendingTriggerKind")
+        });
+        if !opens_impl {
+            continue;
+        }
+        impl_files.push(path.clone());
+
+        for (idx, _) in clean.match_indices("Self") {
+            let mut j = idx + "Self".len();
+            while j < clean.len() && clean.as_bytes()[j].is_ascii_whitespace() {
+                j += 1;
+            }
+            if j < clean.len() && clean.as_bytes()[j] == b'{' {
+                let line = clean[..idx].lines().count();
+                panic!(
+                    "{path}:{line} builds a `Self {{ .. }}` literal inside an \
+                     `impl .. PendingTrigger` block. Gate 2 scans for the token \
+                     `PendingTrigger` and cannot see this. Use \
+                     `PendingTrigger::blank(source, controller, kind)`."
+                );
+            }
+        }
+    }
+
+    // Non-vacuity: if the scan found no impl blocks at all it proved nothing. There are
+    // exactly two — `stubs.rs` (inherent) and `hash.rs` (HashInto).
+    assert_eq!(
+        impl_files.len(),
+        2,
+        "expected exactly 2 files with an `impl .. PendingTrigger` block, found {impl_files:?}. \
+         A new impl block is fine — add it here — but it must not construct via `Self {{ .. }}`."
+    );
+}
+
 /// The one file excluded from Gate 2 is pinned, so the exclusion cannot be used to
 /// smuggle a hand-rolled literal back in next to the definition.
 #[test]
@@ -382,6 +467,13 @@ fn stubs_declares_exactly_one_pending_trigger_literal() {
 /// This is the claim SR-7 rests on: the fields were safe to delete *because* the
 /// payload already travelled in `data`. If a variant loses its consumer, the field
 /// deletion silently became a behavior change.
+///
+/// **Known limit:** this is string presence, not reachability. A variant mentioned only
+/// by a producer, or by dead code, would satisfy it. That is tolerable because the
+/// second needle is `resolution.rs`, which is the *consumer* file — a variant named
+/// there but never matched is a much narrower mistake than one deleted outright, which
+/// is the regression actually observed (removing the Enlist arm leaves `cargo check`
+/// green). Making this precise would mean parsing match arms; the cost is not yet worth it.
 #[test]
 fn replacement_trigger_data_variants_are_still_consumed() {
     let root = workspace_root();

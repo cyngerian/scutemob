@@ -335,8 +335,9 @@ pub struct PendingTrigger {
     /// matching `TriggerData` variant out of here, and threads it into
     /// `StackObjectKind::KeywordTrigger { keyword, data }`, which is what
     /// `resolve_stack_object` then matches on. A kind that carries state and
-    /// leaves this `None` therefore fizzles silently — see the
-    /// `pending_trigger_data` tests in `crates/engine/tests/pending_trigger_shape.rs`.
+    /// leaves this `None` therefore fizzles silently — `crates/engine/tests/
+    /// pending_trigger_shape.rs::replacement_trigger_data_variants_are_still_consumed`
+    /// pins each variant to a live consumer in both of those files.
     ///
     /// Not serialized (same as `kind`) — triggers are transient within a turn.
     #[serde(skip)]

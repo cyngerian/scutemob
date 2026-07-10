@@ -418,9 +418,9 @@ _One entry per session, newest first. Format:_
   `haunt_*` never were, a pre-existing hole made moot by deletion). 28 sentinel tests bumped.
   All 32 hand-rolled literals now build on `..PendingTrigger::blank(source, controller, kind)`
   — nine collapsed to a bare `blank(..)` call, having overridden nothing — and the four rules
-  files shrank by ~850 lines net. 3133 tests pass (3129 baseline + 4 new), 314 suites. All four
-  gates clean; `cargo build --workspace` explicitly re-run.
-  **New gate:** `crates/engine/tests/pending_trigger_shape.rs`. `PendingTrigger`'s field set is
+  files shrank by ~850 lines net. 3134 tests pass (3129 baseline + 5 new), 314 suites. All four
+  verification gates clean; `cargo build --workspace` explicitly re-run.
+  **New gate:** `crates/engine/tests/pending_trigger_shape.rs` (5 tests). `PendingTrigger`'s field set is
   pinned against the struct declaration parsed out of `stubs.rs` (so re-adding a keyword field
   is a test failure that names the field and points at `TriggerData`); every
   `PendingTrigger { .. }` literal under `engine/src`, `card-types/src` and `engine/tests` must
@@ -438,12 +438,25 @@ _One entry per session, newest first. Format:_
   itself a test rather than a thing I checked once. This is SR-5's hazard one enum over, and it
   confirms `scutemob-67` (SR-15) is pointed at something real. (c) The struct and its `HashInto`
   impl were **already out of sync** and nothing enforced agreement.
-  **Demonstrated adversarially** (per SR-5's lesson), five attacks, five distinct failures:
+  **Demonstrated adversarially** (per SR-5's lesson), seven attacks, seven distinct failures:
   re-add `poisonous_n` → field-set gate; hand-roll a literal in `turn_actions.rs` → literal
   gate; smuggle a literal into the excluded `stubs.rs` → the exclusion's own pin; blind the
   scanner → the `checked >= 30` non-vacuity guard (an absence-shaped assertion passes forever
-  without it); delete the Enlist resolution arm → the consumer gate. Renaming a variant, by
-  contrast, is a compile error, so the gate is deliberately phrased against *deletion*.
+  without it); delete the Enlist resolution arm → the consumer gate; **hand-roll via `Self { .. }`
+  inside `impl PendingTrigger`** → the fifth test, added after review; **a raw string containing
+  an unbalanced `"` plus a fake literal** → no longer a spurious red. Renaming a variant, by
+  contrast, is a compile error, so the gates are deliberately phrased against *deletion*.
+  **`/review` (Opus) returned 4/4 PASS, 0 HIGH, 0 MEDIUM, 3 LOW** — and, for the fifth SR task
+  running, all three LOWs were holes in the *gate*, none a bug in the code. Two were closed:
+  (i) Gate 2 keys on the token `PendingTrigger`, so a `Self { .. }` literal inside an `impl`
+  block was invisible — now forbidden by `no_pending_trigger_impl_block_uses_a_self_literal`,
+  which pins the impl-block count at 2 so it cannot itself go vacuous; (ii)
+  `strip_comments_and_strings` did not understand raw strings, so an unescaped `"` inside
+  `r#"…"#` desynced quote-blanking and left a phantom literal visible (verified: the old
+  stripper does surface one). The third is documented in the test rather than fixed:
+  `replacement_trigger_data_variants_are_still_consumed` is string-presence, not reachability,
+  so a producer-only mention would satisfy it. Making it precise means parsing match arms; the
+  regression it actually catches — an arm deleted outright — is caught today.
   **Deliberately not closed:** `scutemob-68` (SR-16) — `PendingTrigger`'s `kind`, `data` and
   `embedded_effect` are all `#[serde(skip)]`, so a serialized pending keyword trigger
   deserializes as an anonymous `Normal` trigger with no payload, silently. Harmless today
