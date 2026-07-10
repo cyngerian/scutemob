@@ -43,10 +43,42 @@ jobs:
                       /usr/share/swift "$AGENT_TOOLSDIRECTORY"
           df -h /
 
+      # SR-11: pin the toolchain. `rust-toolchain.toml` is the single source of
+      # truth for the Rust version; read `channel` out of it here so CI installs
+      # the exact toolchain a dev box does, instead of floating @stable to the
+      # newest release (which turned CI red on new clippy lints with no commit).
+      # dtolnay/rust-toolchain does NOT read rust-toolchain.toml, so we extract
+      # the value and pass it explicitly via @master's `toolchain:` input.
+      - name: Read pinned toolchain
+        id: toolchain
+        run: |
+          channel=$(grep -oP '^\s*channel\s*=\s*"\K[^"]+' rust-toolchain.toml)
+          if [ -z "$channel" ]; then
+            echo "::error file=rust-toolchain.toml::could not read [toolchain] channel"
+            exit 1
+          fi
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+          echo "Pinned toolchain: $channel"
+
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: ${{ steps.toolchain.outputs.channel }}
           components: rustfmt, clippy
+
+      # Fail loudly if the installed toolchain does not match the pin. This is the
+      # machine gate the pin exists to provide: it catches a rustup resolution
+      # surprise or a future edit that re-floats the version, rather than letting
+      # CI silently run on a different compiler than every dev.
+      - name: Verify toolchain matches the pin
+        run: |
+          expected="${{ steps.toolchain.outputs.channel }}"
+          actual=$(rustc --version | awk '{print $2}')
+          echo "expected=$expected actual=$actual"
+          if [ "$expected" != "$actual" ]; then
+            echo "::error::rustc is $actual but rust-toolchain.toml pins $expected"
+            exit 1
+          fi
 
       # Caches ~/.cargo and target/ with pruning; a raw actions/cache of target/
       # exceeds the 10 GB per-repo cache budget.
