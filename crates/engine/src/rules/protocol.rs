@@ -29,7 +29,7 @@
 //! `tests/protocol_schema.rs`. Change the shape of anything on the wire and that
 //! test fails, names the drift, and tells you to bump [`PROTOCOL_VERSION`].
 //!
-//! The closure is 88 types, not 2. `GameEvent::CreatureDied` carries
+//! The closure is 89 types, not 2. `GameEvent::CreatureDied` carries
 //! `Option<Characteristics>`, which reaches `AbilityInstance` → `Effect` →
 //! `TargetFilter` → the whole card DSL. **Adding an `Effect` variant is a wire
 //! change**, so most primitive batches (PB-*) will bump this version. That is

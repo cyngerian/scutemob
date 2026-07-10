@@ -11,7 +11,7 @@
 //!
 //! 1. Index every `pub enum` / `pub struct` under the scan roots.
 //! 2. Walk the **type positions** (named-field types, tuple-variant elements)
-//!    transitively from `Command` and `GameEvent`. That closure — currently 88
+//!    transitively from `Command` and `GameEvent`. That closure — currently 89
 //!    types — is the wire surface.
 //! 3. Digest the normalized declaration text of the closure, attributes
 //!    included, and compare against `PROTOCOL_SCHEMA_FINGERPRINT`.
@@ -69,7 +69,12 @@ const MIN_CLOSURE_TYPES: usize = 80;
 
 /// Types that must be on the wire. If one of these vanishes from the closure the
 /// scanner is broken, not the protocol.
-const CLOSURE_MUST_CONTAIN: [&str; 8] = [
+///
+/// `Effect` and `KeywordAbility` prove the walk crosses into `card-types` and
+/// down through `Characteristics`. `RoomIndex` proves `pub type` aliases are
+/// indexed — it is a `usize` alias, so a scanner that only understood `enum` and
+/// `struct` would leave it, and any retarget of it, outside the digest.
+const CLOSURE_MUST_CONTAIN: [&str; 9] = [
     "Command",
     "GameEvent",
     "Characteristics",
@@ -78,6 +83,7 @@ const CLOSURE_MUST_CONTAIN: [&str; 8] = [
     "ManaCost",
     "ObjectId",
     "PlayerId",
+    "RoomIndex",
 ];
 
 /// Types that must **not** be on the wire.
