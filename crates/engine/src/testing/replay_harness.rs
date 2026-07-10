@@ -27,6 +27,24 @@ use im::OrdMap;
 /// - [`parse_counter_type`] — maps counter string → [`CounterType`]
 /// - [`translate_player_action`] — maps a script `PlayerAction` string → `Command`
 use std::collections::HashMap;
+// ── Determinism ───────────────────────────────────────────────────────────────
+/// Iterate a script's `HashMap<String, T>` in key order.
+///
+/// `InitialState`'s zone and player maps are `std::collections::HashMap`s, so
+/// their iteration order is seeded per map instance by `RandomState`. Two
+/// deserializations of the *same* JSON in the *same* process can iterate in
+/// different orders. Because [`build_initial_state`] assigns `ObjectId`s in
+/// insertion order, iterating one of these maps directly makes the built
+/// `GameState` nondeterministic: the same script yields different `ObjectId`
+/// assignments, hence a different `public_state_hash`, run to run.
+///
+/// Every loop over a script-supplied map must go through this function
+/// (SR-9b; `tests/scripts/harness_equivalence.rs` is the regression gate).
+fn sorted_zone_entries<T>(map: &HashMap<String, T>) -> Vec<(&String, &T)> {
+    let mut entries: Vec<(&String, &T)> = map.iter().collect();
+    entries.sort_by(|a, b| a.0.cmp(b.0));
+    entries
+}
 // ── Public API ────────────────────────────────────────────────────────────────
 /// Build a [`GameState`] from a [`GameScript`]'s initial state description.
 ///
@@ -75,9 +93,14 @@ pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, P
         cards.iter().map(|d| (d.name.clone(), d.clone())).collect();
     // Build registry (for spell effect execution during resolution).
     let registry = CardRegistry::new(cards); // returns Arc<CardRegistry>
+    // SR-9b: `init.turn_number` was declared by the schema and never read, so every
+    // script ran on turn 1 regardless of what it said. `entered_turn` and every
+    // "this turn" comparison read `turn.turn_number`, so a script that set up a
+    // turn-5 board was silently playing a different game than it described.
     let mut builder = GameStateBuilder::new()
         .at_step(step)
         .active_player(active)
+        .turn_number(init.turn_number.max(1))
         .with_registry(registry);
     // Add players with their initial life / mana.
     for name in &names {
@@ -92,7 +115,15 @@ pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, P
         enrich_spec_from_def(base, &defs)
     };
     // Add battlefield permanents (under each player's control).
-    for (ctrl_name, permanents) in &init.zones.battlefield {
+    //
+    // SR-9b: every zone map below is a `HashMap<String, _>`, whose iteration order
+    // is randomized per instance by `RandomState`. Objects are assigned `ObjectId`s
+    // in insertion order, so iterating these maps directly makes the resulting
+    // `GameState` — and therefore its hash, and therefore anything ObjectId-ordered
+    // downstream — differ between two builds of the *same* script in the *same*
+    // process. Sort the keys. `sorted_zone_entries` exists so no future zone loop
+    // forgets.
+    for (ctrl_name, permanents) in sorted_zone_entries(&init.zones.battlefield) {
         if let Some(&ctrl) = player_map.get(ctrl_name) {
             for perm in permanents {
                 let mut spec = make_spec(ctrl, &perm.card, ZoneId::Battlefield);
@@ -112,7 +143,7 @@ pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, P
         }
     }
     // Add hand cards.
-    for (owner_name, hand_cards) in &init.zones.hand {
+    for (owner_name, hand_cards) in sorted_zone_entries(&init.zones.hand) {
         if let Some(&owner) = player_map.get(owner_name) {
             for card in hand_cards {
                 let owner_pid = if let Some(o) = &card.owner {
@@ -125,7 +156,7 @@ pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, P
         }
     }
     // Add graveyard cards.
-    for (owner_name, gy_cards) in &init.zones.graveyard {
+    for (owner_name, gy_cards) in sorted_zone_entries(&init.zones.graveyard) {
         if let Some(&owner) = player_map.get(owner_name) {
             for card in gy_cards {
                 builder = builder.object(make_spec(owner, &card.card, ZoneId::Graveyard(owner)));
@@ -149,7 +180,7 @@ pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, P
         builder = builder.object(spec);
     }
     // Add library cards (top-to-bottom order).
-    for (owner_name, lib_cards) in &init.zones.library {
+    for (owner_name, lib_cards) in sorted_zone_entries(&init.zones.library) {
         if let Some(&owner) = player_map.get(owner_name) {
             for card in lib_cards {
                 builder = builder.object(make_spec(owner, &card.card, ZoneId::Library(owner)));
@@ -158,11 +189,11 @@ pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, P
     }
     let mut state = builder.build().unwrap();
     // Patch life totals, mana pools, and land plays (can't do these via builder).
-    for (name, pstate) in &init.players {
+    for (name, pstate) in sorted_zone_entries(&init.players) {
         if let Some(&pid) = player_map.get(name) {
             if let Some(ps) = state.players.get_mut(&pid) {
                 ps.life_total = pstate.life;
-                for (color_str, amount) in &pstate.mana_pool {
+                for (color_str, amount) in sorted_zone_entries(&pstate.mana_pool) {
                     if let Some(color) = parse_mana_color(color_str) {
                         ps.mana_pool.add(color, *amount);
                     }
@@ -197,7 +228,7 @@ pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, P
     // Register commanders: populate PlayerState::commander_ids from the script's
     // commander fields, then register zone-change replacement effects (CR 903.9).
     let mut any_commanders = false;
-    for (name, pstate) in &init.players {
+    for (name, pstate) in sorted_zone_entries(&init.players) {
         if let Some(&pid) = player_map.get(name) {
             for cmdr in [&pstate.commander, &pstate.partner_commander]
                 .into_iter()
