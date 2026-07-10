@@ -7,7 +7,31 @@ AC9 markers appear to name *real* gaps. But co-blocking is heavy — see roster.
 
 ## Primitive existence check (recon-first, hazard: do NOT re-add)
 
-| Primitive | Exists? | Evidence |
+> ## ⚠️ CORRECTION (post-plan, 2026-07-10) — THIS TABLE WAS WRONG
+>
+> The planner's independent recon **overturned 3 of 5 rows below**, and the worker
+> then verified the planner by direct grep. The original table's "NO" verdicts came
+> from greps on the *wrong type names* (`WheelHand|DiscardHand`, `d20|die roll`,
+> `TokenDoubl`). The engine names them `RollDice`, `DoubleTokens`,
+> `AddManaFilterChoice`. **Trust the CORRECTED table, not the original.**
+>
+> | Primitive | Original (WRONG) | Verified truth |
+> |---|---|---|
+> | `Effect::WheelHand` | NO | ✅ **NO** — genuinely absent. BUILD. |
+> | multi-output filter mana | NO | ❌ **EXISTS** — `Effect::AddManaFilterChoice` (`effects/mod.rs:2009`), used by `cards/defs/graven_cairns.rs`. Full 3-way choice is M10-interactive. **DROP.** |
+> | `SearchLibrary` multi-name | NO | ✅ NO, but **zero card roster** → drop to OOS seed. |
+> | token-doubling replacement | NO | ❌ **EXISTS** — `ReplacementModification::DoubleTokens` (`state/replacement_effect.rs:186`) + `apply_token_creation_replacement()` (`rules/replacement.rs:2887`). **But wired at only 2 of ~13 `TokenCreated` sites** → half-wired, the PB-AC8 E1 shape. Completeness pass, not a new primitive. |
+> | d20 + tiered outcome | NO | ❌ **EXISTS** — `Effect::RollDice { sides, results }` (`effects/mod.rs:3547`), `EffectAmount::LastDiceRoll`, `GameEvent::DiceRolled`. Seed collision **already solved** (`timestamp_counter += 1` per roll). Already used by `ancient_silver_dragon.rs`. **DROP.** |
+>
+> **Lesson (generalizes `feedback_verify_full_chain`):** a grep proving *absence* is
+> only as good as the name you guessed. Absence must be established by reading the
+> enum, not by grepping for the name you expect it to have. Two independent recon
+> passes disagreed; the one that read `Effect`'s variants won.
+>
+> Net new primitives to build: **`Effect::WheelHand`** and
+> **`Effect::SetNoMaximumHandSize`** (the latter discovered as a co-blocker, not briefed).
+
+| Primitive | Exists? (ORIGINAL, SUPERSEDED) | Evidence |
 |---|---|---|
 | `Effect::WheelHand` | **NO** | `grep -rE "WheelHand\|DiscardHand"` → 0 hits in `crates/engine/src` |
 | multi-output filter mana | **NO** | `ManaAbility` (`state/game_object.rs:165`) has `produces: OrdMap<ManaColor,u32>`, `requires_tap`, `sacrifice_self`, `any_color`, `damage_to_controller`. **No activation mana cost field and no output-mode list.** Filter lands (Mystic Gate: `{W/U}, {T}: Add {W}{W}, {W}{U}, or {U}{U}`) need BOTH. |
