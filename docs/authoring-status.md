@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-10 05:26 UTC  
-**Git:** `6c967088` on `feat/pb-ac9-misc-mana`  
+**Generated:** 2026-07-10 05:51 UTC  
+**Git:** `43043ef4` on `feat/pb-ac9-misc-mana`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,19 +25,19 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 194 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **108%** (1,763 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 56.2% | 982 | +9 |
-| With TODO markers | 584 | -10 |
-| Empty `abilities: vec![]` placeholders | 182 | +1 |
-| Total TODO lines across all defs | 1,039 | -14 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 56.2% | 983 | +1 |
+| With TODO markers | 583 | -1 |
+| Empty `abilities: vec![]` placeholders | 182 | · |
+| Total TODO lines across all defs | 1,038 | -1 |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 561 |
-| last 30 days | 0 | 561 |
-| last 90 days | 13 | 646 |
-| last 1 year | 1,773 | 1,287 |
+| last 7 days | 0 | 569 |
+| last 30 days | 0 | 569 |
+| last 90 days | 13 | 654 |
+| last 1 year | 1,773 | 1,295 |
 
 ## Bonus defs outside the plan
 
@@ -71,7 +71,7 @@ are blocked on engine primitives.
 | `token-create` | 145 / 155 | 94% | 24 | 54 | 67 |
 | `land-etb-tapped` | 138 / 138 | 100% | 116 | 20 | 2 |
 | `other` | 108 / 131 | 82% | 66 | 42 | 0 |
-| `modal-choice` | 68 / 105 | 65% | 32 | 36 | 0 |
+| `modal-choice` | 68 / 105 | 65% | 33 | 35 | 0 |
 | `mana-land` | 92 / 92 | 100% | 74 | 15 | 3 |
 | `body-only` | 55 / 70 | 79% | 24 | 9 | 22 |
 | `removal-destroy` | 56 / 56 | 100% | 33 | 16 | 7 |
@@ -169,15 +169,15 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 629 | -5 |
+| OTHER (unclassified) | 628 | -1 |
 | DSL gap (unspecified) | 133 | · |
 | attack trigger (self / generic) | 27 | · |
 | TriggerCondition::* missing variant | 17 | · |
 | dynamic hexproof / protection | 17 | · |
 | Cost::* missing variant | 17 | · |
 | sacrifice as cost | 16 | · |
-| replacement effect missing | 14 | -4 |
-| EffectAmount::* missing variant | 13 | -2 |
+| replacement effect missing | 14 | · |
+| EffectAmount::* missing variant | 13 | · |
 | TargetFilter missing field | 12 | · |
 | combat-damage-to-player trigger | 10 | · |
 | interactive / hidden-info choice | 10 | · |
@@ -189,7 +189,7 @@ the next thing to triage when the classifier table is grown.
 | devotion | 5 | · |
 | conditional static / grant | 5 | · |
 | equipment grants ability | 5 | · |
-| X-scaled tokens | 4 | -1 |
+| X-scaled tokens | 4 | · |
 | count-threshold static | 4 | · |
 | delayed triggers | 4 | · |
 | untap-all / untap trigger | 4 | · |
@@ -199,7 +199,7 @@ _…and 30 more buckets totaling 55 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 629 
+Showing 12 of 628 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
@@ -210,11 +210,11 @@ bonecrusher_giant: // ENGINE-BLOCKED(1): the effect must deal 2 damage to "that 
 delney_streetwise_lookout: // TODO: Power-conditional blocking restriction — "can't be blocked by
 everflowing_chalice: // TODO: "This artifact enters with a charge counter on it for each time it was kicked." —
 go_for_the_throat: // TODO: "nonartifact creature" — no exclude_card_types on TargetFilter.
-jeskas_will: // TODO: Mode 2 needs impulse-draw (exile top 3, play this turn).
+jeskas_will: // TODO: Mode 1 needs mana-scaled-by-opponent-hand-count.
 marisi_breaker_of_the_coil: // TODO: "goad each creature that player controls" — ForEach over DamagedPlayer's creatures
 otharri_suns_glory: // TODO: "{2}{R}{W}, Tap an untapped Rebel you control: Return this card from your
 roiling_dragonstorm: // TODO: "When a Dragon you control enters, return this to hand" —
-smugglers_surprise: // TODO: Spree mode 1 — mill 4, put up to two creature/land cards milled into hand.
+smugglers_surprise: // TODO: Spree mode 2 — put up to two creature cards from hand onto battlefield.
 teferi_master_of_time: // TODO: Effect::PhaseOut not yet implemented. Placeholder preserves oracle index order.
 tymna_the_weaver: // ENGINE-BLOCKED: the life payment and draw count both scale with the number of
 ```
@@ -222,6 +222,8 @@ tymna_the_weaver: // ENGINE-BLOCKED: the life payment and draw count both scale 
 ## Recent card-touching commits
 
 ```
+b9397215 W6-cards: PB-AC9 backfill HIGH — Reforge the Soul stale Miracle marker
+52a2b6f2 W6-prim: PB-AC9 — WheelHand + SetNoMaximumHandSize + token-doubling completeness
 91885e98 W6-prim: PB-AC8 review fixes — 2 MEDIUM + 2 LOW closed
 12981e69 W6-cards: PB-AC8 backfill + card-review fixes
 79135e64 W6-prim: PB-AC7 — /review LOW doc nits (SetCardTypes doc drift, CR 205.1b->205.1a)
@@ -245,8 +247,6 @@ d771b795 W6-prim: PB-AC3 card-review fixes — 4 HIGH wrong-game-state resolutio
 34bee37c W6-prim: PB-AC1 backfill — re-author cards unblocked by untap/counter/once-per-turn
 19b1f364 W6-prim: PB-AC1 implement — counter / untap / once-per-turn primitives
 a1ed95a6 W5-cards: scutemob-42 — address 3 LOW review findings (batch 2)
-2e9af171 W5-cards: scutemob-42 — re-author 12 stale-TODO cards (W-NOW-1 batch 2)
-1f27f39c W6-prim: PB-AC0 — ETBTriggerFilter subtype/nontoken forwarding on creature-ETB path
 ```
 
 ## Missing card-defs sidecar
