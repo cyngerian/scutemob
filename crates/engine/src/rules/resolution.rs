@@ -1467,39 +1467,13 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // CR 603.4: Intervening-if -- checked at trigger time AND resolution.
                     // X is the cast-time value (stack_obj.x_value), regardless of counters placed.
                     if has_ravenous && stack_obj.x_value >= 5 {
-                        state
-                            .pending_triggers
-                            .push_back(crate::state::stubs::PendingTrigger {
-                                embedded_effect: None,
-                                source: new_id,
-                                ability_index: 0,
-                                controller: stack_obj.controller,
-                                kind: crate::state::stubs::PendingTriggerKind::RavenousDraw,
-                                triggering_event: None,
-                                entering_object_id: None,
-                                targeting_stack_id: None,
-                                triggering_player: None,
-                                exalted_attacker_id: None,
-                                defending_player_id: None,
-                                ingest_target_player: None,
-                                flanking_blocker_id: None,
-                                rampage_n: None,
-                                renown_n: None,
-                                poisonous_n: None,
-                                poisonous_target_player: None,
-                                enlist_enlisted_creature: None,
-                                recover_cost: None,
-                                recover_card: None,
-                                cipher_encoded_card_id: None,
-                                cipher_encoded_object_id: None,
-                                haunt_source_object_id: None,
-                                haunt_source_card_id: None,
-                                damaged_player: None,
-                                combat_damage_amount: 0,
-                                lki_counters: im::OrdMap::new(),
-                                lki_power: None,
-                                data: None,
-                            });
+                        state.pending_triggers.push_back(
+                            crate::state::stubs::PendingTrigger::blank(
+                                new_id,
+                                stack_obj.controller,
+                                crate::state::stubs::PendingTriggerKind::RavenousDraw,
+                            ),
+                        );
                     }
                     // CR 702.157a: Squad ETB trigger -- "When this creature enters, if its
                     // squad cost was paid, create a token that's a copy of it for each time
@@ -1551,39 +1525,13 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         .map(|o| o.offspring_paid)
                         .unwrap_or(false);
                     if has_offspring && permanent_offspring_paid {
-                        state
-                            .pending_triggers
-                            .push_back(crate::state::stubs::PendingTrigger {
-                                embedded_effect: None,
-                                source: new_id,
-                                ability_index: 0,
-                                controller: stack_obj.controller,
-                                kind: crate::state::stubs::PendingTriggerKind::OffspringETB,
-                                triggering_event: None,
-                                entering_object_id: None,
-                                targeting_stack_id: None,
-                                triggering_player: None,
-                                exalted_attacker_id: None,
-                                defending_player_id: None,
-                                ingest_target_player: None,
-                                flanking_blocker_id: None,
-                                rampage_n: None,
-                                renown_n: None,
-                                poisonous_n: None,
-                                poisonous_target_player: None,
-                                enlist_enlisted_creature: None,
-                                recover_cost: None,
-                                recover_card: None,
-                                cipher_encoded_card_id: None,
-                                cipher_encoded_object_id: None,
-                                haunt_source_object_id: None,
-                                haunt_source_card_id: None,
-                                damaged_player: None,
-                                combat_damage_amount: 0,
-                                lki_counters: im::OrdMap::new(),
-                                lki_power: None,
-                                data: None,
-                            });
+                        state.pending_triggers.push_back(
+                            crate::state::stubs::PendingTrigger::blank(
+                                new_id,
+                                stack_obj.controller,
+                                crate::state::stubs::PendingTriggerKind::OffspringETB,
+                            ),
+                        );
                     }
                     // CR 702.174b: Gift ETB trigger -- "When this permanent enters, if its
                     // gift cost was paid, [give the gift to the chosen opponent]."
@@ -2454,44 +2402,18 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             .get(&vanishing_permanent)
                             .map(|obj| obj.controller)
                             .unwrap_or(controller);
-                        state
-                            .pending_triggers
-                            .push_back(crate::state::stubs::PendingTrigger {
-                                embedded_effect: None,
-                                source: vanishing_permanent,
-                                ability_index: 0,
-                                controller: owner,
-                                kind: PendingTriggerKind::KeywordTrigger {
+                        state.pending_triggers.push_back(
+                            crate::state::stubs::PendingTrigger::blank(
+                                vanishing_permanent,
+                                owner,
+                                PendingTriggerKind::KeywordTrigger {
                                     keyword: crate::state::types::KeywordAbility::Vanishing(0),
                                     data: crate::state::stack::TriggerData::CounterSacrifice {
                                         permanent: vanishing_permanent,
                                     },
                                 },
-                                triggering_event: None,
-                                entering_object_id: None,
-                                targeting_stack_id: None,
-                                triggering_player: None,
-                                exalted_attacker_id: None,
-                                defending_player_id: None,
-                                ingest_target_player: None,
-                                flanking_blocker_id: None,
-                                rampage_n: None,
-                                renown_n: None,
-                                poisonous_n: None,
-                                poisonous_target_player: None,
-                                enlist_enlisted_creature: None,
-                                recover_cost: None,
-                                recover_card: None,
-                                cipher_encoded_card_id: None,
-                                cipher_encoded_object_id: None,
-                                haunt_source_object_id: None,
-                                haunt_source_card_id: None,
-                                damaged_player: None,
-                                combat_damage_amount: 0,
-                                lki_counters: im::OrdMap::new(),
-                                lki_power: None,
-                                data: None,
-                            });
+                            ),
+                        );
                     }
                 }
             }

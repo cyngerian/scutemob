@@ -1201,35 +1201,8 @@ pub fn fire_saga_chapter_triggers(
             // CR 714.2b: Trigger fires if count crossed the chapter threshold.
             if old_count < *chapter && new_count >= *chapter {
                 state.pending_triggers.push_back(PendingTrigger {
-                    embedded_effect: None,
-                    source: saga_id,
-                    controller,
-                    kind: PendingTriggerKind::Normal,
                     ability_index,
-                    triggering_event: None,
-                    entering_object_id: None,
-                    targeting_stack_id: None,
-                    triggering_player: None,
-                    exalted_attacker_id: None,
-                    defending_player_id: None,
-                    ingest_target_player: None,
-                    flanking_blocker_id: None,
-                    rampage_n: None,
-                    renown_n: None,
-                    poisonous_n: None,
-                    poisonous_target_player: None,
-                    enlist_enlisted_creature: None,
-                    recover_cost: None,
-                    recover_card: None,
-                    cipher_encoded_card_id: None,
-                    cipher_encoded_object_id: None,
-                    haunt_source_object_id: None,
-                    haunt_source_card_id: None,
-                    damaged_player: None,
-                    combat_damage_amount: 0,
-                    lki_counters: im::OrdMap::new(),
-                    lki_power: None,
-                    data: None,
+                    ..PendingTrigger::blank(saga_id, controller, PendingTriggerKind::Normal)
                 });
             }
         }
@@ -1377,11 +1350,7 @@ pub fn queue_carddef_etb_triggers(
                 // runtime triggered_abilities). This avoids index collisions with triggers
                 // added by enrich_spec_from_def for attack/dies/etc. triggers.
                 state.pending_triggers.push_back(PendingTrigger {
-                    embedded_effect: None,
-                    source: new_id,
                     ability_index: idx,
-                    controller,
-                    kind: PendingTriggerKind::CardDefETB,
                     triggering_event: Some(
                         crate::state::game_object::TriggerEvent::SelfEntersBattlefield,
                     ),
@@ -1389,28 +1358,7 @@ pub fn queue_carddef_etb_triggers(
                     // verify the entering permanent's card types (artifact/creature for
                     // Panharmonicon, land for Ancient Greenwarden, etc.).
                     entering_object_id: Some(new_id),
-                    targeting_stack_id: None,
-                    triggering_player: None,
-                    exalted_attacker_id: None,
-                    defending_player_id: None,
-                    ingest_target_player: None,
-                    flanking_blocker_id: None,
-                    rampage_n: None,
-                    renown_n: None,
-                    poisonous_n: None,
-                    poisonous_target_player: None,
-                    enlist_enlisted_creature: None,
-                    recover_cost: None,
-                    recover_card: None,
-                    cipher_encoded_card_id: None,
-                    cipher_encoded_object_id: None,
-                    haunt_source_object_id: None,
-                    haunt_source_card_id: None,
-                    damaged_player: None,
-                    combat_damage_amount: 0,
-                    lki_counters: im::OrdMap::new(),
-                    lki_power: None,
-                    data: None,
+                    ..PendingTrigger::blank(new_id, controller, PendingTriggerKind::CardDefETB)
                 });
             }
             #[allow(clippy::collapsible_match)]
@@ -1422,38 +1370,13 @@ pub fn queue_carddef_etb_triggers(
                 // CR 603.4: Intervening-if — only queue trigger if tribute was not paid.
                 if !tribute_was_paid {
                     state.pending_triggers.push_back(PendingTrigger {
-                        embedded_effect: None,
-                        source: new_id,
                         ability_index: idx,
-                        controller,
-                        kind: PendingTriggerKind::CardDefETB,
                         triggering_event: Some(
                             crate::state::game_object::TriggerEvent::SelfEntersBattlefield,
                         ),
                         // CR 603.2d: Set entering_object_id for trigger doubling type checks.
                         entering_object_id: Some(new_id),
-                        targeting_stack_id: None,
-                        triggering_player: None,
-                        exalted_attacker_id: None,
-                        defending_player_id: None,
-                        ingest_target_player: None,
-                        flanking_blocker_id: None,
-                        rampage_n: None,
-                        renown_n: None,
-                        poisonous_n: None,
-                        poisonous_target_player: None,
-                        enlist_enlisted_creature: None,
-                        recover_cost: None,
-                        recover_card: None,
-                        cipher_encoded_card_id: None,
-                        cipher_encoded_object_id: None,
-                        haunt_source_object_id: None,
-                        haunt_source_card_id: None,
-                        damaged_player: None,
-                        combat_damage_amount: 0,
-                        lki_counters: im::OrdMap::new(),
-                        lki_power: None,
-                        data: None,
+                        ..PendingTrigger::blank(new_id, controller, PendingTriggerKind::CardDefETB)
                     });
                 }
             }

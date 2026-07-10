@@ -103,40 +103,14 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
         .collect();
     for (obj_id, instance_count) in vanishing_permanents {
         for _ in 0..instance_count {
-            state.pending_triggers.push_back(PendingTrigger {
-                embedded_effect: None,
-                source: obj_id,
-                ability_index: 0, // unused for vanishing counter triggers
-                controller: active,
-                kind: PendingTriggerKind::KeywordTrigger {
+            state.pending_triggers.push_back(PendingTrigger::blank(
+                obj_id,
+                active,
+                PendingTriggerKind::KeywordTrigger {
                     keyword: KeywordAbility::Vanishing(0),
                     data: crate::state::stack::TriggerData::CounterRemoval { permanent: obj_id },
                 },
-                triggering_event: None,
-                entering_object_id: None,
-                targeting_stack_id: None,
-                triggering_player: None,
-                exalted_attacker_id: None,
-                defending_player_id: None,
-                ingest_target_player: None,
-                flanking_blocker_id: None,
-                rampage_n: None,
-                renown_n: None,
-                poisonous_n: None,
-                poisonous_target_player: None,
-                enlist_enlisted_creature: None,
-                recover_cost: None,
-                recover_card: None,
-                cipher_encoded_card_id: None,
-                cipher_encoded_object_id: None,
-                haunt_source_object_id: None,
-                haunt_source_card_id: None,
-                damaged_player: None,
-                combat_damage_amount: 0,
-                lki_counters: im::OrdMap::new(),
-                lki_power: None,
-                data: None,
-            });
+            ));
         }
     }
     // CR 702.32a: Queue upkeep triggers for all Fading permanents.
@@ -173,40 +147,14 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
         .collect();
     for (obj_id, instance_count) in fading_permanents {
         for _ in 0..instance_count {
-            state.pending_triggers.push_back(PendingTrigger {
-                embedded_effect: None,
-                source: obj_id,
-                ability_index: 0, // unused for fading triggers
-                controller: active,
-                kind: PendingTriggerKind::KeywordTrigger {
+            state.pending_triggers.push_back(PendingTrigger::blank(
+                obj_id,
+                active,
+                PendingTriggerKind::KeywordTrigger {
                     keyword: KeywordAbility::Fading(0),
                     data: crate::state::stack::TriggerData::CounterRemoval { permanent: obj_id },
                 },
-                triggering_event: None,
-                entering_object_id: None,
-                targeting_stack_id: None,
-                triggering_player: None,
-                exalted_attacker_id: None,
-                defending_player_id: None,
-                ingest_target_player: None,
-                flanking_blocker_id: None,
-                rampage_n: None,
-                renown_n: None,
-                poisonous_n: None,
-                poisonous_target_player: None,
-                enlist_enlisted_creature: None,
-                recover_cost: None,
-                recover_card: None,
-                cipher_encoded_card_id: None,
-                cipher_encoded_object_id: None,
-                haunt_source_object_id: None,
-                haunt_source_card_id: None,
-                damaged_player: None,
-                combat_damage_amount: 0,
-                lki_counters: im::OrdMap::new(),
-                lki_power: None,
-                data: None,
-            });
+            ));
         }
     }
     // CR 702.30a: Queue upkeep triggers for all Echo permanents with echo_pending.
@@ -246,43 +194,17 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
         .collect();
     for (obj_id, costs) in echo_permanents {
         for cost in costs {
-            state.pending_triggers.push_back(PendingTrigger {
-                embedded_effect: None,
-                source: obj_id,
-                ability_index: 0, // unused for echo triggers
-                controller: active,
-                kind: PendingTriggerKind::KeywordTrigger {
+            state.pending_triggers.push_back(PendingTrigger::blank(
+                obj_id,
+                active,
+                PendingTriggerKind::KeywordTrigger {
                     keyword: KeywordAbility::Echo(cost.clone()),
                     data: crate::state::stack::TriggerData::UpkeepCost {
                         permanent: obj_id,
                         cost: crate::state::stack::UpkeepCostKind::Echo(cost.clone()),
                     },
                 },
-                triggering_event: None,
-                entering_object_id: None,
-                targeting_stack_id: None,
-                triggering_player: None,
-                exalted_attacker_id: None,
-                defending_player_id: None,
-                ingest_target_player: None,
-                flanking_blocker_id: None,
-                rampage_n: None,
-                renown_n: None,
-                poisonous_n: None,
-                poisonous_target_player: None,
-                enlist_enlisted_creature: None,
-                recover_cost: None,
-                recover_card: None,
-                cipher_encoded_card_id: None,
-                cipher_encoded_object_id: None,
-                haunt_source_object_id: None,
-                haunt_source_card_id: None,
-                damaged_player: None,
-                combat_damage_amount: 0,
-                lki_counters: im::OrdMap::new(),
-                lki_power: None,
-                data: None,
-            });
+            ));
         }
     }
     // CR 702.24a: Queue upkeep triggers for all cumulative upkeep permanents.
@@ -317,43 +239,17 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
         .collect();
     for (obj_id, costs) in cu_permanents {
         for cost in costs {
-            state.pending_triggers.push_back(PendingTrigger {
-                embedded_effect: None,
-                source: obj_id,
-                ability_index: 0, // unused for CU triggers
-                controller: active,
-                kind: PendingTriggerKind::KeywordTrigger {
+            state.pending_triggers.push_back(PendingTrigger::blank(
+                obj_id,
+                active,
+                PendingTriggerKind::KeywordTrigger {
                     keyword: KeywordAbility::CumulativeUpkeep(cost.clone()),
                     data: crate::state::stack::TriggerData::UpkeepCost {
                         permanent: obj_id,
                         cost: crate::state::stack::UpkeepCostKind::CumulativeUpkeep(cost.clone()),
                     },
                 },
-                triggering_event: None,
-                entering_object_id: None,
-                targeting_stack_id: None,
-                triggering_player: None,
-                exalted_attacker_id: None,
-                defending_player_id: None,
-                ingest_target_player: None,
-                flanking_blocker_id: None,
-                rampage_n: None,
-                renown_n: None,
-                poisonous_n: None,
-                poisonous_target_player: None,
-                enlist_enlisted_creature: None,
-                recover_cost: None,
-                recover_card: None,
-                cipher_encoded_card_id: None,
-                cipher_encoded_object_id: None,
-                haunt_source_object_id: None,
-                haunt_source_card_id: None,
-                damaged_player: None,
-                combat_damage_amount: 0,
-                lki_counters: im::OrdMap::new(),
-                lki_power: None,
-                data: None,
-            });
+            ));
         }
     }
     // CR 603.3: Generic CardDef upkeep trigger sweep (MR-B9-01).
@@ -410,35 +306,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
     for (obj_id, controller, indices) in carddef_upkeep_triggers {
         for ability_index in indices {
             state.pending_triggers.push_back(PendingTrigger {
-                embedded_effect: None,
-                source: obj_id,
                 ability_index,
-                controller,
-                kind: PendingTriggerKind::CardDefETB,
-                triggering_event: None,
-                entering_object_id: None,
-                targeting_stack_id: None,
-                triggering_player: None,
-                exalted_attacker_id: None,
-                defending_player_id: None,
-                ingest_target_player: None,
-                flanking_blocker_id: None,
-                rampage_n: None,
-                renown_n: None,
-                poisonous_n: None,
-                poisonous_target_player: None,
-                enlist_enlisted_creature: None,
-                recover_cost: None,
-                recover_card: None,
-                cipher_encoded_card_id: None,
-                cipher_encoded_object_id: None,
-                haunt_source_object_id: None,
-                haunt_source_card_id: None,
-                damaged_player: None,
-                combat_damage_amount: 0,
-                lki_counters: im::OrdMap::new(),
-                lki_power: None,
-                data: None,
+                ..PendingTrigger::blank(obj_id, controller, PendingTriggerKind::CardDefETB)
             });
         }
     }
@@ -674,37 +543,11 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
         .map(|obj| (obj.id, obj.controller))
         .collect();
     for (obj_id, controller) in unearthed {
-        state.pending_triggers.push_back(PendingTrigger {
-            embedded_effect: None,
-            source: obj_id,
-            ability_index: 0, // unused for unearth triggers
+        state.pending_triggers.push_back(PendingTrigger::blank(
+            obj_id,
             controller,
-            kind: PendingTriggerKind::Unearth,
-            triggering_event: None,
-            entering_object_id: None,
-            targeting_stack_id: None,
-            triggering_player: None,
-            exalted_attacker_id: None,
-            defending_player_id: None,
-            ingest_target_player: None,
-            flanking_blocker_id: None,
-            rampage_n: None,
-            renown_n: None,
-            poisonous_n: None,
-            poisonous_target_player: None,
-            enlist_enlisted_creature: None,
-            recover_cost: None,
-            recover_card: None,
-            cipher_encoded_card_id: None,
-            cipher_encoded_object_id: None,
-            haunt_source_object_id: None,
-            haunt_source_card_id: None,
-            damaged_player: None,
-            combat_damage_amount: 0,
-            lki_counters: im::OrdMap::new(),
-            lki_power: None,
-            data: None,
-        });
+            PendingTriggerKind::Unearth,
+        ));
     }
     // CR 702.141a: Queue sacrifice triggers for all encore tokens on the battlefield.
     // "Sacrifice them at the beginning of the next end step."
@@ -748,37 +591,11 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
         .map(|obj| (obj.id, obj.controller))
         .collect();
     for (obj_id, controller) in dashed_permanents {
-        state.pending_triggers.push_back(PendingTrigger {
-            embedded_effect: None,
-            source: obj_id,
-            ability_index: 0, // unused for dash return triggers
+        state.pending_triggers.push_back(PendingTrigger::blank(
+            obj_id,
             controller,
-            kind: PendingTriggerKind::DashReturn,
-            triggering_event: None,
-            entering_object_id: None,
-            targeting_stack_id: None,
-            triggering_player: None,
-            exalted_attacker_id: None,
-            defending_player_id: None,
-            ingest_target_player: None,
-            flanking_blocker_id: None,
-            rampage_n: None,
-            renown_n: None,
-            poisonous_n: None,
-            poisonous_target_player: None,
-            enlist_enlisted_creature: None,
-            recover_cost: None,
-            recover_card: None,
-            cipher_encoded_card_id: None,
-            cipher_encoded_object_id: None,
-            haunt_source_object_id: None,
-            haunt_source_card_id: None,
-            damaged_player: None,
-            combat_damage_amount: 0,
-            lki_counters: im::OrdMap::new(),
-            lki_power: None,
-            data: None,
-        });
+            PendingTriggerKind::DashReturn,
+        ));
     }
     // CR 702.152a: Queue sacrifice triggers for all blitzed permanents.
     // "Sacrifice the permanent this spell becomes at the beginning of the
@@ -794,37 +611,11 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
         .map(|obj| (obj.id, obj.controller))
         .collect();
     for (obj_id, controller) in blitzed_permanents {
-        state.pending_triggers.push_back(PendingTrigger {
-            embedded_effect: None,
-            source: obj_id,
-            ability_index: 0, // unused for blitz sacrifice triggers
+        state.pending_triggers.push_back(PendingTrigger::blank(
+            obj_id,
             controller,
-            kind: PendingTriggerKind::BlitzSacrifice,
-            triggering_event: None,
-            entering_object_id: None,
-            targeting_stack_id: None,
-            triggering_player: None,
-            exalted_attacker_id: None,
-            defending_player_id: None,
-            ingest_target_player: None,
-            flanking_blocker_id: None,
-            rampage_n: None,
-            renown_n: None,
-            poisonous_n: None,
-            poisonous_target_player: None,
-            enlist_enlisted_creature: None,
-            recover_cost: None,
-            recover_card: None,
-            cipher_encoded_card_id: None,
-            cipher_encoded_object_id: None,
-            haunt_source_object_id: None,
-            haunt_source_card_id: None,
-            damaged_player: None,
-            combat_damage_amount: 0,
-            lki_counters: im::OrdMap::new(),
-            lki_power: None,
-            data: None,
-        });
+            PendingTriggerKind::BlitzSacrifice,
+        ));
     }
     // CR 702.185a: Queue exile triggers for all warped permanents.
     // "If this spell's warp cost was paid, exile the permanent this spell becomes at
@@ -874,40 +665,14 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
         .map(|obj| obj.id)
         .collect();
     for obj_id in impending_permanents {
-        state.pending_triggers.push_back(PendingTrigger {
-            embedded_effect: None,
-            source: obj_id,
-            ability_index: 0, // unused for impending counter triggers
-            controller: active,
-            kind: PendingTriggerKind::KeywordTrigger {
+        state.pending_triggers.push_back(PendingTrigger::blank(
+            obj_id,
+            active,
+            PendingTriggerKind::KeywordTrigger {
                 keyword: KeywordAbility::Impending,
                 data: crate::state::stack::TriggerData::CounterRemoval { permanent: obj_id },
             },
-            triggering_event: None,
-            entering_object_id: None,
-            targeting_stack_id: None,
-            triggering_player: None,
-            exalted_attacker_id: None,
-            defending_player_id: None,
-            ingest_target_player: None,
-            flanking_blocker_id: None,
-            rampage_n: None,
-            renown_n: None,
-            poisonous_n: None,
-            poisonous_target_player: None,
-            enlist_enlisted_creature: None,
-            recover_cost: None,
-            recover_card: None,
-            cipher_encoded_card_id: None,
-            cipher_encoded_object_id: None,
-            haunt_source_object_id: None,
-            haunt_source_card_id: None,
-            damaged_player: None,
-            combat_damage_amount: 0,
-            lki_counters: im::OrdMap::new(),
-            lki_power: None,
-            data: None,
-        });
+        ));
     }
     // Fire AbilityDefinition::Triggered abilities with AtBeginningOfYourEndStep (for active
     // player's permanents) or AtBeginningOfEachEndStep (for all players' permanents).
@@ -955,35 +720,8 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
     for (obj_id, controller, indices) in carddef_end_step_triggers {
         for ability_index in indices {
             state.pending_triggers.push_back(PendingTrigger {
-                embedded_effect: None,
-                source: obj_id,
                 ability_index,
-                controller,
-                kind: PendingTriggerKind::CardDefETB,
-                triggering_event: None,
-                entering_object_id: None,
-                targeting_stack_id: None,
-                triggering_player: None,
-                exalted_attacker_id: None,
-                defending_player_id: None,
-                ingest_target_player: None,
-                flanking_blocker_id: None,
-                rampage_n: None,
-                renown_n: None,
-                poisonous_n: None,
-                poisonous_target_player: None,
-                enlist_enlisted_creature: None,
-                recover_cost: None,
-                recover_card: None,
-                cipher_encoded_card_id: None,
-                cipher_encoded_object_id: None,
-                haunt_source_object_id: None,
-                haunt_source_card_id: None,
-                damaged_player: None,
-                combat_damage_amount: 0,
-                lki_counters: im::OrdMap::new(),
-                lki_power: None,
-                data: None,
+                ..PendingTrigger::blank(obj_id, controller, PendingTriggerKind::CardDefETB)
             });
         }
     }

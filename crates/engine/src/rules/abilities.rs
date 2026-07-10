@@ -2654,35 +2654,13 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 if let Some(obj) = state.objects.get(object_id) {
                     if obj.cast_alt_cost == Some(crate::state::types::AltCostKind::Evoke) {
                         let evoke_trigger = PendingTrigger {
-                            embedded_effect: None,
-                            source: *object_id,
-                            ability_index: 0, // unused for evoke sacrifice
-                            controller: obj.controller,
-                            kind: PendingTriggerKind::Evoke,
                             triggering_event: Some(TriggerEvent::SelfEntersBattlefield),
                             entering_object_id: Some(*object_id),
-                            targeting_stack_id: None,
-                            triggering_player: None,
-                            exalted_attacker_id: None,
-                            defending_player_id: None,
-                            ingest_target_player: None,
-                            flanking_blocker_id: None,
-                            rampage_n: None,
-                            renown_n: None,
-                            poisonous_n: None,
-                            poisonous_target_player: None,
-                            enlist_enlisted_creature: None,
-                            recover_cost: None,
-                            recover_card: None,
-                            cipher_encoded_card_id: None,
-                            cipher_encoded_object_id: None,
-                            haunt_source_object_id: None,
-                            haunt_source_card_id: None,
-                            damaged_player: None,
-                            combat_damage_amount: 0,
-                            lki_counters: im::OrdMap::new(),
-                            lki_power: None,
-                            data: None,
+                            ..PendingTrigger::blank(
+                                *object_id,
+                                obj.controller,
+                                PendingTriggerKind::Evoke,
+                            )
                         };
                         triggers.push(evoke_trigger);
                     }
@@ -2720,35 +2698,13 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         let controller = obj.controller;
                         for _ in 0..exploit_count {
                             triggers.push(PendingTrigger {
-                                embedded_effect: None,
-                                source: *object_id,
-                                ability_index: 0, // unused for exploit triggers
-                                controller,
-                                kind: PendingTriggerKind::Exploit,
                                 triggering_event: Some(TriggerEvent::SelfEntersBattlefield),
                                 entering_object_id: Some(*object_id),
-                                targeting_stack_id: None,
-                                triggering_player: None,
-                                exalted_attacker_id: None,
-                                defending_player_id: None,
-                                ingest_target_player: None,
-                                flanking_blocker_id: None,
-                                rampage_n: None,
-                                renown_n: None,
-                                poisonous_n: None,
-                                poisonous_target_player: None,
-                                enlist_enlisted_creature: None,
-                                recover_cost: None,
-                                recover_card: None,
-                                cipher_encoded_card_id: None,
-                                cipher_encoded_object_id: None,
-                                haunt_source_object_id: None,
-                                haunt_source_card_id: None,
-                                damaged_player: None,
-                                combat_damage_amount: 0,
-                                lki_counters: im::OrdMap::new(),
-                                lki_power: None,
-                                data: None,
+                                ..PendingTrigger::blank(
+                                    *object_id,
+                                    controller,
+                                    PendingTriggerKind::Exploit,
+                                )
                             });
                         }
                     }
@@ -3470,35 +3426,12 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     // Push the cast-trigger using the stack object as source.
                                     // Condition check (if any) is deferred to resolution.
                                     triggers.push(PendingTrigger {
-                                        embedded_effect: None,
-                                        source: *source_object_id,
                                         ability_index: idx,
-                                        controller: caster,
-                                        kind: PendingTriggerKind::Normal,
-                                        triggering_event: None,
-                                        entering_object_id: None,
-                                        targeting_stack_id: None,
-                                        triggering_player: None,
-                                        exalted_attacker_id: None,
-                                        defending_player_id: None,
-                                        ingest_target_player: None,
-                                        flanking_blocker_id: None,
-                                        rampage_n: None,
-                                        renown_n: None,
-                                        poisonous_n: None,
-                                        poisonous_target_player: None,
-                                        enlist_enlisted_creature: None,
-                                        recover_cost: None,
-                                        recover_card: None,
-                                        cipher_encoded_card_id: None,
-                                        cipher_encoded_object_id: None,
-                                        haunt_source_object_id: None,
-                                        haunt_source_card_id: None,
-                                        damaged_player: None,
-                                        combat_damage_amount: 0,
-                                        lki_counters: im::OrdMap::new(),
-                                        lki_power: None,
-                                        data: None,
+                                        ..PendingTrigger::blank(
+                                            *source_object_id,
+                                            caster,
+                                            PendingTriggerKind::Normal,
+                                        )
                                     });
                                 }
                             }
@@ -3894,37 +3827,11 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             .map(|ps| ps.ring_level)
                             .unwrap_or(0);
                         if ring_level >= 2 {
-                            triggers.push(PendingTrigger {
-                                embedded_effect: None,
-                                source: *attacker_id,
-                                ability_index: 0,
-                                controller: *attacking_player,
-                                kind: PendingTriggerKind::RingLoot,
-                                triggering_event: None,
-                                entering_object_id: None,
-                                targeting_stack_id: None,
-                                triggering_player: None,
-                                exalted_attacker_id: None,
-                                defending_player_id: None,
-                                ingest_target_player: None,
-                                flanking_blocker_id: None,
-                                rampage_n: None,
-                                renown_n: None,
-                                poisonous_n: None,
-                                poisonous_target_player: None,
-                                enlist_enlisted_creature: None,
-                                recover_cost: None,
-                                recover_card: None,
-                                cipher_encoded_card_id: None,
-                                cipher_encoded_object_id: None,
-                                haunt_source_object_id: None,
-                                haunt_source_card_id: None,
-                                damaged_player: None,
-                                combat_damage_amount: 0,
-                                lki_counters: im::OrdMap::new(),
-                                lki_power: None,
-                                data: None,
-                            });
+                            triggers.push(PendingTrigger::blank(
+                                *attacker_id,
+                                *attacking_player,
+                                PendingTriggerKind::RingLoot,
+                            ));
                         }
                     }
                 }
@@ -4103,7 +4010,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         Some(attacker_id),
                         None,
                     );
-                    // CR 702.23a: Tag Rampage triggers with kind=Rampage and rampage_n.
+                    // CR 702.23a: Tag Rampage triggers with kind=Rampage and
+                    // data=TriggerData::CombatRampage { n }.
                     // Each Rampage(n) keyword on the attacker generates a TriggeredAbilityDef
                     // with description starting "Rampage N (CR 702.23a):". We detect these
                     // and set the custom StackObjectKind by tagging the PendingTrigger.
@@ -4535,37 +4443,16 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 }
                             }
                             triggers.push(PendingTrigger {
-                                embedded_effect: None,
-                                source: obj_id,
                                 ability_index: idx,
-                                controller: obj.controller,
-                                kind: PendingTriggerKind::Normal,
                                 triggering_event: Some(TriggerEvent::AnyCreatureDies),
                                 // Reuse entering_object_id to carry the dying creature's graveyard
                                 // ObjectId for post-trigger use if needed.
                                 entering_object_id: Some(dying_obj_id),
-                                targeting_stack_id: None,
-                                triggering_player: None,
-                                exalted_attacker_id: None,
-                                defending_player_id: None,
-                                ingest_target_player: None,
-                                flanking_blocker_id: None,
-                                rampage_n: None,
-                                renown_n: None,
-                                poisonous_n: None,
-                                poisonous_target_player: None,
-                                enlist_enlisted_creature: None,
-                                recover_cost: None,
-                                recover_card: None,
-                                cipher_encoded_card_id: None,
-                                cipher_encoded_object_id: None,
-                                haunt_source_object_id: None,
-                                haunt_source_card_id: None,
-                                damaged_player: None,
-                                combat_damage_amount: 0,
-                                lki_counters: im::OrdMap::new(),
-                                lki_power: None,
-                                data: None,
+                                ..PendingTrigger::blank(
+                                    obj_id,
+                                    obj.controller,
+                                    PendingTriggerKind::Normal,
+                                )
                             });
                         }
                     }
@@ -4601,37 +4488,17 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         }
                         let event = trigger_def.trigger_on.clone();
                         triggers.push(PendingTrigger {
-                            embedded_effect: None,
-                            source: *new_grave_id,
                             ability_index: idx,
-                            controller,
-                            kind: PendingTriggerKind::Normal,
                             triggering_event: Some(event),
-                            entering_object_id: None,
-                            targeting_stack_id: None,
-                            triggering_player: None,
-                            exalted_attacker_id: None,
-                            defending_player_id: None,
-                            ingest_target_player: None,
-                            flanking_blocker_id: None,
-                            rampage_n: None,
-                            renown_n: None,
-                            poisonous_n: None,
-                            poisonous_target_player: None,
-                            enlist_enlisted_creature: None,
-                            recover_cost: None,
-                            recover_card: None,
-                            cipher_encoded_card_id: None,
-                            cipher_encoded_object_id: None,
-                            haunt_source_object_id: None,
-                            haunt_source_card_id: None,
-                            damaged_player: None,
-                            combat_damage_amount: 0,
                             // CR 603.10a: LKI snapshot from event — counters before zone change.
                             lki_counters: aura_lki_counters.clone(),
                             // CR 603.10a: LKI source-power snapshot.
                             lki_power: *aura_lki_power,
-                            data: None,
+                            ..PendingTrigger::blank(
+                                *new_grave_id,
+                                controller,
+                                PendingTriggerKind::Normal,
+                            )
                         });
                     }
                 }
@@ -4716,35 +4583,13 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             }
                         }
                         triggers.push(PendingTrigger {
-                            embedded_effect: None,
-                            source: *object_id,
                             ability_index: idx,
-                            controller: obj.controller,
-                            kind: PendingTriggerKind::Normal,
                             triggering_event: Some(TriggerEvent::SourceConnives),
-                            entering_object_id: None,
-                            targeting_stack_id: None,
-                            triggering_player: None,
-                            exalted_attacker_id: None,
-                            defending_player_id: None,
-                            ingest_target_player: None,
-                            flanking_blocker_id: None,
-                            rampage_n: None,
-                            renown_n: None,
-                            poisonous_n: None,
-                            poisonous_target_player: None,
-                            enlist_enlisted_creature: None,
-                            recover_cost: None,
-                            recover_card: None,
-                            cipher_encoded_card_id: None,
-                            cipher_encoded_object_id: None,
-                            haunt_source_object_id: None,
-                            haunt_source_card_id: None,
-                            damaged_player: None,
-                            combat_damage_amount: 0,
-                            lki_counters: im::OrdMap::new(),
-                            lki_power: None,
-                            data: None,
+                            ..PendingTrigger::blank(
+                                *object_id,
+                                obj.controller,
+                                PendingTriggerKind::Normal,
+                            )
                         });
                     }
                 }
@@ -4809,37 +4654,18 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             .collect();
                                         for ability_idx in carddef_indices {
                                             triggers.push(PendingTrigger {
-                                                embedded_effect: None,
-                                                source: source_id,
                                                 ability_index: ability_idx,
-                                                controller,
-                                                kind: PendingTriggerKind::Normal,
                                                 triggering_event: Some(
                                                     TriggerEvent::SelfDealsCombatDamageToPlayer,
                                                 ),
                                                 entering_object_id: Some(source_id),
-                                                targeting_stack_id: None,
-                                                triggering_player: None,
-                                                exalted_attacker_id: None,
-                                                defending_player_id: None,
-                                                ingest_target_player: None,
-                                                flanking_blocker_id: None,
-                                                rampage_n: None,
-                                                renown_n: None,
-                                                poisonous_n: None,
-                                                poisonous_target_player: None,
-                                                enlist_enlisted_creature: None,
-                                                recover_cost: None,
-                                                recover_card: None,
-                                                cipher_encoded_card_id: None,
-                                                cipher_encoded_object_id: None,
-                                                haunt_source_object_id: None,
-                                                haunt_source_card_id: None,
                                                 damaged_player: Some(*damaged_pid),
                                                 combat_damage_amount: assignment.amount,
-                                                lki_counters: im::OrdMap::new(),
-                                                lki_power: None,
-                                                data: None,
+                                                ..PendingTrigger::blank(
+                                                    source_id,
+                                                    controller,
+                                                    PendingTriggerKind::Normal,
+                                                )
                                             });
                                         }
                                     }
@@ -5225,37 +5051,17 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     }
                                 }
                                 triggers.push(PendingTrigger {
-                                    embedded_effect: None,
-                                    source: obj_id,
                                     ability_index: idx,
-                                    controller: obj.controller,
-                                    kind: PendingTriggerKind::Normal,
                                     triggering_event: Some(
                                         TriggerEvent::AnyCreatureYouControlBatchCombatDamage,
                                     ),
-                                    entering_object_id: None,
-                                    targeting_stack_id: None,
-                                    triggering_player: None,
-                                    exalted_attacker_id: None,
-                                    defending_player_id: None,
-                                    ingest_target_player: None,
-                                    flanking_blocker_id: None,
-                                    rampage_n: None,
-                                    renown_n: None,
-                                    poisonous_n: None,
-                                    poisonous_target_player: None,
-                                    enlist_enlisted_creature: None,
-                                    recover_cost: None,
-                                    recover_card: None,
-                                    cipher_encoded_card_id: None,
-                                    cipher_encoded_object_id: None,
-                                    haunt_source_object_id: None,
-                                    haunt_source_card_id: None,
                                     damaged_player: Some(*damaged_pid),
                                     combat_damage_amount: *total_amount,
-                                    lki_counters: im::OrdMap::new(),
-                                    lki_power: None,
-                                    data: None,
+                                    ..PendingTrigger::blank(
+                                        obj_id,
+                                        obj.controller,
+                                        PendingTriggerKind::Normal,
+                                    )
                                 });
                             }
                         }
@@ -5394,37 +5200,11 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         }
                     };
                     if is_ring_bearer && ring_level >= 4 {
-                        triggers.push(PendingTrigger {
-                            embedded_effect: None,
-                            source: assignment.source,
-                            ability_index: 0,
-                            controller: ring_controller,
-                            kind: PendingTriggerKind::RingCombatDamage,
-                            triggering_event: None,
-                            entering_object_id: None,
-                            targeting_stack_id: None,
-                            triggering_player: None,
-                            exalted_attacker_id: None,
-                            defending_player_id: None,
-                            ingest_target_player: None,
-                            flanking_blocker_id: None,
-                            rampage_n: None,
-                            renown_n: None,
-                            poisonous_n: None,
-                            poisonous_target_player: None,
-                            enlist_enlisted_creature: None,
-                            recover_cost: None,
-                            recover_card: None,
-                            cipher_encoded_card_id: None,
-                            cipher_encoded_object_id: None,
-                            haunt_source_object_id: None,
-                            haunt_source_card_id: None,
-                            damaged_player: None,
-                            combat_damage_amount: 0,
-                            lki_counters: im::OrdMap::new(),
-                            lki_power: None,
-                            data: None,
-                        });
+                        triggers.push(PendingTrigger::blank(
+                            assignment.source,
+                            ring_controller,
+                            PendingTriggerKind::RingCombatDamage,
+                        ));
                     }
                 }
             }
@@ -5676,35 +5456,12 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             } = ability
                             {
                                 triggers.push(PendingTrigger {
-                                    embedded_effect: None,
-                                    source: *permanent,
                                     ability_index: idx,
-                                    controller: ctrl,
-                                    kind: crate::state::stubs::PendingTriggerKind::TurnFaceUp,
-                                    triggering_event: None,
-                                    entering_object_id: None,
-                                    targeting_stack_id: None,
-                                    triggering_player: None,
-                                    exalted_attacker_id: None,
-                                    defending_player_id: None,
-                                    ingest_target_player: None,
-                                    flanking_blocker_id: None,
-                                    rampage_n: None,
-                                    renown_n: None,
-                                    poisonous_n: None,
-                                    poisonous_target_player: None,
-                                    enlist_enlisted_creature: None,
-                                    recover_cost: None,
-                                    recover_card: None,
-                                    cipher_encoded_card_id: None,
-                                    cipher_encoded_object_id: None,
-                                    haunt_source_object_id: None,
-                                    haunt_source_card_id: None,
-                                    damaged_player: None,
-                                    combat_damage_amount: 0,
-                                    lki_counters: im::OrdMap::new(),
-                                    lki_power: None,
-                                    data: None,
+                                    ..PendingTrigger::blank(
+                                        *permanent,
+                                        ctrl,
+                                        crate::state::stubs::PendingTriggerKind::TurnFaceUp,
+                                    )
                                 });
                             }
                         }
@@ -5742,35 +5499,12 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         } = ability
                         {
                             triggers.push(PendingTrigger {
-                                embedded_effect: None,
-                                source: obj_id,
                                 ability_index: idx,
-                                controller: *tempted_player,
-                                kind: crate::state::stubs::PendingTriggerKind::Normal,
-                                triggering_event: None,
-                                entering_object_id: None,
-                                targeting_stack_id: None,
-                                triggering_player: None,
-                                exalted_attacker_id: None,
-                                defending_player_id: None,
-                                ingest_target_player: None,
-                                flanking_blocker_id: None,
-                                rampage_n: None,
-                                renown_n: None,
-                                poisonous_n: None,
-                                poisonous_target_player: None,
-                                enlist_enlisted_creature: None,
-                                recover_cost: None,
-                                recover_card: None,
-                                cipher_encoded_card_id: None,
-                                cipher_encoded_object_id: None,
-                                haunt_source_object_id: None,
-                                haunt_source_card_id: None,
-                                damaged_player: None,
-                                combat_damage_amount: 0,
-                                lki_counters: im::OrdMap::new(),
-                                lki_power: None,
-                                data: None,
+                                ..PendingTrigger::blank(
+                                    obj_id,
+                                    *tempted_player,
+                                    crate::state::stubs::PendingTriggerKind::Normal,
+                                )
                             });
                         }
                     }
@@ -6259,34 +5993,10 @@ fn collect_permanent_becomes_target_triggers(
             }
             triggers.push(PendingTrigger {
                 embedded_effect: trigger_def.effect.clone(),
-                source: src.id,
                 ability_index: idx,
-                controller: src.controller,
-                kind: PendingTriggerKind::Normal,
                 triggering_event: Some(trigger_def.trigger_on.clone()),
-                entering_object_id: None,
                 targeting_stack_id: Some(targeting_stack_id),
-                triggering_player: None,
-                exalted_attacker_id: None,
-                defending_player_id: None,
-                ingest_target_player: None,
-                flanking_blocker_id: None,
-                rampage_n: None,
-                renown_n: None,
-                poisonous_n: None,
-                poisonous_target_player: None,
-                enlist_enlisted_creature: None,
-                recover_cost: None,
-                recover_card: None,
-                cipher_encoded_card_id: None,
-                cipher_encoded_object_id: None,
-                haunt_source_object_id: None,
-                haunt_source_card_id: None,
-                damaged_player: None,
-                combat_damage_amount: 0,
-                lki_counters: im::OrdMap::new(),
-                lki_power: None,
-                data: None,
+                ..PendingTrigger::blank(src.id, src.controller, PendingTriggerKind::Normal)
             });
         }
     }
@@ -6585,34 +6295,10 @@ fn collect_triggers_for_event(
                 // source object still exists. If the source changes zones before
                 // resolution (CR 400.7), this is the only surviving copy of the effect.
                 embedded_effect: trigger_def.effect.clone(),
-                source: obj_id,
                 ability_index: idx,
-                controller: obj.controller,
-                kind: PendingTriggerKind::Normal,
                 triggering_event: Some(event_type.clone()),
                 entering_object_id: entering_object,
-                targeting_stack_id: None,
-                triggering_player: None,
-                exalted_attacker_id: None,
-                defending_player_id: None,
-                ingest_target_player: None,
-                flanking_blocker_id: None,
-                rampage_n: None,
-                renown_n: None,
-                poisonous_n: None,
-                poisonous_target_player: None,
-                enlist_enlisted_creature: None,
-                recover_cost: None,
-                recover_card: None,
-                cipher_encoded_card_id: None,
-                cipher_encoded_object_id: None,
-                haunt_source_object_id: None,
-                haunt_source_card_id: None,
-                damaged_player: None,
-                combat_damage_amount: 0,
-                lki_counters: im::OrdMap::new(),
-                lki_power: None,
-                data: None,
+                ..PendingTrigger::blank(obj_id, obj.controller, PendingTriggerKind::Normal)
             });
         }
     }
@@ -6665,34 +6351,9 @@ pub(crate) fn collect_emblem_triggers_for_event(
                 // source object still exists. If the source changes zones before
                 // resolution (CR 400.7), this is the only surviving copy of the effect.
                 embedded_effect: trigger_def.effect.clone(),
-                source: obj_id,
                 ability_index: idx,
-                controller: obj.controller,
-                kind: PendingTriggerKind::Normal,
                 triggering_event: Some(event_type.clone()),
-                entering_object_id: None,
-                targeting_stack_id: None,
-                triggering_player: None,
-                exalted_attacker_id: None,
-                defending_player_id: None,
-                ingest_target_player: None,
-                flanking_blocker_id: None,
-                rampage_n: None,
-                renown_n: None,
-                poisonous_n: None,
-                poisonous_target_player: None,
-                enlist_enlisted_creature: None,
-                recover_cost: None,
-                recover_card: None,
-                cipher_encoded_card_id: None,
-                cipher_encoded_object_id: None,
-                haunt_source_object_id: None,
-                haunt_source_card_id: None,
-                damaged_player: None,
-                combat_damage_amount: 0,
-                lki_counters: im::OrdMap::new(),
-                lki_power: None,
-                data: None,
+                ..PendingTrigger::blank(obj_id, obj.controller, PendingTriggerKind::Normal)
             });
         }
     }
@@ -6802,37 +6463,16 @@ fn collect_graveyard_carddef_triggers(
                 }
             }
             triggers.push(PendingTrigger {
-                embedded_effect: None,
-                source: obj_id,
                 ability_index: idx,
-                controller: owner,
-                kind: crate::state::stubs::PendingTriggerKind::CardDefETB,
                 triggering_event: Some(
                     crate::state::game_object::TriggerEvent::AnyPermanentEntersBattlefield,
                 ),
                 entering_object_id: entering_object,
-                targeting_stack_id: None,
-                triggering_player: None,
-                exalted_attacker_id: None,
-                defending_player_id: None,
-                ingest_target_player: None,
-                flanking_blocker_id: None,
-                rampage_n: None,
-                renown_n: None,
-                poisonous_n: None,
-                poisonous_target_player: None,
-                enlist_enlisted_creature: None,
-                recover_cost: None,
-                recover_card: None,
-                cipher_encoded_card_id: None,
-                cipher_encoded_object_id: None,
-                haunt_source_object_id: None,
-                haunt_source_card_id: None,
-                damaged_player: None,
-                combat_damage_amount: 0,
-                lki_counters: im::OrdMap::new(),
-                lki_power: None,
-                data: None,
+                ..PendingTrigger::blank(
+                    obj_id,
+                    owner,
+                    crate::state::stubs::PendingTriggerKind::CardDefETB,
+                )
             });
         }
     }

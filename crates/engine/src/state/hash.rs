@@ -309,7 +309,19 @@
 ///   dropped from scope — see `pb-plan-AC9.md` §0. Token-doubling completeness
 ///   pass (wiring `apply_token_creation_replacement` into previously-unwired
 ///   `TokenCreated` sites) touches no new hashed state (existing fields only).
-pub const HASH_SCHEMA_VERSION: u8 = 36;
+/// - 37: SR-7 (2026-07-10) — `PendingTrigger` loses 13 per-keyword `Option` fields
+///   (`ingest_target_player`, `flanking_blocker_id`, `rampage_n`, `renown_n`,
+///   `poisonous_n`, `poisonous_target_player`, `enlist_enlisted_creature`,
+///   `recover_cost`, `recover_card`, `cipher_encoded_card_id`,
+///   `cipher_encoded_object_id`, `haunt_source_object_id`, `haunt_source_card_id`).
+///   Completes the TC-21 `TriggerData` cutover: every one was unconditionally
+///   `None` and read nowhere; the payloads already travelled in `PendingTrigger.data`.
+///   Eleven of the thirteen were fed to the hasher (the two `haunt_*` never were),
+///   so the byte stream shortens by eleven `Option::None` tags per pending trigger
+///   even though no game state changed. Removal-only: no new hashed state, no
+///   discriminant renumbering, and old serialized states still deserialize (serde
+///   ignores unknown fields).
+pub const HASH_SCHEMA_VERSION: u8 = 37;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -2426,26 +2438,10 @@ impl HashInto for PendingTrigger {
         self.exalted_attacker_id.hash_into(hasher);
         // CR 508.5 / CR 702.86a: defending_player_id — the defending player for SelfAttacks triggers
         self.defending_player_id.hash_into(hasher);
-        // CR 702.115a: ingest-specific field
-        self.ingest_target_player.hash_into(hasher);
-        // CR 702.25a: flanking-specific field
-        self.flanking_blocker_id.hash_into(hasher);
-        // CR 702.23a: rampage-specific field
-        self.rampage_n.hash_into(hasher);
-        // CR 702.112a: renown-specific field
-        self.renown_n.hash_into(hasher);
-        // CR 702.70a: poisonous-specific fields
-        self.poisonous_n.hash_into(hasher);
-        self.poisonous_target_player.hash_into(hasher);
-        // CR 702.154a: enlist-specific field
-        self.enlist_enlisted_creature.hash_into(hasher);
-        // CR 702.59a: recover-specific fields
-        self.recover_cost.hash_into(hasher);
-        self.recover_card.hash_into(hasher);
-        // CR 702.99a: cipher-specific fields
-        self.cipher_encoded_card_id.hash_into(hasher);
-        self.cipher_encoded_object_id.hash_into(hasher);
-        // Structured trigger data (TC-21 migration)
+        // SR-7: the eleven per-keyword fields that used to be hashed here (ingest,
+        // flanking, rampage, renown, poisonous, enlist, recover, cipher) are gone.
+        // Each was unconditionally `None`; their state lives in `data` below.
+        // Structured trigger data (TC-21 migration; sole payload since SR-7)
         self.data.hash_into(hasher);
         // CR 510.3a: combat damage trigger data
         self.damaged_player.hash_into(hasher);

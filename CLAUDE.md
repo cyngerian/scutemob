@@ -28,7 +28,7 @@
   accessors, gated on the `test-util` feature (self dev-dependency). **`cargo build
   --workspace` is the only gate that proves the seal** — `test --all` and `clippy
   --all-targets` enable `test-util` workspace-wide via feature unification. It is a CI step.
-- **Tests**: **3129 passing**; build/clippy/fmt clean
+- **Tests**: **3133 passing**; build/clippy/fmt clean
 - **CI**: **LIVE and green** since 2026-07-10 (SR-1, merge `e9742dc2`) — single Ubuntu job (fmt + clippy + `build --workspace` + full tests) on push/PR to main + workflow_dispatch; rust-cache@v2, 45m timeout. Caveat: CI rustc floats to latest stable (1.97.0) vs local 1.95.0 — new lints can redden CI with no code change until SR-11 (`scutemob-63`) pins the toolchain. SR remediation track ACTIVE: `docs/sr-remediation-plan.md` (tasks `scutemob-53..64`, SR-1/SR-2/SR-3 done).
 - **Abilities**: ~199 validated; 42/42 P1; 17/17 P2; 40/40 P3; 95/95 P4 implemented (9 permanent-n/a; 1 deferred: Banding)
 - **Primitives**: PB-0..PB-37 + named-letter chain (PB-A/B/E/J/M/S/X/Q/Q4/N/D/P/L/T/SFT/CC-{W,B,C,A}/TS/LKI-CC/CD/LKI-Power/EWC/XS/XS-E/XA/EAT/XA2/EWC-D) all DONE. PB-Q2/Q3/Q5 reserved.
@@ -66,7 +66,24 @@
   pipeline doc originally sketched) would recompile all 1,749 cards on every rules edit.
   Nothing in `card-types` may reference `GameState`. Keyword-registry sites (SR-5) are now
   **workspace-relative** paths and the scan spans both crates.
-- **Last Updated**: 2026-07-10 (SR-6 — card defs extracted to `mtg-card-defs` + DSL to
+- **`PendingTrigger` is built through `PendingTrigger::blank` only (SR-7).** The 13
+  per-keyword `Option` fields are gone; a trigger kind's payload lives in
+  `data: Option<TriggerData>` (`card-types/src/state/stack.rs`), which
+  `flush_pending_triggers` reads and threads into `StackObjectKind::KeywordTrigger`.
+  `tests/pending_trigger_shape.rs` pins the struct's 16-field set, requires every
+  `PendingTrigger { .. }` literal to carry `..PendingTrigger::blank(source, controller, kind)`,
+  and asserts each `TriggerData` variant still has a consumer in *both* `abilities.rs` and
+  `resolution.rs` — **deleting a `resolution.rs` match arm compiles with zero errors** and
+  would otherwise make the trigger a silent no-op. **New per-kind state goes in a
+  `TriggerData` variant, never as a field on the struct** — a new field fails the suite.
+  `HASH_SCHEMA_VERSION` is now **37**.
+- **Last Updated**: 2026-07-10 (SR-7 — `PendingTrigger` → `TriggerData` cutover finished: 13
+  always-`None`, never-read per-keyword fields deleted (29 fields → 16), 32 hand-rolled
+  literals collapsed onto `blank()` (−850 lines in `rules/`), `HASH_SCHEMA_VERSION` 36 → 37
+  and 28 sentinel tests bumped; zero behavior change. New `tests/pending_trigger_shape.rs`
+  stops the migration un-finishing. Follow-up `scutemob-68` (SR-16): `kind`/`data`/
+  `embedded_effect` are `#[serde(skip)]`, so a serialized pending trigger silently
+  deserializes as an anonymous `Normal` one. Earlier same day: SR-6 — card defs extracted to `mtg-card-defs` + DSL to
   `mtg-card-types`; engine-internal edits no longer re-typecheck the 1,749 defs
   (`CARGO_INCREMENTAL=0` check 7s → 2–3s; defs report `Fresh`). All 1,749 def files moved with
   **zero content edits** via a two-module re-export in `card-defs`. Earlier same day: SR-5 —
