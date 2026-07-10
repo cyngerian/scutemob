@@ -4,12 +4,15 @@
 // At the beginning of each player's upkeep, that player gains control of Alexios, untaps it,
 // and puts a +1/+1 counter on it. It gains haste until end of turn.
 //
-// Trample is implemented. Other abilities require DSL gaps:
-// - "attacks each combat if able" — no forced-attack static in DSL
-// - "can't be sacrificed" — no restriction effect for sacrifice
-// - "can't attack its owner" — no attack restriction by target controller
+// Trample and "attacks each combat if able" are implemented.
+// PB-AC8 built GameRestriction::CantBeSacrificed and GameRestriction::CantAttackOwner
+// (AbilityDefinition::StaticRestriction) — both restrictions now exist in the DSL and
+// are no longer engine-blocked, but they have not yet been wired onto this card def
+// (deferred backfill; card remains PARTIAL below for that reason plus the genuine gap).
+// Remaining genuine DSL gap:
 // - Upkeep trigger: GainControl + UntapPermanent + AddCounters + GainHaste until end of turn
-//   targeting each player's upkeep (not just controller's) — no ForEachPlayer upkeep trigger
+//   targeting EACH player's upkeep (not just the controller's) — no ForEachPlayer/ambient
+//   upkeep trigger scope exists in the DSL today.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -25,9 +28,11 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Trample),
             // CR 508.1d: Attacks each combat if able.
             AbilityDefinition::Keyword(KeywordAbility::MustAttackEachCombat),
-            // TODO: "can't be sacrificed" — sacrifice restriction not in DSL
-            // TODO: "can't attack its owner" — attack restriction by owner not in DSL
+            // TODO: "can't be sacrificed" / "can't attack its owner" — primitives now exist
+            // (GameRestriction::CantBeSacrificed / CantAttackOwner, PB-AC8) but are not yet
+            // authored onto this card; deferred to a future backfill pass.
             // TODO: Upkeep trigger (each player's upkeep): GainControl + untap + AddCounters + haste
+            // — genuine DSL gap, no ForEachPlayer/ambient upkeep trigger scope exists.
         ],
         ..Default::default()
     }

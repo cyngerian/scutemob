@@ -2141,13 +2141,30 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
     // implementation sacrifices with no interaction window (can't Stifle the
     // sacrifice). Same caveat as Myriad's EOC exile. Refactor when delayed trigger
     // infrastructure is expanded.
-    let decayed_sacrifice_ids: Vec<ObjectId> = state
+    // This trigger fires only once per attack (CR 603.7b-style semantics), so
+    // the flag must be cleared for every tagged permanent regardless of
+    // whether the sacrifice actually goes through below -- otherwise a
+    // "can't be sacrificed" creature would be re-checked at every subsequent
+    // end of combat instead of just the one it attacked in.
+    let decayed_tagged_ids: Vec<ObjectId> = state
         .objects
         .values()
         .filter(|obj| {
             obj.zone == crate::state::zone::ZoneId::Battlefield && obj.decayed_sacrifice_at_eoc
         })
         .map(|obj| obj.id)
+        .collect();
+    for &id in &decayed_tagged_ids {
+        if let Some(obj) = state.objects.get_mut(&id) {
+            obj.decayed_sacrifice_at_eoc = false;
+        }
+    }
+    // PB-AC8 review E1 / CR 701.21a: a "can't be sacrificed" permanent that
+    // attacked with decayed is NOT sacrificed here -- it stays on the
+    // battlefield (mirrors the Evoke/Blitz/Encore/Mobilize guards elsewhere).
+    let decayed_sacrifice_ids: Vec<ObjectId> = decayed_tagged_ids
+        .into_iter()
+        .filter(|id| !crate::effects::object_cant_be_sacrificed(state, *id))
         .collect();
     for obj_id in decayed_sacrifice_ids {
         let (owner, controller, pre_death_counters, pre_death_power, decayed_pre_chars) =

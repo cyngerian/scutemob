@@ -299,10 +299,37 @@ pub fn handle_declare_attackers(
             let has_defender = chars.keywords.contains(&KeywordAbility::Defender);
             let is_tapped = obj.status.tapped;
             let has_sickness = obj.has_summoning_sickness;
+            // CR 508.1d: a requirement is obeyed only to the extent it doesn't
+            // violate a restriction. If this creature also has CantAttackOwner
+            // (CR 508.1c) and its owner is the only legal opposing player left,
+            // it has no legal attack target at all -- it is not "able" to
+            // attack, so goad's must-attack requirement does not force it.
+            // Mirrors the MustAttackEachCombat owner-exclusion below.
+            let has_cant_attack_owner = state.restrictions.iter().any(|r| {
+                r.source == goaded_id
+                    && matches!(r.restriction, GameRestriction::CantAttackOwner)
+                    && state
+                        .objects
+                        .get(&r.source)
+                        .map(|o| o.zone == ZoneId::Battlefield)
+                        .unwrap_or(false)
+            });
+            let no_legal_target = has_cant_attack_owner
+                && !state.players.keys().any(|pid| {
+                    *pid != player
+                        && *pid != obj.owner
+                        && state
+                            .players
+                            .get(pid)
+                            .map(|p| !p.has_lost && !p.has_conceded)
+                            .unwrap_or(false)
+                });
             // Creature cannot attack if: tapped and no vigilance, or summoning sickness
-            // and no haste, or has Defender.
-            let cannot_attack =
-                (is_tapped && !has_vigilance) || (has_sickness && !has_haste) || has_defender;
+            // and no haste, or has Defender, or (CR 508.1d) no legal attack target.
+            let cannot_attack = (is_tapped && !has_vigilance)
+                || (has_sickness && !has_haste)
+                || has_defender
+                || no_legal_target;
             if !cannot_attack {
                 return Err(GameStateError::InvalidCommand(format!(
                     "Goaded creature {:?} must attack (CR 701.15b)",

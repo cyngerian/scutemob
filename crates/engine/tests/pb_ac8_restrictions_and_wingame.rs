@@ -933,3 +933,444 @@ fn test_cleanup_layer_granted_no_max_hand_size_skips_discard() {
         "layer-granted NoMaxHandSize must cause cleanup to skip the discard entirely"
     );
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PB-AC8 review E1 fix — CantBeSacrificed at delayed self-sacrifice sites
+// (Blitz, Mobilize) and E2 fix — Goad yields to CantAttackOwner (CR 508.1d).
+// Plus T1 — CantBeSacrificed at a cast-time additional-cost site (Emerge).
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Drain the stack completely (pass all until stack is empty).
+fn drain_stack(mut state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent>) {
+    let mut all_events = Vec::new();
+    let mut limit = 200;
+    while !state.stack_objects.is_empty() && limit > 0 {
+        let (s, ev) = pass_all(state, players);
+        state = s;
+        all_events.extend(ev);
+        limit -= 1;
+    }
+    (state, all_events)
+}
+
+/// Advance to a specific step by passing priority repeatedly.
+fn advance_to_step(
+    mut state: GameState,
+    target: Step,
+    players: &[PlayerId],
+) -> (GameState, Vec<GameEvent>) {
+    let mut all_events = Vec::new();
+    let mut limit = 200;
+    while state.turn.step != target && limit > 0 {
+        let (s, ev) = pass_all(state, players);
+        state = s;
+        all_events.extend(ev);
+        limit -= 1;
+    }
+    (state, all_events)
+}
+
+/// CR 701.21a / CR 702.152a — a "can't be sacrificed" creature cast with Blitz is
+/// NOT sacrificed by Blitz's end-step delayed trigger; it stays on the
+/// battlefield instead of going to the graveyard. Regression test for review
+/// finding E1 (`resolution.rs` Blitz `KeywordTrigger` arm).
+#[test]
+fn test_cant_be_sacrificed_blitz_delayed_sacrifice_skipped() {
+    use mtg_engine::state::types::AltCostKind;
+
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let blitz_def = CardDefinition {
+        card_id: CardId("blitz-bear".to_string()),
+        name: "Blitz Bear".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            red: 1,
+            ..Default::default()
+        }),
+        types: TypeLine {
+            card_types: [CardType::Creature].into_iter().collect(),
+            ..Default::default()
+        },
+        oracle_text: "Blitz {R}".to_string(),
+        abilities: vec![
+            AbilityDefinition::Keyword(KeywordAbility::Blitz),
+            AbilityDefinition::AltCastAbility {
+                kind: AltCostKind::Blitz,
+                details: None,
+                cost: ManaCost {
+                    red: 1,
+                    ..Default::default()
+                },
+            },
+        ],
+        power: Some(2),
+        toughness: Some(2),
+        ..Default::default()
+    };
+
+    let registry = mtg_engine::CardRegistry::new(vec![blitz_def]);
+
+    let goblin = ObjectSpec::card(p1, "Blitz Bear")
+        .in_zone(ZoneId::Hand(p1))
+        .with_card_id(CardId("blitz-bear".to_string()))
+        .with_types(vec![CardType::Creature])
+        .with_keyword(KeywordAbility::Blitz)
+        .with_mana_cost(ManaCost {
+            generic: 1,
+            red: 1,
+            ..Default::default()
+        });
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(goblin)
+        .active_player(p1)
+        .at_step(Step::PostCombatMain)
+        .build()
+        .unwrap();
+
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(mtg_engine::ManaColor::Red, 1);
+    state.turn.priority_holder = Some(p1);
+
+    let card_id = find_by_name(&state, "Blitz Bear");
+
+    let (state, _) = process_command(
+        state,
+        Command::CastSpell {
+            player: p1,
+            card: card_id,
+            targets: vec![],
+            convoke_creatures: vec![],
+            improvise_artifacts: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
+            alt_cost: Some(AltCostKind::Blitz),
+            prototype: false,
+            modes_chosen: vec![],
+            x_value: 0,
+            face_down_kind: None,
+            additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
+    )
+    .unwrap_or_else(|e| panic!("CastSpell with blitz failed: {:?}", e));
+
+    // Resolve the spell -- creature enters the battlefield.
+    let (mut state, _) = pass_all(state, &[p1, p2]);
+    assert!(
+        on_battlefield(&state, "Blitz Bear"),
+        "creature should be on battlefield after blitz cast"
+    );
+
+    // Grant CantBeSacrificed AFTER the creature is on the battlefield, before
+    // the end-step delayed trigger fires.
+    let bear = find_by_name(&state, "Blitz Bear");
+    add_restriction(&mut state, bear, p1, GameRestriction::CantBeSacrificed);
+
+    // Advance to End step -- Blitz's delayed trigger is queued.
+    let (state, _) = advance_to_step(state, Step::End, &[p1, p2]);
+    assert_eq!(state.turn.step, Step::End, "should reach End step");
+
+    // Resolve the delayed trigger. Because the creature can't be sacrificed, the
+    // trigger must do nothing -- no CreatureDied event, no draw trigger, no
+    // graveyard zone change.
+    let (state, _end_events) = pass_all(state, &[p1, p2]);
+    let (state, _) = drain_stack(state, &[p1, p2]);
+
+    assert!(
+        on_battlefield(&state, "Blitz Bear"),
+        "PB-AC8 review E1 / CR 701.21a: a can't-be-sacrificed creature must NOT be \
+         sacrificed by Blitz's end-step delayed trigger -- it stays on the battlefield"
+    );
+    assert!(
+        !in_graveyard(&state, "Blitz Bear", p1),
+        "protected creature must not have been moved to the graveyard"
+    );
+}
+
+/// CR 701.21a / CR 603.7 — a "can't be sacrificed" Mobilize-style token
+/// (`sacrifice_at_end_step` flag) is NOT sacrificed at the next end step; it
+/// stays on the battlefield. Regression test for review finding E1
+/// (`turn_actions.rs` / `resolution.rs` shared `DelayedTriggerAction::SacrificeObject`
+/// dispatch).
+#[test]
+fn test_cant_be_sacrificed_mobilize_delayed_sacrifice_skipped() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    let token_spec = mtg_engine::cards::card_definition::TokenSpec {
+        name: "Mobilized Warrior".to_string(),
+        card_types: [CardType::Creature].into_iter().collect(),
+        subtypes: [mtg_engine::state::types::SubType("Warrior".to_string())]
+            .into_iter()
+            .collect(),
+        colors: [mtg_engine::state::types::Color::Red].into_iter().collect(),
+        power: 1,
+        toughness: 1,
+        count: EffectAmount::Fixed(1),
+        sacrifice_at_end_step: true,
+        ..Default::default()
+    };
+    let token_obj = mtg_engine::effects::make_token(&token_spec, p1);
+    state
+        .add_object(token_obj, ZoneId::Battlefield)
+        .expect("add token");
+
+    assert!(
+        on_battlefield(&state, "Mobilized Warrior"),
+        "token on battlefield before end step"
+    );
+
+    let token = find_by_name(&state, "Mobilized Warrior");
+    add_restriction(&mut state, token, p1, GameRestriction::CantBeSacrificed);
+
+    let (state, _) = advance_to_step(state, Step::End, &[p1, p2]);
+    let (state, _) = drain_stack(state, &[p1, p2]);
+
+    assert!(
+        on_battlefield(&state, "Mobilized Warrior"),
+        "PB-AC8 review E1 / CR 701.21a: a can't-be-sacrificed Mobilize token must \
+         NOT be sacrificed at the next end step -- it stays on the battlefield"
+    );
+}
+
+/// CR 508.1d — a requirement is obeyed only to the extent it doesn't violate a
+/// restriction. A GOADED creature (CR 701.15b requirement) with CantAttackOwner
+/// (CR 508.1c restriction) whose ONLY opponent is its owner has no legal attack
+/// target at all, so goad's "must attack if able" does NOT force it. Regression
+/// test for review finding E2 (`combat.rs` goad "must attack" block, which had
+/// the owner-exclusion applied only to `MustAttackEachCombat`, not to goad).
+#[test]
+fn test_cant_attack_owner_goad_yields_requirement() {
+    let mut state = GameStateBuilder::new()
+        .add_player(p(1)) // owner -- the only other player in this game
+        .add_player(p(2)) // controller / active player
+        .object(
+            ObjectSpec::creature(p(1), "Goaded Alexios-Style", 3, 3)
+                .controlled_by(p(2))
+                .in_zone(ZoneId::Battlefield),
+        )
+        .active_player(p(2))
+        .at_step(Step::DeclareAttackers)
+        .build()
+        .unwrap();
+    state.turn.priority_holder = Some(p(2));
+
+    let creature = find_by_name(&state, "Goaded Alexios-Style");
+    add_restriction(&mut state, creature, p(2), GameRestriction::CantAttackOwner);
+    // Goad the creature (the goading player's identity doesn't matter for the
+    // "must attack if able" computation -- only that `goaded_by` is non-empty).
+    state
+        .objects
+        .get_mut(&creature)
+        .unwrap()
+        .goaded_by
+        .push_back(p(1));
+
+    // Declare NO attackers -- must be legal because the creature's only possible
+    // target (its owner, P1) is forbidden by CantAttackOwner (CR 508.1d).
+    let result = process_command(state, declare_cmd(p(2), vec![]));
+
+    assert!(
+        result.is_ok(),
+        "goaded creature with no legal target (owner-only opponent forbidden by \
+         CantAttackOwner) must NOT be forced to attack (CR 508.1d): {:?}",
+        result.err()
+    );
+}
+
+/// T1 — CR 701.21a / CR 702.119a: a "can't be sacrificed" creature cannot be
+/// named as the sacrifice for a cast-time additional cost (Emerge). Closes the
+/// review's cast-cost test gap (the guards existed at `casting.rs` for Emerge/
+/// Bargain/Casualty/SpellAdditionalCost/Devour, but none were exercised by a test).
+#[test]
+fn test_cant_be_sacrificed_cast_cost_emerge_cannot_pay() {
+    use mtg_engine::state::types::AltCostKind;
+
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let emerge_def = CardDefinition {
+        card_id: CardId("emerge-test-creature".to_string()),
+        name: "Emerge Test Creature".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 8,
+            ..Default::default()
+        }),
+        types: TypeLine {
+            card_types: [CardType::Creature].into_iter().collect(),
+            ..Default::default()
+        },
+        power: Some(5),
+        toughness: Some(6),
+        oracle_text: "Emerge {5}{U}{U}".to_string(),
+        abilities: vec![
+            AbilityDefinition::Keyword(KeywordAbility::Emerge),
+            AbilityDefinition::Emerge {
+                cost: ManaCost {
+                    generic: 5,
+                    blue: 2,
+                    ..Default::default()
+                },
+            },
+        ],
+        ..Default::default()
+    };
+
+    let registry = mtg_engine::CardRegistry::new(vec![emerge_def]);
+
+    let spell = ObjectSpec::card(p1, "Emerge Test Creature")
+        .in_zone(ZoneId::Hand(p1))
+        .with_card_id(CardId("emerge-test-creature".to_string()))
+        .with_types(vec![CardType::Creature])
+        .with_mana_cost(ManaCost {
+            generic: 8,
+            ..Default::default()
+        })
+        .with_keyword(KeywordAbility::Emerge);
+
+    let sac_creature =
+        ObjectSpec::creature(p1, "Protected Sac Fodder", 2, 2).in_zone(ZoneId::Battlefield);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(spell)
+        .object(sac_creature)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(mtg_engine::ManaColor::Colorless, 2);
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(mtg_engine::ManaColor::Blue, 2);
+    state.turn.priority_holder = Some(p1);
+
+    let spell_id = find_by_name(&state, "Emerge Test Creature");
+    let sac_id = find_by_name(&state, "Protected Sac Fodder");
+    add_restriction(&mut state, sac_id, p1, GameRestriction::CantBeSacrificed);
+
+    let result = process_command(
+        state,
+        Command::CastSpell {
+            player: p1,
+            card: spell_id,
+            targets: vec![],
+            convoke_creatures: vec![],
+            improvise_artifacts: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
+            alt_cost: Some(AltCostKind::Emerge),
+            prototype: false,
+            modes_chosen: vec![],
+            x_value: 0,
+            face_down_kind: None,
+            additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
+                ids: vec![sac_id],
+                lki_powers: vec![],
+            }],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
+    );
+
+    assert!(
+        result.is_err(),
+        "a can't-be-sacrificed creature must not be a legal Emerge sacrifice cost \
+         target (CR 701.21a / CR 702.119a)"
+    );
+}
+
+/// CR 701.21a / CR 702.147a — a "can't be sacrificed" creature that attacked with
+/// Decayed is NOT sacrificed at end of combat; it stays on the battlefield.
+/// Regression test for review finding E1 (`turn_actions.rs` decayed end-of-combat
+/// TBA sacrifice, the fourth flagged site alongside Blitz/Encore/Mobilize).
+#[test]
+fn test_cant_be_sacrificed_decayed_end_of_combat_sacrifice_skipped() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Decayed Protected Attacker", 2, 2)
+                .with_keyword(KeywordAbility::Decayed),
+        )
+        .active_player(p1)
+        .at_step(Step::DeclareAttackers)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_by_name(&state, "Decayed Protected Attacker");
+
+    // Declare the decayed creature as attacker (this sets decayed_sacrifice_at_eoc).
+    let (mut state, _) = process_command(
+        state,
+        declare_cmd(p1, vec![(attacker_id, AttackTarget::Player(p2))]),
+    )
+    .expect("DeclareAttackers should succeed");
+
+    // Grant CantBeSacrificed on the (possibly re-identified) attacker object.
+    let attacker_id = find_by_name(&state, "Decayed Protected Attacker");
+    add_restriction(
+        &mut state,
+        attacker_id,
+        p1,
+        GameRestriction::CantBeSacrificed,
+    );
+
+    // Advance to DeclareBlockers, declare no blockers, then advance through
+    // CombatDamage into EndOfCombat -- `end_combat()` runs on step entry and is
+    // where the decayed sacrifice normally happens (turn_actions.rs dispatches
+    // `Step::EndOfCombat => end_combat(state)`).
+    let (state, _) = advance_to_step(state, Step::DeclareBlockers, &[p1, p2]);
+    let (state, _) = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![],
+        },
+    )
+    .expect("DeclareBlockers (empty) should succeed");
+    let (state, _) = advance_to_step(state, Step::EndOfCombat, &[p1, p2]);
+
+    assert!(
+        on_battlefield(&state, "Decayed Protected Attacker"),
+        "PB-AC8 review E1 / CR 701.21a: a can't-be-sacrificed creature must NOT be \
+         sacrificed by decayed's end-of-combat trigger -- it stays on the battlefield"
+    );
+    assert!(
+        !in_graveyard(&state, "Decayed Protected Attacker", p1),
+        "protected decayed attacker must not have been moved to the graveyard"
+    );
+}

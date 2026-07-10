@@ -1,12 +1,86 @@
 ---
 pb: PB-AC8
 title: Static restrictions, win-cons, no-max-hand
-phase: review
+phase: fix-complete
 plan_file: memory/primitives/pb-plan-AC8.md
 review_file: memory/primitives/pb-review-AC8.md
 ---
 
 # PB-AC8 — Static restrictions, win-cons, no-max-hand
+
+## Fix phase (2026-07-09, HEAD `12981e69`)
+
+Both MEDIUMs fixed; both LOWs (T1, C1) fixed; E3/E4 recorded as OOS (not fixed,
+per review's own "none required now" directive).
+
+- **E1 (MEDIUM) fixed** — `object_cant_be_sacrificed` guard added to all 4
+  previously-unguarded delayed self-sacrifice sites, mirroring the existing
+  Evoke guard:
+  - Blitz — `rules/resolution.rs` `KeywordTrigger { keyword: Blitz, .. }` arm
+    (was ~3308-3333; condition on `obj.zone == Battlefield` now also requires
+    `!object_cant_be_sacrificed`).
+  - Encore — `rules/resolution.rs` `KeywordTrigger { keyword: Encore, .. }` arm
+    (was ~6814-6825; same pattern on `token_info`'s `.filter(...)`).
+  - Mobilize (`sacrifice_at_end_step`) — guarded at the shared dispatch choke
+    point `DelayedTriggerAction::SacrificeObject` in `rules/resolution.rs`
+    (~7535), NOT at the `turn_actions.rs` queueing site (~1087) which only
+    tags/queues the once-only delayed trigger; the actual sacrifice execution
+    for Mobilize/Kiki-Jiki/The Fire Crystal all funnel through this one arm.
+  - Decayed end-of-combat — `rules/turn_actions.rs` (~2144-2157): restructured
+    into a two-pass scan (tag-and-clear-flag pass, matching the CR 603.7b
+    fires-once semantics, THEN a `!object_cant_be_sacrificed` filter for the
+    actual sacrifice) so a protected creature's flag doesn't linger and
+    re-trigger at a later end of combat.
+  - Docstring at `effects/mod.rs` (`object_cant_be_sacrificed`, was ~7113-7116)
+    rewritten from the false "every sacrifice dispatch site... must route
+    through this helper" claim to an accurate enumeration of actual callers
+    (including the newly-guarded delayed sites) plus the Exploit N/A note.
+- **E2 (MEDIUM) fixed** — `rules/combat.rs` goad "must attack if able" block
+  (~274-313) given the same `CantAttackOwner` + `no_legal_target`
+  owner-exclusion the `MustAttackEachCombat` block already had (~394-420),
+  mirroring that existing pattern exactly (CR 508.1d).
+- **T1 (LOW) fixed** — added `test_cant_be_sacrificed_cast_cost_emerge_cannot_pay`
+  (Emerge additional-cost site, `casting.rs`).
+- **C1 (LOW) fixed** — corrected stale "not in DSL" comments on
+  `alexios_deimos_of_kosmos.rs`, `thassas_oracle.rs`, and
+  `call_the_spirit_dragons.rs` (the latter flagged as a sibling in the review's
+  Card Def Summary but not yet corrected in the prior backfill commit).
+  `hellkite_tyrant.rs` / `simic_ascendancy.rs` were already accurate (fixed in
+  the `12981e69` backfill commit) — verified, not re-touched. Per the explicit
+  instruction, only comments were corrected; the two static restrictions were
+  NOT authored onto Alexios this session (that remains a deferred backfill
+  action, now correctly described by the comment instead of falsely claimed
+  as an engine gap). Cards remain PARTIAL.
+- **5 new regression tests** added to `crates/engine/tests/pb_ac8_restrictions_and_wingame.rs`
+  (25 total in that file, was 20): `test_cant_be_sacrificed_blitz_delayed_sacrifice_skipped`,
+  `test_cant_be_sacrificed_mobilize_delayed_sacrifice_skipped`,
+  `test_cant_be_sacrificed_decayed_end_of_combat_sacrifice_skipped`,
+  `test_cant_attack_owner_goad_yields_requirement`,
+  `test_cant_be_sacrificed_cast_cost_emerge_cannot_pay`. All 5 were
+  mutation-verified (temporarily reverted each corresponding guard and
+  confirmed the test fails; restored and reconfirmed green) -- not vacuous.
+  Encore itself was NOT given a dedicated regression test (Blitz + Mobilize +
+  Decayed cover the 3 distinct code shapes: stack-resolution `KeywordTrigger`
+  arm, shared `DelayedTriggerAction::SacrificeObject` dispatch, and a direct
+  turn_actions.rs TBA scan); the Encore fix is structurally identical to the
+  Blitz fix (same file, same pattern) and is covered by inspection + the
+  existing Blitz test proving the pattern works, but is not independently
+  test-covered. Documented here as an honest gap, not silently skipped.
+- **Gates**: `cargo build --workspace` clean; `cargo test --all` 3062 passed / 0
+  failed (3057 baseline + 5 new); `cargo clippy --all-targets -- -D warnings`
+  clean; `cargo fmt --check` clean.
+
+## OOS (skip, per review directive -- do not fix)
+
+- **OOS-AC8-E3**: WinGame immediate-win vs SBA ordering (`effects/mod.rs:3112`
+  + `engine.rs:1577`). The game-over poll runs after `resolve_top_of_stack`'s
+  SBA pass; a winner at <=0 life not yet SBA-marked could be dragged into a
+  draw instead of winning immediately (CR 104.1). Marginal; no roster card.
+- **OOS-AC8-E4**: Must-attack owner-exclusion ignores planeswalkers
+  (`combat.rs:394-403`). `no_legal_target` only scans players; a must-attack +
+  CantAttackOwner creature able to attack its owner's planeswalker is wrongly
+  treated as having no legal target. Consistent with pre-existing must-attack
+  behavior. Marginal; no roster card.
 
 Task `scutemob-51`, campaign-plan §2 PB-AC8 row (S effort — smallest of the
 AC chain). Discounted yield ~14 cards.

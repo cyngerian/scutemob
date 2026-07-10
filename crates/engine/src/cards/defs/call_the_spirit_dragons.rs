@@ -24,7 +24,11 @@ pub fn card() -> CardDefinition {
                 },
             },
             // TODO: DSL gap — upkeep trigger with per-color counter placement on Dragons
-            // + win condition check. Multiple DSL gaps.
+            // (put a +1/+1 counter on a Dragon you control OF THAT COLOR, once per color,
+            // tracking "put counters on five Dragons this way") has no DSL primitive. The
+            // win condition itself is no longer blocked -- Effect::WinGame exists (PB-AC8)
+            // -- but the per-color-per-Dragon counter placement it depends on still is, so
+            // the whole trigger remains omitted.
         ],
         ..Default::default()
     }

@@ -7110,10 +7110,17 @@ pub fn make_token(
 /// (an effect telling the controller to sacrifice it does nothing for this
 /// permanent; a cost payable only by sacrificing it can't be paid).
 ///
-/// Every sacrifice dispatch site in the engine (effect-driven sacrifice, board
-/// wipes, activated-ability cost payment, cast-time additional costs) must route
-/// through this helper or through a function that itself calls it
-/// (`eligible_sacrifice_targets` / `can_pay_optional_cost` / `sacrifice_permanents_for_player`).
+/// Callers, as of PB-AC8 fix phase (verified exhaustively, `feedback_verify_full_chain`):
+/// effect-driven sacrifice (`Effect::SacrificePermanents` via `eligible_sacrifice_targets`),
+/// board-wipe "sacrifice all creatures" (`effects/mod.rs`), activated-ability cost
+/// payment -- self and filtered (`abilities.rs`), Forage (`abilities.rs`), cast-time
+/// additional costs -- Emerge/Bargain/Casualty/SpellAdditionalCost/Devour (`casting.rs`),
+/// and the delayed self-sacrifice sites -- Evoke, Blitz, Encore, decayed end-of-combat,
+/// and the shared `DelayedTriggerAction::SacrificeObject` dispatch used by Mobilize,
+/// Kiki-Jiki, and The Fire Crystal (`resolution.rs` / `turn_actions.rs`). Exploit's
+/// "you may sacrifice" is N/A: the engine unconditionally declines that choice today,
+/// so there is no sacrifice dispatch to guard there. Any NEW sacrifice dispatch site
+/// added to the engine must call this helper (or a function that already does).
 pub(crate) fn object_cant_be_sacrificed(state: &GameState, obj_id: ObjectId) -> bool {
     state.restrictions.iter().any(|r| {
         r.source == obj_id
