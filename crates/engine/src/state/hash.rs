@@ -330,7 +330,15 @@
 ///   ability outlives its source, and is cleared when the stack empties, so most
 ///   states hash identically to before; the version bump is for the states that do
 ///   carry a snapshot.
-pub const HASH_SCHEMA_VERSION: u8 = 38;
+/// - 39: SR-16 (2026-07-10) — `PendingTrigger.{kind, data, embedded_effect}` were
+///   `#[serde(skip)]`; a serialized-then-deserialized `GameState` coerced every
+///   pending keyword trigger to an anonymous `Normal` with `None` payload. The three
+///   fields are now serialized (option (a) of `scutemob-68`), so the serialized
+///   `GameState` wire shape gains them. The *hash* stream is unchanged — `kind` and
+///   `data` were already fed to `HashInto` and `embedded_effect` still is not — so a
+///   state hashes to the same fingerprint as before; the bump is because the serde
+///   wire format changed and a `ReplayLog` from older code carries the lossy shape.
+pub const HASH_SCHEMA_VERSION: u8 = 39;
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
