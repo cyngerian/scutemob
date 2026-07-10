@@ -22,8 +22,10 @@
 
 use mtg_engine::effects::{execute_effect, EffectContext};
 use mtg_engine::{
-    calculate_characteristics, CardRegistry, CardType, CounterType, Effect, EffectAmount,
-    GameEvent, GameStateBuilder, ObjectId, ObjectSpec, PlayerId, Step, SubType, ZoneId,
+    calculate_characteristics, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType,
+    CounterType, Effect, EffectAmount, GameEvent, GameStateBuilder, ManaCost, ObjectId, ObjectSpec,
+    PlayerFilter, PlayerId, ReplacementModification, ReplacementTrigger, Step, SubType, TypeLine,
+    ZoneId,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -607,5 +609,107 @@ fn test_amass_subtype_not_duplicated_if_already_present() {
     assert_eq!(
         zombie_count, 1,
         "CR 701.47a: Zombie subtype should appear exactly once (OrdSet deduplicates)"
+    );
+}
+
+// ── PB-AC9: token-doubling completeness pass regression ───────────────────────
+
+fn doubler_def() -> CardDefinition {
+    CardDefinition {
+        card_id: CardId("amass-doubler-test".to_string()),
+        name: "Amass Doubler Test".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            ..Default::default()
+        }),
+        types: TypeLine {
+            card_types: [CardType::Enchantment].into_iter().collect(),
+            ..Default::default()
+        },
+        oracle_text: "If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead.".to_string(),
+        abilities: vec![AbilityDefinition::Replacement {
+            trigger: ReplacementTrigger::WouldCreateTokens {
+                controller_filter: PlayerFilter::Specific(PlayerId(0)),
+            },
+            modification: ReplacementModification::DoubleTokens,
+            is_self: false,
+            unless_condition: None,
+        }],
+        ..Default::default()
+    }
+}
+
+/// PB-AC9 / CR 111.1 / CR 614.1 — with no Army creature controlled and a
+/// Doubling Season-style permanent registered, amassing creates TWO 0/0 Army
+/// tokens instead of one. Only the first receives the amass counters (mirrors
+/// the Living Weapon Germ precedent); the second stays a bare 0/0. Regression
+/// for the PB-AC9 §5 completeness pass, which found this site previously
+/// unwired.
+#[test]
+fn test_amass_doubling_season_doubles_army_token() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let registry = CardRegistry::new(vec![doubler_def()]);
+    let mut doubler_spec =
+        ObjectSpec::artifact(p1, "Amass Doubler Test").in_zone(ZoneId::Battlefield);
+    doubler_spec.card_id = Some(CardId("amass-doubler-test".to_string()));
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(doubler_spec)
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let doubler_id = find_by_name(&state, "Amass Doubler Test");
+    let registry = state.card_registry.clone();
+    mtg_engine::rules::replacement::register_permanent_replacement_abilities(
+        &mut state,
+        doubler_id,
+        p1,
+        Some(&CardId("amass-doubler-test".to_string())),
+        &registry,
+    );
+
+    let (state, events) = run_amass(state, p1, "Zombie", 3);
+
+    assert_eq!(
+        count_army_tokens(&state, p1),
+        2,
+        "PB-AC9: Doubling Season must double the amass Army token creation \
+         (2 Army tokens, not 1)"
+    );
+    let token_created_count = events
+        .iter()
+        .filter(|e| matches!(e, GameEvent::TokenCreated { .. }))
+        .count();
+    assert_eq!(token_created_count, 2);
+
+    // Exactly one of the two Army tokens should have received the 3 +1/+1
+    // counters (the other stays a bare 0/0, per the "only the first" call).
+    let total_counters: u32 = state
+        .objects
+        .values()
+        .filter(|o| {
+            o.zone == ZoneId::Battlefield
+                && o.controller == p1
+                && o.characteristics
+                    .subtypes
+                    .contains(&SubType("Army".to_string()))
+        })
+        .map(|o| {
+            o.counters
+                .get(&CounterType::PlusOnePlusOne)
+                .copied()
+                .unwrap_or(0)
+        })
+        .sum();
+    assert_eq!(
+        total_counters, 3,
+        "the 3 amass counters should land on exactly one of the two Army tokens"
     );
 }

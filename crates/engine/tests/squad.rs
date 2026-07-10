@@ -489,3 +489,110 @@ fn test_squad_tokens_not_cast() {
         "1 original + 1 token should be on battlefield"
     );
 }
+
+// ── PB-AC9: token-doubling completeness pass regression ───────────────────────
+
+/// Synthetic Doubling-Season-style permanent: doubles tokens created under its
+/// controller's control (CR 111.1 / CR 614.1).
+fn doubler_def() -> CardDefinition {
+    use mtg_engine::state::replacement_effect::{
+        PlayerFilter, ReplacementModification, ReplacementTrigger,
+    };
+    CardDefinition {
+        card_id: CardId("squad-doubler-test".to_string()),
+        name: "Squad Doubler Test".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            ..Default::default()
+        }),
+        types: TypeLine {
+            card_types: [CardType::Enchantment].into_iter().collect(),
+            ..Default::default()
+        },
+        oracle_text: "If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead.".to_string(),
+        abilities: vec![AbilityDefinition::Replacement {
+            trigger: ReplacementTrigger::WouldCreateTokens {
+                controller_filter: PlayerFilter::Specific(PlayerId(0)),
+            },
+            modification: ReplacementModification::DoubleTokens,
+            is_self: false,
+            unless_condition: None,
+        }],
+        ..Default::default()
+    }
+}
+
+/// PB-AC9 / CR 111.1 / CR 614.1 — Squad's ETB trigger creates its whole token
+/// batch (`squad_count` copies) as a single token-creation instruction. With a
+/// Doubling Season-style permanent registered, the WHOLE batch is doubled (2
+/// payments → 4 tokens, not 2 doubled-individually-to-2-each = still 4, but
+/// this confirms the site is wired at all — regression for the PB-AC9 §5
+/// completeness pass, which found this site previously unwired).
+#[test]
+fn test_squad_doubling_season_doubles_token_batch() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let registry = CardRegistry::new(vec![squad_creature_def(), doubler_def()]);
+
+    let mut doubler_spec =
+        ObjectSpec::artifact(p1, "Squad Doubler Test").in_zone(ZoneId::Battlefield);
+    doubler_spec.card_id = Some(CardId("squad-doubler-test".to_string()));
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(squad_spec(p1))
+        .object(doubler_spec)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    let mut state = state;
+    // Register the doubler's replacement ability (builder doesn't do this
+    // automatically for pre-placed battlefield permanents — mirrors
+    // counter_replacement.rs's `register_replacement_effects` helper).
+    let doubler_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Squad Doubler Test")
+        .map(|(id, _)| *id)
+        .expect("doubler should be on battlefield");
+    let registry = state.card_registry.clone();
+    mtg_engine::rules::replacement::register_permanent_replacement_abilities(
+        &mut state,
+        doubler_id,
+        p1,
+        Some(&CardId("squad-doubler-test".to_string())),
+        &registry,
+    );
+
+    // {3}{W} base + {4} for two squad payments ({2} × 2).
+    let ps = state.players.get_mut(&p1).unwrap();
+    ps.mana_pool.add(ManaColor::Colorless, 3 + 4);
+    ps.mana_pool.add(ManaColor::White, 1);
+    state.turn.priority_holder = Some(p1);
+
+    let card_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Squad Warrior")
+        .map(|(id, _)| *id)
+        .expect("Squad Warrior should be in hand");
+
+    let (state, _) = cast_squad(state, p1, card_id, 2);
+    // Resolve the spell.
+    let (state, _) = pass_all(state, &[p1, p2]);
+    // Resolve SquadTrigger.
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    assert_eq!(
+        count_on_battlefield(&state, "Squad Warrior"),
+        1 + 4,
+        "PB-AC9: Doubling Season must double Squad's token batch (2 payments -> 4 \
+         tokens, not 2) — the CreateToken chokepoint was already wired but the \
+         Squad ETB trigger resolution site was not, prior to this fix"
+    );
+}

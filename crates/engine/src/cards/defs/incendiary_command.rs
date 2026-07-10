@@ -18,16 +18,10 @@ pub fn card() -> CardDefinition {
             // expressible and migrated. `Spell.targets` is empty; each mode's target (if
             // any) lives in `mode_targets` at LOCAL index 0.
             //
-            // ENGINE-BLOCKED (mode 3 only): "each player discards all the cards in their
-            // hand, then draws that many cards" (a wheel effect). `EffectAmount::HandSize`
-            // exists (PB-AC3) but is evaluated dynamically at each effect's execution time
-            // within a `Sequence` — a `DiscardCards { count: HandSize }` followed by
-            // `DrawCards { count: HandSize }` would discard the whole hand, THEN read a
-            // hand size of 0 for the draw (no snapshot-before-discard mechanism exists;
-            // `EffectAmount::LastEffectCount` only tracks DestroyAll/ExileAll/bounce/untap
-            // counts, not DiscardCards). Implementing this mode would silently draw 0 cards
-            // instead of "that many" — a wrong-game-state bug, so it is left as a
-            // documented no-op instead. Unrelated to AC4's per-mode-targeting scope.
+            // Mode 3 (PB-AC9): "each player discards all the cards in their hand, then
+            // draws that many cards" — a wheel effect (CR 701.9/121.1). `Effect::WheelHand`
+            // snapshots the hand size BEFORE disposal, so this correctly draws "that many"
+            // instead of 0.
             AbilityDefinition::Spell {
                 effect: Effect::Sequence(vec![]),
                 targets: vec![],
@@ -53,8 +47,12 @@ pub fn card() -> CardDefinition {
                             cant_be_regenerated: false,
                         },
                         // Mode 3: Each player discards all cards in hand, then draws that
-                        // many. See file-level ENGINE-BLOCKED comment above.
-                        Effect::Nothing,
+                        // many (CR 701.9 / 121.1).
+                        Effect::WheelHand {
+                            player: PlayerTarget::EachPlayer,
+                            disposal: WheelDisposal::Discard,
+                            draw: WheelDraw::ThatMany,
+                        },
                     ],
                     mode_targets: Some(vec![
                         vec![TargetRequirement::TargetPlayerOrPlaneswalker],

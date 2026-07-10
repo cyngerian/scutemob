@@ -3,10 +3,6 @@
 // Whenever this creature deals combat damage to a player, roll a d20. Draw
 // cards equal to the result. You have no maximum hand size for the rest of
 // the game.
-//
-// Flying is implemented. D20 roll + variable card draw implemented.
-// TODO: DSL gap — "no maximum hand size for the rest of the game" requires
-// a permanent player designation (not a continuous effect from a permanent).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -20,27 +16,35 @@ pub fn card() -> CardDefinition {
         toughness: Some(8),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // CR 706.2: Roll d20 on combat damage to a player, draw cards equal to result.
+            // CR 706.2 / 706.3b: Roll d20 on combat damage to a player, draw cards equal
+            // to result, then set no maximum hand size for the rest of the game. This is
+            // all one triggered ability (CR 706.3b) — setting the flag is idempotent
+            // across repeated combat damage triggers.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
-                effect: Effect::RollDice {
-                    sides: 20,
-                    results: vec![
-                        // All results 1-20: draw cards equal to the roll result.
-                        (1, 20, Effect::DrawCards {
-                            player: PlayerTarget::Controller,
-                            count: EffectAmount::LastDiceRoll,
-                        }),
-                    ],
-                },
+                effect: Effect::Sequence(vec![
+                    Effect::RollDice {
+                        sides: 20,
+                        results: vec![
+                            // All results 1-20: draw cards equal to the roll result.
+                            (1, 20, Effect::DrawCards {
+                                player: PlayerTarget::Controller,
+                                count: EffectAmount::LastDiceRoll,
+                            }),
+                        ],
+                    },
+                    // CR 402.2: no maximum hand size for the rest of the game.
+                    Effect::SetNoMaximumHandSize {
+                        player: PlayerTarget::Controller,
+                    },
+                ]),
                 intervening_if: None,
                 targets: vec![],
 
                 modes: None,
                 trigger_zone: None,
             },
-            // TODO: "no maximum hand size for the rest of the game" — needs permanent player designation
         ],
         ..Default::default()
     }

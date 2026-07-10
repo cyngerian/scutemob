@@ -1,17 +1,17 @@
 {
-  "generated": "2026-07-10 02:40 UTC",
-  "git_head": "91885e98",
+  "generated": "2026-07-10 05:26 UTC",
+  "git_head": "6c967088",
   "total_files": 1748,
-  "total_todos": 1053,
+  "total_todos": 1039,
   "file_buckets": {
-    "clean": 973,
-    "todo": 594,
-    "empty": 181
+    "clean": 982,
+    "todo": 584,
+    "empty": 182
   },
   "todo_classes": {
-    "OTHER (unclassified)": 634,
-    "replacement effect missing": 18,
-    "X-scaled tokens": 5,
+    "OTHER (unclassified)": 629,
+    "replacement effect missing": 14,
+    "X-scaled tokens": 4,
     "TriggerCondition::* missing variant": 17,
     "attack trigger (self / generic)": 27,
     "compleated": 1,
@@ -20,7 +20,6 @@
     "gain / exchange control": 1,
     "can't be countered": 7,
     "multi-target reanimate": 1,
-    "no-maximum-hand-size": 3,
     "exert": 1,
     "devotion": 5,
     "dynamic hexproof / protection": 17,
@@ -30,7 +29,7 @@
     "delayed triggers": 4,
     "untap-all / untap trigger": 4,
     "combat-damage-to-player trigger": 10,
-    "EffectAmount::* missing variant": 15,
+    "EffectAmount::* missing variant": 13,
     "opponent-action trigger": 8,
     "per-player effect dispatch": 6,
     "interactive / hidden-info choice": 10,
@@ -63,7 +62,8 @@
     "equipped/attached dies": 1,
     "free-cast / non-hand cast": 1,
     "trigger-targets-triggerer": 1,
-    "top-of-library lookahead": 2
+    "top-of-library lookahead": 2,
+    "no-maximum-hand-size": 1
   },
   "plan": {
     "total": 1636,

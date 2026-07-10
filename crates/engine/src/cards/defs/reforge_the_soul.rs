@@ -14,19 +14,15 @@ pub fn card() -> CardDefinition {
             // TODO: Miracle {1}{R} — KeywordAbility::Miracle not yet implemented.
             // When Miracle is added, include AltCastAbility with Miracle cost.
             AbilityDefinition::Spell {
-                effect: Effect::Sequence(vec![
-                    // Each player discards their hand.
-                    // TODO: EffectAmount::HandSize not in DSL — using Fixed(7) approximation.
-                    Effect::DiscardCards {
-                        player: PlayerTarget::EachPlayer,
-                        count: EffectAmount::Fixed(7),
-                    },
-                    // Then draws seven cards.
-                    Effect::DrawCards {
-                        player: PlayerTarget::EachPlayer,
-                        count: EffectAmount::Fixed(7),
-                    },
-                ]),
+                // PB-AC9 (CR 701.9 / 121.1): each player discards their ENTIRE hand, then
+                // draws seven cards. `Effect::WheelHand` fixes the previous approximation
+                // (`DiscardCards{Fixed(7)}`, which discarded exactly 7 regardless of hand
+                // size instead of "their hand").
+                effect: Effect::WheelHand {
+                    player: PlayerTarget::EachPlayer,
+                    disposal: WheelDisposal::Discard,
+                    draw: WheelDraw::Fixed(7),
+                },
                 targets: vec![],
                 modes: None,
                 cant_be_countered: false,

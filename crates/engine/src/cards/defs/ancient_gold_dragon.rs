@@ -15,10 +15,47 @@ pub fn card() -> CardDefinition {
         toughness: Some(10),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: "Roll a d20. Create a number of tokens equal to the result."
-            // DSL gap: d20 results can't produce a variable token count — TokenSpec.count
-            // is a fixed i32. A D20 roll producing EffectAmount::D20Result doesn't exist.
-            // Wrong to create a fixed count (e.g. 10), so leaving as TODO.
+            // CR 706.2: Combat damage — roll d20, create that many 1/1 blue Faerie
+            // Dragon tokens with flying. Any token-doubling replacement (e.g. Doubling
+            // Season) applies on top of the resolved roll count via the normal
+            // CreateToken chokepoint.
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
+                effect: Effect::RollDice {
+                    sides: 20,
+                    results: vec![(
+                        1,
+                        20,
+                        Effect::CreateToken {
+                            spec: TokenSpec {
+                                name: "Faerie Dragon".to_string(),
+                                power: 1,
+                                toughness: 1,
+                                colors: [Color::Blue].into_iter().collect(),
+                                supertypes: OrdSet::new(),
+                                card_types: [CardType::Creature].into_iter().collect(),
+                                subtypes: [SubType("Faerie".to_string()), SubType("Dragon".to_string())]
+                                    .into_iter()
+                                    .collect(),
+                                keywords: [KeywordAbility::Flying].into_iter().collect(),
+                                count: EffectAmount::LastDiceRoll,
+                                tapped: false,
+                                enters_attacking: false,
+                                mana_color: None,
+                                mana_abilities: vec![],
+                                activated_abilities: vec![],
+                                ..Default::default()
+                            },
+                        },
+                    )],
+                },
+                intervening_if: None,
+                targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         ..Default::default()
     }

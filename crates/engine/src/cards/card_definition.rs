@@ -2289,6 +2289,54 @@ pub enum Effect {
     /// resolution; the engine's existing post-resolution game-over poll
     /// finalizes with `GameEvent::GameOver { winner }`.
     WinGame,
+    /// CR 701.9 / 701.24 / 121.1: "Each player discards/shuffles-away their hand,
+    /// then draws." Atomic so the "that many" count is snapshotted BEFORE disposal
+    /// (a naive DiscardCards{HandSize} + DrawCards{HandSize} draws 0 -- the count
+    /// must be read before any disposal mutation touches the hand). Covers Wheel
+    /// of Fortune, Timetwister, Windfall, Winds of Change, Echo of Eons, and
+    /// Incendiary Command mode 3.
+    WheelHand {
+        /// Which player(s) are affected (Controller for Shattered Perception,
+        /// EachPlayer for the rest of the wheel family).
+        player: PlayerTarget,
+        /// How the affected player's current hand is disposed of before drawing.
+        disposal: WheelDisposal,
+        /// How many cards the affected player draws after disposal.
+        draw: WheelDraw,
+    },
+    /// CR 402.2: permanently remove the target player's maximum hand size for the
+    /// rest of the game (Ancient Silver Dragon). Sets
+    /// `PlayerState.no_max_hand_size_permanent`, which is OR'd into the
+    /// per-cleanup recompute so a battlefield-based recompute never clobbers it
+    /// back to false.
+    SetNoMaximumHandSize {
+        /// Which player(s) permanently gain no maximum hand size.
+        player: PlayerTarget,
+    },
+}
+/// How the affected player's current hand is disposed of before drawing
+/// (`Effect::WheelHand`).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum WheelDisposal {
+    /// CR 701.9: discard the entire hand (to graveyard; Madness routes to exile
+    /// via the existing `discard_cards` helper).
+    Discard,
+    /// CR 701.24: put the entire hand into the library, then shuffle. (Winds of
+    /// Change.)
+    ShuffleHandIntoLibrary,
+    /// CR 701.24: put the entire hand AND graveyard into the library, then
+    /// shuffle. (Echo of Eons / Timetwister.)
+    ShuffleHandAndGraveyardIntoLibrary,
+}
+/// How many cards the affected player draws after disposal (`Effect::WheelHand`).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum WheelDraw {
+    /// Draw a number equal to the HAND size snapshotted before disposal.
+    /// ("that many")
+    ThatMany,
+    /// Draw a fixed number regardless of hand size. (Wheel of Fortune / Echo of
+    /// Eons = 7.)
+    Fixed(u32),
 }
 // ── Effect Targets ────────────────────────────────────────────────────────────
 /// Where a delayed trigger returns an exiled object to (CR 610.3).

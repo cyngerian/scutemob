@@ -255,6 +255,7 @@ impl GameStateBuilder {
                 companion_used: false,
                 mulligan_count: 0,
                 no_max_hand_size: false,
+                no_max_hand_size_permanent: false,
                 cards_drawn_this_turn: 0,
                 spells_cast_this_turn: 0,
                 noncreature_spells_cast_this_turn: 0,

@@ -399,7 +399,7 @@ fn graveyard_exert_def() -> CardDefinition {
 #[test]
 /// Strict-equality hash schema sentinel (conventions.md hash-sentinel rule).
 fn test_hash_schema_version_is_32() {
-    assert_eq!(HASH_SCHEMA_VERSION, 35u8);
+    assert_eq!(HASH_SCHEMA_VERSION, 36u8);
 }
 
 #[test]

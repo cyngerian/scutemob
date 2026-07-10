@@ -19,8 +19,8 @@ use mtg_engine::cards::card_definition::GiftType;
 use mtg_engine::{
     process_command, AbilityDefinition, AdditionalCost, CardDefinition, CardId, CardRegistry,
     CardType, Command, Condition, Effect, EffectAmount, GameEvent, GameStateBuilder,
-    KeywordAbility, ManaColor, ManaCost, ObjectSpec, PlayerId, PlayerTarget, Step, TypeLine,
-    ZoneId,
+    KeywordAbility, ManaColor, ManaCost, ObjectSpec, PlayerFilter, PlayerId, PlayerTarget,
+    ReplacementModification, ReplacementTrigger, Step, TypeLine, ZoneId,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -689,6 +689,190 @@ fn test_gift_multiplayer_choose_specific_opponent() {
         count_tokens_on_battlefield(&state, p2),
         initial_p2_tokens,
         "CR 702.174a: non-chosen opponent (p2) should NOT receive a token (multiplayer)"
+    );
+}
+
+// ── PB-AC9: token-doubling completeness pass regression ───────────────────────
+
+fn doubler_def(id_suffix: &str) -> CardDefinition {
+    CardDefinition {
+        card_id: CardId(format!("gift-doubler-test-{id_suffix}")),
+        name: format!("Gift Doubler Test {id_suffix}"),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            ..Default::default()
+        }),
+        types: TypeLine {
+            card_types: [CardType::Enchantment].into_iter().collect(),
+            ..Default::default()
+        },
+        oracle_text: "If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead.".to_string(),
+        abilities: vec![AbilityDefinition::Replacement {
+            trigger: ReplacementTrigger::WouldCreateTokens {
+                controller_filter: PlayerFilter::Specific(PlayerId(0)),
+            },
+            modification: ReplacementModification::DoubleTokens,
+            is_self: false,
+            unless_condition: None,
+        }],
+        ..Default::default()
+    }
+}
+
+/// PB-AC9 / CR 111.1 / CR 614.1 / CR 702.174h — Gift's Food/Treasure token is
+/// created under the RECIPIENT's control, not the gifting spell's controller's
+/// control. A Doubling Season-style permanent controlled by the RECIPIENT (p2)
+/// must double the Gift Treasure -- regression for the PB-AC9 §5 completeness
+/// pass, which found this site previously unwired.
+#[test]
+fn test_gift_treasure_doubled_when_recipient_controls_doubler() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let registry = CardRegistry::new(vec![gift_treasure_instant_def(), doubler_def("recipient")]);
+
+    let mut doubler_spec =
+        ObjectSpec::artifact(p2, "Gift Doubler Test recipient").in_zone(ZoneId::Battlefield);
+    doubler_spec.card_id = Some(CardId("gift-doubler-test-recipient".to_string()));
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(
+            ObjectSpec::card(p1, "Gift Treasure Instant")
+                .in_zone(ZoneId::Hand(p1))
+                .with_card_id(CardId("gift-treasure-instant".to_string()))
+                .with_types(vec![CardType::Instant])
+                .with_keyword(KeywordAbility::Gift)
+                .with_mana_cost(ManaCost {
+                    red: 1,
+                    ..Default::default()
+                }),
+        )
+        .object(doubler_spec)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    let mut state = state;
+    let doubler_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Gift Doubler Test recipient")
+        .map(|(id, _)| *id)
+        .expect("doubler should be on battlefield");
+    let registry = state.card_registry.clone();
+    mtg_engine::rules::replacement::register_permanent_replacement_abilities(
+        &mut state,
+        doubler_id,
+        p2,
+        Some(&CardId("gift-doubler-test-recipient".to_string())),
+        &registry,
+    );
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Red, 1);
+    state.turn.priority_holder = Some(p1);
+
+    let card_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Gift Treasure Instant")
+        .map(|(id, _)| *id)
+        .expect("Gift Treasure Instant should be in hand");
+
+    let (state, _) = cast_spell_with_gift(state, p1, card_id, Some(p2)).unwrap();
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    assert_eq!(
+        count_tokens_on_battlefield(&state, p2),
+        2,
+        "PB-AC9: recipient-controlled Doubling Season must double the Gift \
+         Treasure (2 tokens, not 1) -- doubling keys on the token's controller \
+         (the recipient), which the Gift execution site now threads through \
+         apply_token_creation_replacement"
+    );
+}
+
+/// PB-AC9 negative control -- a Doubling Season-style permanent controlled by
+/// the GIVER (p1), not the recipient (p2), must NOT double the Gift Treasure.
+/// This is the exact subtlety the PB-AC9 plan flagged: doubling keys on the
+/// token's controller, not the gifting spell's controller.
+#[test]
+fn test_gift_treasure_not_doubled_when_giver_controls_doubler() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let registry = CardRegistry::new(vec![gift_treasure_instant_def(), doubler_def("giver")]);
+
+    let mut doubler_spec =
+        ObjectSpec::artifact(p1, "Gift Doubler Test giver").in_zone(ZoneId::Battlefield);
+    doubler_spec.card_id = Some(CardId("gift-doubler-test-giver".to_string()));
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(
+            ObjectSpec::card(p1, "Gift Treasure Instant")
+                .in_zone(ZoneId::Hand(p1))
+                .with_card_id(CardId("gift-treasure-instant".to_string()))
+                .with_types(vec![CardType::Instant])
+                .with_keyword(KeywordAbility::Gift)
+                .with_mana_cost(ManaCost {
+                    red: 1,
+                    ..Default::default()
+                }),
+        )
+        .object(doubler_spec)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    let mut state = state;
+    let doubler_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Gift Doubler Test giver")
+        .map(|(id, _)| *id)
+        .expect("doubler should be on battlefield");
+    let registry = state.card_registry.clone();
+    mtg_engine::rules::replacement::register_permanent_replacement_abilities(
+        &mut state,
+        doubler_id,
+        p1,
+        Some(&CardId("gift-doubler-test-giver".to_string())),
+        &registry,
+    );
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Red, 1);
+    state.turn.priority_holder = Some(p1);
+
+    let card_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Gift Treasure Instant")
+        .map(|(id, _)| *id)
+        .expect("Gift Treasure Instant should be in hand");
+
+    let (state, _) = cast_spell_with_gift(state, p1, card_id, Some(p2)).unwrap();
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    assert_eq!(
+        count_tokens_on_battlefield(&state, p2),
+        1,
+        "PB-AC9 negative control: a Doubling Season controlled by the GIVER (not \
+         the recipient) must NOT double the Gift Treasure -- doubling keys on \
+         the token's controller (the recipient p2), not the gifting spell's \
+         controller (p1)"
     );
 }
 

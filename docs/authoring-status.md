@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-10 02:40 UTC  
-**Git:** `91885e98` on `feat/pb-ac8-static-restrictions-win-cons-no-max-hand`  
+**Generated:** 2026-07-10 05:26 UTC  
+**Git:** `6c967088` on `feat/pb-ac9-misc-mana`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,10 +25,10 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 194 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **108%** (1,763 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 55.7% | 973 | +3 |
-| With TODO markers | 594 | -3 |
-| Empty `abilities: vec![]` placeholders | 181 | · |
-| Total TODO lines across all defs | 1,053 | -8 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 56.2% | 982 | +9 |
+| With TODO markers | 584 | -10 |
+| Empty `abilities: vec![]` placeholders | 182 | +1 |
+| Total TODO lines across all defs | 1,039 | -14 |
 
 ## Authoring activity (git, by window)
 
@@ -66,12 +66,12 @@ are blocked on engine primitives.
 
 | Group | Auth / Total | % | Clean | TODO | Empty |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `combat-keyword` | 187 / 187 | 100% | 79 | 99 | 9 |
+| `combat-keyword` | 187 / 187 | 100% | 80 | 98 | 9 |
 | `draw` | 163 / 169 | 96% | 72 | 66 | 25 |
-| `token-create` | 145 / 155 | 94% | 20 | 59 | 66 |
+| `token-create` | 145 / 155 | 94% | 24 | 54 | 67 |
 | `land-etb-tapped` | 138 / 138 | 100% | 116 | 20 | 2 |
-| `other` | 108 / 131 | 82% | 65 | 43 | 0 |
-| `modal-choice` | 68 / 105 | 65% | 30 | 38 | 0 |
+| `other` | 108 / 131 | 82% | 66 | 42 | 0 |
+| `modal-choice` | 68 / 105 | 65% | 32 | 36 | 0 |
 | `mana-land` | 92 / 92 | 100% | 74 | 15 | 3 |
 | `body-only` | 55 / 70 | 79% | 24 | 9 | 22 |
 | `removal-destroy` | 56 / 56 | 100% | 33 | 16 | 7 |
@@ -87,7 +87,7 @@ are blocked on engine primitives.
 | `activated-sacrifice` | 3 / 19 | 16% | 1 | 2 | 0 |
 | `mana-creature` | 19 / 19 | 100% | 14 | 5 | 0 |
 | `graveyard-recursion` | 18 / 18 | 100% | 8 | 10 | 0 |
-| `removal-damage-each` | 17 / 17 | 100% | 10 | 7 | 0 |
+| `removal-damage-each` | 17 / 17 | 100% | 11 | 6 | 0 |
 | `counter` | 16 / 16 | 100% | 8 | 4 | 4 |
 | `removal-exile` | 13 / 14 | 93% | 5 | 2 | 6 |
 | `untap-phase` | 1 / 13 | 8% | 0 | 1 | 0 |
@@ -169,54 +169,54 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 634 | -3 |
+| OTHER (unclassified) | 629 | -5 |
 | DSL gap (unspecified) | 133 | · |
 | attack trigger (self / generic) | 27 | · |
-| replacement effect missing | 18 | · |
 | TriggerCondition::* missing variant | 17 | · |
 | dynamic hexproof / protection | 17 | · |
 | Cost::* missing variant | 17 | · |
 | sacrifice as cost | 16 | · |
-| EffectAmount::* missing variant | 15 | · |
+| replacement effect missing | 14 | -4 |
+| EffectAmount::* missing variant | 13 | -2 |
 | TargetFilter missing field | 12 | · |
 | combat-damage-to-player trigger | 10 | · |
 | interactive / hidden-info choice | 10 | · |
 | opponent-action trigger | 8 | · |
-| can't / must block-attack | 7 | -1 |
+| can't / must block-attack | 7 | · |
 | can't be countered | 7 | · |
 | per-player effect dispatch | 6 | · |
 | per-opponent upkeep | 6 | · |
-| X-scaled tokens | 5 | · |
 | devotion | 5 | · |
 | conditional static / grant | 5 | · |
 | equipment grants ability | 5 | · |
-| count-threshold static | 4 | -1 |
+| X-scaled tokens | 4 | -1 |
+| count-threshold static | 4 | · |
 | delayed triggers | 4 | · |
 | untap-all / untap trigger | 4 | · |
-| noncombat-damage prevent | 4 | +1 |
+| noncombat-damage prevent | 4 | · |
 
-_…and 30 more buckets totaling 57 lines._
+_…and 30 more buckets totaling 55 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 634 
+Showing 12 of 629 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
 
 ```
 abstergo_entertainment: // TODO: {3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card
-bojuka_bog: // TODO: Triggered — When this land enters, exile target player's graveyard.
+bonecrusher_giant: // ENGINE-BLOCKED(1): the effect must deal 2 damage to "that spell's controller".
 delney_streetwise_lookout: // TODO: Power-conditional blocking restriction — "can't be blocked by
-esper_sentinel: // TODO: Opponent-cast trigger with noncreature filter, once-per-turn,
+everflowing_chalice: // TODO: "This artifact enters with a charge counter on it for each time it was kicked." —
 go_for_the_throat: // TODO: "nonartifact creature" — no exclude_card_types on TargetFilter.
-jeskas_will: // TODO: Mode 1 needs mana-scaled-by-opponent-hand-count.
+jeskas_will: // TODO: Mode 2 needs impulse-draw (exile top 3, play this turn).
 marisi_breaker_of_the_coil: // TODO: "goad each creature that player controls" — ForEach over DamagedPlayer's creatures
 otharri_suns_glory: // TODO: "{2}{R}{W}, Tap an untapped Rebel you control: Return this card from your
 roiling_dragonstorm: // TODO: "When a Dragon you control enters, return this to hand" —
-smugglers_surprise: // TODO: Spree mode 2 — put up to two creature cards from hand onto battlefield.
-teferi_temporal_archmage: // TODO: RevealAndRoute reveals all; "look" is private. Using RevealAndRoute
-tyvar_jubilant_brawler: // TODO: Mill effect + conditional graveyard return with MV filter.
+smugglers_surprise: // TODO: Spree mode 1 — mill 4, put up to two creature/land cards milled into hand.
+teferi_master_of_time: // TODO: Effect::PhaseOut not yet implemented. Placeholder preserves oracle index order.
+tymna_the_weaver: // ENGINE-BLOCKED: the life payment and draw count both scale with the number of
 ```
 
 ## Recent card-touching commits
