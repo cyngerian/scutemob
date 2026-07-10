@@ -4,11 +4,23 @@
     "id": "script_stack_034",
     "name": "Brainstorm + Evolving Wilds — shuffle away bad cards",
     "description": "Classic Brainstorm interaction: p1 casts Brainstorm (draw 3, put 2 back), then activates Evolving Wilds to shuffle the library. This puts the 2 'top-decked' cards from Brainstorm back into a shuffled library. Tests sequential interactions: draw spell followed by a shuffle effect.",
-    "cr_sections_tested": ["601.2", "608.2", "120.2", "701.17", "608.2"],
+    "cr_sections_tested": [
+      "601.2",
+      "608.2",
+      "120.2",
+      "701.17",
+      "608.2"
+    ],
     "corner_case_ref": null,
-    "tags": ["brainstorm", "evolving-wilds", "shuffle", "card-selection", "interaction"],
+    "tags": [
+      "brainstorm",
+      "evolving-wilds",
+      "shuffle",
+      "card-selection",
+      "interaction"
+    ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "This is a two-part script. Step 1: cast Brainstorm for {U}, draw 3, put 2 back on top of library. Step 2: activate Evolving Wilds (tap, sacrifice) — this ability puts a basic land on battlefield tapped AND shuffles the library, randomizing the two cards put back by Brainstorm. After: p1 has 1 card in hand (net: cast Brainstorm -1 + draw 3 + put 2 back = 1 card), Evolving Wilds in graveyard, Forest on battlefield tapped, library shuffled. Initial: p1 has {U}, Brainstorm + Evolving Wilds on battlefield, 3 cards in library.",
@@ -24,7 +36,9 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "blue": 1 },
+        "mana_pool": {
+          "blue": 1
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -44,12 +58,21 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Evolving Wilds", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Evolving Wilds",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ]
       },
       "hand": {
         "p1": [
-          { "card": "Brainstorm", "is_commander": false, "owner": null }
+          {
+            "card": "Brainstorm",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -57,9 +80,21 @@
       "command_zone": {},
       "library": {
         "p1": [
-          { "card": "Lightning Bolt", "is_commander": false, "owner": null },
-          { "card": "Counterspell", "is_commander": false, "owner": null },
-          { "card": "Forest", "is_commander": false, "owner": null }
+          {
+            "card": "Lightning Bolt",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Counterspell",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Forest",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "stack": []
@@ -76,8 +111,16 @@
           "description": "Initial: Brainstorm in hand, Evolving Wilds on battlefield, 3 cards in library",
           "assertions": {
             "zones.hand.p1.count": 1,
-            "zones.battlefield.p1": { "includes": [{ "card": "Evolving Wilds" }] },
-            "zones.stack": { "is_empty": true }
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Evolving Wilds"
+                }
+              ]
+            },
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": null
         },
@@ -87,14 +130,19 @@
           "action": "cast_spell",
           "card": "Brainstorm",
           "targets": [],
-          "mana_paid": { "blue": 1 },
+          "mana_paid": {
+            "blue": 1
+          },
           "mana_source": [],
           "cr_ref": "601.2",
           "note": "CR 601.2: p1 casts Brainstorm."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "Both pass — Brainstorm resolves."
         },
@@ -125,7 +173,9 @@
           "description": "After Brainstorm: 1 card in hand, 2 cards on top of library",
           "assertions": {
             "zones.hand.p1.count": 1,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "2 unwanted cards sitting on top of library — Evolving Wilds will shuffle them away."
         },
@@ -142,7 +192,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "Both pass — ability resolves."
         },
@@ -177,10 +230,27 @@
           "type": "assert_state",
           "description": "Final: 1 card in hand, Forest on battlefield, library shuffled",
           "assertions": {
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "zones.hand.p1.count": 1,
-            "zones.battlefield.p1": { "includes": [{ "card": "Forest" }] },
-            "zones.graveyard.p1": { "includes": [{ "card": "Evolving Wilds" }, { "card": "Brainstorm" }] }
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Forest"
+                }
+              ]
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Evolving Wilds"
+                },
+                {
+                  "card": "Brainstorm"
+                }
+              ]
+            }
           },
           "note": "Brainstorm + Evolving Wilds used as card selection. Library shuffled."
         }

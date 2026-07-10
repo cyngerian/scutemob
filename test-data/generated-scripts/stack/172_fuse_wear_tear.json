@@ -4,15 +4,32 @@
     "id": "script_stack_172",
     "name": "Fuse: Wear // Tear destroys artifact and enchantment simultaneously",
     "description": "P1 casts Wear // Tear fused from hand, paying the combined mana cost {1}{R}{W} (CR 702.102c). P2 controls Sol Ring (artifact) and Rest in Peace (enchantment). The fused spell resolves: Wear (left half, target index 0) destroys Sol Ring first, then Tear (right half, target index 1) destroys Rest in Peace (CR 702.102d). After resolution both permanents are in P2's graveyard and the stack is empty.",
-    "cr_sections_tested": ["601.2", "608.2", "701.7a", "702.102", "702.102b", "702.102c", "702.102d"],
+    "cr_sections_tested": [
+      "601.2",
+      "608.2",
+      "701.7a",
+      "702.102",
+      "702.102b",
+      "702.102c",
+      "702.102d"
+    ],
     "corner_case_ref": null,
-    "tags": ["fuse", "split-card", "wear-tear", "destroy", "artifact", "enchantment", "multi-target"],
+    "tags": [
+      "fuse",
+      "split-card",
+      "wear-tear",
+      "destroy",
+      "artifact",
+      "enchantment",
+      "multi-target"
+    ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Tests the Fuse keyword (CR 702.102) using the Wear // Tear split card. Fuse is a static ability that allows casting both halves of a split card from hand by paying the combined mana cost. Wear costs {1}{R} and Tear costs {W}; combined fuse cost is {1}{R}{W} = generic:1, red:1, white:1 (CR 702.102c). The harness action 'cast_spell_fuse' sets fuse:true on Command::CastSpell. Targets are provided in index order: index 0 = Sol Ring (artifact, for Wear), index 1 = Rest in Peace (enchantment, for Tear). At resolution, left half (Wear) executes first destroying Sol Ring, then right half (Tear) executes destroying Rest in Peace (CR 702.102d). Rhystic Study was initially considered but avoided because it triggers whenever an opponent casts a spell, which would add an extra trigger to the stack after casting Wear // Tear and complicate the scenario. Rest in Peace is a non-Aura enchantment from the Available Cards list that does not trigger on spell cast. Wear // Tear card definition: card_id 'wear-tear', Fuse keyword, AbilityDefinition::Spell with TargetArtifact at index 0, AbilityDefinition::Fuse with TargetEnchantment at index 1. The fused spell becomes p1's graveyard after resolution (owner = p1). Destroyed permanents go to p2's graveyard (owned and controlled by p2).",
-    "disputes": []
+    "disputes": [],
+    "retirement_reason": "SR-9c: The fused split spell 'Wear // Tear' is rejected for supplying 2 targets against a single requirement slot; fuse per-half target routing is not translated. Unblocks when cast_spell_fuse routes per-half targets."
   },
   "initial_state": {
     "format": "commander",
@@ -24,7 +41,11 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "colorless": 1, "red": 1, "white": 1 },
+        "mana_pool": {
+          "colorless": 1,
+          "red": 1,
+          "white": 1
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -44,13 +65,27 @@
     "zones": {
       "battlefield": {
         "p2": [
-          { "card": "Sol Ring", "is_commander": false, "owner": null, "tapped": false },
-          { "card": "Rest in Peace", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Sol Ring",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          },
+          {
+            "card": "Rest in Peace",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ]
       },
       "hand": {
         "p1": [
-          { "card": "Wear // Tear", "is_commander": false, "owner": null }
+          {
+            "card": "Wear // Tear",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -73,11 +108,17 @@
             "zones.hand.p1.count": 1,
             "zones.battlefield.p2": {
               "includes": [
-                { "card": "Sol Ring" },
-                { "card": "Rest in Peace" }
+                {
+                  "card": "Sol Ring"
+                },
+                {
+                  "card": "Rest in Peace"
+                }
               ]
             },
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Starting position: p1 has the fuse spell, p2 has both targets."
         },
@@ -87,10 +128,24 @@
           "action": "cast_spell_fuse",
           "card": "Wear // Tear",
           "targets": [
-            { "type": "permanent", "card": "Sol Ring", "controller": "p2", "player": null },
-            { "type": "permanent", "card": "Rest in Peace", "controller": "p2", "player": null }
+            {
+              "type": "permanent",
+              "card": "Sol Ring",
+              "controller": "p2",
+              "player": null
+            },
+            {
+              "type": "permanent",
+              "card": "Rest in Peace",
+              "controller": "p2",
+              "player": null
+            }
           ],
-          "mana_paid": { "colorless": 1, "red": 1, "white": 1 },
+          "mana_paid": {
+            "colorless": 1,
+            "red": 1,
+            "white": 1
+          },
           "mana_source": [],
           "cr_ref": "702.102c",
           "note": "CR 702.102a,c: p1 casts Wear // Tear fused from hand, paying combined cost {1}{R}{W}. Target index 0 = Sol Ring (artifact, for Wear half), target index 1 = Rest in Peace (enchantment, for Tear half)."
@@ -106,7 +161,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — fused Wear // Tear resolves."
         },
@@ -116,7 +174,11 @@
           "resolution": [
             {
               "effect": "destroy_permanent",
-              "target": { "type": "permanent", "card": "Sol Ring", "controller": "p2" },
+              "target": {
+                "type": "permanent",
+                "card": "Sol Ring",
+                "controller": "p2"
+              },
               "card": null,
               "owner": null,
               "cr_ref": "701.7a",
@@ -124,7 +186,11 @@
             },
             {
               "effect": "destroy_permanent",
-              "target": { "type": "permanent", "card": "Rest in Peace", "controller": "p2" },
+              "target": {
+                "type": "permanent",
+                "card": "Rest in Peace",
+                "controller": "p2"
+              },
               "card": null,
               "owner": null,
               "cr_ref": "701.7a",
@@ -137,22 +203,34 @@
           "type": "assert_state",
           "description": "After resolution: Sol Ring and Rest in Peace in p2's graveyard; Wear // Tear in p1's graveyard; stack empty",
           "assertions": {
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "zones.battlefield.p2": {
               "excludes": [
-                { "card": "Sol Ring" },
-                { "card": "Rest in Peace" }
+                {
+                  "card": "Sol Ring"
+                },
+                {
+                  "card": "Rest in Peace"
+                }
               ]
             },
             "zones.graveyard.p2": {
               "includes": [
-                { "card": "Sol Ring" },
-                { "card": "Rest in Peace" }
+                {
+                  "card": "Sol Ring"
+                },
+                {
+                  "card": "Rest in Peace"
+                }
               ]
             },
             "zones.graveyard.p1": {
               "includes": [
-                { "card": "Wear // Tear" }
+                {
+                  "card": "Wear // Tear"
+                }
               ]
             }
           },

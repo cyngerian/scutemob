@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "metadata": {
     "id": "script_etb_004",
-    "name": "Alela, Cunning Conqueror \u2014 creates Faerie Rogue token when artifact enters",
+    "name": "Alela, Cunning Conqueror — creates Faerie Rogue token when artifact enters",
     "description": "p1 has Alela, Cunning Conqueror on the battlefield. p1 casts Sol Ring ({1}). When Sol Ring enters the battlefield (it's an artifact), Alela's triggered ability fires: p1 creates a 1/1 black Faerie Rogue token with flying. Tests Alela's 'whenever you cast or artifact or enchantment spell' trigger.",
     "cr_sections_tested": [
       "603.2",
@@ -18,7 +18,7 @@
       "artifact-cast"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Alela trigger fires when casting an artifact or enchantment spell. Sol Ring is an artifact. After Sol Ring resolves and enters BF, the trigger fires and creates a 1/1 Faerie Rogue.",
@@ -84,7 +84,7 @@
   "script": [
     {
       "step": "precombat_main",
-      "step_note": "p1 casts Sol Ring with Alela on battlefield \u2014 trigger fires.",
+      "step_note": "p1 casts Sol Ring with Alela on battlefield — trigger fires.",
       "actions": [
         {
           "type": "assert_state",
@@ -137,7 +137,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "Both pass \u2014 Alela trigger resolves first (LIFO)."
+          "note": "Both pass — Alela trigger resolves first (LIFO)."
         },
         {
           "type": "stack_resolve",
@@ -187,7 +187,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "Both pass \u2014 Sol Ring resolves."
+          "note": "Both pass — Sol Ring resolves."
         },
         {
           "type": "stack_resolve",

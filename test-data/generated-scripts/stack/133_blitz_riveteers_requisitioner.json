@@ -43,11 +43,12 @@
       "lifo"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Riveteers Requisitioner (MCP verified + engine def at crates/engine/src/cards/defs/riveteers_requisitioner.rs): {1}{R}, Creature — Lizard Rogue, 3/1. Abilities: AbilityDefinition::Keyword(KeywordAbility::Blitz) + AbilityDefinition::Blitz { cost: ManaCost { generic: 2, red: 1 } } + AbilityDefinition::Triggered { trigger_condition: TriggerCondition::WhenDies, effect: Effect::CreateToken { spec: treasure_token_spec(1) } }. Blitz cost {2}{R}: generic 2 + red 1 = 3 total mana (more expensive than normal cost {1}{R}). CR 702.152a: when cast for the blitz cost, the permanent gains haste, gains the triggered ability 'When this permanent is put into a graveyard from the battlefield, draw a card,' and a delayed trigger is created to sacrifice it at the beginning of the next end step. Harness action: 'cast_spell_blitz' (replay_harness.rs line 826) — finds the card in hand and sets cast_with_blitz: true. mana_paid: { generic: 2, red: 1 }. Turn 4 used so there is no ambiguity about summoning sickness; with haste (CR 702.10b) this is moot anyway. After entering the battlefield (power 3), P1 attacks — P2 controls no creatures so no blockers. Unblocked 3/1 assigns 3 damage to P2 (CR 510.1b): P2 life 40 to 37. End of combat and postcombat main priority rounds advance to end step. At beginning of end step: BlitzSacrificeTrigger fires; creature is sacrificed (CR 701.17a). On death (moved to graveyard), two triggers fire simultaneously (both controlled by P1, APNAP = P1 is active player): (1) the Blitz draw-a-card trigger added dynamically by the blitz cast (CR 702.152a) and (2) the static WhenDies Triggered ability for the Treasure token (CR 603.1). Per CR 603.3b (APNAP order for simultaneous triggers) and since both are P1's triggers, P1 places both on stack. P1 puts the Treasure trigger on first, then the draw trigger — so draw resolves last (wait: APNAP ordering for simultaneous triggers: each player puts their own in an order of their choice. P1 can choose order. LIFO: last-placed resolves first). Typical ordering: P1 places Treasure trigger, then draw trigger. Resolves LIFO: draw first, then Treasure. However, the script models P1 choosing Treasure first on stack and draw second — meaning draw resolves first (top of stack). Either ordering is correct per the rules; the key invariant is both resolve. Script uses: trigger_placed for sacrifice trigger, then sacrifice resolves, then two death triggers placed. P1's library must contain at least one card for draw to succeed. Treasure token spec: artifact token named 'Treasure' with '{T}, Sacrifice this token: Add one mana of any color.'",
-    "disputes": []
+    "disputes": [],
+    "retirement_reason": "SR-9c: `assign_damage` is informational; the Blitz attack's combat damage and the draw-on-death are never applied. Unblocks when a damage-assignment Command exists."
   },
   "initial_state": {
     "format": "commander",
@@ -59,7 +60,10 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "generic": 2, "red": 1 },
+        "mana_pool": {
+          "generic": 2,
+          "red": 1
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -80,7 +84,11 @@
       "battlefield": {},
       "hand": {
         "p1": [
-          { "card": "Riveteers Requisitioner", "is_commander": false, "owner": null }
+          {
+            "card": "Riveteers Requisitioner",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -88,7 +96,11 @@
       "command_zone": {},
       "library": {
         "p1": [
-          { "card": "Lightning Bolt", "is_commander": false, "owner": null }
+          {
+            "card": "Lightning Bolt",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "stack": []
@@ -105,10 +117,18 @@
           "description": "Initial: Riveteers Requisitioner in P1 hand; no permanents on battlefield; P2 at 40 life; stack empty; P1 has {2}{R} in mana pool",
           "assertions": {
             "zones.hand.p1.count": 1,
-            "zones.battlefield.p1": { "excludes": [{ "card": "Riveteers Requisitioner" }] },
+            "zones.battlefield.p1": {
+              "excludes": [
+                {
+                  "card": "Riveteers Requisitioner"
+                }
+              ]
+            },
             "players.p1.life": 40,
             "players.p2.life": 40,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Riveteers Requisitioner (3/1, Blitz {2}{R}) is in P1's hand. P1 has {2}{R} ready to pay the blitz cost. No permanents in play."
         },
@@ -118,7 +138,10 @@
           "action": "cast_spell_blitz",
           "card": "Riveteers Requisitioner",
           "targets": [],
-          "mana_paid": { "generic": 2, "red": 1 },
+          "mana_paid": {
+            "generic": 2,
+            "red": 1
+          },
           "mana_source": [],
           "cr_ref": "702.152a",
           "note": "CR 702.152a: P1 casts Riveteers Requisitioner for its blitz cost {2}{R} (alternative cost, CR 601.2b). The permanent will gain haste, the draw-on-death trigger is conditionally active, and a delayed triggered ability is registered to sacrifice it at the beginning of the next end step. CR 601.2: Spell moves from hand to the stack."
@@ -134,7 +157,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — Riveteers Requisitioner (top of stack) resolves."
         },
@@ -144,7 +170,11 @@
           "resolution": [
             {
               "effect": "enter_battlefield",
-              "target": { "type": "permanent", "card": "Riveteers Requisitioner", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "card": "Riveteers Requisitioner",
+                "controller": "p1"
+              },
               "card": null,
               "owner": null,
               "cr_ref": "702.152a",
@@ -157,9 +187,17 @@
           "type": "assert_state",
           "description": "After resolution: Riveteers Requisitioner on P1 battlefield with haste; stack empty; life totals unchanged",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Riveteers Requisitioner" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Riveteers Requisitioner"
+                }
+              ]
+            },
             "zones.hand.p1.count": 0,
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "players.p1.life": 40,
             "players.p2.life": 40
           },
@@ -167,7 +205,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority with empty stack — advance from precombat_main to beginning_of_combat step."
         }
@@ -179,7 +220,10 @@
       "actions": [
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority in beginning_of_combat with empty stack — advance to declare_attackers step."
         }
@@ -198,7 +242,11 @@
           "mana_paid": null,
           "mana_source": [],
           "attackers": [
-            { "card": "Riveteers Requisitioner", "target_player": "p2", "target_planeswalker": null }
+            {
+              "card": "Riveteers Requisitioner",
+              "target_player": "p2",
+              "target_planeswalker": null
+            }
           ],
           "blockers": [],
           "cr_ref": "508.1",
@@ -209,13 +257,18 @@
           "description": "After declare_attackers: Riveteers Requisitioner tapped (attacking P2); stack empty",
           "assertions": {
             "permanent.Riveteers Requisitioner.tapped": true,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 508.1f: Riveteers Requisitioner tapped as part of the attack declaration. It is now an attacking creature targeting P2."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority — advance to declare_blockers step."
         }
@@ -240,7 +293,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority — advance to combat_damage step."
         }
@@ -256,7 +312,12 @@
           "action": "assign_damage",
           "card": "Riveteers Requisitioner",
           "targets": [
-            { "type": "player", "player": "p2", "card": null, "controller": null }
+            {
+              "type": "player",
+              "player": "p2",
+              "card": null,
+              "controller": null
+            }
           ],
           "mana_paid": null,
           "mana_source": [],
@@ -269,14 +330,25 @@
           "assertions": {
             "players.p2.life": 37,
             "players.p1.life": 40,
-            "zones.battlefield.p1": { "includes": [{ "card": "Riveteers Requisitioner" }] },
-            "zones.stack": { "is_empty": true }
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Riveteers Requisitioner"
+                }
+              ]
+            },
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 510.1b: Riveteers Requisitioner (power 3, unblocked) dealt 3 combat damage to P2. P2 life: 40 to 37. No triggered abilities from damage. Stack is empty."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority with empty stack — advance to end_of_combat step."
         }
@@ -288,7 +360,10 @@
       "actions": [
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority in end_of_combat with empty stack — advance to postcombat_main step."
         }
@@ -300,7 +375,10 @@
       "actions": [
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority in postcombat_main — advance to end step (beginning of ending phase)."
         }
@@ -326,14 +404,23 @@
           "description": "After blitz sacrifice trigger fires: trigger on stack (count 1); Riveteers Requisitioner still on P1 battlefield",
           "assertions": {
             "zones.stack.count": 1,
-            "zones.battlefield.p1": { "includes": [{ "card": "Riveteers Requisitioner" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Riveteers Requisitioner"
+                }
+              ]
+            },
             "players.p2.life": 37
           },
           "note": "The BlitzSacrificeTrigger is on the stack. Riveteers Requisitioner is still on the battlefield — it will only be sacrificed when the trigger resolves (CR 702.152a ruling: sacrificed only if still on battlefield when trigger resolves)."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — the BlitzSacrificeTrigger (top of stack) resolves."
         },
@@ -343,7 +430,11 @@
           "resolution": [
             {
               "effect": "sacrifice",
-              "target": { "type": "permanent", "card": "Riveteers Requisitioner", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "card": "Riveteers Requisitioner",
+                "controller": "p1"
+              },
               "card": null,
               "owner": null,
               "cr_ref": "701.17a",
@@ -356,15 +447,30 @@
           "type": "assert_state",
           "description": "After sacrifice: Riveteers Requisitioner in P1 graveyard; NOT on P1 battlefield; two death triggers on stack",
           "assertions": {
-            "zones.graveyard.p1": { "includes": [{ "card": "Riveteers Requisitioner" }] },
-            "zones.battlefield.p1": { "excludes": [{ "card": "Riveteers Requisitioner" }] },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Riveteers Requisitioner"
+                }
+              ]
+            },
+            "zones.battlefield.p1": {
+              "excludes": [
+                {
+                  "card": "Riveteers Requisitioner"
+                }
+              ]
+            },
             "zones.stack.count": 2
           },
           "note": "Riveteers Requisitioner is in P1's graveyard. Both death triggers (blitz draw and WhenDies Treasure) have been placed on the stack (count 2). Stack resolves LIFO (CR 405.5)."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — the top trigger on the stack (blitz draw-a-card trigger) resolves first (LIFO, CR 405.5)."
         },
@@ -374,7 +480,10 @@
           "resolution": [
             {
               "effect": "draw_cards",
-              "target": { "type": "player", "player": "p1" },
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
               "amount": 1,
               "card": null,
               "owner": null,
@@ -397,7 +506,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — the remaining trigger (WhenDies Treasure token) resolves."
         },
@@ -407,7 +519,10 @@
           "resolution": [
             {
               "effect": "create_token",
-              "target": { "type": "player", "player": "p1" },
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
               "card": "Treasure",
               "owner": null,
               "cr_ref": "111.1",
@@ -420,11 +535,24 @@
           "type": "assert_state",
           "description": "Final: Riveteers Requisitioner in P1 graveyard; Treasure token on P1 battlefield; P1 hand count 1; P2 at 37 life; stack empty",
           "assertions": {
-            "zones.graveyard.p1": { "includes": [{ "card": "Riveteers Requisitioner" }] },
-            "zones.battlefield.p1": { "excludes": [{ "card": "Riveteers Requisitioner" }] },
-            "zones.battlefield.p1": { "includes": [{ "card": "Treasure" }] },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Riveteers Requisitioner"
+                }
+              ]
+            },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Treasure"
+                }
+              ]
+            },
             "zones.hand.p1.count": 1,
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "players.p1.life": 40,
             "players.p2.life": 37
           },

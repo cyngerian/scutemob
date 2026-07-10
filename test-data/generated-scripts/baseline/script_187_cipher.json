@@ -34,7 +34,7 @@
       "combat"
     ],
     "confidence": "medium",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "CR 702.99a: Cipher means 'Then you may exile this spell card encoded on a creature you control. Whenever that creature deals combat damage to a player, its controller may cast a copy of the encoded card without paying its mana cost.' Call of the Nightwing costs {2}{U}{B}; P1 pool has generic=2, blue=1, black=1 (colorless is used for generic in the harness). At resolution: (1) Spell ability creates a 1/1 blue/black Horror creature token with flying. (2) Cipher encoding: card should go to ZoneId::Exile and be encoded on P1's Bog Raiders. Resolution.rs:1635 checks obj.characteristics.keywords.contains(&KeywordAbility::Cipher) on the source_object game object. However, enrich_spec_from_def only propagates AbilityDefinition::Keyword(kw) entries to characteristics keywords — it does NOT handle AbilityDefinition::Cipher → KeywordAbility::Cipher. The same pattern is done for Champion and Soulbond variants (lines 2246-2258 in replay_harness.rs). Consequence: the card goes to graveyard (not exile), encoded_cards is not set on Bog Raiders, and no CipherTrigger fires during combat. This is a bug in enrich_spec_from_def. CR 510.1b: Bog Raiders (unblocked, power 2) assigns 2 combat damage to P2. P2 life: 40 → 38. This part IS executable by the harness since Bog Raiders' tapped state is verifiable. Turn 4 used to avoid summoning sickness on Bog Raiders (CR 302.6). The script documents the intended correct behavior. Assertions that CAN pass (token on battlefield, Bog Raiders on battlefield, P2 life total) are included. Assertions about exile and CipherTrigger stack are documented as expected-correct per CR but noted in the dispute as engine-gap dependent.",
@@ -48,7 +48,8 @@
         "resolved_by": null,
         "resolved_date": null
       }
-    ]
+    ],
+    "retirement_reason": "SR-9c: Author-documented engine gap: AbilityDefinition::Cipher is not propagated to the object's keyword set, so the cipher encode-on-damage trigger never fires (script even asserts the gap outcome). Unblocks when Cipher is propagated in enrich_spec_from_def."
   },
   "initial_state": {
     "format": "commander",
@@ -60,7 +61,11 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "colorless": 2, "blue": 1, "black": 1 },
+        "mana_pool": {
+          "colorless": 2,
+          "blue": 1,
+          "black": 1
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -80,12 +85,21 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Bog Raiders", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Bog Raiders",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ]
       },
       "hand": {
         "p1": [
-          { "card": "Call of the Nightwing", "is_commander": false, "owner": null }
+          {
+            "card": "Call of the Nightwing",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -106,8 +120,16 @@
           "description": "Initial: Call of the Nightwing in P1 hand, Bog Raiders untapped on P1 battlefield, P2 at 40 life, stack empty",
           "assertions": {
             "zones.hand.p1.count": 1,
-            "zones.battlefield.p1": { "includes": [{ "card": "Bog Raiders" }] },
-            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Bog Raiders"
+                }
+              ]
+            },
+            "zones.stack": {
+              "is_empty": true
+            },
             "players.p1.life": 40,
             "players.p2.life": 40
           },
@@ -119,7 +141,11 @@
           "action": "cast_spell",
           "card": "Call of the Nightwing",
           "targets": [],
-          "mana_paid": { "colorless": 2, "blue": 1, "black": 1 },
+          "mana_paid": {
+            "colorless": 2,
+            "blue": 1,
+            "black": 1
+          },
           "mana_source": [],
           "cr_ref": "601.2",
           "note": "CR 601.2: P1 casts Call of the Nightwing paying {2}{U}{B}. No targets. Spell moves from hand to stack."
@@ -135,7 +161,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — top of stack (Call of the Nightwing) resolves."
         },
@@ -145,14 +174,19 @@
           "resolution": [
             {
               "effect": "create_token",
-              "target": { "type": "player", "player": "p1" },
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
               "token": {
                 "name": "Horror",
                 "type": "creature",
                 "subtype": "Horror",
                 "power": 1,
                 "toughness": 1,
-                "keywords": ["Flying"]
+                "keywords": [
+                  "Flying"
+                ]
               },
               "card": null,
               "owner": null,
@@ -161,7 +195,11 @@
             },
             {
               "effect": "cipher_encode",
-              "target": { "type": "permanent", "card": "Bog Raiders", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "card": "Bog Raiders",
+                "controller": "p1"
+              },
               "card": null,
               "owner": null,
               "cr_ref": "702.99a",
@@ -174,8 +212,16 @@
           "type": "assert_state",
           "description": "After resolution: Horror token on P1 battlefield, Bog Raiders still on P1 battlefield, stack empty. Note: per CR, Call of the Nightwing should be in exile (cipher-encoded); however due to engine gap it is currently in P1 graveyard. Assertions reflect CR-correct expected state.",
           "assertions": {
-            "zones.stack": { "is_empty": true },
-            "zones.battlefield.p1": { "includes": [{ "card": "Bog Raiders" }] },
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Bog Raiders"
+                }
+              ]
+            },
             "zones.battlefield.p1.count": 2
           },
           "note": "P1 battlefield count=2: Bog Raiders + 1 Horror token (token creation works). CR 702.99a: Call of the Nightwing SHOULD be in exile (cipher encoding), but engine gap causes it to be in the graveyard. Exile/graveyard assertion omitted here because it depends on the engine gap being fixed. Stack is empty."
@@ -188,7 +234,10 @@
       "actions": [
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority with empty stack — game advances from precombat_main to beginning_of_combat step."
         }
@@ -200,7 +249,10 @@
       "actions": [
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority in beginning_of_combat — game advances to declare_attackers step."
         },
@@ -213,7 +265,11 @@
           "mana_paid": null,
           "mana_source": [],
           "attackers": [
-            { "card": "Bog Raiders", "target_player": "p2", "target_planeswalker": null }
+            {
+              "card": "Bog Raiders",
+              "target_player": "p2",
+              "target_planeswalker": null
+            }
           ],
           "blockers": [],
           "cr_ref": "508.1",
@@ -224,13 +280,18 @@
           "description": "After declare_attackers: Bog Raiders is tapped, stack empty (no attack triggers on Bog Raiders)",
           "assertions": {
             "permanent.Bog Raiders.tapped": true,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 508.1f: Bog Raiders taps upon attacking. Swampwalk is a static evasion ability with no attack trigger. Stack empty."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass — advance to declare_blockers step."
         },
@@ -249,7 +310,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass in declare_blockers step — advance to combat damage step. CR 510.1b: Bog Raiders (unblocked, power 2) deals 2 combat damage to P2. P2 life: 40 → 38. CR 702.99a INTENDED: Cipher trigger should fire (CipherCombatDamage PendingTrigger → CipherTrigger SOK). Actual: no trigger fires because encoded_cards is empty (cipher encoding failed due to harness gap)."
         },
@@ -259,8 +323,16 @@
           "assertions": {
             "players.p2.life": 38,
             "players.p1.life": 40,
-            "zones.stack": { "is_empty": true },
-            "zones.battlefield.p1": { "includes": [{ "card": "Bog Raiders" }] },
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Bog Raiders"
+                }
+              ]
+            },
             "permanent.Bog Raiders.tapped": true
           },
           "note": "CR 510.1b: P2 took 2 unblocked combat damage from Bog Raiders (2/2). P2 life: 40 → 38. Stack is empty because the Cipher trigger cannot fire (Bog Raiders' encoded_cards is empty due to the harness gap in enrich_spec_from_def). Per correct CR behavior, stack should have 1 CipherTrigger at this point (see dispute). P1 took no damage."

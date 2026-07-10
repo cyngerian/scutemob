@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "metadata": {
     "id": "script_stack_012",
-    "name": "Cultivate \u2014 put land onto battlefield, put another in hand",
+    "name": "Cultivate — put land onto battlefield, put another in hand",
     "description": "p1 casts Cultivate ({2}{G}). Searches library for up to two basic land cards; put one onto the battlefield tapped and the other into hand. Tests a two-part land search sorcery where one land enters the battlefield immediately and another goes to hand for later use.",
     "cr_sections_tested": [
       "601.2",
@@ -19,7 +19,7 @@
       "land-fetch"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Cultivate oracle: 'Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle.' Cost {2}{G}. Library has a Forest and a Plains. After resolution: Forest enters battlefield tapped, Plains goes to hand. Library is shuffled (now empty). Initial: p1 has Cultivate in hand with {2}{G} in pool; library has Forest and Plains.",
@@ -133,7 +133,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "Both pass \u2014 Cultivate resolves."
+          "note": "Both pass — Cultivate resolves."
         },
         {
           "type": "stack_resolve",

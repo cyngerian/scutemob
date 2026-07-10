@@ -19,7 +19,7 @@
       "priority"
     ],
     "confidence": "medium",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Pending harness support for sacrificing a creature (to trigger the graveyard zone-change). Darksteel Colossus is indestructible so cannot be killed by destroy/damage. A sacrifice outlet is needed. Also requires the Colossus to be cast (not pre-placed) to register its self-replacement effect. Once sacrifice support is added to translate_player_action, this script can be approved. See corner case #17.",
@@ -28,12 +28,13 @@
         "step_index": 0,
         "action_index": 4,
         "raised_by": "claude-sonnet-4-6",
-        "description": "Darksteel Colossus is indestructible \u2014 cannot die via damage or destroy effects. A 'sacrifice' player action is needed to force it to the graveyard. The harness does not currently translate sacrifice actions. Pending harness enhancement.",
+        "description": "Darksteel Colossus is indestructible — cannot die via damage or destroy effects. A 'sacrifice' player action is needed to force it to the graveyard. The harness does not currently translate sacrifice actions. Pending harness enhancement.",
         "resolution": null,
         "resolved_by": null,
         "resolved_date": null
       }
-    ]
+    ],
+    "retirement_reason": "SR-9c: Needs a `sacrifice` player-action to move indestructible Darksteel Colossus to the graveyard (it cannot die to damage/destroy); the harness has no sacrifice-as-a-Command translation, so the scenario cannot reach the state it asserts (StackNotEmpty at the forced step)."
   },
   "initial_state": {
     "format": "commander",

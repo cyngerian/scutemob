@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "metadata": {
     "id": "script_stack_036",
-    "name": "Darksteel Ingot \u2014 indestructible artifact mana rock taps for any color",
+    "name": "Darksteel Ingot — indestructible artifact mana rock taps for any color",
     "description": "p1 casts Darksteel Ingot ({3}) and then activates it for mana. Tests an indestructible artifact mana source. The indestructible property means it won't be destroyed by Wrath effects.",
     "cr_sections_tested": [
       "601.2",
@@ -17,7 +17,7 @@
       "any-color-mana"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Darksteel Ingot oracle: 'Indestructible. {T}: Add one mana of any color.' Cost {3}. Cast for {3}, enters battlefield with indestructible. Then tap for mana. Initial: p1 has {3} in pool, Darksteel Ingot in hand.",
@@ -107,7 +107,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "Both pass \u2014 Darksteel Ingot resolves."
+          "note": "Both pass — Darksteel Ingot resolves."
         },
         {
           "type": "stack_resolve",

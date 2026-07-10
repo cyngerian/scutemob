@@ -31,7 +31,7 @@
       "no-trigger"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Pestilent Syphoner oracle text: '{1}{B} — Creature — Phyrexian Insect — 1/1 — Flying, Toxic 1'. Card definition exists at crates/engine/src/cards/defs/pestilent_syphoner.rs. CR 702.164a: Toxic is a static ability. CR 702.164c: 'Combat damage dealt to a player by a creature with toxic causes that creature's controller to give the player a number of poison counters equal to that creature's total toxic value, in addition to the damage's other results.' This means the poison counter is an inline result of the damage event — NOT a triggered ability placed on the stack. Key contrast: Poisonous (CR 702.70a) IS a triggered ability ('Whenever this creature deals combat damage to a player, that player gets N poison counters') which goes on the stack and requires priority_round + stack_resolve. Toxic does NOT go on the stack — after combat damage step, the stack is immediately empty and p2 already has 1 poison counter. Additionally, unlike Infect (CR 702.90b), Toxic does NOT replace life loss — p2 loses 1 life AND gets 1 poison counter. So p2 ends at 39 life (not 40) with 1 poison counter. Turn 4 used to avoid summoning sickness (CR 302.6). p2 has no creatures (and specifically no flying creatures) — Pestilent Syphoner's Flying is noted but not directly tested here. After combat damage: p2 life = 39, p2 poison_counters = 1, stack is empty (critical assertion distinguishing Toxic from Poisonous). SBA 704.5c: p2 has 1 poison counter (below 10) — no game loss. SBA 704.5a: p2 at 39 life (above 0) — no player death.",
@@ -67,7 +67,12 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Pestilent Syphoner", "tapped": false, "is_commander": false, "owner": null }
+          {
+            "card": "Pestilent Syphoner",
+            "tapped": false,
+            "is_commander": false,
+            "owner": null
+          }
         ],
         "p2": []
       },
@@ -89,12 +94,20 @@
           "type": "assert_state",
           "description": "Initial: Pestilent Syphoner (1/1, Flying, Toxic 1) untapped on p1 battlefield; p2 at 40 life, 0 poison counters; stack empty",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Pestilent Syphoner" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Pestilent Syphoner"
+                }
+              ]
+            },
             "permanent.Pestilent Syphoner.tapped": false,
             "players.p1.life": 40,
             "players.p2.life": 40,
             "players.p2.poison_counters": 0,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Turn 4 — Pestilent Syphoner has no summoning sickness (CR 302.6). Toxic 1 is a static ability (CR 702.164a) — it does not trigger on attacking. p2 has no creatures, so no blockers. Stack is empty."
         },
@@ -107,7 +120,11 @@
           "mana_paid": null,
           "mana_source": [],
           "attackers": [
-            { "card": "Pestilent Syphoner", "target_player": "p2", "target_planeswalker": null }
+            {
+              "card": "Pestilent Syphoner",
+              "target_player": "p2",
+              "target_planeswalker": null
+            }
           ],
           "blockers": [],
           "cr_ref": "508.1",
@@ -118,13 +135,18 @@
           "description": "After declare_attackers: Pestilent Syphoner is tapped; stack empty — Toxic is static, no trigger",
           "assertions": {
             "permanent.Pestilent Syphoner.tapped": true,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 508.1f: Pestilent Syphoner tapped upon attacking. CR 702.164a: Toxic is a static ability — it does NOT produce a triggered ability at declare_attackers or at any other time. Stack remains empty."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority with empty stack — advance to declare_blockers step."
         }
@@ -149,7 +171,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority with empty stack — advance to combat damage step. Pestilent Syphoner (power 1, Flying, Toxic 1, unblocked) will deal 1 combat damage to p2. CR 702.164c: that damage also causes p2 to receive 1 poison counter inline — not via a trigger."
         }
@@ -165,7 +190,9 @@
           "assertions": {
             "players.p2.life": 39,
             "players.p2.poison_counters": 1,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 510.1b: Pestilent Syphoner (power 1, unblocked) deals 1 combat damage to p2. CR 120.3: p2 loses 1 life (40 → 39). CR 702.164c: Toxic 1 gives p2 exactly 1 poison counter as part of the same damage event — inline, not via the stack. Stack is EMPTY — this is the key difference from Poisonous (CR 702.70a), which would put a triggered ability on the stack requiring a separate priority round and stack_resolve."
         },
@@ -176,7 +203,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority after combat damage and SBA check. Stack is empty — advance to end of combat."
         },
@@ -187,9 +217,17 @@
             "players.p1.life": 40,
             "players.p2.life": 39,
             "players.p2.poison_counters": 1,
-            "zones.battlefield.p1": { "includes": [{ "card": "Pestilent Syphoner" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Pestilent Syphoner"
+                }
+              ]
+            },
             "permanent.Pestilent Syphoner.tapped": true,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 702.164c: Toxic 1 gave p2 exactly 1 poison counter inline with the combat damage — no stack interaction. p2 life = 39 confirms Toxic is ADDITIVE (normal life loss still applies), unlike Infect (CR 702.90b) which replaces life loss. Stack is empty confirms Toxic is NOT a triggered ability, unlike Poisonous (CR 702.70a) which would have left a trigger on the stack requiring resolution. p2 has 1 poison counter — below 10, so no game loss (CR 704.5c). Pestilent Syphoner survives (dealt damage to a player, not a creature — no damage marked on it)."
         }

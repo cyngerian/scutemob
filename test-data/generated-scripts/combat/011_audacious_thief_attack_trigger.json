@@ -28,7 +28,7 @@
       "audacious-thief"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Audacious Thief oracle text (Scryfall verified): 'Whenever this creature attacks, you draw a card and you lose 1 life.' Type: Creature — Human Rogue. P/T: 2/2. Mana cost: {2}{B}. CR 302.6: A creature can't attack unless it has been controlled by its controller continuously since the beginning of the turn (summoning sickness rule). By setting turn_number 5 and placing Audacious Thief on the battlefield in the initial state, it is assumed to have been in play since a prior turn — thus free of summoning sickness. CR 508.1a: The creature must either have haste or have been controlled continuously since the turn began. CR 508.1f: Tapping as part of attacking is not a cost. CR 508.1m: Any abilities that trigger on attackers being declared trigger after attackers are declared. CR 508.3a (via 603.2): 'Whenever [a creature] attacks' is a triggered ability whose trigger event is being declared as an attacker. CR 603.3: Once triggered, the ability is placed on the stack as a non-card object the next time a player would receive priority after it triggers (which is after attackers are declared, before the declare-blockers step). CR 603.3a: The triggered ability is controlled by p1 (the controller of Audacious Thief at the time it triggered). Engine: The harness registers WhenAttacks triggers via enrich_spec_from_def (replay_harness.rs:427-448), converting TriggerCondition::WhenAttacks into TriggerEvent::SelfAttacks. However, declare_attackers is NOT in translate_player_action, so the attack trigger cannot be fired via an executable harness command. All combat and trigger steps are therefore informational (turn_based_action, trigger_placed, stack_resolve). The assert_state checkpoints verify only the initial state. Expected CR outcomes: (1) Audacious Thief attacks — declared as attacker, tapped (CR 508.1f); (2) WhenAttacks trigger fires and goes on stack (CR 508.1m, 603.3); (3) p2 passes priority with no response; p1 passes; trigger resolves: DrawCards{player: Controller, count: Fixed(1)} draws 1 card for p1 (hand 1 → 2), LoseLife{player: Controller, amount: Fixed(1)} reduces p1 life from 40 to 39 (CR 608.2); (4) p2 declares no blockers; (5) Audacious Thief (power 2) unblocked, deals 2 combat damage to p2 (40 → 38, CR 510.1b). Library card (Forest) provided so the draw effect has a card to draw. A dispute is filed noting the harness cannot assert life/hand changes from the WhenAttacks trigger or combat damage since those are not engine-executed in the script.",
@@ -118,13 +118,17 @@
           "assertions": {
             "zones.battlefield.p1": {
               "includes": [
-                { "card": "Audacious Thief" }
+                {
+                  "card": "Audacious Thief"
+                }
               ]
             },
             "players.p1.life": 40,
             "players.p2.life": 40,
             "zones.hand.p1.count": 1,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Audacious Thief has been on the battlefield since before this turn (turn 5), so it is not subject to summoning sickness (CR 302.6). It can attack."
         },
@@ -153,7 +157,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — the Audacious Thief WhenAttacks trigger resolves."
         },
@@ -208,10 +215,14 @@
             "zones.hand.p1.count": 1,
             "zones.battlefield.p1": {
               "includes": [
-                { "card": "Audacious Thief" }
+                {
+                  "card": "Audacious Thief"
+                }
               ]
             },
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Harness does not execute declare_attackers or the WhenAttacks trigger — all state changes are documented in the informational steps above. Expected CR outcomes: p1 life 39 (lost 1 from trigger), p1 hand 2 (drew 1 from trigger), p2 life 38 (2 unblocked combat damage). See dispute entry for details."
         }

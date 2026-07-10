@@ -2,8 +2,8 @@
   "schema_version": "1.0.0",
   "metadata": {
     "id": "script_stack_025",
-    "name": "Wall of Omens blocks and survives \u2014 0/4 Defender blocks 3/3",
-    "description": "p2 has a 3/3 Beast token attacking. p1 blocks with Wall of Omens (0/4 Defender). Combat damage: Beast deals 3 to Wall (3 < 4 toughness \u2014 Wall survives). Wall deals 0 to Beast (power 0 \u2014 no damage). Tests that a high-toughness defender blocks without dying to a smaller attacker, and that 0-power creatures deal 0 damage.",
+    "name": "Wall of Omens blocks and survives — 0/4 Defender blocks 3/3",
+    "description": "p2 has a 3/3 Beast token attacking. p1 blocks with Wall of Omens (0/4 Defender). Combat damage: Beast deals 3 to Wall (3 < 4 toughness — Wall survives). Wall deals 0 to Beast (power 0 — no damage). Tests that a high-toughness defender blocks without dying to a smaller attacker, and that 0-power creatures deal 0 damage.",
     "cr_sections_tested": [
       "510.1",
       "510.2",
@@ -19,11 +19,12 @@
       "combat-damage"
     ],
     "confidence": "medium",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
-    "generation_notes": "Wall of Omens is a 0/4 Defender. Beast token is 3/3. In combat: Beast assigns 3 damage to Wall (3 < 4 toughness \u2014 Wall survives, no SBA). Wall assigns 0 damage to Beast (0 power). This is a combat interaction. Note: the replay harness does NOT currently support DeclareAttackers/DeclareBlockers commands, so this script is informational (draft). It documents the expected behavior. The actual engine behavior is unit-tested in combat.rs. Setting confidence to medium and review_status to pending_review.",
-    "disputes": []
+    "generation_notes": "Wall of Omens is a 0/4 Defender. Beast token is 3/3. In combat: Beast assigns 3 damage to Wall (3 < 4 toughness — Wall survives, no SBA). Wall assigns 0 damage to Beast (0 power). This is a combat interaction. Note: the replay harness does NOT currently support DeclareAttackers/DeclareBlockers commands, so this script is informational (draft). It documents the expected behavior. The actual engine behavior is unit-tested in combat.rs. Setting confidence to medium and review_status to pending_review.",
+    "disputes": [],
+    "retirement_reason": "SR-9c: Dispatches no attacker/blocker Command (combat is set up only via initial_state) and asserts damage marked via `permanent.<c>.counters.damage`, but damage is not a counter type — the assertion is unevaluable and no combat damage is dealt. Retire pending scriptable combat."
   },
   "initial_state": {
     "format": "commander",
@@ -108,7 +109,7 @@
         },
         {
           "type": "stack_resolve",
-          "object": "Combat Damage \u2014 Beast vs Wall of Omens",
+          "object": "Combat Damage — Beast vs Wall of Omens",
           "resolution": [
             {
               "effect": "assign_combat_damage",
@@ -132,7 +133,7 @@
         {
           "type": "sba_check",
           "actions": [],
-          "note": "SBAs: Wall has 3 damage but 4 toughness \u2014 not lethal (3 < 4). No creatures die."
+          "note": "SBAs: Wall has 3 damage but 4 toughness — not lethal (3 < 4). No creatures die."
         },
         {
           "type": "assert_state",

@@ -6,6 +6,7 @@
     "description": "Both players have creatures on the battlefield: p1 has Llanowar Elves and Birds of Paradise; p2 has Solemn Simulacrum and Elvish Mystic. p1 casts Wrath of God. All four creatures are destroyed simultaneously. Tests board wipe simultaneous destruction (CR 700.4, 704.5g).",
     "cr_sections_tested": [
       "601.2",
+      "603.3",
       "608.2",
       "700.4",
       "704.5g"
@@ -155,7 +156,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "Both pass \u2014 Wrath of God resolves."
+          "note": "Both pass — Wrath of God resolves."
         },
         {
           "type": "stack_resolve",
@@ -179,11 +180,8 @@
         },
         {
           "type": "assert_state",
-          "description": "After Wrath: all creatures in graveyards, battlefields empty",
+          "description": "After Wrath: all creatures in graveyards, battlefields empty; Solemn Simulacrum dies trigger (CR 603.3) on the stack",
           "assertions": {
-            "zones.stack": {
-              "is_empty": true
-            },
             "zones.graveyard.p1": {
               "includes": [
                 {
@@ -203,9 +201,11 @@
                   "card": "Elvish Mystic"
                 }
               ]
-            }
+            },
+            "zones.stack.count": 1
           },
-          "note": "CR 704.5g: All 4 creatures destroyed, moved to graveyards. Note: Solemn Simulacrum's dies trigger draws p2 a card."
+          "note": "SR-9c: Solemn Simulacrum has \"When Solemn Simulacrum dies, draw a card\". Wrath's SBA puts all four creatures in graveyards simultaneously (CR 704.7), then Solemn's dies trigger is put on the stack (CR 603.3). The stack is therefore NOT empty at this checkpoint; it holds exactly that one trigger. The prior `zones.stack: is_empty` assertion only ever passed because the replay checker treated `zones.stack` as a vacuously-empty name list.",
+          "cr_ref": "603.3"
         }
       ]
     }

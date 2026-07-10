@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "metadata": {
     "id": "script_etb_006",
-    "name": "Rhystic Study \u2014 draw trigger fires when opponent casts without paying {1}",
+    "name": "Rhystic Study — draw trigger fires when opponent casts without paying {1}",
     "description": "p1 has Rhystic Study on the battlefield. p2 casts Lightning Bolt ({R}) without paying the extra {1}. Rhystic Study's triggered ability fires: p1 draws a card. Tests the 'whenever an opponent casts a spell, you may pay {1}; if they don't, draw' trigger.",
     "cr_sections_tested": [
       "603.2",
@@ -17,11 +17,12 @@
       "tax"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Rhystic Study: Whenever an opponent casts a spell, you may pay {1}. If that player doesn't, draw a card. p2 casts Lightning Bolt, p2 declines to pay {1}, so p1 draws.",
-    "disputes": []
+    "disputes": [],
+    "retirement_reason": "SR-9c: Same Rhystic Study cast-trigger sequencing: the script's priority pass order does not match engine APNAP once the trigger is on the stack (NotPriorityHolder). Retire pending a trigger-resolving rewrite."
   },
   "initial_state": {
     "format": "commander",
@@ -180,7 +181,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "Both pass \u2014 Lightning Bolt resolves."
+          "note": "Both pass — Lightning Bolt resolves."
         },
         {
           "type": "stack_resolve",

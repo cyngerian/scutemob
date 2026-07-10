@@ -25,7 +25,7 @@
       "flowerfoot-swordmaster"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "CR 702.175a: Offspring is an additional cost keyword. The cast_spell_offspring action with offspring_paid=true causes p1 to pay {2} as an additional cost on top of the base cost {W}. Total mana paid: {W} + {2} = white=1, colorless=2. CR 702.175b: When the creature enters the battlefield, its ETB trigger (OffspringTrigger) fires, creating one 1/1 token copy of the creature. Per CR 702.175b, the token is a copy of the creature except it has base power 1 and base toughness 1. The trigger is placed on the stack after the creature resolves and enters; both players pass priority, then the trigger resolves creating 1 token. Final battlefield count for p1: 2 (1 original 1/2 Flowerfoot Swordmaster + 1 token 1/1 copy). The Valiant ability on Flowerfoot Swordmaster is not exercised in this script (DSL gap — requires TriggerCondition::WhenBecomesTargetOfYourSpellOrAbility). Mana calculation: white=1 (base {W}), colorless=2 (offspring {2}).",
@@ -90,8 +90,16 @@
           "description": "Initial: Flowerfoot Swordmaster in p1 hand, battlefield empty, stack empty",
           "assertions": {
             "zones.hand.p1.count": 1,
-            "zones.stack": { "is_empty": true },
-            "zones.battlefield.p1": { "excludes": [{ "card": "Flowerfoot Swordmaster" }] }
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "excludes": [
+                {
+                  "card": "Flowerfoot Swordmaster"
+                }
+              ]
+            }
           },
           "note": "P1 holds the card and has {1}{W} available: base {W} + offspring additional cost {2}."
         },
@@ -121,7 +129,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — top of stack resolves."
         },
@@ -144,7 +155,11 @@
           "description": "After spell resolves: Flowerfoot Swordmaster on battlefield, OffspringTrigger on stack",
           "assertions": {
             "zones.battlefield.p1": {
-              "includes": [{ "card": "Flowerfoot Swordmaster" }]
+              "includes": [
+                {
+                  "card": "Flowerfoot Swordmaster"
+                }
+              ]
             },
             "zones.stack.count": 1
           },
@@ -152,7 +167,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — OffspringTrigger resolves."
         },
@@ -162,12 +180,17 @@
           "resolution": [
             {
               "effect": "create_token",
-              "target": { "type": "player", "player": "p1" },
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
               "token": {
                 "name": "Flowerfoot Swordmaster",
                 "power": 1,
                 "toughness": 1,
-                "colors": ["white"]
+                "colors": [
+                  "white"
+                ]
               },
               "card": null,
               "owner": null,
@@ -182,7 +205,9 @@
           "description": "Final: 2 Flowerfoot Swordmaster on p1's battlefield (1 original 1/2 + 1 token 1/1 copy), stack empty",
           "assertions": {
             "zones.battlefield.p1.count": 2,
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "zones.hand.p1.count": 0
           },
           "note": "CR 702.175b: offspring_paid=true caused one 1/1 token copy to be created. P1 controls 2 Mouse Soldiers: the original Flowerfoot Swordmaster (1/2) and its 1/1 token copy."

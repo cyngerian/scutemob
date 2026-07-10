@@ -23,10 +23,10 @@
       "lost-mine-of-phandelver"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
-    "generation_notes": "Nadaar oracle: Vigilance; 'Whenever Nadaar enters or attacks, venture into the dungeon.'; 'Other creatures you control get +1/+1 as long as you\u2019ve completed a dungeon.' Cast for {3}{W} = 3 generic + 1 white. ETB trigger puts venture into dungeon effect on stack, then room ability (Scry 1) on stack. Library has 1 card so scry sends it to bottom (same position). Dungeon progress: p1 enters Lost Mine of Phandelver, venture marker at Cave Entrance (room 0).",
+    "generation_notes": "Nadaar oracle: Vigilance; 'Whenever Nadaar enters or attacks, venture into the dungeon.'; 'Other creatures you control get +1/+1 as long as you’ve completed a dungeon.' Cast for {3}{W} = 3 generic + 1 white. ETB trigger puts venture into dungeon effect on stack, then room ability (Scry 1) on stack. Library has 1 card so scry sends it to bottom (same position). Dungeon progress: p1 enters Lost Mine of Phandelver, venture marker at Cave Entrance (room 0).",
     "disputes": []
   },
   "initial_state": {
@@ -127,7 +127,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — Nadaar resolves. ETB trigger for venture queued."
         },
@@ -157,7 +160,11 @@
           "description": "Nadaar on battlefield, ETB trigger on stack",
           "assertions": {
             "zones.battlefield.p1": {
-              "includes": [{"card": "Nadaar, Selfless Paladin"}]
+              "includes": [
+                {
+                  "card": "Nadaar, Selfless Paladin"
+                }
+              ]
             },
             "zones.stack.count": 1
           },
@@ -165,7 +172,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass — ETB trigger resolves. Engine calls VentureIntoDungeon."
         },
@@ -196,7 +206,11 @@
           "description": "After venture: Nadaar on battlefield, RoomAbility on stack",
           "assertions": {
             "zones.battlefield.p1": {
-              "includes": [{"card": "Nadaar, Selfless Paladin"}]
+              "includes": [
+                {
+                  "card": "Nadaar, Selfless Paladin"
+                }
+              ]
             },
             "zones.stack.count": 1,
             "zones.library.p1.count": 1
@@ -205,7 +219,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass — RoomAbility (Scry 1) resolves."
         },
@@ -228,7 +245,11 @@
           "description": "Final: Nadaar on battlefield, stack empty, library still has Plains",
           "assertions": {
             "zones.battlefield.p1": {
-              "includes": [{"card": "Nadaar, Selfless Paladin"}]
+              "includes": [
+                {
+                  "card": "Nadaar, Selfless Paladin"
+                }
+              ]
             },
             "zones.stack": {
               "is_empty": true

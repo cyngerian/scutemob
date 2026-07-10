@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "metadata": {
     "id": "script_etb_005",
-    "name": "Solemn Simulacrum dies \u2014 controller draws a card",
+    "name": "Solemn Simulacrum dies — controller draws a card",
     "description": "p1 has Solemn Simulacrum on the battlefield. p2 casts Doom Blade targeting Solemn Simulacrum. Simulacrum is destroyed, goes to graveyard, and its dies triggered ability fires: p1 draws a card. Tests the 'when this creature dies' trigger (CR 603.6c).",
     "cr_sections_tested": [
       "603.6c",
@@ -18,11 +18,12 @@
       "doom-blade"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Solemn Simulacrum: 'When Solemn Simulacrum dies, you may draw a card.' p2 kills it with Doom Blade. After death trigger resolves, p1 has +1 card in hand.",
-    "disputes": []
+    "disputes": [],
+    "retirement_reason": "SR-9c: The Solemn dies trigger changes who holds priority; the script's next pass targets the wrong player (NotPriorityHolder). Retire pending a priority sequence that matches engine APNAP after the trigger."
   },
   "initial_state": {
     "format": "commander",
@@ -145,7 +146,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "p1 passes (no counter), p2 passes \u2014 Doom Blade resolves."
+          "note": "p1 passes (no counter), p2 passes — Doom Blade resolves."
         },
         {
           "type": "stack_resolve",
@@ -195,7 +196,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "Both pass \u2014 dies trigger resolves."
+          "note": "Both pass — dies trigger resolves."
         },
         {
           "type": "stack_resolve",

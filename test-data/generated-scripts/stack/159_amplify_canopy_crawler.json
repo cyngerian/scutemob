@@ -4,11 +4,25 @@
     "id": "script_stack_159",
     "name": "Amplify 1 — Canopy Crawler reveals Beast from hand for +1/+1 counter",
     "description": "Tests Amplify 1 (CR 702.38a) on Canopy Crawler ({3}{G}, 2/2 Beast). p1 has Canopy Crawler in hand and one Beast creature card (Blastoderm) also in hand. p1 casts Canopy Crawler. As Canopy Crawler enters the battlefield, the engine auto-reveals the Beast card from hand (Amplify 1 — 1 matching Beast card = 1 counter). Canopy Crawler enters as a 3/3 (2/2 base + 1 +1/+1 counter from Amplify). The Beast card (Blastoderm) remains in hand — revealing does NOT discard it (CR 702.38a). Amplify is a static replacement effect: the counter is placed as part of the ETB transition, not as a separate triggered ability, so no trigger goes on the stack.",
-    "cr_sections_tested": ["702.38a", "702.38b", "601.2", "608.2", "116.3"],
+    "cr_sections_tested": [
+      "702.38a",
+      "702.38b",
+      "601.2",
+      "608.2",
+      "116.3"
+    ],
     "corner_case_ref": null,
-    "tags": ["amplify", "counter", "etb", "replacement", "reveal", "canopy-crawler", "beast"],
+    "tags": [
+      "amplify",
+      "counter",
+      "etb",
+      "replacement",
+      "reveal",
+      "canopy-crawler",
+      "beast"
+    ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Canopy Crawler card definition (crates/engine/src/cards/defs/canopy_crawler.rs): mana_cost {3}{G} (generic:3, green:1), types Creature — Beast, power 2, toughness 2. Abilities: AbilityDefinition::Keyword(KeywordAbility::Amplify(1)). Blastoderm (crates/engine/src/cards/defs/blastoderm.rs): mana_cost {2}{G}{G}, types Creature — Beast, power 5, toughness 5. Blastoderm is used as the Beast card in hand because it is a registered Beast creature in the card registry. Amplify is implemented in resolution.rs as a static replacement applied during the ETB transition (not a trigger — CR 614.1c): the engine auto-reveals all eligible Beast cards in the controller's hand (deterministic bot play — maximises counters). With 1 Beast card in hand (Blastoderm) and Amplify 1, total_amplify_counters = 1 * 1 = 1. Canopy Crawler enters with 1 +1/+1 counter: effective P/T 3/3 (base 2/2 + 1). Blastoderm stays in hand — CR 702.38a: 'reveal any number of Beast cards from your hand... put that many +1/+1 counters on it' — revealing is not discarding. No stack object is created for the counter placement; the CounterAdded event fires before PermanentEnteredBattlefield completes. mana_paid uses colorless:3 for the {3} generic portion and green:1 for {G}. The hand has count 2 (Canopy Crawler + Blastoderm) before casting, count 1 (Blastoderm only) after casting. Canopy Crawler itself is also a Beast (creature_types &[\"Beast\"]) but CR 702.38a specifies revealing cards 'from your hand' — the Canopy Crawler is the spell being cast (on the stack), not in hand, so it does not count toward the reveal.",
@@ -24,7 +38,10 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "colorless": 3, "green": 1 },
+        "mana_pool": {
+          "colorless": 3,
+          "green": 1
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -45,8 +62,16 @@
       "battlefield": {},
       "hand": {
         "p1": [
-          { "card": "Canopy Crawler", "is_commander": false, "owner": null },
-          { "card": "Blastoderm", "is_commander": false, "owner": null }
+          {
+            "card": "Canopy Crawler",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Blastoderm",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -67,10 +92,17 @@
           "description": "Initial: Canopy Crawler and Blastoderm in p1 hand; battlefield empty; stack empty",
           "assertions": {
             "zones.hand.p1.count": 2,
-            "zones.hand.p1": { "includes": [{ "card": "Canopy Crawler" }] },
-            "zones.hand.p1": { "includes": [{ "card": "Blastoderm" }] },
+            "zones.hand.p1": {
+              "includes": [
+                {
+                  "card": "Blastoderm"
+                }
+              ]
+            },
             "zones.battlefield.p1.count": 0,
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "players.p1.life": 40,
             "players.p2.life": 40
           },
@@ -82,7 +114,10 @@
           "action": "cast_spell",
           "card": "Canopy Crawler",
           "targets": [],
-          "mana_paid": { "colorless": 3, "green": 1 },
+          "mana_paid": {
+            "colorless": 3,
+            "green": 1
+          },
           "mana_source": [],
           "cr_ref": "601.2",
           "note": "CR 601.2: p1 casts Canopy Crawler ({3}{G}); colorless:3 + green:1 paid from pool. Canopy Crawler moves from hand to stack. Blastoderm remains in hand."
@@ -93,14 +128,23 @@
           "assertions": {
             "zones.stack.count": 1,
             "zones.hand.p1.count": 1,
-            "zones.hand.p1": { "includes": [{ "card": "Blastoderm" }] },
+            "zones.hand.p1": {
+              "includes": [
+                {
+                  "card": "Blastoderm"
+                }
+              ]
+            },
             "zones.battlefield.p1.count": 0
           },
           "note": "CR 601.2: Canopy Crawler is on the stack awaiting resolution. Blastoderm remains in p1's hand — it will be auto-revealed for Amplify during resolution but is NOT discarded."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — top of stack (Canopy Crawler) resolves (CR 608.2)."
         },
@@ -110,7 +154,11 @@
           "resolution": [
             {
               "effect": "enters_battlefield",
-              "target": { "type": "permanent", "card": "Canopy Crawler", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "card": "Canopy Crawler",
+                "controller": "p1"
+              },
               "amount": null,
               "card": null,
               "owner": null,
@@ -124,12 +172,26 @@
           "type": "assert_state",
           "description": "Final: Canopy Crawler on battlefield with 1 +1/+1 counter (effective 3/3); Blastoderm still in hand; stack empty",
           "assertions": {
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "zones.battlefield.p1.count": 1,
-            "zones.battlefield.p1": { "includes": [{ "card": "Canopy Crawler" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Canopy Crawler"
+                }
+              ]
+            },
             "permanent.Canopy Crawler.counters.plus_one_plus_one": 1,
             "zones.hand.p1.count": 1,
-            "zones.hand.p1": { "includes": [{ "card": "Blastoderm" }] },
+            "zones.hand.p1": {
+              "includes": [
+                {
+                  "card": "Blastoderm"
+                }
+              ]
+            },
             "players.p1.life": 40,
             "players.p2.life": 40
           },

@@ -4,11 +4,27 @@
     "id": "script_stack_065",
     "name": "Burst Lightning kicked vs unkicked — conditional damage",
     "description": "Tests Burst Lightning's kicker mechanic (CR 702.33) in two sequential scenarios. Scenario 1: p1 casts Burst Lightning kicked (paying {R}+{4}=5 total), targeting p2's Wall of Omens (0/4). The spell was kicked so it deals 4 damage, which equals Wall of Omens' toughness — state-based actions destroy it. Scenario 2: p1 casts a second Burst Lightning without kicker (paying only {R}), targeting p2's Bog Raiders (2/2). It deals 2 damage, killing the 2-toughness creature. Both scenarios confirm the Condition::WasKicked branch in the card definition is correctly evaluated at resolution time.",
-    "cr_sections_tested": ["702.33", "702.33a", "702.33d", "601.2", "608.2", "120.3", "704.5g", "704.3"],
+    "cr_sections_tested": [
+      "702.33",
+      "702.33a",
+      "702.33d",
+      "601.2",
+      "608.2",
+      "120.3",
+      "704.5g",
+      "704.3"
+    ],
     "corner_case_ref": null,
-    "tags": ["kicker", "instant", "damage", "conditional", "sba", "lethal-damage"],
+    "tags": [
+      "kicker",
+      "instant",
+      "damage",
+      "conditional",
+      "sba",
+      "lethal-damage"
+    ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Burst Lightning definition (definitions.rs ~line 2067): mana_cost {R}, kicker cost {4} generic (is_multikicker: false). Spell effect is Effect::Conditional { condition: Condition::WasKicked, if_true: DealDamage(Fixed(4)), if_false: DealDamage(Fixed(2)) }. Targets: TargetAny (creature or player). Scenario 1: kicked=true means 4 damage. Wall of Omens is 0/4 — receives 4 damage which equals its toughness, so SBA 704.5g destroys it. Mana needed for kicked cast: {R} + {4} generic = mana_paid {red:1, colorless:4}. Scenario 2: kicked=false (omitted), 2 damage. Bog Raiders is 2/2 — 2 damage equals toughness, SBA destroys it. Both Burst Lightnings are in p1's starting hand; p1's mana pool is pre-loaded with {red:2, colorless:4} to cover both casts without needing land-tap actions.",
@@ -24,7 +40,10 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "red": 2, "colorless": 4 },
+        "mana_pool": {
+          "red": 2,
+          "colorless": 4
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -44,14 +63,32 @@
     "zones": {
       "battlefield": {
         "p2": [
-          { "card": "Wall of Omens", "is_commander": false, "owner": null, "tapped": false },
-          { "card": "Bog Raiders", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Wall of Omens",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          },
+          {
+            "card": "Bog Raiders",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ]
       },
       "hand": {
         "p1": [
-          { "card": "Burst Lightning", "is_commander": false, "owner": null },
-          { "card": "Burst Lightning", "is_commander": false, "owner": null }
+          {
+            "card": "Burst Lightning",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Burst Lightning",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -85,9 +122,17 @@
           "card": "Burst Lightning",
           "kicked": true,
           "targets": [
-            { "type": "permanent", "card": "Wall of Omens", "controller": "p2", "player": null }
+            {
+              "type": "permanent",
+              "card": "Wall of Omens",
+              "controller": "p2",
+              "player": null
+            }
           ],
-          "mana_paid": { "red": 1, "colorless": 4 },
+          "mana_paid": {
+            "red": 1,
+            "colorless": 4
+          },
           "mana_source": [],
           "cr_ref": "702.33a",
           "note": "CR 702.33a: p1 pays the kicker cost {4} in addition to the base cost {R}, marking the spell as kicked. Total payment: 5 mana."
@@ -103,7 +148,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority; top of stack resolves."
         },
@@ -113,7 +161,11 @@
           "resolution": [
             {
               "effect": "deal_damage",
-              "target": { "type": "permanent", "card": "Wall of Omens", "controller": "p2" },
+              "target": {
+                "type": "permanent",
+                "card": "Wall of Omens",
+                "controller": "p2"
+              },
               "amount": 4,
               "card": null,
               "owner": null,
@@ -128,7 +180,10 @@
           "actions": [
             {
               "action": "creature_dies",
-              "target": { "card": "Wall of Omens", "controller": "p2" },
+              "target": {
+                "card": "Wall of Omens",
+                "controller": "p2"
+              },
               "cr_ref": "704.5g",
               "note": "CR 704.5g: Wall of Omens (0/4) has 4 damage marked on it, which equals its toughness. SBA destroys it and it moves to p2's graveyard."
             }
@@ -139,10 +194,30 @@
           "type": "assert_state",
           "description": "After kicked Burst Lightning resolves: Wall of Omens dead, stack empty, Bog Raiders still alive, life totals unchanged",
           "assertions": {
-            "zones.stack": { "is_empty": true },
-            "zones.graveyard.p1": { "includes": [{ "card": "Burst Lightning" }] },
-            "zones.graveyard.p2": { "includes": [{ "card": "Wall of Omens" }] },
-            "zones.battlefield.p2": { "includes": [{ "card": "Bog Raiders" }] },
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Burst Lightning"
+                }
+              ]
+            },
+            "zones.graveyard.p2": {
+              "includes": [
+                {
+                  "card": "Wall of Omens"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Bog Raiders"
+                }
+              ]
+            },
             "players.p1.life": 40,
             "players.p2.life": 40
           },
@@ -159,7 +234,13 @@
           "description": "Before unkicked cast: p1 has 1 Burst Lightning in hand, Bog Raiders still on p2's battlefield",
           "assertions": {
             "zones.hand.p1.count": 1,
-            "zones.battlefield.p2": { "includes": [{ "card": "Bog Raiders" }] }
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Bog Raiders"
+                }
+              ]
+            }
           },
           "note": null
         },
@@ -169,9 +250,16 @@
           "action": "cast_spell",
           "card": "Burst Lightning",
           "targets": [
-            { "type": "permanent", "card": "Bog Raiders", "controller": "p2", "player": null }
+            {
+              "type": "permanent",
+              "card": "Bog Raiders",
+              "controller": "p2",
+              "player": null
+            }
           ],
-          "mana_paid": { "red": 1 },
+          "mana_paid": {
+            "red": 1
+          },
           "mana_source": [],
           "cr_ref": "601.2",
           "note": "CR 601.2: p1 casts Burst Lightning without paying the kicker cost, paying only the base {R}. Condition::WasKicked will be false at resolution."
@@ -187,7 +275,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority; stack resolves."
         },
@@ -197,7 +288,11 @@
           "resolution": [
             {
               "effect": "deal_damage",
-              "target": { "type": "permanent", "card": "Bog Raiders", "controller": "p2" },
+              "target": {
+                "type": "permanent",
+                "card": "Bog Raiders",
+                "controller": "p2"
+              },
               "amount": 2,
               "card": null,
               "owner": null,
@@ -212,7 +307,10 @@
           "actions": [
             {
               "action": "creature_dies",
-              "target": { "card": "Bog Raiders", "controller": "p2" },
+              "target": {
+                "card": "Bog Raiders",
+                "controller": "p2"
+              },
               "cr_ref": "704.5g",
               "note": "CR 704.5g: Bog Raiders (2/2) has 2 damage marked on it, which equals its toughness. SBA destroys it."
             }
@@ -223,10 +321,18 @@
           "type": "assert_state",
           "description": "Final state: both p2 creatures dead, both Burst Lightnings in p1 graveyard, player life totals still 40",
           "assertions": {
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "zones.hand.p1.count": 0,
             "zones.battlefield.p2.count": 0,
-            "zones.graveyard.p2": { "includes": [{ "card": "Bog Raiders" }] },
+            "zones.graveyard.p2": {
+              "includes": [
+                {
+                  "card": "Bog Raiders"
+                }
+              ]
+            },
             "players.p1.life": 40,
             "players.p2.life": 40
           },

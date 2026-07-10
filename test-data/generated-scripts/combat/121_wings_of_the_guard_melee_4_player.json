@@ -29,7 +29,7 @@
       "power-toughness-bonus"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Wings of the Guard oracle text (MCP verified): {1}{W}, Creature — Bird, 1/1, Flying, Melee. CR 702.121a: 'Melee means: Whenever this creature attacks, it gets +1/+1 until end of turn for each opponent you attacked with a creature this combat.' Ruling 2016-08-23: 'You determine the size of the bonus as the melee ability resolves. Count each opponent that you attacked with one or more creatures. It doesn't matter if the attacking creatures are still attacking or even if they are still on the battlefield.' Ruling 2016-08-23: 'It doesn't matter how many creatures you attacked a player with, only that you attacked a player with at least one creature.' 4-player setup: p1 attacks p2 with Wings of the Guard, p3 with Llanowar Elves, p4 with Elvish Mystic. At trigger resolution time, p1 attacked 3 distinct opponents (p2, p3, p4), so Wings gets +3/+3 until end of turn → effective 4/4. Wings of the Guard is NOT in the Available Cards list and was verified via MCP lookup_card. Llanowar Elves and Elvish Mystic are in the Available Cards list as 1/1 creatures with a mana tap ability — they can attack freely (tapping them as attackers is the normal attack tap, separate from their mana ability which is also a tap). A fourth creature (Bog Raiders, 2/2 Swampwalk) is added to p1's side as the creature that does not attack, to make the battlefield realistic. Bog Raiders is listed in Available Cards. Turn 4 used to avoid summoning sickness (CR 302.6). P2, P3, P4 control no creatures so all attackers are unblocked. The Melee bonus is a 'until end of turn' continuous effect produced by the resolving trigger — it is NOT a +1/+1 counter. Assertion for Wings P/T as 4/4 at end of trigger resolution checks this correctly. CR 702.121b: only one instance of Melee here so no multi-instance interaction. Life totals unchanged — harness does not execute combat damage. The stack.count of 1 after declare_attackers confirms exactly one Melee trigger placed (Wings triggers, the other creatures have no attack triggers).",
@@ -83,10 +83,30 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Wings of the Guard", "tapped": false, "is_commander": false, "owner": null },
-          { "card": "Llanowar Elves", "tapped": false, "is_commander": false, "owner": null },
-          { "card": "Elvish Mystic", "tapped": false, "is_commander": false, "owner": null },
-          { "card": "Bog Raiders", "tapped": false, "is_commander": false, "owner": null }
+          {
+            "card": "Wings of the Guard",
+            "tapped": false,
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Llanowar Elves",
+            "tapped": false,
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Elvish Mystic",
+            "tapped": false,
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Bog Raiders",
+            "tapped": false,
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "hand": {},
@@ -109,10 +129,18 @@
           "assertions": {
             "zones.battlefield.p1": {
               "includes": [
-                { "card": "Wings of the Guard" },
-                { "card": "Llanowar Elves" },
-                { "card": "Elvish Mystic" },
-                { "card": "Bog Raiders" }
+                {
+                  "card": "Wings of the Guard"
+                },
+                {
+                  "card": "Llanowar Elves"
+                },
+                {
+                  "card": "Elvish Mystic"
+                },
+                {
+                  "card": "Bog Raiders"
+                }
               ]
             },
             "permanent.Wings of the Guard.tapped": false,
@@ -122,7 +150,9 @@
             "players.p2.life": 40,
             "players.p3.life": 40,
             "players.p4.life": 40,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Turn 4 — all creatures have been controlled since before this turn; no summoning sickness (CR 302.6). P2, P3, and P4 control no creatures. Stack is empty before attack declaration."
         },
@@ -135,9 +165,21 @@
           "mana_paid": null,
           "mana_source": [],
           "attackers": [
-            { "card": "Wings of the Guard", "target_player": "p2", "target_planeswalker": null },
-            { "card": "Llanowar Elves", "target_player": "p3", "target_planeswalker": null },
-            { "card": "Elvish Mystic", "target_player": "p4", "target_planeswalker": null }
+            {
+              "card": "Wings of the Guard",
+              "target_player": "p2",
+              "target_planeswalker": null
+            },
+            {
+              "card": "Llanowar Elves",
+              "target_player": "p3",
+              "target_planeswalker": null
+            },
+            {
+              "card": "Elvish Mystic",
+              "target_player": "p4",
+              "target_planeswalker": null
+            }
           ],
           "blockers": [],
           "cr_ref": "508.1",
@@ -157,7 +199,12 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2", "p3", "p4"],
+          "players": [
+            "p1",
+            "p2",
+            "p3",
+            "p4"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: All four players pass priority — the Melee triggered ability (top of stack) resolves."
         },
@@ -167,7 +214,12 @@
           "resolution": [
             {
               "effect": "boost_power_toughness",
-              "target": { "type": "permanent", "player": null, "card": "Wings of the Guard", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "player": null,
+                "card": "Wings of the Guard",
+                "controller": "p1"
+              },
               "amount": 3,
               "duration": "until_end_of_turn",
               "card": null,
@@ -182,15 +234,25 @@
           "type": "assert_state",
           "description": "After Melee trigger resolves: stack empty; Wings of the Guard is 4/4 until end of turn; all three attackers remain tapped on battlefield; life totals unchanged",
           "assertions": {
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "permanent.Wings of the Guard.power": 4,
             "permanent.Wings of the Guard.toughness": 4,
             "zones.battlefield.p1": {
               "includes": [
-                { "card": "Wings of the Guard" },
-                { "card": "Llanowar Elves" },
-                { "card": "Elvish Mystic" },
-                { "card": "Bog Raiders" }
+                {
+                  "card": "Wings of the Guard"
+                },
+                {
+                  "card": "Llanowar Elves"
+                },
+                {
+                  "card": "Elvish Mystic"
+                },
+                {
+                  "card": "Bog Raiders"
+                }
               ]
             },
             "permanent.Wings of the Guard.tapped": true,

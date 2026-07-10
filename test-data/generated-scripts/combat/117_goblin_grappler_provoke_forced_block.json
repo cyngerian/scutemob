@@ -4,11 +4,32 @@
     "id": "script_combat_117",
     "name": "Provoke — Goblin Grappler forces Bog Raiders to untap and block",
     "description": "p1 controls Goblin Grappler (1/1, Provoke). p2 controls Bog Raiders (2/2), which starts tapped. p1 attacks p2 with Goblin Grappler. CR 702.39a: Provoke triggers — 'Whenever this creature attacks, you may choose to have target creature defending player controls block this creature this combat if able. If you do, untap that creature.' p1 targets Bog Raiders with the Provoke trigger. Both players pass priority; trigger resolves: Bog Raiders untaps and is required to block Goblin Grappler this combat if able (CR 509.1c: requirement cannot be disobeyed if able). In declare blockers, p2 must block Goblin Grappler with Bog Raiders. Combat damage is simultaneous (CR 510.1): Bog Raiders (power 2) deals 2 damage to Goblin Grappler (toughness 1) — lethal; Goblin Grappler (power 1) deals 1 damage to Bog Raiders (toughness 2) — not lethal. SBA 704.5g: Goblin Grappler dies (damage >= toughness); Bog Raiders survives (1 damage < 2 toughness). p2 takes no player damage since the attacker was blocked.",
-    "cr_sections_tested": ["702.39a", "702.39b", "508.1", "509.1", "509.1c", "510.1", "510.2", "704.5g", "704.3", "116.3"],
+    "cr_sections_tested": [
+      "702.39a",
+      "702.39b",
+      "508.1",
+      "509.1",
+      "509.1c",
+      "510.1",
+      "510.2",
+      "704.5g",
+      "704.3",
+      "116.3"
+    ],
     "corner_case_ref": null,
-    "tags": ["combat", "provoke", "triggered-ability", "declare-attackers", "forced-block", "untap", "lethal-damage", "sba", "creature-dies"],
+    "tags": [
+      "combat",
+      "provoke",
+      "triggered-ability",
+      "declare-attackers",
+      "forced-block",
+      "untap",
+      "lethal-damage",
+      "sba",
+      "creature-dies"
+    ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Goblin Grappler oracle text (MCP verified): Creature — Goblin, {R}, 1/1, Provoke. CR 702.39a: 'Provoke means: Whenever this creature attacks, you may choose to have target creature defending player controls block this creature this combat if able. If you do, untap that creature.' The Provoke trigger fires at the declare attackers step (when the creature 'attacks'), not at declare blockers like Flanking. p1 chooses to target Bog Raiders (p2's 2/2, which starts tapped). Trigger goes on stack after declare attackers; both players pass priority; trigger resolves: Bog Raiders untaps and now has a requirement to block Goblin Grappler this combat if able. Bog Raiders is a 2/2 with Swampwalk (Available Cards) — no restriction prevents it from blocking Goblin Grappler (Grappler is a Red Goblin, not an Artifact creature, so Swampwalk is irrelevant; Bog Raiders has no restriction keyword like Defender, no tapped status after untapping). CR 509.1c: The number of requirements being obeyed must be maximized — Bog Raiders must block the Grappler since it is able to. In declare blockers, p2 declares Bog Raiders as a blocker for Goblin Grappler. Combat damage (CR 510.1): Goblin Grappler (power 1) assigns 1 damage to Bog Raiders; Bog Raiders (power 2) assigns 2 damage to Goblin Grappler. Damage is simultaneous. SBA 704.5g: Goblin Grappler has toughness 1 and 2 damage marked (2 >= 1) — lethal — destroyed, goes to p1 graveyard. Bog Raiders has toughness 2 and 1 damage marked (1 < 2) — not lethal — survives. p2 life total remains 40 (attacker was blocked). Turn 3 used to ensure no summoning sickness on Goblin Grappler (CR 302.6). Bog Raiders starts tapped to demonstrate the Provoke untap effect.",
@@ -44,10 +65,20 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Goblin Grappler", "tapped": false, "is_commander": false, "owner": null }
+          {
+            "card": "Goblin Grappler",
+            "tapped": false,
+            "is_commander": false,
+            "owner": null
+          }
         ],
         "p2": [
-          { "card": "Bog Raiders", "tapped": true, "is_commander": false, "owner": null }
+          {
+            "card": "Bog Raiders",
+            "tapped": true,
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "hand": {},
@@ -68,13 +99,27 @@
           "type": "assert_state",
           "description": "Initial: Goblin Grappler untapped on p1 battlefield; Bog Raiders tapped on p2 battlefield; both players at 40 life; stack empty",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Goblin Grappler" }] },
-            "zones.battlefield.p2": { "includes": [{ "card": "Bog Raiders" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Goblin Grappler"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Bog Raiders"
+                }
+              ]
+            },
             "permanent.Goblin Grappler.tapped": false,
             "permanent.Bog Raiders.tapped": true,
             "players.p1.life": 40,
             "players.p2.life": 40,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Goblin Grappler is untapped (no summoning sickness at turn 3, CR 302.6). Bog Raiders is tapped — the Provoke trigger will untap it when it resolves, showing the full Provoke effect."
         },
@@ -87,7 +132,11 @@
           "mana_paid": null,
           "mana_source": [],
           "attackers": [
-            { "card": "Goblin Grappler", "target_player": "p2", "target_planeswalker": null }
+            {
+              "card": "Goblin Grappler",
+              "target_player": "p2",
+              "target_planeswalker": null
+            }
           ],
           "blockers": [],
           "cr_ref": "508.1",
@@ -105,7 +154,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — the Provoke triggered ability (top of stack) resolves."
         },
@@ -115,7 +167,11 @@
           "resolution": [
             {
               "effect": "untap",
-              "target": { "type": "permanent", "card": "Bog Raiders", "controller": "p2" },
+              "target": {
+                "type": "permanent",
+                "card": "Bog Raiders",
+                "controller": "p2"
+              },
               "amount": null,
               "card": null,
               "owner": null,
@@ -130,13 +186,18 @@
           "description": "After Provoke trigger resolves: Bog Raiders is now untapped, stack is empty",
           "assertions": {
             "permanent.Bog Raiders.tapped": false,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 702.39a: Bog Raiders was untapped by the Provoke trigger resolution. Bog Raiders now has a combat requirement to block Goblin Grappler this combat if able."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority with empty stack — advance to DeclareBlockers step."
         }
@@ -156,7 +217,10 @@
           "mana_source": [],
           "attackers": [],
           "blockers": [
-            { "card": "Bog Raiders", "blocking": "Goblin Grappler" }
+            {
+              "card": "Bog Raiders",
+              "blocking": "Goblin Grappler"
+            }
           ],
           "cr_ref": "509.1c",
           "note": "CR 509.1: p2 declares Bog Raiders as a blocker for Goblin Grappler. CR 509.1c: Bog Raiders has a requirement (from Provoke) to block Goblin Grappler this combat if able. Bog Raiders is untapped and has no restrictions preventing it from blocking Goblin Grappler — the requirement is obeyed. The declaration of blockers is legal only if the maximum number of requirements is satisfied; failing to block here would be an illegal blocker declaration. CR 509.1a: Bog Raiders is untapped — legal to block."
@@ -165,15 +229,32 @@
           "type": "assert_state",
           "description": "After declare_blockers: Bog Raiders is blocking Goblin Grappler; both creatures on their respective battlefields; stack empty",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Goblin Grappler" }] },
-            "zones.battlefield.p2": { "includes": [{ "card": "Bog Raiders" }] },
-            "zones.stack": { "is_empty": true }
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Goblin Grappler"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Bog Raiders"
+                }
+              ]
+            },
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Bog Raiders is blocking Goblin Grappler as required by Provoke (CR 509.1c). No triggers fire at this stage — Provoke is an attack trigger, not a block trigger. Stack is empty."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority with empty stack — advance to CombatDamage step."
         }
@@ -199,7 +280,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority after combat damage and SBAs. Stack is empty — advance to EndOfCombat step."
         },
@@ -209,10 +293,30 @@
           "assertions": {
             "players.p1.life": 40,
             "players.p2.life": 40,
-            "zones.battlefield.p1": { "excludes": [{ "card": "Goblin Grappler" }] },
-            "zones.graveyard.p1": { "includes": [{ "card": "Goblin Grappler" }] },
-            "zones.battlefield.p2": { "includes": [{ "card": "Bog Raiders" }] },
-            "zones.stack": { "is_empty": true }
+            "zones.battlefield.p1": {
+              "excludes": [
+                {
+                  "card": "Goblin Grappler"
+                }
+              ]
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Goblin Grappler"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Bog Raiders"
+                }
+              ]
+            },
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 510.1c: Goblin Grappler was blocked — it cannot deal damage to p2; p2 life stays at 40. Goblin Grappler (1/1) received 2 damage from Bog Raiders (power 2) — lethal (2 >= 1) — SBA 704.5g destroyed it, moved to p1 graveyard. Bog Raiders (2/2) received 1 damage from Goblin Grappler (power 1) — not lethal (1 < 2) — Bog Raiders remains on battlefield. The Provoke ability successfully forced Bog Raiders to block by combining the untap effect with the blocking requirement (CR 702.39a, CR 509.1c)."
         }

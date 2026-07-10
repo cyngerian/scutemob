@@ -4,11 +4,21 @@
     "id": "script_stack_033",
     "name": "Terramorphic Expanse — tap sacrifice to fetch basic land tapped",
     "description": "p1 has Terramorphic Expanse on the battlefield. p1 taps and sacrifices it to search for a basic land and put it on the battlefield tapped. Tests a fetch land that is functionally identical to Evolving Wilds.",
-    "cr_sections_tested": ["608.2", "605.5", "700.4"],
+    "cr_sections_tested": [
+      "608.2",
+      "605.5",
+      "700.4"
+    ],
     "corner_case_ref": null,
-    "tags": ["land", "fetch-land", "terramorphic-expanse", "sacrifice", "search-library"],
+    "tags": [
+      "land",
+      "fetch-land",
+      "terramorphic-expanse",
+      "sacrifice",
+      "search-library"
+    ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Terramorphic Expanse oracle: '{T}, Sacrifice Terramorphic Expanse: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.' Functionally identical to Evolving Wilds. After activation: Expanse in graveyard, Island on battlefield tapped.",
@@ -44,7 +54,12 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Terramorphic Expanse", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Terramorphic Expanse",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ]
       },
       "hand": {},
@@ -53,7 +68,11 @@
       "command_zone": {},
       "library": {
         "p1": [
-          { "card": "Island", "is_commander": false, "owner": null }
+          {
+            "card": "Island",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "stack": []
@@ -69,8 +88,16 @@
           "type": "assert_state",
           "description": "Initial: Terramorphic Expanse on battlefield",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Terramorphic Expanse" }] },
-            "zones.stack": { "is_empty": true }
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Terramorphic Expanse"
+                }
+              ]
+            },
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": null
         },
@@ -90,13 +117,20 @@
           "description": "Terramorphic Expanse sacrificed, ability on stack",
           "assertions": {
             "zones.stack.count": 1,
-            "zones.battlefield.p1": { "excludes": ["Terramorphic Expanse"] }
+            "zones.battlefield.p1": {
+              "excludes": [
+                "Terramorphic Expanse"
+              ]
+            }
           },
           "note": null
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "Both pass — ability resolves."
         },
@@ -125,9 +159,23 @@
           "type": "assert_state",
           "description": "After: Island on battlefield (tapped), Expanse in graveyard",
           "assertions": {
-            "zones.stack": { "is_empty": true },
-            "zones.battlefield.p1": { "includes": [{ "card": "Island" }] },
-            "zones.graveyard.p1": { "includes": [{ "card": "Terramorphic Expanse" }] }
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Island"
+                }
+              ]
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Terramorphic Expanse"
+                }
+              ]
+            }
           },
           "note": "Terramorphic Expanse in graveyard; Island on battlefield."
         }

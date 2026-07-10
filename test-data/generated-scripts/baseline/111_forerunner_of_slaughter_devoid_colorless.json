@@ -4,11 +4,36 @@
     "id": "script_baseline_111",
     "name": "Devoid — Forerunner of Slaughter is colorless despite {B}{R} mana cost",
     "description": "p2 controls Bladetusk Boar (3/2, Intimidate, red). p1 controls Forerunner of Slaughter (3/2, Devoid). p2 attacks with Bladetusk Boar. Under CR 702.114a, Devoid is a characteristic-defining ability that makes Forerunner of Slaughter colorless despite its {B}{R} mana cost. CR 702.13b (Intimidate) says Bladetusk Boar can only be blocked by artifact creatures or creatures that share a color with it (red). Forerunner of Slaughter is colorless (Devoid, CR 702.114a, Layer 5 via CR 613.3) and is not an artifact, so it shares no color with Bladetusk Boar and CANNOT legally block it. p1 declares no blockers. Bladetusk Boar deals 3 unblocked combat damage to p1 (40 → 37). The combination of Intimidate and Devoid provides an executable, observable demonstration of colorlessness: a card with {B}{R} in its mana cost would normally share a color with a red creature and be a legal blocker — only Devoid's colorless characteristic prevents the block.",
-    "cr_sections_tested": ["702.114a", "613.3", "604.3", "702.13b", "508.1", "508.1a", "508.1f", "508.1k", "509.1", "509.1b", "509.1h", "510.1b"],
+    "cr_sections_tested": [
+      "702.114a",
+      "613.3",
+      "604.3",
+      "702.13b",
+      "508.1",
+      "508.1a",
+      "508.1f",
+      "508.1k",
+      "509.1",
+      "509.1b",
+      "509.1h",
+      "510.1b"
+    ],
     "corner_case_ref": null,
-    "tags": ["devoid", "colorless", "characteristic-defining-ability", "layer-5", "combat", "intimidate", "blocking-restriction", "declare-attackers", "declare-blockers", "unblocked", "combat-damage"],
+    "tags": [
+      "devoid",
+      "colorless",
+      "characteristic-defining-ability",
+      "layer-5",
+      "combat",
+      "intimidate",
+      "blocking-restriction",
+      "declare-attackers",
+      "declare-blockers",
+      "unblocked",
+      "combat-damage"
+    ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Forerunner of Slaughter oracle text (engine-verified from crates/engine/src/cards/defs/forerunner_of_slaughter.rs): 'Devoid (This card has no color.)' P/T: 3/2. Mana cost: {B}{R}. Type: Creature — Eldrazi Drone. card_id: forerunner-of-slaughter. KeywordAbility::Devoid. The activated ability '{1}: Target colorless creature gains haste' is omitted from the definition (activated_ability_targets DSL gap) and has no effect on this script. CR 702.114a: Devoid is a characteristic-defining ability (CDA) — 'This object is colorless.' CDAs apply in Layer 5 (Color/type-defining) before other Layer 5 effects per CR 613.3. CR 604.3: CDAs function in all zones, not just the battlefield. Bladetusk Boar (engine-verified from crates/engine/src/cards/defs/bladetusk_boar.rs): {3}{R}, Creature — Boar, P/T 3/2, red, KeywordAbility::Intimidate. CR 702.13b: 'A creature with intimidate can't be blocked except by artifact creatures and/or creatures that share a color with it.' Bladetusk Boar is red. Forerunner of Slaughter is colorless (Devoid CDA), NOT an artifact (Eldrazi Drone type only). Therefore Forerunner shares no color with Bladetusk Boar and cannot legally block it. If Forerunner lacked Devoid, it would be black and red (from {B}{R} mana cost), sharing red with Bladetusk Boar and qualifying as a legal blocker. The Intimidate interaction provides an observable, harness-executable proof that Devoid's colorlessness is enforced. The script places p2 as the active player with Bladetusk Boar attacking; p1 must declare empty blockers (CR 509.1b enforces the restriction). Bladetusk Boar is unblocked (CR 509.1h) and assigns 3 combat damage to p1 (CR 510.1b). p1 life: 40 → 37. No SBAs apply (p1 has 37 life > 0; neither creature takes damage). Script uses turn_number: 4 to ensure no summoning sickness on Bladetusk Boar (GameStateBuilder sets has_summoning_sickness: false for permanents in initial_state).",
@@ -44,10 +69,20 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Forerunner of Slaughter", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Forerunner of Slaughter",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ],
         "p2": [
-          { "card": "Bladetusk Boar", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Bladetusk Boar",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ]
       },
       "hand": {},
@@ -68,13 +103,27 @@
           "type": "assert_state",
           "description": "Initial: Forerunner of Slaughter (3/2, Devoid — colorless) untapped on p1 battlefield; Bladetusk Boar (3/2, Intimidate, red) untapped on p2 battlefield; life totals 40/40",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Forerunner of Slaughter" }] },
-            "zones.battlefield.p2": { "includes": [{ "card": "Bladetusk Boar" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Forerunner of Slaughter"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Bladetusk Boar"
+                }
+              ]
+            },
             "permanent.Forerunner of Slaughter.tapped": false,
             "permanent.Bladetusk Boar.tapped": false,
             "players.p1.life": 40,
             "players.p2.life": 40,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Forerunner of Slaughter has Devoid (CR 702.114a): it is colorless despite its {B}{R} mana cost. Bladetusk Boar is a red 3/2 with Intimidate. Bladetusk Boar is untapped and free of summoning sickness (turn_number: 4)."
         },
@@ -87,7 +136,11 @@
           "mana_paid": null,
           "mana_source": [],
           "attackers": [
-            { "card": "Bladetusk Boar", "target_player": "p1", "target_planeswalker": null }
+            {
+              "card": "Bladetusk Boar",
+              "target_player": "p1",
+              "target_planeswalker": null
+            }
           ],
           "blockers": [],
           "cr_ref": "508.1",
@@ -98,13 +151,18 @@
           "description": "After declare_attackers: Bladetusk Boar is tapped, stack empty",
           "assertions": {
             "permanent.Bladetusk Boar.tapped": true,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 508.1f: Bladetusk Boar was tapped as part of the attack declaration. Priority is held by p2."
         },
         {
           "type": "priority_round",
-          "players": ["p2", "p1"],
+          "players": [
+            "p2",
+            "p1"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority in succession with empty stack — advance to DeclareBlockers step. p2 receives priority as active player in DeclareBlockers."
         }
@@ -129,7 +187,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p2", "p1"],
+          "players": [
+            "p2",
+            "p1"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority in succession with empty stack — advance to CombatDamage step. The engine executes combat damage as a turn-based action on entering CombatDamage (no player command needed)."
         }
@@ -146,7 +207,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p2", "p1"],
+          "players": [
+            "p2",
+            "p1"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority after CombatDamage resolves. Stack is empty — advance to EndOfCombat step."
         },
@@ -156,10 +220,24 @@
           "assertions": {
             "players.p1.life": 37,
             "players.p2.life": 40,
-            "zones.battlefield.p1": { "includes": [{ "card": "Forerunner of Slaughter" }] },
-            "zones.battlefield.p2": { "includes": [{ "card": "Bladetusk Boar" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Forerunner of Slaughter"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Bladetusk Boar"
+                }
+              ]
+            },
             "permanent.Bladetusk Boar.tapped": true,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 510.1b: Unblocked Bladetusk Boar (power 3) dealt 3 combat damage to p1. p1 life: 40 → 37. Bladetusk Boar remains on p2 battlefield (tapped from attacking, took no damage). Forerunner of Slaughter remains on p1 battlefield (was not declared as a blocker, took no damage). Devoid's colorlessness (CR 702.114a, Layer 5 CDA per CR 613.3) was enforced: the colorless Forerunner of Slaughter could not block the red Bladetusk Boar under Intimidate (CR 702.13b)."
         }

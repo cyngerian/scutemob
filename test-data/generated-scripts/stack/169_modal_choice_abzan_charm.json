@@ -4,15 +4,32 @@
     "id": "script_stack_169",
     "name": "Modal Choice — Abzan Charm modes 1 and 0",
     "description": "Tests the modal choice system (CR 700.2) using Abzan Charm ({W}{B}{G}). Scenario 1: p1 casts Abzan Charm choosing mode 1 (draw 2 cards, lose 2 life). Both players pass priority. The spell resolves — p1 draws 2 cards and loses 2 life, leaving p1 at 38 life with a hand of 2 cards. Scenario 2: p2 controls a Bladetusk Boar (3/2, power >= 3). P1 casts a second Abzan Charm choosing mode 0 (exile target creature with power 3 or greater). Both players pass priority. The spell resolves — Bladetusk Boar is exiled. Both scenarios exercise CR 700.2 (modal spells, choose one) and CR 700.2a (must choose exactly one mode at cast time).",
-    "cr_sections_tested": ["601.2", "608.2", "700.2", "700.2a", "118.2", "406.2", "701.10a"],
+    "cr_sections_tested": [
+      "601.2",
+      "608.2",
+      "700.2",
+      "700.2a",
+      "118.2",
+      "406.2",
+      "701.10a"
+    ],
     "corner_case_ref": null,
-    "tags": ["stack", "instant", "modal", "draw", "life-loss", "exile", "abzan-charm"],
+    "tags": [
+      "stack",
+      "instant",
+      "modal",
+      "draw",
+      "life-loss",
+      "exile",
+      "abzan-charm"
+    ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Abzan Charm (abzan_charm.rs) has ModeSelection with min_modes=1 max_modes=1 and three modes: mode 0=ExileObject targeting DeclaredTarget{0} (creature with min_power 3), mode 1=Sequence[DrawCards{count:2,player:Controller}, LoseLife{amount:2,player:Controller}], mode 2=AddCounter{2x +1/+1 on DeclaredTarget{1}}. The card definition declares two shared targets: index 0 = TargetCreatureWithFilter{min_power:3}, index 1 = TargetCreatureWithFilter{controller:You}. Even when choosing mode 1 (no targets used), both targets are declared in the action to match the flat shared target list pattern (same as Blessed Alliance script 148 which always declares all targets). For mode 1 (scenario 1): p1 needs 2 cards in library for the draw; p1 starts with empty hand so after drawing 2, hand count is 2; p1 goes from 40 to 38 life. For mode 0 (scenario 2): p2 controls Bladetusk Boar (3/2) which satisfies min_power >= 3; after resolution Bladetusk Boar is in exile. cast_spell_modal action passes modes=[1] or modes=[0] per CR 700.2a. Mana cost {W}{B}{G} = white:1, black:1, green:1 for both casts. Two Abzan Charm copies in p1 hand. P1 also has a Llanowar Elves on battlefield as target index 1 (TargetCreatureWithFilter{controller:You}) for both casts, satisfying the flat target requirement even when mode 2 is not chosen.",
-    "disputes": []
+    "disputes": [],
+    "retirement_reason": "SR-9c: The modal cast is rejected (CR 700.2c): the script supplies 2 targets for a chosen mode the engine treats as taking 0, so per-mode target counts disagree. Retire pending a modal-target translation that matches the engine's per-mode requirements."
   },
   "initial_state": {
     "format": "commander",
@@ -24,7 +41,11 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "white": 2, "black": 2, "green": 2 },
+        "mana_pool": {
+          "white": 2,
+          "black": 2,
+          "green": 2
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -44,16 +65,34 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Llanowar Elves", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Llanowar Elves",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ],
         "p2": [
-          { "card": "Bladetusk Boar", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Bladetusk Boar",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ]
       },
       "hand": {
         "p1": [
-          { "card": "Abzan Charm", "is_commander": false, "owner": null },
-          { "card": "Abzan Charm", "is_commander": false, "owner": null }
+          {
+            "card": "Abzan Charm",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Abzan Charm",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -61,8 +100,16 @@
       "command_zone": {},
       "library": {
         "p1": [
-          { "card": "Forest", "is_commander": false, "owner": null },
-          { "card": "Plains", "is_commander": false, "owner": null }
+          {
+            "card": "Forest",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Plains",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "stack": []
@@ -81,7 +128,9 @@
             "players.p1.life": 40,
             "players.p2.life": 40,
             "zones.hand.p1.count": 2,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": null
         },
@@ -90,12 +139,28 @@
           "player": "p1",
           "action": "cast_spell_modal",
           "card": "Abzan Charm",
-          "modes": [1],
-          "targets": [
-            { "type": "creature", "player": null, "card": "Bladetusk Boar", "controller": "p2" },
-            { "type": "creature", "player": null, "card": "Llanowar Elves", "controller": "p1" }
+          "modes": [
+            1
           ],
-          "mana_paid": { "white": 1, "black": 1, "green": 1 },
+          "targets": [
+            {
+              "type": "creature",
+              "player": null,
+              "card": "Bladetusk Boar",
+              "controller": "p2"
+            },
+            {
+              "type": "creature",
+              "player": null,
+              "card": "Llanowar Elves",
+              "controller": "p1"
+            }
+          ],
+          "mana_paid": {
+            "white": 1,
+            "black": 1,
+            "green": 1
+          },
           "mana_source": [],
           "cr_ref": "700.2a",
           "note": "CR 700.2a: p1 chooses mode 1 (draw 2, lose 2 life). Both flat targets declared per card definition. Cost {W}{B}{G} paid."
@@ -111,7 +176,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — stack resolves top object."
         },
@@ -121,7 +189,10 @@
           "resolution": [
             {
               "effect": "draw_cards",
-              "target": { "type": "player", "player": "p1" },
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
               "amount": 2,
               "card": null,
               "owner": null,
@@ -130,7 +201,10 @@
             },
             {
               "effect": "lose_life",
-              "target": { "type": "player", "player": "p1" },
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
               "amount": 2,
               "card": null,
               "owner": null,
@@ -146,8 +220,16 @@
           "assertions": {
             "players.p1.life": 38,
             "zones.hand.p1.count": 3,
-            "zones.stack": { "is_empty": true },
-            "zones.graveyard.p1": { "includes": [{ "card": "Abzan Charm" }] }
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Abzan Charm"
+                }
+              ]
+            }
           },
           "note": "p1 drew 2 cards from library (hand: 1 remaining Charm + 2 drawn = 3) and lost 2 life (40→38). Abzan Charm is in p1 graveyard."
         }
@@ -162,12 +244,28 @@
           "player": "p1",
           "action": "cast_spell_modal",
           "card": "Abzan Charm",
-          "modes": [0],
-          "targets": [
-            { "type": "creature", "player": null, "card": "Bladetusk Boar", "controller": "p2" },
-            { "type": "creature", "player": null, "card": "Llanowar Elves", "controller": "p1" }
+          "modes": [
+            0
           ],
-          "mana_paid": { "white": 1, "black": 1, "green": 1 },
+          "targets": [
+            {
+              "type": "creature",
+              "player": null,
+              "card": "Bladetusk Boar",
+              "controller": "p2"
+            },
+            {
+              "type": "creature",
+              "player": null,
+              "card": "Llanowar Elves",
+              "controller": "p1"
+            }
+          ],
+          "mana_paid": {
+            "white": 1,
+            "black": 1,
+            "green": 1
+          },
           "mana_source": [],
           "cr_ref": "700.2a",
           "note": "CR 700.2a: p1 chooses mode 0 (exile target creature with power >= 3). Target is p2's Bladetusk Boar (3/2). Cost {W}{B}{G} paid."
@@ -182,7 +280,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — stack resolves top object."
         },
@@ -192,7 +293,11 @@
           "resolution": [
             {
               "effect": "exile_permanent",
-              "target": { "type": "creature", "card": "Bladetusk Boar", "controller": "p2" },
+              "target": {
+                "type": "creature",
+                "card": "Bladetusk Boar",
+                "controller": "p2"
+              },
               "amount": null,
               "card": null,
               "owner": null,
@@ -206,9 +311,23 @@
           "type": "assert_state",
           "description": "After mode 0 resolution: Bladetusk Boar in exile, p2 battlefield empty, stack empty",
           "assertions": {
-            "zones.stack": { "is_empty": true },
-            "zones.battlefield.p2": { "excludes": [{ "card": "Bladetusk Boar" }] },
-            "zones.exile": { "includes": [{ "card": "Bladetusk Boar" }] }
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p2": {
+              "excludes": [
+                {
+                  "card": "Bladetusk Boar"
+                }
+              ]
+            },
+            "zones.exile": {
+              "includes": [
+                {
+                  "card": "Bladetusk Boar"
+                }
+              ]
+            }
           },
           "note": "Bladetusk Boar was exiled by Abzan Charm mode 0. p2 has no creatures on battlefield. p1 life remains 38."
         }

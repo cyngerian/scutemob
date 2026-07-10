@@ -35,6 +35,16 @@ pub struct ScriptMetadata {
     pub generation_notes: Option<String>,
     #[serde(default)]
     pub disputes: Vec<Dispute>,
+    /// Why this script is [`ReviewStatus::Retired`] — the scenario it describes is
+    /// one the harness or the engine cannot express, and the script was withdrawn
+    /// rather than fixed.
+    ///
+    /// **Required for, and only for, `Retired`.** `tests/scripts/run_all_scripts.rs`
+    /// (`retired_scripts_carry_a_reason`) fails the suite if a retired script omits
+    /// it or a non-retired script carries one. A retired script is excluded from the
+    /// run — the reason is the difference between exclusion and silent absence.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retirement_reason: Option<String>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
@@ -49,8 +59,17 @@ pub enum Confidence {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum ReviewStatus {
+    /// Generated but not yet triaged. **Not a resting state**: SR-9c's
+    /// `no_script_is_awaiting_triage` gate fails while any script sits here,
+    /// because a `pending_review` script is one the corpus neither runs nor
+    /// accounts for.
     PendingReview,
+    /// Replays clean and its assertions were checked against the CR. Run on every
+    /// `cargo test`.
     Approved,
+    /// Withdrawn from the corpus with a recorded
+    /// [`ScriptMetadata::retirement_reason`]. Not run, but counted and printed.
+    Retired,
     Disputed,
     Corrected,
 }

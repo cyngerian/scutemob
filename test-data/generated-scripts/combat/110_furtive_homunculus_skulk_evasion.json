@@ -4,11 +4,30 @@
     "id": "script_combat_110",
     "name": "Skulk — Furtive Homunculus unblockable by higher-power creature",
     "description": "p1 controls Furtive Homunculus (2/1, Skulk). p2 controls Bladetusk Boar (3/2, Intimidate). p1 attacks with Furtive Homunculus. Under CR 702.118b, a creature with skulk can't be blocked by creatures with greater power. Bladetusk Boar has power 3, which is greater than Furtive Homunculus's power 2, so Bladetusk Boar cannot legally block Furtive Homunculus. p2 declares no blockers. Furtive Homunculus is an unblocked attacker and deals 2 combat damage to p2, reducing p2's life from 40 to 38. This script demonstrates the skulk evasion blocking restriction using the executable declare_attackers + declare_blockers harness pattern.",
-    "cr_sections_tested": ["702.118b", "508.1", "508.1a", "508.1f", "508.1k", "509.1", "509.1b", "509.1h", "510.1b"],
+    "cr_sections_tested": [
+      "702.118b",
+      "508.1",
+      "508.1a",
+      "508.1f",
+      "508.1k",
+      "509.1",
+      "509.1b",
+      "509.1h",
+      "510.1b"
+    ],
     "corner_case_ref": null,
-    "tags": ["skulk", "combat", "evasion", "blocking-restriction", "declare-attackers", "declare-blockers", "unblocked", "combat-damage"],
+    "tags": [
+      "skulk",
+      "combat",
+      "evasion",
+      "blocking-restriction",
+      "declare-attackers",
+      "declare-blockers",
+      "unblocked",
+      "combat-damage"
+    ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Furtive Homunculus oracle text (engine-verified from crates/engine/src/cards/defs/furtive_homunculus.rs): 'Skulk (This creature can't be blocked by creatures with greater power.)' P/T: 2/1. Mana cost: {1}{U}. Type: Creature — Homunculus. KeywordAbility::Skulk. CR 702.118b: 'A creature with skulk can't be blocked by creatures with greater power.' Bladetusk Boar (crates/engine/src/cards/defs/bladetusk_boar.rs): P/T 3/2, Creature — Boar, KeywordAbility::Intimidate. Power 3 > Furtive Homunculus power 2, so Bladetusk Boar CANNOT legally block Furtive Homunculus under CR 702.118b. Note: Intimidate on Bladetusk Boar restricts what can block IT, not what IT can block — it has no effect on Bladetusk Boar's ability to block, so there is no confound. p2 must declare no blockers. CR 510.1b: Unblocked Furtive Homunculus (power 2) assigns all 2 damage to p2. p2 life: 40 → 38. Furtive Homunculus (2/1) takes no damage (unblocked) — no SBA 704.5g. Bladetusk Boar takes no damage (was not declared as a blocker) — no SBA 704.5g. CR 704.5a: p2 has 38 life (above 0) — no player-death SBA. Script uses turn_number: 4 to ensure no summoning sickness on Furtive Homunculus (GameStateBuilder sets has_summoning_sickness: false for permanents in initial_state, consistent with scripts 106, 109, etc.). Initial phase is 'declare_attackers' per the established executable combat script pattern.",
@@ -44,10 +63,20 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Furtive Homunculus", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Furtive Homunculus",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ],
         "p2": [
-          { "card": "Bladetusk Boar", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Bladetusk Boar",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ]
       },
       "hand": {},
@@ -68,12 +97,26 @@
           "type": "assert_state",
           "description": "Initial: Furtive Homunculus (2/1, Skulk) untapped on p1 battlefield; Bladetusk Boar (3/2, Intimidate) untapped on p2 battlefield; life totals 40/40",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Furtive Homunculus" }] },
-            "zones.battlefield.p2": { "includes": [{ "card": "Bladetusk Boar" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Furtive Homunculus"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Bladetusk Boar"
+                }
+              ]
+            },
             "permanent.Furtive Homunculus.tapped": false,
             "players.p1.life": 40,
             "players.p2.life": 40,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Furtive Homunculus is untapped and free of summoning sickness (turn_number: 4, builder sets has_summoning_sickness: false). Bladetusk Boar has power 3, which is greater than Furtive Homunculus power 2 — it cannot legally block Furtive Homunculus per CR 702.118b."
         },
@@ -86,7 +129,11 @@
           "mana_paid": null,
           "mana_source": [],
           "attackers": [
-            { "card": "Furtive Homunculus", "target_player": "p2", "target_planeswalker": null }
+            {
+              "card": "Furtive Homunculus",
+              "target_player": "p2",
+              "target_planeswalker": null
+            }
           ],
           "blockers": [],
           "cr_ref": "508.1",
@@ -97,13 +144,18 @@
           "description": "After declare_attackers: Furtive Homunculus is tapped, stack empty",
           "assertions": {
             "permanent.Furtive Homunculus.tapped": true,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 508.1f: Furtive Homunculus was tapped as part of the attack declaration. Priority is held by p1."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority in succession with empty stack — advance to DeclareBlockers step. p1 receives priority as active player in DeclareBlockers."
         }
@@ -128,7 +180,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority in succession with empty stack — advance to CombatDamage step. The engine executes combat damage as a turn-based action on entering CombatDamage (no player command needed)."
         }
@@ -145,7 +200,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority after CombatDamage resolves. Stack is empty — advance to EndOfCombat step."
         },
@@ -155,10 +213,24 @@
           "assertions": {
             "players.p2.life": 38,
             "players.p1.life": 40,
-            "zones.battlefield.p1": { "includes": [{ "card": "Furtive Homunculus" }] },
-            "zones.battlefield.p2": { "includes": [{ "card": "Bladetusk Boar" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Furtive Homunculus"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Bladetusk Boar"
+                }
+              ]
+            },
             "permanent.Furtive Homunculus.tapped": true,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 510.1b: Unblocked Furtive Homunculus (power 2) dealt 2 combat damage to p2. p2 life: 40 → 38. Furtive Homunculus remains on p1 battlefield (tapped from attacking, took no damage). Bladetusk Boar remains on p2 battlefield (was not declared as a blocker, took no damage). Skulk's blocking restriction (CR 702.118b) was enforced: Bladetusk Boar (power 3 > attacker power 2) could not block Furtive Homunculus."
         }

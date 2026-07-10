@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "metadata": {
     "id": "script_stack_020",
-    "name": "Alela ETB trigger \u2014 casting an artifact creates a Faerie Rogue",
+    "name": "Alela ETB trigger — casting an artifact creates a Faerie Rogue",
     "description": "p1 controls Alela, Cunning Conqueror on the battlefield. p1 casts Sol Ring (an artifact). Alela's triggered ability fires: whenever an artifact enters the battlefield under p1's control, create a 1/1 blue and black Faerie Rogue token with flying. Tests an ETB-cascade: artifact enters battlefield and Alela's trigger creates a token.",
     "cr_sections_tested": [
       "603.2",
@@ -20,11 +20,12 @@
       "artifact-trigger"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
-    "generation_notes": "Alela, Cunning Conqueror oracle: 'Whenever you cast a noncreature spell, create a 1/1 blue and black Faerie Rogue creature token with flying.' Wait \u2014 actually Alela's trigger says 'whenever you cast', but let me check the correct wording for the engine's Alela definition. The engine's Alela creates a Faerie Rogue token when an artifact enters the battlefield. Sol Ring is a noncreature artifact spell. After Sol Ring resolves (enters battlefield), Alela's trigger fires and creates a Faerie Rogue token. Net: Sol Ring on battlefield + 1 Faerie Rogue token on battlefield. The token is 1/1 blue/black with flying.",
-    "disputes": []
+    "generation_notes": "Alela, Cunning Conqueror oracle: 'Whenever you cast a noncreature spell, create a 1/1 blue and black Faerie Rogue creature token with flying.' Wait — actually Alela's trigger says 'whenever you cast', but let me check the correct wording for the engine's Alela definition. The engine's Alela creates a Faerie Rogue token when an artifact enters the battlefield. Sol Ring is a noncreature artifact spell. After Sol Ring resolves (enters battlefield), Alela's trigger fires and creates a Faerie Rogue token. Net: Sol Ring on battlefield + 1 Faerie Rogue token on battlefield. The token is 1/1 blue/black with flying.",
+    "disputes": [],
+    "retirement_reason": "SR-9c: Alela's artifact/enchantment cast trigger is left on the stack (informational stack_resolve), so Sol Ring never resolves onto the battlefield and stack counts diverge. Retire pending a trigger-resolving rewrite."
   },
   "initial_state": {
     "format": "commander",
@@ -135,7 +136,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "Both pass \u2014 Sol Ring resolves."
+          "note": "Both pass — Sol Ring resolves."
         },
         {
           "type": "stack_resolve",
@@ -153,7 +154,7 @@
               "source": "Alela, Cunning Conqueror",
               "trigger_condition": "whenever_you_cast_noncreature_spell",
               "cr_ref": "603.2",
-              "note": "CR 603.2: Alela's triggered ability fires \u2014 create a 1/1 Faerie Rogue token."
+              "note": "CR 603.2: Alela's triggered ability fires — create a 1/1 Faerie Rogue token."
             }
           ],
           "note": "Sol Ring enters, Alela's trigger put on stack."
@@ -180,7 +181,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "Both pass \u2014 Alela trigger resolves."
+          "note": "Both pass — Alela trigger resolves."
         },
         {
           "type": "stack_resolve",

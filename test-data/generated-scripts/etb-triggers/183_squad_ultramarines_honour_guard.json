@@ -24,7 +24,7 @@
       "creature"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "CR 702.157a: Squad is an additional cost keyword. The cast_spell_squad action with squad_count=2 causes p1 to pay {2} twice as an additional cost on top of the base cost {3}{W}. Total mana paid: {3}{W} + {2}{2} = 7 generic + 1 white. CR 702.157b: When the creature enters the battlefield, its ETB trigger (SquadTrigger, SOK discriminant 52) fires, creating squad_count token copies. Tokens are copies of the creature, not cast (so no cast triggers fire). The trigger is placed on the stack after the creature resolves and enters; both players pass priority, then the trigger resolves creating 2 tokens. Final battlefield count for p1: 3 (1 original + 2 token copies). The +1/+1 anthem ability on Ultramarines Honour Guard is a DSL gap (OtherCreaturesControlledBy not implemented) — it is not exercised or asserted in this script. Mana calculation: generic=7 (3 base + 2+2 squad), white=1.",
@@ -89,8 +89,16 @@
           "description": "Initial: Ultramarines Honour Guard in p1 hand, battlefield empty, stack empty",
           "assertions": {
             "zones.hand.p1.count": 1,
-            "zones.stack": { "is_empty": true },
-            "zones.battlefield.p1": { "excludes": [{ "card": "Ultramarines Honour Guard" }] }
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "excludes": [
+                {
+                  "card": "Ultramarines Honour Guard"
+                }
+              ]
+            }
           },
           "note": "P1 holds the card and has {7}{W} available: base {3}{W} + squad {2} x2."
         },
@@ -120,7 +128,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — top of stack resolves."
         },
@@ -143,7 +154,11 @@
           "description": "After spell resolves: Ultramarines Honour Guard on battlefield, SquadTrigger on stack",
           "assertions": {
             "zones.battlefield.p1": {
-              "includes": [{ "card": "Ultramarines Honour Guard" }]
+              "includes": [
+                {
+                  "card": "Ultramarines Honour Guard"
+                }
+              ]
             },
             "zones.stack.count": 1
           },
@@ -151,7 +166,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — SquadTrigger resolves."
         },
@@ -161,12 +179,17 @@
           "resolution": [
             {
               "effect": "create_token",
-              "target": { "type": "player", "player": "p1" },
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
               "token": {
                 "name": "Ultramarines Honour Guard",
                 "power": 2,
                 "toughness": 2,
-                "colors": ["white"]
+                "colors": [
+                  "white"
+                ]
               },
               "card": null,
               "owner": null,
@@ -175,12 +198,17 @@
             },
             {
               "effect": "create_token",
-              "target": { "type": "player", "player": "p1" },
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
               "token": {
                 "name": "Ultramarines Honour Guard",
                 "power": 2,
                 "toughness": 2,
-                "colors": ["white"]
+                "colors": [
+                  "white"
+                ]
               },
               "card": null,
               "owner": null,
@@ -195,7 +223,9 @@
           "description": "Final: 3 Ultramarines Honour Guard on p1's battlefield (1 original + 2 token copies), stack empty",
           "assertions": {
             "zones.battlefield.p1.count": 3,
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "zones.hand.p1.count": 0
           },
           "note": "CR 702.157b: squad_count=2 caused 2 token copies to be created. P1 controls 3 creatures total: the original Ultramarines Honour Guard and its 2 token copies."

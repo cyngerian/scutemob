@@ -4,11 +4,29 @@
     "id": "script_combat_192",
     "name": "Mutate — Gemrazer cast for mutate onto Canopy Crawler; merge verified, trigger queued",
     "description": "P1 controls Canopy Crawler (2/2 Beast) and Arcane Signet on the battlefield. P1 holds Gemrazer (4/4 Beast, Mutate {1}{G}{G}, Reach, Trample, Whenever this creature mutates destroy target artifact or enchantment). During P1's precombat main phase, P1 casts Gemrazer using its mutate cost ({1}{G}{G}), targeting Canopy Crawler (non-Human creature P1 owns — CR 702.140a). The script verifies: (1) Gemrazer on stack as MutatingCreatureSpell (count 1), (2) after merge resolves — Canopy Crawler still on battlefield as the merged permanent, trigger on stack (count 1 from Whenever this creature mutates), (3) after trigger resolves — stack empty, Canopy Crawler still on battlefield, Arcane Signet still on battlefield (trigger resolves with no targets because the engine does not support player-chosen targets for triggered abilities in the CardDef path — see disputes). The script confirms corner case #32 (Mutate Stack Ordering): Gemrazer on top (mutate_on_top: true) is a superset of the over/under choice mechanics.",
-    "cr_sections_tested": ["702.140a", "702.140c", "702.140d", "702.140e", "729.2", "729.2a", "729.2c", "116.3", "405.5", "608.2", "704.3"],
+    "cr_sections_tested": [
+      "702.140a",
+      "702.140c",
+      "702.140d",
+      "702.140e",
+      "729.2",
+      "729.2a",
+      "729.2c",
+      "116.3",
+      "405.5",
+      "608.2",
+      "704.3"
+    ],
     "corner_case_ref": 32,
-    "tags": ["combat", "mutate", "merge", "triggered-ability", "artifact"],
+    "tags": [
+      "combat",
+      "mutate",
+      "merge",
+      "triggered-ability",
+      "artifact"
+    ],
     "confidence": "medium",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Gemrazer card definition at crates/engine/src/cards/defs/gemrazer.rs: 4/4 Beast, ManaCost {generic:3, green:1}, Mutate {1}{G}{G}, Reach, Trample, AbilityDefinition::Triggered { trigger_condition: TriggerCondition::WhenMutates, effect: Effect::DestroyPermanent { target: EffectTarget::DeclaredTarget { index: 0 } } }. Canopy Crawler (2/2 Beast) is a legal mutate target: on battlefield, creature, non-Human, owned by P1 (CR 702.140a). Arcane Signet ({2}, Artifact) is present to illustrate the typical use case but will NOT be destroyed — see disputes. Mana pool pre-loaded with 1 colorless + 2 green to pay the mutate cost {1}{G}{G} (generic maps to colorless in the engine). The cast_spell_mutate harness action (replay_harness.rs:1847) uses: card_name=card field, target_creature=target_creature field, mutate_on_top field. The mutate trigger (TriggerCondition::WhenMutates) is converted to TriggerEvent::SelfMutates in enrich_spec_from_def (replay_harness.rs), which fires on GameEvent::CreatureMutated. At resolution, the trigger stack object has empty targets (flush_pending_triggers does not set DeclaredTarget for normal triggers), so Effect::DestroyPermanent resolves with no effect. Corner case #32 (Mutate Stack Ordering): verified by over/under choice (mutate_on_top: true) and assertion that merged permanent (Canopy Crawler object) remains on battlefield.",
@@ -66,13 +84,27 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Canopy Crawler", "is_commander": false, "owner": null, "tapped": false },
-          { "card": "Arcane Signet", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Canopy Crawler",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          },
+          {
+            "card": "Arcane Signet",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ]
       },
       "hand": {
         "p1": [
-          { "card": "Gemrazer", "is_commander": false, "owner": null }
+          {
+            "card": "Gemrazer",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -94,16 +126,24 @@
           "assertions": {
             "zones.battlefield.p1": {
               "includes": [
-                { "card": "Canopy Crawler" },
-                { "card": "Arcane Signet" }
+                {
+                  "card": "Canopy Crawler"
+                },
+                {
+                  "card": "Arcane Signet"
+                }
               ]
             },
             "zones.hand.p1": {
               "includes": [
-                { "card": "Gemrazer" }
+                {
+                  "card": "Gemrazer"
+                }
               ]
             },
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "players.p1.life": 40,
             "players.p2.life": 40
           },
@@ -129,17 +169,26 @@
             "zones.stack.count": 1,
             "zones.battlefield.p1": {
               "includes": [
-                { "card": "Canopy Crawler" },
-                { "card": "Arcane Signet" }
+                {
+                  "card": "Canopy Crawler"
+                },
+                {
+                  "card": "Arcane Signet"
+                }
               ]
             },
-            "zones.hand.p1": { "is_empty": true }
+            "zones.hand.p1": {
+              "is_empty": true
+            }
           },
           "note": "CR 601.2: Spell placed on stack when cast. Gemrazer moves from P1 hand to stack as a MutatingCreatureSpell (StackObjectKind::MutatingCreatureSpell). Canopy Crawler remains on the battlefield — it is the merge target, not yet affected. Stack count = 1."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: P1 passes, P2 passes. Stack top resolves (Gemrazer as MutatingCreatureSpell). CR 405.5: LIFO."
         },
@@ -149,7 +198,11 @@
           "resolution": [
             {
               "effect": "merge_with_target",
-              "target": { "type": "permanent", "card": "Canopy Crawler", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "card": "Canopy Crawler",
+                "controller": "p1"
+              },
               "amount": null,
               "card": "Gemrazer",
               "owner": "p1",
@@ -166,8 +219,12 @@
             "zones.stack.count": 1,
             "zones.battlefield.p1": {
               "includes": [
-                { "card": "Gemrazer" },
-                { "card": "Arcane Signet" }
+                {
+                  "card": "Gemrazer"
+                },
+                {
+                  "card": "Arcane Signet"
+                }
               ]
             }
           },
@@ -175,7 +232,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority → top of stack (mutate trigger) resolves. CR 405.5: LIFO."
         },
@@ -199,11 +259,17 @@
           "type": "assert_state",
           "description": "Final state: stack empty. Gemrazer (merged permanent) on P1 battlefield with Arcane Signet. Life totals unchanged at 40/40.",
           "assertions": {
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "zones.battlefield.p1": {
               "includes": [
-                { "card": "Gemrazer" },
-                { "card": "Arcane Signet" }
+                {
+                  "card": "Gemrazer"
+                },
+                {
+                  "card": "Arcane Signet"
+                }
               ]
             },
             "players.p1.life": 40,

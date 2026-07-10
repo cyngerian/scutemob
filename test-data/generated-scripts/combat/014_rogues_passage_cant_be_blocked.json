@@ -32,7 +32,7 @@
       "until-end-of-turn"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Rogue's Passage oracle text (Scryfall verified): '{T}: Add {C}.' and '{4}, {T}: Target creature can't be blocked this turn.' Type: Land. The first ability is a mana ability (CR 605.1a/b) and is excluded from the ability_index count per the engine's indexing of non-mana activated abilities. The second ability has a target (Llanowar Elves or any creature) — per CR 605.5a, an ability with a target is NOT a mana ability even if it could produce mana. Therefore ability_index: 0 refers to the '{4}, {T}: Target creature can't be blocked this turn' ability. Grizzly Bears oracle text (Scryfall verified): Creature — Bear, {1}{G}, P/T: 2/2, no abilities. Both p1 and p2 control a Grizzly Bears. p1's Grizzly Bears is placed in the initial state on the battlefield at turn_number 4 — per CR 302.6 it has been controlled continuously since before this turn and is free of summoning sickness, so it may attack. Activation: cost is {4} generic + tap Rogue's Passage. The tap is part of the cost (CR 602.2b / 601.2h) — Rogue's Passage becomes tapped at activation time. The ability is not a sacrifice, so Rogue's Passage remains on the battlefield (just tapped) after activation. The mana pool has {4} colorless = `{\"colorless\": 4}` to represent the four generic mana paid. CR 602.2a: the ability is placed on the stack as a non-card object targeting p1's Grizzly Bears. CR 608.2: ability resolves; the CantBeBlocked restriction is applied to p1's Grizzly Bears as a continuous effect until end of turn. CR 509.1b: during declare-blockers, p2's Grizzly Bears checks whether any restrictions are being violated. The restriction 'can't be blocked this turn' means p2's Grizzly Bears cannot legally block p1's Grizzly Bears — any attempt to declare it as a blocker would be an illegal declaration. CR 510.1b: p1's Grizzly Bears is unblocked; it assigns its 2 power as combat damage to p2. p2 life: 40 → 38. Harness note: the activate_ability action and ability resolution are harness-executable (as demonstrated by script_stack_037). However, declare_attackers and combat damage are NOT in translate_player_action, so combat steps are informational (turn_based_action). The final assert_state therefore reflects only harness-executable state (Rogue's Passage tapped, stack empty); life total change from combat is documented but not harness-asserted. A dispute entry captures this limitation, consistent with scripts 009-013. The key harness-executable assertion added beyond script_stack_037 is: Rogue's Passage tapped after activation + ability resolved, stack empty — confirming the full activate→resolve cycle completes successfully in this combat-framed context.",
@@ -46,7 +46,8 @@
         "resolved_by": null,
         "resolved_date": null
       }
-    ]
+    ],
+    "retirement_reason": "SR-9c: Rogue's Passage's targeted 'can't be blocked' ability is rejected (target can't be matched to a requirement slot), and the harness cannot then drive the unblocked-attack damage. Retire pending correct ability-target routing plus combat-damage scripting."
   },
   "initial_state": {
     "format": "commander",
@@ -58,7 +59,9 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "colorless": 4 },
+        "mana_pool": {
+          "colorless": 4
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -78,11 +81,26 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Rogue's Passage", "is_commander": false, "owner": null, "tapped": false },
-          { "card": "Grizzly Bears", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Rogue's Passage",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          },
+          {
+            "card": "Grizzly Bears",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ],
         "p2": [
-          { "card": "Grizzly Bears", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Grizzly Bears",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ]
       },
       "hand": {},
@@ -105,19 +123,27 @@
           "assertions": {
             "zones.battlefield.p1": {
               "includes": [
-                { "card": "Rogue's Passage" },
-                { "card": "Grizzly Bears" }
+                {
+                  "card": "Rogue's Passage"
+                },
+                {
+                  "card": "Grizzly Bears"
+                }
               ]
             },
             "zones.battlefield.p2": {
               "includes": [
-                { "card": "Grizzly Bears" }
+                {
+                  "card": "Grizzly Bears"
+                }
               ]
             },
             "permanent.Rogue's Passage.tapped": false,
             "players.p1.life": 40,
             "players.p2.life": 40,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Rogue's Passage is untapped and ready to activate. p1's Grizzly Bears has been on the battlefield since before this turn (turn 4) — no summoning sickness (CR 302.6). p2's Grizzly Bears would normally be a legal blocker for a 2/2 creature."
         },
@@ -128,9 +154,15 @@
           "card": "Rogue's Passage",
           "ability_index": 0,
           "targets": [
-            { "type": "permanent", "card": "Grizzly Bears", "controller": "p1" }
+            {
+              "type": "permanent",
+              "card": "Grizzly Bears",
+              "controller": "p1"
+            }
           ],
-          "mana_paid": { "colorless": 4 },
+          "mana_paid": {
+            "colorless": 4
+          },
           "mana_source": [],
           "cr_ref": "602.2a",
           "note": "CR 602.2a: p1 announces activation of Rogue's Passage's '{4},{T}: Target creature can't be blocked this turn' ability (ability_index: 0 — the {T}: Add {C} mana ability is excluded per engine non-mana ability indexing; CR 605.5a confirms this ability has a target and is not a mana ability). The ability is placed on the stack targeting p1's Grizzly Bears. CR 602.2b / 601.2h: costs are paid — {4} colorless from pool, tap Rogue's Passage. Rogue's Passage becomes tapped as part of cost payment."
@@ -146,7 +178,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority in succession — the top object on the stack (Rogue's Passage ability) resolves."
         },
@@ -156,7 +191,10 @@
           "resolution": [
             {
               "effect": "grant_until_end_of_turn",
-              "target": { "card": "Grizzly Bears", "controller": "p1" },
+              "target": {
+                "card": "Grizzly Bears",
+                "controller": "p1"
+              },
               "effect_description": "can't be blocked this turn",
               "cr_ref": "509.1b",
               "note": "CR 509.1b: The ability applies the 'can't be blocked this turn' restriction to p1's Grizzly Bears as a continuous effect until end of turn. Any creature p2 controls that would otherwise legally block Grizzly Bears is prohibited from doing so for the rest of this turn."
@@ -168,12 +206,18 @@
           "type": "assert_state",
           "description": "After resolution: stack empty, Rogue's Passage still tapped, Grizzly Bears has can't-be-blocked restriction",
           "assertions": {
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "permanent.Rogue's Passage.tapped": true,
             "zones.battlefield.p1": {
               "includes": [
-                { "card": "Grizzly Bears" },
-                { "card": "Rogue's Passage" }
+                {
+                  "card": "Grizzly Bears"
+                },
+                {
+                  "card": "Rogue's Passage"
+                }
               ]
             }
           },
@@ -217,16 +261,24 @@
             "permanent.Rogue's Passage.tapped": true,
             "zones.battlefield.p1": {
               "includes": [
-                { "card": "Grizzly Bears" },
-                { "card": "Rogue's Passage" }
+                {
+                  "card": "Grizzly Bears"
+                },
+                {
+                  "card": "Rogue's Passage"
+                }
               ]
             },
             "zones.battlefield.p2": {
               "includes": [
-                { "card": "Grizzly Bears" }
+                {
+                  "card": "Grizzly Bears"
+                }
               ]
             },
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Harness does not execute declare_attackers or combat damage — all combat state changes are documented in the informational steps above. Expected CR outcomes: p2 life 38 (2 unblocked combat damage from p1's Grizzly Bears). Rogue's Passage remains tapped (confirmed harness-executable from precombat_main step). See dispute entry for details on harness limitations."
         }

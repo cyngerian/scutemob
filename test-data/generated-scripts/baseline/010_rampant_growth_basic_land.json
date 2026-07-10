@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "metadata": {
     "id": "script_baseline_010",
-    "name": "Rampant Growth \u2014 search for basic land, enter tapped",
+    "name": "Rampant Growth — search for basic land, enter tapped",
     "description": "p1 casts Rampant Growth ({1}{G}). Searches library for a basic land card and puts it on the battlefield tapped. Tests a simple one-land ramp spell that puts the land into play immediately (no hand step).",
     "cr_sections_tested": [
       "601.2",
@@ -18,7 +18,7 @@
       "enter-tapped"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Rampant Growth oracle: 'Search your library for a basic land card, put that card onto the battlefield tapped, then shuffle.' Cost {1}{G}. Unlike Cultivate which puts one into play and one into hand, Rampant Growth just puts one into play tapped and shuffles. Library has a Mountain. After resolution: Mountain on battlefield tapped, library empty (shuffled). Initial: p1 has {1}{G} in pool.",
@@ -127,7 +127,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "Both pass \u2014 Rampant Growth resolves."
+          "note": "Both pass — Rampant Growth resolves."
         },
         {
           "type": "stack_resolve",

@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "metadata": {
     "id": "script_stack_017",
-    "name": "Arcane Signet \u2014 cast then activate for mana",
+    "name": "Arcane Signet — cast then activate for mana",
     "description": "p1 casts Arcane Signet ({2}), then activates its mana ability to add one mana of the commander's color identity. Since no commander is set, the engine behavior for Arcane Signet should add mana of any color in the deck's color identity. Tests artifact ramp: play Arcane Signet, tap it for mana.",
     "cr_sections_tested": [
       "601.2",
@@ -18,7 +18,7 @@
       "color-identity"
     ],
     "confidence": "medium",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Arcane Signet oracle: '{T}: Add one mana of any color in your commander's color identity.' Cost {2}. In a 2-player test without commanders, the engine may treat this as adding any color OR may have a special rule. For this script, p1 casts Arcane Signet and enters the battlefield, then activates it for {G} (assuming green is in color identity). The key test is that the signet enters the battlefield and its mana ability taps it. This is medium confidence because commander color identity behavior without a commander could vary.",
@@ -117,7 +117,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "Both pass \u2014 Arcane Signet resolves."
+          "note": "Both pass — Arcane Signet resolves."
         },
         {
           "type": "stack_resolve",

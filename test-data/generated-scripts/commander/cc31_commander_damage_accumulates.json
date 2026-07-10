@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "metadata": {
     "id": "script_commander_cc31",
-    "name": "Commander damage accumulates \u2014 10 + 11 = 21 (kills player)",
+    "name": "Commander damage accumulates — 10 + 11 = 21 (kills player)",
     "description": "p1's commander has already dealt 10 combat damage to p2 in prior turns. This turn, p1's commander deals 11 more combat damage. p2 now has 21 commander damage from p1 (>= 21), and the SBA kills p2 (CR 704.6c). Tests that commander damage accumulates across turns and that the 21-damage threshold SBA triggers.",
     "cr_sections_tested": [
       "903.10",
@@ -17,11 +17,12 @@
       "player-dies"
     ],
     "confidence": "high",
-    "review_status": "approved",
+    "review_status": "retired",
     "reviewed_by": "claude-sonnet-4-6",
     "review_date": "2026-02-23",
     "generation_notes": "CR 903.10: A player who has been dealt 21 or more combat damage by the same commander loses the game. CR 704.6c: SBA checks commander damage. Initial state: p2 has received 10 commander damage from p1's commander. After 11 more damage (this turn's combat), total = 21. SBA fires: p2 loses. The initial state sets commander_damage_received for p2. The script models the final combat hit. Note: combat scripts are informational (draft) because the harness doesn't support declare attackers. The commander damage SBA behavior is tested in commander_damage.rs.",
-    "disputes": []
+    "disputes": [],
+    "retirement_reason": "SR-9c: Inexpressible in the harness: it fakes the lethal commander-damage combat hit via an informational `stack_resolve` and pre-seeds prior damage via `players.p2.commander_damage_received`, an initial_state field the harness has never read (SR-9b). Both are no-ops, so the 21-damage loss SBA never triggers. Unblocks when combat damage is scriptable and the init field is wired."
   },
   "initial_state": {
     "format": "commander",
@@ -91,7 +92,7 @@
         },
         {
           "type": "stack_resolve",
-          "object": "Combat damage step \u2014 commander hits p2",
+          "object": "Combat damage step — commander hits p2",
           "resolution": [
             {
               "effect": "combat_damage_to_player",
@@ -119,7 +120,7 @@
               "note": "CR 704.6c: p2 has received 21 or more combat damage from p1's commander. p2 loses the game."
             }
           ],
-          "note": "SBA: p2 has 21 commander damage from p1 \u2014 p2 loses."
+          "note": "SBA: p2 has 21 commander damage from p1 — p2 loses."
         },
         {
           "type": "assert_state",

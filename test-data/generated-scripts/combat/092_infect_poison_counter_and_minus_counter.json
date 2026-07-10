@@ -27,7 +27,7 @@
       "4-player"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Glistener Elf (card #105 in definitions.rs): {G}, Creature — Phyrexian Elf Warrior 1/1, Infect. Single-elf scenario to avoid duplicate-name harness limitation (find_on_battlefield returns lowest-ID match). P2 has no blockers so Glistener Elf is unblocked and deals 1 infect damage to P2 as a poison counter (CR 702.90b). P2 life remains 40 (no life loss). The -1/-1 counter path (CR 702.90c / 120.3d) is covered by unit tests in tests/keywords.rs.",

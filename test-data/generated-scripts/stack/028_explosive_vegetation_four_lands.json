@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "metadata": {
     "id": "script_stack_028",
-    "name": "Explosive Vegetation \u2014 search for 2 basic lands, both enter tapped",
+    "name": "Explosive Vegetation — search for 2 basic lands, both enter tapped",
     "description": "p1 casts Explosive Vegetation ({3}{G}). Searches library for up to 2 basic land cards and puts both onto the battlefield tapped. Tests the two-land-simultaneous-entry version of ramp (unlike Cultivate which puts one in hand).",
     "cr_sections_tested": [
       "601.2",
@@ -18,7 +18,7 @@
       "two-lands"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Explosive Vegetation oracle: 'Search your library for up to two basic land cards, put them onto the battlefield tapped, then shuffle.' Cost {3}{G}. Both lands enter the battlefield tapped (unlike Cultivate where one goes to hand). Library has Forest and Plains. After resolution: both on battlefield tapped.",
@@ -132,7 +132,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "Both pass \u2014 Explosive Vegetation resolves."
+          "note": "Both pass — Explosive Vegetation resolves."
         },
         {
           "type": "stack_resolve",

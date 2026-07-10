@@ -4,15 +4,43 @@
     "id": "script_combat_116",
     "name": "Rampage 2 — Wolverine Pack blocked by 3 creatures gets +4/+4",
     "description": "p1 controls Wolverine Pack (2/4, Rampage 2) and attacks p2. p2 blocks with three creatures: Llanowar Elves (1/1), Elvish Mystic (1/1), and Wall of Omens (0/4). CR 509.3c: the Rampage trigger fires exactly once when Wolverine Pack 'becomes blocked' — not three times. CR 702.23b: the +N/+N bonus is calculated at resolution. With 3 blockers, there are 2 blockers beyond the first, and Rampage 2 gives +2/+2 per extra blocker, so the total bonus is +4/+4. Wolverine Pack resolves as a 6/8. In combat damage, p1 assigns Wolverine Pack's 6 power: 1 to Llanowar Elves (lethal), 1 to Elvish Mystic (lethal), 4 to Wall of Omens (lethal — toughness 4). All three blockers die. Wolverine Pack receives 2 damage (1 from each Elf, 0 from Wall of Omens) against its effective 8 toughness — not lethal — it survives. p2 takes no player damage (Wolverine Pack was fully blocked, no Trample).",
-    "cr_sections_tested": ["702.23a", "702.23b", "509.3c", "508.1", "508.1f", "509.1", "509.1a", "509.1g", "509.1h", "510.1", "510.2", "704.5g", "704.3", "514.2"],
+    "cr_sections_tested": [
+      "702.23a",
+      "702.23b",
+      "509.3c",
+      "508.1",
+      "508.1f",
+      "509.1",
+      "509.1a",
+      "509.1g",
+      "509.1h",
+      "510.1",
+      "510.2",
+      "704.5g",
+      "704.3",
+      "514.2"
+    ],
     "corner_case_ref": null,
-    "tags": ["combat", "rampage", "triggered-ability", "declare-blockers", "multiple-blockers", "plus-bonus", "until-end-of-turn", "lethal-damage", "sba", "creature-dies", "trigger-once"],
+    "tags": [
+      "combat",
+      "rampage",
+      "triggered-ability",
+      "declare-blockers",
+      "multiple-blockers",
+      "plus-bonus",
+      "until-end-of-turn",
+      "lethal-damage",
+      "sba",
+      "creature-dies",
+      "trigger-once"
+    ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Wolverine Pack oracle text (MCP verified): Creature — Wolverine, {2}{G}{G}, 2/4, Rampage 2. CR 702.23a: 'Rampage N means: Whenever this creature becomes blocked, it gets +N/+N until end of turn for each creature blocking it beyond the first.' CR 702.23b: 'The rampage bonus is calculated only once per combat, when the triggered ability resolves. Adding or removing blockers later in combat won't change the bonus.' CR 509.3c: An ability that reads 'Whenever [a creature] becomes blocked, ...' triggers only once per combat even if blocked by multiple creatures — so Wolverine Pack's Rampage trigger fires exactly once (not once per blocker). Calculation: 3 blockers − 1 = 2 extra blockers × Rampage 2 = +4/+4. Wolverine Pack becomes 6/8 at resolution. Blockers chosen from Available Cards list: Llanowar Elves (1/1), Elvish Mystic (1/1), Wall of Omens (0/4). All three have no evasion or combat-relevant abilities that would interfere with the Rampage test. Wall of Omens has Defender — it cannot attack but CAN block (Defender only restricts attacking, CR 702.3a). Turn 4 used so Wolverine Pack has no summoning sickness. In combat damage (CR 510.1 / 510.2): p1 assigns Wolverine Pack's 6 power across blockers — 1 to Llanowar Elves (lethal: 1 >= 1 toughness), 1 to Elvish Mystic (lethal: 1 >= 1 toughness), 4 to Wall of Omens (lethal: 4 >= 4 toughness). Each blocker deals damage back: Llanowar Elves 1, Elvish Mystic 1, Wall of Omens 0 — total 2 damage to Wolverine Pack. Wolverine Pack has 8 effective toughness (4 base + 4 Rampage) — 2 damage is not lethal — it survives. SBA 704.5g fires for all three blockers (each has damage >= toughness). Wolverine Pack has no Trample so p2 takes no player damage (CR 510.1c). The +4/+4 Rampage bonus expires at the cleanup step (CR 514.2).",
-    "disputes": []
+    "disputes": [],
+    "retirement_reason": "SR-9c: `assign_damage` is informational — the harness has no combat-damage-assignment Command (SR-9b: only 6 of 60 command shapes are cross-validated), so Rampage's multi-blocker assignment is never exercised. Unblocks when a damage-assignment Command exists."
   },
   "initial_state": {
     "format": "commander",
@@ -44,12 +72,32 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Wolverine Pack", "tapped": false, "is_commander": false, "owner": null }
+          {
+            "card": "Wolverine Pack",
+            "tapped": false,
+            "is_commander": false,
+            "owner": null
+          }
         ],
         "p2": [
-          { "card": "Llanowar Elves", "tapped": false, "is_commander": false, "owner": null },
-          { "card": "Elvish Mystic", "tapped": false, "is_commander": false, "owner": null },
-          { "card": "Wall of Omens", "tapped": false, "is_commander": false, "owner": null }
+          {
+            "card": "Llanowar Elves",
+            "tapped": false,
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Elvish Mystic",
+            "tapped": false,
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Wall of Omens",
+            "tapped": false,
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "hand": {},
@@ -70,14 +118,26 @@
           "type": "assert_state",
           "description": "Initial: Wolverine Pack untapped on p1 battlefield; Llanowar Elves, Elvish Mystic, and Wall of Omens untapped on p2 battlefield; life totals 40/40; stack empty",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Wolverine Pack" }] },
-            "zones.battlefield.p2": { "includes": [{ "card": "Llanowar Elves" }] },
-            "zones.battlefield.p2": { "includes": [{ "card": "Elvish Mystic" }] },
-            "zones.battlefield.p2": { "includes": [{ "card": "Wall of Omens" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Wolverine Pack"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Wall of Omens"
+                }
+              ]
+            },
             "permanent.Wolverine Pack.tapped": false,
             "players.p1.life": 40,
             "players.p2.life": 40,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Turn 4 — Wolverine Pack has no summoning sickness (CR 302.6). Wall of Omens has Defender (cannot attack) but can legally block (CR 702.3a). Rampage 2 trigger has not yet fired — it fires when Wolverine Pack 'becomes blocked,' during the declare blockers step."
         },
@@ -90,7 +150,11 @@
           "mana_paid": null,
           "mana_source": [],
           "attackers": [
-            { "card": "Wolverine Pack", "target_player": "p2", "target_planeswalker": null }
+            {
+              "card": "Wolverine Pack",
+              "target_player": "p2",
+              "target_planeswalker": null
+            }
           ],
           "blockers": [],
           "cr_ref": "508.1",
@@ -101,13 +165,18 @@
           "description": "After declare_attackers: Wolverine Pack tapped (CR 508.1f), p2 blockers untapped, stack empty",
           "assertions": {
             "permanent.Wolverine Pack.tapped": true,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 508.1f: Wolverine Pack tapped as part of attack declaration. No triggers have fired yet. Rampage triggers during declare blockers when Wolverine Pack becomes blocked."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority with empty stack — advance to DeclareBlockers step."
         }
@@ -127,9 +196,18 @@
           "mana_source": [],
           "attackers": [],
           "blockers": [
-            { "card": "Llanowar Elves", "blocking": "Wolverine Pack" },
-            { "card": "Elvish Mystic", "blocking": "Wolverine Pack" },
-            { "card": "Wall of Omens", "blocking": "Wolverine Pack" }
+            {
+              "card": "Llanowar Elves",
+              "blocking": "Wolverine Pack"
+            },
+            {
+              "card": "Elvish Mystic",
+              "blocking": "Wolverine Pack"
+            },
+            {
+              "card": "Wall of Omens",
+              "blocking": "Wolverine Pack"
+            }
           ],
           "cr_ref": "509.1",
           "note": "CR 509.1: p2 declares Llanowar Elves, Elvish Mystic, and Wall of Omens as blockers for Wolverine Pack. CR 509.1a: all three creatures are untapped — legal blockers. CR 509.1g: all three become blocking creatures. CR 509.1h: Wolverine Pack becomes a blocked creature. CR 702.23a: Wolverine Pack has Rampage 2 — 'Whenever this creature becomes blocked' triggers. CR 509.3c: this 'becomes blocked' trigger fires exactly once per combat, not once per blocker — one Rampage trigger goes on the stack. CR 702.23b: the bonus will be calculated at resolution (3 blockers − 1 first = 2 extra × 2 = +4/+4)."
@@ -138,15 +216,30 @@
           "type": "assert_state",
           "description": "After declare_blockers: exactly one Rampage trigger on the stack, all creatures still on battlefield",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Wolverine Pack" }] },
-            "zones.battlefield.p2": { "includes": [{ "card": "Llanowar Elves" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Wolverine Pack"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
             "zones.stack.count": 1
           },
           "note": "CR 509.3c: 'Whenever [a creature] becomes blocked' triggers only once per combat even with multiple blockers. The stack has exactly 1 Rampage trigger (not 3). At resolution it will calculate 3 blockers − 1 = 2 extra blockers × Rampage 2 = +4/+4 bonus for Wolverine Pack."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — the single Rampage 2 trigger (top of stack) resolves."
         },
@@ -156,7 +249,11 @@
           "resolution": [
             {
               "effect": "grant_bonus",
-              "target": { "type": "permanent", "card": "Wolverine Pack", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "card": "Wolverine Pack",
+                "controller": "p1"
+              },
               "amount": null,
               "card": null,
               "owner": null,
@@ -170,17 +267,32 @@
           "type": "assert_state",
           "description": "After Rampage trigger resolves: stack empty, Wolverine Pack now 6/8, all blockers still on battlefield",
           "assertions": {
-            "zones.stack": { "is_empty": true },
-            "zones.battlefield.p1": { "includes": [{ "card": "Wolverine Pack" }] },
-            "zones.battlefield.p2": { "includes": [{ "card": "Llanowar Elves" }] },
-            "zones.battlefield.p2": { "includes": [{ "card": "Elvish Mystic" }] },
-            "zones.battlefield.p2": { "includes": [{ "card": "Wall of Omens" }] }
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Wolverine Pack"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Wall of Omens"
+                }
+              ]
+            }
           },
           "note": "Rampage trigger has resolved. Wolverine Pack has a +4/+4 until-end-of-turn continuous effect applied, making it a 6/8. All three blockers remain on the battlefield entering the combat damage step."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority with empty stack — advance to CombatDamage step."
         }
@@ -196,9 +308,21 @@
           "action": "assign_damage",
           "card": "Wolverine Pack",
           "targets": [
-            { "type": "permanent", "card": "Llanowar Elves", "controller": "p2" },
-            { "type": "permanent", "card": "Elvish Mystic", "controller": "p2" },
-            { "type": "permanent", "card": "Wall of Omens", "controller": "p2" }
+            {
+              "type": "permanent",
+              "card": "Llanowar Elves",
+              "controller": "p2"
+            },
+            {
+              "type": "permanent",
+              "card": "Elvish Mystic",
+              "controller": "p2"
+            },
+            {
+              "type": "permanent",
+              "card": "Wall of Omens",
+              "controller": "p2"
+            }
           ],
           "mana_paid": null,
           "mana_source": [],
@@ -237,7 +361,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority after combat damage and SBAs. Stack is empty — advance to EndOfCombat step."
         },
@@ -247,14 +374,30 @@
           "assertions": {
             "players.p1.life": 40,
             "players.p2.life": 40,
-            "zones.battlefield.p1": { "includes": [{ "card": "Wolverine Pack" }] },
-            "zones.battlefield.p2": { "excludes": [{ "card": "Llanowar Elves" }] },
-            "zones.battlefield.p2": { "excludes": [{ "card": "Elvish Mystic" }] },
-            "zones.battlefield.p2": { "excludes": [{ "card": "Wall of Omens" }] },
-            "zones.graveyard.p2": { "includes": [{ "card": "Llanowar Elves" }] },
-            "zones.graveyard.p2": { "includes": [{ "card": "Elvish Mystic" }] },
-            "zones.graveyard.p2": { "includes": [{ "card": "Wall of Omens" }] },
-            "zones.stack": { "is_empty": true }
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Wolverine Pack"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "excludes": [
+                {
+                  "card": "Wall of Omens"
+                }
+              ]
+            },
+            "zones.graveyard.p2": {
+              "includes": [
+                {
+                  "card": "Wall of Omens"
+                }
+              ]
+            },
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Wolverine Pack has no Trample — it was fully blocked, so p2 takes no player damage (CR 510.1c). Wolverine Pack received 2 damage (1 from Llanowar Elves + 1 from Elvish Mystic) against its 8 effective toughness — not lethal — survives on p1's battlefield (tapped, damage removed at cleanup). All three p2 blockers (Llanowar Elves, Elvish Mystic, Wall of Omens) each received lethal damage and are now in p2's graveyard (SBA 704.5g). The +4/+4 Rampage bonus on Wolverine Pack expires at the cleanup step (CR 514.2), returning it to its base 2/4."
         }

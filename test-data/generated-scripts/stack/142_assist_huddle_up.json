@@ -20,7 +20,7 @@
       "multi-target"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Huddle Up (crates/engine/src/cards/defs/huddle_up.rs): mana_cost {2}{U} (generic: 2, blue: 1), Sorcery, Assist. Oracle effect: Effect::Sequence([DrawCards { player: DeclaredTarget{0}, count: Fixed(1) }, DrawCards { player: DeclaredTarget{1}, count: Fixed(1) }]). Targets: [TargetPlayer, TargetPlayer].\n\nAssist (CR 702.132a): Another player may pay up to the generic portion of the spell's mana cost. The caster still pays all colored pips and any unpaid generic mana. Assist is NOT an alternative cost (CR 702.132b) — the spell's total mana cost is unchanged; only who pays part of the generic portion shifts.\n\nMana split: Huddle Up total cost = {2}{U}. P2 (assist player) pays {2} colorless (the full generic portion). P1 pays {U} (the colored pip). Total paid = {2}{U} = the full mana cost. CR 702.132a: assist_amount=2 satisfies the full generic cost so p1 pays nothing generic.\n\nSchema fields: action='cast_spell_assist', assist_player='p2', assist_amount=2. mana_paid reflects p1's contribution only: {blue: 1}. P2's mana pool starts with {colorless: 2}.\n\nTargets: p1 and p2 are both TargetPlayer targets (indices 0 and 1). Effect draws one card for each. Both players need cards in their libraries — each library has one card so the draws succeed.\n\nHand count math: p1 starts with Huddle Up in hand (count=1). After casting, hand count=0. After resolution, DeclaredTarget{0}=p1 draws 1, DeclaredTarget{1}=p2 draws 1. p1 hand count: 0+1=1. p2 hand count: 0+1=1.\n\nAssert design: assert initial state (p1 hand=1, p2 hand=0, stack empty), assert post-cast (stack=1, p1 hand=0), assert post-resolution (stack empty, p1 hand=1, p2 hand=1).",
@@ -36,7 +36,9 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "blue": 1 },
+        "mana_pool": {
+          "blue": 1
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -45,7 +47,9 @@
       },
       "p2": {
         "life": 40,
-        "mana_pool": { "colorless": 2 },
+        "mana_pool": {
+          "colorless": 2
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -57,7 +61,11 @@
       "battlefield": {},
       "hand": {
         "p1": [
-          { "card": "Huddle Up", "is_commander": false, "owner": null }
+          {
+            "card": "Huddle Up",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -65,10 +73,18 @@
       "command_zone": {},
       "library": {
         "p1": [
-          { "card": "Forest", "is_commander": false, "owner": null }
+          {
+            "card": "Forest",
+            "is_commander": false,
+            "owner": null
+          }
         ],
         "p2": [
-          { "card": "Island", "is_commander": false, "owner": null }
+          {
+            "card": "Island",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "stack": []
@@ -88,7 +104,9 @@
             "zones.hand.p2.count": 0,
             "players.p1.life": 40,
             "players.p2.life": 40,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "P1 has only {U} — insufficient to cast Huddle Up ({2}{U}) alone. P2 has {2} colorless available to contribute via Assist (CR 702.132a)."
         },
@@ -98,10 +116,22 @@
           "action": "cast_spell_assist",
           "card": "Huddle Up",
           "targets": [
-            { "type": "player", "player": "p1", "card": null, "controller": null },
-            { "type": "player", "player": "p2", "card": null, "controller": null }
+            {
+              "type": "player",
+              "player": "p1",
+              "card": null,
+              "controller": null
+            },
+            {
+              "type": "player",
+              "player": "p2",
+              "card": null,
+              "controller": null
+            }
           ],
-          "mana_paid": { "blue": 1 },
+          "mana_paid": {
+            "blue": 1
+          },
           "mana_source": [],
           "assist_player": "p2",
           "assist_amount": 2,
@@ -119,7 +149,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — the top of stack (Huddle Up) resolves."
         },
@@ -129,7 +162,10 @@
           "resolution": [
             {
               "effect": "draw_cards",
-              "target": { "type": "player", "player": "p1" },
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
               "amount": 1,
               "card": null,
               "owner": null,
@@ -138,7 +174,10 @@
             },
             {
               "effect": "draw_cards",
-              "target": { "type": "player", "player": "p2" },
+              "target": {
+                "type": "player",
+                "player": "p2"
+              },
               "amount": 1,
               "card": null,
               "owner": null,
@@ -154,8 +193,16 @@
           "assertions": {
             "zones.hand.p1.count": 1,
             "zones.hand.p2.count": 1,
-            "zones.stack": { "is_empty": true },
-            "zones.graveyard.p1": { "includes": [{ "card": "Huddle Up" }] },
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Huddle Up"
+                }
+              ]
+            },
             "players.p1.life": 40,
             "players.p2.life": 40
           },

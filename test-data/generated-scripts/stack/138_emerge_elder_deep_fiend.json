@@ -22,7 +22,7 @@
       "enter-battlefield"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Elder Deep-Fiend card def (crates/engine/src/cards/defs/elder_deep_fiend.rs): mana_cost {8} (generic: 8), Emerge {5}{U}{U} (AbilityDefinition::Emerge { cost: ManaCost { generic: 5, blue: 2 } }), Flash (KeywordAbility::Flash), cast trigger stubbed as TODO. Power 5, Toughness 6.\n\nEmerge (CR 702.119a): alternative cost — you may cast this spell by sacrificing a creature and paying the emerge cost reduced by that creature's mana value. CR 702.119b: the cost reduction equals the sacrificed creature's mana value (not converted mana cost of a noncreature — it's the same thing for creatures).\n\nCost calculation: emerge cost = {5}{U}{U}. Scroll Thief MV = 3 ({2}{U}). Reduced cost = {5}{U}{U} - 3 generic = {2}{U}{U}. mana_paid in script = { colorless: 2, blue: 2 }.\n\nCost payment (CR 601.2f-h): sacrificing Scroll Thief is part of paying the emerge alternative cost. The engine executes this at casting.rs:1957-1965 — move_object_to_zone(sac_id, Graveyard(owner)) before the spell object is placed on the stack. Therefore AFTER the cast action, Scroll Thief is in the graveyard and the stack has 1 object (Elder Deep-Fiend).\n\nHarness action 'cast_spell_emerge': handled in replay_harness.rs:1007-1028. Sets alt_cost: Some(AltCostKind::Emerge), emerge_sacrifice: Some(emerge_sac_id). The 'emerge_sacrifice' JSON field (script_schema.rs:291) is the creature name on the battlefield.\n\nFlash (CR 702.8a): Elder Deep-Fiend has Flash, so it can be cast at any time an instant could be cast. In this script p1 casts during precombat_main phase — Flash is not exercised as a special case here (casting during main phase is also legal for Flash creatures), but it's noted in the card definition.\n\nCast trigger (tap up to four permanents): stubbed in card def with a TODO comment. The trigger condition WhenCast and multi-target tap effect are not yet implemented. Script does NOT include this tap action and does NOT assert any tapping. See disputes entry.\n\nWhy Scroll Thief as sacrifice: MV=3 gives a clean reduction from {5}{U}{U} to {2}{U}{U}, matching the scenario specification. Scroll Thief is a registered CardDefinition (crates/engine/src/cards/defs/scroll_thief.rs) with mana_cost { generic:2, blue:1 }, so enrich_spec_from_def populates it correctly and find_on_battlefield resolves it by name match.\n\nScenario: turn 4 (flavor — p1 has been ramping), active player p1, precombat_main phase. p1 has {2}{U}{U} in mana pool (colorless:2, blue:2). Scroll Thief on p1 battlefield, Elder Deep-Fiend in p1 hand.",
@@ -48,7 +48,10 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "colorless": 2, "blue": 2 },
+        "mana_pool": {
+          "colorless": 2,
+          "blue": 2
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -68,12 +71,21 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Scroll Thief", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Scroll Thief",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ]
       },
       "hand": {
         "p1": [
-          { "card": "Elder Deep-Fiend", "is_commander": false, "owner": null }
+          {
+            "card": "Elder Deep-Fiend",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -95,8 +107,16 @@
           "assertions": {
             "zones.hand.p1.count": 1,
             "zones.battlefield.p1.count": 1,
-            "zones.battlefield.p1": { "includes": [{ "card": "Scroll Thief" }] },
-            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Scroll Thief"
+                }
+              ]
+            },
+            "zones.stack": {
+              "is_empty": true
+            },
             "players.p1.life": 40,
             "players.p2.life": 40
           },
@@ -109,7 +129,10 @@
           "card": "Elder Deep-Fiend",
           "emerge_sacrifice": "Scroll Thief",
           "targets": [],
-          "mana_paid": { "colorless": 2, "blue": 2 },
+          "mana_paid": {
+            "colorless": 2,
+            "blue": 2
+          },
           "mana_source": [],
           "cr_ref": "702.119a",
           "note": "CR 702.119a: P1 casts Elder Deep-Fiend using the Emerge alternative cost. CR 702.119b: total cost is {5}{U}{U} reduced by Scroll Thief's MV of 3 = {2}{U}{U}. CR 601.2f-h: Scroll Thief is sacrificed as part of cost payment — it moves to p1's graveyard before Elder Deep-Fiend goes on the stack. CR 118.9: alternative cost replaces the normal mana cost {8}."
@@ -120,14 +143,23 @@
           "assertions": {
             "zones.hand.p1.count": 0,
             "zones.stack.count": 1,
-            "zones.graveyard.p1": { "includes": [{ "card": "Scroll Thief" }] },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Scroll Thief"
+                }
+              ]
+            },
             "zones.battlefield.p1.count": 0
           },
           "note": "CR 601.2f-h: Scroll Thief was sacrificed as part of the Emerge cost payment — it is in p1's graveyard before the spell lands on the stack. Elder Deep-Fiend is on the stack. P1's battlefield is empty."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — top of stack (Elder Deep-Fiend) resolves."
         },
@@ -149,10 +181,24 @@
           "type": "assert_state",
           "description": "Final: Elder Deep-Fiend on p1 battlefield (5/6); Scroll Thief in p1 graveyard; stack empty; both players at 40 life",
           "assertions": {
-            "zones.stack": { "is_empty": true },
-            "zones.battlefield.p1": { "includes": [{ "card": "Elder Deep-Fiend" }] },
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Elder Deep-Fiend"
+                }
+              ]
+            },
             "zones.battlefield.p1.count": 1,
-            "zones.graveyard.p1": { "includes": [{ "card": "Scroll Thief" }] },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Scroll Thief"
+                }
+              ]
+            },
             "players.p1.life": 40,
             "players.p2.life": 40
           },

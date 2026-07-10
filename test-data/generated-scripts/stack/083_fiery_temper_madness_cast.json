@@ -4,11 +4,28 @@
     "id": "script_stack_083",
     "name": "Fiery Temper madness — discard to exile, cast for madness cost {R}, deal 3 damage",
     "description": "Demonstrates the Madness keyword (CR 702.35a). p1 casts Faithless Looting for {R}, which draws 2 and then discards 2. Fiery Temper (which has Madness {R}) is the first card discarded. The madness replacement effect fires: instead of going to p1's graveyard, Fiery Temper is exiled (CR 702.35a). The MadnessTrigger is placed on the stack. p1 then casts Fiery Temper from exile for its madness cost {R}, targeting Bladetusk Boar on the battlefield. Fiery Temper deals 3 damage, killing the Boar via SBA 704.5g. Then the MadnessTrigger resolves (card already cast, so auto-decline is skipped). Final state: Fiery Temper in graveyard, Bladetusk Boar destroyed, stack empty.",
-    "cr_sections_tested": ["702.35", "702.35a", "702.35b", "601.2", "601.2b", "608.2", "120.3", "704.5g"],
+    "cr_sections_tested": [
+      "702.35",
+      "702.35a",
+      "702.35b",
+      "601.2",
+      "601.2b",
+      "608.2",
+      "120.3",
+      "704.5g"
+    ],
     "corner_case_ref": null,
-    "tags": ["madness", "alternative-cost", "replacement", "discard", "exile", "fiery-temper", "faithless-looting"],
+    "tags": [
+      "madness",
+      "alternative-cost",
+      "replacement",
+      "discard",
+      "exile",
+      "fiery-temper",
+      "faithless-looting"
+    ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "CR 702.35a: Madness is two abilities: (1) a static replacement — when the card is discarded it goes to exile instead of graveyard; (2) a triggered ability that fires when exiled this way, offering the owner a chance to cast it for its madness cost. cast_spell_madness harness action added to replay_harness.rs (find_in_exile helper + cast_spell_madness branch). Script validated: 1/1 assertions pass.",
@@ -24,7 +41,9 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "red": 2 },
+        "mana_pool": {
+          "red": 2
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -44,13 +63,25 @@
     "zones": {
       "battlefield": {
         "p2": [
-          { "card": "Bladetusk Boar", "is_commander": false, "tapped": false }
+          {
+            "card": "Bladetusk Boar",
+            "is_commander": false,
+            "tapped": false
+          }
         ]
       },
       "hand": {
         "p1": [
-          { "card": "Faithless Looting", "is_commander": false, "owner": null },
-          { "card": "Fiery Temper", "is_commander": false, "owner": null }
+          {
+            "card": "Faithless Looting",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Fiery Temper",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -58,8 +89,16 @@
       "command_zone": {},
       "library": {
         "p1": [
-          { "card": "Mountain", "is_commander": false, "owner": null },
-          { "card": "Forest", "is_commander": false, "owner": null }
+          {
+            "card": "Mountain",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Forest",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "stack": []
@@ -76,8 +115,16 @@
           "description": "Initial: Faithless Looting and Fiery Temper in p1 hand, Bladetusk Boar on p2 battlefield",
           "assertions": {
             "zones.hand.p1.count": 2,
-            "zones.stack": { "is_empty": true },
-            "zones.battlefield.p2": { "includes": [{ "card": "Bladetusk Boar" }] }
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Bladetusk Boar"
+                }
+              ]
+            }
           },
           "note": "Starting position: p1 has 2 cards in hand with {R}{R} available. Bladetusk Boar is the damage target."
         },
@@ -87,7 +134,9 @@
           "action": "cast_spell",
           "card": "Faithless Looting",
           "targets": [],
-          "mana_paid": { "red": 1 },
+          "mana_paid": {
+            "red": 1
+          },
           "mana_source": [],
           "cr_ref": "601.2",
           "note": "CR 601.2: p1 casts Faithless Looting ({R} paid from pool). Sorcery goes on the stack."
@@ -98,13 +147,22 @@
           "assertions": {
             "zones.stack.count": 1,
             "zones.hand.p1.count": 1,
-            "zones.hand.p1": { "includes": [{ "card": "Fiery Temper" }] }
+            "zones.hand.p1": {
+              "includes": [
+                {
+                  "card": "Fiery Temper"
+                }
+              ]
+            }
           },
           "note": "Faithless Looting moved from hand to stack. Fiery Temper remains in hand."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — Faithless Looting resolves."
         },
@@ -114,7 +172,10 @@
           "resolution": [
             {
               "effect": "draw_cards",
-              "target": { "type": "player", "player": "p1" },
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
               "amount": 2,
               "card": null,
               "owner": null,
@@ -123,7 +184,10 @@
             },
             {
               "effect": "discard_cards",
-              "target": { "type": "player", "player": "p1" },
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
               "amount": 2,
               "card": null,
               "owner": null,
@@ -139,7 +203,13 @@
           "assertions": {
             "zones.stack.count": 1,
             "zones.hand.p1.count": 1,
-            "zones.graveyard.p1": { "includes": [{ "card": "Faithless Looting" }] }
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Faithless Looting"
+                }
+              ]
+            }
           },
           "note": "CR 702.35a: MadnessTrigger was placed on the stack. Faithless Looting (sorcery) went to p1's graveyard after resolving. p1 drew 2 and discarded 2, leaving 1 card in hand (Forest). Exile contains Fiery Temper (assertion via zones.exile is doc-only; harness does not currently check exile in assert_state)."
         }
@@ -155,9 +225,16 @@
           "action": "cast_spell_madness",
           "card": "Fiery Temper",
           "targets": [
-            { "type": "permanent", "player": null, "card": "Bladetusk Boar", "controller": "p2" }
+            {
+              "type": "permanent",
+              "player": null,
+              "card": "Bladetusk Boar",
+              "controller": "p2"
+            }
           ],
-          "mana_paid": { "red": 1 },
+          "mana_paid": {
+            "red": 1
+          },
           "mana_source": [],
           "cr_ref": "702.35b",
           "note": "CR 702.35a/b: p1 casts Fiery Temper from exile by paying the madness cost {R} (alternative cost per CR 601.2b). The engine in casting.rs detects casting_with_madness = true (card is in ZoneId::Exile and has KeywordAbility::Madness). Target: Bladetusk Boar (3/2) controlled by p2. NOTE: cast_spell_madness action type is not yet implemented in the harness — see dispute."
@@ -172,7 +249,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — Fiery Temper (top of stack) resolves first."
         },
@@ -182,7 +262,11 @@
           "resolution": [
             {
               "effect": "deal_damage",
-              "target": { "type": "permanent", "card": "Bladetusk Boar", "controller": "p2" },
+              "target": {
+                "type": "permanent",
+                "card": "Bladetusk Boar",
+                "controller": "p2"
+              },
               "amount": 3,
               "card": null,
               "owner": null,
@@ -197,7 +281,10 @@
           "actions": [
             {
               "action": "creature_dies",
-              "target": { "card": "Bladetusk Boar", "controller": "p2" },
+              "target": {
+                "card": "Bladetusk Boar",
+                "controller": "p2"
+              },
               "cr_ref": "704.5g",
               "note": "CR 704.5g: Bladetusk Boar has 3 damage marked and toughness 2 (damage >= toughness). SBA destroys it."
             }
@@ -208,16 +295,35 @@
           "type": "assert_state",
           "description": "After Fiery Temper resolves: Bladetusk Boar dead, Fiery Temper in p1 graveyard, MadnessTrigger still on stack",
           "assertions": {
-            "zones.graveyard.p2": { "includes": [{ "card": "Bladetusk Boar" }] },
-            "zones.graveyard.p1": { "includes": [{ "card": "Fiery Temper" }] },
-            "zones.battlefield.p2": { "excludes": ["Bladetusk Boar"] },
+            "zones.graveyard.p2": {
+              "includes": [
+                {
+                  "card": "Bladetusk Boar"
+                }
+              ]
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Fiery Temper"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "excludes": [
+                "Bladetusk Boar"
+              ]
+            },
             "zones.stack.count": 1
           },
           "note": "Bladetusk Boar destroyed by SBA 704.5g. Fiery Temper in p1 graveyard. MadnessTrigger is the last stack object."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass — MadnessTrigger resolves."
         },
@@ -227,7 +333,10 @@
           "resolution": [
             {
               "effect": "madness_trigger_no_op",
-              "target": { "type": "player", "player": "p1" },
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
               "amount": 0,
               "card": null,
               "owner": null,
@@ -241,10 +350,28 @@
           "type": "assert_state",
           "description": "Final: stack empty, Fiery Temper in p1 graveyard, Bladetusk Boar in p2 graveyard, p2 life unchanged at 40",
           "assertions": {
-            "zones.stack": { "is_empty": true },
-            "zones.graveyard.p1": { "includes": [{ "card": "Fiery Temper" }] },
-            "zones.graveyard.p2": { "includes": [{ "card": "Bladetusk Boar" }] },
-            "zones.battlefield.p2": { "excludes": ["Bladetusk Boar"] },
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Fiery Temper"
+                }
+              ]
+            },
+            "zones.graveyard.p2": {
+              "includes": [
+                {
+                  "card": "Bladetusk Boar"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "excludes": [
+                "Bladetusk Boar"
+              ]
+            },
             "players.p2.life": 40
           },
           "note": "Full madness scenario complete. Fiery Temper discarded → exile (CR 702.35a) → cast for {R} (CR 702.35b) → deals 3 damage to Bladetusk Boar → Boar destroyed (CR 704.5g) → MadnessTrigger resolves as no-op. p2 life at 40 (damage hit the creature)."

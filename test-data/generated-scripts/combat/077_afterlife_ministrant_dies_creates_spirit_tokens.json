@@ -4,11 +4,30 @@
     "id": "script_combat_077",
     "name": "Afterlife 2 — Ministrant of Obligation dies in combat, creates 2 Spirit tokens",
     "description": "P1 controls Ministrant of Obligation (2/1, Afterlife 2). P2 controls Llanowar Elves (1/1). P2 attacks with Llanowar Elves; P1 blocks with Ministrant of Obligation. Both deal lethal damage simultaneously (CR 510.2): Ministrant (power 2) deals 2 damage to Llanowar Elves (toughness 1, lethal); Llanowar Elves (power 1) deals 1 damage to Ministrant (toughness 1, lethal). SBA 704.5g destroys both. Ministrant's Afterlife 2 trigger fires (CR 702.135a): 'When this creature dies, create two 1/1 white and black Spirit creature tokens with flying.' The trigger goes on the stack. Both players pass priority. The trigger resolves and P1 gets two 1/1 Spirit creature tokens with flying on the battlefield. Asserts: Ministrant in P1 graveyard, Llanowar Elves in P2 graveyard, two Spirit tokens on P1 battlefield with flying, stack empty.",
-    "cr_sections_tested": ["702.135a", "111.1", "111.5", "704.5g", "704.3", "510.1", "510.2", "509.1", "508.1", "608.2"],
+    "cr_sections_tested": [
+      "702.135a",
+      "111.1",
+      "111.5",
+      "704.5g",
+      "704.3",
+      "510.1",
+      "510.2",
+      "509.1",
+      "508.1",
+      "608.2"
+    ],
     "corner_case_ref": null,
-    "tags": ["combat", "afterlife", "triggered-ability", "token-creation", "creature-dies", "sba", "flying"],
+    "tags": [
+      "combat",
+      "afterlife",
+      "triggered-ability",
+      "token-creation",
+      "creature-dies",
+      "sba",
+      "flying"
+    ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Ministrant of Obligation oracle text (Scryfall verified via MCP lookup_card): 'Afterlife 2 (When this creature dies, create two 1/1 white and black Spirit creature tokens with flying.)' Type: Creature — Human Cleric. P/T: 2/1. Mana cost: {2}{W}. IMPORTANT: Ministrant of Obligation is NOT in the engine Available Cards list. This script requires a CardDefinition for Ministrant of Obligation before harness validation can pass. CR 702.135a: Afterlife is a triggered ability — 'When this permanent is put into a graveyard from the battlefield, create N 1/1 white and black Spirit creature tokens with flying.' N=2 for Afterlife 2. Combat math: Llanowar Elves (1/1) attacks; Ministrant of Obligation (2/1) blocks. Simultaneous combat damage (CR 510.2): Ministrant (power 2) deals 2 to Llanowar Elves (toughness 1 — lethal); Llanowar Elves (power 1) deals 1 to Ministrant (toughness 1 — lethal). SBA 704.5g destroys both simultaneously (CR 704.3). Ministrant dies (moves to P1 graveyard) — Afterlife 2 trigger fires and goes on the stack (CR 702.135a). Llanowar Elves dies (moves to P2 graveyard) — no death triggers. CR 111.1 + 111.5: Tokens are created on the battlefield when the effect resolves. Spirit tokens are 1/1 white and black, creature type Spirit, with Flying. Token type 'Spirit 1/1 Flying (white/black)' is defined in engine token definitions (created by Afterlife effects). P2 is the active player (their turn, they attack). Priority order in combat: P2 (active player) first, then P1 (CR 116.3). Initial state starts in declare_attackers phase with P2 as active player. HARNESS VALIDATION NOTE: This script will fail harness validation until Ministrant of Obligation CardDefinition is authored with Afterlife 2. Without the CardDefinition, Ministrant is treated as a vanilla 2/1 creature, Afterlife never triggers, and the Spirit token assertions will fail. The combat math (both creatures die) is engine-independent and will pass regardless of CardDefinition. See dispute entry for details.",
@@ -54,10 +73,20 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Ministrant of Obligation", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Ministrant of Obligation",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ],
         "p2": [
-          { "card": "Llanowar Elves", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Llanowar Elves",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ]
       },
       "hand": {},
@@ -78,13 +107,27 @@
           "type": "assert_state",
           "description": "Initial: Ministrant of Obligation (2/1) on P1 battlefield (untapped); Llanowar Elves (1/1) on P2 battlefield (untapped); life totals 40/40; stack empty",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Ministrant of Obligation" }] },
-            "zones.battlefield.p2": { "includes": [{ "card": "Llanowar Elves" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Ministrant of Obligation"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
             "permanent.Ministrant of Obligation.tapped": false,
             "permanent.Llanowar Elves.tapped": false,
             "players.p1.life": 40,
             "players.p2.life": 40,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Ministrant of Obligation (2/1, Afterlife 2) is untapped and free of summoning sickness (placed in initial state). Llanowar Elves (1/1) is a legal attacker."
         },
@@ -97,7 +140,11 @@
           "mana_paid": null,
           "mana_source": [],
           "attackers": [
-            { "card": "Llanowar Elves", "target_player": "p1", "target_planeswalker": null }
+            {
+              "card": "Llanowar Elves",
+              "target_player": "p1",
+              "target_planeswalker": null
+            }
           ],
           "blockers": [],
           "cr_ref": "508.1",
@@ -109,13 +156,18 @@
           "assertions": {
             "permanent.Llanowar Elves.tapped": true,
             "permanent.Ministrant of Obligation.tapped": false,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 508.1f: Llanowar Elves tapped upon attacking. No attack triggers. Stack is empty."
         },
         {
           "type": "priority_round",
-          "players": ["p2", "p1"],
+          "players": [
+            "p2",
+            "p1"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: P2 (active player) passes priority first, then P1 passes. Both pass with empty stack — advance to declare_blockers step."
         }
@@ -135,7 +187,10 @@
           "mana_source": [],
           "attackers": [],
           "blockers": [
-            { "card": "Ministrant of Obligation", "blocking": "Llanowar Elves" }
+            {
+              "card": "Ministrant of Obligation",
+              "blocking": "Llanowar Elves"
+            }
           ],
           "cr_ref": "509.1",
           "note": "CR 509.1: P1 (defending player) declares Ministrant of Obligation as a blocker for Llanowar Elves. CR 509.1a: Ministrant is untapped — legal blocker. CR 509.1g: Ministrant becomes a blocking creature blocking Llanowar Elves. CR 509.1h: Llanowar Elves has exactly one blocker declared — it becomes a blocked creature. Blockers do not tap upon blocking declaration."
@@ -145,15 +200,32 @@
           "description": "After declare_blockers: Ministrant of Obligation is not tapped, Llanowar Elves is blocked, stack empty",
           "assertions": {
             "permanent.Ministrant of Obligation.tapped": false,
-            "zones.battlefield.p1": { "includes": [{ "card": "Ministrant of Obligation" }] },
-            "zones.battlefield.p2": { "includes": [{ "card": "Llanowar Elves" }] },
-            "zones.stack": { "is_empty": true }
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Ministrant of Obligation"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "Ministrant of Obligation remains untapped after blocking declaration. Llanowar Elves is now a blocked creature. Stack is empty (no triggers from blocking)."
         },
         {
           "type": "priority_round",
-          "players": ["p2", "p1"],
+          "players": [
+            "p2",
+            "p1"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: P2 (active player) passes priority first, then P1. Both pass with empty stack in declare_blockers step — advance to combat damage step. Engine executes combat damage as a turn-based action: Ministrant of Obligation (power 2) deals 2 damage to Llanowar Elves (toughness 1 — lethal); Llanowar Elves (power 1) deals 1 damage to Ministrant of Obligation (toughness 1 — lethal). Damage is simultaneous (CR 510.2). SBAs will destroy both (CR 704.5g)."
         }
@@ -189,10 +261,34 @@
           "type": "assert_state",
           "description": "After SBAs: Ministrant in P1 graveyard, Llanowar Elves in P2 graveyard; P1 and P2 life still 40 (attacker was blocked); Afterlife trigger pending on stack (requires CardDefinition)",
           "assertions": {
-            "zones.graveyard.p1": { "includes": [{ "card": "Ministrant of Obligation" }] },
-            "zones.graveyard.p2": { "includes": [{ "card": "Llanowar Elves" }] },
-            "zones.battlefield.p1": { "excludes": [{ "card": "Ministrant of Obligation" }] },
-            "zones.battlefield.p2": { "excludes": [{ "card": "Llanowar Elves" }] },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Ministrant of Obligation"
+                }
+              ]
+            },
+            "zones.graveyard.p2": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
+            "zones.battlefield.p1": {
+              "excludes": [
+                {
+                  "card": "Ministrant of Obligation"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "excludes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
             "players.p1.life": 40,
             "players.p2.life": 40
           },
@@ -200,7 +296,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p2", "p1"],
+          "players": [
+            "p2",
+            "p1"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: P2 (active player) passes first, then P1. Once Ministrant of Obligation CardDefinition exists: Afterlife 2 trigger resolves, creating two 1/1 white and black Spirit creature tokens with flying on P1's battlefield (CR 702.135a, CR 111.1, CR 111.5). Without CardDefinition: stack is empty, no triggers fire."
         },
@@ -210,7 +309,10 @@
           "resolution": [
             {
               "effect": "create_token",
-              "target": { "type": "player", "player": "p1" },
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
               "amount": 2,
               "card": null,
               "owner": "p1",
@@ -224,11 +326,37 @@
           "type": "assert_state",
           "description": "Final state: Ministrant of Obligation in P1 graveyard; Llanowar Elves in P2 graveyard; two Spirit (1/1 Flying) tokens on P1 battlefield; P1 and P2 at 40 life; stack empty",
           "assertions": {
-            "zones.graveyard.p1": { "includes": [{ "card": "Ministrant of Obligation" }] },
-            "zones.battlefield.p1": { "excludes": [{ "card": "Ministrant of Obligation" }] },
-            "zones.graveyard.p2": { "includes": [{ "card": "Llanowar Elves" }] },
-            "zones.battlefield.p2": { "excludes": [{ "card": "Llanowar Elves" }] },
-            "zones.stack": { "is_empty": true },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Ministrant of Obligation"
+                }
+              ]
+            },
+            "zones.battlefield.p1": {
+              "excludes": [
+                {
+                  "card": "Ministrant of Obligation"
+                }
+              ]
+            },
+            "zones.graveyard.p2": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "excludes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
+            "zones.stack": {
+              "is_empty": true
+            },
             "players.p1.life": 40,
             "players.p2.life": 40
           },

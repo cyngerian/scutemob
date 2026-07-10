@@ -10,7 +10,23 @@
 //   mapped to `PlayerId(1)`, `PlayerId(2)`, … in that order.
 // - Card names are resolved to `ObjectId` by scanning `state.objects()`.
 // - Assertions use dot-notation paths into game state (see `check_assertions`).
-// - Unknown action types are skipped (future-proof — new variants ignored, not panicked).
+//
+// ## Nothing is skipped silently (SR-9c)
+//
+// Three holes were closed here. Each one let a script look green while asserting
+// less than it claimed:
+//
+// 1. **An unrecognized assertion path used to return `None`** — i.e. "no mismatch".
+//    244 of the corpus's 3,161 assertions were spelled in paths `check_assertions`
+//    did not implement (`zones.battlefield.<p>.count`, `zones.exile`,
+//    `zones.hand.<p>`, `permanent.<c>.power`, …) and were therefore *not checked*.
+//    Every path the corpus uses is now implemented, and an unknown path is a hard
+//    [`AssertionMismatch`], not a pass.
+// 2. **A `player_action` the harness could not translate used to leave the state
+//    untouched and say nothing.** It now yields [`ReplayResult::ActionNotTranslated`],
+//    which `run_all_scripts` accounts for against a shrinking allowlist.
+// 3. **A player name that is not in the script's own `players` map** used to be
+//    ignored. It is now [`ReplayResult::UnknownPlayer`].
 //
 // ## Supported assertion paths
 //
@@ -18,12 +34,24 @@
 // |------|------|
 // | `players.<name>.life` | `i32` exact match |
 // | `players.<name>.poison_counters` | `u32` exact match |
+// | `players.<name>.has_citys_blessing` | `bool` exact match |
+// | `players.<name>.mana_pool.<color>` | `u32` exact match |
+// | `players.<name>.commander_damage_received.<from_player>` | `u32` exact match (summed over that player's commanders) |
 // | `zones.hand.<player>.count` | `usize` exact match |
+// | `zones.hand.<player>` | includes/excludes card name list |
 // | `zones.graveyard.<player>` | includes/excludes card name list |
+// | `zones.graveyard.<player>.count` | `usize` exact match |
 // | `zones.battlefield.<player>` | includes/excludes card name list |
+// | `zones.battlefield.<player>.count` | `usize` exact match |
+// | `zones.battlefield` | `is_empty` check (all controllers) |
+// | `zones.library.<player>.count` | `usize` exact match |
+// | `zones.exile` | includes/excludes card name list |
+// | `zones.exile.count` | `usize` exact match |
 // | `zones.stack.count` | `usize` exact match |
 // | `zones.stack` | `is_empty` check |
 // | `permanent.<card_name>.tapped` | `bool` exact match |
+// | `permanent.<card_name>.power` | `i32` exact match (post-layers) |
+// | `permanent.<card_name>.toughness` | `i32` exact match (post-layers) |
 // | `permanent.<card_name>.counters.<type>` | `u32` exact match |
 
 use std::collections::HashMap;
@@ -32,7 +60,9 @@ use mtg_engine::testing::replay_harness::{
     build_initial_state, parse_counter_type, translate_player_action,
 };
 use mtg_engine::testing::script_schema::{GameScript, ScriptAction};
-use mtg_engine::{process_command, Command, GameState, PlayerId, ZoneId};
+use mtg_engine::{
+    calculate_characteristics, process_command, Command, GameState, PlayerId, ZoneId,
+};
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
@@ -72,6 +102,24 @@ pub enum ReplayResult {
         action_idx: usize,
         error: String,
     },
+    /// A `player_action` whose `action` string `translate_player_action` does not
+    /// map to any `Command`. The action ran as a no-op: the game state is exactly
+    /// what it was before, and every assertion downstream of it is describing a
+    /// board the script never actually reached.
+    ///
+    /// Before SR-9c this was `state_slot = Some(state)` with no record at all.
+    ActionNotTranslated {
+        step_idx: usize,
+        action_idx: usize,
+        action: String,
+    },
+    /// An action naming a player that the script's own `initial_state.players`
+    /// map does not contain. Also previously a silent no-op.
+    UnknownPlayer {
+        step_idx: usize,
+        action_idx: usize,
+        player: String,
+    },
 }
 
 /// Replay a complete [`GameScript`] through the engine.
@@ -106,7 +154,12 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                             }
                         }
                     } else {
-                        state_slot = Some(state); // player not found, keep state
+                        results.push(ReplayResult::UnknownPlayer {
+                            step_idx,
+                            action_idx,
+                            player: player.clone(),
+                        });
+                        state_slot = Some(state);
                     }
                 }
 
@@ -131,7 +184,12 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                                 }
                             }
                         } else {
-                            current = Some(s); // player not found, keep state
+                            results.push(ReplayResult::UnknownPlayer {
+                                step_idx,
+                                action_idx,
+                                player: pname.clone(),
+                            });
+                            current = Some(s);
                         }
                     }
                     state_slot = current; // None if a command failed, Some otherwise.
@@ -227,10 +285,20 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                                 }
                             }
                         } else {
-                            state_slot = Some(state); // no command translated, keep state
+                            results.push(ReplayResult::ActionNotTranslated {
+                                step_idx,
+                                action_idx,
+                                action: action.clone(),
+                            });
+                            state_slot = Some(state);
                         }
                     } else {
-                        state_slot = Some(state); // player not found, keep state
+                        results.push(ReplayResult::UnknownPlayer {
+                            step_idx,
+                            action_idx,
+                            player: player.clone(),
+                        });
+                        state_slot = Some(state);
                     }
                 }
 
@@ -323,22 +391,84 @@ pub fn check_assertions(
                 }
             }
 
+            // players.<name>.has_citys_blessing (CR 702.131a)
+            ["players", name, "has_citys_blessing"] => {
+                with_player(path, expected, players, name, |pid| {
+                    let actual = state
+                        .players()
+                        .get(&pid)
+                        .map(|p| p.has_citys_blessing)
+                        .unwrap_or(false);
+                    check_exact(path, expected, serde_json::json!(actual))
+                })
+            }
+
+            // players.<name>.mana_pool.<color>
+            ["players", name, "mana_pool", color] => {
+                with_player(path, expected, players, name, |pid| {
+                    let Some(p) = state.players().get(&pid) else {
+                        return mismatch(path, expected, "player state missing".to_string());
+                    };
+                    let pool = &p.mana_pool;
+                    let actual = match *color {
+                        "white" | "w" => pool.white,
+                        "blue" | "u" => pool.blue,
+                        "black" | "b" => pool.black,
+                        "red" | "r" => pool.red,
+                        "green" | "g" => pool.green,
+                        "colorless" | "c" => pool.colorless,
+                        "total" => pool.total(),
+                        other => {
+                            return mismatch(
+                                path,
+                                expected,
+                                format!("unknown mana color '{}'", other),
+                            )
+                        }
+                    };
+                    check_exact(path, expected, serde_json::json!(actual))
+                })
+            }
+
+            // players.<name>.commander_damage_received.<from_player> (CR 903.10a)
+            //
+            // Summed across every commander that `from_player` owns: the script
+            // schema names a *player*, the engine keys by `(PlayerId, CardId)`.
+            ["players", name, "commander_damage_received", from] => {
+                with_player(path, expected, players, name, |pid| {
+                    let Some(&from_pid) = players.get(*from) else {
+                        return mismatch(path, expected, format!("player '{}' not found", from));
+                    };
+                    let actual: u32 = state
+                        .players()
+                        .get(&pid)
+                        .and_then(|p| p.commander_damage_received.get(&from_pid))
+                        .map(|per_cmdr| per_cmdr.values().sum())
+                        .unwrap_or(0);
+                    check_exact(path, expected, serde_json::json!(actual))
+                })
+            }
+
             // zones.hand.<player>.count
             ["zones", "hand", player, "count"] => {
-                if let Some(&pid) = players.get(*player) {
-                    let count = state
-                        .objects()
-                        .values()
-                        .filter(|o| o.zone == ZoneId::Hand(pid))
-                        .count();
+                with_player(path, expected, players, player, |pid| {
+                    let count = count_in_zone(state, ZoneId::Hand(pid));
                     check_exact(path, expected, serde_json::json!(count))
-                } else {
-                    Some(AssertionMismatch {
-                        path: path.clone(),
-                        expected: expected.clone(),
-                        actual: format!("player '{}' not found", player),
-                    })
-                }
+                })
+            }
+
+            // zones.hand.<player> — includes/excludes card names
+            ["zones", "hand", player] => with_player(path, expected, players, player, |pid| {
+                let names = names_in_zone(state, ZoneId::Hand(pid));
+                check_list_value(path, expected, &names, |n| names.contains(n))
+            }),
+
+            // zones.library.<player>.count
+            ["zones", "library", player, "count"] => {
+                with_player(path, expected, players, player, |pid| {
+                    let count = count_in_zone(state, ZoneId::Library(pid));
+                    check_exact(path, expected, serde_json::json!(count))
+                })
             }
 
             // zones.stack.count
@@ -347,83 +477,126 @@ pub fn check_assertions(
                 check_exact(path, expected, serde_json::json!(count))
             }
 
-            // zones.stack (is_empty check)
-            ["zones", "stack"] => check_list_value(path, expected, &[], |_| false),
+            // zones.stack — `{"is_empty": bool}`.
+            //
+            // SR-9c: this used to be `check_list_value(path, expected, &[], |_| false)` —
+            // an *empty* name list, unconditionally. `names.is_empty()` was therefore
+            // always `true`, so all 583 `"zones.stack": {"is_empty": true}` assertions in
+            // the corpus passed without ever looking at the stack. `check_exact` treats a
+            // scalar `0` as empty, so this handles both `{"is_empty": …}` and a bare count.
+            ["zones", "stack"] => check_exact(
+                path,
+                expected,
+                serde_json::json!(state.stack_objects().len()),
+            ),
+
+            // zones.exile — includes/excludes card names
+            ["zones", "exile"] => {
+                let names = names_in_zone(state, ZoneId::Exile);
+                check_list_value(path, expected, &names, |n| names.contains(n))
+            }
+
+            // zones.exile.count
+            ["zones", "exile", "count"] => {
+                let count = count_in_zone(state, ZoneId::Exile);
+                check_exact(path, expected, serde_json::json!(count))
+            }
 
             // zones.graveyard.<player> — includes/excludes card names
-            ["zones", "graveyard", player] => {
-                if let Some(&pid) = players.get(*player) {
-                    let names: Vec<String> = state
-                        .objects()
-                        .values()
-                        .filter(|o| o.zone == ZoneId::Graveyard(pid))
-                        .map(|o| o.characteristics.name.clone())
-                        .collect();
-                    check_list_value(path, expected, &names, |n| names.contains(n))
-                } else {
-                    Some(AssertionMismatch {
-                        path: path.clone(),
-                        expected: expected.clone(),
-                        actual: format!("player '{}' not found", player),
-                    })
-                }
+            ["zones", "graveyard", player] => with_player(path, expected, players, player, |pid| {
+                let names = names_in_zone(state, ZoneId::Graveyard(pid));
+                check_list_value(path, expected, &names, |n| names.contains(n))
+            }),
+
+            // zones.graveyard.<player>.count
+            ["zones", "graveyard", player, "count"] => {
+                with_player(path, expected, players, player, |pid| {
+                    let count = count_in_zone(state, ZoneId::Graveyard(pid));
+                    check_exact(path, expected, serde_json::json!(count))
+                })
+            }
+
+            // zones.battlefield — is_empty across all controllers
+            ["zones", "battlefield"] => {
+                let names = names_in_zone(state, ZoneId::Battlefield);
+                check_list_value(path, expected, &names, |n| names.contains(n))
             }
 
             // zones.battlefield.<player> — includes/excludes card names
             ["zones", "battlefield", player] => {
-                if let Some(&pid) = players.get(*player) {
-                    let names: Vec<String> = state
-                        .objects()
-                        .values()
-                        .filter(|o| o.zone == ZoneId::Battlefield && o.controller == pid)
-                        .map(|o| o.characteristics.name.clone())
-                        .collect();
+                with_player(path, expected, players, player, |pid| {
+                    let names = battlefield_names(state, pid);
                     check_list_value(path, expected, &names, |n| names.contains(n))
-                } else {
-                    Some(AssertionMismatch {
-                        path: path.clone(),
-                        expected: expected.clone(),
-                        actual: format!("player '{}' not found", player),
-                    })
-                }
+                })
+            }
+
+            // zones.battlefield.<player>.count
+            ["zones", "battlefield", player, "count"] => {
+                with_player(path, expected, players, player, |pid| {
+                    let count = battlefield_names(state, pid).len();
+                    check_exact(path, expected, serde_json::json!(count))
+                })
             }
 
             // permanent.<card_name>.tapped
             ["permanent", card_name, "tapped"] => {
-                if let Some(obj) = find_object_on_battlefield(state, card_name) {
-                    let actual = obj.status.tapped;
-                    check_exact(path, expected, serde_json::json!(actual))
-                } else {
-                    Some(AssertionMismatch {
-                        path: path.clone(),
-                        expected: expected.clone(),
-                        actual: format!("permanent '{}' not found on battlefield", card_name),
-                    })
-                }
+                with_permanent(state, path, expected, card_name, |obj, _| {
+                    check_exact(path, expected, serde_json::json!(obj.status.tapped))
+                })
+            }
+
+            // permanent.<card_name>.power / .toughness
+            //
+            // Read through `calculate_characteristics`, never `obj.characteristics`:
+            // on the battlefield the printed value is pre-layers and a script asserting
+            // a pumped creature's power off the raw field would be asserting the wrong
+            // number (W3-LC layer audit).
+            ["permanent", card_name, field @ ("power" | "toughness")] => {
+                with_permanent(state, path, expected, card_name, |_, id| {
+                    let Some(chars) = calculate_characteristics(state, id) else {
+                        return mismatch(
+                            path,
+                            expected,
+                            format!("'{}' has no calculable characteristics", card_name),
+                        );
+                    };
+                    let actual = if *field == "power" {
+                        chars.power
+                    } else {
+                        chars.toughness
+                    };
+                    match actual {
+                        Some(v) => check_exact(path, expected, serde_json::json!(v)),
+                        None => mismatch(
+                            path,
+                            expected,
+                            format!("'{}' has no {} (not a creature?)", card_name, field),
+                        ),
+                    }
+                })
             }
 
             // permanent.<card_name>.counters.<type>
             ["permanent", card_name, "counters", ctype] => {
-                if let Some(obj) = find_object_on_battlefield(state, card_name) {
-                    let ct = parse_counter_type(ctype);
-                    let count = ct
-                        .and_then(|ct| obj.counters.get(&ct))
-                        .copied()
-                        .unwrap_or(0);
+                with_permanent(state, path, expected, card_name, |obj, _| {
+                    let Some(ct) = parse_counter_type(ctype) else {
+                        return mismatch(path, expected, format!("unknown counter '{}'", ctype));
+                    };
+                    let count = obj.counters.get(&ct).copied().unwrap_or(0);
                     check_exact(path, expected, serde_json::json!(count))
-                } else {
-                    Some(AssertionMismatch {
-                        path: path.clone(),
-                        expected: expected.clone(),
-                        actual: format!("permanent '{}' not found on battlefield", card_name),
-                    })
-                }
+                })
             }
 
-            _ => {
-                // Unknown path — skip (future-proof).
-                None
-            }
+            // SR-9c: an unrecognized path used to return `None` — "no mismatch" — so a
+            // script could assert anything it liked in a path this function had never
+            // heard of and go green. 244 assertions across the corpus were doing exactly
+            // that. An unknown path is now a failure; add the path above to fix it.
+            _ => mismatch(
+                path,
+                expected,
+                "unsupported assertion path (see script_replay.rs for the supported set)"
+                    .to_string(),
+            ),
         };
 
         if let Some(m) = mismatch {
@@ -439,11 +612,76 @@ pub fn check_assertions(
 fn find_object_on_battlefield<'a>(
     state: &'a GameState,
     name: &str,
-) -> Option<&'a mtg_engine::state::GameObject> {
+) -> Option<(&'a mtg_engine::state::GameObject, mtg_engine::ObjectId)> {
+    state
+        .objects()
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
+        .map(|(id, obj)| (obj, *id))
+}
+
+/// Build an [`AssertionMismatch`]. Always `Some` — the `Option` is the caller's
+/// "did this assertion fail" channel, and every use of this helper means "yes".
+fn mismatch(path: &str, expected: &serde_json::Value, actual: String) -> Option<AssertionMismatch> {
+    Some(AssertionMismatch {
+        path: path.to_string(),
+        expected: expected.clone(),
+        actual,
+    })
+}
+
+/// Resolve a script player name, or fail the assertion.
+fn with_player(
+    path: &str,
+    expected: &serde_json::Value,
+    players: &HashMap<String, PlayerId>,
+    name: &str,
+    f: impl FnOnce(PlayerId) -> Option<AssertionMismatch>,
+) -> Option<AssertionMismatch> {
+    match players.get(name) {
+        Some(&pid) => f(pid),
+        None => mismatch(path, expected, format!("player '{}' not found", name)),
+    }
+}
+
+/// Resolve a battlefield permanent by name, or fail the assertion.
+fn with_permanent(
+    state: &GameState,
+    path: &str,
+    expected: &serde_json::Value,
+    card_name: &str,
+    f: impl FnOnce(&mtg_engine::state::GameObject, mtg_engine::ObjectId) -> Option<AssertionMismatch>,
+) -> Option<AssertionMismatch> {
+    match find_object_on_battlefield(state, card_name) {
+        Some((obj, id)) => f(obj, id),
+        None => mismatch(
+            path,
+            expected,
+            format!("permanent '{}' not found on battlefield", card_name),
+        ),
+    }
+}
+
+fn names_in_zone(state: &GameState, zone: ZoneId) -> Vec<String> {
     state
         .objects()
         .values()
-        .find(|obj| obj.characteristics.name == name && obj.zone == ZoneId::Battlefield)
+        .filter(|o| o.zone == zone)
+        .map(|o| o.characteristics.name.clone())
+        .collect()
+}
+
+fn count_in_zone(state: &GameState, zone: ZoneId) -> usize {
+    state.objects().values().filter(|o| o.zone == zone).count()
+}
+
+fn battlefield_names(state: &GameState, pid: PlayerId) -> Vec<String> {
+    state
+        .objects()
+        .values()
+        .filter(|o| o.zone == ZoneId::Battlefield && o.controller == pid)
+        .map(|o| o.characteristics.name.clone())
+        .collect()
 }
 
 /// Check an exact-match or comparison assertion.
@@ -491,8 +729,26 @@ fn check_exact(
     }
 }
 
+/// Read a card name out of an `includes`/`excludes` entry: either the bare string
+/// `"Sol Ring"` or the object `{"card": "Sol Ring"}`. Both spellings appear in the
+/// corpus, in both list positions.
+fn entry_card_name(item: &serde_json::Value) -> Option<&str> {
+    item.as_str().or_else(|| {
+        item.as_object()
+            .and_then(|o| o.get("card"))
+            .and_then(|v| v.as_str())
+    })
+}
+
 /// Check a list-based assertion (includes / excludes / is_empty) against a
 /// collection of card names.
+///
+/// SR-9c changed three things. `includes` no longer `return`s before `excludes` is
+/// looked at (six assertions in the corpus carry both, and the `excludes` half was
+/// dead). A malformed entry — one that is neither a string nor `{"card": …}` — used
+/// to silently become the empty name `""` and then "not be found"; it is now its own
+/// diagnostic. And an `expected` shape this function does not understand is a
+/// mismatch rather than a pass.
 fn check_list_value(
     path: &str,
     expected: &serde_json::Value,
@@ -500,54 +756,59 @@ fn check_list_value(
     contains: impl Fn(&String) -> bool,
 ) -> Option<AssertionMismatch> {
     if let Some(obj) = expected.as_object() {
+        let mut understood = false;
+
         if let Some(is_empty) = obj.get("is_empty").and_then(|v| v.as_bool()) {
-            let actually_empty = names.is_empty();
-            if actually_empty == is_empty {
-                return None;
+            understood = true;
+            if names.is_empty() != is_empty {
+                return mismatch(path, expected, format!("{:?}", names));
             }
-            return Some(AssertionMismatch {
-                path: path.to_string(),
-                expected: expected.clone(),
-                actual: format!("{:?}", names),
-            });
         }
 
         if let Some(includes) = obj.get("includes").and_then(|v| v.as_array()) {
+            understood = true;
             for item in includes {
-                let card_name = item
-                    .as_object()
-                    .and_then(|o| o.get("card"))
-                    .and_then(|v| v.as_str())
-                    .unwrap_or_else(|| item.as_str().unwrap_or(""));
+                let Some(card_name) = entry_card_name(item) else {
+                    return mismatch(path, expected, format!("malformed includes entry {}", item));
+                };
                 if !contains(&card_name.to_string()) {
-                    return Some(AssertionMismatch {
-                        path: path.to_string(),
-                        expected: expected.clone(),
-                        actual: format!("missing '{}' in {:?}", card_name, names),
-                    });
+                    return mismatch(
+                        path,
+                        expected,
+                        format!("missing '{}' in {:?}", card_name, names),
+                    );
                 }
             }
-            return None;
         }
 
         if let Some(excludes) = obj.get("excludes").and_then(|v| v.as_array()) {
+            understood = true;
             for item in excludes {
-                let card_name = item.as_str().unwrap_or_else(|| {
-                    item.as_object()
-                        .and_then(|o| o.get("card"))
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("")
-                });
+                let Some(card_name) = entry_card_name(item) else {
+                    return mismatch(path, expected, format!("malformed excludes entry {}", item));
+                };
                 if contains(&card_name.to_string()) {
-                    return Some(AssertionMismatch {
-                        path: path.to_string(),
-                        expected: expected.clone(),
-                        actual: format!("'{}' should not be in {:?}", card_name, names),
-                    });
+                    return mismatch(
+                        path,
+                        expected,
+                        format!("'{}' should not be in {:?}", card_name, names),
+                    );
                 }
             }
+        }
+
+        if understood {
             return None;
         }
+
+        return mismatch(
+            path,
+            expected,
+            format!(
+                "unsupported list assertion (want is_empty/includes/excludes); actual {:?}",
+                names
+            ),
+        );
     }
 
     // Treat a scalar string as an exact card name match.
@@ -555,14 +816,14 @@ fn check_list_value(
         if contains(&s.to_string()) {
             return None;
         }
-        return Some(AssertionMismatch {
-            path: path.to_string(),
-            expected: expected.clone(),
-            actual: format!("'{}' not found in {:?}", s, names),
-        });
+        return mismatch(path, expected, format!("'{}' not found in {:?}", s, names));
     }
 
-    None
+    mismatch(
+        path,
+        expected,
+        format!("unsupported list assertion value; actual {:?}", names),
+    )
 }
 
 // ── Unit tests ────────────────────────────────────────────────────────────────
@@ -590,6 +851,7 @@ fn test_harness_build_state_two_players() {
             review_date: None,
             generation_notes: None,
             disputes: vec![],
+            retirement_reason: None,
         },
         initial_state: InitialState {
             format: "commander".to_string(),
@@ -841,6 +1103,7 @@ fn test_harness_end_to_end_priority_passes() {
             review_date: None,
             generation_notes: None,
             disputes: vec![],
+            retirement_reason: None,
         },
         initial_state: InitialState {
             format: "commander".to_string(),

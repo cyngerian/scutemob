@@ -2,8 +2,8 @@
   "schema_version": "1.0.0",
   "metadata": {
     "id": "script_layers_012",
-    "name": "Lightning Greaves \u2014 equip moves between creatures, layer 6 keyword grant follows",
-    "description": "p1 has Lightning Greaves, Solemn Simulacrum, and Bog Raiders on the battlefield. p1 equips Greaves to Solemn Simulacrum (Equip {0}). After resolution, Greaves is attached to Solemn Simulacrum, granting it haste and shroud via a layer-6 continuous effect (CR 613.1f). p1 then equips Greaves to Bog Raiders instead. After the second resolution, Greaves moves to Bog Raiders; Solemn Simulacrum no longer has the keyword grants. Tests: equip activation goes on the stack (CR 702.6a), resolves at sorcery speed (CR 702.6a), equipment receives a new timestamp each time it attaches (CR 613.7e), and attaching to a new creature implicitly detaches from the previous one (CR 301.5c \u2014 equipment can't equip more than one creature).",
+    "name": "Lightning Greaves — equip moves between creatures, layer 6 keyword grant follows",
+    "description": "p1 has Lightning Greaves, Solemn Simulacrum, and Bog Raiders on the battlefield. p1 equips Greaves to Solemn Simulacrum (Equip {0}). After resolution, Greaves is attached to Solemn Simulacrum, granting it haste and shroud via a layer-6 continuous effect (CR 613.1f). p1 then equips Greaves to Bog Raiders instead. After the second resolution, Greaves moves to Bog Raiders; Solemn Simulacrum no longer has the keyword grants. Tests: equip activation goes on the stack (CR 702.6a), resolves at sorcery speed (CR 702.6a), equipment receives a new timestamp each time it attaches (CR 613.7e), and attaching to a new creature implicitly detaches from the previous one (CR 301.5c — equipment can't equip more than one creature).",
     "cr_sections_tested": [
       "702.6a",
       "702.6b",
@@ -29,14 +29,15 @@
     "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
-    "generation_notes": "Lightning Greaves engine definition (definitions.rs lines 1262-1292) has two abilities:\n  definitions index 0: AbilityDefinition::Static \u2014 grants Haste+Shroud to attached creature (layer 6, EffectFilter::AttachedCreature). NOT an activated ability.\n  definitions index 1: AbilityDefinition::Activated \u2014 Equip {0}, AttachEquipment effect, sorcery-speed restriction.\n\nability_index is 0-based into NON-MANA ACTIVATED abilities only. The Static ability does not count. The Equip {0} is the only non-mana activated ability on Greaves, so ability_index: 0 is correct.\n\nEquip cost is {0} so mana_paid is {}. The equip ability is NOT a mana ability (CR 605.3) \u2014 it goes on the stack and requires priority passes to resolve.\n\nCR 702.6a: 'Equip [cost]' means '[Cost]: Attach this permanent to target creature you control. Activate only as a sorcery.'\nCR 301.5c: Equipment can't equip more than one creature. Re-equipping to Bog Raiders automatically moves Greaves off Solemn Simulacrum.\nCR 613.7e: An Equipment receives a new timestamp each time it becomes attached to an object \u2014 relevant for ordering of multiple equipment interactions.\nCR 613.1f: Layer 6 \u2014 ability-adding effects applied here; haste and shroud are granted to the equipped creature via the static continuous effect.\n\nCreatures used: Solemn Simulacrum (2/2 Artifact Creature) and Bog Raiders (2/2 Creature \u2014 Zombie) \u2014 both have engine CardDefinitions. Neither has abilities triggered by the equip interaction that would complicate the script.\n\nAssertions focus on assertable state: battlefield zone membership, stack counts. Keyword grants (haste/shroud) via layer system are not directly assertable in the current schema. The script validates the equip resolve flow: activation goes on stack, priority passes, resolves, equipment stays on battlefield, stack empties. Re-equip flow: second activation on stack, resolves, all permanents still present.\n\nHarness validation attempted: FAIL \u2014 engine compilation error in commit 51cbdf1 breaks build. The Greaves/Swiftfoot Boots/Whispersilk Cloak definitions use TimingRestriction::SorcerySpeed but the import was not added to definitions.rs. The running server binary predates this commit and uses a version without the equip activated ability registered in activated_abilities, causing InvalidAbilityIndex { index: 0 }. Script logic is correct per CR; this is an engine gap. See disputes entry.",
+    "generation_notes": "Lightning Greaves engine definition (definitions.rs lines 1262-1292) has two abilities:\n  definitions index 0: AbilityDefinition::Static — grants Haste+Shroud to attached creature (layer 6, EffectFilter::AttachedCreature). NOT an activated ability.\n  definitions index 1: AbilityDefinition::Activated — Equip {0}, AttachEquipment effect, sorcery-speed restriction.\n\nability_index is 0-based into NON-MANA ACTIVATED abilities only. The Static ability does not count. The Equip {0} is the only non-mana activated ability on Greaves, so ability_index: 0 is correct.\n\nEquip cost is {0} so mana_paid is {}. The equip ability is NOT a mana ability (CR 605.3) — it goes on the stack and requires priority passes to resolve.\n\nCR 702.6a: 'Equip [cost]' means '[Cost]: Attach this permanent to target creature you control. Activate only as a sorcery.'\nCR 301.5c: Equipment can't equip more than one creature. Re-equipping to Bog Raiders automatically moves Greaves off Solemn Simulacrum.\nCR 613.7e: An Equipment receives a new timestamp each time it becomes attached to an object — relevant for ordering of multiple equipment interactions.\nCR 613.1f: Layer 6 — ability-adding effects applied here; haste and shroud are granted to the equipped creature via the static continuous effect.\n\nCreatures used: Solemn Simulacrum (2/2 Artifact Creature) and Bog Raiders (2/2 Creature — Zombie) — both have engine CardDefinitions. Neither has abilities triggered by the equip interaction that would complicate the script.\n\nAssertions focus on assertable state: battlefield zone membership, stack counts. Keyword grants (haste/shroud) via layer system are not directly assertable in the current schema. The script validates the equip resolve flow: activation goes on stack, priority passes, resolves, equipment stays on battlefield, stack empties. Re-equip flow: second activation on stack, resolves, all permanents still present.\n\nHarness validation attempted: FAIL — engine compilation error in commit 51cbdf1 breaks build. The Greaves/Swiftfoot Boots/Whispersilk Cloak definitions use TimingRestriction::SorcerySpeed but the import was not added to definitions.rs. The running server binary predates this commit and uses a version without the equip activated ability registered in activated_abilities, causing InvalidAbilityIndex { index: 0 }. Script logic is correct per CR; this is an engine gap. See disputes entry.",
     "disputes": [
       {
         "description": "Harness error: engine compilation broken by commit 51cbdf1. definitions.rs uses TimingRestriction::SorcerySpeed at lines 1288, 1326, 1362 (Lightning Greaves, Swiftfoot Boots, Whispersilk Cloak equip abilities) but does not import TimingRestriction. Engine fails to compile with 3 E0433 errors. The running replay-viewer binary predates this commit and does not have the equip AbilityDefinition::Activated registered in characteristics.activated_abilities for Lightning Greaves, producing InvalidAbilityIndex { object_id: ObjectId(1), index: 0 } at step[0][1]. Fix: add 'use crate::TimingRestriction;' (or equivalent) to definitions.rs. Script logic is CR-correct and should pass once the engine compiles.",
         "cr_ref": "702.6a",
         "resolution": "RESOLVED (2026-02-26): Missing TimingRestriction import in definitions.rs fixed. Engine compiles and all 631 tests pass.",
         "resolved_by": "claude-sonnet-4-6",
-        "resolved_date": "2026-02-26"
+        "resolved_date": "2026-02-26",
+        "raised_by": "game-script-generator"
       }
     ]
   },
@@ -144,7 +145,7 @@
           "mana_paid": {},
           "mana_source": [],
           "cr_ref": "702.6a",
-          "note": "CR 702.6a: p1 activates Equip {0} ability (ability_index 0 \u2014 the only non-mana activated ability on Greaves; the Static keyword-grant ability does not count toward the index). Cost {0} paid; ability targets Solemn Simulacrum. Ability placed on stack."
+          "note": "CR 702.6a: p1 activates Equip {0} ability (ability_index 0 — the only non-mana activated ability on Greaves; the Static keyword-grant ability does not count toward the index). Cost {0} paid; ability targets Solemn Simulacrum. Ability placed on stack."
         },
         {
           "type": "assert_state",
@@ -162,7 +163,7 @@
               ]
             }
           },
-          "note": "CR 702.6a: Equip is an activated ability, not a mana ability \u2014 it goes on the stack. Greaves stays on battlefield (equipment never moves to stack)."
+          "note": "CR 702.6a: Equip is an activated ability, not a mana ability — it goes on the stack. Greaves stays on battlefield (equipment never moves to stack)."
         },
         {
           "type": "priority_round",
@@ -171,7 +172,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "CR 116.3: Both players pass priority \u2014 top of stack resolves."
+          "note": "CR 116.3: Both players pass priority — top of stack resolves."
         },
         {
           "type": "stack_resolve",
@@ -218,7 +219,7 @@
     },
     {
       "step": "precombat_main",
-      "step_note": "p1 re-equips Lightning Greaves onto Bog Raiders (second equip \u2014 moves from Solemn Simulacrum).",
+      "step_note": "p1 re-equips Lightning Greaves onto Bog Raiders (second equip — moves from Solemn Simulacrum).",
       "actions": [
         {
           "type": "player_action",
@@ -267,7 +268,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "CR 116.3: Both players pass priority \u2014 top of stack resolves."
+          "note": "CR 116.3: Both players pass priority — top of stack resolves."
         },
         {
           "type": "stack_resolve",
@@ -308,7 +309,7 @@
               ]
             }
           },
-          "note": "All three permanents still on battlefield. Greaves is now attached to Bog Raiders; Bog Raiders has haste and shroud (layer 6). Solemn Simulacrum no longer has those keywords \u2014 the EffectFilter::AttachedCreature continuous effect no longer applies to it."
+          "note": "All three permanents still on battlefield. Greaves is now attached to Bog Raiders; Bog Raiders has haste and shroud (layer 6). Solemn Simulacrum no longer has those keywords — the EffectFilter::AttachedCreature continuous effect no longer applies to it."
         }
       ]
     }

@@ -21,11 +21,12 @@
       "haste"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Frantic Scapegoat card definition at crates/engine/src/cards/defs/frantic_scapegoat.rs. Oracle text: Haste; WhenEntersBattlefield trigger: 'When this creature enters, suspect it' (Effect::Suspect { target: EffectTarget::Source }). CR 701.60a: creature becomes suspected until it leaves the battlefield or an effect ends the designation. CR 701.60b: Suspected is a designation (not an ability or copiable value). CR 701.60c: suspected creature gains Menace and 'This creature can't block' while suspected. CR 701.60d: a suspected creature can't become suspected again (not exercised here). The ETB trigger goes on the stack as a separate triggered ability after the creature resolves (standard trigger queuing — NOT inline). Priority flow: cast_spell -> priority_round -> stack_resolve (creature enters) -> trigger on stack -> priority_round -> stack_resolve (suspect trigger) -> assert is_suspected.",
-    "disputes": []
+    "disputes": [],
+    "retirement_reason": "SR-9c: The 'suspect' ETB leaves a trigger on the stack (asserts empty, engine 1) and is_suspected is not observable via the assertion set. Retire pending suspect-state assertions and inline ETB resolution."
   },
   "initial_state": {
     "format": "commander",
@@ -37,7 +38,9 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "red": 1 },
+        "mana_pool": {
+          "red": 1
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -58,7 +61,11 @@
       "battlefield": {},
       "hand": {
         "p1": [
-          { "card": "Frantic Scapegoat", "is_commander": false, "owner": null }
+          {
+            "card": "Frantic Scapegoat",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -79,8 +86,16 @@
           "description": "Initial: Frantic Scapegoat in p1 hand, battlefield empty, stack empty",
           "assertions": {
             "zones.hand.p1.count": 1,
-            "zones.stack": { "is_empty": true },
-            "zones.battlefield.p1": { "excludes": [{ "card": "Frantic Scapegoat" }] }
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "excludes": [
+                {
+                  "card": "Frantic Scapegoat"
+                }
+              ]
+            }
           },
           "note": "Frantic Scapegoat is in p1's hand. Nothing on the battlefield yet."
         },
@@ -90,7 +105,9 @@
           "action": "cast_spell",
           "card": "Frantic Scapegoat",
           "targets": [],
-          "mana_paid": { "red": 1 },
+          "mana_paid": {
+            "red": 1
+          },
           "mana_source": [],
           "cr_ref": "601.2",
           "note": "CR 601.2: p1 casts Frantic Scapegoat paying {R} from the mana pool. Card moves from hand to the stack."
@@ -106,7 +123,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority — Frantic Scapegoat spell resolves."
         },
@@ -128,8 +148,17 @@
           "type": "assert_state",
           "description": "Final: Frantic Scapegoat on battlefield with is_suspected: true, stack empty (ETB fires inline)",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Frantic Scapegoat", "is_suspected": true }] },
-            "zones.stack": { "is_empty": true }
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Frantic Scapegoat",
+                  "is_suspected": true
+                }
+              ]
+            },
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 701.60a-c: The WhenEntersBattlefield ETB trigger fires inline during creature resolution (same as Discover). Effect::Suspect sets is_suspected on the creature immediately. Stack is empty after creature resolves. The suspected designation gives Menace and 'can't block' for as long as the designation persists."
         }

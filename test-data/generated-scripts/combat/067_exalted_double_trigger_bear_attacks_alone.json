@@ -4,11 +4,28 @@
     "id": "script_combat_067",
     "name": "Exalted — two Akrasan Squires each trigger once when Bog Raiders attacks alone",
     "description": "p1 controls two Akrasan Squires (1/1 with Exalted) and one Bog Raiders (2/2 with Swampwalk). p1 declares only Bog Raiders as an attacker targeting p2. Because exactly one creature attacks (CR 506.5), both Akrasan Squires' Exalted triggered abilities fire (CR 702.83a: each permanent with exalted triggers separately). Both triggers are placed on the stack; each resolves in LIFO order, granting Bog Raiders +1/+1 until end of turn twice. Bog Raiders becomes 4/4 for the combat phase. p2 declares no blockers. Bog Raiders (power 4, unblocked) deals 4 combat damage to p2 (CR 510.1b), reducing p2 life from 40 to 36. At end of turn in the cleanup step (CR 514.2) the 'until end of turn' bonuses expire and Bog Raiders returns to 2/2.",
-    "cr_sections_tested": ["506.5", "508.1", "702.83a", "405.5", "608.2", "510.1b", "514.2", "704.3"],
+    "cr_sections_tested": [
+      "506.5",
+      "508.1",
+      "702.83a",
+      "405.5",
+      "608.2",
+      "510.1b",
+      "514.2",
+      "704.3"
+    ],
     "corner_case_ref": null,
-    "tags": ["combat", "exalted", "triggered-ability", "attacks-alone", "until-end-of-turn", "stack", "combat-damage"],
+    "tags": [
+      "combat",
+      "exalted",
+      "triggered-ability",
+      "attacks-alone",
+      "until-end-of-turn",
+      "stack",
+      "combat-damage"
+    ],
     "confidence": "medium",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Akrasan Squire oracle text (Scryfall verified via MCP lookup_card): 'Exalted (Whenever a creature you control attacks alone, that creature gets +1/+1 until end of turn.)' Type: Creature — Human Soldier. P/T: 1/1. Mana cost: {W}. Keywords: Exalted. IMPORTANT: Akrasan Squire is NOT in the engine Available Cards list and requires a CardDefinition to be authored (with Exalted triggered ability, CR 702.83a) before this script can pass harness validation. Bog Raiders is used as the 2/2 attacker (the prompt specified Bear 2/2 vanilla but no vanilla 2/2 exists in the Available Cards list; Bog Raiders is 2/2 with Swampwalk which does not affect the scenario since there are no blockers). Bog Raiders starting P/T is 2/2; with two Exalted +1/+1 bonuses it becomes 4/4 for the combat phase and deals 4 damage to p2 (40 - 4 = 36). At cleanup (CR 514.2) the until-end-of-turn effects expire, restoring Bog Raiders to 2/2. Exalted ruling (2008-10-01): If you declare exactly one creature as an attacker, each exalted ability on each permanent you control triggers. Two Akrasan Squires produce two separate Exalted triggered abilities on the stack. Each resolves separately giving +1/+1 (CR 405.5: LIFO). CR 702.83b + 506.5: attacks alone means exactly one creature declared as attacker in the declare attackers step. CR 508.1: Bog Raiders is untapped and free of summoning sickness (placed in initial state via builder). Turn 4 is used to avoid summoning sickness per the established combat script pattern. Exalted triggers fire during the declare-attackers step after Bog Raiders is declared and resolve before blockers are declared. ResolutionEffect.amount is Option<i32> in schema — pump effects use null for amount with description in note field. Dispute schema: step_index/action_index/raised_by/description/resolution/resolved_by/resolved_date.",
@@ -54,9 +71,18 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Akrasan Squire", "tapped": false },
-          { "card": "Akrasan Squire", "tapped": false },
-          { "card": "Bog Raiders", "tapped": false }
+          {
+            "card": "Akrasan Squire",
+            "tapped": false
+          },
+          {
+            "card": "Akrasan Squire",
+            "tapped": false
+          },
+          {
+            "card": "Bog Raiders",
+            "tapped": false
+          }
         ]
       },
       "hand": {},
@@ -77,11 +103,22 @@
           "type": "assert_state",
           "description": "Initial: two Akrasan Squires and Bog Raiders untapped on p1 battlefield, life totals 40/40, stack empty",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Akrasan Squire" }, { "card": "Bog Raiders" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Akrasan Squire"
+                },
+                {
+                  "card": "Bog Raiders"
+                }
+              ]
+            },
             "permanent.Bog Raiders.tapped": false,
             "players.p1.life": 40,
             "players.p2.life": 40,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "All three creatures are untapped and free of summoning sickness (turn 4, placed in initial state via builder). Bog Raiders is the designated sole attacker."
         },
@@ -94,7 +131,11 @@
           "mana_paid": null,
           "mana_source": [],
           "attackers": [
-            { "card": "Bog Raiders", "target_player": "p2", "target_planeswalker": null }
+            {
+              "card": "Bog Raiders",
+              "target_player": "p2",
+              "target_planeswalker": null
+            }
           ],
           "blockers": [],
           "cr_ref": "508.1",
@@ -111,7 +152,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority. Top of stack (first Exalted trigger) resolves. CR 405.5: LIFO order."
         },
@@ -121,7 +165,11 @@
           "resolution": [
             {
               "effect": "grant_bonus",
-              "target": { "type": "permanent", "card": "Bog Raiders", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "card": "Bog Raiders",
+                "controller": "p1"
+              },
               "amount": null,
               "card": null,
               "owner": null,
@@ -133,7 +181,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority. Second Exalted trigger (from the other Akrasan Squire) now resolves."
         },
@@ -143,7 +194,11 @@
           "resolution": [
             {
               "effect": "grant_bonus",
-              "target": { "type": "permanent", "card": "Bog Raiders", "controller": "p1" },
+              "target": {
+                "type": "permanent",
+                "card": "Bog Raiders",
+                "controller": "p1"
+              },
               "amount": null,
               "card": null,
               "owner": null,
@@ -157,14 +212,28 @@
           "type": "assert_state",
           "description": "After both Exalted triggers resolve: stack empty, all p1 creatures on battlefield",
           "assertions": {
-            "zones.stack": { "is_empty": true },
-            "zones.battlefield.p1": { "includes": [{ "card": "Bog Raiders" }, { "card": "Akrasan Squire" }] }
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Bog Raiders"
+                },
+                {
+                  "card": "Akrasan Squire"
+                }
+              ]
+            }
           },
           "note": "Both Exalted triggers have resolved. Bog Raiders has +2/+2 until end of turn (4/4). Akrasan Squires are untapped on the battlefield."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority in DeclareAttackers with empty stack — advance to DeclareBlockers step."
         }
@@ -189,7 +258,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority with empty stack — advance to CombatDamage step. The engine executes combat damage as a turn-based action on entering CombatDamage. Bog Raiders (power 4, unblocked) assigns 4 damage to p2 (CR 510.1b)."
         }
@@ -206,7 +278,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3d: Both players pass priority after CombatDamage resolves. Stack empty — advance to EndOfCombat step."
         },
@@ -216,9 +291,20 @@
           "assertions": {
             "players.p2.life": 36,
             "players.p1.life": 40,
-            "zones.battlefield.p1": { "includes": [{ "card": "Bog Raiders" }, { "card": "Akrasan Squire" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Bog Raiders"
+                },
+                {
+                  "card": "Akrasan Squire"
+                }
+              ]
+            },
             "permanent.Bog Raiders.tapped": true,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 510.1b: Unblocked Bog Raiders (power 4 with two Exalted bonuses) dealt 4 combat damage to p2. p2 life: 40 to 36. Bog Raiders remains on battlefield (tapped from attacking). Akrasan Squires remain untapped. Exalted +2/+2 bonus persists until cleanup."
         }
@@ -234,8 +320,19 @@
           "assertions": {
             "players.p2.life": 36,
             "players.p1.life": 40,
-            "zones.battlefield.p1": { "includes": [{ "card": "Bog Raiders" }, { "card": "Akrasan Squire" }] },
-            "zones.stack": { "is_empty": true }
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Bog Raiders"
+                },
+                {
+                  "card": "Akrasan Squire"
+                }
+              ]
+            },
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": "CR 514.2: Until-end-of-turn and this-turn effects end simultaneously in the cleanup step (turn-based action, does not use the stack). Both Exalted +1/+1 bonuses expire, restoring Bog Raiders to its printed 2/2. All three p1 creatures remain on the battlefield. p2 retains 36 life."
         }

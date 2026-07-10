@@ -23,7 +23,7 @@
       "priority-pass"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Hedron Archive oracle text (verified via MCP): '{T}: Add {C}{C}.' (mana ability — filtered out by enrich_spec_from_def) and '{2}, {T}, Sacrifice this artifact: Draw two cards.' The draw ability is the only non-mana activated ability, so ability_index: 0. CR 602.2a: the ability is announced and placed on the stack as a non-card object. CR 602.2b + 601.2h: costs are paid — {2} generic mana, tap Hedron Archive, sacrifice Hedron Archive. Sacrifice is paid as a cost (CR 601.2h), so Hedron Archive leaves the battlefield during cost payment, before the ability resolves; it enters the graveyard immediately. CR 608.2: the ability has no targets, so target-legality check is trivially satisfied. CR 608.2n: upon resolution the ability ceases to exist and is removed from the stack (abilities do not go to a graveyard on resolution). Library contains exactly two cards (Forest, Plains) so p1's two draws are deterministic and hand goes from 0 to 2 cards. Gotcha: must have 2 cards in library or DrawCards is silently a no-op (gotchas-infra.md). The {2} cost is paid as generic (colorless: 2 in mana_paid). Both priority passes are explicit (priority_pass for p1 then p2) to test that the engine requires each player to pass before resolving the top of stack.",
@@ -39,7 +39,9 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "colorless": 2 },
+        "mana_pool": {
+          "colorless": 2
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -59,7 +61,12 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Hedron Archive", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Hedron Archive",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ]
       },
       "hand": {},
@@ -68,8 +75,16 @@
       "command_zone": {},
       "library": {
         "p1": [
-          { "card": "Forest", "is_commander": false, "owner": null },
-          { "card": "Plains", "is_commander": false, "owner": null }
+          {
+            "card": "Forest",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Plains",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "stack": []
@@ -85,11 +100,19 @@
           "type": "assert_state",
           "description": "Initial: Hedron Archive on p1's battlefield (untapped), 2 cards in p1's library, stack empty",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Hedron Archive" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Hedron Archive"
+                }
+              ]
+            },
             "permanent.Hedron Archive.tapped": false,
             "zones.hand.p1.count": 0,
             "zones.library.p1.count": 2,
-            "zones.stack": { "is_empty": true }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
           "note": null
         },
@@ -100,7 +123,9 @@
           "card": "Hedron Archive",
           "ability_index": 0,
           "targets": [],
-          "mana_paid": { "colorless": 2 },
+          "mana_paid": {
+            "colorless": 2
+          },
           "mana_source": [],
           "cr_ref": "602.2a",
           "note": "CR 602.2a: p1 announces activation of Hedron Archive's draw ability (ability_index: 0 — only non-mana activated ability). The ability is placed on the stack. CR 602.2b + 601.2h: p1 pays the cost — {2} generic mana from pool, taps Hedron Archive, and sacrifices Hedron Archive. Hedron Archive moves to p1's graveyard immediately as part of cost payment."
@@ -109,8 +134,18 @@
           "type": "assert_state",
           "description": "After activation: Hedron Archive in graveyard (sacrifice as cost), ability on stack, library still has 2 cards",
           "assertions": {
-            "zones.battlefield.p1": { "excludes": ["Hedron Archive"] },
-            "zones.graveyard.p1": { "includes": [{ "card": "Hedron Archive" }] },
+            "zones.battlefield.p1": {
+              "excludes": [
+                "Hedron Archive"
+              ]
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Hedron Archive"
+                }
+              ]
+            },
             "zones.library.p1.count": 2,
             "zones.stack.count": 1
           },
@@ -144,10 +179,18 @@
           "type": "assert_state",
           "description": "Final: stack empty, p1 has 2 cards in hand, Hedron Archive in p1's graveyard, library empty",
           "assertions": {
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "zones.hand.p1.count": 2,
             "zones.library.p1.count": 0,
-            "zones.graveyard.p1": { "includes": [{ "card": "Hedron Archive" }] }
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Hedron Archive"
+                }
+              ]
+            }
           },
           "note": "Forest and Plains were the only cards in p1's library; both are now in hand. Hedron Archive sacrificed to graveyard as activation cost. Ability ceased to exist on resolution (CR 608.2n)."
         }

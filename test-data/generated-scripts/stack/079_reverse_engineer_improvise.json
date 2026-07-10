@@ -4,11 +4,24 @@
     "id": "script_stack_079",
     "name": "Improvise: Reverse Engineer cast by tapping three artifacts",
     "description": "p1 casts Reverse Engineer ({3}{U}{U}, Sorcery, Improvise, draw three cards) using the Improvise ability (CR 702.126a). Three distinct untapped artifacts — Sol Ring, Arcane Signet, and Commander's Sphere — are tapped as part of casting to pay for all {3} generic mana, reducing the cost paid from the pool to {U}{U}. After both players pass priority, Reverse Engineer resolves and p1 draws three cards. The script verifies: (1) all three improvise artifacts are tapped at cast time, (2) the stack is empty after resolution, (3) p1's hand grew by +2 net (drew 3, spent 1 to cast), and (4) Reverse Engineer is in p1's graveyard.",
-    "cr_sections_tested": ["702.126a", "702.126b", "601.2", "608.2", "116.3"],
+    "cr_sections_tested": [
+      "702.126a",
+      "702.126b",
+      "601.2",
+      "608.2",
+      "116.3"
+    ],
     "corner_case_ref": null,
-    "tags": ["improvise", "stack", "sorcery", "mana-cost", "reverse-engineer", "draw"],
+    "tags": [
+      "improvise",
+      "stack",
+      "sorcery",
+      "mana-cost",
+      "reverse-engineer",
+      "draw"
+    ],
     "confidence": "high",
-    "review_status": "pending_review",
+    "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "CR 702.126a: Improvise is a static ability that functions while the spell is on the stack. 'For each generic mana in this spell's total cost, you may tap an untapped artifact you control rather than pay that mana.' Reverse Engineer costs {3}{U}{U}. Three artifacts are tapped — Sol Ring, Arcane Signet, Commander's Sphere — each covering one generic pip, reducing the generic portion from {3} to {0}. The remaining {U}{U} is paid from p1's mana pool. CR 702.126b: Improvise is not an additional or alternative cost; it applies after the total cost is determined. Total cost covered: 3 artifacts × {1} generic = {3} generic reduction, {U}{U} from pool. The improvise field in the cast_spell action names the three artifacts (find_on_battlefield first-match lookup). Using three distinct artifact names avoids the duplicate ObjectId issue that would arise from using three copies of the same card name. Three cards are placed in p1's library so the DrawCards effect has cards to draw; without library cards the draw would silently do nothing and the hand count assertion would fail. p1 starts with 1 card in hand (Reverse Engineer). After cast: 0 cards in hand, RE on stack. After resolution: 3 cards drawn from library → 3 cards in hand, RE in graveyard. Net hand change: +2 (from 1 to 3). Reverse Engineer oracle text: '{3}{U}{U}, Sorcery, Improvise, Draw three cards.' Card is in the engine's card registry as a sorcery with Effect::DrawCards{3} and KeywordAbility::Improvise.",
@@ -24,7 +37,9 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "blue": 2 },
+        "mana_pool": {
+          "blue": 2
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -44,14 +59,33 @@
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Sol Ring", "is_commander": false, "owner": null, "tapped": false },
-          { "card": "Arcane Signet", "is_commander": false, "owner": null, "tapped": false },
-          { "card": "Commander's Sphere", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Sol Ring",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          },
+          {
+            "card": "Arcane Signet",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          },
+          {
+            "card": "Commander's Sphere",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ]
       },
       "hand": {
         "p1": [
-          { "card": "Reverse Engineer", "is_commander": false, "owner": null }
+          {
+            "card": "Reverse Engineer",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -59,9 +93,21 @@
       "command_zone": {},
       "library": {
         "p1": [
-          { "card": "Island", "is_commander": false, "owner": null },
-          { "card": "Island", "is_commander": false, "owner": null },
-          { "card": "Island", "is_commander": false, "owner": null }
+          {
+            "card": "Island",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Island",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Island",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "stack": []
@@ -78,14 +124,25 @@
           "description": "Initial state: Reverse Engineer in p1 hand, three untapped artifacts on battlefield, p1 has {U}{U} in mana pool, library has 3 cards",
           "assertions": {
             "zones.hand.p1.count": 1,
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "players.p1.life": 40,
             "players.p2.life": 40,
             "zones.battlefield.p1": {
               "includes": [
-                { "card": "Sol Ring", "tapped": false },
-                { "card": "Arcane Signet", "tapped": false },
-                { "card": "Commander's Sphere", "tapped": false }
+                {
+                  "card": "Sol Ring",
+                  "tapped": false
+                },
+                {
+                  "card": "Arcane Signet",
+                  "tapped": false
+                },
+                {
+                  "card": "Commander's Sphere",
+                  "tapped": false
+                }
               ]
             }
           },
@@ -97,8 +154,14 @@
           "action": "cast_spell",
           "card": "Reverse Engineer",
           "targets": [],
-          "improvise": ["Sol Ring", "Arcane Signet", "Commander's Sphere"],
-          "mana_paid": { "blue": 2 },
+          "improvise": [
+            "Sol Ring",
+            "Arcane Signet",
+            "Commander's Sphere"
+          ],
+          "mana_paid": {
+            "blue": 2
+          },
           "mana_source": [],
           "cr_ref": "601.2",
           "note": "CR 601.2: p1 announces Reverse Engineer ({3}{U}{U}). CR 702.126a: Improvise — tapping Sol Ring, Arcane Signet, and Commander's Sphere (each an artifact p1 controls) covers all {3} generic mana. Remaining cost {U}{U} paid from mana pool. CR 702.126b: Improvise is not an additional or alternative cost; it applies after the total cost is determined. Total satisfied: {3} improvise + {U}{U} from pool = {3}{U}{U}."
@@ -111,9 +174,18 @@
             "zones.stack.count": 1,
             "zones.battlefield.p1": {
               "includes": [
-                { "card": "Sol Ring", "tapped": true },
-                { "card": "Arcane Signet", "tapped": true },
-                { "card": "Commander's Sphere", "tapped": true }
+                {
+                  "card": "Sol Ring",
+                  "tapped": true
+                },
+                {
+                  "card": "Arcane Signet",
+                  "tapped": true
+                },
+                {
+                  "card": "Commander's Sphere",
+                  "tapped": true
+                }
               ]
             }
           },
@@ -121,7 +193,10 @@
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "CR 116.3: Both players pass priority in succession. The stack has one object — Reverse Engineer resolves."
         },
@@ -131,7 +206,10 @@
           "resolution": [
             {
               "effect": "draw_cards",
-              "target": { "type": "player", "player": "p1" },
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
               "amount": 3,
               "card": null,
               "owner": null,
@@ -145,18 +223,33 @@
           "type": "assert_state",
           "description": "After resolution: p1 has 3 cards in hand (drew 3, started with 0 after cast), stack empty, all three improvise artifacts still tapped, Reverse Engineer in graveyard",
           "assertions": {
-            "zones.stack": { "is_empty": true },
+            "zones.stack": {
+              "is_empty": true
+            },
             "players.p1.life": 40,
             "players.p2.life": 40,
             "zones.hand.p1.count": 3,
             "zones.graveyard.p1": {
-              "includes": [{ "card": "Reverse Engineer" }]
+              "includes": [
+                {
+                  "card": "Reverse Engineer"
+                }
+              ]
             },
             "zones.battlefield.p1": {
               "includes": [
-                { "card": "Sol Ring", "tapped": true },
-                { "card": "Arcane Signet", "tapped": true },
-                { "card": "Commander's Sphere", "tapped": true }
+                {
+                  "card": "Sol Ring",
+                  "tapped": true
+                },
+                {
+                  "card": "Arcane Signet",
+                  "tapped": true
+                },
+                {
+                  "card": "Commander's Sphere",
+                  "tapped": true
+                }
               ]
             }
           },
