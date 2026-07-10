@@ -14,6 +14,14 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  # This workspace links ~300 test binaries. With debuginfo on, target/ is ~68 GB
+  # locally — far past the ~14 GB free on ubuntu-latest, and the first CI run to
+  # reach `cargo test` died with "No space left on device" (surfacing as
+  # `ld terminated with signal 7 [Bus error]`). Debuginfo is the bulk of that, and
+  # CI only needs pass/fail, not debuggable binaries. Panic messages survive; only
+  # symbolized backtraces are lost.
+  CARGO_PROFILE_DEV_DEBUG: 0
+  CARGO_PROFILE_TEST_DEBUG: 0
 
 jobs:
   check:
@@ -22,6 +30,16 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+
+      # Reclaims ~25 GB of preinstalled toolchains this project never uses.
+      # Needed even with debuginfo off — the margin is otherwise uncomfortably thin.
+      - name: Free disk space
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+                      /usr/local/share/boost /usr/local/share/powershell \
+                      /usr/share/swift "$AGENT_TOOLSDIRECTORY"
+          df -h /
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
