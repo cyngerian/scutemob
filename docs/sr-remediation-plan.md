@@ -1,6 +1,6 @@
 # SR Remediation Track — Operations Guide
 
-<!-- last_updated: 2026-07-10 -->
+<!-- last_updated: 2026-07-11 -->
 
 > **Audience:** any session (human-driven or agent) working the SR-prefixed tasks.
 > This track runs **outside** the `/start` / `/eot` skills and outside the W1–W6
@@ -52,6 +52,37 @@ Full evidence (file:line) is in each task's ESM description — run
 | 14 | scutemob-66 | SR-14: Extend the SR-4 diagnostics vocabulary to the rest of `rules/` | M | **DONE 2026-07-10.** ~360 sites across the ten named `rules/` files classified impossible vs fizzle; two uncertain IMPOSSIBLE calls demoted to FIZZLE by the debug-assert suite. Record: `docs/sr-14-silent-failure-audit-rules.md`. |
 | 15 | scutemob-67 | SR-15: Catch-all audit for the *other* dispatch enums | M | **DONE 2026-07-10.** `state::ability_definition_registry` compile gate (68 variants: 64 Handled / 4 Marker) + trial-variant demo; `ZoneChangeAction` proven already compile-gated by construction. All ~26 `AbilityDefinition` catch-alls are benign projections. |
 | 16 | scutemob-68 | SR-16: `PendingTrigger` serde round-trip drops `kind`/`data`/`embedded_effect` | S–M | **DONE 2026-07-10.** Option (a): the three `#[serde(skip)]` fields are now serialized; `PendingTriggerKind` gained the derive. `HASH_SCHEMA_VERSION` 38 → 39 (serde shape change; hash stream unchanged). Round-trip gate `pending_trigger_serde_roundtrip`. `PROTOCOL_VERSION` untouched — `PendingTrigger` is inside `GameState`. **Closes the SR remediation track.** |
+
+### Re-audit batch (2026-07-11) — SR-17 … SR-32
+
+Filed by the full re-audit of the remediated baseline (see the 2026-07-11 session-log
+entry for method and verified-clean claims). Numbering continues the track; `/remedy`
+picks these up unchanged.
+
+| Order | ESM ID | Task | Size | Notes |
+|-------|--------|------|------|-------|
+| 17 | scutemob-72 | SR-17: `HASH_SCHEMA_VERSION` fingerprint gate | M | **HIGH.** The state-hash analogue of SR-8's cure; sentinels force noticing a bump, never making one. Do before M10 replay/rewind work. |
+| 18 | scutemob-73 | SR-18: `proptest-regressions` is an ungoverned auto-built test target | S | **HIGH, cheap.** Demonstrated: stray `.rs` there never compiles, gate 5/5 green; `#![cfg(any())]` in a group module file deleted 14 tests green. |
+| 19 | scutemob-74 | SR-19: HashInto-vs-struct coverage gate; `embedded_effect` hashes zero bits | M | False "Effect has no HashInto impl" comment at `hash.rs:2970`. Pairs naturally with SR-17. |
+| 20 | scutemob-75 | SR-20: Registry-scan alias/glob bypass + simulator scan root | S–M | Demonstrated bypass on **both** registries; `crates/simulator/src/legal_actions.rs` dispatches on 5 keywords outside `SCAN_ROOTS`. |
+| 21 | scutemob-76 | SR-21: Completeness gate bypassed by the script/replay path | M | replay-viewer + `build_initial_state` run games with no `start_game`; SR-12's "no silent bypass" claim is false for this path. |
+| 22 | scutemob-77 | SR-22: Script schema strictness (unknown keys, discovery asymmetry, dead init fields, PROPTEST_CASES) | M | Live evidence: `stack/135` carries a silently-ignored stray top-level `review_status`. |
+| 23 | scutemob-78 | SR-23: `lki_object` / `lki_object_snapshot` API collision + misdirecting assert text | S | SR-4×SR-13 interaction; assert text sends authors to the live getter at LKI sites. |
+| 24 | scutemob-79 | SR-24: Bound `capture_lki_snapshot` cost | S–M | Full layer eval per battlefield departure, unmeasured; measure before gating. Same axis as MR-M1-18/MR-M6-14. |
+| 25 | scutemob-80 | SR-25: Diagnostics ratchet + sweep `layers.rs` (45 bare lookups) / `commander.rs` (6) | M | SR-4/14 discipline has no anti-regression scan; two files were never swept. |
+| 26 | scutemob-81 | SR-26: `authoring-report.py` anti-rot + stale `project-status.md` Card Health | S–M | `Completeness::Partial(…)` direct spelling buckets as "clean"; zero tests on the tool that owns the campaign headline number. |
+| 27 | scutemob-82 | SR-27: Protocol version-bump enforcement + guard token-anchoring | S | Re-pin-without-bump passes today; `contains("Serialize")` matched by "Deserialize". |
+| 28 | scutemob-83 | SR-28: Tap-and-sacrifice mana sources read a dead object (CR 106.12a/b) | M | **Rules bug**, two sites (trigger filter + production replacement); the SR-14 left-open seed, now precise. Fix shape = SR-13 snapshot. |
+| 29 | scutemob-84 | SR-29: CR 616.1 batch — wrong chooser (owner≠controller), no 616.1f fixed point, `OrderReplacements` applies unvalidated ids | M–L | **Rules + M10 trust boundary.** Chooser fix and applicability check are shippable now; the rest lands with interactive choice. |
+| 30 | scutemob-85 | SR-30: Layers hygiene — re-attach doesn't re-timestamp effects (CR 613.7a); vacuous 613.8b test over dead code | S–M | Plus one decisions.md line for the 613.8 static-approximation scope. |
+| 31 | scutemob-86 | SR-31: Equivalence coverage ratchet (6 of 60+ command shapes) | S–M | Known-open from SR-9b, now tracked. |
+| 32 | scutemob-87 | SR-32: Hygiene batch — assert-blind release fuzzing, doc drift (PROTOCOL_VERSION 1→2 etc.), stack-edge flake, floating action refs | S | Bundle of confirmed LOWs; each named with file:line in the task. |
+
+Re-audit sequencing: SR-17 and SR-18 first (HIGH; SR-18 is an hour). SR-28 and the
+shippable half of SR-29 are the only *rules-correctness* bugs — do them before the
+authoring campaign leans further on mana triggers / replacement ordering. SR-21+SR-22
+touch the same script-harness files — do adjacently. SR-23 before any new `rules/`
+sweep (SR-25) so the sweep uses the corrected vocabulary.
 
 Order is a recommendation, not a dependency chain. Hard constraints only:
 
@@ -719,6 +750,63 @@ Task-specific extras:
 
 _One entry per session, newest first. Format:_
 `- YYYY-MM-DD — SR-<N> (scutemob-<id>) — <status: done / in progress / blocked> — <one-line outcome + hazards + pointer for next session>`
+
+- 2026-07-11 — **SR re-audit** (review only, no fixes) — **done** — Full senior-review pass against
+  the remediated baseline, same style as the 2026-07-10 review that created this track. **Method:**
+  five parallel agents — two adversarial gate-perturbation agents in isolated worktrees (engine gates;
+  test-infra gates), three read-only (remaining-process-guarantee hunt; 19-merge interaction review;
+  CR spot-audit of five rules subsystems via the mtg-rules MCP) — plus direct measurement. Every
+  perturbation asserted a non-empty diff before trusting a "survived" (SR-9a's lesson, applied).
+  **Outcome: 16 new tasks filed, SR-17..SR-32 (`scutemob-72`..`87`)** — see the re-audit inventory
+  table above. Highest-severity: `HASH_SCHEMA_VERSION` still has no fingerprint gate (SR-17, the
+  disease SR-8 named and cured only for the protocol); `tests/proptest-regressions/` is an ungoverned
+  auto-built test target where a stray `.rs` silently never compiles (SR-18, demonstrated); two
+  rules bugs found the SR-13 way — tap-and-sacrifice mana sources read a dead object at **two** sites
+  (SR-28, CR 106.12a/b; Zendikar Resurgent + Crystal Vein yields nothing, Caged Sun + Dwarven Ruins
+  misses +1, Treasures are the ubiquitous carrier; no test can pass today) and the CR 616.1
+  replacement-ordering chooser is the **owner**, not the controller, with no 616.1f fixed point on the
+  single-applicable Redirect path and `Command::OrderReplacements` applying unvalidated ids (SR-29 —
+  the M10 trust boundary). Demonstrated gate bypasses: registry scanners on **both** enums pass an
+  `use … as KA` / glob-import dispatch site green (SR-20); the invariant-9 completeness gate never
+  sees the replay/script path — replay-viewer runs whole games without `start_game` (SR-21); the
+  invariant-9 *script* gate walks two directory levels while `discover_scripts` recurses fully
+  (SR-22). In the wild: `stack/135_prototype_blitz_automaton.json` carries a silently-ignored stray
+  top-level `review_status: approved` beside the real `metadata.review_status: retired` — no
+  `deny_unknown_fields` anywhere in the schema (SR-22). Cross-merge interactions no solo review saw:
+  the SR-4 `lki_object()` (live read) vs SR-13 `lki_object_snapshot()` (real LKI) collision, with
+  `expect_object`'s assert text directing authors to the wrong one (SR-23); `capture_lki_snapshot`
+  runs a full layer evaluation on every battlefield departure, unmeasured (SR-24). Also: `rules/layers.rs`
+  has 45 unswept bare lookups and the diagnostics discipline has no ratchet (SR-25); `authoring-report.py`
+  buckets a `Completeness::Partial(…)` direct spelling as "clean" and has zero tests (SR-26);
+  re-pinning the protocol fingerprint without bumping `PROTOCOL_VERSION` passes (SR-27).
+  **Measurements (all SR-9a/SR-1 claims verified):** CI 12/12 green on 2026-07-10, 3m07s–4m59s per
+  run; cold `cargo test --all --no-run` 27 s / warm 12–13 s (`CARGO_INCREMENTAL=0`; claimed 24 s /
+  11.1 s); `target/` 2.2 GB exactly as claimed (the main tree carried 28 GB of *stale pre-SR-9a*
+  binaries, never rebuilt since — now cleaned); suite **3208 passed / 0 failed / 4 ignored**, 29
+  suites, ~8 s execution (note: 4 of those are the known `include!` double-count).
+  **Verified clean — do not re-falsify:** the GameState seal **holds** (no pub `&mut` surface outside
+  the cfg-gated block, no test-util enabler on any production edge, no Deref/interior-mutability
+  escape; live mutation probes in `crates/network` fail `build --workspace` *and* `check --workspace`;
+  the `--all-targets` unification caveat is real, as documented). The protocol fingerprint **holds**
+  against cfg_attr-wrapped serde attrs, `serde(default)`, `serde(with)`, and type-alias retargets;
+  doc comments correctly ignored; `Envelope` field pinning real. All five PendingTrigger attacks
+  (new field, hand literal, `Self` literal, deleted `resolution.rs` consumer, re-added
+  `#[serde(skip)]`) fail named assertions. SR-12's core gate is real (library cards scanned,
+  simulator/fuzzer/TUI all pass through `start_game`, opt-out has zero production callers). The
+  script partition gate **executes** approved scripts (falsified assertions redden the suite;
+  flipping a retired script to approved reddens two gates); all three `sorted_zone_entries` sites are
+  individually caught, and the private-hash half of `Fingerprint` is demonstrably load-bearing. All
+  11 workspace members carry workspace lints; CI has every claimed step incl. the toolchain
+  pin-verify. The 739-site CastSpell boxing is 100% clean (zero clones added, no double-boxing);
+  SR-9c's mass diff edited exactly one script's content (`stack/050`), as claimed; `lki_objects` is
+  bounded, hashed, and serialized (no SR-16-style resume hole); imbl/rand swaps clean; all
+  claimed allowlist dead-entry guards exist and bite. CR-verified correct: combat first/regular-strike
+  eligibility snapshots (702.4c/d), lifelink controller-at-damage-time (702.15a), trample-past-dead
+  -blockers (702.19d), deathtouch lethal=1 (702.2c), SBA fixed-point batch + 704.5f/g regeneration
+  split + 704.5q/u, self-replacements-first (614.15/616.1a), ETB pass loops to a true fixed point,
+  mana-ability CR 605 plumbing (Stony Silence reach, triggered-mana immediacy, Nyxbloom ruling).
+  **Next:** `/remedy` dispatches SR-17/SR-18 first, then SR-28 + the shippable half of SR-29 (rules
+  bugs) — full sequencing note under the re-audit inventory table.
 
 - 2026-07-10 — SR-16 (scutemob-68) — **done** (collected, merge `c93db34f`) — **Closes the SR
   remediation track (final task).** `PendingTrigger.{kind, data, embedded_effect}` were
