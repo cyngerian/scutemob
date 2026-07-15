@@ -751,6 +751,18 @@ Task-specific extras:
 _One entry per session, newest first. Format:_
 `- YYYY-MM-DD — SR-<N> (scutemob-<id>) — <status: done / in progress / blocked> — <one-line outcome + hazards + pointer for next session>`
 
+- 2026-07-14 — SR-19 (scutemob-74) — **done** (collected, merge `cd1801a1`) — The HashInto/struct
+  drift mechanism is closed: `every_hashed_struct_field_is_hashed_or_allowlisted`
+  (tests/core/hash_schema.rs) parses each named-field struct with a `HashInto` impl and asserts every
+  field is read as `self.<field>` or sits in a per-type `NOT_HASHED` allowlist with a dead-entry
+  guard. The `embedded_effect` asymmetry is gone — `PendingTrigger`'s impl now feeds
+  `embedded_effect.is_some()`, matching `StackObjectKind` — which changes the hash **stream**, so
+  `HASH_SCHEMA_VERSION` 39 → 40 per the checklist: sentinels updated, a v40 row appended to
+  `HASH_SCHEMA_HISTORY`, and both fingerprints re-pinned — **SR-17's gate forced exactly this
+  procedure on its first real bump, one session after landing.** Both false "Effect has no HashInto
+  impl" comments corrected. Hash gate suites verified green on main post-merge (40 tests).
+  **Next:** SR-21+SR-22 (scutemob-76/77) still in flight.
+
 - 2026-07-14 — SR-29 (scutemob-84) — **done** (collected, merge `b622ced4`) — CR 616.1 batch, all
   four parts. (1) **Chooser is now the controller** (owner fallback per CR 616.1) in
   `check_zone_change_replacement`, propagated to every interception site — with the correct
