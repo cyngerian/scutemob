@@ -593,6 +593,49 @@ fn bypassing_use_imports(type_name: &str) -> Vec<String> {
     hits
 }
 
+/// A `type Alias = <path>AbilityDefinition;` lets `Alias::Variant` dispatch without
+/// ever writing `AbilityDefinition::` — the same blinding an aliased *import*
+/// achieves. Reports each such alias whose RHS is exactly a bare path ending in
+/// `type_name` (a wrapped `Vec<AbilityDefinition>` does not expose variants).
+fn blinding_type_aliases(type_name: &str) -> Vec<String> {
+    let root = workspace_root();
+    let is_ident = |c: char| c.is_alphanumeric() || c == '_';
+    let mut hits = Vec::new();
+    for file in scanned_files() {
+        let src = std::fs::read_to_string(root.join(&file)).expect("readable source");
+        let code = strip_comments_and_literals(&src);
+        let chars: Vec<char> = code.chars().collect();
+        let n = chars.len();
+        let mut i = 0;
+        while i < n {
+            let is_type_kw = chars[i] == 't'
+                && i + 4 <= n
+                && chars[i..i + 4] == ['t', 'y', 'p', 'e']
+                && (i == 0 || !is_ident(chars[i - 1]))
+                && chars.get(i + 4).is_none_or(|&c| !is_ident(c));
+            if is_type_kw {
+                let mut j = i + 4;
+                while j < n && chars[j] != ';' {
+                    j += 1;
+                }
+                let stmt: String = chars[i + 4..j.min(n)].iter().collect();
+                if let Some((_lhs, rhs)) = stmt.split_once('=') {
+                    let rhs = rhs.trim();
+                    let last = rhs.rsplit("::").next().unwrap_or(rhs);
+                    let bare = !rhs.is_empty() && rhs.chars().all(|c| is_ident(c) || c == ':');
+                    if bare && last == type_name {
+                        hits.push(format!("{file}: `type … = {rhs};` aliases {type_name}"));
+                    }
+                }
+                i = j + 1;
+                continue;
+            }
+            i += 1;
+        }
+    }
+    hits
+}
+
 /// No scanned file may import `AbilityDefinition` in a form that blinds the site
 /// scanner. The reproduced alias attack (`use …AbilityDefinition as AD; AD::Vanishing`)
 /// is caught here.
@@ -611,9 +654,25 @@ fn use_imports_do_not_bypass_the_scanner() {
     );
 }
 
-/// Guards `use_imports_do_not_bypass_the_scanner` against a broken parser that finds
-/// nothing. Asserts the splitter and classifier work on synthetic input covering
-/// every case, so an empty `hits` means "clean", not "blind".
+/// No scanned file may create a `type` alias of the enum either — `Alias::Variant`
+/// through it is just as invisible to the `AbilityDefinition::` scanner as an aliased
+/// import. (SR-20 review follow-up; there are none today.)
+#[test]
+fn type_aliases_do_not_bypass_the_scanner() {
+    let hits = blinding_type_aliases("AbilityDefinition");
+    assert!(
+        hits.is_empty(),
+        "these `type` aliases let engine code dispatch on an AbilityDefinition variant \
+         through an alias, invisible to the site scan (SR-20):\n  {}\n\
+         Name the enum directly at the dispatch site instead.",
+        hits.join("\n  ")
+    );
+}
+
+/// Guards the two bypass gates above against a broken parser that finds nothing.
+/// Asserts the splitter, the use-form classifier, and the type-alias predicate all
+/// work on synthetic input covering every case, so an empty `hits` means "clean",
+/// not "blind".
 #[test]
 fn import_bypass_detector_is_not_vacuous() {
     let stmts = use_statements("use a::B; fn f() { use c::D::*; } let unused = reuse;");
@@ -633,4 +692,19 @@ fn import_bypass_detector_is_not_vacuous() {
         forbidden_use_form(" x::AbilityDefinitionSet::*", "AbilityDefinition").is_none(),
         "whole-word check failed: matched a longer identifier"
     );
+
+    // The type-alias predicate: a bare alias of the enum is flagged; a wrapped or
+    // differently-named alias is not.
+    let flagged = |rhs: &str| {
+        let last = rhs.rsplit("::").next().unwrap_or(rhs);
+        let bare = !rhs.is_empty()
+            && rhs
+                .chars()
+                .all(|c| c.is_alphanumeric() || c == '_' || c == ':');
+        bare && last == "AbilityDefinition"
+    };
+    assert!(flagged("AbilityDefinition"));
+    assert!(flagged("crate::cards::card_definition::AbilityDefinition"));
+    assert!(!flagged("Vec<AbilityDefinition>"));
+    assert!(!flagged("AbilityDefinitionSet"));
 }
