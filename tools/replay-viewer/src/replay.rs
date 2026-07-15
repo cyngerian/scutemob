@@ -70,6 +70,20 @@ impl ReplaySession {
     /// Each `process_command()` call produces a new `GameState` (im-rs clone is O(1)
     /// due to structural sharing), which is stored in the snapshot.
     pub fn from_script(script: &GameScript) -> Result<Self> {
+        // SR-21: this is the Architecture Invariant 9 **opt-out** on the replay
+        // path, and it is deliberate. The replay-viewer exists to step through the
+        // golden-script corpus, and ~20 approved scripts legitimately place cards
+        // whose `CardDefinition` is still marked non-`Complete` (Partial/KnownWrong)
+        // — Darksteel Colossus, Arcane Signet, Terminus, Leyline of the Void, … —
+        // because the script exercises one interaction while the campaign has yet
+        // to finish authoring an unrelated clause of the def. Routing through the
+        // checked builder (`build_initial_state_checked`) would refuse those
+        // fixtures and make the tool unable to view most of its own corpus.
+        //
+        // The point of SR-21 is that this bypass is no longer *silent*: it is the
+        // named, greppable `build_initial_state` (vs. `_checked`), documented as
+        // the opt-out. `no_approved_script_names_a_known_but_non_complete_card`
+        // was considered as a gate and rejected — the corpus does not satisfy it.
         let (initial_state, player_map) = build_initial_state(&script.initial_state);
 
         // Build reverse map: PlayerId → name.

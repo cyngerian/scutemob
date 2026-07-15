@@ -5,6 +5,7 @@
 //! `docs/sr-9a-test-consolidation.md`. `tests/no_stray_test_binaries.rs` fails
 //! the suite if a top-level `tests/*.rs` file reappears.
 
+mod completeness_gate;
 mod harness_equivalence;
 mod run_all_scripts;
 mod script_replay;

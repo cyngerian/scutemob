@@ -53,8 +53,8 @@ pub use state::{
     UpkeepCostKind, Zone, ZoneId, ZoneType,
 };
 pub use testing::replay_harness::{
-    build_initial_state, card_name_to_id, enrich_spec_from_def, parse_counter_type, parse_step,
-    translate_player_action,
+    build_initial_state, build_initial_state_checked, card_name_to_id, enrich_spec_from_def,
+    parse_counter_type, parse_step, translate_player_action,
 };
 
 // Test-only re-exports — not part of the runtime API.
