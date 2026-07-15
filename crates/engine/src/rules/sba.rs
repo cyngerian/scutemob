@@ -522,13 +522,14 @@ fn check_creature_sbas(
         // CR 702.89a: Check umbra armor -- only applies to destruction (not 704.5f zero-toughness).
         // Unlike regeneration, umbra armor does NOT tap the permanent or remove it from combat.
         // "Can't be regenerated" does NOT block umbra armor (separate mechanics -- ruling).
-        // TODO (CR 616.1): when both regeneration and umbra armor apply simultaneously, the
-        // controller should choose which to apply first. Currently regen is checked first.
+        // MR-SR29-02 (CR 616.1): when both regeneration and umbra armor apply
+        // simultaneously, the controller should choose which to apply first.
+        // Currently regen is checked first (deterministic; M10 interactive choice).
         if is_destruction {
             let auras = replacement::check_umbra_armor(state, id);
             if !auras.is_empty() {
                 // Auto-select the first Aura. When multiple apply, the controller should choose
-                // (CR 616.1). TODO: surface a NeedsChoice here for the multiple-Aura case.
+                // (CR 616.1) — MR-SR29-02, deferred to M10 interactive choice.
                 let aura_id = auras[0];
                 let umbra_events = replacement::apply_umbra_armor(state, id, aura_id);
                 events.extend(umbra_events);
@@ -893,8 +894,9 @@ fn check_saga_sbas(state: &mut GameState) -> Vec<GameEvent> {
 /// CR 704.5j: If a player controls two or more legendary permanents with the
 /// same name, that player keeps one and the rest go to their owners' graveyards.
 ///
-/// Auto-choice policy (M4): keep the permanent with the highest ObjectId
-/// (most recently entered the battlefield). Real player choice is M7+.
+/// Auto-choice policy: keep the permanent with the highest ObjectId (most recently
+/// entered the battlefield). Real player choice (the controller chooses which to
+/// keep, CR 704.5j) is deferred to M10 interactive choice — tracked as MR-SR29-01.
 fn check_legendary_rule(state: &mut GameState) -> Vec<GameEvent> {
     let mut events = Vec::new();
     // Gather all legendary battlefield permanents, grouped by (controller, name).

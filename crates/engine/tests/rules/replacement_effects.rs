@@ -742,9 +742,14 @@ fn test_determine_action_multiple_non_self_needs_choice() {
 // ── OrderReplacements command routing ──
 
 #[test]
-/// CR 616.1 — OrderReplacements command emits ReplacementEffectApplied
-/// Source: M8 Session 2 command routing
+/// CR 616.1 — OrderReplacements applied to a genuine pending choice emits
+/// ReplacementEffectApplied for the chosen ID and records it in history.
+/// Source: M8 Session 2 command routing; SR-29 rewrote this to route through a
+/// real pending zone change (the old no-pending "controls an effect" path was the
+/// trust hole closed by SR-29 F4).
 fn test_order_replacements_command_emits_applied_event() {
+    // Two competing graveyard replacements on a real dying creature owned+controlled
+    // by PlayerId(1), so PlayerId(1) is the CR 616.1 chooser of the pending event.
     let eff1 = sample_zone_change_replacement(0, PlayerId(1));
     let eff2 = ReplacementEffect {
         id: ReplacementId(1),
@@ -760,11 +765,29 @@ fn test_order_replacements_command_emits_applied_event() {
         modification: ReplacementModification::RedirectToZone(ZoneType::Command),
     };
 
-    let state = GameStateBuilder::four_player()
+    let mut state = GameStateBuilder::four_player()
+        .object(ObjectSpec::creature(PlayerId(1), "Creature", 2, 2))
         .with_replacement_effect(eff1)
         .with_replacement_effect(eff2)
         .build()
         .unwrap();
+
+    let creature_id = state
+        .objects_in_zone(&ZoneId::Battlefield)
+        .first()
+        .unwrap()
+        .id;
+    // A genuine pending choice for PlayerId(1) (Battlefield -> Graveyard).
+    use mtg_engine::state::replacement_effect::PendingZoneChange;
+    state
+        .pending_zone_changes_mut()
+        .push_back(PendingZoneChange {
+            object_id: creature_id,
+            original_from: ZoneType::Battlefield,
+            original_destination: ZoneType::Graveyard,
+            affected_player: PlayerId(1),
+            already_applied: Vec::new(),
+        });
 
     let (new_state, events) = mtg_engine::process_command(
         state,
@@ -775,7 +798,7 @@ fn test_order_replacements_command_emits_applied_event() {
     )
     .unwrap();
 
-    // Should emit ReplacementEffectApplied for the first ID
+    // Should emit ReplacementEffectApplied for the first (chosen) ID.
     let applied = events.iter().find(|e| {
         matches!(e, GameEvent::ReplacementEffectApplied { effect_id, .. } if *effect_id == ReplacementId(1))
     });
@@ -4347,5 +4370,430 @@ fn test_mr_m8_16_stale_replacement_effect_gc_on_leave() {
     assert!(
         state.replacement_effects().is_empty(),
         "MR-M8-16: stale WhileSourceOnBattlefield effect must be removed when its source leaves"
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SR-29 — CR 616.1 chooser identity, 616.1f fixed point, OrderReplacements
+//         trust boundary.
+// ═══════════════════════════════════════════════════════════════════════════
+
+#[test]
+/// CR 616.1 — the affected object's *controller* (owner-fallback), not its owner,
+/// chooses the replacement order. With a control change (Act of Treason class) and
+/// two competing replacements, the emitted choice and the pending entry name the
+/// controller, not the owner.
+/// Source: SR-29 F2.
+fn test_cr616_1_chooser_is_controller_after_control_change() {
+    use mtg_engine::effects::{execute_effect, EffectContext};
+    use mtg_engine::state::test_util;
+    use mtg_engine::{CardEffectTarget, Effect, SpellTarget, Target};
+
+    let owner = PlayerId(1);
+    let controller = PlayerId(3); // Act of Treason: control taken by another player.
+
+    // Two competing Battlefield -> Graveyard redirects so the die produces a choice.
+    let effect_a = ReplacementEffect {
+        id: ReplacementId(0),
+        source: None,
+        controller: PlayerId(2),
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldChangeZone {
+            from: None,
+            to: ZoneType::Graveyard,
+            filter: ObjectFilter::Any,
+        },
+        modification: ReplacementModification::RedirectToZone(ZoneType::Exile),
+    };
+    let effect_b = ReplacementEffect {
+        id: ReplacementId(1),
+        source: None,
+        controller: PlayerId(4),
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldChangeZone {
+            from: None,
+            to: ZoneType::Graveyard,
+            filter: ObjectFilter::Any,
+        },
+        modification: ReplacementModification::RedirectToZone(ZoneType::Exile),
+    };
+
+    let mut state = GameStateBuilder::four_player()
+        .object(ObjectSpec::creature(owner, "Creature", 4, 4))
+        .with_replacement_effect(effect_a)
+        .with_replacement_effect(effect_b)
+        .build()
+        .unwrap();
+
+    let creature_id = state
+        .objects_in_zone(&ZoneId::Battlefield)
+        .first()
+        .unwrap()
+        .id;
+    // Apply the control change: controller != owner.
+    test_util::object_mut(&mut state, creature_id)
+        .unwrap()
+        .controller = controller;
+    assert_ne!(
+        state.object(creature_id).unwrap().owner,
+        state.object(creature_id).unwrap().controller,
+        "precondition: owner and controller must differ for this test to be meaningful"
+    );
+
+    // Destroy it (cast by yet another player) so the zone-change interception fires.
+    let effect = Effect::DestroyPermanent {
+        target: CardEffectTarget::DeclaredTarget { index: 0 },
+        cant_be_regenerated: false,
+    };
+    let mut ctx = EffectContext::new(
+        PlayerId(2),
+        ObjectId(999),
+        vec![SpellTarget {
+            target: Target::Object(creature_id),
+            zone_at_cast: Some(ZoneId::Battlefield),
+        }],
+    );
+    let events = execute_effect(&mut state, &effect, &mut ctx);
+
+    // CR 616.1: the choice must be offered to the controller, not the owner.
+    let choice = events.iter().find_map(|e| match e {
+        GameEvent::ReplacementChoiceRequired { player, .. } => Some(*player),
+        _ => None,
+    });
+    assert_eq!(
+        choice,
+        Some(controller),
+        "CR 616.1: the controller (not the owner) must choose the replacement order"
+    );
+    let pending = state.pending_zone_changes();
+    assert_eq!(pending.len(), 1, "a PendingZoneChange should exist");
+    assert_eq!(
+        pending.front().unwrap().affected_player,
+        controller,
+        "CR 616.1: the pending choice belongs to the controller, not the owner"
+    );
+}
+
+#[test]
+/// CR 616.1f — after a replacement is applied, the process repeats against the
+/// *modified* event until none apply. A two-hop single-applicable redirect chain
+/// (Graveyard -> Exile -> Library) settles at the fixed point with a single move to
+/// the final zone; the object never lands in the intermediate zones.
+/// Source: SR-29 F3.
+fn test_cr616_1f_two_hop_single_applicable_chain_reaches_fixed_point() {
+    use mtg_engine::effects::{execute_effect, EffectContext};
+    use mtg_engine::{CardEffectTarget, Effect, SpellTarget, Target};
+
+    let owner = PlayerId(1);
+
+    // Hop 1: Battlefield -> Graveyard is redirected to Exile.
+    let hop1 = ReplacementEffect {
+        id: ReplacementId(0),
+        source: None,
+        controller: PlayerId(2),
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldChangeZone {
+            from: None,
+            to: ZoneType::Graveyard,
+            filter: ObjectFilter::Any,
+        },
+        modification: ReplacementModification::RedirectToZone(ZoneType::Exile),
+    };
+    // Hop 2: the modified "... -> Exile" event is itself redirected to Library.
+    let hop2 = ReplacementEffect {
+        id: ReplacementId(1),
+        source: None,
+        controller: PlayerId(2),
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldChangeZone {
+            from: None,
+            to: ZoneType::Exile,
+            filter: ObjectFilter::Any,
+        },
+        modification: ReplacementModification::RedirectToZone(ZoneType::Library),
+    };
+
+    let mut state = GameStateBuilder::four_player()
+        .object(ObjectSpec::creature(owner, "Creature", 4, 4))
+        .with_replacement_effect(hop1)
+        .with_replacement_effect(hop2)
+        .build()
+        .unwrap();
+
+    let creature_id = state
+        .objects_in_zone(&ZoneId::Battlefield)
+        .first()
+        .unwrap()
+        .id;
+
+    let effect = Effect::DestroyPermanent {
+        target: CardEffectTarget::DeclaredTarget { index: 0 },
+        cant_be_regenerated: false,
+    };
+    let mut ctx = EffectContext::new(
+        PlayerId(2),
+        ObjectId(999),
+        vec![SpellTarget {
+            target: Target::Object(creature_id),
+            zone_at_cast: Some(ZoneId::Battlefield),
+        }],
+    );
+    let events = execute_effect(&mut state, &effect, &mut ctx);
+
+    // Single-applicable at every hop → no choice was ever required.
+    assert!(
+        !events
+            .iter()
+            .any(|e| matches!(e, GameEvent::ReplacementChoiceRequired { .. })),
+        "CR 616.1f: a single-applicable chain must resolve without a choice"
+    );
+    // Both redirects were applied.
+    let applied: Vec<ReplacementId> = events
+        .iter()
+        .filter_map(|e| match e {
+            GameEvent::ReplacementEffectApplied { effect_id, .. } => Some(*effect_id),
+            _ => None,
+        })
+        .collect();
+    assert!(
+        applied.contains(&ReplacementId(0)) && applied.contains(&ReplacementId(1)),
+        "CR 616.1f: both hops of the chain must be applied (got {:?})",
+        applied
+    );
+    // The object settled in the owner's library — the fixed point — and passed
+    // through neither the graveyard nor exile. (CR 400.7: the moved object is a new
+    // object with a fresh id, so assert on the destination zone's occupancy, not on
+    // the pre-move `creature_id`.)
+    assert_eq!(
+        state.objects_in_zone(&ZoneId::Library(owner)).len(),
+        1,
+        "CR 616.1f: object must end at the fixed-point destination (owner's library)"
+    );
+    assert!(
+        state.objects_in_zone(&ZoneId::Graveyard(owner)).is_empty(),
+        "CR 616.1f: object must not land in the intermediate graveyard zone"
+    );
+    assert!(
+        state.objects_in_zone(&ZoneId::Exile).is_empty(),
+        "CR 616.1f: object must not land in the intermediate exile zone"
+    );
+    assert!(
+        state.pending_zone_changes().is_empty(),
+        "no pending choice should remain after a single-applicable chain"
+    );
+}
+
+/// Helper: build a state with a real pending Battlefield->Graveyard choice for
+/// PlayerId(1) plus one applicable and one inapplicable registered replacement.
+/// Returns (state, applicable_id, inapplicable_id).
+fn pending_choice_fixture() -> (mtg_engine::GameState, ReplacementId, ReplacementId) {
+    use mtg_engine::state::replacement_effect::PendingZoneChange;
+
+    let applicable = ReplacementEffect {
+        id: ReplacementId(0),
+        source: None,
+        controller: PlayerId(1),
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldChangeZone {
+            from: Some(ZoneType::Battlefield),
+            to: ZoneType::Graveyard,
+            filter: ObjectFilter::Any,
+        },
+        modification: ReplacementModification::RedirectToZone(ZoneType::Exile),
+    };
+    // Not applicable to a Battlefield -> Graveyard event: it only matches -> Exile.
+    let inapplicable = ReplacementEffect {
+        id: ReplacementId(1),
+        source: None,
+        controller: PlayerId(1),
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldChangeZone {
+            from: Some(ZoneType::Battlefield),
+            to: ZoneType::Exile,
+            filter: ObjectFilter::Any,
+        },
+        modification: ReplacementModification::RedirectToZone(ZoneType::Library),
+    };
+
+    let mut state = GameStateBuilder::four_player()
+        .object(ObjectSpec::creature(PlayerId(1), "Creature", 2, 2))
+        .with_replacement_effect(applicable.clone())
+        .with_replacement_effect(inapplicable.clone())
+        .build()
+        .unwrap();
+    let creature_id = state
+        .objects_in_zone(&ZoneId::Battlefield)
+        .first()
+        .unwrap()
+        .id;
+    state
+        .pending_zone_changes_mut()
+        .push_back(PendingZoneChange {
+            object_id: creature_id,
+            original_from: ZoneType::Battlefield,
+            original_destination: ZoneType::Graveyard,
+            affected_player: PlayerId(1),
+            already_applied: Vec::new(),
+        });
+    (state, ReplacementId(0), ReplacementId(1))
+}
+
+#[test]
+/// CR 616.1 — OrderReplacements rejects an id that is not applicable to the named
+/// pending event, even though it is a registered replacement effect (the SR-29 F4
+/// trust boundary: existence is not applicability).
+/// Source: SR-29 F4.
+fn test_order_replacements_rejects_inapplicable_id() {
+    let (state, applicable_id, inapplicable_id) = pending_choice_fixture();
+
+    // Ordering the inapplicable (but registered) id must be rejected.
+    let err = mtg_engine::process_command(
+        state.clone(),
+        Command::OrderReplacements {
+            player: PlayerId(1),
+            ids: vec![inapplicable_id],
+        },
+    );
+    assert!(
+        err.is_err(),
+        "CR 616.1: an id not applicable to the pending event must be rejected"
+    );
+
+    // Mixing an applicable id with an inapplicable one is still rejected.
+    let err_mixed = mtg_engine::process_command(
+        state.clone(),
+        Command::OrderReplacements {
+            player: PlayerId(1),
+            ids: vec![applicable_id, inapplicable_id],
+        },
+    );
+    assert!(
+        err_mixed.is_err(),
+        "CR 616.1: any inapplicable id in the order must be rejected"
+    );
+
+    // The applicable id alone succeeds — the gate is not over-rejecting.
+    let ok = mtg_engine::process_command(
+        state,
+        Command::OrderReplacements {
+            player: PlayerId(1),
+            ids: vec![applicable_id],
+        },
+    );
+    assert!(
+        ok.is_ok(),
+        "CR 616.1: an applicable id from the affected player must be accepted"
+    );
+}
+
+#[test]
+/// CR 616.1 — OrderReplacements rejects a sender who is not the affected chooser of
+/// the pending event, even when the id itself is applicable.
+/// Source: SR-29 F4.
+fn test_order_replacements_rejects_non_affected_sender() {
+    let (state, applicable_id, _inapplicable_id) = pending_choice_fixture();
+
+    // PlayerId(2) is not the affected player of the pending choice (PlayerId(1) is).
+    let err = mtg_engine::process_command(
+        state,
+        Command::OrderReplacements {
+            player: PlayerId(2),
+            ids: vec![applicable_id],
+        },
+    );
+    assert!(
+        err.is_err(),
+        "CR 616.1: only the affected chooser of the pending event may order it"
+    );
+}
+
+#[test]
+/// CR 616.1 / 400.6 — the chooser is the controller but the destination zone is the
+/// *owner's*. With a control change, resolving a pending choice must land the object
+/// in the owner's library, not the controller's. Pins that the owner/chooser split
+/// keeps destinations owner-scoped end-to-end (through resolve_pending_zone_change).
+/// Source: SR-29 F2 (owner/chooser separation).
+fn test_pending_resolution_uses_owner_zone_not_controller_zone() {
+    use mtg_engine::state::replacement_effect::PendingZoneChange;
+    use mtg_engine::state::test_util;
+
+    let owner = PlayerId(1);
+    let controller = PlayerId(3); // Act of Treason: control taken.
+
+    // Two competing Battlefield -> Graveyard redirects into the (owner's) library, so
+    // whichever the chooser picks the destination is a per-player zone.
+    let repl = |id: u64, ctrl: PlayerId| ReplacementEffect {
+        id: ReplacementId(id),
+        source: None,
+        controller: ctrl,
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldChangeZone {
+            from: Some(ZoneType::Battlefield),
+            to: ZoneType::Graveyard,
+            filter: ObjectFilter::Any,
+        },
+        modification: ReplacementModification::RedirectToZone(ZoneType::Library),
+    };
+
+    let mut state = GameStateBuilder::four_player()
+        .object(ObjectSpec::creature(owner, "Creature", 2, 2))
+        .with_replacement_effect(repl(0, PlayerId(2)))
+        .with_replacement_effect(repl(1, PlayerId(4)))
+        .build()
+        .unwrap();
+
+    let creature_id = state
+        .objects_in_zone(&ZoneId::Battlefield)
+        .first()
+        .unwrap()
+        .id;
+    // Control change: controller != owner.
+    test_util::object_mut(&mut state, creature_id)
+        .unwrap()
+        .controller = controller;
+
+    // The choice belongs to the controller (CR 616.1) — record the pending for them.
+    state
+        .pending_zone_changes_mut()
+        .push_back(PendingZoneChange {
+            object_id: creature_id,
+            original_from: ZoneType::Battlefield,
+            original_destination: ZoneType::Graveyard,
+            affected_player: controller,
+            already_applied: Vec::new(),
+        });
+
+    // The controller orders the replacements.
+    let (state, _events) = mtg_engine::process_command(
+        state,
+        Command::OrderReplacements {
+            player: controller,
+            ids: vec![ReplacementId(0)],
+        },
+    )
+    .unwrap();
+
+    // CR 400.6: the object goes to its OWNER's library, never the controller's.
+    assert_eq!(
+        state.objects_in_zone(&ZoneId::Library(owner)).len(),
+        1,
+        "object must land in the owner's library"
+    );
+    assert!(
+        state
+            .objects_in_zone(&ZoneId::Library(controller))
+            .is_empty(),
+        "object must NOT land in the controller's library"
+    );
+    assert!(
+        state.pending_zone_changes().is_empty(),
+        "the pending choice must be consumed"
     );
 }
