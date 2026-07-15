@@ -751,6 +751,20 @@ Task-specific extras:
 _One entry per session, newest first. Format:_
 `- YYYY-MM-DD — SR-<N> (scutemob-<id>) — <status: done / in progress / blocked> — <one-line outcome + hazards + pointer for next session>`
 
+- 2026-07-14 — SR-28 (scutemob-83) — **done** (collected, merge `b77d4210`) — Tap-and-sacrifice
+  mana sources: both filters now read a pre-cost snapshot instead of a dead ObjectId. The source's
+  layer-resolved characteristics are captured in `handle_tap_for_mana` **before** the sacrifice cost
+  is paid (SR-13 shape, but a local snapshot threaded through the function — `GameState` did not
+  grow, so no `HASH_SCHEMA_VERSION` movement), and threaded into `apply_mana_production_replacements`
+  (AnyLand arm, CR 106.12b — Caged Sun now applies to a sacrificed land) and `mana_source_matches`
+  (Land/LandSubtype/Creature/AnyPermanent arms, CR 106.12a — `WhenTappedForMana` now fires for
+  Crystal Vein / Dwarven Ruins / Treasure-class sources). Both new tests adversarially confirmed to
+  fail pre-fix. The trigger-side controller-scope gap (`fire_mana_triggered_abilities` scopes to
+  `o.controller == player`; Vernal Bloom / Mana Flare class will mis-scope) recorded in
+  `memory/gotchas-rules.md` beside the PB-Q3 replacement note per criterion 3. **Gates:** worker
+  attested full suite + clippy + fmt + build --workspace; CI green on the merge is the confirming
+  gate. **Next:** SR-17 (scutemob-72) and SR-18+SR-20 (scutemob-73/75) still in flight this session.
+
 - 2026-07-11 — **SR re-audit** (review only, no fixes) — **done** — Full senior-review pass against
   the remediated baseline, same style as the 2026-07-10 review that created this track. **Method:**
   five parallel agents — two adversarial gate-perturbation agents in isolated worktrees (engine gates;
