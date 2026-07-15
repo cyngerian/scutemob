@@ -1,6 +1,6 @@
 # SR-9a — Integration-test consolidation
 
-<!-- last_updated: 2026-07-10 -->
+<!-- last_updated: 2026-07-14 -->
 
 > **Read this before adding a test file under `crates/engine/tests/`.**
 > The one-line rule: **never create a top-level `tests/*.rs`.** Put the file in a
@@ -137,7 +137,7 @@ count drops from 316 to 29, which is the whole point.
 ## The gate
 
 `tests/no_stray_test_binaries.rs` is the only top-level test file, and it exists
-to keep itself the only one. Five tests:
+to keep itself the only one. Eight tests (five original, three added by SR-18):
 
 - `no_top_level_test_binaries` — any `tests/*.rs` other than the gate fails.
   Re-fragmentation happens one file at a time and is otherwise invisible.
@@ -159,9 +159,30 @@ to keep itself the only one. Five tests:
   on purpose.
 - `group_dirs_are_flat` — the declaration check reads one directory level, so a
   file at `tests/<group>/sub/foo.rs` would be invisible to it.
+- `auto_built_targets_match_expected` (SR-18) — enumerates the targets Cargo will
+  *actually* build (every top-level `*.rs`, plus every subdir with a `main.rs`)
+  and pins that set to `EXPECTED_GROUPS + ALLOWED_TOP_LEVEL`. The group-existence
+  check filters `NON_GROUP_DIRS` out before comparing; this admits no exemptions,
+  so an exempted dir that grows a `main.rs` — a real, ungoverned target — fails
+  here.
+- `exempt_dirs_contain_no_rust_files` (SR-18) — a `.rs` dropped in an exempted dir
+  (`proptest-regressions/`) is never compiled (the dir has no `main.rs`) and never
+  seen by the group checks. Its tests silently do not exist. Forbidden.
+- `no_module_level_cfg_in_group_files` (SR-18) — a module-level `#![cfg(...)]`
+  inner attribute anywhere in a group *module* file compiles the enclosing module
+  out, deleting every test in it, while the file stays present and `mod`-declared.
+  `main.rs` content was already constrained; this constrains the module files. The
+  detector strips comments and string/char literals and tokenises `# ! [ cfg` with
+  arbitrary interior whitespace, so a block comment (`/* x */ #![cfg…]`) or a spaced
+  form (`# ![cfg…]`) — both valid Rust that a first `split("//")` version missed,
+  per the SR review — cannot hide it. `#![cfg_attr(…)]` matches too; non-deleting
+  inner attributes (`#![allow(…)]`, `proptest!`'s `#![proptest_config(…)]`) do not.
+  `module_cfg_detector_catches_obfuscations_and_spares_legit` pins both directions.
 
-The last two exist because the first review of this change went looking for ways
-to satisfy the gate while still doing the bad thing, and found three.
+The last two of the original five exist because the first review of this change
+went looking for ways to satisfy the gate while still doing the bad thing, and
+found three. The three SR-18 additions come from a 2026-07-11 re-audit that found
+three more the same way.
 
 ### Demonstrated, not assumed
 
@@ -201,9 +222,12 @@ pointed at*), the omissions, deliberately:
 - **`[[test]]` sections in `Cargo.toml`.** Cargo's `autotests` discovery is what
   the gate models. Hand-declaring a test target bypasses it entirely. Nobody has,
   and the manifest is short enough to read.
-- **Anything *inside* a module file.** A `#[cfg(…)]` on the tests within
-  `combat_harness.rs`, or a `#[test]` deleted outright, is out of scope for a
-  structural gate. That is what review and the test count are for.
+- **Per-test `#[cfg]` / deletions *inside* a module file.** A `#[cfg(…)]` on a
+  single `#[test]` within `combat_harness.rs`, or a `#[test]` deleted outright, is
+  out of scope for a structural gate — that is what review and the test count are
+  for. SR-18 does cover the whole-module case (`no_module_level_cfg_in_group_files`
+  catches a module-level `#![cfg(...)]`, which would delete *every* test in the
+  file at once); the residue left uncovered is the per-item form.
 - **Group *membership*.** Nothing stops someone dropping a keyword test into
   `core/`. The gate checks that every file is compiled, not that it is filed
   sensibly. A taste question, left to review.
