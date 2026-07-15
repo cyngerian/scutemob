@@ -772,7 +772,11 @@ fn test_order_replacements_command_emits_applied_event() {
         .build()
         .unwrap();
 
-    let creature_id = state.objects_in_zone(&ZoneId::Battlefield).first().unwrap().id;
+    let creature_id = state
+        .objects_in_zone(&ZoneId::Battlefield)
+        .first()
+        .unwrap()
+        .id;
     // A genuine pending choice for PlayerId(1) (Battlefield -> Graveyard).
     use mtg_engine::state::replacement_effect::PendingZoneChange;
     state
@@ -4423,9 +4427,15 @@ fn test_cr616_1_chooser_is_controller_after_control_change() {
         .build()
         .unwrap();
 
-    let creature_id = state.objects_in_zone(&ZoneId::Battlefield).first().unwrap().id;
+    let creature_id = state
+        .objects_in_zone(&ZoneId::Battlefield)
+        .first()
+        .unwrap()
+        .id;
     // Apply the control change: controller != owner.
-    test_util::object_mut(&mut state, creature_id).unwrap().controller = controller;
+    test_util::object_mut(&mut state, creature_id)
+        .unwrap()
+        .controller = controller;
     assert_ne!(
         state.object(creature_id).unwrap().owner,
         state.object(creature_id).unwrap().controller,
@@ -4514,7 +4524,11 @@ fn test_cr616_1f_two_hop_single_applicable_chain_reaches_fixed_point() {
         .build()
         .unwrap();
 
-    let creature_id = state.objects_in_zone(&ZoneId::Battlefield).first().unwrap().id;
+    let creature_id = state
+        .objects_in_zone(&ZoneId::Battlefield)
+        .first()
+        .unwrap()
+        .id;
 
     let effect = Effect::DestroyPermanent {
         target: CardEffectTarget::DeclaredTarget { index: 0 },
@@ -4613,7 +4627,11 @@ fn pending_choice_fixture() -> (mtg_engine::GameState, ReplacementId, Replacemen
         .with_replacement_effect(inapplicable.clone())
         .build()
         .unwrap();
-    let creature_id = state.objects_in_zone(&ZoneId::Battlefield).first().unwrap().id;
+    let creature_id = state
+        .objects_in_zone(&ZoneId::Battlefield)
+        .first()
+        .unwrap()
+        .id;
     state
         .pending_zone_changes_mut()
         .push_back(PendingZoneChange {

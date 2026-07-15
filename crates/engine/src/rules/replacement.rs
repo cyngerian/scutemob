@@ -174,8 +174,7 @@ pub fn handle_order_replacements(
     // taking into account replacements already applied in this chain. Reconstruct
     // the pending event's trigger and consult `find_applicable`.
     let pending = &state.pending_zone_changes[pending_idx];
-    let already_applied: HashSet<ReplacementId> =
-        pending.already_applied.iter().copied().collect();
+    let already_applied: HashSet<ReplacementId> = pending.already_applied.iter().copied().collect();
     let event_trigger = ReplacementTrigger::WouldChangeZone {
         from: Some(pending.original_from),
         to: pending.original_destination,
@@ -796,7 +795,10 @@ pub fn check_zone_change_replacement(
             filter: ObjectFilter::SpecificObject(object_id),
         };
         let applicable = find_applicable(state, &trigger, &applied);
-        let description = format!("{:?} would move from {:?} to {:?}", object_id, from, current_to);
+        let description = format!(
+            "{:?} would move from {:?} to {:?}",
+            object_id, from, current_to
+        );
         let id = match determine_action(state, &applicable, chooser, &description) {
             ReplacementResult::NoApplicable => {
                 return finish_zone_redirect(current_to, owner, acc_events, first_applied);
