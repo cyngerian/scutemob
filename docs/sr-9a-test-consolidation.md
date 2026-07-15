@@ -169,11 +169,15 @@ to keep itself the only one. Eight tests (five original, three added by SR-18):
   (`proptest-regressions/`) is never compiled (the dir has no `main.rs`) and never
   seen by the group checks. Its tests silently do not exist. Forbidden.
 - `no_module_level_cfg_in_group_files` (SR-18) — a module-level `#![cfg(...)]`
-  inner attribute at the top of a group *module* file compiles the whole module
+  inner attribute anywhere in a group *module* file compiles the enclosing module
   out, deleting every test in it, while the file stays present and `mod`-declared.
-  `main.rs` content was already constrained; this constrains the module files.
-  (`#![cfg` also catches `#![cfg_attr(`; non-deleting inner attributes such as
-  `#![allow(...)]` or `proptest!`'s `#![proptest_config(...)]` are left alone.)
+  `main.rs` content was already constrained; this constrains the module files. The
+  detector strips comments and string/char literals and tokenises `# ! [ cfg` with
+  arbitrary interior whitespace, so a block comment (`/* x */ #![cfg…]`) or a spaced
+  form (`# ![cfg…]`) — both valid Rust that a first `split("//")` version missed,
+  per the SR review — cannot hide it. `#![cfg_attr(…)]` matches too; non-deleting
+  inner attributes (`#![allow(…)]`, `proptest!`'s `#![proptest_config(…)]`) do not.
+  `module_cfg_detector_catches_obfuscations_and_spares_legit` pins both directions.
 
 The last two of the original five exist because the first review of this change
 went looking for ways to satisfy the gate while still doing the bad thing, and

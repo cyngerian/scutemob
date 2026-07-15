@@ -327,40 +327,182 @@ fn exempt_dirs_contain_no_rust_files() {
     }
 }
 
-/// A module-level `#![cfg(...)]` inner attribute at the top of a group module file
-/// compiles the entire module out — deleting every test it contains — while the
+/// Blank out `//` line comments, `/* */` (nesting) block comments, and string/char
+/// literals so a later scan cannot be fooled by a `#![cfg` hidden in prose or a
+/// string. Blanks in place (newlines survive), so lengths and non-blanked positions
+/// are preserved. Same proven shape as the registry tests' stripper.
+fn strip_comments_and_literals(src: &str) -> String {
+    let b: Vec<char> = src.chars().collect();
+    let mut out: Vec<char> = b.clone();
+    let n = b.len();
+    let blank = |out: &mut Vec<char>, from: usize, to: usize, b: &[char]| {
+        for (k, slot) in out.iter_mut().enumerate().take(to).skip(from) {
+            if b[k] != '\n' {
+                *slot = ' ';
+            }
+        }
+    };
+    let mut i = 0;
+    while i < n {
+        let c = b[i];
+        if c == '/' && i + 1 < n && b[i + 1] == '/' {
+            let mut j = i;
+            while j < n && b[j] != '\n' {
+                j += 1;
+            }
+            blank(&mut out, i, j, &b);
+            i = j;
+        } else if c == '/' && i + 1 < n && b[i + 1] == '*' {
+            let mut depth = 1;
+            let mut j = i + 2;
+            while j < n && depth > 0 {
+                if b[j] == '/' && j + 1 < n && b[j + 1] == '*' {
+                    depth += 1;
+                    j += 2;
+                } else if b[j] == '*' && j + 1 < n && b[j + 1] == '/' {
+                    depth -= 1;
+                    j += 2;
+                } else {
+                    j += 1;
+                }
+            }
+            blank(&mut out, i, j, &b);
+            i = j;
+        } else if c == '"' {
+            let mut j = i + 1;
+            while j < n {
+                if b[j] == '\\' {
+                    j += 2;
+                    continue;
+                }
+                if b[j] == '"' {
+                    j += 1;
+                    break;
+                }
+                j += 1;
+            }
+            blank(&mut out, i, j.min(n), &b);
+            i = j;
+        } else if c == '\'' {
+            if i + 2 < n && b[i + 1] == '\\' {
+                let mut j = i + 2;
+                while j < n && b[j] != '\'' {
+                    j += 1;
+                }
+                blank(&mut out, i, (j + 1).min(n), &b);
+                i = j + 1;
+            } else if i + 2 < n && b[i + 2] == '\'' {
+                blank(&mut out, i, i + 3, &b);
+                i += 3;
+            } else {
+                i += 1;
+            }
+        } else {
+            i += 1;
+        }
+    }
+    out.into_iter().collect()
+}
+
+/// True if the (already comment/literal-stripped) `code` contains a module-level
+/// conditional-compilation inner attribute — `#![cfg(...)]` or `#![cfg_attr(...)]`.
+///
+/// Rust tokenizes `#`, `!`, `[` separately, so arbitrary whitespace may sit between
+/// them and before `cfg` (`# ! [ cfg ( … )]` is valid and compiles the module out
+/// just the same). This walks tokens rather than matching a fixed prefix, so those
+/// obfuscations do not slip through. `#[cfg…]` (outer — no `!`) and non-`cfg` inner
+/// attributes (`#![allow…]`, `proptest!`'s `#![proptest_config…]`) do not match.
+fn has_module_cfg_attr(code: &str) -> bool {
+    let chars: Vec<char> = code.chars().collect();
+    let n = chars.len();
+    let skip_ws = |mut k: usize| {
+        while k < n && chars[k].is_whitespace() {
+            k += 1;
+        }
+        k
+    };
+    let mut i = 0;
+    while i < n {
+        if chars[i] == '#' {
+            let k = skip_ws(i + 1);
+            if k < n && chars[k] == '!' {
+                let k = skip_ws(k + 1);
+                if k < n && chars[k] == '[' {
+                    let k = skip_ws(k + 1);
+                    if k + 3 <= n && chars[k..k + 3] == ['c', 'f', 'g'] {
+                        return true;
+                    }
+                }
+            }
+        }
+        i += 1;
+    }
+    false
+}
+
+/// A module-level `#![cfg(...)]` inner attribute anywhere in a group module file
+/// compiles the enclosing module out — deleting every test it contains — while the
 /// file still exists and is `mod`-declared, so
 /// `every_module_file_is_declared_in_its_group` stays green. `main.rs` content is
 /// already constrained to bare `mod x;` lines; this extends that guarantee to the
 /// module files themselves.
 ///
-/// The prefix `#![cfg` also catches `#![cfg_attr(`, the other conditional-
-/// compilation inner attribute. Non-deleting inner attributes are left alone: an
-/// `#![allow(...)]`, or the `proptest!`-internal `#![proptest_config(...)]` that
-/// `scripts/harness_equivalence.rs` uses, does not begin `#![cfg`. If a genuinely
-/// feature-gated test module is ever needed, record it as an accepted residual in
-/// `docs/sr-9a-test-consolidation.md` and exempt it here — do not just delete this
-/// test.
+/// The detector is comment/literal- and whitespace-aware (`has_module_cfg_attr` over
+/// `strip_comments_and_literals`) so a block comment, a string, or interior
+/// whitespace cannot hide the attribute. `#![cfg_attr(...)]` matches too. Non-cfg
+/// inner attributes — `#![allow(...)]`, the `proptest!`-internal
+/// `#![proptest_config(...)]` in `scripts/harness_equivalence.rs` — are left alone.
+/// If a genuinely feature-gated test module is ever needed, record it as an accepted
+/// residual in `docs/sr-9a-test-consolidation.md` and exempt it here — do not just
+/// delete this test.
 #[test]
 fn no_module_level_cfg_in_group_files() {
     for group in EXPECTED_GROUPS {
         for module in module_files(group) {
             let file = tests_dir().join(group).join(format!("{module}.rs"));
             let src = fs::read_to_string(&file).expect("readable module file");
-            for raw in src.lines() {
-                // Strip a trailing line comment, then check the code prefix. An
-                // inner attribute opens its line; a `//`/`//!` comment or a `/*`
-                // block does not begin `#![cfg`, so prose is not flagged.
-                let code = raw.split("//").next().unwrap_or("").trim();
-                assert!(
-                    !code.starts_with("#![cfg"),
-                    "tests/{group}/{module}.rs has a module-level conditional-\
-                     compilation attribute (`{code}`). It compiles the module out and \
-                     silently deletes its tests. Remove it; if a gated module is \
-                     genuinely needed, record it as an accepted residual in \
-                     docs/sr-9a-test-consolidation.md and exempt it here."
-                );
-            }
+            let code = strip_comments_and_literals(&src);
+            assert!(
+                !has_module_cfg_attr(&code),
+                "tests/{group}/{module}.rs has a module-level conditional-compilation \
+                 inner attribute (`#![cfg...]`). It compiles the module out and silently \
+                 deletes its tests. Remove it; if a gated module is genuinely needed, \
+                 record it as an accepted residual in docs/sr-9a-test-consolidation.md \
+                 and exempt it here."
+            );
         }
+    }
+}
+
+/// Guards `no_module_level_cfg_in_group_files` against a detector that is too weak
+/// (misses an obfuscated attack — the SR-track review found `split("//")` missed a
+/// block comment and interior whitespace) or too eager (flags a legit inner
+/// attribute or a string). Every case a real file could present is pinned here.
+#[test]
+fn module_cfg_detector_catches_obfuscations_and_spares_legit() {
+    // All four compile the module out; all four must be caught.
+    for attack in [
+        "#![cfg(any())]\nfn t() {}",
+        "# ! [ cfg (any())]\nfn t() {}", // whitespace between tokens
+        "/* hi */ #![cfg(any())]\nfn t() {}", // block comment before it
+        "#![cfg_attr(any(), allow(dead_code))]\nfn t() {}",
+    ] {
+        assert!(
+            has_module_cfg_attr(&strip_comments_and_literals(attack)),
+            "detector missed: {attack:?}"
+        );
+    }
+    // None of these delete tests; none may be flagged.
+    for ok in [
+        "#![allow(dead_code)]\nfn t() {}",
+        "    #![proptest_config(ProptestConfig::with_cases(96))]",
+        "let s = \"#![cfg(any())]\";",  // string literal
+        "// #![cfg(any())]\nfn t() {}", // line comment
+        "#[cfg(test)] mod inner {}",    // outer attr — no `!`
+    ] {
+        assert!(
+            !has_module_cfg_attr(&strip_comments_and_literals(ok)),
+            "detector false-positive: {ok:?}"
+        );
     }
 }

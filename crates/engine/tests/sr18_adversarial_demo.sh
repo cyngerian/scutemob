@@ -50,17 +50,24 @@ assert_changed "$REG/main.rs"
 expect_caught auto_built_targets_match_expected "main.rs in exempted dir"
 rm -rf "$REG"
 
-# --- Attack 3: module-level #![cfg(any())] deletes a whole module's tests ------
+# --- Attack 3a/b/c: module-level #![cfg] deletes a whole module's tests ---------
+# Three forms, all valid Rust that compiles the module out: the plain attribute, an
+# interior-whitespace form (`# ! [ cfg`), and one hidden behind a block comment. The
+# comment/whitespace-aware detector must catch all three (an SR review found the
+# earlier split("//") form missed the latter two).
 TARGET="$TESTS/combat/additional_combat.rs"
-note "Attack 3: module-level #![cfg(any())] in a group module file"
-printf '#![cfg(any())]\n%s' "$(cat "$TARGET")" > "$TARGET.tmp" && mv "$TARGET.tmp" "$TARGET"
-if git diff --quiet -- "$TARGET"; then
-  echo "  ATTACK NO-OP: $TARGET unchanged (attack proves nothing)"; fail=$((fail+1))
-else
-  echo "  attack changed a file: $TARGET"
-fi
-expect_caught no_module_level_cfg_in_group_files "#![cfg(any())] in a module file"
-git checkout -- "$TARGET"
+ORIG="$(cat "$TARGET")"
+for form in '#![cfg(any())]' '# ! [ cfg (any())]' '/* off */ #![cfg(any())]'; do
+  note "Attack 3: module-level cfg attribute -> $form"
+  printf '%s\n%s' "$form" "$ORIG" > "$TARGET"
+  if git diff --quiet -- "$TARGET"; then
+    echo "  ATTACK NO-OP: $TARGET unchanged (attack proves nothing)"; fail=$((fail+1))
+  else
+    echo "  attack changed a file: $TARGET"
+  fi
+  expect_caught no_module_level_cfg_in_group_files "cfg form: $form"
+  git checkout -- "$TARGET"
+done
 
 note "SR-18 demo result: $pass caught / $fail problems"
 [ "$fail" -eq 0 ] && echo "ALL ATTACKS CAUGHT" || echo "SOME ATTACKS SURVIVED"
