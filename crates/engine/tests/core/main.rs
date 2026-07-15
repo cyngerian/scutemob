@@ -15,6 +15,7 @@ mod concede;
 mod corner_case_gaps;
 mod deck_validation;
 mod emblem_tests;
+mod hash_schema;
 mod invariants;
 mod keyword_registry;
 mod object_identity;
