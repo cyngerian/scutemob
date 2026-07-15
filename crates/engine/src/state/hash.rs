@@ -191,8 +191,10 @@
 ///   source object changes zones (CR 400.7 — e.g. a creature that dies from
 ///   the same combat damage that triggered its Enrage ability). The hash arm
 ///   folds in `embedded_effect.is_some()` (mirrors `StackObjectKind::ActivatedAbility`:
-///   `Effect` has no `HashInto` impl, presence is sufficient for divergence
-///   detection). Backward compatible via `#[serde(default)] None`.
+///   presence is sufficient for divergence detection — the effect is a copy of the
+///   source ability's, redundant with `source_object` + `ability_index`). Backward
+///   compatible via `#[serde(default)] None`. (SR-19 corrected the original claim
+///   here that `Effect` has no `HashInto` impl — it does; see entry 40.)
 /// - 26: PB-LS6 (2026-05-15) — two new `Effect` variants (`DestroyAndReanimate`
 ///   discriminant 85, `PreventNextUntap` discriminant 86) + new `GameObject` field
 ///   `skip_untap_steps: u32` hashed at end of `HashInto for GameObject`. Covers
@@ -346,7 +348,28 @@
 ///   `data` were already fed to `HashInto` and `embedded_effect` still is not — so a
 ///   state hashes to the same fingerprint as before; the bump is because the serde
 ///   wire format changed and a `ReplayLog` from older code carries the lossy shape.
-pub const HASH_SCHEMA_VERSION: u8 = 39;
+/// - 40: SR-19 (2026-07-14) — two `HashInto` byte-stream additions that close
+///   divergence-detection blind spots surfaced by the new field-coverage gate
+///   (`tests/core/hash_schema.rs::every_hashed_struct_field_is_hashed_or_allowlisted`):
+///   (1) `PendingTrigger` now feeds `embedded_effect.is_some()`, closing the
+///   asymmetry with `StackObjectKind::{Activated,Triggered}Ability` (which already
+///   fed it) — two states differing only in whether a pending trigger captured its
+///   CR 400.7 effect no longer hash identically; (2) `StackObject` now feeds
+///   `cast_from_top_with_bonus` (PB-A), an outcome-affecting flag read at
+///   `resolution.rs` to grant Haste, whose hashed siblings `was_dashed`/`was_blitzed`
+///   /`was_warped` were fed but it was not (same class as SR-7's silently-unhashed
+///   haunt fields). No serde-shape change and no discriminant renumbering, so old
+///   serialized states still deserialize; the bump is a HashInto byte-stream change.
+///   SR-17 fingerprints for the v40 row: the `decl_fingerprint` is unchanged from 39
+///   (no struct *declaration* moved, only two `HashInto` bodies), but the
+///   `stream_fingerprint` moves — `public_state_hash` folds `HASH_SCHEMA_VERSION` in
+///   as its first byte, so every bump shifts the stream digest, which is how the
+///   SR-17 stream gate forces the append. Note the canonical fixture populates
+///   neither `pending_triggers` nor `stack_objects` (its documented coverage cap),
+///   so the two *new feeds* are not themselves exercised by the digest; the bump is
+///   mandatory regardless per the checklist above (any change to what `HashInto`
+///   feeds bumps).
+pub const HASH_SCHEMA_VERSION: u8 = 40;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -408,13 +431,35 @@ pub struct HashSchemaEpoch {
 /// (baseline) row against its own frozen constants and pins a digest of the whole
 /// frozen prefix, so a re-pin of a shipped row *without* a version bump fails the
 /// suite — the point the plain sentinels could not make.
-pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[HashSchemaEpoch {
-    version: 39,
-    // SR-17 (2026-07-14): initial fingerprints. Baseline of the two-axis gate;
-    // the shape/stream they pin is whatever HASH_SCHEMA_VERSION 39 already was.
-    decl_fingerprint: "9398dee6d2338d30b7c4bf02f769d8f3654b10ccd9ee38fd0afdcf11223b5419",
-    stream_fingerprint: "4f335df79a80bbd3b3bbafe14b223cfdeb5c479a6e037eefafd29f0c5d635976",
-}];
+pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
+    HashSchemaEpoch {
+        version: 39,
+        // SR-17 (2026-07-14): initial fingerprints. Baseline of the two-axis gate;
+        // the shape/stream they pin is whatever HASH_SCHEMA_VERSION 39 already was.
+        decl_fingerprint: "9398dee6d2338d30b7c4bf02f769d8f3654b10ccd9ee38fd0afdcf11223b5419",
+        stream_fingerprint: "4f335df79a80bbd3b3bbafe14b223cfdeb5c479a6e037eefafd29f0c5d635976",
+    },
+    HashSchemaEpoch {
+        version: 40,
+        // SR-19 (2026-07-14): PendingTrigger.embedded_effect.is_some() +
+        // StackObject.cast_from_top_with_bonus added to their HashInto streams (see
+        // the `- 40:` History line above).
+        //
+        // decl_fingerprint is UNCHANGED from 39 — neither struct *declaration*
+        // moved; only their `HashInto` bodies did.
+        //
+        // stream_fingerprint MOVES (4f335d… → 0f29fd…) even though the canonical
+        // fixture populates neither pending_triggers nor stack_objects (its
+        // documented coverage cap, so the two new feeds are not themselves
+        // exercised): `public_state_hash` folds `HASH_SCHEMA_VERSION` in as its
+        // first byte, so every bump shifts the stream digest by construction. That
+        // is the mechanism by which the SR-17 stream gate forces this row on any
+        // bump. A future fixture that populated those zones would additionally
+        // attribute part of the move to the new feeds themselves.
+        decl_fingerprint: "9398dee6d2338d30b7c4bf02f769d8f3654b10ccd9ee38fd0afdcf11223b5419",
+        stream_fingerprint: "0f29fd405c5c2d062a06ecffec69dcbf2fe31c77063a801fb50b63be8c9ff621",
+    },
+];
 
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
@@ -2537,6 +2582,17 @@ impl HashInto for PendingTrigger {
         // Each was unconditionally `None`; their state lives in `data` below.
         // Structured trigger data (TC-21 migration; sole payload since SR-7)
         self.data.hash_into(hasher);
+        // SR-19 (2026-07-14): the captured triggered-ability effect (CR 400.7 LKI
+        // copy). Hash its *presence*, mirroring `StackObjectKind::TriggeredAbility`
+        // / `ActivatedAbility` (which `flush_pending_triggers` threads it into) so
+        // the two agree: before this, `PendingTrigger` fed zero bits of
+        // `embedded_effect` while the stack object fed `is_some()`, and two states
+        // differing only in whether a pending trigger had captured its effect
+        // hashed identically. `Effect` does implement `HashInto` (see below), so the
+        // full content could be hashed; presence suffices for divergence detection
+        // because the effect is a copy of the source ability's, redundant with
+        // `source` + `ability_index`.
+        self.embedded_effect.is_some().hash_into(hasher);
         // CR 510.3a: combat damage trigger data
         self.damaged_player.hash_into(hasher);
         self.combat_damage_amount.hash_into(hasher);
@@ -3056,8 +3112,13 @@ impl HashInto for StackObjectKind {
                 source_object.hash_into(hasher);
                 ability_index.hash_into(hasher);
                 is_carddef_etb.hash_into(hasher);
-                // MR-B12-04: mirror ActivatedAbility — hash effect presence, not content
-                // (Effect has no HashInto impl; presence is enough for state divergence).
+                // MR-B12-04 / SR-19: mirror ActivatedAbility and PendingTrigger — hash
+                // the effect's *presence*, not its content. `Effect` DOES implement
+                // `HashInto` (see `impl HashInto for Effect` below; `ForecastAbility`
+                // hashes the full effect), so content-hashing is possible; presence
+                // suffices here because the embedded effect is a copy of the source
+                // ability's, redundant with `source_object` + `ability_index` for
+                // divergence detection.
                 embedded_effect.is_some().hash_into(hasher);
             }
             // MadnessTrigger (discriminant 6) — CR 702.35a
@@ -3393,6 +3454,14 @@ impl HashInto for StackObject {
         self.was_dashed.hash_into(hasher);
         // Blitz (CR 702.152a) — alternative cost paid; haste + draw-on-death + sacrifice trigger
         self.was_blitzed.hash_into(hasher);
+        // PB-A / SR-19 (2026-07-14): spell cast from library top via a permission with
+        // an on_cast_effect; resolution.rs grants Haste to the resulting permanent (the
+        // doc comment says "pattern mirrors was_dashed / was_blitzed", yet this flag —
+        // unlike both siblings above — was omitted from the hash). Two states differing
+        // only in this outcome-affecting flag hashed identically until now; surfaced by
+        // the SR-19 field-coverage gate on its first run (same failure class as SR-7's
+        // silently-unhashed haunt fields).
+        self.cast_from_top_with_bonus.hash_into(hasher);
         // Warp (CR 702.185a) — alternative cost paid; end-step delayed trigger exiles the
         // permanent, recastable from exile on a later turn (PB-AC5 H1 fix — was omitted).
         self.was_warped.hash_into(hasher);
