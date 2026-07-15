@@ -751,6 +751,29 @@ Task-specific extras:
 _One entry per session, newest first. Format:_
 `- YYYY-MM-DD — SR-<N> (scutemob-<id>) — <status: done / in progress / blocked> — <one-line outcome + hazards + pointer for next session>`
 
+- 2026-07-14 — SR-21 + SR-22 (scutemob-76/77, paired in one worktree) — **done** (collected, merge
+  `b0c8e815`) — **SR-21**: `build_initial_state_checked` runs `check_all_defs_complete` (the same
+  check as `start_game`); the plain builder is now the *named, greppable* opt-out — and the
+  replay-viewer deliberately stays on it, with an in-place justification: **~20 approved scripts
+  legitimately place non-Complete cards** (Darksteel Colossus, Arcane Signet, Terminus, …) because a
+  script exercises one interaction while an unrelated clause is unauthored; a
+  `no_approved_script_names_a_known_but_non_complete_card` gate was considered and rejected — the
+  corpus does not satisfy it. The false "no silent bypass" doc claim is replaced by an entry-path
+  table in `rules/engine.rs`. Gate adversarially verified (`tests/scripts/completeness_gate.rs`:
+  checked refuses, opt-out accepts identical script, unknown card_id still passes). **SR-22**:
+  `deny_unknown_fields` on 15 spine structs — which immediately flushed a **second** latent offender
+  (`stack/006`) beyond the audit's `stack/135`; 3 leaf structs documented-permissive (dead template
+  keys, corpus-migration follow-up). Definitions gate now consumes `discover_scripts`' full
+  recursion (the nested-script attack reddens it). `unread_init_fields.rs` gates the 6
+  declared-but-unread fields (`priority` allowlisted with dead-entry guard; `stack/004`'s dead
+  `summoning_sick` cleaned). The equivalence proptest asserts ≥96 cases via a hand-rolled
+  TestRunner + AtomicU32 — **immune to `PROPTEST_CASES`**, verified. The `include!` double-compile
+  is gone (sibling `use`); scripts target 30 → 33 tests (−4 dedup, +7 gates). **This completes
+  round 2 of the re-audit remediation (SR-19, SR-21, SR-22, SR-29 — all done 2026-07-14; rounds 1+2
+  = 8 of 16 re-audit tasks done).** **Next:** remaining backlog — SR-23/24 (LKI naming + capture
+  cost), SR-25 (diagnostics ratchet), SR-26 (authoring-report), SR-27 (protocol bump enforcement),
+  SR-30/31/32 (hygiene).
+
 - 2026-07-14 — SR-19 (scutemob-74) — **done** (collected, merge `cd1801a1`) — The HashInto/struct
   drift mechanism is closed: `every_hashed_struct_field_is_hashed_or_allowlisted`
   (tests/core/hash_schema.rs) parses each named-field struct with a `HashInto` impl and asserts every
