@@ -179,8 +179,11 @@ const BASELINE_STREAM_FINGERPRINT: &str =
 // tail.
 //
 // **FROZEN — do not edit except by appending to `HASH_SCHEMA_HISTORY`.**
+// SR-19 (2026-07-14): re-pinned on the 39→40 bump — version 39 became a
+// superseded row and joined the frozen prefix. Its bytes (the v39 fingerprints)
+// are unchanged; the digest moved only because the prefix gained a member.
 const FROZEN_HISTORY_PREFIX_DIGEST: &str =
-    "52ba8cf18b4ad98113fd4c886dfa94d1483c20cc661eec15ec891e5881dcd4ed";
+    "4180049194a1901311837a6f643b8f143c75b472fd3726e4fd62dbaaba071338";
 
 /// The workspace root: `crates/engine/` is two levels down from it.
 fn workspace_root() -> PathBuf {
@@ -1187,8 +1190,414 @@ fn frozen_prefix_is_pinned() {
 #[test]
 fn hash_schema_version_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 39,
+        HASH_SCHEMA_VERSION, 40,
         "HASH_SCHEMA_VERSION changed. Update this sentinel, append a HASH_SCHEMA_HISTORY row with \
          the new fingerprints, and add a `- N:` History line in state/hash.rs."
     );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// SR-19: HashInto-vs-struct field-coverage gate
+// ════════════════════════════════════════════════════════════════════════════
+//
+// SR-17 (above) pins *that the hash schema hasn't drifted*; it does not check
+// *that a struct's `HashInto` impl covers every field the struct declares*. Those
+// are different holes. SR-7 gotcha 5 named this one precisely: "When you remove
+// fields from a `HashInto` impl, diff the impl against the struct rather than
+// assuming they agree; nothing enforces that they do" — the two `haunt_*` fields
+// were fed to the hasher by nobody for a long time, harmless only because they
+// were always `None`. A field that *is* live (like `PendingTrigger.embedded_effect`
+// or `StackObject.cast_from_top_with_bonus`, both closed by SR-19) creates a
+// desync-detection blind spot: two genuinely-different game states hash identically
+// because the distinguishing field never reaches the hasher.
+//
+// This gate parses each `pub struct` under the scan roots that has an
+// `impl HashInto for <T>` in `state/hash.rs`, and asserts every declared field is
+// either read as `self.<field>` in that impl body OR listed in the per-type
+// `NOT_HASHED` allowlist. A dead-entry guard keeps the allowlist honest: every
+// `NOT_HASHED` entry must name a real declared field that is *genuinely absent*
+// from the body, so an entry cannot be used to wave a field through that is in fact
+// hashed (or does not exist). Per the SR track rule ("assert the denominator"),
+// every derived set has a non-vacuity floor.
+//
+// Scope: this gate covers the per-type `HashInto` *struct* impls (which uniformly
+// read `self.<field>` — verified: none destructure). It does NOT cover:
+//   - enum `HashInto` impls (they match on variants, not fields) — those remain
+//     covered by the SR-17 declaration digest (a new variant moves `decl_fingerprint`);
+//   - `GameState`'s own `public_state_hash` / `private_state_hash`, which select
+//     fields deliberately (public omits hidden zones) rather than hashing all of
+//     them — covered by the SR-17 decl + stream digests, not by a "every field is
+//     hashed" rule (which would be wrong for it).
+
+/// `(type, field)` pairs deliberately NOT fed to that type's `HashInto`.
+///
+/// Each entry must name a real declared field of a named-field struct that has a
+/// `HashInto` impl, and that field must be genuinely absent from the impl body
+/// (`not_hashed_allowlist_has_no_dead_entries` enforces both — a stale or bogus
+/// entry fails the build).
+///
+/// **Empty today**: every field of every hashed struct is fed to `HashInto`. SR-19
+/// closed the last two gaps (`PendingTrigger.embedded_effect`,
+/// `StackObject.cast_from_top_with_bonus`) by hashing them rather than allowlisting
+/// them — both affect resolution, so excluding them would be a real blind spot, not
+/// a benign omission. The mechanism exists for a *future* field with a sound reason
+/// to be excluded (pure runtime scratch, or a value fully derived from other hashed
+/// fields); such a field lands here with a one-line rationale instead of silently
+/// dropping out of the hash.
+const NOT_HASHED: &[(&str, &str)] = &[];
+
+/// Hashed structs that MUST be covered by the intersection, or a scanner lost them.
+/// (The two largest impls plus the SR-19 fix sites.)
+const COVERAGE_MUST_INCLUDE: [&str; 6] = [
+    "PendingTrigger",
+    "StackObject",
+    "GameObject",
+    "PlayerState",
+    "Characteristics",
+    "TurnState",
+];
+
+/// Non-vacuity floors. Deliberately well below the real counts.
+const MIN_HASHINTO_IMPLS: usize = 80;
+const MIN_NAMED_STRUCTS: usize = 60;
+const MIN_COVERED_STRUCTS: usize = 30;
+const MIN_FIELDS_CHECKED: usize = 200;
+
+fn hash_rs_path() -> PathBuf {
+    workspace_root().join("crates/engine/src/state/hash.rs")
+}
+
+/// Bodies of every `impl HashInto for <T> { ... }` in `state/hash.rs`, keyed by the
+/// exact type token as written (bare names for struct impls; Rust forbids duplicate
+/// inherent/trait impls of the same type, so bare-name keys are collision-free, and
+/// a path-qualified enum impl like `crate::…::GiftType` is simply a different key
+/// that no struct-name lookup hits). Generic blanket impls (`impl<T> HashInto for …`)
+/// are skipped: the needle is the non-generic `impl HashInto for ` form.
+fn hashinto_impl_bodies() -> BTreeMap<String, String> {
+    let raw = std::fs::read_to_string(hash_rs_path()).expect("readable hash.rs");
+    let src = strip_comments(&raw);
+    let b = src.as_bytes();
+    let needle = "impl HashInto for ";
+    let mut out: BTreeMap<String, String> = BTreeMap::new();
+    let mut from = 0;
+    while let Some(rel) = src[from..].find(needle) {
+        let at = from + rel;
+        from = at + needle.len();
+        let after = at + needle.len();
+        let ty: String = src[after..]
+            .chars()
+            .take_while(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == ':')
+            .collect();
+        if ty.is_empty() {
+            continue;
+        }
+        // Walk to the impl's opening brace, tolerating a generic-arg suffix on the
+        // type (`Option<T>` etc.) but not a `for`-loop or string before it. In
+        // practice every struct impl here is `impl HashInto for Name {`.
+        let mut j = after + ty.len();
+        while j < b.len() && b[j] != b'{' && b[j] != b';' {
+            j += 1;
+        }
+        if j >= b.len() || b[j] != b'{' {
+            continue;
+        }
+        let end = match_delim(b, j, b'{', b'}');
+        // First writer wins; bare-name impls are unique so this never discards a
+        // struct impl.
+        out.entry(ty).or_insert_with(|| src[j..end].to_string());
+        from = end;
+    }
+    out
+}
+
+/// Every named-field `pub struct` under the scan roots → its declared field names,
+/// in declaration order. Tuple structs, unit structs, and enums are excluded (they
+/// have no named fields for a "field is hashed" rule to apply to).
+fn named_field_structs() -> BTreeMap<String, Vec<String>> {
+    let root = workspace_root();
+    let mut out: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for scan_root in SCAN_ROOTS {
+        let mut files = Vec::new();
+        walk(&root.join(scan_root), &mut files);
+        files.sort();
+        for file in files {
+            let raw = std::fs::read_to_string(&file).expect("readable source");
+            let src = strip_comments(&raw);
+            let b = src.as_bytes();
+            let kw = "pub struct ";
+            let mut from = 0;
+            while let Some(rel) = src[from..].find(kw) {
+                let at = from + rel;
+                from = at + kw.len();
+                if at > 0 && (b[at - 1].is_ascii_alphanumeric() || b[at - 1] == b'_') {
+                    continue;
+                }
+                let after = at + kw.len();
+                let name: String = src[after..]
+                    .chars()
+                    .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+                    .collect();
+                if name.is_empty() {
+                    continue;
+                }
+                // Find the body delimiter. `{` = named struct (what we want); `(` =
+                // tuple struct; `;` = unit struct — both skipped. A generic
+                // parameter list `<…>` or `where` clause contains no `{`/`(`/`;`, so
+                // we scan through it to the real body brace.
+                let mut j = after + name.len();
+                while j < b.len() && b[j] != b'{' && b[j] != b'(' && b[j] != b';' {
+                    j += 1;
+                }
+                if j >= b.len() || b[j] != b'{' {
+                    continue;
+                }
+                let end = match_delim(b, j, b'{', b'}');
+                let body = strip_attributes(&src[j + 1..end - 1]);
+                out.entry(name).or_insert_with(|| struct_field_names(&body));
+                from = end;
+            }
+        }
+    }
+    out
+}
+
+/// Field names of a struct body (attributes + comments already stripped): the
+/// identifier immediately before each top-level `:`.
+fn struct_field_names(body: &str) -> Vec<String> {
+    let b = body.as_bytes();
+    let n = b.len();
+    // Split into field segments at depth-0 commas.
+    let mut segs: Vec<&str> = Vec::new();
+    let mut depth = 0i32;
+    let mut seg_start = 0usize;
+    let mut i = 0;
+    while i < n {
+        if let Some(len) = literal_len(b, i) {
+            i += len;
+            continue;
+        }
+        match b[i] {
+            b'<' | b'(' | b'[' | b'{' => depth += 1,
+            b'>' | b')' | b']' | b'}' => depth -= 1,
+            b',' if depth == 0 => {
+                segs.push(&body[seg_start..i]);
+                seg_start = i + 1;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    segs.push(&body[seg_start..]);
+
+    let mut fields = Vec::new();
+    for seg in segs {
+        let sb = seg.as_bytes();
+        let m = sb.len();
+        let mut d = 0i32;
+        let mut k = 0usize;
+        let mut colon = None;
+        while k < m {
+            if let Some(len) = literal_len(sb, k) {
+                k += len;
+                continue;
+            }
+            match sb[k] {
+                b'<' | b'(' | b'[' | b'{' => d += 1,
+                b'>' | b')' | b']' | b'}' => d -= 1,
+                b':' if d == 0 && sb.get(k + 1) != Some(&b':') && (k == 0 || sb[k - 1] != b':') => {
+                    colon = Some(k);
+                    break;
+                }
+                _ => {}
+            }
+            k += 1;
+        }
+        let Some(c) = colon else { continue };
+        let mut e = c;
+        while e > 0 && sb[e - 1].is_ascii_whitespace() {
+            e -= 1;
+        }
+        let mut s = e;
+        while s > 0 && (sb[s - 1].is_ascii_alphanumeric() || sb[s - 1] == b'_') {
+            s -= 1;
+        }
+        let name = &seg[s..e];
+        if !name.is_empty() && name != "pub" {
+            fields.push(name.to_string());
+        }
+    }
+    fields
+}
+
+/// True iff `body` reads `self.<field>` as a whole token (so field `source` does
+/// not match `self.source_object`, and `myself.x` does not match field `x`).
+fn body_references_field(body: &str, field: &str) -> bool {
+    let needle = format!("self.{field}");
+    let b = body.as_bytes();
+    let mut from = 0;
+    while let Some(rel) = body[from..].find(&needle) {
+        let at = from + rel;
+        let after = at + needle.len();
+        let ok_after = b
+            .get(after)
+            .is_none_or(|c| !(c.is_ascii_alphanumeric() || *c == b'_'));
+        let ok_before = at == 0 || !(b[at - 1].is_ascii_alphanumeric() || b[at - 1] == b'_');
+        if ok_after && ok_before {
+            return true;
+        }
+        from = at + 1;
+    }
+    false
+}
+
+/// Non-vacuity: both scanners found a real codebase, the well-known impls resolve,
+/// and the field-reference matcher has working positive and negative controls.
+/// Without this, a broken parser makes the whole gate pass over the empty set.
+#[test]
+fn coverage_scanners_are_not_vacuous() {
+    let bodies = hashinto_impl_bodies();
+    let structs = named_field_structs();
+
+    assert!(
+        bodies.len() >= MIN_HASHINTO_IMPLS,
+        "found only {} `impl HashInto for` blocks in hash.rs; the impl scanner is broken (expected >= {})",
+        bodies.len(),
+        MIN_HASHINTO_IMPLS
+    );
+    assert!(
+        structs.len() >= MIN_NAMED_STRUCTS,
+        "found only {} named-field pub structs under the scan roots; the struct scanner is broken (expected >= {})",
+        structs.len(),
+        MIN_NAMED_STRUCTS
+    );
+
+    for req in COVERAGE_MUST_INCLUDE {
+        let fields = structs.get(req).unwrap_or_else(|| {
+            panic!("`{req}` not found by named_field_structs — the struct scanner lost a well-known type")
+        });
+        assert!(
+            !fields.is_empty(),
+            "`{req}` was parsed with zero fields — struct_field_names is broken"
+        );
+        assert!(
+            bodies.contains_key(req),
+            "`{req}` has no `impl HashInto for {req}` body — the impl scanner keyed it wrong \
+             (a path-qualified struct impl would slip past the bare-name lookup)"
+        );
+    }
+
+    // Field-reference matcher controls.
+    let pt = bodies.get("PendingTrigger").expect("PendingTrigger impl");
+    assert!(
+        body_references_field(pt, "source"),
+        "positive control failed: PendingTrigger hashes self.source"
+    );
+    assert!(
+        !body_references_field(pt, "no_such_field_zzz"),
+        "negative control failed: matched a non-existent field"
+    );
+    // Token-boundary control: `source` must not match `self.source_object`.
+    assert!(
+        !body_references_field("self.source_object.hash_into(hasher);", "source"),
+        "token-boundary control failed: field `source` matched `self.source_object`"
+    );
+
+    // The two SR-19 fixes are actually in place.
+    assert!(
+        body_references_field(pt, "embedded_effect"),
+        "SR-19: PendingTrigger must now hash embedded_effect"
+    );
+    assert!(
+        body_references_field(
+            bodies.get("StackObject").expect("StackObject impl"),
+            "cast_from_top_with_bonus"
+        ),
+        "SR-19: StackObject must now hash cast_from_top_with_bonus"
+    );
+}
+
+/// **AC 4526.** Every field of every hashed struct is fed to that struct's
+/// `HashInto`, or is on the `NOT_HASHED` allowlist. A field silently dropped from a
+/// `HashInto` impl (the SR-7 haunt-field failure mode) fails here.
+#[test]
+fn every_hashed_struct_field_is_hashed_or_allowlisted() {
+    let bodies = hashinto_impl_bodies();
+    let structs = named_field_structs();
+    let allow: BTreeSet<(&str, &str)> = NOT_HASHED.iter().copied().collect();
+
+    let mut covered = 0usize;
+    let mut fields_checked = 0usize;
+    let mut violations: Vec<String> = Vec::new();
+
+    for (ty, fields) in &structs {
+        let Some(body) = bodies.get(ty) else {
+            continue; // struct without a HashInto impl — out of this gate's scope
+        };
+        covered += 1;
+        for f in fields {
+            fields_checked += 1;
+            if body_references_field(body, f) {
+                continue;
+            }
+            if allow.contains(&(ty.as_str(), f.as_str())) {
+                continue;
+            }
+            violations.push(format!("{ty}.{f}"));
+        }
+    }
+
+    assert!(
+        violations.is_empty(),
+        "\n\nThese struct fields are declared but never fed to their type's `HashInto` impl, and \
+         are not on the NOT_HASHED allowlist:\n  {}\n\n\
+         Two independent game states differing only in such a field hash IDENTICALLY, so \
+         distributed-verification / replay divergence-detection is blind to it (SR-7 gotcha 5). \
+         For each: either add `self.<field>.hash_into(hasher)` to the impl (and bump \
+         HASH_SCHEMA_VERSION per the state/hash.rs checklist — it changes the byte stream), or, if \
+         the field is genuinely not game state (pure runtime scratch, or fully derived from other \
+         hashed fields), add it to NOT_HASHED with a one-line rationale.\n",
+        violations.join("\n  ")
+    );
+
+    // Denominators, so a scanner that returned nothing cannot pass this vacuously.
+    assert!(
+        covered >= MIN_COVERED_STRUCTS,
+        "only {covered} hashed structs were checked (expected >= {MIN_COVERED_STRUCTS}); the \
+         struct/impl intersection is empty or nearly so — a scanner broke"
+    );
+    assert!(
+        fields_checked >= MIN_FIELDS_CHECKED,
+        "only {fields_checked} fields were checked across all hashed structs (expected >= \
+         {MIN_FIELDS_CHECKED}); struct_field_names is under-counting"
+    );
+}
+
+/// The `NOT_HASHED` allowlist is honest: every entry names a real declared field of
+/// a hashed struct that is genuinely absent from the impl body. A dead entry (wrong
+/// type, wrong field, or a field that is actually hashed) fails here, so the
+/// allowlist can never be used to wave through a field that is in fact covered — or
+/// to accrue stale entries after a field is deleted or later hashed.
+#[test]
+fn not_hashed_allowlist_has_no_dead_entries() {
+    let bodies = hashinto_impl_bodies();
+    let structs = named_field_structs();
+
+    for (ty, field) in NOT_HASHED {
+        let fields = structs.get(*ty).unwrap_or_else(|| {
+            panic!("NOT_HASHED entry ({ty}, {field}): `{ty}` is not a named-field struct under the scan roots")
+        });
+        assert!(
+            fields.iter().any(|f| f == field),
+            "NOT_HASHED entry ({ty}, {field}): `{ty}` declares no field named `{field}` (dead entry — \
+             remove it or fix the name)"
+        );
+        let body = bodies.get(*ty).unwrap_or_else(|| {
+            panic!("NOT_HASHED entry ({ty}, {field}): `{ty}` has no `impl HashInto for {ty}`")
+        });
+        assert!(
+            !body_references_field(body, field),
+            "NOT_HASHED entry ({ty}, {field}): `{ty}`'s HashInto DOES hash `{field}` — remove it \
+             from the allowlist (dead entry). The allowlist is for fields that are NOT hashed."
+        );
+    }
 }
