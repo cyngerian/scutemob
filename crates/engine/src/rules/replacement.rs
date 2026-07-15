@@ -123,10 +123,19 @@ pub fn determine_action(
 }
 /// Handle the `Command::OrderReplacements` command (CR 616.1).
 ///
-/// Validates the player and IDs, then applies the first chosen replacement.
-/// If there's a pending zone change, resolves it by applying the replacement
-/// and completing the zone move. Otherwise, emits a `ReplacementEffectApplied`
-/// event for the first ID.
+/// This is a networked player command and therefore a **trust boundary** (invariant
+/// #3): the sender is untrusted. It is rejected unless
+///
+/// 1. a pending zone change exists whose affected player (the CR 616.1 chooser —
+///    the object's controller, owner-fallback) is `player`, and
+/// 2. every id in `ids` is a replacement that is **currently applicable** to that
+///    pending event (checked via [`find_applicable`], not by mere existence in
+///    `state.replacement_effects`).
+///
+/// Without (1) a player could order another player's choice; without (2) a hostile
+/// or buggy client could apply an arbitrary registered replacement's modification to
+/// an event it does not apply to (e.g. redirect an unrelated dies event). The first
+/// id is then applied and the zone move completed (with CR 616.1f re-checking).
 pub fn handle_order_replacements(
     state: &mut GameState,
     player: PlayerId,
@@ -137,7 +146,8 @@ pub fn handle_order_replacements(
             "OrderReplacements requires at least one replacement ID".to_string(),
         ));
     }
-    // Validate all IDs exist in the state
+    // Validate all IDs exist in the state (a cheap, precise error before the
+    // applicability check below).
     for id in &ids {
         if !state.replacement_effects.iter().any(|e| e.id == *id) {
             return Err(GameStateError::InvalidCommand(format!(
@@ -146,44 +156,41 @@ pub fn handle_order_replacements(
             )));
         }
     }
-    // Validate the player is the affected player of a pending zone change
-    // or the controller of at least one of the effects.
+    // CR 616.1: the sender must be the affected chooser of a pending event. Ordering
+    // is only meaningful in response to a `ReplacementChoiceRequired`, which always
+    // corresponds to a pending zone change. Merely controlling a listed effect (with
+    // no pending choice) is not a licence to apply it.
     let pending_idx = state
         .pending_zone_changes
         .iter()
-        .position(|p| p.affected_player == player);
-    let player_controls_any = ids.iter().any(|id| {
-        state
-            .replacement_effects
-            .iter()
-            .any(|e| e.id == *id && e.controller == player)
-    });
-    let is_affected_player = pending_idx.is_some();
-    if !player_controls_any && !is_affected_player {
+        .position(|p| p.affected_player == player)
+        .ok_or_else(|| {
+            GameStateError::InvalidCommand(format!(
+                "player {:?} is not the affected player of any pending replacement choice",
+                player
+            ))
+        })?;
+    // CR 616.1/614.5: every ordered id must be applicable to THIS pending event,
+    // taking into account replacements already applied in this chain. Reconstruct
+    // the pending event's trigger and consult `find_applicable`.
+    let pending = &state.pending_zone_changes[pending_idx];
+    let already_applied: HashSet<ReplacementId> =
+        pending.already_applied.iter().copied().collect();
+    let event_trigger = ReplacementTrigger::WouldChangeZone {
+        from: Some(pending.original_from),
+        to: pending.original_destination,
+        filter: ObjectFilter::SpecificObject(pending.object_id),
+    };
+    let applicable = find_applicable(state, &event_trigger, &already_applied);
+    if let Some(bad) = ids.iter().find(|id| !applicable.contains(id)) {
         return Err(GameStateError::InvalidCommand(format!(
-            "player {:?} does not control any of the specified replacement effects",
-            player
+            "replacement effect {:?} is not applicable to the pending event for player {:?}",
+            bad, player
         )));
     }
-    // If there's a pending zone change for this player, resolve it.
-    if let Some(idx) = pending_idx {
-        let first_id = ids[0];
-        return resolve_pending_zone_change(state, first_id, idx);
-    }
-    // No pending zone change — emit the applied event (Session 2 fallback).
-    let mut events = Vec::new();
+    // All checks passed — resolve the pending zone change with the chosen order.
     let first_id = ids[0];
-    let description = state
-        .replacement_effects
-        .iter()
-        .find(|e| e.id == first_id)
-        .map(|e| format!("{:?}", e.modification))
-        .unwrap_or_default();
-    events.push(GameEvent::ReplacementEffectApplied {
-        effect_id: first_id,
-        description,
-    });
-    Ok(events)
+    resolve_pending_zone_change(state, first_id, pending_idx)
 }
 /// Check whether a replacement effect is currently active based on its duration.
 ///
@@ -758,69 +765,110 @@ pub fn check_zone_change_replacement(
             }
         }
     }
-    let trigger = ReplacementTrigger::WouldChangeZone {
-        from: Some(from),
-        to,
-        filter: ObjectFilter::SpecificObject(object_id),
-    };
-    let applicable = find_applicable(state, &trigger, already_applied);
-    let description = format!("{:?} would move from {:?} to {:?}", object_id, from, to);
-    match determine_action(state, &applicable, owner, &description) {
-        ReplacementResult::NoApplicable => ZoneChangeAction::Proceed,
-        ReplacementResult::AutoApply(id) => {
-            // Look up the modification
-            let modification = state
-                .replacement_effects
-                .iter()
-                .find(|e| e.id == id)
-                .map(|e| e.modification.clone());
-            match modification {
-                Some(ReplacementModification::RedirectToZone(zone_type)) => {
-                    let dest = resolve_zone_type_to_zone_id(zone_type, owner);
-                    let events = vec![GameEvent::ReplacementEffectApplied {
-                        effect_id: id,
-                        description: format!("Redirected to {:?}", zone_type),
-                    }];
-                    ZoneChangeAction::Redirect {
-                        to: dest,
-                        events,
-                        applied_id: id,
-                    }
-                }
-                Some(ReplacementModification::ShuffleIntoOwnerLibrary) => {
-                    // CR 701.20: Redirect to library AND shuffle the library.
-                    // The shuffle event is included in the redirect events so the
-                    // interception site can emit both the redirect and the shuffle.
-                    let dest =
-                        resolve_zone_type_to_zone_id(crate::state::zone::ZoneType::Library, owner);
-                    let events = vec![
-                        GameEvent::ReplacementEffectApplied {
-                            effect_id: id,
-                            description: "Shuffled into owner's library".to_string(),
-                        },
-                        GameEvent::LibraryShuffled { player: owner },
-                    ];
-                    ZoneChangeAction::Redirect {
-                        to: dest,
-                        events,
-                        applied_id: id,
-                    }
-                }
-                _ => {
-                    // Non-redirect modifications (EntersTapped, etc.) don't change the zone.
-                    // For zone-change interception, only RedirectToZone is relevant.
-                    ZoneChangeAction::Proceed
-                }
+    // CR 616.1: the affected object's *controller* chooses which replacement to
+    // apply (its owner only if it has no controller). `owner` is retained for
+    // resolving per-player destination zones (graveyard/library/command are the
+    // *owner's* zones, CR 400.6/404.2), but must not be used as the chooser: after
+    // a control change (Act of Treason class) owner != controller. A zone change is
+    // evaluated before the object moves, so `object_id` is still live here and its
+    // `controller` field is the battlefield controller; for an object with no
+    // controller (any non-battlefield zone) `move_object_to_zone` resets the field
+    // to `owner`, so reading it yields the "owner fallback" automatically.
+    let chooser = state
+        .expect_object(object_id)
+        .map(|o| o.controller)
+        .unwrap_or(owner);
+    // CR 616.1f: after applying one replacement, repeat with only the effects that
+    // would now be applicable (to the *modified* event) until none apply. Redirects
+    // are chained here without moving the object — the object moves once, to the
+    // final destination the loop settles on. `applied` grows across hops so CR 614.5
+    // (an effect applies at most once per event) holds. Interactive ordering among
+    // 2+ simultaneously-applicable effects (a `NeedsChoice` reached mid-chain) is
+    // M10 scope: it is returned as `ChoiceRequired` for the current modified event.
+    let mut applied: HashSet<ReplacementId> = already_applied.clone();
+    let mut current_to = to;
+    let mut acc_events: Vec<GameEvent> = Vec::new();
+    let mut first_applied: Option<ReplacementId> = None;
+    loop {
+        let trigger = ReplacementTrigger::WouldChangeZone {
+            from: Some(from),
+            to: current_to,
+            filter: ObjectFilter::SpecificObject(object_id),
+        };
+        let applicable = find_applicable(state, &trigger, &applied);
+        let description = format!("{:?} would move from {:?} to {:?}", object_id, from, current_to);
+        let id = match determine_action(state, &applicable, chooser, &description) {
+            ReplacementResult::NoApplicable => {
+                return finish_zone_redirect(current_to, owner, acc_events, first_applied);
+            }
+            ReplacementResult::AutoApply(id) => id,
+            ReplacementResult::NeedsChoice {
+                player,
+                choices,
+                event_description,
+            } => {
+                // First hop: unchanged behavior — defer immediately. Mid-chain
+                // (first_applied.is_some()): interactive ordering of the effects
+                // applicable to the modified event is M10 scope; hand back the
+                // choice for that event. (already_applied threading through
+                // ChoiceRequired is the registered M10 follow-up.)
+                return ZoneChangeAction::ChoiceRequired {
+                    player,
+                    choices,
+                    event_description,
+                };
+            }
+        };
+        let modification = state
+            .replacement_effects
+            .iter()
+            .find(|e| e.id == id)
+            .map(|e| e.modification.clone());
+        first_applied.get_or_insert(id);
+        applied.insert(id);
+        match modification {
+            Some(ReplacementModification::RedirectToZone(zone_type)) => {
+                acc_events.push(GameEvent::ReplacementEffectApplied {
+                    effect_id: id,
+                    description: format!("Redirected to {:?}", zone_type),
+                });
+                current_to = zone_type;
+                // Loop: re-check the modified event (CR 616.1f).
+            }
+            Some(ReplacementModification::ShuffleIntoOwnerLibrary) => {
+                // CR 701.20: Redirect to library AND shuffle the library.
+                acc_events.push(GameEvent::ReplacementEffectApplied {
+                    effect_id: id,
+                    description: "Shuffled into owner's library".to_string(),
+                });
+                acc_events.push(GameEvent::LibraryShuffled { player: owner });
+                current_to = crate::state::zone::ZoneType::Library;
+                // Loop: re-check the modified event (CR 616.1f).
+            }
+            _ => {
+                // Non-redirect modifications (EntersTapped, etc.) don't change the
+                // zone. Terminal for zone-change interception.
+                return finish_zone_redirect(current_to, owner, acc_events, first_applied);
             }
         }
-        ReplacementResult::NeedsChoice {
-            player,
-            choices,
-            event_description,
-        } => ZoneChangeAction::ChoiceRequired {
-            player,
-            choices,
-            event_description,
+    }
+}
+/// Assemble the terminal `ZoneChangeAction` for [`check_zone_change_replacement`]'s
+/// CR 616.1f loop: `Proceed` if no replacement redirected the object, otherwise a
+/// single `Redirect` to the settled destination carrying every chained
+/// `ReplacementEffectApplied`/`LibraryShuffled` event.
+fn finish_zone_redirect(
+    current_to: crate::state::zone::ZoneType,
+    owner: PlayerId,
+    acc_events: Vec<GameEvent>,
+    first_applied: Option<ReplacementId>,
+) -> ZoneChangeAction {
+    match first_applied {
+        None => ZoneChangeAction::Proceed,
+        Some(applied_id) => ZoneChangeAction::Redirect {
+            to: resolve_zone_type_to_zone_id(current_to, owner),
+            events: acc_events,
+            applied_id,
         },
     }
 }
@@ -853,6 +901,16 @@ pub fn resolve_pending_zone_change(
 ) -> Result<Vec<GameEvent>, GameStateError> {
     let pending = state.pending_zone_changes[pending_idx].clone();
     let mut events = Vec::new();
+    // CR 616.1: `pending.affected_player` is the *chooser* (the object's controller,
+    // owner-fallback) recorded when the choice was raised. Destination zones and
+    // owner-scoped events must use the true *owner* instead — after a control change
+    // (Act of Treason class) the two differ, and a permanent always goes to its
+    // owner's graveyard/library/command zone (CR 400.6/404.2/903.9). The object has
+    // not moved yet, so it is still live and `owner` is stable.
+    let owner = state
+        .expect_object(pending.object_id)
+        .map(|o| o.owner)
+        .unwrap_or(pending.affected_player);
     let mut already_applied: HashSet<ReplacementId> =
         pending.already_applied.iter().copied().collect();
     // Apply the chosen replacement
@@ -869,21 +927,18 @@ pub fn resolve_pending_zone_change(
         effect_id: chosen_id,
         description: format!("{:?}", modification),
     });
-    // Determine the final destination
+    // Determine the final destination (owner-scoped per CR 400.6/404.2).
     let dest = match &modification {
         ReplacementModification::RedirectToZone(zone_type) => {
-            resolve_zone_type_to_zone_id(*zone_type, pending.affected_player)
+            resolve_zone_type_to_zone_id(*zone_type, owner)
         }
         ReplacementModification::ShuffleIntoOwnerLibrary => {
             // CR 701.20: redirect to library and shuffle
-            resolve_zone_type_to_zone_id(
-                crate::state::zone::ZoneType::Library,
-                pending.affected_player,
-            )
+            resolve_zone_type_to_zone_id(crate::state::zone::ZoneType::Library, owner)
         }
         _ => {
             // Non-redirect: use original destination
-            resolve_zone_type_to_zone_id(pending.original_destination, pending.affected_player)
+            resolve_zone_type_to_zone_id(pending.original_destination, owner)
         }
     };
     // Check for additional applicable replacements on the modified event (CR 616.1f)
@@ -897,18 +952,18 @@ pub fn resolve_pending_zone_change(
         &modification,
         ReplacementModification::ShuffleIntoOwnerLibrary
     ) {
-        events.push(GameEvent::LibraryShuffled {
-            player: pending.affected_player,
-        });
+        events.push(GameEvent::LibraryShuffled { player: owner });
     }
     // Re-check with the modified destination, using the stored original_from zone
     // so non-battlefield zone changes use the correct "from" zone (MR-M8-01).
+    // Pass `owner` for destination resolution; the chooser is re-derived from the
+    // object's controller inside the call (CR 616.1).
     let action = check_zone_change_replacement(
         state,
         pending.object_id,
         pending.original_from, // use stored from-zone, not hardcoded Battlefield
         new_to,
-        pending.affected_player,
+        owner,
         &already_applied,
     );
     // Remove the pending entry
@@ -948,7 +1003,7 @@ pub fn resolve_pending_zone_change(
                             .or(o.characteristics.power);
                         (o.controller, o.counters.clone(), lki_power, pre_chars)
                     })
-                    .unwrap_or((pending.affected_player, Default::default(), None, None));
+                    .unwrap_or((owner, Default::default(), None, None));
             // Do the zone move
             if let Some((new_id, _old)) =
                 state.expect_move_object_to_zone(pending.object_id, final_dest)
@@ -958,7 +1013,7 @@ pub fn resolve_pending_zone_change(
                     pending.object_id,
                     new_id,
                     final_dest,
-                    pending.affected_player,
+                    owner,
                     pre_move_controller,
                     &pre_death_counters,
                     pre_death_power_repl,

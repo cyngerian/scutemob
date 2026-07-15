@@ -368,7 +368,11 @@ pub struct PendingZoneChange {
     pub original_from: ZoneType,
     /// Where the object was going to go before replacement.
     pub original_destination: ZoneType,
-    /// The affected player who must choose (typically the object's owner).
+    /// The affected player who must choose the replacement order (CR 616.1): the
+    /// affected object's *controller*, or its owner if it has no controller. This
+    /// is the chooser, NOT necessarily the owner — after a control change they
+    /// differ, and destination zones are resolved from the object's owner instead
+    /// (see `resolve_pending_zone_change`).
     pub affected_player: PlayerId,
     /// Replacement effects already applied in this chain (CR 614.5).
     pub already_applied: Vec<ReplacementId>,
