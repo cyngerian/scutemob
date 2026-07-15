@@ -133,8 +133,13 @@ const CLOSURE_MUST_CONTAIN: [&str; 13] = [
 /// traversal would drag the entire card DSL into the closure. Their absence proves
 /// the skip is honoured. `serde_skip_is_load_bearing` proves it is the skip doing
 /// the work, not a broken walk.
-const CLOSURE_MUST_NOT_CONTAIN: [&str; 5] =
-    ["Command", "ReplayLog", "Envelope", "CardRegistry", "CardDefinition"];
+const CLOSURE_MUST_NOT_CONTAIN: [&str; 5] = [
+    "Command",
+    "ReplayLog",
+    "Envelope",
+    "CardRegistry",
+    "CardDefinition",
+];
 
 // ── Frozen baseline (append-only anchor) ─────────────────────────────────────
 //
@@ -699,10 +704,16 @@ fn canonical_fixture() -> GameState {
         .object(ObjectSpec::artifact(PlayerId(3), "Sol Ring"))
         .object(ObjectSpec::planeswalker(PlayerId(4), "Jace Beleren", 5))
         // Non-public zones drive the private hash and the zone spread.
-        .object(ObjectSpec::creature(PlayerId(2), "Llanowar Elves", 1, 1).in_zone(ZoneId::Hand(PlayerId(2))))
+        .object(
+            ObjectSpec::creature(PlayerId(2), "Llanowar Elves", 1, 1)
+                .in_zone(ZoneId::Hand(PlayerId(2))),
+        )
         .object(ObjectSpec::card(PlayerId(1), "Lightning Bolt").in_zone(ZoneId::Hand(PlayerId(1))))
         .object(ObjectSpec::card(PlayerId(1), "Mountain").in_zone(ZoneId::Library(PlayerId(1))))
-        .object(ObjectSpec::creature(PlayerId(3), "Dead Bear", 2, 2).in_zone(ZoneId::Graveyard(PlayerId(3))))
+        .object(
+            ObjectSpec::creature(PlayerId(3), "Dead Bear", 2, 2)
+                .in_zone(ZoneId::Graveyard(PlayerId(3))),
+        )
         .object(ObjectSpec::card(PlayerId(4), "Exiled Card").in_zone(ZoneId::Exile))
         .build()
         .expect("canonical fixture builds")
@@ -859,7 +870,8 @@ fn serde_skip_is_load_bearing() {
     // The skip attribute and the field it guards are present in the hashed text,
     // so a toggle of the skip moves the declaration digest.
     assert!(
-        game_state.hash_text.contains("#[serde(skip)]") && game_state.hash_text.contains("card_registry"),
+        game_state.hash_text.contains("#[serde(skip)]")
+            && game_state.hash_text.contains("card_registry"),
         "GameState no longer shows `#[serde(skip)] card_registry` in its hashed text; either the \
          field moved or preceding-attribute/body capture broke"
     );
@@ -1059,7 +1071,11 @@ fn history_is_append_only() {
         last.version, HASH_SCHEMA_VERSION
     );
 
-    let is_hex64 = |s: &str| s.len() == 64 && s.bytes().all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase());
+    let is_hex64 = |s: &str| {
+        s.len() == 64
+            && s.bytes()
+                .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+    };
     for e in HASH_SCHEMA_HISTORY {
         assert!(
             is_hex64(e.decl_fingerprint) && is_hex64(e.stream_fingerprint),
