@@ -2258,20 +2258,38 @@ pub fn handle_ring_tempts_you(
 ///
 /// Call this after building the initial state to begin gameplay.
 ///
-/// # Architecture Invariant 9 (SR-12)
+/// # Architecture Invariant 9 (SR-12, SR-21)
 ///
 /// This is the structural companion to `validate_deck`. The completeness marker
 /// gate (`DeckViolation::IncompleteCard`) only fires where a caller happens to
 /// run `validate_deck`; `GameStateBuilder`, the simulator, and the fuzzer all
 /// assemble games straight from `all_cards()` and never call it. So the *only*
-/// choke point every game-assembly path shares is `start_game`, and this is
+/// choke point the turn-running paths share is `start_game`, and this is
 /// where the marker is made unbypassable: a game whose objects reference an
 /// inert / partial / knowingly-wrong `CardDefinition` is refused with
 /// `GameStateError::IncompleteCardsInGame` before the first turn begins.
 ///
+/// ## The complete set of game-running entry paths (SR-21)
+///
+/// `start_game` is not the *only* way a `GameState` is driven through
+/// `process_command`. The script/replay regime builds a state with
+/// [`crate::testing::replay_harness::build_initial_state`] and steps it with
+/// `process_command` directly, never calling `start_game` — so SR-12's original
+/// "the only choke point is `start_game`" was true for the simulator/fuzzer/TUI
+/// but **false for the replay path** (found by the 2026-07-11 re-audit; the
+/// replay-viewer ran whole games out of ungated inert/partial defs). Every
+/// entry path and its opt-out are now:
+///
+/// | Entry (checked) | Opt-out (incomplete allowed) | Runs the same check |
+/// |---|---|---|
+/// | [`start_game`] | [`start_game_allowing_incomplete`] | `check_all_defs_complete` |
+/// | [`crate::testing::replay_harness::build_initial_state_checked`] | [`crate::testing::replay_harness::build_initial_state`] | `check_all_defs_complete` |
+///
 /// A caller that genuinely wants an incomplete def in play (engine tests that
-/// deliberately exercise a placeholder, harness fixtures) must say so explicitly
-/// via [`start_game_allowing_incomplete`]. There is no silent bypass.
+/// deliberately exercise a placeholder, harness fixtures, retired scripts that
+/// name a not-yet-authored card) must say so explicitly via the opt-out symbol
+/// on its path. Both opt-outs are distinct, greppable identifiers — there is no
+/// silent bypass on either path.
 pub fn start_game(state: GameState) -> Result<(GameState, Vec<GameEvent>), GameStateError> {
     check_all_defs_complete(&state)?;
     start_game_allowing_incomplete(state)
@@ -2287,7 +2305,11 @@ pub fn start_game(state: GameState) -> Result<(GameState, Vec<GameEvent>), GameS
 /// with no `card_id` is not a "card in the game" at all. This keeps the gate
 /// precise: it catches exactly the marker-rot that `validate_deck` catches, at
 /// every assembly path, and nothing else.
-fn check_all_defs_complete(state: &GameState) -> Result<(), GameStateError> {
+///
+/// `pub(crate)` so the script/replay path can share the *exact* check rather than
+/// re-deriving it (SR-21): [`crate::testing::replay_harness::build_initial_state_checked`]
+/// calls this on a harness-built state.
+pub(crate) fn check_all_defs_complete(state: &GameState) -> Result<(), GameStateError> {
     // Deterministic ordering: `state.objects` is an imbl::OrdMap, so iteration is
     // in ObjectId order and the "first" offender reported is stable across runs.
     let mut offenders = state.objects.values().filter_map(|obj| {

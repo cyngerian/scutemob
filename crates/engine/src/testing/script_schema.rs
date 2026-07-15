@@ -8,10 +8,36 @@
 /// replay harness auto-discovers and runs all `review_status: approved` scripts.
 ///
 /// Schema version: 1.0.0
+///
+/// # Unknown keys are rejected on the structural spine (SR-22)
+///
+/// The structural "spine" types — `GameScript`, `ScriptMetadata`, `InitialState`,
+/// `PlayerInitState`, `CommanderInitState`, `ZonesInitState`, `CardInZone`,
+/// `ScriptStep`, and the small supporting records — carry
+/// `#[serde(deny_unknown_fields)]`, so a JSON key that no field claims is a hard
+/// deserialization error rather than a silently-dropped value. This caught the bug
+/// that motivated SR-22: `stack/135` carried a stray *top-level* `review_status`
+/// (a copy of `metadata.review_status`) that serde had been ignoring — the script
+/// looked approved at a glance while being retired.
+///
+/// Three types are **deliberately left permissive**, each documented at its
+/// definition: `PermanentInitState` (every battlefield permanent in the corpus
+/// carries a dead `owner: null` template key), `ResolutionEffect` (the
+/// documentation-only `resolution` block is annotated with undeclared descriptive
+/// keys), and `Dispute` (freeform annotations carry an extra `cr_ref`). Enforcing
+/// on those would require stripping dead keys from ~190 golden scripts — a corpus
+/// migration with no behaviour change — so it is noted as an SR-22 follow-up
+/// rather than done here.
+///
+/// One type *cannot* be covered at all: [`ScriptAction`] is an internally-tagged
+/// enum (`#[serde(tag = "type")]`), and serde rejects `deny_unknown_fields` in
+/// combination with internal tagging at compile time. Its (large) `PlayerAction`
+/// variant therefore still tolerates unknown keys.
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 // ── Top-level ────────────────────────────────────────────────────────────────
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct GameScript {
     pub schema_version: String,
     pub metadata: ScriptMetadata,
@@ -20,6 +46,7 @@ pub struct GameScript {
 }
 // ── Metadata ─────────────────────────────────────────────────────────────────
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct ScriptMetadata {
     /// Unique identifier. Format: `script_<topic>_<nnn>`
     pub id: String,
@@ -73,6 +100,12 @@ pub enum ReviewStatus {
     Disputed,
     Corrected,
 }
+// SR-22: **not** `deny_unknown_fields`. `disputes[]` is a freeform annotation
+// block, and existing corpus disputes carry an extra `cr_ref` key (dead — the
+// harness never reads a dispute) alongside the declared fields (e.g.
+// `layers/012`, `stack/061`, `stack/095`, `stack/140`). Enforcing here would
+// redden those without any correctness gain; the strictness that matters is on
+// the structural spine (`GameScript`/`InitialState`/…). See the module header.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Dispute {
     /// None for script-level disputes not tied to a specific step.
@@ -87,6 +120,7 @@ pub struct Dispute {
 }
 // ── Initial state ─────────────────────────────────────────────────────────────
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct InitialState {
     pub format: String,
     pub turn_number: u32,
@@ -101,6 +135,7 @@ pub struct InitialState {
     pub continuous_effects: Vec<ContinuousEffectInitState>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct PlayerInitState {
     pub life: i32,
     #[serde(default)]
@@ -115,12 +150,14 @@ pub struct PlayerInitState {
     pub partner_commander: Option<CommanderInitState>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct CommanderInitState {
     pub card: String,
     pub zone: String,
     pub times_cast_from_command_zone: u32,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct ZonesInitState {
     /// `controller → [permanents]`
     #[serde(default)]
@@ -141,6 +178,14 @@ pub struct ZonesInitState {
     #[serde(default)]
     pub stack: Vec<serde_json::Value>,
 }
+// SR-22: **not** `deny_unknown_fields`. Every battlefield permanent in the corpus
+// carries a dead `"owner": null` key (~190 files) — a template artifact copied
+// from `CardInZone` (which legitimately has `owner`). A battlefield permanent's
+// owner is derived from its controller map key, so this struct has no `owner`
+// field and the value is silently dropped. Enforcing here would require stripping
+// that key from ~190 golden scripts (a corpus migration, not a stray-key fix) for
+// no behaviour change. Noted as SR-22 follow-up. The spine structs above/below,
+// where a mistyped key is a real mistake, are strict.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PermanentInitState {
     /// Scryfall oracle card name (exact match required for replay harness card DB lookup).
@@ -161,6 +206,7 @@ pub struct PermanentInitState {
     pub is_basic: Option<bool>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[serde(deny_unknown_fields)]
 pub struct CardInZone {
     pub card: String,
     #[serde(default)]
@@ -174,6 +220,7 @@ pub struct CardInZone {
     pub counters: HashMap<String, u32>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct ContinuousEffectInitState {
     pub source: String,
     pub effect: String,
@@ -183,6 +230,7 @@ pub struct ContinuousEffectInitState {
 }
 // ── Script steps and actions ──────────────────────────────────────────────────
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct ScriptStep {
     /// One of the step identifiers from `mtg-engine-game-scripts.md` (e.g. `"precombat_main"`).
     pub step: String,
@@ -475,6 +523,7 @@ pub enum ScriptAction {
 }
 // ── Supporting types ──────────────────────────────────────────────────────────
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct ActionTarget {
     #[serde(rename = "type")]
     pub target_type: String,
@@ -483,10 +532,18 @@ pub struct ActionTarget {
     pub player: Option<String>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct ManaSource {
     pub card: String,
     pub tap: bool,
 }
+// SR-22: **not** `deny_unknown_fields`. The `resolution` block on `StackResolve`
+// is pure documentation — the harness never dispatches on a `ResolutionEffect` —
+// and corpus authors annotate it with extra descriptive keys the schema does not
+// declare (`controller`, `choice`, `found`, `criteria`, `token`, `mana_paid`;
+// e.g. `stack/012`, `stack/027`, `stack/045`, `baseline/009`). These are dead by
+// definition; enforcing would redden dozens of scripts for no behaviour change.
+// Noted as SR-22 follow-up.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ResolutionEffect {
     pub effect: String,
@@ -499,6 +556,7 @@ pub struct ResolutionEffect {
     pub note: Option<String>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct SbaResult {
     /// CR rule number, e.g. `"704.5f"`.
     pub sba: String,
@@ -509,6 +567,7 @@ pub struct SbaResult {
     pub cr_ref: String,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct TriggeredAbilityEvent {
     pub trigger: String,
     pub source: String,
@@ -522,6 +581,7 @@ pub struct TriggeredAbilityEvent {
 /// `target_planeswalker` is the planeswalker card name on the battlefield (mutually exclusive
 /// with `target_player`). If both are absent the harness defaults to the first non-active player.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct AttackerDeclaration {
     /// Name of the attacking creature (must be on the battlefield under the player's control).
     pub card: String,
@@ -540,6 +600,7 @@ pub struct AttackerDeclaration {
 /// `attacker` is the name of the attacking creature with Enlist on the battlefield.
 /// `enlisted` is the name of the non-attacking creature being tapped for the enlist cost.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct EnlistDeclaration {
     /// Name of the attacking creature that has the Enlist keyword.
     pub attacker: String,
@@ -551,6 +612,7 @@ pub struct EnlistDeclaration {
 /// `card` is the name of the blocking creature.
 /// `blocking` is the name of the attacker being blocked.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct BlockerDeclaration {
     /// Name of the blocking creature (must be on the battlefield under the player's control).
     pub card: String,

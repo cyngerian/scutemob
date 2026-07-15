@@ -127,3 +127,89 @@ fn test_enums_serialize_snake_case() {
         r#""medium""#
     );
 }
+
+// ── SR-22: unknown keys are rejected on the structural spine ────────────────────
+
+/// A JSON blob that is a valid `GameScript` except for the injected `extra` key.
+/// `injection` is spliced in verbatim so each test names exactly the stray key it
+/// is proving gets rejected.
+fn game_script_json_with(injection: &str) -> String {
+    format!(
+        r#"{{
+          "schema_version": "1.0.0",
+          {injection}
+          "metadata": {{
+            "id": "script_test_deny",
+            "name": "deny test",
+            "description": "d",
+            "cr_sections_tested": [],
+            "corner_case_ref": null,
+            "tags": [],
+            "confidence": "high",
+            "review_status": "approved",
+            "reviewed_by": null,
+            "review_date": null,
+            "generation_notes": null
+          }},
+          "initial_state": {{
+            "format": "commander",
+            "turn_number": 1,
+            "active_player": "p1",
+            "phase": "precombat_main",
+            "step": null,
+            "priority": "p1",
+            "players": {{}},
+            "zones": {{}}
+          }},
+          "script": []
+        }}"#
+    )
+}
+
+#[test]
+/// The exact bug SR-22 found: a stray *top-level* `review_status` (the shape
+/// `stack/135` shipped) is now a hard error, not a silently-dropped key. Without
+/// `deny_unknown_fields` on `GameScript` this parses clean and the duplicate value
+/// is discarded.
+fn stray_top_level_key_is_rejected() {
+    // Sanity: the same document *without* the stray key parses.
+    let ok = game_script_json_with("");
+    serde_json::from_str::<GameScript>(&ok).expect("control document must parse");
+
+    let bad = game_script_json_with(r#""review_status": "approved","#);
+    let err = serde_json::from_str::<GameScript>(&bad)
+        .expect_err("a stray top-level `review_status` must be rejected (SR-22)");
+    assert!(
+        err.to_string().contains("review_status"),
+        "error should name the offending key, got: {err}"
+    );
+}
+
+#[test]
+/// Strictness reaches into the spine, not just the top level: a key that no
+/// `InitialState` field claims is rejected. `mana_paid` is the real stray this
+/// test mirrors — `stack/006` had it misplaced inside a player's init block.
+fn stray_key_inside_initial_state_is_rejected() {
+    let bad = r#"{
+      "schema_version": "1.0.0",
+      "metadata": {
+        "id": "s", "name": "n", "description": "d", "cr_sections_tested": [],
+        "corner_case_ref": null, "tags": [], "confidence": "high",
+        "review_status": "approved", "reviewed_by": null, "review_date": null,
+        "generation_notes": null
+      },
+      "initial_state": {
+        "format": "commander", "turn_number": 1, "active_player": "p1",
+        "phase": "precombat_main", "step": null, "priority": "p1",
+        "players": {}, "zones": {},
+        "bogus_field": 7
+      },
+      "script": []
+    }"#;
+    let err = serde_json::from_str::<GameScript>(bad)
+        .expect_err("a stray key inside `initial_state` must be rejected (SR-22)");
+    assert!(
+        err.to_string().contains("bogus_field"),
+        "error should name the offending key, got: {err}"
+    );
+}

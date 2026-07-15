@@ -36,20 +36,24 @@ use std::path::Path;
 
 use mtg_engine::testing::script_schema::{GameScript, ReviewStatus};
 
-// Import the replay harness via a path include — this avoids duplicating the
-// module in two crates or adding replay as a public library module.
-// (Hook 2 lives in tests/script_replay.rs, which we reference here.)
-mod script_replay_lib {
-    // Re-export the public types and functions from script_replay.rs.
-    // We do this by compiling the file as an inline module using include!.
-    // This is the standard pattern for sharing test helper code in Rust.
-    include!("script_replay.rs");
-}
-
-use script_replay_lib::{replay_script, ReplayResult};
+// `script_replay.rs` is a sibling module in this same `scripts` test binary
+// (declared `mod script_replay;` in `main.rs`), so reference it directly.
+//
+// SR-22e: this used to be `include!("script_replay.rs")` inside a
+// `mod script_replay_lib`, a leftover from when `script_replay.rs` was its own
+// top-level `tests/*.rs` binary. Under SR-9a's consolidation the file is already
+// compiled once as `crate::script_replay`; the `include!` compiled it a *second*
+// time as `crate::run_all_scripts::script_replay_lib`, so its four `#[test]` fns
+// ran twice under different module paths and inflated the reported test count by
+// four. A plain `use` shares the single compilation — no duplicate tests.
+use crate::script_replay::{replay_script, ReplayResult};
 
 /// Path to the corpus, relative to the workspace root (where `cargo test` runs).
-const SCRIPTS_DIR: &str = "../../test-data/generated-scripts";
+///
+/// `pub(crate)` so sibling modules (`harness_equivalence`) that scan the corpus
+/// use the *same* root and the *same* recursion as the run — see
+/// [`discover_scripts`] (SR-22b).
+pub(crate) const SCRIPTS_DIR: &str = "../../test-data/generated-scripts";
 
 /// `player_action.action` strings that `translate_player_action` deliberately maps to
 /// no `Command`, and that an **approved** script may therefore contain.
@@ -74,10 +78,17 @@ const ALLOWED_UNTRANSLATABLE_ACTIONS: &[&str] = &["search_library"];
 /// with the `Err` arm dropped on the floor. Two `commander/` scripts carried
 /// `"review_status": "draft"`, which is not a `ReviewStatus` variant, so they had
 /// been invisible to this suite since the day they were written.
-type Discovered = (String, Result<GameScript, String>);
+pub(crate) type Discovered = (String, Result<GameScript, String>);
 
 /// Recursively discover all JSON files under `dir`, parsing each as a [`GameScript`].
-fn discover_scripts(dir: &Path) -> Vec<Discovered> {
+///
+/// `pub(crate)` (SR-22b): this is the corpus's *single* discovery function. Any
+/// sibling test that walks the corpus must call it rather than re-implementing a
+/// walk — `harness_equivalence`'s definitions gate previously hand-rolled a
+/// **two-level** walk (`read_dir(root)` → `read_dir(group)`) while this one
+/// recurses fully, so a script nested one directory deeper than `group/file.json`
+/// was invisible to that gate and could name an undefined card unnoticed.
+pub(crate) fn discover_scripts(dir: &Path) -> Vec<Discovered> {
     let mut scripts = Vec::new();
 
     let entries = match fs::read_dir(dir) {

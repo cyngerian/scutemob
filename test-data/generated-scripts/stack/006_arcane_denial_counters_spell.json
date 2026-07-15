@@ -37,7 +37,6 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_paid": {},
         "mana_pool": {
           "green": 2,
           "colorless": 2

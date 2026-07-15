@@ -9,8 +9,9 @@ use crate::{
     all_cards, register_commander_zone_replacements, AbilityDefinition, CardDefinition,
     CardEffectTarget, CardId, CardRegistry, CardType, Color, Command, Cost, DeathTriggerFilter,
     Designations, ETBTriggerFilter, Effect, EffectAmount, GameState, GameStateBuilder,
-    KeywordAbility, ManaAbility, ManaColor, ObjectSpec, PlayerId, Step, TargetController,
-    TargetFilter, TimingRestriction, TriggerCondition, TriggerEvent, TriggeredAbilityDef, ZoneId,
+    GameStateError, KeywordAbility, ManaAbility, ManaColor, ObjectSpec, PlayerId, Step,
+    TargetController, TargetFilter, TimingRestriction, TriggerCondition, TriggerEvent,
+    TriggeredAbilityDef, ZoneId,
 };
 use imbl::OrdMap;
 /// Replay harness helpers — extracted from `crates/engine/tests/script_replay.rs`
@@ -67,6 +68,28 @@ fn sorted_zone_entries<T>(map: &HashMap<String, T>) -> Vec<(&String, &T)> {
 /// by value and never lends `&mut GameState` to a caller. From outside the
 /// engine, this is a documented constructor, not a mutation channel — which is
 /// what keeps architecture invariant #3 intact.
+///
+/// # Completeness (Architecture Invariant 9 / SR-21)
+///
+/// This function is the **greppable opt-out**: it runs *no* completeness check,
+/// so it will happily build a state out of an inert / partial / knowingly-wrong
+/// `CardDefinition`. That is deliberate and load-bearing — engine test harnesses
+/// (`tests/combat/combat_harness.rs`, the `script_replay` checker) and the
+/// replay-viewer legitimately drive placeholder or not-yet-authored cards, and
+/// they call *this* function precisely to say so. It is the replay-path analogue
+/// of [`crate::rules::engine::start_game_allowing_incomplete`].
+///
+/// The replay-viewer opts out on purpose: ~20 *approved* golden scripts place a
+/// card whose def is still marked non-`Complete` (the script exercises one
+/// interaction while an unrelated clause of the def is unauthored), so gating it
+/// would make the tool unable to view most of its own corpus.
+///
+/// A caller that runs a real game from a script and expects only `Complete` defs
+/// should instead go through [`build_initial_state_checked`], which refuses a
+/// known-but-non-`Complete` def exactly as `start_game` does. `grep` for
+/// `build_initial_state(` (without `_checked`) to audit every opt-out site — the
+/// point of SR-21 is that each such bypass is now a named, greppable choice, not
+/// a silent one.
 pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, PlayerId>) {
     // Sort player names deterministically.
     let mut names: Vec<String> = init.players.keys().cloned().collect();
@@ -248,6 +271,37 @@ pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, P
         register_commander_zone_replacements(&mut state);
     }
     (state, player_map)
+}
+/// Build a [`GameState`] from a script's initial state **and enforce Architecture
+/// Invariant 9** (SR-21).
+///
+/// This is the checked entry for the script/replay path — the analogue of
+/// [`crate::rules::engine::start_game`]. It builds the state exactly as
+/// [`build_initial_state`] does, then runs the *same* completeness check
+/// `start_game` runs (`check_all_defs_complete`): if any object references a
+/// **known but non-`Complete`** `CardDefinition` (inert / partial / knowingly
+/// wrong), it returns [`GameStateError::IncompleteCardsInGame`] instead of a
+/// state.
+///
+/// Scope is deliberately narrow, matching `start_game` and `validate_deck`: a
+/// `card_id` that is *absent* from the registry (a naked test object, an
+/// un-authored name) is **not** an offender — it is the `UnknownCard` axis, and
+/// gating it here would redden the hundreds of tests that build states against
+/// an empty or partial registry. Only a def that exists *and* is marked fires.
+///
+/// This is the entry a caller uses when a script is expected to contain only
+/// `Complete` defs — the replay-path analogue of [`crate::rules::engine::start_game`].
+/// The replay-viewer deliberately does **not** use it (its corpus includes
+/// approved fixtures with intentionally-incomplete defs; see
+/// [`build_initial_state`]); the symbol exists so that any real-game consumer of
+/// a script gets the same invariant-9 guarantee `start_game` gives, and so
+/// `completeness_gate.rs` can prove the gate fires.
+pub fn build_initial_state_checked(
+    init: &InitialState,
+) -> Result<(GameState, HashMap<String, PlayerId>), GameStateError> {
+    let (state, player_map) = build_initial_state(init);
+    crate::rules::engine::check_all_defs_complete(&state)?;
+    Ok((state, player_map))
 }
 /// Map a script `PlayerAction` string and its parameters to a [`Command`].
 ///
