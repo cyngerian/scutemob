@@ -20,6 +20,14 @@
 /// uncommitted bumps. Stale replays hashing against an older sentinel will produce
 /// a different fingerprint and fail validation.
 ///
+/// **SR-17: the bump is now machine-forced, not merely noticed.** Two digests in
+/// [`HASH_SCHEMA_HISTORY`] pin the two axes a bump can move — the serialized shape
+/// of the `GameState` closure (`decl_fingerprint`) and the `HashInto` byte-stream
+/// (`stream_fingerprint`) — and `tests/core/hash_schema.rs` recomputes both from
+/// source and from a canonical fixture. Change either without bumping this
+/// constant and appending a row, and that suite fails and tells you which digest
+/// moved. A `- N:` History line below is required by the same suite's convention.
+///
 /// History:
 /// - 1: initial (pre-PB-X)
 /// - 2: PB-X — EffectFilter discriminants 32+33, LayerModification 25, Cost 10
@@ -339,6 +347,75 @@
 ///   state hashes to the same fingerprint as before; the bump is because the serde
 ///   wire format changed and a `ReplayLog` from older code carries the lossy shape.
 pub const HASH_SCHEMA_VERSION: u8 = 39;
+
+/// One `(version, fingerprints)` row of the append-only hash-schema history.
+///
+/// See [`HASH_SCHEMA_HISTORY`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct HashSchemaEpoch {
+    /// The [`HASH_SCHEMA_VERSION`] this row pins.
+    pub version: u8,
+    /// blake3 of the normalized declaration text of the `GameState` **serde**
+    /// closure (SR-17). Moves when a field/variant/serde-attribute in anything
+    /// reachable from `GameState` changes shape. Recomputed from source by
+    /// `tests/core/hash_schema.rs`.
+    pub decl_fingerprint: &'static str,
+    /// blake3 of the **hash stream** (`public_state_hash` ++ each player's
+    /// `private_state_hash`) over the canonical fixture in
+    /// `tests/core/hash_schema.rs`. Moves when a hand-written `HashInto` impl
+    /// changes which bytes it feeds or in what order — drift the *serde* digest
+    /// cannot see, and vice-versa. That is why both are pinned.
+    pub stream_fingerprint: &'static str,
+}
+
+/// SR-17: append-only ledger backing [`HASH_SCHEMA_VERSION`], the state-hash
+/// analogue of SR-8's [`crate::rules::protocol::PROTOCOL_SCHEMA_FINGERPRINT`].
+///
+/// # Why a fingerprint at all
+///
+/// `HASH_SCHEMA_VERSION` was, before this task, guarded only by ~29
+/// `assert_eq!(HASH_SCHEMA_VERSION, 39)` sentinels scattered through the test
+/// suite. Those force you to *notice* a bump (the sentinel reddens) but never
+/// force you to *make* one: change the serialized shape of `GameState`, or edit a
+/// `HashInto` impl, and every sentinel stays green while `HASH_SCHEMA_VERSION`
+/// keeps lying about a wire that has moved. That is exactly the process-guarantee
+/// the SR track exists to convert into a machine guarantee (SR-8 named the
+/// disease and cured it for the `Command`/`GameEvent` protocol only —
+/// `CLOSURE_MUST_NOT_CONTAIN` there *deliberately* excludes `GameState`).
+///
+/// # Two independent axes, two fingerprints
+///
+/// The serialized shape and the hash byte-stream move independently (SR-16 is the
+/// worked example: it changed the serde shape of `PendingTrigger` while the hash
+/// stream was provably unchanged). So one digest cannot cover both:
+///
+/// - `decl_fingerprint` — a source scan of the `GameState` serde type closure.
+///   Catches a new field, a removed field, a changed field type, a new enum
+///   variant, a `#[serde(skip/rename/default)]` toggle. Blind to `HashInto`.
+/// - `stream_fingerprint` — the actual hash bytes over a fixed, richly-populated
+///   fixture. Catches a reordered / added / dropped `HashInto` feed or a changed
+///   discriminant byte. Blind to serde-only shape.
+///
+/// # Append-only
+///
+/// This table is **append-only**. To change the hash schema:
+///   1. bump [`HASH_SCHEMA_VERSION`] and add its `- N:` History line above;
+///   2. **append** a new row here with the two new fingerprints (read them from
+///      the `hash_schema.rs` failure message);
+///   3. update the `HASH_SCHEMA_VERSION` sentinels the suite still carries.
+///
+/// Never edit an existing row. `tests/core/hash_schema.rs` pins the first
+/// (baseline) row against its own frozen constants and pins a digest of the whole
+/// frozen prefix, so a re-pin of a shipped row *without* a version bump fails the
+/// suite — the point the plain sentinels could not make.
+pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[HashSchemaEpoch {
+    version: 39,
+    // SR-17 (2026-07-14): initial fingerprints. Baseline of the two-axis gate;
+    // the shape/stream they pin is whatever HASH_SCHEMA_VERSION 39 already was.
+    decl_fingerprint: "9398dee6d2338d30b7c4bf02f769d8f3654b10ccd9ee38fd0afdcf11223b5419",
+    stream_fingerprint: "4f335df79a80bbd3b3bbafe14b223cfdeb5c479a6e037eefafd29f0c5d635976",
+}];
+
 use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
