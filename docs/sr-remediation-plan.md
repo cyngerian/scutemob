@@ -751,6 +751,22 @@ Task-specific extras:
 _One entry per session, newest first. Format:_
 `- YYYY-MM-DD — SR-<N> (scutemob-<id>) — <status: done / in progress / blocked> — <one-line outcome + hazards + pointer for next session>`
 
+- 2026-07-14 — SR-29 (scutemob-84) — **done** (collected, merge `b622ced4`) — CR 616.1 batch, all
+  four parts. (1) **Chooser is now the controller** (owner fallback per CR 616.1) in
+  `check_zone_change_replacement`, propagated to every interception site — with the correct
+  subtlety that *destination* zones (graveyard/hand/library go to the **owner's** zone, CR 400.3)
+  keep using owner; pinned by a control-change + two-competing-replacements test and an
+  owner-scoped-destination test added at review. (2) **CR 616.1f fixed point**: single-applicable
+  redirects now loop (already_applied threaded per CR 614.5); two-hop Graveyard→Exile→Library chain
+  test settles correctly. (3) **`OrderReplacements` trust boundary closed**: sender must be the
+  affected chooser of a pending event AND every id must be `find_applicable` to *that* event; the
+  no-pending trust-hole fallback removed; rejection tests added — this was the M10 server's
+  validation surface. (4) Deferred player-choice items registered as **MR-SR29-01/02/03** in the
+  milestone-reviews ledger (legend rule 704.5j, regen-vs-umbra ordering, interactive replacement
+  ordering — M10 scope); stale sba.rs comments re-pointed. `/review` ran (one LOW, fixed).
+  Replacement suite verified green on main post-merge (97 tests). **Next:** SR-19 (scutemob-74) and
+  SR-21+SR-22 (scutemob-76/77) still in flight this session.
+
 - 2026-07-14 — SR-18 + SR-20 (scutemob-73/75, paired in one worktree) — **done** (collected, merge
   `ff8b7dfdbc18`) — Both demonstrated bypasses from the re-audit are closed, each with its attack
   re-run and caught. **SR-18**: `exempt_dirs_contain_no_rust_files` recurses `NON_GROUP_DIRS` and
