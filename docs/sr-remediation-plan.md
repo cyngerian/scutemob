@@ -751,6 +751,22 @@ Task-specific extras:
 _One entry per session, newest first. Format:_
 `- YYYY-MM-DD — SR-<N> (scutemob-<id>) — <status: done / in progress / blocked> — <one-line outcome + hazards + pointer for next session>`
 
+- 2026-07-14 — SR-17 (scutemob-72) — **done** (collected, merge `b4736f3e`) — `HASH_SCHEMA_VERSION`
+  is now machine-enforced on **two axes**, closing the disease SR-8 named. (1) A declaration
+  fingerprint (blake3 of the GameState serde type closure — **118 types**, rooted at `GameState`,
+  skip-aware so the `#[serde(skip)]` `card_registry` correctly keeps `CardRegistry`/`CardDefinition`
+  out, and asserted **disjoint from the protocol closure** from this side too). (2) A **stream
+  fingerprint** (blake3 of the actual hash byte-stream — public + all four private hashes — over a
+  canonical builder-only fixture), catching `HashInto` edits the declaration digest cannot see.
+  `HASH_SCHEMA_HISTORY` is an append-only (version, decl-fp, stream-fp) table: ascending unique
+  versions, tail == current constants, frozen v39 baseline, and a frozen-prefix digest so superseded
+  rows cannot be quietly rewritten — a re-pin without a bump now fails. Demonstrated adversarially
+  (shape change / stream change / re-pin — each reddens exactly its gate); `/review` ran and its
+  findings (fixture too narrow, a wrong coverage comment, missing frozen-prefix pin) were fixed in a
+  follow-up commit. Version stays **39** — gates only, no shape change. 18 new tests
+  (`tests/core/hash_schema*`), verified green on main post-merge. **Next:** SR-18+SR-20
+  (scutemob-73/75) still in flight.
+
 - 2026-07-14 — SR-28 (scutemob-83) — **done** (collected, merge `b77d4210`) — Tap-and-sacrifice
   mana sources: both filters now read a pre-cost snapshot instead of a dead ObjectId. The source's
   layer-resolved characteristics are captured in `handle_tap_for_mana` **before** the sacrifice cost
