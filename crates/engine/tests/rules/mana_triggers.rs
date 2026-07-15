@@ -12,8 +12,8 @@
 
 use mtg_engine::{
     all_cards, card_name_to_id, enrich_spec_from_def, process_command, CardDefinition,
-    CardRegistry, Command, GameEvent, GameState, GameStateBuilder, ObjectId, ObjectSpec, PlayerId,
-    Step, ZoneId,
+    CardRegistry, Color, Command, GameEvent, GameState, GameStateBuilder, ManaAbility, ManaColor,
+    ObjectId, ObjectSpec, PlayerId, Step, ZoneId,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -856,5 +856,165 @@ fn test_mana_trigger_forbidden_orchard() {
     assert_eq!(
         spirit_count, 1,
         "Forbidden Orchard Spirit token trigger should create a 1/1 Spirit token when it resolves"
+    );
+}
+
+// ── Test 11: Tap-and-sacrifice source fires WhenTappedForMana (SR-28) ─────────
+
+/// Build a synthetic land with a `{T}, Sacrifice this land: Add {color}` mana ability
+/// (a Crystal Vein / Dwarven Ruins-class source). No card def / registry entry is needed:
+/// the tapped source is read for its own mana ability + type only, never dispatched as a
+/// trigger source (that path requires a `card_id`, which this deliberately omits).
+fn sac_land(owner: PlayerId, name: &str, color: ManaColor) -> ObjectSpec {
+    let mut ability = ManaAbility::tap_for(color);
+    ability.sacrifice_self = true;
+    ObjectSpec::land(owner, name).with_mana_ability(ability)
+}
+
+#[test]
+/// CR 106.12a — "An ability that triggers whenever a permanent 'is tapped for mana' ...
+/// triggers whenever such a mana ability resolves and produces mana." The sacrifice cost
+/// is paid before the ability resolves (CR 602.2c), so by the time the trigger's source
+/// filter runs the tapped land is a dead ObjectId (CR 400.7). Zendikar Resurgent's
+/// "Whenever you tap a land for mana, add one mana of any type that land produced" must
+/// STILL fire. Pre-SR-28 the `Land` filter read live `calculate_characteristics` on the
+/// dead id → `None` → the trigger silently missed (pool would hold 1 green, not 2).
+fn test_sac_land_fires_when_tapped_for_mana() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let (defs, registry) = build_registry();
+
+    let vein = sac_land(p1, "Crystal Vein Test", ManaColor::Green);
+    let resurgent = make_spec(p1, "Zendikar Resurgent", ZoneId::Battlefield, &defs);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .with_registry(registry)
+        .object(vein)
+        .object(resurgent)
+        .build()
+        .unwrap();
+
+    let vein_id = state
+        .objects()
+        .values()
+        .find(|o| o.characteristics.name == "Crystal Vein Test" && o.zone == ZoneId::Battlefield)
+        .map(|o| o.id)
+        .unwrap();
+
+    let (new_state, _) = process_command(
+        state,
+        Command::TapForMana {
+            player: p1,
+            source: vein_id,
+            ability_index: 0,
+        },
+    )
+    .unwrap();
+
+    // Non-vacuity: the land really was sacrificed (this is the dead-source path, not a
+    // case where the sacrifice silently no-op'd). Its old id is gone from the battlefield.
+    let vein_on_bf = new_state
+        .objects()
+        .get(&vein_id)
+        .map(|o| o.zone == ZoneId::Battlefield)
+        .unwrap_or(false);
+    assert!(
+        !vein_on_bf,
+        "the {{T}}+Sacrifice land must have left the battlefield (CR 400.7) — otherwise the \
+         test does not exercise the dead-source path"
+    );
+
+    let (_, _, _, _, green, _) = mana_pool(&new_state, p1);
+    // Land produces 1 green; Zendikar Resurgent's WhenTappedForMana adds 1 more green.
+    assert_eq!(
+        green, 2,
+        "CR 106.12a: Zendikar Resurgent must still fire for a land tapped-and-sacrificed for \
+         mana (1 green from the land + 1 from the trigger = 2), even though the land is a dead \
+         ObjectId by trigger time"
+    );
+}
+
+// ── Test 12: Caged Sun-class replacement applies to a sacrificed land (SR-28) ─
+
+#[test]
+/// CR 106.12b — "A replacement effect that applies if a permanent 'is tapped for mana' ...
+/// modifies the mana production event while such an ability is resolving." Caged Sun
+/// ("Whenever a land's ability causes you to add one or more mana of the chosen color, add
+/// an additional one mana of that color") is modeled as a `ManaWouldBeProduced` replacement
+/// with an `AnyLand` source filter. When the tapped land is also sacrificed for its mana,
+/// the land is a dead ObjectId (CR 400.7) by the time the replacement's source filter runs.
+/// Pre-SR-28 the `AnyLand` arm read live state → the land was gone → replacement dropped
+/// (pool would hold 1 green, not 2).
+fn test_caged_sun_applies_to_sacrificed_land() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let (defs, registry) = build_registry();
+
+    let vein = sac_land(p1, "Crystal Vein Test", ManaColor::Green);
+    let caged_sun = make_spec(p1, "Caged Sun", ZoneId::Battlefield, &defs);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .with_registry(registry.clone())
+        .object(vein)
+        .object(caged_sun)
+        .build()
+        .unwrap();
+
+    // Caged Sun's chosen color = Green (GameStateBuilder does not run the ETB color choice).
+    let caged_sun_id = state
+        .objects()
+        .values()
+        .find(|o| o.characteristics.name == "Caged Sun")
+        .map(|o| o.id)
+        .unwrap();
+    if let Some(obj) = state.objects_mut().get_mut(&caged_sun_id) {
+        obj.chosen_color = Some(Color::Green);
+    }
+
+    // Register replacement effects: GameStateBuilder doesn't run ETB hooks.
+    register_replacement_effects(&mut state, &registry);
+
+    let vein_id = state
+        .objects()
+        .values()
+        .find(|o| o.characteristics.name == "Crystal Vein Test" && o.zone == ZoneId::Battlefield)
+        .map(|o| o.id)
+        .unwrap();
+
+    let (new_state, _) = process_command(
+        state,
+        Command::TapForMana {
+            player: p1,
+            source: vein_id,
+            ability_index: 0,
+        },
+    )
+    .unwrap();
+
+    // Non-vacuity: the land really was sacrificed (dead-source path).
+    let vein_on_bf = new_state
+        .objects()
+        .get(&vein_id)
+        .map(|o| o.zone == ZoneId::Battlefield)
+        .unwrap_or(false);
+    assert!(
+        !vein_on_bf,
+        "the {{T}}+Sacrifice land must have left the battlefield (CR 400.7)"
+    );
+
+    let (_, _, _, _, green, _) = mana_pool(&new_state, p1);
+    // Land produces 1 green; Caged Sun (chosen green) adds 1 additional green.
+    assert_eq!(
+        green, 2,
+        "CR 106.12b: Caged Sun's mana-production replacement must apply to a land \
+         tapped-and-sacrificed for mana (1 green from the land + 1 additional from Caged Sun = 2)"
     );
 }

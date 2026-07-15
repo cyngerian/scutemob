@@ -165,6 +165,20 @@ pub fn handle_tap_for_mana(
             object_id: source,
         });
     }
+    // SR-28 (CR 106.12a / CR 106.12b): Snapshot the source's layer-resolved
+    // characteristics BEFORE the sacrifice cost step below. A {T}+Sacrifice mana
+    // source (Treasure — CR 111.10a; Crystal Vein; Dwarven Ruins) is a dead ObjectId
+    // (CR 400.7) by the time the mana-production replacement filter (step 7b) and the
+    // "tapped for mana" trigger filter (step 10) run. Per CR 106.12a/106.12b those
+    // filters must still see the source as it last existed on the battlefield, so both
+    // read this snapshot rather than live state. The snapshot is taken after the {T}
+    // tap (step 6) — tapping does not change type/subtype/color — and before any zone
+    // change, so it is the source's last-known-information (CR 603.10a semantics).
+    // `calculate_characteristics` returns `None` only if the object is absent, which
+    // cannot happen here: `source` was validated present at step 3 with no intervening
+    // zone change. Kept as `Option` so `mana_source_matches` / the replacement filter
+    // fizzle cleanly (rather than panic) if a future caller path ever taps a gone source.
+    let source_pre_cost_chars = crate::rules::layers::calculate_characteristics(state, source);
     // 7. Pay sacrifice cost if required (CR 111.10a: Treasure tokens).
     //    Sacrifice is a cost paid before mana is produced (CR 602.2c).
     //    After the zone move, `source` is a dead ObjectId (CR 400.7).
@@ -231,7 +245,7 @@ pub fn handle_tap_for_mana(
                 base_preview.push((*color, *amount));
             }
         }
-        apply_mana_production_replacements(state, player, source, &base_preview)
+        apply_mana_production_replacements(state, player, &base_preview, &source_pre_cost_chars)
     } else {
         (1u32, Vec::new())
     };
@@ -298,7 +312,14 @@ pub fn handle_tap_for_mana(
     //     Triggered mana abilities (no target) resolve immediately.
     //     Normal triggered abilities (has targets, e.g., Forbidden Orchard) go on the stack.
     if ability.requires_tap {
-        fire_mana_triggered_abilities(state, player, source, &mana_produced, &mut events);
+        fire_mana_triggered_abilities(
+            state,
+            player,
+            source,
+            &mana_produced,
+            &source_pre_cost_chars,
+            &mut events,
+        );
     }
     // 11. Player retains priority. players_passed is unchanged.
     //    (CR 605.5: mana abilities are special actions; they do not reset priority.)
@@ -312,13 +333,15 @@ pub fn handle_tap_for_mana(
 /// - `additions`: list of `(ManaColor, amount)` to add to the pool (CR 106.6a additivity).
 ///   Used by Caged Sun / Gauntlet of Power ("add an additional one mana of that color").
 ///
-/// `source_perm` is the permanent being tapped for mana (used for source_filter checks).
 /// `base_mana` is the mana the ability would produce before replacements (color-filter check).
+/// `source_pre_cost_chars` is the tapped source's layer-resolved characteristics snapshotted
+/// BEFORE the sacrifice cost (SR-28) — read by source_filter checks so a {T}+Sacrifice
+/// land (now a dead ObjectId, CR 400.7) is still recognized per CR 106.12b.
 fn apply_mana_production_replacements(
     state: &GameState,
     player: PlayerId,
-    source_perm: ObjectId,
     base_mana: &[(ManaColor, u32)],
+    source_pre_cost_chars: &Option<crate::state::game_object::Characteristics>,
 ) -> (u32, Vec<(ManaColor, u32)>) {
     let mut multiplier = 1u32;
     let mut additions: Vec<(ManaColor, u32)> = Vec::new();
@@ -334,19 +357,16 @@ fn apply_mana_production_replacements(
             }
             // Check source_filter: does this replacement apply to the tapped permanent?
             if let Some(sf) = source_filter {
-                let source_obj = state.objects.get(&source_perm);
                 let passes_source_filter = match sf {
                     ReplacementManaSourceFilter::Any => true,
-                    ReplacementManaSourceFilter::AnyLand => source_obj
-                        .map(|_o| {
-                            // SR-14 IMPOSSIBLE: inside `source_obj.map`, so `source_perm`
-                            // is present and calc cannot be None. (The outer
-                            // `.unwrap_or(false)` is the real fizzle guard: the tapped
-                            // source may already be gone after a sacrifice cost.)
-                            crate::rules::layers::expect_characteristics(state, source_perm)
-                                .card_types
-                                .contains(&crate::state::types::CardType::Land)
-                        })
+                    // SR-28 (CR 106.12b): read the pre-cost snapshot, not live state. A
+                    // {T}+Sacrifice land (Dwarven Ruins, Crystal Vein) is already a dead
+                    // ObjectId (CR 400.7) here — the previous live `state.objects.get`
+                    // lookup returned `None` and silently dropped the replacement (e.g.
+                    // Caged Sun missed its +1). The snapshot is `Some` for any real tap.
+                    ReplacementManaSourceFilter::AnyLand => source_pre_cost_chars
+                        .as_ref()
+                        .map(|c| c.card_types.contains(&crate::state::types::CardType::Land))
                         .unwrap_or(false),
                 };
                 if !passes_source_filter {
@@ -438,11 +458,15 @@ fn apply_mana_production_replacements(
 ///
 /// The `source` is the permanent that was tapped for mana.
 /// `mana_produced` is the list of (color, amount) pairs the ability produced (post-multiplier).
+/// `source_pre_cost_chars` is the tapped source's layer-resolved characteristics snapshotted
+/// BEFORE the sacrifice cost (SR-28) — threaded into `mana_source_matches` so a
+/// {T}+Sacrifice source (a dead ObjectId here, CR 400.7) still matches per CR 106.12a.
 fn fire_mana_triggered_abilities(
     state: &mut GameState,
     player: PlayerId,
     source: ObjectId,
     mana_produced: &[(ManaColor, u32)],
+    source_pre_cost_chars: &Option<crate::state::game_object::Characteristics>,
     events: &mut Vec<GameEvent>,
 ) {
     // Collect permanents on the battlefield with WhenTappedForMana triggered abilities.
@@ -480,7 +504,13 @@ fn fire_mana_triggered_abilities(
                 _ => continue,
             };
             // Check if the tapped source matches the filter.
-            if !mana_source_matches(state, source, trigger_source_id, source_filter) {
+            if !mana_source_matches(
+                state,
+                source,
+                trigger_source_id,
+                source_filter,
+                source_pre_cost_chars,
+            ) {
                 continue;
             }
             // Determine if this is a triggered mana ability (CR 605.1b):
@@ -510,41 +540,47 @@ fn fire_mana_triggered_abilities(
 /// Check if the tapped permanent (`source`) matches the `ManaSourceFilter` on the
 /// trigger source (`trigger_source_id`). The trigger source is the permanent whose
 /// ability is firing (e.g., Mirari's Wake, Wild Growth, Forbidden Orchard).
+///
+/// SR-28 (CR 106.12a): the characteristic-reading arms (Land / LandSubtype / Creature /
+/// AnyPermanent) read `source_pre_cost_chars` — the source's layer-resolved characteristics
+/// snapshotted before any sacrifice cost — rather than live state, because by the time this
+/// fires a {T}+Sacrifice source is a dead ObjectId (CR 400.7) whose live `calculate_characteristics`
+/// is `None`. The snapshot is `Some` for any legitimately-tapped permanent. The `EnchantedLand`
+/// and `This` arms compare against `trigger_source_id` (still live) and need no snapshot.
 fn mana_source_matches(
     state: &GameState,
     source: ObjectId,
     trigger_source_id: ObjectId,
     filter: &ManaSourceFilter,
+    source_pre_cost_chars: &Option<crate::state::game_object::Characteristics>,
 ) -> bool {
     match filter {
         ManaSourceFilter::Land => {
             // Source must be a land controlled by the trigger source's controller.
-            let chars = crate::rules::layers::calculate_characteristics(state, source);
-            chars
+            source_pre_cost_chars
+                .as_ref()
                 .map(|c| c.card_types.contains(&CardType::Land))
                 .unwrap_or(false)
         }
         ManaSourceFilter::LandSubtype(subtype) => {
             // Source must be a land with the specific subtype.
-            let chars = crate::rules::layers::calculate_characteristics(state, source);
-            chars
+            source_pre_cost_chars
+                .as_ref()
                 .map(|c| c.card_types.contains(&CardType::Land) && c.subtypes.contains(subtype))
                 .unwrap_or(false)
         }
         ManaSourceFilter::Creature => {
             // Source must be a creature.
-            let chars = crate::rules::layers::calculate_characteristics(state, source);
-            chars
+            source_pre_cost_chars
+                .as_ref()
                 .map(|c| c.card_types.contains(&CardType::Creature))
                 .unwrap_or(false)
         }
         ManaSourceFilter::AnyPermanent => {
-            // Any permanent matches.
-            state
-                .objects
-                .get(&source)
-                .map(|o| matches!(o.zone, ZoneId::Battlefield))
-                .unwrap_or(false)
+            // Any permanent tapped for mana matches. The snapshot is `Some` iff the source
+            // was a real permanent when tapped (CR 106.12a) — this also matches a sacrificed
+            // source (e.g. a Treasure), whose live battlefield lookup would now be `None`.
+            source_pre_cost_chars.is_some()
         }
         ManaSourceFilter::EnchantedLand => {
             // The trigger source (Aura) must be attached to the tapped permanent.
