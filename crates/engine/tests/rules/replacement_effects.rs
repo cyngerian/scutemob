@@ -4712,3 +4712,88 @@ fn test_order_replacements_rejects_non_affected_sender() {
         "CR 616.1: only the affected chooser of the pending event may order it"
     );
 }
+
+#[test]
+/// CR 616.1 / 400.6 — the chooser is the controller but the destination zone is the
+/// *owner's*. With a control change, resolving a pending choice must land the object
+/// in the owner's library, not the controller's. Pins that the owner/chooser split
+/// keeps destinations owner-scoped end-to-end (through resolve_pending_zone_change).
+/// Source: SR-29 F2 (owner/chooser separation).
+fn test_pending_resolution_uses_owner_zone_not_controller_zone() {
+    use mtg_engine::state::replacement_effect::PendingZoneChange;
+    use mtg_engine::state::test_util;
+
+    let owner = PlayerId(1);
+    let controller = PlayerId(3); // Act of Treason: control taken.
+
+    // Two competing Battlefield -> Graveyard redirects into the (owner's) library, so
+    // whichever the chooser picks the destination is a per-player zone.
+    let repl = |id: u64, ctrl: PlayerId| ReplacementEffect {
+        id: ReplacementId(id),
+        source: None,
+        controller: ctrl,
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldChangeZone {
+            from: Some(ZoneType::Battlefield),
+            to: ZoneType::Graveyard,
+            filter: ObjectFilter::Any,
+        },
+        modification: ReplacementModification::RedirectToZone(ZoneType::Library),
+    };
+
+    let mut state = GameStateBuilder::four_player()
+        .object(ObjectSpec::creature(owner, "Creature", 2, 2))
+        .with_replacement_effect(repl(0, PlayerId(2)))
+        .with_replacement_effect(repl(1, PlayerId(4)))
+        .build()
+        .unwrap();
+
+    let creature_id = state
+        .objects_in_zone(&ZoneId::Battlefield)
+        .first()
+        .unwrap()
+        .id;
+    // Control change: controller != owner.
+    test_util::object_mut(&mut state, creature_id)
+        .unwrap()
+        .controller = controller;
+
+    // The choice belongs to the controller (CR 616.1) — record the pending for them.
+    state
+        .pending_zone_changes_mut()
+        .push_back(PendingZoneChange {
+            object_id: creature_id,
+            original_from: ZoneType::Battlefield,
+            original_destination: ZoneType::Graveyard,
+            affected_player: controller,
+            already_applied: Vec::new(),
+        });
+
+    // The controller orders the replacements.
+    let (state, _events) = mtg_engine::process_command(
+        state,
+        Command::OrderReplacements {
+            player: controller,
+            ids: vec![ReplacementId(0)],
+        },
+    )
+    .unwrap();
+
+    // CR 400.6: the object goes to its OWNER's library, never the controller's.
+    assert_eq!(
+        state.objects_in_zone(&ZoneId::Library(owner)).len(),
+        1,
+        "object must land in the owner's library"
+    );
+    assert!(
+        state
+            .objects_in_zone(&ZoneId::Library(controller))
+            .is_empty(),
+        "object must NOT land in the controller's library"
+    );
+    assert!(
+        state.pending_zone_changes().is_empty(),
+        "the pending choice must be consumed"
+    );
+}
