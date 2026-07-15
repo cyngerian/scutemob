@@ -64,7 +64,12 @@ pub fn handling(keyword: &KeywordAbility) -> KeywordHandling {
                 "crates/card-types/src/state/dungeon.rs",
             ],
         },
-        K::Defender => KeywordHandling::Handled { sites: &["crates/engine/src/rules/combat.rs"] },
+        K::Defender => KeywordHandling::Handled {
+            sites: &[
+                "crates/engine/src/rules/combat.rs",
+                "crates/simulator/src/legal_actions.rs",
+            ],
+        },
         K::DoubleStrike => KeywordHandling::Handled {
             sites: &[
                 "crates/engine/src/rules/combat.rs",
@@ -92,6 +97,7 @@ pub fn handling(keyword: &KeywordAbility) -> KeywordHandling {
             sites: &[
                 "crates/engine/src/rules/casting.rs",
                 "crates/engine/src/rules/suspend.rs",
+                "crates/simulator/src/legal_actions.rs",
             ],
         },
         K::Flying => KeywordHandling::Handled {
@@ -107,6 +113,7 @@ pub fn handling(keyword: &KeywordAbility) -> KeywordHandling {
                 "crates/engine/src/rules/combat.rs",
                 "crates/engine/src/rules/mana.rs",
                 "crates/engine/src/rules/resolution.rs",
+                "crates/simulator/src/legal_actions.rs",
             ],
         },
         K::Hexproof => KeywordHandling::Handled {
@@ -562,7 +569,12 @@ pub fn handling(keyword: &KeywordAbility) -> KeywordHandling {
                 "crates/engine/src/testing/replay_harness.rs",
             ],
         },
-        K::Saddle(..) => KeywordHandling::Handled { sites: &["crates/engine/src/rules/abilities.rs"] },
+        K::Saddle(..) => KeywordHandling::Handled {
+            sites: &[
+                "crates/engine/src/rules/abilities.rs",
+                "crates/simulator/src/legal_actions.rs",
+            ],
+        },
         K::Cipher => KeywordHandling::Handled {
             sites: &[
                 "crates/engine/src/rules/abilities.rs",
@@ -582,7 +594,12 @@ pub fn handling(keyword: &KeywordAbility) -> KeywordHandling {
                 "crates/engine/src/testing/replay_harness.rs",
             ],
         },
-        K::Mutate => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
+        K::Mutate => KeywordHandling::Handled {
+            sites: &[
+                "crates/engine/src/rules/casting.rs",
+                "crates/simulator/src/legal_actions.rs",
+            ],
+        },
         K::Transform => KeywordHandling::Marker {
             carrier: "Command::Transform + Effect::TransformPermanent",
             cr: "701.27a",

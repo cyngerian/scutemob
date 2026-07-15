@@ -22,7 +22,16 @@ use mtg_engine::state::ability_definition_registry::{
 ///
 /// `crates/card-defs/` is *not* scanned: a card definition naming a variant is card
 /// data, not engine behavior. (`site_scan_is_not_vacuous` asserts it never reappears.)
-const SCAN_ROOTS: &[&str] = &["crates/engine/src", "crates/card-types/src"];
+///
+/// SR-20 added `crates/simulator/src`: the simulator's legality layer
+/// (`legal_actions.rs`) dispatches on ability definitions
+/// (LoyaltyAbility/Bloodrush/MutateCost/Morph/Megamorph/Disguise) to decide which
+/// actions are legal — real dispatch the registry must see and declare.
+const SCAN_ROOTS: &[&str] = &[
+    "crates/engine/src",
+    "crates/card-types/src",
+    "crates/simulator/src",
+];
 
 /// Files that mention `AbilityDefinition::<V>` without dispatching on it:
 ///
@@ -458,6 +467,14 @@ fn site_scan_is_not_vacuous() {
         "Spell should dispatch in casting.rs; the scan found {:?}",
         actual["Spell"]
     );
+
+    // SR-20: the simulator's legality dispatch is now in scope and declared.
+    assert!(files.contains(&"crates/simulator/src/legal_actions.rs".to_string()));
+    assert!(
+        actual["Bloodrush"].contains("crates/simulator/src/legal_actions.rs"),
+        "Bloodrush should dispatch in the simulator's legal_actions.rs; the scan found {:?}",
+        actual["Bloodrush"]
+    );
 }
 
 /// A `Marker` variant is a claim that the rules text is implemented elsewhere (by a
@@ -479,5 +496,141 @@ fn marker_abilities_are_the_reviewed_set() {
         "the set of marker-only AbilityDefinition variants changed. Each entry means \
          \"this variant carries no dispatch; a KeywordAbility twin does\" — justify the \
          change in docs/sr-15-dispatch-enum-catchall-audit.md before editing this list."
+    );
+}
+
+// --- SR-20: the site scanner only sees the literal token `AbilityDefinition::<V>`. ---
+//
+// `use ...AbilityDefinition as AD; matches!(a, AD::Vanishing { .. })` (and glob
+// `use ...AbilityDefinition::*;`) dispatch on a variant without ever writing
+// `AbilityDefinition::Vanishing`, so `actual_sites()` records nothing and a `Marker`
+// could silently gain dispatch. Reproduced against this registry (`AD::Vanishing`)
+// during the SR-20 re-audit. Same proven machinery as `keyword_registry.rs`.
+
+/// The text of each `use ... ;` item in `code` (already comment/literal-stripped).
+/// See `keyword_registry.rs` for the rationale (catches `use` in bodies too).
+fn use_statements(code: &str) -> Vec<String> {
+    let chars: Vec<char> = code.chars().collect();
+    let n = chars.len();
+    let is_ident = |c: char| c.is_alphanumeric() || c == '_';
+    let mut stmts = Vec::new();
+    let mut i = 0;
+    while i < n {
+        if chars[i] == 'u' && i + 2 < n && chars[i + 1] == 's' && chars[i + 2] == 'e' {
+            let before_ok = i == 0 || !is_ident(chars[i - 1]);
+            let after_ok = chars.get(i + 3).is_none_or(|&c| !is_ident(c));
+            if before_ok && after_ok {
+                let mut j = i + 3;
+                while j < n && chars[j] != ';' {
+                    j += 1;
+                }
+                stmts.push(chars[i + 3..j.min(n)].iter().collect());
+                i = j + 1;
+                continue;
+            }
+        }
+        i += 1;
+    }
+    stmts
+}
+
+/// If `stmt` imports `type_name` in a bypassing form (aliased with `as`, or used as
+/// a `::` path prefix to pull variants in), describe it; else `None`. Followed by
+/// `,` / `}` / end it is a plain type import, which is fine.
+fn forbidden_use_form(stmt: &str, type_name: &str) -> Option<String> {
+    let chars: Vec<char> = stmt.chars().collect();
+    let tn: Vec<char> = type_name.chars().collect();
+    let n = chars.len();
+    let is_ident = |c: char| c.is_alphanumeric() || c == '_';
+    let mut i = 0;
+    while i + tn.len() <= n {
+        if chars[i..i + tn.len()] == tn[..] {
+            let before_ok = i == 0 || !is_ident(chars[i - 1]);
+            let after = i + tn.len();
+            let after_ok = after >= n || !is_ident(chars[after]);
+            if before_ok && after_ok {
+                let mut k = after;
+                while k < n && chars[k].is_whitespace() {
+                    k += 1;
+                }
+                if k + 1 < n && chars[k] == ':' && chars[k + 1] == ':' {
+                    return Some(format!(
+                        "`use {type_name}::…` imports variants (glob `::*`, grouped `::{{…}}`, \
+                         or single `::Variant`); the scanner sees only `{type_name}::Variant` at \
+                         a real dispatch site, never a bare variant brought into scope this way"
+                    ));
+                }
+                if k + 1 < n
+                    && chars[k] == 'a'
+                    && chars[k + 1] == 's'
+                    && chars.get(k + 2).is_none_or(|&c| !is_ident(c))
+                {
+                    return Some(format!(
+                        "`use {type_name} as …` aliases the type; dispatch through the alias \
+                         (`Alias::Variant`) is invisible to the `{type_name}::` scanner"
+                    ));
+                }
+            }
+        }
+        i += 1;
+    }
+    None
+}
+
+/// Every bypassing import of `type_name` across the scanned files, as `"file: reason"`.
+fn bypassing_use_imports(type_name: &str) -> Vec<String> {
+    let root = workspace_root();
+    let mut hits = Vec::new();
+    for file in scanned_files() {
+        let src = std::fs::read_to_string(root.join(&file)).expect("readable source");
+        let code = strip_comments_and_literals(&src);
+        for stmt in use_statements(&code) {
+            if let Some(reason) = forbidden_use_form(&stmt, type_name) {
+                hits.push(format!("{file}: {reason}"));
+            }
+        }
+    }
+    hits
+}
+
+/// No scanned file may import `AbilityDefinition` in a form that blinds the site
+/// scanner. The reproduced alias attack (`use …AbilityDefinition as AD; AD::Vanishing`)
+/// is caught here.
+#[test]
+fn use_imports_do_not_bypass_the_scanner() {
+    let hits = bypassing_use_imports("AbilityDefinition");
+    assert!(
+        hits.is_empty(),
+        "these `use` imports let engine code dispatch on an AbilityDefinition variant \
+         without writing `AbilityDefinition::Variant`, so the site scan cannot see it \
+         (SR-20):\n  {}\n\
+         Import the type plainly and write `AbilityDefinition::Variant` at the dispatch \
+         site, or — if an alias is truly wanted — add the file to EXCLUDED and give its \
+         dispatch a declared home another way.",
+        hits.join("\n  ")
+    );
+}
+
+/// Guards `use_imports_do_not_bypass_the_scanner` against a broken parser that finds
+/// nothing. Asserts the splitter and classifier work on synthetic input covering
+/// every case, so an empty `hits` means "clean", not "blind".
+#[test]
+fn import_bypass_detector_is_not_vacuous() {
+    let stmts = use_statements("use a::B; fn f() { use c::D::*; } let unused = reuse;");
+    assert_eq!(stmts.len(), 2, "use_statements miscounted: {stmts:?}");
+
+    assert!(forbidden_use_form(" x::AbilityDefinition as AD", "AbilityDefinition").is_some());
+    assert!(forbidden_use_form(" x::AbilityDefinition::*", "AbilityDefinition").is_some());
+    assert!(forbidden_use_form(
+        " x::AbilityDefinition::{Morph, Disguise}",
+        "AbilityDefinition"
+    )
+    .is_some());
+    assert!(forbidden_use_form(" x::AbilityDefinition::Bloodrush", "AbilityDefinition").is_some());
+    assert!(forbidden_use_form(" x::y::AbilityDefinition", "AbilityDefinition").is_none());
+    assert!(forbidden_use_form(" x::{AbilityDefinition, Foo}", "AbilityDefinition").is_none());
+    assert!(
+        forbidden_use_form(" x::AbilityDefinitionSet::*", "AbilityDefinition").is_none(),
+        "whole-word check failed: matched a longer identifier"
     );
 }

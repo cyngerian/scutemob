@@ -145,7 +145,10 @@ pub fn handling(ability: &AbilityDefinition) -> AbilityHandling {
             sites: &["crates/engine/src/rules/casting.rs"],
         },
         A::LoyaltyAbility { .. } => AbilityHandling::Handled {
-            sites: &["crates/engine/src/rules/engine.rs"],
+            sites: &[
+                "crates/engine/src/rules/engine.rs",
+                "crates/simulator/src/legal_actions.rs",
+            ],
         },
         A::SagaChapter { .. } => AbilityHandling::Handled {
             sites: &[
@@ -285,7 +288,10 @@ pub fn handling(ability: &AbilityDefinition) -> AbilityHandling {
             sites: &["crates/engine/src/rules/casting.rs"],
         },
         A::Bloodrush { .. } => AbilityHandling::Handled {
-            sites: &["crates/engine/src/rules/abilities.rs"],
+            sites: &[
+                "crates/engine/src/rules/abilities.rs",
+                "crates/simulator/src/legal_actions.rs",
+            ],
         },
         A::Offspring { .. } => AbilityHandling::Handled {
             sites: &["crates/engine/src/rules/casting.rs"],
@@ -303,7 +309,10 @@ pub fn handling(ability: &AbilityDefinition) -> AbilityHandling {
             sites: &["crates/engine/src/testing/replay_harness.rs"],
         },
         A::MutateCost { .. } => AbilityHandling::Handled {
-            sites: &["crates/engine/src/rules/casting.rs"],
+            sites: &[
+                "crates/engine/src/rules/casting.rs",
+                "crates/simulator/src/legal_actions.rs",
+            ],
         },
         A::Disturb { .. } => AbilityHandling::Handled {
             sites: &[
@@ -319,6 +328,7 @@ pub fn handling(ability: &AbilityDefinition) -> AbilityHandling {
                 "crates/engine/src/rules/casting.rs",
                 "crates/engine/src/rules/engine.rs",
                 "crates/engine/src/testing/replay_harness.rs",
+                "crates/simulator/src/legal_actions.rs",
             ],
         },
         A::Megamorph { .. } => AbilityHandling::Handled {
@@ -326,6 +336,7 @@ pub fn handling(ability: &AbilityDefinition) -> AbilityHandling {
                 "crates/engine/src/rules/casting.rs",
                 "crates/engine/src/rules/engine.rs",
                 "crates/engine/src/testing/replay_harness.rs",
+                "crates/simulator/src/legal_actions.rs",
             ],
         },
         A::Disguise { .. } => AbilityHandling::Handled {
@@ -333,6 +344,7 @@ pub fn handling(ability: &AbilityDefinition) -> AbilityHandling {
                 "crates/engine/src/rules/casting.rs",
                 "crates/engine/src/rules/engine.rs",
                 "crates/engine/src/testing/replay_harness.rs",
+                "crates/simulator/src/legal_actions.rs",
             ],
         },
         A::StaticRestriction { .. } => AbilityHandling::Handled {

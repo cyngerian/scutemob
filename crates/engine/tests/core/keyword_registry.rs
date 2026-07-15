@@ -21,7 +21,18 @@ use mtg_engine::state::types::KeywordAbility;
 /// `crates/engine/src/cards/defs/` and were skipped by a path filter; now they
 /// are simply outside every scan root, which is a stronger form of the same
 /// exclusion. `site_scan_is_not_vacuous` asserts they never reappear.
-const SCAN_ROOTS: &[&str] = &["crates/engine/src", "crates/card-types/src"];
+///
+/// SR-20 added `crates/simulator/src`: the simulator's legality layer
+/// (`legal_actions.rs`) dispatches on keywords (Flash/Defender/Haste/Saddle/Mutate)
+/// to decide which actions are legal. That is real dispatch the registry must be
+/// able to see and declare — before this root was added it was structurally
+/// invisible, so a keyword could lose its last *engine* site and still be read by
+/// the simulator with the registry none the wiser.
+const SCAN_ROOTS: &[&str] = &[
+    "crates/engine/src",
+    "crates/card-types/src",
+    "crates/simulator/src",
+];
 
 /// Files that mention `KeywordAbility::<V>` without dispatching on it, and so are
 /// excluded from the site scan:
@@ -488,6 +499,14 @@ fn site_scan_is_not_vacuous() {
         "Flying should dispatch in combat.rs; the scan found {:?}",
         actual["Flying"]
     );
+
+    // SR-20: the simulator's legality dispatch is now in scope and declared.
+    assert!(files.contains(&"crates/simulator/src/legal_actions.rs".to_string()));
+    assert!(
+        actual["Flash"].contains("crates/simulator/src/legal_actions.rs"),
+        "Flash should dispatch in the simulator's legal_actions.rs; the scan found {:?}",
+        actual["Flash"]
+    );
 }
 
 /// A `Marker` keyword is a claim that the rules text is implemented elsewhere. Keep
@@ -528,5 +547,149 @@ fn marker_keywords_are_the_reviewed_set() {
         "the set of marker-only keywords changed. Each entry means \"this keyword \
          needs no engine dispatch\" — justify the change in \
          docs/sr-5-keyword-catchall-audit.md before editing this list."
+    );
+}
+
+// --- SR-20: the site scanner only sees the literal token `KeywordAbility::<V>`. ---
+//
+// `use ...KeywordAbility as KA; matches!(kw, KA::Equip { .. })` and
+// `use ...KeywordAbility::*; matches!(kw, Equip { .. })` both dispatch on a variant
+// without ever writing `KeywordAbility::Equip`, so `actual_sites()` records nothing
+// and a `Marker` could silently gain dispatch — the exact failure SR-5 exists to
+// stop. There is no such import in the scan roots today (the only alias lives in the
+// *excluded* registry file itself). This gate keeps it that way: within a `use`
+// statement, the type name may only be imported as itself (`use path::KeywordAbility;`
+// or inside a group as a leaf), never aliased (`as`) or used as a path prefix (`::`)
+// to pull its variants into scope.
+
+/// The text of each `use ... ;` item in `code` (already comment/literal-stripped),
+/// i.e. everything between the `use` keyword and its terminating `;`. Catches `use`
+/// anywhere — top level *or* inside a function body, where a local
+/// `use KeywordAbility::*;` is just as blinding.
+fn use_statements(code: &str) -> Vec<String> {
+    let chars: Vec<char> = code.chars().collect();
+    let n = chars.len();
+    let is_ident = |c: char| c.is_alphanumeric() || c == '_';
+    let mut stmts = Vec::new();
+    let mut i = 0;
+    while i < n {
+        if chars[i] == 'u' && i + 2 < n && chars[i + 1] == 's' && chars[i + 2] == 'e' {
+            let before_ok = i == 0 || !is_ident(chars[i - 1]);
+            let after_ok = chars.get(i + 3).is_none_or(|&c| !is_ident(c));
+            if before_ok && after_ok {
+                let mut j = i + 3;
+                while j < n && chars[j] != ';' {
+                    j += 1;
+                }
+                stmts.push(chars[i + 3..j.min(n)].iter().collect());
+                i = j + 1;
+                continue;
+            }
+        }
+        i += 1;
+    }
+    stmts
+}
+
+/// If `stmt` (one `use` item's path text) imports `type_name` in a bypassing form,
+/// describe it; otherwise `None`. Forbidden iff `type_name` (as a whole word) is
+/// immediately followed — modulo whitespace — by `::` (glob / grouped / single
+/// variant import) or `as` (alias). Followed by `,` / `}` / end, it is a plain
+/// import of the type itself, which is fine.
+fn forbidden_use_form(stmt: &str, type_name: &str) -> Option<String> {
+    let chars: Vec<char> = stmt.chars().collect();
+    let tn: Vec<char> = type_name.chars().collect();
+    let n = chars.len();
+    let is_ident = |c: char| c.is_alphanumeric() || c == '_';
+    let mut i = 0;
+    while i + tn.len() <= n {
+        if chars[i..i + tn.len()] == tn[..] {
+            let before_ok = i == 0 || !is_ident(chars[i - 1]);
+            let after = i + tn.len();
+            let after_ok = after >= n || !is_ident(chars[after]);
+            if before_ok && after_ok {
+                let mut k = after;
+                while k < n && chars[k].is_whitespace() {
+                    k += 1;
+                }
+                if k + 1 < n && chars[k] == ':' && chars[k + 1] == ':' {
+                    return Some(format!(
+                        "`use {type_name}::…` imports variants (glob `::*`, grouped `::{{…}}`, \
+                         or single `::Variant`); the scanner sees only `{type_name}::Variant` at \
+                         a real dispatch site, never a bare variant brought into scope this way"
+                    ));
+                }
+                if k + 1 < n
+                    && chars[k] == 'a'
+                    && chars[k + 1] == 's'
+                    && chars.get(k + 2).is_none_or(|&c| !is_ident(c))
+                {
+                    return Some(format!(
+                        "`use {type_name} as …` aliases the type; dispatch through the alias \
+                         (`Alias::Variant`) is invisible to the `{type_name}::` scanner"
+                    ));
+                }
+            }
+        }
+        i += 1;
+    }
+    None
+}
+
+/// Every bypassing import of `type_name` across the scanned files, as
+/// `"file: reason"`.
+fn bypassing_use_imports(type_name: &str) -> Vec<String> {
+    let root = workspace_root();
+    let mut hits = Vec::new();
+    for file in scanned_files() {
+        let src = std::fs::read_to_string(root.join(&file)).expect("readable source");
+        let code = strip_comments_and_literals(&src);
+        for stmt in use_statements(&code) {
+            if let Some(reason) = forbidden_use_form(&stmt, type_name) {
+                hits.push(format!("{file}: {reason}"));
+            }
+        }
+    }
+    hits
+}
+
+/// No scanned file may import `KeywordAbility` in a form that blinds the site
+/// scanner. The demonstrated alias attack (`use …KeywordAbility as KA; KA::Equip`)
+/// is caught here.
+#[test]
+fn use_imports_do_not_bypass_the_scanner() {
+    let hits = bypassing_use_imports("KeywordAbility");
+    assert!(
+        hits.is_empty(),
+        "these `use` imports let engine code dispatch on a KeywordAbility variant \
+         without writing `KeywordAbility::Variant`, so the site scan cannot see it \
+         (SR-20):\n  {}\n\
+         Import the type plainly and write `KeywordAbility::Variant` at the dispatch \
+         site, or — if an alias is truly wanted — add the file to EXCLUDED and give \
+         its dispatch a declared home another way.",
+        hits.join("\n  ")
+    );
+}
+
+/// Guards `use_imports_do_not_bypass_the_scanner` against a broken parser that
+/// finds nothing. Asserts the statement splitter and form classifier both work on
+/// synthetic input covering every case, so an empty `hits` means "clean", not
+/// "blind".
+#[test]
+fn import_bypass_detector_is_not_vacuous() {
+    // use_statements finds `use` at top level and inside a body, not in identifiers.
+    let stmts = use_statements("use a::B; fn f() { use c::D::*; } let unused = reuse;");
+    assert_eq!(stmts.len(), 2, "use_statements miscounted: {stmts:?}");
+
+    // Each forbidden form is flagged; the plain import and a same-prefix type are not.
+    assert!(forbidden_use_form(" x::KeywordAbility as KA", "KeywordAbility").is_some());
+    assert!(forbidden_use_form(" x::KeywordAbility::*", "KeywordAbility").is_some());
+    assert!(forbidden_use_form(" x::KeywordAbility::{Flash, Haste}", "KeywordAbility").is_some());
+    assert!(forbidden_use_form(" x::KeywordAbility::Equip", "KeywordAbility").is_some());
+    assert!(forbidden_use_form(" x::y::KeywordAbility", "KeywordAbility").is_none());
+    assert!(forbidden_use_form(" x::{KeywordAbility, Foo}", "KeywordAbility").is_none());
+    assert!(
+        forbidden_use_form(" x::KeywordAbilityKind::*", "KeywordAbility").is_none(),
+        "whole-word check failed: matched a longer identifier"
     );
 }
