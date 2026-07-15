@@ -413,7 +413,7 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[HashSchemaEpoch {
     // SR-17 (2026-07-14): initial fingerprints. Baseline of the two-axis gate;
     // the shape/stream they pin is whatever HASH_SCHEMA_VERSION 39 already was.
     decl_fingerprint: "9398dee6d2338d30b7c4bf02f769d8f3654b10ccd9ee38fd0afdcf11223b5419",
-    stream_fingerprint: "81c776bbd734388ceb1a470d9163900731d56e2c6df139bbf5ac97d465f043c9",
+    stream_fingerprint: "4f335df79a80bbd3b3bbafe14b223cfdeb5c479a6e037eefafd29f0c5d635976",
 }];
 
 use super::combat::{AttackTarget, CombatState};

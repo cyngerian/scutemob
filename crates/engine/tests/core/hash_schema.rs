@@ -70,7 +70,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use mtg_engine::{
-    CardType, Color, CounterType, GameState, GameStateBuilder, HashSchemaEpoch, KeywordAbility,
+    CardType, Color, ContinuousEffect, CounterType, EffectDuration, EffectFilter, EffectId,
+    EffectLayer, GameState, GameStateBuilder, HashSchemaEpoch, KeywordAbility, LayerModification,
     ManaColor, ManaPool, ObjectSpec, PlayerId, Step, SubType, SuperType, ZoneId,
     HASH_SCHEMA_HISTORY, HASH_SCHEMA_VERSION,
 };
@@ -156,7 +157,30 @@ const BASELINE_VERSION: u8 = 39;
 const BASELINE_DECL_FINGERPRINT: &str =
     "9398dee6d2338d30b7c4bf02f769d8f3654b10ccd9ee38fd0afdcf11223b5419";
 const BASELINE_STREAM_FINGERPRINT: &str =
-    "81c776bbd734388ceb1a470d9163900731d56e2c6df139bbf5ac97d465f043c9";
+    "4f335df79a80bbd3b3bbafe14b223cfdeb5c479a6e037eefafd29f0c5d635976";
+
+// Digest over the **frozen prefix** — every `HASH_SCHEMA_HISTORY` row except the
+// current (tail) one. The tail is the working row for the live schema and is
+// validated by recomputation (`declaration_fingerprint_is_pinned` /
+// `stream_fingerprint_is_pinned`); every row behind it is *shipped and
+// superseded* and must never change again. This digest freezes all of them at
+// once, generalizing `baseline_row_is_frozen` (which anchors only version 39)
+// forward to every future version.
+//
+// With a single history row the prefix is empty, so this pins the digest of the
+// empty prefix; it becomes load-bearing on the first bump, when version 39 enters
+// the prefix and its bytes lock here. On every bump you append a row AND re-pin
+// this (the newly-superseded row joins the prefix) — a deliberate, reviewed edit.
+//
+// Residual, documented honestly: the *tail* row is not frozen (it cannot be — the
+// gates establish it from source and fixture), so re-pinning the *current*
+// version's fingerprints in place is caught only while the current version is the
+// frozen baseline (39 today). Every future change MUST append, never edit the
+// tail.
+//
+// **FROZEN — do not edit except by appending to `HASH_SCHEMA_HISTORY`.**
+const FROZEN_HISTORY_PREFIX_DIGEST: &str =
+    "52ba8cf18b4ad98113fd4c886dfa94d1483c20cc661eec15ec891e5881dcd4ed";
 
 /// The workspace root: `crates/engine/` is two levels down from it.
 fn workspace_root() -> PathBuf {
@@ -660,17 +684,26 @@ fn compute_decl_fingerprint(index: &BTreeMap<String, Decl>, closure: &BTreeSet<S
 /// edit. It spreads objects across battlefield / hand / graveyard / library /
 /// exile / command zones and gives them varied characteristics (counters, tap
 /// status, damage, keywords, loyalty, types, abilities), and gives the players
-/// varied life / poison / mana. That exercises the two largest `HashInto` impls
-/// (`GameObject`/`Characteristics` and `PlayerState`) plus `TurnState`, `Zone`,
-/// `ManaPool`, and both the public and private hash paths.
+/// varied life / poison / mana, plus one `ContinuousEffect`. That exercises the
+/// two largest `HashInto` impls (`GameObject`/`Characteristics` and `PlayerState`)
+/// plus `TurnState`, `Zone`, `ManaPool`, `ContinuousEffect` (and its `EffectFilter`
+/// / `LayerModification` / `EffectLayer` / `EffectDuration` sub-impls), and both
+/// the public and private hash paths.
 ///
 /// **Coverage cap (logged, not silent — SR track rule):** the builder cannot
-/// populate `stack_objects`, `combat`, `pending_triggers`, `continuous_effects`,
-/// `replacement_effects`, or `lki_objects` without `process_command` (which would
-/// couple the digest to rules semantics), so a `HashInto` reorder *within* those
-/// types is caught by the declaration digest's shape coverage but not by this
-/// stream digest. The common, most-edited impls are covered; `stream_is_sensitive`
-/// proves the digest reacts to the fixture rather than ignoring it.
+/// populate `stack_objects`, `combat`, `pending_triggers`, `replacement_effects`,
+/// or `lki_objects` without `process_command` (which would couple the digest to
+/// rules semantics rather than to the hash schema). A *pure* `HashInto` reorder
+/// *within* one of those five impls — feeding an unchanged struct's fields to the
+/// hasher in a different order — is therefore caught by **neither** axis: the
+/// declaration digest is blind to `HashInto` by construction, and this fixture
+/// never populates those zones. That is a genuine residual gap, not one the
+/// declaration digest closes. The common, most-edited impls are covered;
+/// `stream_is_sensitive` proves the digest reacts to the fixture. Closing the gap
+/// means either injecting literals for those types (verbose, and every field
+/// addition would then force a re-pin regardless of hashing) or driving a fixed
+/// command sequence (couples the digest to rules semantics); both were judged not
+/// worth the fragility for the marginal five impls.
 fn canonical_fixture() -> GameState {
     let mut mana = ManaPool::default();
     mana.add(ManaColor::Green, 2);
@@ -715,6 +748,22 @@ fn canonical_fixture() -> GameState {
                 .in_zone(ZoneId::Graveyard(PlayerId(3))),
         )
         .object(ObjectSpec::card(PlayerId(4), "Exiled Card").in_zone(ZoneId::Exile))
+        // A continuous effect, so the `ContinuousEffect` HashInto family is in the
+        // stream digest too (the builder can add this one without process_command).
+        .add_continuous_effect(ContinuousEffect {
+            id: EffectId(1000),
+            source: None,
+            timestamp: 1000,
+            layer: EffectLayer::PtSet,
+            duration: EffectDuration::UntilEndOfTurn,
+            filter: EffectFilter::AllCreatures,
+            modification: LayerModification::SetPowerToughness {
+                power: 3,
+                toughness: 3,
+            },
+            is_cda: false,
+            condition: None,
+        })
         .build()
         .expect("canonical fixture builds")
 }
@@ -742,6 +791,19 @@ fn current_epoch() -> HashSchemaEpoch {
                  Append a row when you bump the version."
             )
         })
+}
+
+/// Digest over the frozen prefix — every row except the current (tail) one.
+fn compute_frozen_prefix_digest() -> String {
+    let mut hasher = blake3::Hasher::new();
+    hasher.update(b"mtg-engine hash schema frozen-prefix v1\n");
+    let n = HASH_SCHEMA_HISTORY.len();
+    for e in &HASH_SCHEMA_HISTORY[..n.saturating_sub(1)] {
+        hasher.update(&[e.version]);
+        hasher.update(e.decl_fingerprint.as_bytes());
+        hasher.update(e.stream_fingerprint.as_bytes());
+    }
+    hasher.finalize().to_hex().to_string()
 }
 
 // ── Non-vacuity guards (written first: they find the scanner's own bugs) ──────
@@ -1097,6 +1159,26 @@ fn history_is_append_only() {
          edited the version-{BASELINE_VERSION} fingerprints in place instead of bumping the version \
          and appending a row. Rewriting a shipped row's identity is forbidden — bump \
          HASH_SCHEMA_VERSION and append.\n"
+    );
+}
+
+/// **AC 4522 (append-only, generalized).** Every shipped-and-superseded row — the
+/// whole history except the current tail — is frozen by a single digest. This
+/// carries `baseline_row_is_frozen`'s "you may not rewrite a shipped row" forward
+/// to every version, not just 39: after a bump, the newly-superseded row joins the
+/// prefix and locks here. Editing any past row in place moves this digest and
+/// fails; a clean append leaves the pre-existing prefix bytes untouched (you re-pin
+/// only because the newly-superseded row was added).
+#[test]
+fn frozen_prefix_is_pinned() {
+    assert_eq!(
+        compute_frozen_prefix_digest(),
+        FROZEN_HISTORY_PREFIX_DIGEST,
+        "\n\nThe frozen prefix of HASH_SCHEMA_HISTORY (every row except the current tail) changed.\n\
+         Either a shipped, superseded row was edited in place — which is forbidden, the history is \
+         append-only — or you just bumped the version and a row correctly joined the prefix. If the \
+         latter, re-pin FROZEN_HISTORY_PREFIX_DIGEST in tests/core/hash_schema.rs to:\n       {}\n",
+        compute_frozen_prefix_digest()
     );
 }
 
