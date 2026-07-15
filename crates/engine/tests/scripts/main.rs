@@ -10,3 +10,4 @@ mod harness_equivalence;
 mod run_all_scripts;
 mod script_replay;
 mod script_schema;
+mod unread_init_fields;

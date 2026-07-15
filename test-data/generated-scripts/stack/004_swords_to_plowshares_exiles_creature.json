@@ -44,7 +44,7 @@
     "zones": {
       "battlefield": {
         "p2": [
-          { "card": "Llanowar Elves", "tapped": false, "summoning_sick": true, "counters": {}, "attached": [], "damage_marked": 0, "is_commander": false, "subtypes": null, "is_basic": null }
+          { "card": "Llanowar Elves", "tapped": false, "summoning_sick": false, "counters": {}, "attached": [], "damage_marked": 0, "is_commander": false, "subtypes": null, "is_basic": null }
         ]
       },
       "hand": {

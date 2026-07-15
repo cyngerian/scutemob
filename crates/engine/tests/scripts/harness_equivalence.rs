@@ -1041,7 +1041,7 @@ const UNDEFINED_CARDS_IN_APPROVED_SCRIPTS: &[&str] = &["Grizzly Bears"];
 /// would ever construct, and no hash comparison over it means anything.
 #[test]
 fn scripts_only_name_cards_that_have_definitions() {
-    use mtg_engine::testing::script_schema::{GameScript, ReviewStatus};
+    use mtg_engine::testing::script_schema::ReviewStatus;
 
     let known: std::collections::HashSet<String> =
         all_cards().iter().map(|d| d.name.clone()).collect();
@@ -1050,45 +1050,35 @@ fn scripts_only_name_cards_that_have_definitions() {
         .copied()
         .collect();
 
-    let root = std::path::Path::new("../../test-data/generated-scripts");
-    assert!(
-        root.is_dir(),
-        "script corpus not found at {root:?} — this test is cwd-relative, like run_all_scripts"
-    );
-
     let mut offenders: Vec<(String, String)> = Vec::new();
     let mut allowlist_hits: std::collections::HashSet<String> = Default::default();
     let mut approved_scripts = 0usize;
 
-    for group in std::fs::read_dir(root).expect("read corpus root").flatten() {
-        if !group.path().is_dir() {
+    // SR-22b: use `run_all_scripts`'s single, fully-recursive discovery function
+    // rather than the hand-rolled two-level walk this test used to run. That walk
+    // stopped at `group/file.json`, so a script nested any deeper (e.g.
+    // `group/sub/file.json`) was silently outside the gate and could name an
+    // undefined card without failing. `discover_scripts` recurses to arbitrary
+    // depth; the two gates now see the identical file set.
+    let corpus = crate::run_all_scripts::discover_scripts(std::path::Path::new(
+        crate::run_all_scripts::SCRIPTS_DIR,
+    ));
+    for (label, parsed) in &corpus {
+        let Ok(script) = parsed else {
+            continue; // malformed scripts are run_all_scripts' problem, not this test's
+        };
+        if script.metadata.review_status != ReviewStatus::Approved {
             continue;
         }
-        for entry in std::fs::read_dir(group.path())
-            .expect("read group")
-            .flatten()
-        {
-            let path = entry.path();
-            if path.extension().and_then(|e| e.to_str()) != Some("json") {
+        approved_scripts += 1;
+        for name in card_names(&script.initial_state) {
+            if known.contains(&name) {
                 continue;
             }
-            let text = std::fs::read_to_string(&path).expect("read script");
-            let Ok(script) = serde_json::from_str::<GameScript>(&text) else {
-                continue; // malformed scripts are run_all_scripts' problem, not this test's
-            };
-            if script.metadata.review_status != ReviewStatus::Approved {
-                continue;
-            }
-            approved_scripts += 1;
-            for name in card_names(&script.initial_state) {
-                if known.contains(&name) {
-                    continue;
-                }
-                if allow.contains(name.as_str()) {
-                    allowlist_hits.insert(name);
-                } else {
-                    offenders.push((path.display().to_string(), name));
-                }
+            if allow.contains(name.as_str()) {
+                allowlist_hits.insert(name);
+            } else {
+                offenders.push((label.clone(), name));
             }
         }
     }
@@ -1260,22 +1250,52 @@ const MOVE_POOL: &[Move] = &[
     }, // illegal: Mountain has no non-mana activated ability
 ];
 
-proptest! {
+use proptest::test_runner::{Config, TestRunner};
+use std::sync::atomic::{AtomicU32, Ordering};
+
+/// The property: for *any* sequence of moves — legal, illegal, or unresolvable —
+/// the script regime and the direct regime issue the same `Command`s, get the
+/// same accept/reject answers, and arrive at the same state after every step.
+///
+/// Driven by a **hand-rolled** [`TestRunner`] rather than the `proptest!` macro
+/// (SR-22d). The macro re-applies `contextualize_config` at runtime (proptest's
+/// `sugar.rs`), so the `PROPTEST_CASES` env var silently overrides the configured
+/// case count — measured: `PROPTEST_CASES=1` ran this property exactly once while
+/// the file still reported "ok", quietly defeating the coverage the fixed count
+/// was chosen to give. `Config::with_cases` sets `cases` *after* the env-derived
+/// default and `TestRunner::run` does not re-read the env, so the count sticks;
+/// counting the closure invocations then makes ">= 96 cases actually ran" an
+/// asserted runtime fact. Shrinking is preserved — `runner.run` still catches the
+/// panic from `assert_equivalent` and minimizes the failing move sequence.
+#[test]
+fn harness_and_direct_dispatch_agree_on_any_move_sequence() {
     // Each case builds two full GameStates and dispatches up to 8 commands
     // through the engine twice; 96 cases keeps the whole file under a second.
-    #![proptest_config(ProptestConfig::with_cases(96))]
+    const CASES: u32 = 96;
 
-    /// The property: for *any* sequence of moves — legal, illegal, or
-    /// unresolvable — the script regime and the direct regime issue the same
-    /// `Command`s, get the same accept/reject answers, and arrive at the same
-    /// state after every step.
-    #[test]
-    fn harness_and_direct_dispatch_agree_on_any_move_sequence(
-        moves in prop::collection::vec(
-            prop::sample::select(MOVE_POOL),
-            0..=8,
-        )
-    ) {
+    let ran = AtomicU32::new(0);
+    let mut config = Config::with_cases(CASES);
+    // A hand-rolled runner has no `source_file`, so proptest's default
+    // `SourceParallel` persistence would print a spurious "no source file known"
+    // warning and could never write a regression file anyway. Disable it — a
+    // failure here surfaces via the panic, already shrunk.
+    config.failure_persistence = None;
+    let mut runner = TestRunner::new(config);
+    let strategy = prop::collection::vec(prop::sample::select(MOVE_POOL), 0..=8);
+
+    let outcome = runner.run(&strategy, |moves| {
+        ran.fetch_add(1, Ordering::Relaxed);
         assert_equivalent(scenario("bolt"), &moves);
-    }
+        Ok(())
+    });
+    // A failure here has already been shrunk by the runner; surface it.
+    outcome.expect("harness/direct equivalence property failed");
+
+    let ran = ran.load(Ordering::Relaxed);
+    assert!(
+        ran >= CASES,
+        "equivalence proptest executed {ran} case(s), expected at least {CASES}. \
+         The `proptest!` macro honours PROPTEST_CASES and this guard exists so a \
+         reduced env override cannot silently thin the run (SR-22d)."
+    );
 }
