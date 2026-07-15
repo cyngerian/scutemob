@@ -751,6 +751,25 @@ Task-specific extras:
 _One entry per session, newest first. Format:_
 `- YYYY-MM-DD — SR-<N> (scutemob-<id>) — <status: done / in progress / blocked> — <one-line outcome + hazards + pointer for next session>`
 
+- 2026-07-14 — SR-18 + SR-20 (scutemob-73/75, paired in one worktree) — **done** (collected, merge
+  `ff8b7dfdbc18`) — Both demonstrated bypasses from the re-audit are closed, each with its attack
+  re-run and caught. **SR-18**: `exempt_dirs_contain_no_rust_files` recurses `NON_GROUP_DIRS` and
+  fails on any `.rs`; `auto_built_targets_match_expected` models Cargo's autotests rule (top-level
+  `*.rs` + subdirs with `main.rs`) and asserts the auto-built set == `EXPECTED_GROUPS` +
+  `ALLOWED_TOP_LEVEL` with **no exemptions** — the ungoverned `proptest-regressions` target hole is
+  gone; `no_module_level_cfg_in_group_files` forbids module-level `#![cfg` with a comment/whitespace-
+  aware detector (the `#![cfg(any())]` attack plus two obfuscated forms all caught; 5/5 in
+  `sr18_adversarial_demo.sh`). **SR-20**: `use_imports_do_not_bypass_the_scanner` +
+  `type_aliases_do_not_bypass_the_scanner` in **both** registry suites flag alias (`as`), glob
+  (`::*`), grouped (`::{}`), and single-variant use-imports and `type` aliases of the dispatch enums
+  outside `EXCLUDED` (the worker went beyond brief: type aliases too); `crates/simulator/src` is now
+  a scan root with per-root non-vacuity anchors, and the 5 `legal_actions.rs` keyword sites are
+  declared. Gates verified green on main post-merge (`no_stray` 5→9 tests; both registry suites 9
+  each). **This closes the dispatched re-audit cut (SR-17, SR-18, SR-20, SR-28 — all done
+  2026-07-14).** **Next:** remaining re-audit backlog per the inventory table — SR-19 pairs with the
+  now-landed SR-17 machinery; SR-21+SR-22 adjacently (same script-harness files); shippable half of
+  SR-29 when a rules session is next.
+
 - 2026-07-14 — SR-17 (scutemob-72) — **done** (collected, merge `b4736f3e`) — `HASH_SCHEMA_VERSION`
   is now machine-enforced on **two axes**, closing the disease SR-8 named. (1) A declaration
   fingerprint (blake3 of the GameState serde type closure — **118 types**, rooted at `GameState`,
