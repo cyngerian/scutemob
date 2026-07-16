@@ -85,6 +85,65 @@ pub const PROTOCOL_VERSION: u32 = 2;
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
     "ba7907d9f51a65acba39ccf020a14bd6234f637731c934490a7cbf749e5f97b6";
 
+/// One `(version, fingerprint)` row of the append-only protocol-schema history.
+///
+/// The wire-protocol analogue of [`crate::state::hash::HashSchemaEpoch`] (SR-17).
+/// The protocol has a single shape digest — [`PROTOCOL_SCHEMA_FINGERPRINT`] — with
+/// no separate hash byte-stream, so one fingerprint per row (not two).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ProtocolEpoch {
+    /// The [`PROTOCOL_VERSION`] this row pins.
+    pub version: u32,
+    /// [`PROTOCOL_SCHEMA_FINGERPRINT`] as of that version — blake3 of the
+    /// normalized declaration text of the wire-frame type closure.
+    pub fingerprint: &'static str,
+}
+
+/// SR-27: append-only ledger backing [`PROTOCOL_VERSION`], mirroring
+/// [`crate::state::hash::HASH_SCHEMA_HISTORY`] (SR-17).
+///
+/// # Why this exists on top of the fingerprint
+///
+/// [`PROTOCOL_SCHEMA_FINGERPRINT`] makes the version *shape-derived*: you cannot
+/// change the wire without `tests/core/protocol_schema.rs` reddening and naming the
+/// drift. But it does not stop the *other* half of the cheat — re-pin the
+/// fingerprint to the new value and skip the [`PROTOCOL_VERSION`] bump. The
+/// recompute gate goes green again and a wire change ships under the old version,
+/// so two builds with incompatible shapes both claim the same version and
+/// mis-decode each other *silently* — precisely the failure strict lockstep exists
+/// to prevent. The `protocol_version_sentinel` forces you to *notice* a bump, never
+/// to *make* one.
+///
+/// This table closes that. It is **append-only**: the tail row is the live schema
+/// (validated by recomputation in `protocol_schema.rs`), and every row behind it is
+/// shipped-and-superseded and frozen. The test pins the baseline row against its own
+/// FROZEN constants and pins a digest of the whole frozen prefix, so re-pinning any
+/// row in place — including the current one, while it is still the baseline — fails.
+///
+/// # Append-only bump procedure
+///
+/// To change the wire protocol, in one commit:
+///   1. bump [`PROTOCOL_VERSION`] and add its `- N:` History line above;
+///   2. **append** a new row here whose `fingerprint` is the recomputed digest
+///      (read it from the `protocol_schema.rs` failure text) and set
+///      [`PROTOCOL_SCHEMA_FINGERPRINT`] to the same value;
+///   3. update the `protocol_version_sentinel` and the FROZEN prefix digest in
+///      `protocol_schema.rs`.
+///
+/// Never edit an existing row.
+///
+/// The baseline is version 2 (the version at SR-27 time). Versions 1..=1 predate
+/// this ledger and are not reconstructed — exactly as SR-17 started
+/// `HASH_SCHEMA_HISTORY` at the then-current version rather than back-filling.
+pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[ProtocolEpoch {
+    version: 2,
+    // SR-27 (2026-07-16): baseline. Pins whatever PROTOCOL_VERSION 2 already was
+    // (the 91-type closure after SR-10 boxed CastSpell). Same value as
+    // PROTOCOL_SCHEMA_FINGERPRINT; the two are kept in lockstep by
+    // `history_tail_matches_the_fingerprint_const`.
+    fingerprint: "ba7907d9f51a65acba39ccf020a14bd6234f637731c934490a7cbf749e5f97b6",
+}];
+
 /// Why a versioned message could not be decoded.
 #[derive(Debug, thiserror::Error)]
 pub enum ProtocolError {

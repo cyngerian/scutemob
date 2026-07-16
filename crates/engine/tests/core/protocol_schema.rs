@@ -51,7 +51,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
-use mtg_engine::{PROTOCOL_SCHEMA_FINGERPRINT, PROTOCOL_VERSION};
+use mtg_engine::{ProtocolEpoch, PROTOCOL_HISTORY, PROTOCOL_SCHEMA_FINGERPRINT, PROTOCOL_VERSION};
 
 /// Crates whose types may appear on the wire. `card-defs` is deliberately absent:
 /// card *definitions* are not sent, only the runtime types derived from them.
@@ -115,6 +115,63 @@ const CLOSURE_MUST_CONTAIN: [&str; 9] = [
 /// deliberately — so it fails here first.
 const CLOSURE_MUST_NOT_CONTAIN: [&str; 4] =
     ["GameState", "PlayerState", "StackObject", "CardDefinition"];
+
+// ── SR-27: frozen baseline for the append-only PROTOCOL_HISTORY ───────────────
+//
+// These pin version 2's identity a *second* time, independently of
+// `PROTOCOL_HISTORY`'s row in `rules/protocol.rs`. Re-pinning that shipped row
+// (or `PROTOCOL_SCHEMA_FINGERPRINT`, which the tail row mirrors) without bumping
+// `PROTOCOL_VERSION` makes `protocol_schema_fingerprint_is_pinned` pass again — but
+// leaves the protocol.rs row disagreeing with these constants, so
+// `history_is_append_only` fails. That is the whole point: it converts "remember to
+// bump the version" from a process guarantee into a machine one (SR-8/SR-17 pattern).
+//
+// **FROZEN — do not edit.** Only ever *append* new rows to `PROTOCOL_HISTORY`.
+const BASELINE_VERSION: u32 = 2;
+const BASELINE_FINGERPRINT: &str =
+    "ba7907d9f51a65acba39ccf020a14bd6234f637731c934490a7cbf749e5f97b6";
+
+// Digest over the **frozen prefix** — every `PROTOCOL_HISTORY` row except the
+// current (tail) one. The tail is the working row for the live schema, validated by
+// recomputation (`protocol_schema_fingerprint_is_pinned`); every row behind it is
+// shipped-and-superseded and must never change again. This freezes all of them at
+// once, generalizing `history_is_append_only`'s baseline check forward to every
+// future version.
+//
+// With a single history row the prefix is empty, so this pins the digest of the
+// empty prefix; it becomes load-bearing on the first bump, when version 2 enters the
+// prefix and its bytes lock here. On every bump you append a row AND re-pin this.
+//
+// **FROZEN — do not edit except by appending to `PROTOCOL_HISTORY`.**
+// SR-27 (2026-07-16): digest of the EMPTY prefix (single history row). Becomes
+// load-bearing on the first version bump, when version 2 joins the prefix.
+const FROZEN_HISTORY_PREFIX_DIGEST: &str =
+    "b887466c0e468a6119b3b123c8b8badd769daa62d74d3860113c115e019397da";
+
+/// The `PROTOCOL_HISTORY` row pinning the current `PROTOCOL_VERSION`.
+fn current_epoch() -> ProtocolEpoch {
+    *PROTOCOL_HISTORY
+        .iter()
+        .find(|e| e.version == PROTOCOL_VERSION)
+        .unwrap_or_else(|| {
+            panic!(
+                "PROTOCOL_HISTORY has no row for the current PROTOCOL_VERSION \
+                 ({PROTOCOL_VERSION}). Append a row when you bump the version."
+            )
+        })
+}
+
+/// Digest over the frozen prefix — every `PROTOCOL_HISTORY` row except the tail.
+fn compute_frozen_prefix_digest() -> String {
+    let mut hasher = blake3::Hasher::new();
+    hasher.update(b"mtg-engine protocol schema frozen-prefix v1\n");
+    let n = PROTOCOL_HISTORY.len();
+    for e in &PROTOCOL_HISTORY[..n.saturating_sub(1)] {
+        hasher.update(&e.version.to_le_bytes());
+        hasher.update(e.fingerprint.as_bytes());
+    }
+    hasher.finalize().to_hex().to_string()
+}
 
 /// The workspace root: `crates/engine/` is two levels down from it.
 fn workspace_root() -> PathBuf {
@@ -570,6 +627,92 @@ fn compute_fingerprint(index: &BTreeMap<String, Decl>, closure: &BTreeSet<String
     hasher.finalize().to_hex().to_string()
 }
 
+/// The serde attribute keys that reshape the wire through a conversion type or
+/// function whose *shape* the fingerprint cannot see (it hashes only the key's name
+/// argument, not the referenced type/function). Longest-first is not required — the
+/// argument-boundary check in `serde_conversion_attrs` disambiguates overlaps.
+const CONVERSION_KEYS: [&str; 6] = [
+    "with",
+    "from",
+    "into",
+    "try_from",
+    "serialize_with",
+    "deserialize_with",
+];
+
+/// True iff `token` appears in `text` as a whole identifier — bounded on each side
+/// by a non-`[A-Za-z0-9_]` byte (or a string boundary).
+///
+/// SR-27: the derive guards used bare `text.contains("Serialize")`, which a substring
+/// satisfies — `Serializer`, `SerializeStruct`, or any identifier that merely *ends*
+/// in the token would pass, and the check would no longer prove the wire type carries
+/// the `Serialize` *derive*. Anchoring rejects the look-alikes. (The `"Deserialize"`
+/// case named in the task is only a near-miss under ASCII case rules — `contains`
+/// is case-sensitive — but `Serializer`/`SerializeStruct` are real substrings, so the
+/// anchoring is not cosmetic; `serialize_guard_is_token_anchored` proves it.)
+fn has_derive_token(text: &str, token: &str) -> bool {
+    let b = text.as_bytes();
+    let tlen = token.len();
+    let is_ident = |c: u8| c.is_ascii_alphanumeric() || c == b'_';
+    let mut from = 0;
+    while let Some(rel) = text[from..].find(token) {
+        let at = from + rel;
+        let before_ok = at == 0 || !is_ident(b[at - 1]);
+        let after = at + tlen;
+        let after_ok = after >= b.len() || !is_ident(b[after]);
+        if before_ok && after_ok {
+            return true;
+        }
+        from = at + 1;
+    }
+    false
+}
+
+/// The serde *conversion* attributes present in `hash_text`: `with`, `from`, `into`,
+/// `try_from`, `serialize_with`, `deserialize_with`. Returns the ones found (empty
+/// if none), in the fixed `CONVERSION_KEYS` order.
+///
+/// Every one of these reshapes the wire through a *conversion type or function*
+/// named only inside the attribute string. The digest hashes the attribute text, so
+/// a change to that name is caught — but a change to the referenced type's *shape*
+/// (or the function's serialized output) is not, because the scanner walks field
+/// type positions, not attribute arguments. That is the documented residual;
+/// `no_serde_conversion_attributes_in_closure` refuses to let one enter the closure
+/// silently. `serialize_with`/`deserialize_with` are the same blind spot as `with`
+/// (the bytes are produced by a function), so they are covered here too.
+fn serde_conversion_attrs(hash_text: &str) -> Vec<&'static str> {
+    // Compact away whitespace so `serde( with = ...` and `serde(with=...` look alike.
+    let compact: String = hash_text
+        .chars()
+        .filter(|c| !c.is_ascii_whitespace())
+        .collect();
+    let bytes = compact.as_bytes();
+    let mut hits = Vec::new();
+    // Detect `<key>=` at a serde-attribute ARGUMENT boundary — the char before the
+    // key is `(` or `,`. The boundary is what disambiguates the overlapping keys
+    // without ordering tricks: in `try_from=` the `from` is preceded by `_`, and in
+    // `serialize_with=` the `with` is preceded by `_`, so neither is mis-reported as
+    // the shorter key. It also finds a conversion arg in any position, e.g. the
+    // `into` in `#[serde(from="A", into="B")]`.
+    for key in CONVERSION_KEYS {
+        let pat = format!("{key}=");
+        let mut from = 0;
+        let mut found = false;
+        while let Some(rel) = compact[from..].find(&pat) {
+            let at = from + rel;
+            if at > 0 && (bytes[at - 1] == b'(' || bytes[at - 1] == b',') {
+                found = true;
+                break;
+            }
+            from = at + 1;
+        }
+        if found {
+            hits.push(key);
+        }
+    }
+    hits
+}
+
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 /// Non-vacuity: the scanner found a real codebase.
@@ -701,13 +844,15 @@ fn protocol_schema_fingerprint_is_pinned() {
 
     assert_eq!(
         actual,
-        PROTOCOL_SCHEMA_FINGERPRINT,
+        current_epoch().fingerprint,
         "\n\nThe serialized shape of the Command/GameEvent type closure ({} types) has changed.\n\
          Old clients and old replay logs cannot be read by this build.\n\n\
-         Do BOTH of these, in the same commit:\n  \
+         Do ALL of these, in the same commit:\n  \
            1. bump PROTOCOL_VERSION in crates/engine/src/rules/protocol.rs \
               (currently {PROTOCOL_VERSION}), adding a History line saying what moved;\n  \
-           2. set PROTOCOL_SCHEMA_FINGERPRINT to:\n       {actual}\n\n\
+           2. set PROTOCOL_SCHEMA_FINGERPRINT and APPEND a new PROTOCOL_HISTORY row \
+              (do not edit the existing one) with fingerprint:\n       {actual}\n  \
+           3. update protocol_version_sentinel and FROZEN_HISTORY_PREFIX_DIGEST here.\n\n\
          If you believe the change is wire-compatible, read the \"What this gate does not catch\" \
          note at the top of this file first — a reorder of enum variants is the one case that is \
          genuinely compatible, and it still requires a bump here.\n",
@@ -761,7 +906,8 @@ fn serde_attributes_are_inside_the_digest() {
          a #[serde(rename)] or #[serde(skip)] would then be invisible to the gate"
     );
     assert!(
-        command.hash_text.contains("Serialize") && command.hash_text.contains("Deserialize"),
+        has_derive_token(&command.hash_text, "Serialize")
+            && has_derive_token(&command.hash_text, "Deserialize"),
         "Command's hashed text lost its container #[derive(...)]; dropping Serialize \
          would then be invisible to the gate"
     );
@@ -793,7 +939,7 @@ fn every_closure_type_shows_its_serialize_derive() {
         .filter(|name| {
             index
                 .get(*name)
-                .is_some_and(|d| !d.is_alias && !d.hash_text.contains("Serialize"))
+                .is_some_and(|d| !d.is_alias && !has_derive_token(&d.hash_text, "Serialize"))
         })
         .collect();
 
@@ -816,5 +962,243 @@ fn traversal_body_excludes_attributes() {
         !command.traversal_body.contains("serde"),
         "attributes survived into the traversal body; type-position extraction will pick up \
          attribute arguments as if they were field types"
+    );
+}
+
+// ── SR-27: append-only PROTOCOL_HISTORY (mirror of SR-17's HASH_SCHEMA_HISTORY) ──
+
+/// The tail row and the standalone `PROTOCOL_SCHEMA_FINGERPRINT` const are two
+/// hand-written copies of the same digest; keep them in lockstep so `encode`/doc
+/// consumers of the const and the history agree.
+#[test]
+fn history_tail_matches_the_fingerprint_const() {
+    let tail = PROTOCOL_HISTORY
+        .last()
+        .expect("PROTOCOL_HISTORY is non-empty");
+    assert_eq!(
+        tail.fingerprint, PROTOCOL_SCHEMA_FINGERPRINT,
+        "the tail PROTOCOL_HISTORY row's fingerprint disagrees with PROTOCOL_SCHEMA_FINGERPRINT. \
+         When you re-pin the fingerprint you must set BOTH (and, if the wire moved, bump the \
+         version and APPEND a row rather than editing the tail)."
+    );
+}
+
+/// **The re-pin gate.** `PROTOCOL_HISTORY` is append-only and current.
+///
+/// - non-empty, versions strictly ascending and unique, tail == current version;
+/// - every fingerprint is 64 lowercase hex, and all are pairwise distinct;
+/// - the baseline row (version 2) equals the FROZEN constants above, so a re-pin of
+///   that shipped row (or of `PROTOCOL_SCHEMA_FINGERPRINT`, which the tail mirrors)
+///   *without* a version bump disagrees here and fails — the guarantee the plain
+///   `protocol_version_sentinel` could not make.
+#[test]
+fn history_is_append_only() {
+    assert!(
+        !PROTOCOL_HISTORY.is_empty(),
+        "PROTOCOL_HISTORY is empty — there is nothing pinning PROTOCOL_VERSION"
+    );
+
+    for w in PROTOCOL_HISTORY.windows(2) {
+        assert!(
+            w[1].version > w[0].version,
+            "PROTOCOL_HISTORY is not strictly ascending / unique in version: {} then {}. \
+             It is append-only — add new rows with higher versions, never reorder or duplicate.",
+            w[0].version,
+            w[1].version
+        );
+    }
+
+    let last = PROTOCOL_HISTORY.last().expect("non-empty");
+    assert_eq!(
+        last.version, PROTOCOL_VERSION,
+        "the last PROTOCOL_HISTORY row is version {}, but PROTOCOL_VERSION is {}. Append a row \
+         for the current version (do not edit an existing one).",
+        last.version, PROTOCOL_VERSION
+    );
+
+    let is_hex64 = |s: &str| {
+        s.len() == 64
+            && s.bytes()
+                .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+    };
+    let mut seen_fingerprints = std::collections::BTreeSet::new();
+    for e in PROTOCOL_HISTORY {
+        assert!(
+            is_hex64(e.fingerprint),
+            "version {} has a malformed fingerprint (expected 64 lowercase hex chars)",
+            e.version
+        );
+        // Fingerprints are pairwise distinct: two versions with the same shape digest
+        // is a copy-paste (an appended row that never got its recomputed value) or a
+        // bump with no wire change — either way the row carries no new information and
+        // should not exist.
+        assert!(
+            seen_fingerprints.insert(e.fingerprint),
+            "PROTOCOL_HISTORY version {} repeats a fingerprint already used by an earlier \
+             row. Each version pins a distinct wire shape; a duplicate means a row was \
+             appended without its recomputed digest, or a version was bumped with no wire \
+             change (which needs no new row).",
+            e.version
+        );
+    }
+
+    let baseline = PROTOCOL_HISTORY
+        .iter()
+        .find(|e| e.version == BASELINE_VERSION)
+        .expect("baseline version 2 row is present");
+    assert_eq!(
+        baseline.fingerprint, BASELINE_FINGERPRINT,
+        "\n\nThe shipped version-{BASELINE_VERSION} row in PROTOCOL_HISTORY no longer matches the \
+         FROZEN baseline constant in tests/core/protocol_schema.rs.\n\
+         This is what a 're-pin without a bump' looks like: someone changed the wire shape, then \
+         edited the version-{BASELINE_VERSION} fingerprint in place (or re-pinned \
+         PROTOCOL_SCHEMA_FINGERPRINT, which the tail mirrors) instead of bumping PROTOCOL_VERSION \
+         and appending a row. Rewriting a shipped row's identity is forbidden — bump and append.\n"
+    );
+}
+
+/// **Append-only, generalized.** Every shipped-and-superseded row — the whole
+/// history except the current tail — is frozen by a single digest. This carries the
+/// baseline check forward to every version, not just 2: after a bump, the
+/// newly-superseded row joins the prefix and locks here. Editing any past row in
+/// place moves this digest and fails; a clean append leaves the pre-existing prefix
+/// bytes untouched.
+#[test]
+fn frozen_prefix_is_pinned() {
+    assert_eq!(
+        compute_frozen_prefix_digest(),
+        FROZEN_HISTORY_PREFIX_DIGEST,
+        "\n\nThe frozen prefix of PROTOCOL_HISTORY (every row except the current tail) changed.\n\
+         Either a shipped, superseded row was edited in place — forbidden, the history is \
+         append-only — or you just bumped the version and a row correctly joined the prefix. If \
+         the latter, re-pin FROZEN_HISTORY_PREFIX_DIGEST in tests/core/protocol_schema.rs to:\n\
+         \x20      {}\n",
+        compute_frozen_prefix_digest()
+    );
+}
+
+// ── SR-27: token-anchored derive guard + serde-conversion gate ────────────────
+
+/// The `Serialize`/`Deserialize` derive guards must match whole identifier tokens,
+/// not substrings — otherwise a `Serializer` field or a `SerializeStruct` variant
+/// name silences them.
+#[test]
+fn serialize_guard_is_token_anchored() {
+    // The look-alikes a bare `.contains("Serialize")` would wrongly accept:
+    assert!("pub struct Serializer".contains("Serialize"));
+    assert!(!has_derive_token("pub struct Serializer", "Serialize"));
+    assert!("enum E { SerializeStruct }".contains("Serialize"));
+    assert!(!has_derive_token("enum E { SerializeStruct }", "Serialize"));
+
+    // The real derive, in every spelling that reaches the digest, still matches:
+    assert!(has_derive_token(
+        "#[derive(Clone, Serialize, Deserialize)]",
+        "Serialize"
+    ));
+    assert!(has_derive_token("#[derive(serde::Serialize)]", "Serialize"));
+    assert!(has_derive_token("#[derive(Deserialize)]", "Deserialize"));
+    // A container with ONLY Deserialize must NOT read as having Serialize:
+    assert!(!has_derive_token(
+        "#[derive(Clone, Deserialize)]",
+        "Serialize"
+    ));
+}
+
+/// The serde-conversion scan actually detects the attributes it is meant to reject —
+/// the non-vacuity proof for `no_serde_conversion_attributes_in_closure`, whose real
+/// assertion is an *absence* (the closure has none today). A compile-valid
+/// `serde(with/from/into)` needs a companion module or `From`/`Into` impl that a text
+/// patch cannot inject, so the positive case is proven here rather than by an
+/// adversarial source edit.
+#[test]
+fn serde_conversion_scan_detects_the_attribute() {
+    assert_eq!(
+        serde_conversion_attrs("pub struct X { }"),
+        Vec::<&str>::new()
+    );
+    assert_eq!(
+        serde_conversion_attrs("#[serde(with = \"ser_mod\")] pub struct X { }"),
+        vec!["with"]
+    );
+    assert_eq!(
+        serde_conversion_attrs("#[serde(from = \"u32\")] pub struct X(u32);"),
+        vec!["from"]
+    );
+    assert_eq!(
+        serde_conversion_attrs("#[serde(try_from = \"u32\")] pub struct X(u32);"),
+        vec!["try_from"]
+    );
+    assert_eq!(
+        serde_conversion_attrs("#[serde(into = \"u32\")] pub struct X(u32);"),
+        vec!["into"]
+    );
+    // serialize_with / deserialize_with — the field-level conversion *functions*,
+    // the same digest blind spot as `with` and the ones the plain-needle version
+    // missed. Their `with` / their `_with=` boundary must not be mis-read as `with`.
+    assert_eq!(
+        serde_conversion_attrs("#[serde(serialize_with = \"s\")] pub x: u8,"),
+        vec!["serialize_with"]
+    );
+    assert_eq!(
+        serde_conversion_attrs("#[serde(deserialize_with = \"d\")] pub x: u8,"),
+        vec!["deserialize_with"]
+    );
+    // A conversion arg in the SECOND position (after a comma) is still found, and
+    // both members of a combined attr are reported — not just the first.
+    assert_eq!(
+        serde_conversion_attrs("#[serde(from = \"A\", into = \"B\")] pub struct X;"),
+        vec!["from", "into"]
+    );
+    assert_eq!(
+        serde_conversion_attrs("#[serde(serialize_with=\"s\",deserialize_with=\"d\")] pub x: u8,"),
+        vec!["serialize_with", "deserialize_with"]
+    );
+    // The benign, non-conversion serde attrs must NOT trip it — including
+    // `skip_serializing_if`, whose `serializing` must not read as `serialize_with`.
+    assert_eq!(
+        serde_conversion_attrs(
+            "#[serde(default)] #[serde(skip)] #[serde(rename = \"x\")] \
+             #[serde(rename_all = \"snake_case\")] #[serde(skip_serializing_if = \"f\")]"
+        ),
+        Vec::<&str>::new()
+    );
+}
+
+/// **The gate.** No `serde(with|from|into|try_from|serialize_with|deserialize_with)`
+/// attribute may appear anywhere in the wire closure. Such an attribute reshapes the
+/// wire through a conversion type or function the digest tracks only by *name*, not by
+/// *shape* — a documented blind spot. This keeps it from going live silently: adding
+/// one fails here, forcing a deliberate decision (and, if kept, walking the conversion
+/// type into the digest).
+#[test]
+fn no_serde_conversion_attributes_in_closure() {
+    let ScanResult { index, .. } = index_declarations();
+    let (closure, _) = protocol_closure(&index);
+
+    // Denominator guard: a broken closure walk must not pass this vacuously.
+    assert!(
+        closure.len() >= MIN_CLOSURE_TYPES,
+        "closure is only {} types; the walk is broken and this gate would be vacuous",
+        closure.len()
+    );
+
+    let offenders: Vec<String> = closure
+        .iter()
+        .filter_map(|name| {
+            let decl = index.get(name)?;
+            let attrs = serde_conversion_attrs(&decl.hash_text);
+            (!attrs.is_empty()).then(|| format!("{name}: serde({})", attrs.join(", ")))
+        })
+        .collect();
+
+    assert!(
+        offenders.is_empty(),
+        "these wire-closure types carry a serde conversion attribute:\n  {}\n\
+         serde(with/from/into/try_from/serialize_with/deserialize_with) reshapes the wire via a \
+         conversion type or function the fingerprint only tracks by name, not by shape — so that \
+         type's fields can drift silently. If this is \
+         intended, walk the conversion type into the closure (add it to the scan / roots) and \
+         update this gate; otherwise remove the attribute.",
+        offenders.join("\n  ")
     );
 }

@@ -152,6 +152,22 @@ def all_face_slugs(name: str) -> set[str]:
 MARKER_RE = re.compile(r"\bcompleteness:\s*Completeness::(\w+)")
 MARKER_BUCKETS = {"inert": "empty", "partial": "todo", "known_wrong": "todo"}
 
+# SR-26 anti-rot: `MARKER_BUCKETS` only knows the lowercase *helper constructor*
+# spellings (`Completeness::partial(...)` etc.), which is the project convention.
+# A def that spelled the enum variant DIRECTLY — `Completeness::Partial(...)` —
+# captures `Partial`, which is absent from `MARKER_BUCKETS`, so the old
+# `MARKER_BUCKETS.get(marker, "clean")` filed it under CLEAN. That silently
+# inflates the campaign headline number (a Partial/Inert/KnownWrong card counting
+# as done). So the recognized set is exactly these four spellings and ANY other
+# `Completeness::<X>` is a hard error, not a silent clean. `Complete` is the only
+# capitalized spelling allowed (it is the Default, written explicitly ~108×).
+RECOGNIZED_MARKERS = {"Complete", "inert", "partial", "known_wrong"}
+
+# Non-vacuity floor for the file scan (SR track rule: assert the denominator).
+# Well below the real count (1,748) — it catches a scan pointed at an empty or
+# wrong directory, not a codebase that shrank a little.
+MIN_DEF_FILES = 1000
+
 # A TODO marker either opens a comment line (`// TODO ...`) or introduces a clause
 # mid-line (`// Counter the spell. TODO: untap up to four lands`). It is NOT the word
 # "TODO" in prose — `// Authored 2026-04-12 (PB-N stale-TODO sweep)` marks a def whose
@@ -195,6 +211,24 @@ def marker_disagreements(files: list[Path]) -> list[tuple[str, str]]:
             out.append((f.stem, "marked Complete but has a TODO / ENGINE-BLOCKED comment"))
         elif marker == "partial" and not has_todo:
             out.append((f.stem, "marked partial but has no TODO / ENGINE-BLOCKED comment"))
+    return out
+
+
+def unrecognized_markers(files: list[Path]) -> list[tuple[str, str]]:
+    """(slug, spelling) for every `Completeness::<X>` whose <X> is not one of the
+    four `RECOGNIZED_MARKERS`.
+
+    Uses `findall`, not `search`, so a bad spelling anywhere in the file (e.g. on a
+    back face declared after the front) is caught, not just the first occurrence.
+    This is the SR-26 anti-rot check: a capitalized `Completeness::Partial(...)`
+    (or any typo / future variant) must fail loudly rather than bucket as clean.
+    """
+    out: list[tuple[str, str]] = []
+    for f in files:
+        text = f.read_text(encoding="utf-8", errors="replace")
+        for marker in MARKER_RE.findall(text):
+            if marker not in RECOGNIZED_MARKERS:
+                out.append((f.stem, marker))
     return out
 
 
@@ -256,6 +290,13 @@ def git_branch() -> str:
 
 
 def main() -> int:
+    # `--check` is a read-only mode used by the Rust cross-check test
+    # (`tests/core/authoring_report.rs`): it runs the file scan, the SR-26 anti-rot
+    # marker check, and the denominator guards, prints the bucket counts as JSON,
+    # and exits WITHOUT writing any doc or touching git. Same guards as a normal
+    # run, so a broken tool fails the test the same way it fails a human.
+    check_only = "--check" in sys.argv[1:]
+
     if not DEFS.is_dir():
         print(f"ERROR: {DEFS} not found", file=sys.stderr)
         return 2
@@ -278,6 +319,65 @@ def main() -> int:
                 todo_classes[cls] += 1
                 if cls == "OTHER (unclassified)":
                     other_samples.append((f.stem, ln))
+
+    # 1b. SR-26 anti-rot: an unrecognized `Completeness::<X>` spelling would fall
+    # through `MARKER_BUCKETS.get(..., "clean")` and silently count as done. Fail
+    # loudly instead, naming the offenders and the fix.
+    bad_markers = unrecognized_markers(files)
+    if bad_markers:
+        print(
+            "ERROR: unrecognized Completeness marker spelling(s). These are NOT in "
+            "MARKER_BUCKETS, so the old code bucketed them as CLEAN and inflated the "
+            "headline number.\n"
+            "Use the lowercase helper constructors — Completeness::partial(...), "
+            "::inert(...), ::known_wrong(...). `Completeness::Complete` is the only "
+            "capitalized spelling allowed.",
+            file=sys.stderr,
+        )
+        for slug, marker in sorted(set(bad_markers)):
+            print(f"  {slug}: Completeness::{marker}", file=sys.stderr)
+        return 2
+
+    # 1c. SR-26 denominator guards (assert the denominator — SR track rule). A scan
+    # that silently found nothing, or a bucketing that lost/duplicated files, must
+    # fail rather than emit a confidently-wrong number.
+    total_files = len(files)
+    if total_files < MIN_DEF_FILES:
+        print(
+            f"ERROR: scanned only {total_files} def files (< {MIN_DEF_FILES}); the "
+            f"file scan is broken or pointed at the wrong directory ({DEFS}).",
+            file=sys.stderr,
+        )
+        return 2
+    bucket_sum = buckets["clean"] + buckets["todo"] + buckets["empty"]
+    if bucket_sum != total_files:
+        print(
+            f"ERROR: bucket sum {bucket_sum} != {total_files} files scanned; every "
+            "file must fall in exactly one of clean/todo/empty.",
+            file=sys.stderr,
+        )
+        return 2
+    if buckets["todo"] + buckets["empty"] == 0:
+        print(
+            "ERROR: zero todo/empty markers across all defs — the completeness-marker "
+            "regex matched nothing, a silent-scan failure (there are known incomplete "
+            "cards, so a real scan cannot report zero).",
+            file=sys.stderr,
+        )
+        return 2
+
+    if check_only:
+        print(
+            json.dumps(
+                {
+                    "total_files": total_files,
+                    "clean": buckets["clean"],
+                    "todo": buckets["todo"],
+                    "empty": buckets["empty"],
+                }
+            )
+        )
+        return 0
 
     # 2. Plan correlation (any-face match for DFCs, accent + apostrophe tolerant slugs)
     # Per-group accumulator: counts AND list of authored cards (slug, name, bucket)
@@ -316,6 +416,16 @@ def main() -> int:
         plan_missing = plan_total - plan_authored
         extras = sorted(slugs_on_disk - plan_slug_universe)
     extras_count = len(extras)
+
+    # SR-26 denominator guard on the plan scan: a plan file that parsed but yielded
+    # zero target cards means the session/card walk broke, not that the plan is empty.
+    if plan_data is not None and plan_total == 0:
+        print(
+            "ERROR: authoring plan parsed but yielded zero target cards; the plan "
+            f"scan (sessions → cards) is broken ({PLAN}).",
+            file=sys.stderr,
+        )
+        return 2
 
     # 2b. Categorize extras by commit prefix (W2, W6-cards, W1-B*, etc.)
     extras_by_prefix: Counter[str] = Counter()
@@ -372,7 +482,6 @@ def main() -> int:
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     head = git_head()
     branch = git_branch()
-    total_files = len(files)
     clean_pct = 100 * buckets["clean"] / total_files if total_files else 0
     plan_cov = 100 * plan_authored / plan_total if plan_total else 0
 

@@ -26,8 +26,8 @@ pub use rules::engine::{
 pub use rules::events::{CombatDamageAssignment, CombatDamageTarget};
 pub use rules::layers::calculate_characteristics;
 pub use rules::protocol::{
-    decode, decode_replay_log, encode, encode_replay_log, Envelope, ProtocolError, ReplayLog,
-    PROTOCOL_SCHEMA_FINGERPRINT, PROTOCOL_VERSION,
+    decode, decode_replay_log, encode, encode_replay_log, Envelope, ProtocolEpoch, ProtocolError,
+    ReplayLog, PROTOCOL_HISTORY, PROTOCOL_SCHEMA_FINGERPRINT, PROTOCOL_VERSION,
 };
 pub use rules::sba::check_and_apply_sbas;
 pub use rules::{CastSpellData, Command, GameEvent, LossReason};
