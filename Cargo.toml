@@ -27,3 +27,25 @@ license = "MIT"
 # is handled separately by pinning the toolchain in SR-11 / scutemob-63.)
 [workspace.lints.rust]
 warnings = "deny"
+
+# SR-32: assert-visible fuzzing profile.
+#
+# The fuzzer (`crates/simulator/src/bin/fuzzer.rs`) runs thousands of automated
+# games looking for engine anomalies, and wants release-level speed. But the
+# SR-4 / SR-14 tripwires that flag IMPOSSIBLE-class state absences (CR 400.7
+# last-known-information bugs, missing PlayerIds/zones, etc.) are `debug_assert!`s
+# in `state::diagnostics` — compiled out under `--release`, which is exactly the
+# profile a fuzz run uses. So the one build that hammers the engine hardest is
+# also the one build that is blind to those tripwires.
+#
+# This profile keeps release optimisation but turns the assertions back on, so a
+# fuzz run actually trips them. Invoke it with:
+#
+#   cargo run --profile fuzz --bin mtg-fuzzer -- --games 10000 --stop-on-error
+#
+# (A plain `cargo run --release --bin mtg-fuzzer` still exists for raw throughput
+# once a run is known clean.)
+[profile.fuzz]
+inherits = "release"
+debug-assertions = true
+overflow-checks = true

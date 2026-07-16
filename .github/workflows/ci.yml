@@ -48,7 +48,14 @@ jobs:
       # the exact toolchain a dev box does, instead of floating @stable to the
       # newest release (which turned CI red on new clippy lints with no commit).
       # dtolnay/rust-toolchain does NOT read rust-toolchain.toml, so we extract
-      # the value and pass it explicitly via @master's `toolchain:` input.
+      # the value and pass it explicitly via the generic action's `toolchain:`
+      # input (the reason this is the `@master` action, not `@stable`).
+      #
+      # SR-32: pinned by commit SHA instead of the floating `@master` ref. A
+      # third-party action ref that moves under us can change CI behaviour — or,
+      # worse, be repointed maliciously — between runs with no commit here. The
+      # SHA below is `master` as of 2026-06-30; bump it deliberately (and update
+      # this comment's date) when a newer revision is wanted.
       - name: Read pinned toolchain
         id: toolchain
         run: |
@@ -61,7 +68,7 @@ jobs:
           echo "Pinned toolchain: $channel"
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # master @ 2026-06-30
         with:
           toolchain: ${{ steps.toolchain.outputs.channel }}
           components: rustfmt, clippy
@@ -82,8 +89,13 @@ jobs:
 
       # Caches ~/.cargo and target/ with pruning; a raw actions/cache of target/
       # exceeds the 10 GB per-repo cache budget.
+      #
+      # SR-32: pinned by commit SHA instead of the floating `@v2` major-version
+      # tag (same third-party-drift reasoning as the toolchain action above). The
+      # SHA below is release v2.9.1; bump it and this comment together when moving
+      # to a newer release.
       - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
 
       - name: Check formatting
         run: cargo fmt --all -- --check

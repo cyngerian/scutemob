@@ -441,7 +441,7 @@ fn test_lki_counter_count_multi_type_returns_requested_counter_type_only() {
 fn test_pb_lki_cc_hash_schema_version_live_sentinel() {
     assert_eq!(
         HASH_SCHEMA_VERSION, 40u8,
-        "BASELINE-LKI-01 bumped HASH_SCHEMA_VERSION 26→27 (GameEvent::CreatureDied.pre_death_characteristics: Option<Characteristics>, CR 603.10a / CR 613.1d LKI snapshot for filtered death triggers). If you bumped again, update this test and state/hash.rs history."
+        "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
     );
 }
 

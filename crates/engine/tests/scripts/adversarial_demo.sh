@@ -8,6 +8,14 @@
 #
 # Run from the workspace root:  bash crates/engine/tests/scripts/adversarial_demo.sh
 # It mutates tracked files and restores them with `git checkout`, so commit first.
+#
+# STATUS (SR-32): this is a MANUAL, one-time demonstration and a HISTORICAL RECORD
+# of how the SR-9c gates were shown to bite — it is deliberately NOT wired into
+# `cargo test` or CI, and nothing executes it automatically. It cannot be: it edits
+# tracked files in place and relies on a clean working tree to restore them, which
+# is unsafe to run unattended. The gates it exercises (the `run_all_scripts::*`
+# accounting tests) DO run on every `cargo test`, so their protection is not
+# dependent on this script. Re-run it by hand if you want to re-witness the attacks.
 set -u
 CARGO="$HOME/.cargo/bin/cargo"
 SD=test-data/generated-scripts

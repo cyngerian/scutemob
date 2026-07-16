@@ -529,8 +529,9 @@ Task-specific extras:
     names were live in approved/pending scripts (`assign_damage`, `choose_option`, `cast_spell_from_command_zone`,
     `transform`, `activate_craft`, `cast_spell_disturb`, `order_replacements`, `sacrifice`, `mulligan_decision`).
     `translate_player_action` now emits `ReplayResult::ActionNotTranslated`; `transform` was wired to its
-    existing `Command::Transform`; the genuinely-informational ones (`assign_damage`, `choose_option`,
-    `sacrifice`, `search_library`) are an **allowlist with a dead-entry guard**.
+    existing `Command::Transform`; the genuinely-informational ones are an **allowlist with a dead-entry
+    guard** — `ALLOWED_UNTRANSLATABLE_ACTIONS` in `run_all_scripts.rs`, which as shipped is
+    `["search_library"]` only (SR-32 doc-drift fix: read the constant, do not re-quote the member list here).
   - **Six scripts never deserialized at all** — two carried `review_status: draft` (not a variant) and four
     had `disputes[]` entries missing the required `raised_by`. They had been invisible since written;
     `discover_scripts` used to swallow the `Err`. It now panics naming the file and the serde error.
@@ -543,7 +544,9 @@ Task-specific extras:
   un-translated alt-cost/combat-damage Commands (SR-9b: only 6 of 60 command shapes cross-validated), the
   empty-target ETB DSL gap, and the informational `stack_resolve` that leaves triggers unresolved — each
   named in the script's own `retirement_reason`. **Adversarial demo** (`adversarial_demo.sh`, 7 attacks,
-  each asserted to change a file first): pending script, undeserializable file, reason-less retirement,
+  each asserted to change a file first — a MANUAL, historical record; it mutates tracked files in place
+  and is deliberately not wired into `cargo test` or CI, per SR-32; the `run_all_scripts::*` gates it
+  exercises run on every `cargo test`): pending script, undeserializable file, reason-less retirement,
   vacuous approved script, un-allowlisted untranslatable action, unimplemented assertion path, and a
   reverted `zones.stack` fix — all seven reddened exactly their intended gate. **Only fix, not retire, one
   currently-approved failure**: `stack/050` correctly re-asserted as `zones.stack.count == 1` (Solemn
