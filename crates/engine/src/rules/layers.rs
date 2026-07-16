@@ -1395,7 +1395,28 @@ fn toposort_with_timestamp_fallback(mut effects: Vec<&ContinuousEffect>) -> Vec<
     }
     // Cycle handling (CR 613.8b): any remaining effects form a dependency loop.
     // Apply them in timestamp order (index order = timestamp order since effects is sorted).
+    //
+    // SR-30: this branch is UNREACHABLE under the engine's current `depends_on`
+    // relation. Every dependency arm there is Layer 4 and has the shape
+    // "`Set*` depends on `Add*`/`Set*`": only `SetTypeLine`/`SetCardTypes`/
+    // `SetCreatureTypes` ever appear as the dependent (`a`), and the only `Set`
+    // that appears as a dependency (`b`) is `SetCreatureTypes` (in the
+    // `SetCardTypes → SetCreatureTypes` arm), which itself depends only on
+    // `AddSubtypes`. `Add*` effects never depend on anything, so no directed
+    // cycle can form. The `no_dependency_cycle_is_constructible_from_current_relation`
+    // unit test below guards that premise: if a future arm makes the relation
+    // symmetric, it fails and this `debug_assert` fires, forcing a real 613.8b
+    // cycle test to be written. The release-build fallback below (emit the
+    // remaining effects in timestamp order) keeps the engine correct and
+    // loop-free per CR 613.8b even if that ever happens.
     if result.len() < n {
+        debug_assert!(
+            false,
+            "CR 613.8b dependency-loop fallback reached, but no cycle is \
+             constructible under the current Layer-4-only `depends_on` relation. \
+             A new dependency arm has introduced a cycle: write a real 613.8b \
+             cycle test and revisit this assertion (SR-30)."
+        );
         // Find effects not yet emitted (O(n²), but n is tiny in practice — ≤ 20 effects).
         // MR-M5-03: use EffectId comparison instead of ptr::eq — ptr::eq is fragile across
         // clones and stack allocations; EffectId is the correct logical identity for effects.
@@ -2007,5 +2028,111 @@ mod expect_characteristics_tests {
             .move_object_to_zone(old_id, ZoneId::Graveyard(PlayerId(0)))
             .expect("legal move");
         assert!(calculate_characteristics(&state, old_id).is_none());
+    }
+}
+
+/// SR-30: guards the premise of the `debug_assert` in the CR 613.8b cycle-fallback
+/// branch of [`toposort_with_timestamp_fallback`] — that no dependency cycle is
+/// constructible under the engine's current `depends_on` relation.
+///
+/// The engine only approximates CR 613.8 statically: every `depends_on` arm is in
+/// Layer 4 and has the shape "`Set*` depends on `Add*`/`Set*`". Only `Set*` effects
+/// are ever the dependent; `Add*` effects never depend on anything. If a future
+/// arm ever makes the relation symmetric (a real dependency loop), these tests
+/// fail — pointing the author at the fallback branch that must then be exercised
+/// for real rather than left as dead code.
+#[cfg(test)]
+mod dependency_cycle_guard_tests {
+    use super::*;
+    use crate::state::continuous_effect::EffectId;
+
+    fn card_types(ts: &[CardType]) -> OrdSet<CardType> {
+        ts.iter().cloned().collect()
+    }
+    fn subtypes(ts: &[&str]) -> OrdSet<SubType> {
+        ts.iter().map(|s| SubType(s.to_string())).collect()
+    }
+
+    /// A representative modification for every variant that participates in a
+    /// `depends_on` arm (both as dependent and as dependency), chosen so each arm
+    /// can actually fire (e.g. `AddSubtypes` includes a creature type; `SetCardTypes`
+    /// omits Creature so the `SetCardTypes → SetCreatureTypes` arm fires).
+    fn representative_modifications() -> Vec<LayerModification> {
+        vec![
+            LayerModification::SetTypeLine {
+                supertypes: OrdSet::new(),
+                card_types: card_types(&[CardType::Land]),
+                subtypes: subtypes(&["Mountain"]),
+            },
+            LayerModification::AddCardTypes(card_types(&[CardType::Creature])),
+            LayerModification::AddSubtypes(subtypes(&["Zombie"])), // Zombie is a creature type
+            LayerModification::SetCreatureTypes(subtypes(&["Zombie"])),
+            // Omits Creature → `SetCardTypes → SetCreatureTypes` dependency fires.
+            LayerModification::SetCardTypes(card_types(&[CardType::Artifact])),
+        ]
+    }
+
+    fn effect(id: u64, m: LayerModification) -> ContinuousEffect {
+        ContinuousEffect {
+            id: EffectId(id),
+            source: None,
+            timestamp: id,
+            layer: EffectLayer::TypeChange,
+            duration: EffectDuration::WhileSourceOnBattlefield,
+            filter: EffectFilter::AllPermanents,
+            modification: m,
+            is_cda: false,
+            condition: None,
+        }
+    }
+
+    /// No ordered pair of the representative modifications depends on each other in
+    /// both directions — i.e. the relation contains no 2-cycle.
+    #[test]
+    fn no_dependency_cycle_is_constructible_from_current_relation() {
+        let effects: Vec<ContinuousEffect> = representative_modifications()
+            .into_iter()
+            .enumerate()
+            .map(|(i, m)| effect(i as u64 + 1, m))
+            .collect();
+        for a in &effects {
+            for b in &effects {
+                if a.id == b.id {
+                    continue;
+                }
+                assert!(
+                    !(depends_on(a, b) && depends_on(b, a)),
+                    "symmetric dependency (2-cycle) found between {:?} and {:?} — \
+                     the CR 613.8b cycle-fallback branch is now reachable and its \
+                     debug_assert must be replaced with a real cycle test",
+                    a.modification,
+                    b.modification,
+                );
+            }
+        }
+    }
+
+    /// Feeding every dependency-participating modification through the real
+    /// toposort at once produces a complete ordering (no effect dropped), which is
+    /// exactly the condition under which the 613.8b fallback branch is NOT taken.
+    /// This exercises the whole `toposort_with_timestamp_fallback` path (including
+    /// its Kahn's-algorithm dependency edges) without ever entering — and thus
+    /// tripping the `debug_assert` in — the cycle branch.
+    #[test]
+    fn toposort_over_all_dependency_participants_emits_every_effect() {
+        let effects: Vec<ContinuousEffect> = representative_modifications()
+            .into_iter()
+            .enumerate()
+            .map(|(i, m)| effect(i as u64 + 1, m))
+            .collect();
+        let refs: Vec<&ContinuousEffect> = effects.iter().collect();
+        let n = refs.len();
+        let ordered = toposort_with_timestamp_fallback(refs);
+        assert_eq!(
+            ordered.len(),
+            n,
+            "toposort must emit every effect (acyclic); a shortfall means a cycle \
+             was hit and the 613.8b fallback branch was taken"
+        );
     }
 }

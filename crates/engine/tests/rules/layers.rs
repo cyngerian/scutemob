@@ -1214,40 +1214,54 @@ fn test_613_dependency_chain_three_effects() {
 }
 
 // ---------------------------------------------------------------------------
-// Circular dependency (fallback to timestamp)
+// Same-layer timestamp ordering (CR 613.7)
 // ---------------------------------------------------------------------------
 
-/// CR 613.8b: Circular dependencies fall back to timestamp order.
-/// Two effects that each "depend on" each other (circular) → apply by timestamp.
-/// (Simulated by creating two SetTypeLine effects, neither of which we make depend on
-/// the other in the implementation — they just apply in timestamp order.)
+/// CR 613.7: within a layer, independent effects apply in timestamp order — an
+/// effect with an earlier timestamp is applied before one with a later timestamp.
 ///
-/// In practice, true circular dependencies are rare in MTG, but the engine must not
-/// panic or infinite-loop. We verify it applies in timestamp order.
+/// This uses two Layer-7b `SetPowerToughness` effects, which are genuinely
+/// order-*sensitive* (each overwrites the base P/T), so the assertion actually
+/// distinguishes the two orderings — the older test used two `AddKeyword`s, which
+/// are commutative and so passed under any order (vacuous). The newer effect must
+/// win: 4/4, not 6/6.
+///
+/// NOTE (SR-30): this does **not** exercise the CR 613.8b dependency-loop
+/// fallback in `toposort_with_timestamp_fallback` — no dependency edge exists
+/// between two `SetPowerToughness` effects. A true dependency *cycle* is not
+/// constructible under the engine's current Layer-4-only `depends_on` relation
+/// (proven by the `no_dependency_cycle_is_constructible…` unit test in
+/// `layers.rs`), so that branch is `debug_assert`'d unreachable rather than
+/// covered by a fabricated cycle here. The former test in this slot *claimed* to
+/// test the 613.8b cycle but built no cycle at all.
 #[test]
-fn test_613_independent_effects_apply_in_timestamp_order() {
-    // Two independent type-adding effects. Both apply, in timestamp order.
-    // (No circular dependency in this test — just verifying timestamp order for non-dependent effects.)
+fn test_613_7_same_layer_effects_apply_in_timestamp_order() {
     let state = GameStateBuilder::new()
         .add_player(p1())
         .object(ObjectSpec::creature(p1(), "Test", 2, 2))
-        // Older: add Flying
+        // Older: set to 6/6
         .add_continuous_effect(effect(
             1,
             None,
             5, // Older
-            EffectLayer::Ability,
+            EffectLayer::PtSet,
             EffectFilter::AllCreatures,
-            LayerModification::AddKeyword(KeywordAbility::Flying),
+            LayerModification::SetPowerToughness {
+                power: 6,
+                toughness: 6,
+            },
         ))
-        // Newer: add Trample
+        // Newer: set to 4/4 — must win by timestamp.
         .add_continuous_effect(effect(
             2,
             None,
             10, // Newer
-            EffectLayer::Ability,
+            EffectLayer::PtSet,
             EffectFilter::AllCreatures,
-            LayerModification::AddKeyword(KeywordAbility::Trample),
+            LayerModification::SetPowerToughness {
+                power: 4,
+                toughness: 4,
+            },
         ))
         .build()
         .unwrap();
@@ -1260,9 +1274,11 @@ fn test_613_independent_effects_apply_in_timestamp_order() {
         .unwrap();
 
     let chars = calculate_characteristics(&state, id).unwrap();
-    // Both additive effects should apply regardless of order (addition is commutative).
-    assert!(chars.keywords.contains(&KeywordAbility::Flying));
-    assert!(chars.keywords.contains(&KeywordAbility::Trample));
+    assert_eq!(
+        (chars.power, chars.toughness),
+        (Some(4), Some(4)),
+        "CR 613.7: the later-timestamped SetPowerToughness must win → 4/4"
+    );
 }
 
 // ---------------------------------------------------------------------------
