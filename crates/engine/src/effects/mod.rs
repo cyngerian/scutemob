@@ -406,7 +406,7 @@ fn execute_effect_inner(
                             let source_has_lifelink = source_has(KeywordAbility::Lifelink);
                             if card_types.contains(&CardType::Planeswalker) {
                                 // CR 120.3c: damage to planeswalker removes loyalty counters.
-                                if let Some(obj) = state.lki_object_mut(id) {
+                                if let Some(obj) = state.fizzle_object_mut(id) {
                                     let cur = obj
                                         .counters
                                         .get(&crate::state::types::CounterType::Loyalty)
@@ -424,7 +424,7 @@ fn execute_effect_inner(
                                 let source_has_wither = source_has(KeywordAbility::Wither);
                                 let source_has_infect = source_has(KeywordAbility::Infect);
                                 let source_has_deathtouch = source_has(KeywordAbility::Deathtouch);
-                                if let Some(obj) = state.lki_object_mut(id) {
+                                if let Some(obj) = state.fizzle_object_mut(id) {
                                     if source_has_wither || source_has_infect {
                                         // CR 702.80a / CR 702.90c / CR 120.3d: wither and/or
                                         // infect damage to a creature places -1/-1 counters
@@ -461,7 +461,7 @@ fn execute_effect_inner(
                                 // CR 120.3e: non-creature, non-planeswalker permanents (e.g.,
                                 // battles, CR 120.3h) mark damage normally. Wither does NOT
                                 // apply (CR 702.80a — only creatures receive -1/-1 counters).
-                                if let Some(obj) = state.lki_object_mut(id) {
+                                if let Some(obj) = state.fizzle_object_mut(id) {
                                     obj.damage_marked += final_dmg;
                                 }
                             }
@@ -771,7 +771,7 @@ fn execute_effect_inner(
                     // Detach from previous (should not be attached, but defensive).
                     let prev_target_opt = state.objects.get(&equip_id).and_then(|o| o.attached_to);
                     if let Some(prev_target) = prev_target_opt {
-                        if let Some(prev) = state.lki_object_mut(prev_target) {
+                        if let Some(prev) = state.fizzle_object_mut(prev_target) {
                             prev.attachments.retain(|&x| x != equip_id);
                         }
                     }
@@ -949,7 +949,8 @@ fn execute_effect_inner(
                             ..
                         } => {
                             events.extend(repl_events);
-                            if let Some((new_id, _old)) = state.lki_move_object_to_zone(id, dest) {
+                            if let Some((new_id, _old)) = state.fizzle_move_object_to_zone(id, dest)
+                            {
                                 match dest {
                                     ZoneId::Exile => {
                                         events.push(GameEvent::ObjectExiled {
@@ -1012,7 +1013,7 @@ fn execute_effect_inner(
                         crate::rules::replacement::ZoneChangeAction::Proceed => {
                             // No replacement — move to graveyard normally.
                             if let Some((new_id, _old)) =
-                                state.lki_move_object_to_zone(id, ZoneId::Graveyard(owner))
+                                state.fizzle_move_object_to_zone(id, ZoneId::Graveyard(owner))
                             {
                                 if card_types.contains(&CardType::Creature) {
                                     events.push(GameEvent::CreatureDied {
@@ -1165,7 +1166,7 @@ fn execute_effect_inner(
                         ..
                     } => {
                         events.extend(repl_events);
-                        if let Some((new_id, _old)) = state.lki_move_object_to_zone(id, dest) {
+                        if let Some((new_id, _old)) = state.fizzle_move_object_to_zone(id, dest) {
                             match dest {
                                 ZoneId::Exile => {
                                     events.push(GameEvent::ObjectExiled {
@@ -1231,7 +1232,7 @@ fn execute_effect_inner(
                     }
                     crate::rules::replacement::ZoneChangeAction::Proceed => {
                         if let Some((new_id, _old)) =
-                            state.lki_move_object_to_zone(id, ZoneId::Graveyard(owner))
+                            state.fizzle_move_object_to_zone(id, ZoneId::Graveyard(owner))
                         {
                             if card_types.contains(&CardType::Creature) {
                                 events.push(GameEvent::CreatureDied {
@@ -1371,7 +1372,7 @@ fn execute_effect_inner(
                             } => {
                                 events.extend(repl_events);
                                 if let Some((new_id, _old)) =
-                                    state.lki_move_object_to_zone(id, dest)
+                                    state.fizzle_move_object_to_zone(id, dest)
                                 {
                                     match dest {
                                         ZoneId::Exile => {
@@ -1442,7 +1443,7 @@ fn execute_effect_inner(
                             crate::rules::replacement::ZoneChangeAction::Proceed => {
                                 // No replacement — move to graveyard normally.
                                 if let Some((new_id, _old)) =
-                                    state.lki_move_object_to_zone(id, ZoneId::Graveyard(owner))
+                                    state.fizzle_move_object_to_zone(id, ZoneId::Graveyard(owner))
                                 {
                                     if card_types.contains(&CardType::Creature) {
                                         events.push(GameEvent::CreatureDied {
@@ -1600,7 +1601,7 @@ fn execute_effect_inner(
                         ..
                     } => {
                         events.extend(repl_events);
-                        if let Some((new_id, _old)) = state.lki_move_object_to_zone(id, dest) {
+                        if let Some((new_id, _old)) = state.fizzle_move_object_to_zone(id, dest) {
                             match dest {
                                 ZoneId::Command(_) => {
                                     // Commander redirected — no exile event.
@@ -1640,7 +1641,7 @@ fn execute_effect_inner(
                     }
                     crate::rules::replacement::ZoneChangeAction::Proceed => {
                         if let Some((new_id, _old)) =
-                            state.lki_move_object_to_zone(id, ZoneId::Exile)
+                            state.fizzle_move_object_to_zone(id, ZoneId::Exile)
                         {
                             events.push(GameEvent::ObjectExiled {
                                 player: owner,
@@ -1732,7 +1733,7 @@ fn execute_effect_inner(
                         ..
                     } => {
                         events.extend(repl_events);
-                        if let Some((new_id, _old)) = state.lki_move_object_to_zone(id, dest) {
+                        if let Some((new_id, _old)) = state.fizzle_move_object_to_zone(id, dest) {
                             match dest {
                                 ZoneId::Command(_) => {
                                     // Commander redirected to command zone.
@@ -1772,7 +1773,7 @@ fn execute_effect_inner(
                     }
                     crate::rules::replacement::ZoneChangeAction::Proceed => {
                         let dest = ZoneId::Hand(owner);
-                        if let Some((new_id, _old)) = state.lki_move_object_to_zone(id, dest) {
+                        if let Some((new_id, _old)) = state.fizzle_move_object_to_zone(id, dest) {
                             events.push(GameEvent::ObjectReturnedToHand {
                                 player: owner,
                                 object_id: id,
@@ -1846,7 +1847,7 @@ fn execute_effect_inner(
                             } => {
                                 events.extend(repl_events);
                                 if let Some((new_id, _old)) =
-                                    state.lki_move_object_to_zone(id, dest)
+                                    state.fizzle_move_object_to_zone(id, dest)
                                 {
                                     if let Some(idx) = idx_opt {
                                         ctx.target_remaps.insert(idx, new_id);
@@ -1891,7 +1892,7 @@ fn execute_effect_inner(
                             crate::rules::replacement::ZoneChangeAction::Proceed => {
                                 // No replacement — exile normally.
                                 if let Some((new_id, _old)) =
-                                    state.lki_move_object_to_zone(id, ZoneId::Exile)
+                                    state.fizzle_move_object_to_zone(id, ZoneId::Exile)
                                 {
                                     if let Some(idx) = idx_opt {
                                         ctx.target_remaps.insert(idx, new_id);
@@ -1962,7 +1963,7 @@ fn execute_effect_inner(
                                     ZoneId::Graveyard(owner)
                                 };
                                 if let Some((new_id, _)) =
-                                    state.lki_move_object_to_zone(source_object, destination)
+                                    state.fizzle_move_object_to_zone(source_object, destination)
                                 {
                                     events.push(GameEvent::SpellCountered {
                                         player: controller,
@@ -2000,7 +2001,7 @@ fn execute_effect_inner(
             let targets = resolve_effect_target_list(state, target, ctx);
             for resolved in targets {
                 if let ResolvedTarget::Object(id) = resolved {
-                    if let Some(obj) = state.lki_object_mut(id) {
+                    if let Some(obj) = state.fizzle_object_mut(id) {
                         if !obj.status.tapped {
                             obj.status.tapped = true;
                             let player = obj.controller;
@@ -2017,7 +2018,7 @@ fn execute_effect_inner(
             let targets = resolve_effect_target_list(state, target, ctx);
             for resolved in targets {
                 if let ResolvedTarget::Object(id) = resolved {
-                    if let Some(obj) = state.lki_object_mut(id) {
+                    if let Some(obj) = state.fizzle_object_mut(id) {
                         if obj.status.tapped {
                             obj.status.tapped = false;
                             let player = obj.controller;
@@ -2039,7 +2040,7 @@ fn execute_effect_inner(
             let targets = resolve_effect_target_list(state, target, ctx);
             for resolved in targets {
                 if let ResolvedTarget::Object(id) = resolved {
-                    if let Some(obj) = state.lki_object_mut(id) {
+                    if let Some(obj) = state.fizzle_object_mut(id) {
                         obj.skip_untap_steps = obj.skip_untap_steps.saturating_add(1);
                     }
                 }
@@ -2331,7 +2332,7 @@ fn execute_effect_inner(
                         );
                     events.extend(repl_events);
                     if modified_count > 0 {
-                        if let Some(obj) = state.lki_object_mut(id) {
+                        if let Some(obj) = state.fizzle_object_mut(id) {
                             let cur = obj.counters.get(&counter).copied().unwrap_or(0);
                             obj.counters.insert(counter.clone(), cur + modified_count);
                             events.push(GameEvent::CounterAdded {
@@ -2366,7 +2367,7 @@ fn execute_effect_inner(
                             );
                         events.extend(repl_events);
                         if modified_count > 0 {
-                            if let Some(obj) = state.lki_object_mut(id) {
+                            if let Some(obj) = state.fizzle_object_mut(id) {
                                 let cur = obj.counters.get(&counter).copied().unwrap_or(0);
                                 obj.counters.insert(counter.clone(), cur + modified_count);
                                 events.push(GameEvent::CounterAdded {
@@ -2411,7 +2412,7 @@ fn execute_effect_inner(
             let targets = resolve_effect_target_list(state, target, ctx);
             for resolved in targets {
                 if let ResolvedTarget::Object(id) = resolved {
-                    if let Some(obj) = state.lki_object_mut(id) {
+                    if let Some(obj) = state.fizzle_object_mut(id) {
                         let cur = obj.counters.get(&counter).copied().unwrap_or(0);
                         let new_val = cur.saturating_sub(count);
                         if new_val == 0 {
@@ -2671,7 +2672,7 @@ fn execute_effect_inner(
                         })
                         .unwrap_or_default();
                     let dest = resolve_zone_target(to, state, ctx);
-                    if let Some((new_id, _)) = state.lki_move_object_to_zone(id, dest) {
+                    if let Some((new_id, _)) = state.fizzle_move_object_to_zone(id, dest) {
                         // Apply controller override for "under your control" effects (e.g. Reanimate).
                         // move_object_to_zone always resets controller to owner; override after.
                         if let Some(override_player_target) = controller_override {
@@ -3309,7 +3310,7 @@ fn execute_effect_inner(
             let targets = resolve_effect_target_list(state, target, ctx);
             for resolved in targets {
                 if let ResolvedTarget::Object(id) = resolved {
-                    if let Some(obj) = state.lki_object_mut(id) {
+                    if let Some(obj) = state.fizzle_object_mut(id) {
                         if !obj.goaded_by.contains(&ctx.controller) {
                             obj.goaded_by.push_back(ctx.controller);
                         }
@@ -3328,7 +3329,7 @@ fn execute_effect_inner(
             let targets = resolve_effect_target_list(state, target, ctx);
             for resolved in targets {
                 if let ResolvedTarget::Object(id) = resolved {
-                    if let Some(obj) = state.lki_object_mut(id) {
+                    if let Some(obj) = state.fizzle_object_mut(id) {
                         // CR 701.60d: A suspected permanent can't become suspected again.
                         if !obj.designations.contains(Designations::SUSPECTED) {
                             obj.designations.insert(Designations::SUSPECTED);
@@ -3348,7 +3349,7 @@ fn execute_effect_inner(
             let targets = resolve_effect_target_list(state, target, ctx);
             for resolved in targets {
                 if let ResolvedTarget::Object(id) = resolved {
-                    if let Some(obj) = state.lki_object_mut(id) {
+                    if let Some(obj) = state.fizzle_object_mut(id) {
                         if obj.designations.contains(Designations::SUSPECTED) {
                             obj.designations.remove(Designations::SUSPECTED);
                             events.push(GameEvent::CreatureUnsuspected {
@@ -3398,7 +3399,7 @@ fn execute_effect_inner(
                     .unwrap_or_else(|| default.clone())
             };
             // Set on the source permanent if it's on the battlefield (ETB replacement path).
-            if let Some(obj) = state.lki_object_mut(ctx.source) {
+            if let Some(obj) = state.fizzle_object_mut(ctx.source) {
                 obj.chosen_creature_type = Some(chosen.clone());
             }
             // Also set on ctx for spell-level Sequence use (Kindred Dominance, Pact of the Serpent).
@@ -3742,7 +3743,7 @@ fn execute_effect_inner(
         // CR 603.7 / PB-33: Set the return_to_hand_at_end_step flag on the source object.
         // Used by The Locust God's WhenDies trigger.
         Effect::SetReturnToHandAtEndStep => {
-            if let Some(obj) = state.lki_object_mut(ctx.source) {
+            if let Some(obj) = state.fizzle_object_mut(ctx.source) {
                 obj.return_to_hand_at_end_step = true;
             }
         }
@@ -4006,7 +4007,7 @@ fn execute_effect_inner(
                     // "fails to determine any such information" and does nothing.
                     // A missing *zone* would still be a bug, and still asserts.
                     if let Some((new_id, _)) =
-                        state.lki_move_object_to_zone(card_id, ZoneId::Battlefield)
+                        state.fizzle_move_object_to_zone(card_id, ZoneId::Battlefield)
                     {
                         if let Some(obj) = state.expect_object_mut(new_id) {
                             obj.controller = controller;
@@ -4139,7 +4140,7 @@ fn execute_effect_inner(
                     // Detach from previous creature (CR 301.5c: can't equip more than one).
                     let prev_target_opt = state.objects.get(&equip_id).and_then(|o| o.attached_to);
                     if let Some(prev_target) = prev_target_opt {
-                        if let Some(prev) = state.lki_object_mut(prev_target) {
+                        if let Some(prev) = state.fizzle_object_mut(prev_target) {
                             prev.attachments.retain(|&x| x != equip_id);
                         }
                     }
@@ -4279,7 +4280,7 @@ fn execute_effect_inner(
                     // fortify more than one land).
                     let prev_target_opt = state.objects.get(&equip_id).and_then(|o| o.attached_to);
                     if let Some(prev_target) = prev_target_opt {
-                        if let Some(prev) = state.lki_object_mut(prev_target) {
+                        if let Some(prev) = state.fizzle_object_mut(prev_target) {
                             prev.attachments.retain(|&x| x != equip_id);
                         }
                     }
@@ -4342,7 +4343,7 @@ fn execute_effect_inner(
                     equip_obj.designations.remove(Designations::RECONFIGURED);
                 }
                 // Remove equipment from target's attachments.
-                if let Some(target_obj) = state.lki_object_mut(target_id) {
+                if let Some(target_obj) = state.fizzle_object_mut(target_id) {
                     target_obj.attachments.retain(|&x| x != equip_id);
                 }
                 events.push(GameEvent::EquipmentUnattached {
@@ -5235,7 +5236,7 @@ fn execute_effect_inner(
                     };
                     state.continuous_effects.push_back(eff);
                     // Update the object's controller immediately.
-                    if let Some(obj) = state.lki_object_mut(obj_id) {
+                    if let Some(obj) = state.fizzle_object_mut(obj_id) {
                         obj.controller = controller;
                     }
                 }
@@ -5264,8 +5265,8 @@ fn execute_effect_inner(
                 }
             });
             if let (Some(a_id), Some(b_id)) = (a_id, b_id) {
-                let a_ctrl = state.lki_object(a_id).map(|o| o.controller);
-                let b_ctrl = state.lki_object(b_id).map(|o| o.controller);
+                let a_ctrl = state.fizzle_object(a_id).map(|o| o.controller);
+                let b_ctrl = state.fizzle_object(b_id).map(|o| o.controller);
                 if let (Some(ac), Some(bc)) = (a_ctrl, b_ctrl) {
                     // CR 701.12b: If same controller, do nothing.
                     if ac != bc {
@@ -5415,7 +5416,7 @@ fn execute_effect_inner(
         }
         // CR 719.3a: Set the SOLVED designation on the source permanent.
         Effect::SolveCase => {
-            if let Some(obj) = state.lki_object_mut(ctx.source) {
+            if let Some(obj) = state.fizzle_object_mut(ctx.source) {
                 obj.designations.insert(Designations::SOLVED);
             }
         }
@@ -5590,7 +5591,7 @@ fn execute_effect_inner(
                     None => owner, // "under their owners' control"
                 };
                 if let Some((new_id, _old)) =
-                    state.lki_move_object_to_zone(old_id, ZoneId::Battlefield)
+                    state.fizzle_move_object_to_zone(old_id, ZoneId::Battlefield)
                 {
                     // Override controller if specified.
                     if let Some(obj) = state.expect_object_mut(new_id) {
@@ -5725,7 +5726,7 @@ fn execute_effect_inner(
                     pre_death_counters,
                     pre_death_power_ld,
                     ld_pre_chars,
-                ) = match state.lki_object(id) {
+                ) = match state.fizzle_object(id) {
                     Some(obj) => {
                         let pre_chars_opt =
                             crate::rules::layers::calculate_characteristics(state, id);
@@ -6270,7 +6271,7 @@ fn resolve_effect_target_list_indexed(
         // PB-33: The creature the source Equipment is attached to.
         // Used by Helm of the Host ("create a token that's a copy of equipped creature").
         EffectTarget::EquippedCreature => {
-            if let Some(attached_id) = state.lki_object(ctx.source).and_then(|o| o.attached_to) {
+            if let Some(attached_id) = state.fizzle_object(ctx.source).and_then(|o| o.attached_to) {
                 if state.objects.contains_key(&attached_id) {
                     vec![(None, ResolvedTarget::Object(attached_id))]
                 } else {
@@ -6363,7 +6364,7 @@ fn resolve_player_target_list(
                 .into_iter()
                 .filter_map(|t| {
                     if let ResolvedTarget::Object(id) = t {
-                        state.lki_object(id).map(|obj| obj.owner)
+                        state.fizzle_object(id).map(|obj| obj.owner)
                     } else {
                         None
                     }
@@ -6688,7 +6689,7 @@ pub(crate) fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &Eff
                 .into_iter()
                 .filter_map(|t| {
                     if let ResolvedTarget::Object(id) = t {
-                        state.lki_object(id).map(|obj| {
+                        state.fizzle_object(id).map(|obj| {
                             obj.characteristics
                                 .mana_cost
                                 .as_ref()
@@ -7428,7 +7429,7 @@ fn sacrifice_permanents_for_player(
             pre_death_counters,
             pre_death_power,
             sac_perm_pre_chars,
-        ) = match state.lki_object(id) {
+        ) = match state.fizzle_object(id) {
             Some(obj) => {
                 let pre_chars_opt = crate::rules::layers::calculate_characteristics(state, id);
                 let chars = pre_chars_opt

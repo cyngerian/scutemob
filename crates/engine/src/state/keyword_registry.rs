@@ -62,6 +62,9 @@ pub fn handling(keyword: &KeywordAbility) -> KeywordHandling {
                 "crates/engine/src/effects/mod.rs",
                 "crates/engine/src/rules/combat.rs",
                 "crates/card-types/src/state/dungeon.rs",
+                // SR-24: `capture_lki_snapshot` stores a departing damage source's LKI
+                // snapshot only when it carries one of the four consumed keywords.
+                "crates/engine/src/state/mod.rs",
             ],
         },
         K::Defender => KeywordHandling::Handled {
@@ -134,6 +137,8 @@ pub fn handling(keyword: &KeywordAbility) -> KeywordHandling {
             sites: &[
                 "crates/engine/src/effects/mod.rs",
                 "crates/engine/src/rules/combat.rs",
+                // SR-24: LKI-snapshot capture gate (see `Deathtouch`).
+                "crates/engine/src/state/mod.rs",
             ],
         },
         K::Menace => KeywordHandling::Handled {
@@ -253,6 +258,8 @@ pub fn handling(keyword: &KeywordAbility) -> KeywordHandling {
             sites: &[
                 "crates/engine/src/effects/mod.rs",
                 "crates/engine/src/rules/combat.rs",
+                // SR-24: LKI-snapshot capture gate (see `Deathtouch`).
+                "crates/engine/src/state/mod.rs",
             ],
         },
         K::Modular(..) => KeywordHandling::Handled {
@@ -282,6 +289,8 @@ pub fn handling(keyword: &KeywordAbility) -> KeywordHandling {
             sites: &[
                 "crates/engine/src/effects/mod.rs",
                 "crates/engine/src/rules/combat.rs",
+                // SR-24: LKI-snapshot capture gate (see `Deathtouch`).
+                "crates/engine/src/state/mod.rs",
             ],
         },
         K::Myriad => KeywordHandling::Handled {

@@ -1710,7 +1710,7 @@ fn check_initiative_steal_from_combat_damage(state: &mut GameState, events: &mut
                         // CR 113.7a: the damage source may have left its zone since
                         // dealing this combat damage, so `a.source` can be
                         // last-known-information; its absence is a legal fizzle.
-                        return state.lki_object(a.source).map(|obj| obj.controller);
+                        return state.fizzle_object(a.source).map(|obj| obj.controller);
                     }
                 }
                 None
@@ -1752,7 +1752,7 @@ fn check_monarch_steal_from_combat_damage(state: &mut GameState, events: &mut Ve
                         // CR 113.7a: the damage source may have left its zone since
                         // dealing this combat damage, so `a.source` can be
                         // last-known-information; its absence is a legal fizzle.
-                        return state.lki_object(a.source).map(|obj| obj.controller);
+                        return state.fizzle_object(a.source).map(|obj| obj.controller);
                     }
                 }
                 None
@@ -2158,7 +2158,7 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
                 // registered earlier; it may have changed zones since, so this id can be
                 // last-known-information and its absence is a legal fizzle.
                 let eoc_pre_lba = state
-                    .lki_object(target)
+                    .fizzle_object(target)
                     .filter(|o| o.zone == ZoneId::Battlefield)
                     .map(|o| {
                         let lki_power =

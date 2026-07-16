@@ -1227,7 +1227,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 devour_lki_power,
                                 devour_pre_death_chars,
                             ) = {
-                                let obj = match state.lki_object(sac_id) {
+                                let obj = match state.fizzle_object(sac_id) {
                                     Some(o) => o,
                                     None => continue,
                                 };
@@ -1624,7 +1624,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 aura_obj.attached_to = Some(target_id);
                             }
                             // Add to target's attachments list.
-                            if let Some(target_obj) = state.lki_object_mut(target_id) {
+                            if let Some(target_obj) = state.fizzle_object_mut(target_id) {
                                 if !target_obj.attachments.contains(&new_id) {
                                     target_obj.attachments.push_back(new_id);
                                 }
@@ -1819,7 +1819,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 if let Some(creature_id) = cipher_creature {
                     if let Some(card_id_val) = &card_id {
                         // Add the encoded card to the creature's encoded_cards list.
-                        if let Some(creature_obj) = state.lki_object_mut(creature_id) {
+                        if let Some(creature_obj) = state.fizzle_object_mut(creature_id) {
                             creature_obj
                                 .encoded_cards
                                 .push_back((new_id, card_id_val.clone()));
@@ -1933,7 +1933,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             // index-namespace collisions when the card also has runtime triggers at the
             // same index position (e.g. Acererak: ETB at def[0], WhenAttacks at runtime[0]).
             let (triggered_effect_opt, triggered_carddef_iif) = {
-                let obj = state.lki_object(source_object);
+                let obj = state.fizzle_object(source_object);
                 if let Some(obj) = obj {
                     if !is_carddef_etb {
                         // CR 613.1f: Use layer-resolved triggered_abilities to match
@@ -2128,7 +2128,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 } // end else (non-fizzled path)
             } else {
                 let condition_holds = {
-                    let source_obj = state.lki_object(source_object);
+                    let source_obj = state.fizzle_object(source_object);
                     match source_obj {
                         Some(obj) => {
                             // CR 613.1f: Use layer-resolved triggered_abilities
@@ -2441,7 +2441,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         } => {
             let controller = stack_obj.controller;
             // Check if the source is still on the battlefield (CR 400.7).
-            let source_info = state.lki_object(vanishing_permanent).and_then(|obj| {
+            let source_info = state.fizzle_object(vanishing_permanent).and_then(|obj| {
                 if obj.zone == ZoneId::Battlefield {
                     // CR 603.10a / CR 613.1d: capture full layer-resolved characteristics
                     // before zone move.
@@ -2582,7 +2582,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         } => {
             let controller = stack_obj.controller;
             // Check if permanent is still on the battlefield (CR 400.7).
-            let source_info = state.lki_object(fading_permanent).and_then(|obj| {
+            let source_info = state.fizzle_object(fading_permanent).and_then(|obj| {
                 if obj.zone == ZoneId::Battlefield {
                     let pre_chars =
                         crate::rules::layers::calculate_characteristics(state, fading_permanent);
@@ -2883,7 +2883,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             // actually sacrificed -- it stays on the battlefield (edge case; no
             // known card combines Evoke with a can't-be-sacrificed grant, wired
             // for dispatch-chain completeness).
-            let source_info = state.lki_object(source_object).and_then(|obj| {
+            let source_info = state.fizzle_object(source_object).and_then(|obj| {
                 if obj.zone == ZoneId::Battlefield
                     && !crate::effects::object_cant_be_sacrificed(state, source_object)
                 {
@@ -3252,7 +3252,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             // PB-AC8 review E1 / CR 701.21a: a "can't be sacrificed" permanent
             // whose Blitz delayed trigger fires is NOT sacrificed -- it stays on
             // the battlefield (mirrors the Evoke guard above).
-            let source_info = state.lki_object(source_object).and_then(|obj| {
+            let source_info = state.fizzle_object(source_object).and_then(|obj| {
                 if obj.zone == ZoneId::Battlefield
                     && !crate::effects::object_cant_be_sacrificed(state, source_object)
                 {
@@ -3815,7 +3815,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             let target_id_opt = stack_obj.targets.first().and_then(|t| match &t.target {
                 Target::Object(id) => {
                     // CR 613.1d: Use layer-resolved types for artifact creature check.
-                    let still_legal = state.lki_object(*id).is_some_and(|obj| {
+                    let still_legal = state.fizzle_object(*id).is_some_and(|obj| {
                         obj.zone == ZoneId::Battlefield && {
                             let chars = crate::rules::layers::expect_characteristics(state, *id);
                             chars.card_types.contains(&CardType::Artifact)
@@ -3908,7 +3908,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             if condition_holds {
                 // CR 702.100a: Put a +1/+1 counter on the evolve creature.
                 // The source must still be on the battlefield.
-                if let Some(obj) = state.lki_object_mut(source_object) {
+                if let Some(obj) = state.fizzle_object_mut(source_object) {
                     if obj.zone == ZoneId::Battlefield {
                         let current = obj
                             .counters
@@ -4190,7 +4190,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // it stays on the battlefield (mirrors the Evoke/Blitz guards above).
                     // Unreachable today (CantBeSacrificed is self-referential and no known
                     // card combines Champion with it), wired for dispatch-chain completeness.
-                    let source_info = state.lki_object(source_object).and_then(|obj| {
+                    let source_info = state.fizzle_object(source_object).and_then(|obj| {
                         if obj.zone == ZoneId::Battlefield
                             && !crate::effects::object_cant_be_sacrificed(state, source_object)
                         {
@@ -4333,7 +4333,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         } => {
             let controller = stack_obj.controller;
             // CR 607.2a: Check if the exiled card is still in exile.
-            let exiled_info = state.lki_object(exiled_card).and_then(|obj| {
+            let exiled_info = state.fizzle_object(exiled_card).and_then(|obj| {
                 if obj.zone == ZoneId::Exile {
                     Some((obj.owner, obj.card_id.clone()))
                 } else {
@@ -5043,7 +5043,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             let controller = stack_obj.controller;
             // CR 702.171b: "stays saddled until the end of the turn or it leaves
             // the battlefield." Only set if Mount is still on the battlefield.
-            if let Some(obj) = state.lki_object_mut(source_object) {
+            if let Some(obj) = state.fizzle_object_mut(source_object) {
                 if obj.zone == ZoneId::Battlefield {
                     obj.designations.insert(Designations::SADDLED);
                 }
@@ -5263,7 +5263,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // CR 702.55c: Haunt fires exactly once — clear the haunting relationship
                     // after the trigger resolves so that a recycled ObjectId cannot cause a
                     // spurious re-trigger against an unrelated creature's death.
-                    if let Some(haunt_obj) = state.lki_object_mut(haunt_source) {
+                    if let Some(haunt_obj) = state.fizzle_object_mut(haunt_source) {
                         haunt_obj.haunting_target = None;
                     }
                 }
@@ -5747,7 +5747,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // time counter was removed (CR 400.7 — it is a different object now;
                 // CR 608.2b — the effect can't find it and doesn't happen). A missing
                 // Stack zone would still be an engine bug and still asserts.
-                match state.lki_move_object_to_zone(suspended_card, ZoneId::Stack) {
+                match state.fizzle_move_object_to_zone(suspended_card, ZoneId::Stack) {
                     Some((stack_source_id, _old)) => {
                         // Check if the spell is a creature (for haste grant).
                         let is_creature = state
@@ -5847,7 +5847,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // Expected fizzle: the looked-at card may have moved before this trigger
                 // resolved (CR 400.7 / CR 608.2b). A missing Exile zone would still be an
                 // engine bug and still asserts.
-                match state.lki_move_object_to_zone(exile_card_id, ZoneId::Exile) {
+                match state.fizzle_move_object_to_zone(exile_card_id, ZoneId::Exile) {
                     Some((new_exile_id, _)) => {
                         // Set face_down and exiled_by_hideaway on the exiled object.
                         if let Some(exile_obj) = state.expect_object_mut(new_exile_id) {
@@ -6978,7 +6978,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 .unwrap_or(false);
             // CR 702.140b: Check if the target is still legal at resolution time.
             let target_still_legal = {
-                if let Some(target_obj) = state.lki_object(target) {
+                if let Some(target_obj) = state.fizzle_object(target) {
                     let target_on_battlefield = target_obj.zone == ZoneId::Battlefield;
                     let target_chars = crate::rules::layers::expect_characteristics(state, target);
                     let target_is_creature = target_chars.card_types.contains(&CardType::Creature);
@@ -7144,7 +7144,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             permanent,
             ability_timestamp,
         } => {
-            if let Some(obj) = state.lki_object(permanent) {
+            if let Some(obj) = state.fizzle_object(permanent) {
                 let still_on_battlefield = obj.zone == ZoneId::Battlefield;
                 // CR 701.27c/d: Only transform if the permanent hasn't already transformed
                 // since this trigger was put on the stack (timestamp guard).
@@ -7241,7 +7241,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             // ability at `ability_index` in the CardDefinition — each TurnFaceUpTrigger
             // SOK carries the exact index to support cards with multiple such abilities.
             let controller = stack_obj.controller;
-            if let Some(obj) = state.lki_object(permanent) {
+            if let Some(obj) = state.fizzle_object(permanent) {
                 if obj.zone == ZoneId::Battlefield {
                     let card_id = source_card_id.or_else(|| obj.card_id.clone());
                     if let Some(cid) = card_id {
@@ -7272,7 +7272,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // Check the permanent is still on the battlefield and the day/night state still
         // requires this transform before applying it.
         StackObjectKind::DayboundTransformTrigger { permanent } => {
-            if let Some(obj) = state.lki_object(permanent) {
+            if let Some(obj) = state.fizzle_object(permanent) {
                 if obj.zone == ZoneId::Battlefield {
                     let chars = super::layers::calculate_characteristics(state, permanent)
                         .or_else(|| {
@@ -7461,7 +7461,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 DelayedTriggerAction::ReturnFromExileToBattlefield { tapped } => {
                     // CR 610.3c: Return from exile to battlefield under owner's control.
                     // CR 400.7: The object in exile may no longer exist (processed elsewhere).
-                    let owner_opt = state.lki_object(target).map(|o| o.owner);
+                    let owner_opt = state.fizzle_object(target).map(|o| o.owner);
                     if let Some(_owner) = owner_opt {
                         if state
                             .objects

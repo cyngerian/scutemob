@@ -19,6 +19,7 @@ mod emblem_tests;
 mod hash_schema;
 mod invariants;
 mod keyword_registry;
+mod lki_diagnostics_scan;
 mod object_identity;
 mod pending_trigger_shape;
 mod priority;

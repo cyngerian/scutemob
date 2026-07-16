@@ -199,8 +199,8 @@ pub struct GameState {
     /// Stack objects (spells and abilities on the stack).
     pub(crate) stack_objects: Vector<StackObject>,
     /// CR 113.7a / 608.2h / 702.80c / 702.90e: last-known-information snapshots of
-    /// objects that left the battlefield while the stack was non-empty, keyed by the
-    /// object's (now-retired) `ObjectId`.
+    /// damage sources that left the battlefield, keyed by the object's (now-retired)
+    /// `ObjectId`.
     ///
     /// The stored `GameObject`'s `characteristics` field holds the object's
     /// **layer-resolved** characteristics as they last existed on the battlefield
@@ -215,6 +215,13 @@ pub struct GameState {
     /// Populated in `move_object_to_zone` / `move_object_to_bottom_of_zone`; cleared
     /// when the stack empties (`handle_all_passed`). `ObjectId`s are monotonic
     /// (`next_object_id`), so a stale entry can never be matched by a different object.
+    ///
+    /// SR-24: only a departing permanent whose layer-resolved characteristics carry one
+    /// of the four consumed keywords (wither / infect / deathtouch / lifelink) is stored
+    /// — the sole readers (`effects::damage_source_characteristics` /
+    /// `damage_source_controller`) test for exactly those, so a keyword-less permanent's
+    /// snapshot could never be observed. Board wipes therefore no longer clone every
+    /// vanilla creature into this map. See `capture_lki_snapshot`.
     #[serde(default)]
     pub(crate) lki_objects: OrdMap<ObjectId, GameObject>,
     /// Current combat state, if in a combat phase.
@@ -469,6 +476,19 @@ impl GameState {
     /// Read-only access to the `combat` field.
     pub fn combat(&self) -> &Option<CombatState> {
         &self.combat
+    }
+
+    /// Read-only access to the whole `lki_objects` last-known-information store.
+    ///
+    /// SR-3 one-public-read-accessor convention: `lki_objects` is `pub(crate)`, and
+    /// [`lki_object_snapshot`](GameState::lki_object_snapshot) is a `pub(crate)` keyed
+    /// getter, so nothing outside the engine could observe the LKI store at all — the
+    /// replay viewer, in particular, cannot render a state's captured snapshots. This
+    /// exposes the map by shared reference (read-only; the only mutation paths remain
+    /// `capture_lki_snapshot` and `maybe_clear_lki_objects`). See the `lki_objects`
+    /// field docs for what a snapshot means and when it is captured/cleared.
+    pub fn lki_objects(&self) -> &OrdMap<ObjectId, GameObject> {
+        &self.lki_objects
     }
 
     /// CR 113.7a / 608.2h: last-known-information snapshot of an object that has left
@@ -993,19 +1013,72 @@ impl GameState {
     /// stack and pending-trigger queue are both empty (`maybe_clear_lki_objects`, called
     /// from `rules::engine::handle_all_passed` and `reset_turn_state`).
     ///
-    /// The capture is deliberately NOT gated on a non-empty stack: a damage ability can
-    /// still be a *pending* trigger (queued, not yet on the stack) when its source dies
-    /// to the same event — e.g. a creature dealt lethal combat damage whose "deals
-    /// damage" trigger fires from that damage. At the SBA that kills it the stack may be
-    /// empty; the trigger is put on the stack only afterward. Capturing on every
-    /// battlefield-leave covers that case; the clear condition keeps the map bounded.
+    /// SR-24: within battlefield-leaves, the snapshot is *stored* only when the
+    /// layer-resolved characteristics carry a keyword the store's readers actually
+    /// consult (wither / infect / deathtouch / lifelink) — see the inline note. Two
+    /// properties make that safe:
     ///
-    /// Must be called BEFORE the object is removed from `self.objects`.
+    /// - It is **not** gated on a non-empty stack. A damage ability can be a *pending*
+    ///   trigger (queued, not yet on the stack), or not yet queued at all, when its
+    ///   source dies to the same event — a creature dealt lethal combat damage whose
+    ///   "deals damage" trigger fires from that damage, or a "when this dies, it deals
+    ///   damage" trigger created only after the death move. At the SBA that kills it the
+    ///   stack (and possibly the pending queue) is empty. Keying on the departing
+    ///   object's own keywords, not on queue state, covers every such case.
+    /// - A permanent carrying none of the four keywords is invisible to both readers, so
+    ///   skipping its snapshot changes no outcome — only the map's transient contents.
+    ///
+    /// Must be called BEFORE the object is removed from `self.objects` (it reads the
+    /// object's live layer-resolved characteristics), and — SR-23 — AFTER the move's
+    /// error checks (source zone exists and contains the object), so a move that errors
+    /// out never leaves a ghost snapshot for an object that is still on the battlefield.
     fn capture_lki_snapshot(&mut self, object_id: ObjectId, from: ZoneId, old_object: &GameObject) {
         if from != ZoneId::Battlefield {
             return;
         }
         if let Some(chars) = crate::rules::layers::calculate_characteristics(self, object_id) {
+            // SR-24: the `lki_objects` store is read by exactly two consumers
+            // (`damage_source_characteristics` / `damage_source_controller` in
+            // `effects/mod.rs`), and each reads it *only* to test the departed source for
+            // one of four damage keywords — Wither (CR 702.80c), Infect (CR 702.90e),
+            // Deathtouch (CR 702.2), Lifelink (CR 702.15b) — via CR 608.2h / 113.7a. A
+            // permanent whose layer-resolved characteristics carry none of them can never
+            // change an outcome through this store, so cloning it in is pure waste that the
+            // next `maybe_clear_lki_objects` discards. On a board wipe that is *every*
+            // vanilla creature, token and land. Gate the clone+insert on keyword presence.
+            //
+            // The gate keys on the *layer-resolved* `chars`, not `old_object`'s base
+            // keywords, because a relevant keyword can be granted by a continuous effect
+            // (Tainted Strike's infect, Basilisk Collar's deathtouch) — invisible before
+            // layers — so `calculate_characteristics` is still required. It is also
+            // timing-independent: it does not consult the stack or pending-trigger queues,
+            // so a source that dies with both empty and whose "when this dies, deal damage"
+            // trigger is queued only afterward still gets its snapshot iff it has the
+            // keyword. This changes the *contents* of `lki_objects` for keyword-less
+            // departures but touches no `HashInto` impl and no serde shape, so neither
+            // SR-17 fingerprint moves and `HASH_SCHEMA_VERSION` does not bump (measured
+            // numbers + compatibility reasoning: `docs/sr-24-lki-capture-cost.md`).
+            //
+            // COUPLING: this set must equal the keywords the two readers in
+            // `effects/mod.rs` consult on a snapshot — `damage_source_characteristics`
+            // (wither/infect/deathtouch) and `damage_source_controller` (lifelink).
+            // Removing one here reddens `tests/primitives/sr13_lki_damage_source.rs`
+            // (that source's effect stops applying from a dead source). Adding a *new*
+            // reader that consults a fifth snapshot keyword is NOT machine-caught: add
+            // it here and add a matching sr13 case, or the gate will silently drop those
+            // snapshots.
+            const LKI_RELEVANT_KEYWORDS: [KeywordAbility; 4] = [
+                KeywordAbility::Wither,
+                KeywordAbility::Infect,
+                KeywordAbility::Deathtouch,
+                KeywordAbility::Lifelink,
+            ];
+            if !LKI_RELEVANT_KEYWORDS
+                .iter()
+                .any(|kw| chars.keywords.contains(kw))
+            {
+                return;
+            }
             let mut snapshot = old_object.clone();
             snapshot.characteristics = chars;
             self.lki_objects.insert(object_id, snapshot);
@@ -1037,18 +1110,32 @@ impl GameState {
             .ok_or(GameStateError::ObjectNotFound(object_id))?
             .clone();
         let from = old_object.zone;
+        // SR-23: run *every* error check before capturing LKI, so an errored move
+        // (missing/mismatched source zone) leaves no ghost snapshot for an object that
+        // is still live. Validate the source zone exists and contains the object first,
+        // via a shared borrow, then capture, then remove. The object is still present
+        // in `self.objects` and still in its battlefield zone at capture time — exactly
+        // as before — so `capture_lki_snapshot` sees identical layer-resolved
+        // characteristics and the success-path state hash is unchanged.
+        let from_zone = self
+            .zones
+            .get(&from)
+            .ok_or(GameStateError::ZoneNotFound(from))?;
+        if !from_zone.contains(&object_id) {
+            return Err(GameStateError::ObjectNotInZone(object_id, from));
+        }
         // SR-13: snapshot last-known information before the object is removed, so a
         // damage ability still on the stack can read its source's keywords once the
         // source is gone (CR 113.7a / 608.2h / 702.80c / 702.90e).
         self.capture_lki_snapshot(object_id, from, &old_object);
-        // Remove from old zone
-        let from_zone = self
+        // Remove from old zone. Membership was just verified above and nothing has
+        // mutated the zone since, so this cannot fail.
+        let removed = self
             .zones
             .get_mut(&from)
-            .ok_or(GameStateError::ZoneNotFound(from))?;
-        if !from_zone.remove(&object_id) {
-            return Err(GameStateError::ObjectNotInZone(object_id, from));
-        }
+            .expect("source zone existence checked above")
+            .remove(&object_id);
+        debug_assert!(removed, "membership checked above, cannot fail");
         // Remove old object from objects map
         self.objects.remove(&object_id);
         // Create new object with fresh ID (CR 400.7)
@@ -1531,16 +1618,25 @@ impl GameState {
             .ok_or(GameStateError::ObjectNotFound(object_id))?
             .clone();
         let from = old_object.zone;
-        // SR-13: snapshot last-known information before removal (CR 113.7a / 608.2h).
-        self.capture_lki_snapshot(object_id, from, &old_object);
-        // Remove from old zone.
+        // SR-23: all error checks before capture, so an errored move leaves no ghost
+        // snapshot (see `move_object_to_zone`). Object stays present at capture time, so
+        // characteristics and the success-path hash are unchanged.
         let from_zone = self
             .zones
-            .get_mut(&from)
+            .get(&from)
             .ok_or(GameStateError::ZoneNotFound(from))?;
-        if !from_zone.remove(&object_id) {
+        if !from_zone.contains(&object_id) {
             return Err(GameStateError::ObjectNotInZone(object_id, from));
         }
+        // SR-13: snapshot last-known information before removal (CR 113.7a / 608.2h).
+        self.capture_lki_snapshot(object_id, from, &old_object);
+        // Remove from old zone. Membership verified above; cannot fail.
+        let removed = self
+            .zones
+            .get_mut(&from)
+            .expect("source zone existence checked above")
+            .remove(&object_id);
+        debug_assert!(removed, "membership checked above, cannot fail");
         // Remove old object from objects map.
         self.objects.remove(&object_id);
         // Create new object with fresh ID (CR 400.7).

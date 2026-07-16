@@ -1318,7 +1318,7 @@ pub fn queue_carddef_etb_triggers(
     // CR 400.7: `new_id` is passed in by the caller; an earlier ETB replacement in the
     // same batch (or a harness) may leave no live object for this id, so its absence is
     // a legal fizzle (no permanent here means no face-down suppression to apply).
-    if let Some(obj) = state.lki_object(new_id) {
+    if let Some(obj) = state.fizzle_object(new_id) {
         if obj.status.face_down && obj.face_down_as.is_some() {
             return Vec::new();
         }
@@ -1349,11 +1349,11 @@ pub fn queue_carddef_etb_triggers(
                 // same-batch ETB replacement, or a harness call); absence defaults to
                 // Exile/empty chars, i.e. the suppressor simply does not apply.
                 let obj_zone = state
-                    .lki_object(new_id)
+                    .fizzle_object(new_id)
                     .map(|o| o.zone)
                     .unwrap_or(crate::state::zone::ZoneId::Exile);
                 let chars = state
-                    .lki_object(new_id)
+                    .fizzle_object(new_id)
                     .map(|o| o.characteristics.clone())
                     .unwrap_or_default();
                 layers::effect_applies_to_object(state, e, new_id, obj_zone, &chars)

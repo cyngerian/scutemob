@@ -1865,7 +1865,7 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
                 // CR 400.7: the attacked planeswalker may have left the battlefield since
                 // attackers were declared (combat.attackers still names it); its old id
                 // then names nothing, so no loyalty is removed (LKI fizzle).
-                if let Some(obj) = state.lki_object_mut(*pw_id) {
+                if let Some(obj) = state.fizzle_object_mut(*pw_id) {
                     let cur = obj
                         .counters
                         .get(&CounterType::Loyalty)

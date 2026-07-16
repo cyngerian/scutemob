@@ -47,11 +47,17 @@ const SCAN_ROOTS: &[&str] = &[
 ///   `AbilityDefinition` variant, and the `Keyword(..)` representative names a
 ///   keyword (`KeywordAbility::Flying`) as a throwaway sample, not as dispatch —
 ///   exactly why this file excludes *itself* above.
+/// * `engine/src/state/diagnostics.rs` — its only `KeywordAbility::<V>` mentions are
+///   in its `#[cfg(test)]` module, where SR-23/SR-24 tests construct a `Deathtouch`
+///   creature to exercise the LKI-capture gate (the gate itself, the real dispatch on
+///   those four keywords, lives in and is declared for `state/mod.rs`). Same category
+///   as `hash.rs`: a keyword named without handling it.
 const EXCLUDED: &[&str] = &[
     "crates/card-types/src/state/types.rs",
     "crates/engine/src/state/hash.rs",
     "crates/engine/src/state/keyword_registry.rs",
     "crates/engine/src/state/ability_definition_registry.rs",
+    "crates/engine/src/state/diagnostics.rs",
 ];
 
 /// The workspace root: `crates/engine/` is two levels down from it.

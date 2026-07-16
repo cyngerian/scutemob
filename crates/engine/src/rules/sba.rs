@@ -540,7 +540,7 @@ fn check_creature_sbas(
         // an earlier iteration (or replacement) may already have moved it off the
         // battlefield. A missing object here is a legitimate fizzle, not a bug.
         let (owner, pre_death_controller, pre_death_counters, pre_death_power, pre_death_chars) =
-            match state.lki_object(id) {
+            match state.fizzle_object(id) {
                 Some(obj) => {
                     // CR 603.10a / CR 613.1d: capture full layer-resolved characteristics BEFORE
                     // move_object_to_zone (which destroys battlefield-only continuous effects).
@@ -719,7 +719,7 @@ fn check_planeswalker_sbas(
         }
         // CR 400.7 / 608.2b: `id` was collected into `dying` before this removing loop, so
         // an earlier iteration may already have moved it. A missing object is a fizzle.
-        let owner = match state.lki_object(id) {
+        let owner = match state.fizzle_object(id) {
             Some(obj) => obj.owner,
             None => continue,
         };
@@ -870,7 +870,7 @@ fn check_saga_sbas(state: &mut GameState) -> Vec<GameEvent> {
         // Sacrifice the Saga (move to graveyard).
         // CR 400.7 / 608.2b: saga_id comes from the pre-loop `sagas` snapshot, so it may
         // already have been moved. A missing object here is a fizzle, not a bug.
-        let owner = match state.lki_object(saga_id) {
+        let owner = match state.fizzle_object(saga_id) {
             Some(obj) => obj.owner,
             None => continue,
         };
@@ -936,7 +936,7 @@ fn check_legendary_rule(state: &mut GameState) -> Vec<GameEvent> {
         for &old_id in to_remove {
             // CR 400.7 / 608.2b: old_id comes from the pre-loop `ids` snapshot and this loop
             // moves legendaries to the graveyard, so it may already be gone — a fizzle.
-            let owner = match state.lki_object(old_id) {
+            let owner = match state.fizzle_object(old_id) {
                 Some(obj) => obj.owner,
                 None => continue,
             };
@@ -1184,7 +1184,7 @@ fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
             if let Some(target_id) = obj.attached_to {
                 // CR 400.7: the attached target may have changed zones (that is often why
                 // the Aura became illegal), so a missing target object is a fizzle.
-                if let Some(target) = state.lki_object_mut(target_id) {
+                if let Some(target) = state.fizzle_object_mut(target_id) {
                     target.attachments.retain(|id| *id != aura_id);
                 }
             }
@@ -1207,7 +1207,7 @@ fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
     for id in normal_auras {
         // CR 400.7 / 608.2b: `id` comes from the pre-loop `normal_auras` snapshot and this
         // loop moves auras to the graveyard, so it may already be gone — a fizzle.
-        let (owner, pre_lba_counters) = match state.lki_object(id) {
+        let (owner, pre_lba_counters) = match state.fizzle_object(id) {
             Some(obj) => (obj.owner, obj.counters.clone()),
             None => continue,
         };
@@ -1351,7 +1351,7 @@ fn check_equipment_sbas(
         if let Some(target_id) = target_id {
             // CR 400.7: the equipped permanent may have left the battlefield (a common
             // reason the equipment is illegal), so a missing target object is a fizzle.
-            if let Some(target) = state.lki_object_mut(target_id) {
+            if let Some(target) = state.fizzle_object_mut(target_id) {
                 target.attachments.retain(|&x| x != id);
             }
         }
@@ -1599,7 +1599,7 @@ fn check_ring_bearer_sba(state: &mut GameState) {
         if let Some(bid) = bearer_id {
             // CR 400.7 / 701.54a: the ring-bearer may have left the battlefield (a reason we
             // clear it), so its old ObjectId may name nothing — a legitimate fizzle.
-            if let Some(obj) = state.lki_object_mut(bid) {
+            if let Some(obj) = state.fizzle_object_mut(bid) {
                 obj.designations.remove(Designations::RING_BEARER);
             }
         }
