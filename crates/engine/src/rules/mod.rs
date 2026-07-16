@@ -30,8 +30,8 @@ pub use engine::process_command;
 pub use events::{GameEvent, LossReason};
 pub use layers::calculate_characteristics;
 pub use protocol::{
-    decode, decode_replay_log, encode, encode_replay_log, Envelope, ProtocolError, ReplayLog,
-    PROTOCOL_SCHEMA_FINGERPRINT, PROTOCOL_VERSION,
+    decode, decode_replay_log, encode, encode_replay_log, Envelope, ProtocolEpoch, ProtocolError,
+    ReplayLog, PROTOCOL_HISTORY, PROTOCOL_SCHEMA_FINGERPRINT, PROTOCOL_VERSION,
 };
 // ── Shared targeting helpers ──────────────────────────────────────────────────
 /// CR 702.11a / CR 702.18a / CR 702.16b: Validate that a target is not protected by
