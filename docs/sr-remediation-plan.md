@@ -754,6 +754,23 @@ Task-specific extras:
 _One entry per session, newest first. Format:_
 `- YYYY-MM-DD — SR-<N> (scutemob-<id>) — <status: done / in progress / blocked> — <one-line outcome + hazards + pointer for next session>`
 
+- 2026-07-16 — SR-26 + SR-27 (scutemob-81/82, paired in one worktree) — **done** (collected, merge
+  `4ccbae08`) — **SR-26**: `tools/authoring-report.py` hard-fails on any unrecognized
+  `Completeness::` spelling (the `Partial(...)`-buckets-as-clean hole is closed), gained denominator
+  guards (`MIN_DEF_FILES` floor, `bucket_sum == total_files`, non-zero detectors), and — the
+  machine cross-check — `tests/core/authoring_report.rs` recomputes clean/todo/empty from the
+  **compiled registry** (`all_cards()` + `completeness`) and diffs against the tool's parse, so the
+  campaign headline number now has a second source of truth in Rust. `docs/project-status.md` Card
+  Health's stale hand-maintained table replaced with a pointer to the generated report. **SR-27**:
+  `PROTOCOL_HISTORY` (append-only `ProtocolEpoch{version, fingerprint}` rows, strictly-increasing
+  unique versions, tail == current, pairwise-distinct fingerprints — the SR-17 pattern mirrored),
+  so re-pinning the fingerprint without bumping `PROTOCOL_VERSION` now fails; the
+  `contains("Serialize")` guards are token-anchored (`has_derive_token`, rejects
+  `Serializer`/`SerializeStruct` and the Deserialize substring); and
+  `no_serde_conversion_attributes_in_closure` keeps the documented `serde(with|from|into|…)`
+  limitation from going live silently. Protocol suite 34 green, cross-check green, tool runs clean
+  on main post-merge. **Next:** SR-23/24 and SR-30/31 in flight; SR-25 queued.
+
 - 2026-07-16 — SR-32 (scutemob-87) — **done** (collected, merge `170af730`) — Hygiene batch. New
   `[profile.fuzz]` (inherits release + `debug-assertions` + `overflow-checks`; `cargo run --profile
   fuzz --bin mtg-fuzzer`) so the SR-4/14 tripwires are live where anomalies are hunted; dead
