@@ -59,6 +59,32 @@ fn build_sba_state() -> GameState {
     builder.build().unwrap()
 }
 
+/// Build a 4-player board of `per_player` vanilla 2/2 creatures each carrying
+/// lethal marked damage, ready to be swept by a single SBA batch.
+///
+/// SR-24: this exercises the mass-battlefield-departure path. `check_and_apply_sbas`
+/// moves every creature to its graveyard, and each battlefield-leave runs
+/// `capture_lki_snapshot`. The creatures are vanilla — no dies-triggers land on the
+/// stack, so the sweep is pure departure work, and no creature carries a
+/// wither/infect/deathtouch/lifelink keyword, so the SR-24 store gate skips the
+/// `GameObject` clone + `OrdMap` insert for all of them (only the
+/// `calculate_characteristics` layer eval remains). Before that gate this path also
+/// cloned all `4 * per_player` departing creatures into `lki_objects`, ~12% of the
+/// sweep, discarded at the next `handle_all_passed`. See
+/// `docs/sr-24-lki-capture-cost.md`.
+fn build_board_wipe_state(per_player: u64) -> GameState {
+    let mut builder = GameStateBuilder::four_player().at_step(Step::PreCombatMain);
+    for pid in 1u64..=4 {
+        let player = PlayerId(pid);
+        for i in 0..per_player {
+            builder = builder.object(
+                ObjectSpec::creature(player, &format!("Doomed {}:{}", pid, i), 2, 2).with_damage(2), // lethal: damage_marked >= toughness (CR 704.5g)
+            );
+        }
+    }
+    builder.build().unwrap()
+}
+
 // ── Helper: advance priority until the step changes ──────────────────────────
 
 /// Drive priority until all active players have passed once.
@@ -186,6 +212,25 @@ fn bench_full_turn_6p(c: &mut Criterion) {
     });
 }
 
+/// Benchmark: sweep a 4-player board of 40 lethally-damaged creatures with one SBA batch.
+///
+/// SR-24: measures the mass-battlefield-departure path — the worst case for
+/// `capture_lki_snapshot`, which runs a full `calculate_characteristics` layer
+/// evaluation plus a `GameObject` clone for every one of the 40 creatures leaving
+/// the battlefield. Reported so the LKI-capture cost has a home on the same perf
+/// axis as `sba_check` / `full_turn_4p` (and the deferred LOWs MR-M1-18 / MR-M6-14).
+fn bench_board_wipe_4p(c: &mut Criterion) {
+    c.bench_function("board_wipe_4p", |b| {
+        b.iter_with_setup(
+            || build_board_wipe_state(10), // 4 × 10 = 40 creatures swept at once
+            |mut state| {
+                let events = check_and_apply_sbas(black_box(&mut state));
+                black_box(events)
+            },
+        )
+    });
+}
+
 criterion_group!(
     benches,
     bench_priority_cycle_4p,
@@ -193,5 +238,6 @@ criterion_group!(
     bench_sba_check,
     bench_full_turn_4p,
     bench_full_turn_6p,
+    bench_board_wipe_4p,
 );
 criterion_main!(benches);

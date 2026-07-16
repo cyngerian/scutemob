@@ -383,7 +383,7 @@ impl GameState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::{GameStateBuilder, ObjectSpec};
+    use crate::state::{GameStateBuilder, KeywordAbility, ObjectSpec};
 
     fn two_player_state() -> GameState {
         GameStateBuilder::new()
@@ -395,13 +395,25 @@ mod tests {
 
     /// A state with one creature on the battlefield; returns it and its id.
     fn state_with_a_creature() -> (GameState, ObjectId) {
+        state_with_a_battlefield_creature(None)
+    }
+
+    /// A state with one battlefield creature, optionally carrying `keyword`.
+    ///
+    /// The SR-24 LKI-capture gate stores a departing permanent's snapshot only when its
+    /// characteristics carry wither / infect / deathtouch / lifelink, so tests that need
+    /// a capture (or need to distinguish the capture path from the error path) use a
+    /// deathtouch creature; tests of the keyword-less skip pass `None`.
+    fn state_with_a_battlefield_creature(keyword: Option<KeywordAbility>) -> (GameState, ObjectId) {
+        let mut spec =
+            ObjectSpec::creature(PlayerId(0), "Grizzly Bears", 2, 2).in_zone(ZoneId::Battlefield);
+        if let Some(kw) = keyword {
+            spec = spec.with_keyword(kw);
+        }
         let state = GameStateBuilder::new()
             .add_player(PlayerId(0))
             .add_player(PlayerId(1))
-            .object(
-                ObjectSpec::creature(PlayerId(0), "Grizzly Bears", 2, 2)
-                    .in_zone(ZoneId::Battlefield),
-            )
+            .object(spec)
             .build()
             .expect("builder is valid");
         let id = state
@@ -564,13 +576,19 @@ mod tests {
         let _ = state.expect_zone(&ZoneId::Graveyard(PlayerId(99)));
     }
 
-    /// SR-13: a *successful* battlefield departure still captures an LKI snapshot,
-    /// unconditionally (the capture is deliberately not gated on a non-empty stack).
-    /// Guards the SR-23 reorder against accidentally skipping capture on the happy path.
+    /// SR-13 / SR-24: a *successful* battlefield departure of a keyword-carrying source
+    /// captures an LKI snapshot (deathtouch here; the SR-24 gate stores exactly the
+    /// keyworded sources). Deliberately built with an empty stack and empty pending queue,
+    /// so it also proves the capture is *not* gated on queue state (SR-24 timing-
+    /// independence). Guards the SR-23 reorder against skipping capture on the happy path.
     #[test]
     fn successful_battlefield_departure_still_captures_lki() {
-        let (mut state, id) = state_with_a_creature();
+        let (mut state, id) = state_with_a_battlefield_creature(Some(KeywordAbility::Deathtouch));
         assert!(state.lki_objects.is_empty(), "no snapshots before the move");
+        assert!(
+            state.stack_objects.is_empty() && state.pending_triggers.is_empty(),
+            "precondition: stack and pending are empty — capture must not depend on them"
+        );
         let (new_id, _) = state
             .move_object_to_zone(id, ZoneId::Graveyard(PlayerId(0)))
             .expect("battlefield -> graveyard is legal");
@@ -584,17 +602,39 @@ mod tests {
         );
     }
 
+    /// SR-24: a departing permanent whose characteristics carry none of the four consumed
+    /// keywords (wither / infect / deathtouch / lifelink) is *not* stored — its snapshot
+    /// could never be read, so cloning it would be pure waste (the board-wipe common case).
+    #[test]
+    fn keywordless_departure_is_not_captured() {
+        let (mut state, id) = state_with_a_battlefield_creature(None);
+        assert!(state.lki_objects.is_empty(), "no snapshots before the move");
+        state
+            .move_object_to_zone(id, ZoneId::Graveyard(PlayerId(0)))
+            .expect("battlefield -> graveyard is legal");
+        assert!(
+            state.lki_object_snapshot(id).is_none(),
+            "SR-24: a keyword-less source is not stored in lki_objects"
+        );
+        assert!(
+            state.lki_objects.is_empty(),
+            "SR-24: nothing keyword-relevant departed, so the store stays empty"
+        );
+    }
+
     /// SR-23: a move that *errors* must not leave a ghost LKI snapshot for an object
     /// that is still live. Before the reorder, `capture_lki_snapshot` ran ahead of the
     /// `ObjectNotInZone` check, so a corrupted-but-recoverable move inserted a snapshot
     /// for an object it then refused to move. This constructs exactly that error and
     /// asserts `lki_objects` stays empty.
     ///
-    /// Under the pre-SR-23 ordering the final assertion fails (the ghost is present),
-    /// so this test is non-vacuous — it distinguishes the two orderings.
+    /// The creature carries deathtouch so it *passes* the SR-24 keyword gate — otherwise
+    /// the capture would be skipped for an unrelated reason and the test could not tell
+    /// the two orderings apart. Under the pre-SR-23 ordering the final assertion fails
+    /// (the ghost is present); under the reorder it passes. So this is non-vacuous.
     #[test]
     fn an_errored_move_captures_no_ghost_lki_snapshot() {
-        let (mut state, id) = state_with_a_creature();
+        let (mut state, id) = state_with_a_battlefield_creature(Some(KeywordAbility::Deathtouch));
         // Corrupt the state: the object still claims `zone == Battlefield` and remains in
         // `state.objects`, but drop it from the battlefield zone's contents. A move now
         // passes the object-lookup and destination checks, reaches the source-membership
