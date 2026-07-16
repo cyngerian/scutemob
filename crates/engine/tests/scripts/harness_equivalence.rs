@@ -47,16 +47,20 @@
 //! test would. `Command` derives `PartialEq`, so command inequality is asserted
 //! directly and is the diagnostic you actually want; the hash is the backstop.
 //!
-//! **Coverage is thin and should grow.** Six of `translate_player_action`'s 60+
-//! `Command` shapes are driven here: `pass_priority`, `play_land`, `tap_for_mana`,
-//! `cast_spell` (single target), `activate_ability`, `declare_attackers`. None of
-//! the alternative- and additional-cost translations that give the function its
-//! 40+ parameters — convoke, improvise, delve, escape, kicker, bargain, emerge,
-//! casualty, assist, replicate, splice, escalate, modal, squad, mutate, ninjutsu —
-//! is cross-validated. A mis-populated field in any of those is invisible to this
-//! file. The thesis ("a `Command` field the translator forgets makes every script
-//! green") is *demonstrated* on the slice it drives, not discharged for the rest.
-//! Adding a scenario is cheap: a JSON blob, a `direct` fn, a `Move` variant.
+//! **Coverage is a tracked subset, ratcheted (SR-31).** Eleven of
+//! `translate_player_action`'s ~79 dispatch arms (more once the alt-cost
+//! dimensions of `cast_spell` are counted separately) are driven here. The base
+//! six from SR-9b — `pass_priority`, `play_land`, `tap_for_mana`, `cast_spell`
+//! (single target), `activate_ability`, `declare_attackers` — plus five
+//! alternative-cost shapes added by SR-31: **convoke, delve, kicker, escape,
+//! modal**, chosen by what the golden-script corpus and the card base actually
+//! use. `CROSS_VALIDATED_SHAPES` records the covered set and
+//! `cross_validated_shape_coverage_is_ratcheted` enforces it exactly, so coverage
+//! can only grow, never regress silently — which is how it sat at six,
+//! undocumented, until SR-31. Still uncovered: improvise, bargain, emerge,
+//! casualty, assist, replicate, splice, escalate, squad, mutate, ninjutsu — a
+//! mis-populated field in any of those is invisible to this file. Adding a
+//! scenario is cheap: a JSON blob, a `direct` fn, a `CastAlt` move, one label.
 //!
 //! # What "same state" means here
 //!
@@ -165,8 +169,9 @@ use mtg_engine::state::combat::AttackTarget;
 use mtg_engine::testing::replay_harness::{build_initial_state, enrich_spec_from_def};
 use mtg_engine::testing::script_schema::{ActionTarget, AttackerDeclaration, InitialState};
 use mtg_engine::{
-    all_cards, card_name_to_id, process_command, CardDefinition, CardRegistry, Command, GameState,
-    GameStateBuilder, ObjectId, ObjectSpec, PlayerId, Step, Target, ZoneId,
+    all_cards, card_name_to_id, process_command, AdditionalCost, AltCostKind, CardDefinition,
+    CardRegistry, Command, GameState, GameStateBuilder, ManaPool, ObjectId, ObjectSpec, PlayerId,
+    Step, Target, ZoneId,
 };
 
 // ── Fingerprint ───────────────────────────────────────────────────────────────
@@ -251,6 +256,40 @@ enum Move {
         /// (attacking creature name, defending player name)
         attackers: &'static [(&'static str, &'static str)],
     },
+    /// A cast that exercises one alternative/additional cost dimension (SR-31).
+    ///
+    /// This one variant renders every alt-cost shape the file cross-validates —
+    /// convoke, delve, kicker, escape, modal — by populating exactly one of its
+    /// cost fields and naming the matching `action` string. It is the "harness
+    /// builds the same `Command` a hand-written test would" thesis applied to the
+    /// 40+ alt-cost parameters of `translate_player_action`, which nothing
+    /// exercised before this task.
+    CastAlt {
+        player: &'static str,
+        card: &'static str,
+        /// Which zone the card is cast from. Escape casts from the graveyard.
+        from: CastZone,
+        /// The `action` string the script would carry (`cast_spell`,
+        /// `cast_spell_escape`, `cast_spell_modal`).
+        action: &'static str,
+        targets: &'static [Tgt],
+        /// Creature names tapped for convoke (`convoke_creatures`).
+        convoke: &'static [&'static str],
+        /// Graveyard card names exiled for delve (`delve_cards`).
+        delve: &'static [&'static str],
+        /// Graveyard card names exiled for escape (`AdditionalCost::EscapeExile`).
+        escape: &'static [&'static str],
+        /// Whether the spell is kicked (`kicker_times = 1`).
+        kicked: bool,
+        /// Chosen mode indices for a modal spell (`modes_chosen`).
+        modes: &'static [usize],
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CastZone {
+    Hand,
+    Graveyard,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -271,6 +310,7 @@ impl Move {
             Move::CastSpell { .. } => "cast_spell",
             Move::ActivateAbility { .. } => "activate_ability",
             Move::DeclareAttackers { .. } => "declare_attackers",
+            Move::CastAlt { action, .. } => action,
         }
     }
 
@@ -281,7 +321,43 @@ impl Move {
             | Move::TapForMana { player: p, .. }
             | Move::CastSpell { player: p, .. }
             | Move::ActivateAbility { player: p, .. }
-            | Move::DeclareAttackers { player: p, .. } => p,
+            | Move::DeclareAttackers { player: p, .. }
+            | Move::CastAlt { player: p, .. } => p,
+        }
+    }
+
+    /// The canonical shape label for the coverage ratchet (SR-31). Distinct
+    /// alt-cost dimensions of `cast_spell` get distinct labels so the ratchet
+    /// records *which* were cross-validated, not merely that `cast_spell` was.
+    fn shape(&self) -> &'static str {
+        match self {
+            Move::Pass(_) => "pass_priority",
+            Move::PlayLand { .. } => "play_land",
+            Move::TapForMana { .. } => "tap_for_mana",
+            Move::CastSpell { .. } => "cast_spell",
+            Move::ActivateAbility { .. } => "activate_ability",
+            Move::DeclareAttackers { .. } => "declare_attackers",
+            Move::CastAlt {
+                action,
+                convoke,
+                delve,
+                kicked,
+                ..
+            } => {
+                if !convoke.is_empty() {
+                    "cast_spell:convoke"
+                } else if !delve.is_empty() {
+                    "cast_spell:delve"
+                } else if *kicked {
+                    "cast_spell:kicker"
+                } else if *action == "cast_spell_escape" {
+                    "cast_spell_escape"
+                } else if *action == "cast_spell_modal" {
+                    "cast_spell_modal"
+                } else {
+                    "cast_spell"
+                }
+            }
         }
     }
 
@@ -293,7 +369,9 @@ impl Move {
         players: &HashMap<String, PlayerId>,
     ) -> Option<Command> {
         let card: Option<&str> = match self {
-            Move::PlayLand { card, .. } | Move::CastSpell { card, .. } => Some(card),
+            Move::PlayLand { card, .. }
+            | Move::CastSpell { card, .. }
+            | Move::CastAlt { card, .. } => Some(card),
             Move::TapForMana { land, .. } => Some(land),
             Move::ActivateAbility { source, .. } => Some(source),
             Move::Pass(_) | Move::DeclareAttackers { .. } => None,
@@ -303,9 +381,9 @@ impl Move {
             _ => 0,
         };
         let targets: Vec<ActionTarget> = match self {
-            Move::CastSpell { targets, .. } | Move::ActivateAbility { targets, .. } => {
-                targets.iter().map(to_action_target).collect()
-            }
+            Move::CastSpell { targets, .. }
+            | Move::ActivateAbility { targets, .. }
+            | Move::CastAlt { targets, .. } => targets.iter().map(to_action_target).collect(),
             _ => vec![],
         };
         let attackers: Vec<AttackerDeclaration> = match self {
@@ -319,6 +397,27 @@ impl Move {
                 .collect(),
             _ => vec![],
         };
+        // Alt-cost inputs, empty for every move but `CastAlt`.
+        let to_strings = |names: &[&'static str]| -> Vec<String> {
+            names.iter().map(|s| (*s).to_string()).collect()
+        };
+        let (convoke, delve, escape, kicked, modes) = match self {
+            Move::CastAlt {
+                convoke,
+                delve,
+                escape,
+                kicked,
+                modes,
+                ..
+            } => (
+                to_strings(convoke),
+                to_strings(delve),
+                to_strings(escape),
+                *kicked,
+                modes.to_vec(),
+            ),
+            _ => (vec![], vec![], vec![], false, vec![]),
+        };
         translate(
             self.action_str(),
             players[self.actor()],
@@ -326,6 +425,11 @@ impl Move {
             ability_index,
             &targets,
             &attackers,
+            &convoke,
+            &delve,
+            &escape,
+            kicked,
+            modes,
             state,
             players,
         )
@@ -399,6 +503,63 @@ impl Move {
                     exert_choices: vec![],
                 })
             }
+            Move::CastAlt {
+                card,
+                from,
+                action,
+                targets,
+                convoke,
+                delve,
+                escape,
+                kicked,
+                modes,
+                ..
+            } => {
+                // The card's own zone. Escape casts from the graveyard.
+                let card_id = match from {
+                    CastZone::Hand => in_hand(state, player, card)?,
+                    CastZone::Graveyard => in_graveyard(state, player, card)?,
+                };
+                // Mirror `translate_player_action`'s `filter_map`: an unresolvable
+                // convoke/delve/escape name is dropped, not fatal. Scenarios name
+                // only real cards, so in practice every name resolves.
+                let convoke_creatures: Vec<ObjectId> = convoke
+                    .iter()
+                    .filter_map(|n| on_battlefield(state, player, n))
+                    .collect();
+                let delve_cards: Vec<ObjectId> = delve
+                    .iter()
+                    .filter_map(|n| in_graveyard(state, player, n))
+                    .collect();
+                let escape_exile: Vec<ObjectId> = escape
+                    .iter()
+                    .filter_map(|n| in_graveyard(state, player, n))
+                    .collect();
+                let mut data = CastSpellData {
+                    player,
+                    card: card_id,
+                    targets: resolve(targets, state, players)?,
+                    convoke_creatures,
+                    improvise_artifacts: vec![],
+                    delve_cards,
+                    kicker_times: if *kicked { 1 } else { 0 },
+                    alt_cost: None,
+                    prototype: false,
+                    modes_chosen: modes.to_vec(),
+                    x_value: 0,
+                    hybrid_choices: vec![],
+                    phyrexian_life_payments: vec![],
+                    face_down_kind: None,
+                    additional_costs: vec![],
+                };
+                if *action == "cast_spell_escape" {
+                    data.alt_cost = Some(AltCostKind::Escape);
+                    data.additional_costs = vec![AdditionalCost::EscapeExile {
+                        cards: escape_exile,
+                    }];
+                }
+                Some(Command::CastSpell(Box::new(data)))
+            }
         }
     }
 }
@@ -431,6 +592,11 @@ fn translate(
     ability_index: usize,
     targets: &[ActionTarget],
     attackers: &[AttackerDeclaration],
+    convoke: &[String],
+    delve: &[String],
+    escape: &[String],
+    kicked: bool,
+    modes_chosen: Vec<usize>,
     state: &GameState,
     players: &HashMap<String, PlayerId>,
 ) -> Option<Command> {
@@ -441,12 +607,12 @@ fn translate(
         ability_index,
         targets,
         attackers,
-        &[], // blockers
-        &[], // convoke
-        &[], // improvise
-        &[], // delve
-        &[], // escape
-        false,
+        &[],     // blockers
+        convoke, // convoke
+        &[],     // improvise
+        delve,   // delve
+        escape,  // escape
+        kicked,
         false,
         &[],  // enlist
         None, // attacker_name
@@ -460,7 +626,7 @@ fn translate(
         0,    // replicate_count
         &[],  // splice
         0,    // escalate_modes
-        vec![],
+        modes_chosen,
         None,  // target_creature
         0,     // x_value
         &[],   // collect_evidence
@@ -494,6 +660,14 @@ fn on_battlefield(state: &GameState, controller: PlayerId, name: &str) -> Option
                 && obj.zone == ZoneId::Battlefield
                 && obj.controller == controller
         })
+        .map(|(&id, _)| id)
+}
+
+fn in_graveyard(state: &GameState, player: PlayerId, name: &str) -> Option<ObjectId> {
+    state
+        .objects()
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == name && obj.zone == ZoneId::Graveyard(player))
         .map(|(&id, _)| id)
 }
 
@@ -819,6 +993,291 @@ const COMBAT_MOVES: &[Move] = &[
     Move::Pass("p2"),
 ];
 
+// ── Alt-cost scenarios (SR-31) ────────────────────────────────────────────────
+//
+// Each drives one alternative/additional cost through both regimes. The five
+// shapes were chosen by what the golden-script corpus and the card base actually
+// use (checked with grep at authoring time): convoke leads corpus usage (5 refs)
+// and has 7 defs; modal/modes is the next-heaviest corpus signal (7 combined);
+// delve (2 corpus / 5 defs), escape (2 corpus / 4 defs) and kicker (10 defs, the
+// most-implemented castable cost) round out the top of both lists. Mutate and
+// ninjutsu — the remaining menu entries — are deferred: both are special actions
+// rather than a plain cast-with-cost, so they need their own `Move` shapes.
+//
+// Every direct builder adds objects in `build_initial_state`'s insertion order
+// (battlefield → hand → graveyard → exile → library, players sorted) so the
+// initial-state fingerprints match; mana pools are generous so the cast is
+// accepted (the point is that the *Command* matches, but a rejected-both-ways
+// pair would be vacuous — `alt_cost_scenarios_are_not_vacuous` forbids it).
+
+fn pool(g: u32, u: u32, b: u32, r: u32, c: u32) -> ManaPool {
+    ManaPool {
+        green: g,
+        blue: u,
+        black: b,
+        red: r,
+        colorless: c,
+        ..Default::default()
+    }
+}
+
+/// Convoke: cast Siege Wurm ({5}{G}{G}) tapping a Llanowar Elves to help pay.
+const CONVOKE_JSON: &str = r#"{
+  "format": "commander",
+  "turn_number": 3,
+  "active_player": "p1",
+  "phase": "precombat_main",
+  "priority": "p1",
+  "players": {
+    "p1": { "life": 40, "land_plays_remaining": 0, "mana_pool": { "green": 5, "colorless": 10 } },
+    "p2": { "life": 40, "land_plays_remaining": 0 }
+  },
+  "zones": {
+    "battlefield": { "p1": [{ "card": "Llanowar Elves" }] },
+    "hand": { "p1": [{ "card": "Siege Wurm" }] }
+  }
+}"#;
+
+fn convoke_direct(defs: &HashMap<String, CardDefinition>) -> GameState {
+    GameStateBuilder::new()
+        .at_step(Step::PreCombatMain)
+        .active_player(P1)
+        .turn_number(3)
+        .with_registry(CardRegistry::new(all_cards()))
+        .add_player_with(P1, |p| p.life(40).land_plays(0).mana(pool(5, 0, 0, 0, 10)))
+        .add_player_with(P2, |p| p.life(40).land_plays(0))
+        .object(spec(defs, P1, "Llanowar Elves", ZoneId::Battlefield))
+        .object(spec(defs, P1, "Siege Wurm", ZoneId::Hand(P1)))
+        .build()
+        .expect("convoke scenario builds")
+}
+
+const CONVOKE_MOVES: &[Move] = &[
+    Move::CastAlt {
+        player: "p1",
+        card: "Siege Wurm",
+        from: CastZone::Hand,
+        action: "cast_spell",
+        targets: &[],
+        convoke: &["Llanowar Elves"],
+        delve: &[],
+        escape: &[],
+        kicked: false,
+        modes: &[],
+    },
+    Move::Pass("p1"),
+    Move::Pass("p2"),
+];
+
+/// Delve: cast Treasure Cruise ({7}{U}, Draw 3) exiling three graveyard cards.
+const DELVE_JSON: &str = r#"{
+  "format": "commander",
+  "turn_number": 3,
+  "active_player": "p1",
+  "phase": "precombat_main",
+  "priority": "p1",
+  "players": {
+    "p1": { "life": 40, "land_plays_remaining": 0, "mana_pool": { "blue": 3, "colorless": 10 } },
+    "p2": { "life": 40, "land_plays_remaining": 0 }
+  },
+  "zones": {
+    "hand": { "p1": [{ "card": "Treasure Cruise" }] },
+    "graveyard": { "p1": [{ "card": "Island" }, { "card": "Swamp" }, { "card": "Mountain" }] },
+    "library": { "p1": [{ "card": "Forest" }, { "card": "Plains" }, { "card": "Sol Ring" }] }
+  }
+}"#;
+
+fn delve_direct(defs: &HashMap<String, CardDefinition>) -> GameState {
+    GameStateBuilder::new()
+        .at_step(Step::PreCombatMain)
+        .active_player(P1)
+        .turn_number(3)
+        .with_registry(CardRegistry::new(all_cards()))
+        .add_player_with(P1, |p| p.life(40).land_plays(0).mana(pool(0, 3, 0, 0, 10)))
+        .add_player_with(P2, |p| p.life(40).land_plays(0))
+        .object(spec(defs, P1, "Treasure Cruise", ZoneId::Hand(P1)))
+        .object(spec(defs, P1, "Island", ZoneId::Graveyard(P1)))
+        .object(spec(defs, P1, "Swamp", ZoneId::Graveyard(P1)))
+        .object(spec(defs, P1, "Mountain", ZoneId::Graveyard(P1)))
+        .object(spec(defs, P1, "Forest", ZoneId::Library(P1)))
+        .object(spec(defs, P1, "Plains", ZoneId::Library(P1)))
+        .object(spec(defs, P1, "Sol Ring", ZoneId::Library(P1)))
+        .build()
+        .expect("delve scenario builds")
+}
+
+const DELVE_MOVES: &[Move] = &[
+    Move::CastAlt {
+        player: "p1",
+        card: "Treasure Cruise",
+        from: CastZone::Hand,
+        action: "cast_spell",
+        targets: &[],
+        convoke: &[],
+        delve: &["Island", "Swamp", "Mountain"],
+        escape: &[],
+        kicked: false,
+        modes: &[],
+    },
+    Move::Pass("p1"),
+    Move::Pass("p2"),
+];
+
+/// Kicker: cast Burst Lightning ({R}, Kicker {4}) kicked at p2 for 4 damage.
+const KICKER_JSON: &str = r#"{
+  "format": "commander",
+  "turn_number": 3,
+  "active_player": "p1",
+  "phase": "precombat_main",
+  "priority": "p1",
+  "players": {
+    "p1": { "life": 40, "land_plays_remaining": 0, "mana_pool": { "red": 3, "colorless": 10 } },
+    "p2": { "life": 40, "land_plays_remaining": 0 }
+  },
+  "zones": {
+    "hand": { "p1": [{ "card": "Burst Lightning" }] }
+  }
+}"#;
+
+fn kicker_direct(defs: &HashMap<String, CardDefinition>) -> GameState {
+    GameStateBuilder::new()
+        .at_step(Step::PreCombatMain)
+        .active_player(P1)
+        .turn_number(3)
+        .with_registry(CardRegistry::new(all_cards()))
+        .add_player_with(P1, |p| p.life(40).land_plays(0).mana(pool(0, 0, 0, 3, 10)))
+        .add_player_with(P2, |p| p.life(40).land_plays(0))
+        .object(spec(defs, P1, "Burst Lightning", ZoneId::Hand(P1)))
+        .build()
+        .expect("kicker scenario builds")
+}
+
+const KICKER_MOVES: &[Move] = &[
+    Move::CastAlt {
+        player: "p1",
+        card: "Burst Lightning",
+        from: CastZone::Hand,
+        action: "cast_spell",
+        targets: &[Tgt::Player("p2")],
+        convoke: &[],
+        delve: &[],
+        escape: &[],
+        kicked: true,
+        modes: &[],
+    },
+    Move::Pass("p1"),
+    Move::Pass("p2"),
+];
+
+/// Escape: cast Woe Strider (Escape—{3}{B}{B}, exile four other cards) from the
+/// graveyard, exiling four distinct fodder cards.
+const ESCAPE_JSON: &str = r#"{
+  "format": "commander",
+  "turn_number": 3,
+  "active_player": "p1",
+  "phase": "precombat_main",
+  "priority": "p1",
+  "players": {
+    "p1": { "life": 40, "land_plays_remaining": 0, "mana_pool": { "black": 5, "colorless": 10 } },
+    "p2": { "life": 40, "land_plays_remaining": 0 }
+  },
+  "zones": {
+    "graveyard": {
+      "p1": [
+        { "card": "Woe Strider" },
+        { "card": "Swamp" },
+        { "card": "Island" },
+        { "card": "Forest" },
+        { "card": "Plains" }
+      ]
+    }
+  }
+}"#;
+
+fn escape_direct(defs: &HashMap<String, CardDefinition>) -> GameState {
+    GameStateBuilder::new()
+        .at_step(Step::PreCombatMain)
+        .active_player(P1)
+        .turn_number(3)
+        .with_registry(CardRegistry::new(all_cards()))
+        .add_player_with(P1, |p| p.life(40).land_plays(0).mana(pool(0, 0, 5, 0, 10)))
+        .add_player_with(P2, |p| p.life(40).land_plays(0))
+        .object(spec(defs, P1, "Woe Strider", ZoneId::Graveyard(P1)))
+        .object(spec(defs, P1, "Swamp", ZoneId::Graveyard(P1)))
+        .object(spec(defs, P1, "Island", ZoneId::Graveyard(P1)))
+        .object(spec(defs, P1, "Forest", ZoneId::Graveyard(P1)))
+        .object(spec(defs, P1, "Plains", ZoneId::Graveyard(P1)))
+        .build()
+        .expect("escape scenario builds")
+}
+
+const ESCAPE_MOVES: &[Move] = &[
+    Move::CastAlt {
+        player: "p1",
+        card: "Woe Strider",
+        from: CastZone::Graveyard,
+        action: "cast_spell_escape",
+        targets: &[],
+        convoke: &[],
+        delve: &[],
+        escape: &["Swamp", "Island", "Forest", "Plains"],
+        kicked: false,
+        modes: &[],
+    },
+    Move::Pass("p1"),
+    Move::Pass("p2"),
+];
+
+/// Modal: cast Archmage's Charm ({U}{U}{U}) choosing mode 1 ("Target player draws
+/// two cards"), targeting p1.
+const MODAL_JSON: &str = r#"{
+  "format": "commander",
+  "turn_number": 3,
+  "active_player": "p1",
+  "phase": "precombat_main",
+  "priority": "p1",
+  "players": {
+    "p1": { "life": 40, "land_plays_remaining": 0, "mana_pool": { "blue": 3 } },
+    "p2": { "life": 40, "land_plays_remaining": 0 }
+  },
+  "zones": {
+    "hand": { "p1": [{ "card": "Archmage's Charm" }] },
+    "library": { "p1": [{ "card": "Forest" }, { "card": "Plains" }] }
+  }
+}"#;
+
+fn modal_direct(defs: &HashMap<String, CardDefinition>) -> GameState {
+    GameStateBuilder::new()
+        .at_step(Step::PreCombatMain)
+        .active_player(P1)
+        .turn_number(3)
+        .with_registry(CardRegistry::new(all_cards()))
+        .add_player_with(P1, |p| p.life(40).land_plays(0).mana(pool(0, 3, 0, 0, 0)))
+        .add_player_with(P2, |p| p.life(40).land_plays(0))
+        .object(spec(defs, P1, "Archmage's Charm", ZoneId::Hand(P1)))
+        .object(spec(defs, P1, "Forest", ZoneId::Library(P1)))
+        .object(spec(defs, P1, "Plains", ZoneId::Library(P1)))
+        .build()
+        .expect("modal scenario builds")
+}
+
+const MODAL_MOVES: &[Move] = &[
+    Move::CastAlt {
+        player: "p1",
+        card: "Archmage's Charm",
+        from: CastZone::Hand,
+        action: "cast_spell_modal",
+        targets: &[Tgt::Player("p1")],
+        convoke: &[],
+        delve: &[],
+        escape: &[],
+        kicked: false,
+        modes: &[1],
+    },
+    Move::Pass("p1"),
+    Move::Pass("p2"),
+];
+
 const SCENARIOS: &[Scenario] = &[
     Scenario {
         name: "bolt",
@@ -835,6 +1294,41 @@ const SCENARIOS: &[Scenario] = &[
         script_json: COMBAT_JSON,
         direct: combat_direct,
     },
+    Scenario {
+        name: "convoke",
+        script_json: CONVOKE_JSON,
+        direct: convoke_direct,
+    },
+    Scenario {
+        name: "delve",
+        script_json: DELVE_JSON,
+        direct: delve_direct,
+    },
+    Scenario {
+        name: "kicker",
+        script_json: KICKER_JSON,
+        direct: kicker_direct,
+    },
+    Scenario {
+        name: "escape",
+        script_json: ESCAPE_JSON,
+        direct: escape_direct,
+    },
+    Scenario {
+        name: "modal",
+        script_json: MODAL_JSON,
+        direct: modal_direct,
+    },
+];
+
+/// Every alt-cost scenario paired with its move list, for the ratchet and the
+/// non-vacuity gate.
+const ALT_COST_SCENARIOS: &[(&str, &[Move])] = &[
+    ("convoke", CONVOKE_MOVES),
+    ("delve", DELVE_MOVES),
+    ("kicker", KICKER_MOVES),
+    ("escape", ESCAPE_MOVES),
+    ("modal", MODAL_MOVES),
 ];
 
 fn scenario(name: &str) -> &'static Scenario {
@@ -1020,6 +1514,222 @@ fn scenarios_are_not_vacuous() {
             s.name
         );
     }
+}
+
+// ── Alt-cost equivalence (SR-31) ──────────────────────────────────────────────
+
+#[test]
+fn equivalence_convoke() {
+    assert_equivalent(scenario("convoke"), CONVOKE_MOVES);
+}
+
+#[test]
+fn equivalence_delve() {
+    assert_equivalent(scenario("delve"), DELVE_MOVES);
+}
+
+#[test]
+fn equivalence_kicker() {
+    assert_equivalent(scenario("kicker"), KICKER_MOVES);
+}
+
+#[test]
+fn equivalence_escape() {
+    assert_equivalent(scenario("escape"), ESCAPE_MOVES);
+}
+
+#[test]
+fn equivalence_modal() {
+    assert_equivalent(scenario("modal"), MODAL_MOVES);
+}
+
+/// The alt-cost scenarios must be non-vacuous for the same reason the base ones
+/// are: an equivalence that both regimes *reject* identically proves nothing
+/// (the pre-SR-9b `equip` scenario was green precisely because both sides
+/// rejected it). Every move must translate, be accepted, and move the board — and
+/// the cast step's Command must actually carry the alt-cost payload, or the
+/// scenario would be validating a plain cast wearing an alt-cost label.
+#[test]
+fn alt_cost_scenarios_are_not_vacuous() {
+    for (name, moves) in ALT_COST_SCENARIOS {
+        let s = scenario(name);
+        let init: InitialState = serde_json::from_str(s.script_json).unwrap();
+        let (state, players) = build_initial_state(&init);
+        let trace = drive(state, &players, moves, |m, st, p| m.harness_command(st, p));
+        for (i, (cmd, out)) in trace.steps.iter().enumerate() {
+            assert!(
+                cmd.is_some(),
+                "alt-cost scenario `{name}` move {i} ({:?}) does not translate",
+                moves[i]
+            );
+            assert!(
+                matches!(out, Outcome::Accepted(_)),
+                "alt-cost scenario `{name}` move {i} ({:?}) was not accepted: {out:?}",
+                moves[i]
+            );
+        }
+        // The cast step (move 0) must carry a non-empty alt-cost payload.
+        let cast_cmd = trace.steps[0].0.as_ref().expect("cast translated");
+        let carries_payload = match cast_cmd {
+            Command::CastSpell(data) => {
+                !data.convoke_creatures.is_empty()
+                    || !data.delve_cards.is_empty()
+                    || data.kicker_times > 0
+                    || data.alt_cost.is_some()
+                    || !data.modes_chosen.is_empty()
+                    || !data.additional_costs.is_empty()
+            }
+            _ => false,
+        };
+        assert!(
+            carries_payload,
+            "alt-cost scenario `{name}` cast carries no alt-cost payload — it is a \
+             plain cast mislabeled, and would not exercise the translation it claims"
+        );
+        let final_fp = match &trace.steps.last().expect("moves non-empty").1 {
+            Outcome::Accepted(f) => f,
+            other => panic!("alt-cost scenario `{name}` ended in {other:?}"),
+        };
+        assert_ne!(
+            *final_fp, trace.initial,
+            "alt-cost scenario `{name}` ends where it started"
+        );
+    }
+}
+
+/// `Move::shape()` reports a single label per `CastAlt` by checking the cost
+/// dimensions in a fixed order (convoke → delve → kicker → escape → modal). That
+/// is unambiguous only while every `CastAlt` sets exactly one dimension. A future
+/// combined scenario (e.g. convoke + kicker) would be silently mislabeled — and
+/// its second dimension would go uncounted by the ratchet. Guard the precondition.
+#[test]
+fn each_alt_cost_move_sets_exactly_one_dimension() {
+    for (name, moves) in ALT_COST_SCENARIOS {
+        for m in *moves {
+            if let Move::CastAlt {
+                action,
+                convoke,
+                delve,
+                escape,
+                kicked,
+                modes,
+                ..
+            } = m
+            {
+                let dimensions = [
+                    !convoke.is_empty(),
+                    !delve.is_empty(),
+                    !escape.is_empty() || *action == "cast_spell_escape",
+                    *kicked,
+                    !modes.is_empty() || *action == "cast_spell_modal",
+                ];
+                let set = dimensions.iter().filter(|&&b| b).count();
+                assert_eq!(
+                    set, 1,
+                    "alt-cost scenario `{name}`: a CastAlt sets {set} cost dimensions; \
+                     `shape()` labels by the first, so anything but exactly one is \
+                     mislabeled and under-counts the ratchet"
+                );
+            }
+        }
+    }
+}
+
+// ── Coverage ratchet (SR-31) ──────────────────────────────────────────────────
+
+/// The shapes this file cross-validates, one label per distinct
+/// `translate_player_action` Command shape (alt-cost dimensions of `cast_spell`
+/// get their own label). **This list may only grow.** Adding a scenario that
+/// exercises a new shape means adding its label here; deleting a scenario that
+/// was the sole cover for a shape fails the ratchet below rather than silently
+/// thinning coverage — which is exactly how this file's coverage sat at 6 shapes,
+/// undocumented, until SR-31.
+const CROSS_VALIDATED_SHAPES: &[&str] = &[
+    // Base shapes (SR-9b).
+    "pass_priority",
+    "play_land",
+    "tap_for_mana",
+    "cast_spell",
+    "activate_ability",
+    "declare_attackers",
+    // Alt-cost shapes (SR-31).
+    "cast_spell:convoke",
+    "cast_spell:delve",
+    "cast_spell:kicker",
+    "cast_spell_escape",
+    "cast_spell_modal",
+];
+
+/// A lower bound on the size of `translate_player_action`'s dispatch surface —
+/// the count of distinct `"action" =>` arms. Recompute with:
+///
+/// ```text
+/// grep -coE '^\s*"[a-z_]+" =>' crates/engine/src/testing/replay_harness.rs
+/// ```
+///
+/// This is the *denominator*: it makes the ratchet honest about tracking a
+/// minority of the surface (and the alt-cost dimensions of `cast_spell` push the
+/// true shape count still higher). It exists so nobody can quietly redefine the
+/// ratchet's baseline as "everything" and delete it.
+const TRANSLATE_PLAYER_ACTION_ARMS: usize = 79;
+
+/// Every move list fed to `assert_equivalent` anywhere in this file. The ratchet
+/// derives the *actually-covered* shape set from these, so a shape can only count
+/// as covered if a real scenario drives it.
+const ALL_VALIDATED_MOVE_SETS: &[&[Move]] = &[
+    BOLT_MOVES,
+    EQUIP_MOVES,
+    COMBAT_MOVES,
+    CONVOKE_MOVES,
+    DELVE_MOVES,
+    KICKER_MOVES,
+    ESCAPE_MOVES,
+    MODAL_MOVES,
+];
+
+/// SR-31 ratchet: the set of shapes actually driven through both regimes must
+/// equal `CROSS_VALIDATED_SHAPES` exactly.
+///
+/// - **⊇** (no fiction): every recorded shape is exercised by a live scenario, so
+///   the baseline cannot list a shape no test covers.
+/// - **⊆** (ratchet): adding a scenario that covers a new shape *forces* an update
+///   to `CROSS_VALIDATED_SHAPES`, and removing the last cover for a shape fails —
+///   coverage cannot regress silently.
+#[test]
+fn cross_validated_shape_coverage_is_ratcheted() {
+    use std::collections::BTreeSet;
+
+    let covered: BTreeSet<&str> = ALL_VALIDATED_MOVE_SETS
+        .iter()
+        .flat_map(|set| set.iter())
+        .map(|m| m.shape())
+        .collect();
+    let recorded: BTreeSet<&str> = CROSS_VALIDATED_SHAPES.iter().copied().collect();
+
+    let unrecorded: Vec<&&str> = covered.difference(&recorded).collect();
+    assert!(
+        unrecorded.is_empty(),
+        "these shapes are cross-validated by a scenario but not recorded in \
+         CROSS_VALIDATED_SHAPES — add them (the list may only grow): {unrecorded:?}"
+    );
+    let uncovered: Vec<&&str> = recorded.difference(&covered).collect();
+    assert!(
+        uncovered.is_empty(),
+        "CROSS_VALIDATED_SHAPES records these shapes, but no live scenario drives \
+         them — the ratchet baseline has gone stale (a scenario was deleted?): {uncovered:?}"
+    );
+
+    // Denominator guard: the ratchet must track a strict subset of the translator
+    // surface, or it has stopped being a coverage *floor* and become a claim of
+    // completeness it cannot back.
+    assert!(
+        recorded.len() < TRANSLATE_PLAYER_ACTION_ARMS,
+        "the ratchet now records {} shapes against a {}-arm translator surface — if \
+         coverage really is near-total, replace this ratchet with an exhaustive \
+         check; until then it must track a subset",
+        recorded.len(),
+        TRANSLATE_PLAYER_ACTION_ARMS
+    );
 }
 
 // ── Divergence #3: cards a script names but the engine has never heard of ─────
