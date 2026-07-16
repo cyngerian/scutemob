@@ -754,6 +754,18 @@ Task-specific extras:
 _One entry per session, newest first. Format:_
 `- YYYY-MM-DD — SR-<N> (scutemob-<id>) — <status: done / in progress / blocked> — <one-line outcome + hazards + pointer for next session>`
 
+- 2026-07-16 — SR-32 (scutemob-87) — **done** (collected, merge `170af730`) — Hygiene batch. New
+  `[profile.fuzz]` (inherits release + `debug-assertions` + `overflow-checks`; `cargo run --profile
+  fuzz --bin mtg-fuzzer`) so the SR-4/14 tripwires are live where anomalies are hunted; dead
+  pre-2026-07-10 repro seeds noted in the fuzzer header. Doc drift closed the durable way: CLAUDE.md
+  and this doc now **point at `rules/protocol.rs`** instead of quoting `PROTOCOL_VERSION`/closure
+  size (numbers that drift), and the untranslatable-allowlist claim matches the shipped
+  single-entry list. `test_all_cards_have_unique_card_ids` runs on an explicit 32 MiB thread
+  (overflow reproduced standalone, fix verified against the raw `core-*` binary). CI action refs
+  pinned by commit SHA with version comments. Stale hash.rs bump comments cleaned; replay-viewer
+  moved to `edition.workspace`. **Next:** SR-23/24, SR-26/27, SR-30/31 in flight; SR-25 queued
+  behind SR-23+SR-30 (layers.rs collision).
+
 - 2026-07-14 — SR-21 + SR-22 (scutemob-76/77, paired in one worktree) — **done** (collected, merge
   `b0c8e815`) — **SR-21**: `build_initial_state_checked` runs `check_all_defs_complete` (the same
   check as `start_game`); the plain builder is now the *named, greppable* opt-out — and the
