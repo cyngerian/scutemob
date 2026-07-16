@@ -118,12 +118,12 @@ pub fn check_miracle_eligible(
     drawn_card_id: ObjectId,
 ) -> Option<GameEvent> {
     // Step 1: Was this the first draw of the turn?
-    let cards_drawn = state.players.get(&player)?.cards_drawn_this_turn;
+    let cards_drawn = state.expect_player(player)?.cards_drawn_this_turn;
     if cards_drawn != 1 {
         return None;
     }
     // Step 2: Does the drawn card have the Miracle keyword?
-    let obj = state.objects.get(&drawn_card_id)?;
+    let obj = state.expect_object(drawn_card_id)?;
     if !obj
         .characteristics
         .keywords
@@ -141,7 +141,7 @@ pub fn check_miracle_eligible(
 }
 /// Look up the miracle cost for the given card object from the registry.
 fn lookup_miracle_cost(state: &GameState, card: ObjectId) -> Option<ManaCost> {
-    let card_id = state.objects.get(&card)?.card_id.clone();
+    let card_id = state.expect_object(card)?.card_id.clone();
     card_id.and_then(|cid| {
         state.card_registry.get(cid).and_then(|def| {
             def.abilities.iter().find_map(|a| {

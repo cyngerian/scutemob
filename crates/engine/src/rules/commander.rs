@@ -363,7 +363,7 @@ pub fn check_commander_zone_return_sba(state: &mut GameState) -> Vec<GameEvent> 
         for card_id in player_state.commander_ids.iter() {
             // Check graveyard
             let graveyard_zone_id = ZoneId::Graveyard(owner);
-            if let Some(zone) = state.zones.get(&graveyard_zone_id) {
+            if let Some(zone) = state.expect_zone(&graveyard_zone_id) {
                 for obj_id in zone.object_ids() {
                     // Skip if already awaiting a choice for this object.
                     if state
@@ -373,7 +373,7 @@ pub fn check_commander_zone_return_sba(state: &mut GameState) -> Vec<GameEvent> 
                     {
                         continue;
                     }
-                    if let Some(obj) = state.objects.get(&obj_id) {
+                    if let Some(obj) = state.expect_object(obj_id) {
                         if obj.card_id.as_ref() == Some(card_id) {
                             needs_choice.push((
                                 owner,
@@ -387,7 +387,7 @@ pub fn check_commander_zone_return_sba(state: &mut GameState) -> Vec<GameEvent> 
             }
             // Check exile
             let exile_zone_id = ZoneId::Exile;
-            if let Some(zone) = state.zones.get(&exile_zone_id) {
+            if let Some(zone) = state.expect_zone(&exile_zone_id) {
                 for obj_id in zone.object_ids() {
                     // Skip if already awaiting a choice for this object.
                     if state
@@ -397,7 +397,7 @@ pub fn check_commander_zone_return_sba(state: &mut GameState) -> Vec<GameEvent> 
                     {
                         continue;
                     }
-                    if let Some(obj) = state.objects.get(&obj_id) {
+                    if let Some(obj) = state.expect_object(obj_id) {
                         if obj.card_id.as_ref() == Some(card_id) && obj.owner == owner {
                             needs_choice.push((owner, card_id.clone(), obj_id, ZoneType::Exile));
                         }
@@ -1012,7 +1012,7 @@ pub fn handle_bring_companion(
         state.move_object_to_zone(companion_obj_id, hand_zone_id)?;
     }
     // Mark companion as used
-    if let Some(ps) = state.players.get_mut(&player) {
+    if let Some(ps) = state.expect_player_mut(player) {
         ps.companion_used = true;
     }
     events.push(GameEvent::CompanionBroughtToHand {

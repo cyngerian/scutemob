@@ -105,7 +105,7 @@ pub fn handle_foretell_card(
     // - face_down: true (opponents cannot see the card identity)
     // - is_foretold: true (marks this as a foretold card)
     // - foretold_turn: current turn number (cannot cast until a later turn)
-    if let Some(exile_obj) = state.objects.get_mut(&new_exile_id) {
+    if let Some(exile_obj) = state.expect_object_mut(new_exile_id) {
         exile_obj.status.face_down = true;
         exile_obj.designations.insert(Designations::FORETOLD);
         exile_obj.foretold_turn = current_turn;

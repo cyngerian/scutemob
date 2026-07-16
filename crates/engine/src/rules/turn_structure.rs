@@ -170,7 +170,7 @@ pub fn next_player_in_turn_order(state: &GameState, current: PlayerId) -> Option
     for offset in 1..=len {
         let idx = (current_pos + offset) % len;
         let candidate = order[idx];
-        if let Some(player) = state.players.get(&candidate) {
+        if let Some(player) = state.expect_player(candidate) {
             if !player.has_lost && !player.has_conceded {
                 return Some(candidate);
             }

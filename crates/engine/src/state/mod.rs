@@ -908,7 +908,9 @@ impl GameState {
     pub(crate) fn retimestamp_attached_source(&mut self, source_id: ObjectId) {
         self.timestamp_counter += 1;
         let obj_ts = self.timestamp_counter;
-        if let Some(obj) = self.objects.get_mut(&source_id) {
+        // SR-25: every caller passes a resolved-present attach source (the equipment being
+        // (re-)attached is live on the battlefield), so absence is an engine bug, not a fizzle.
+        if let Some(obj) = self.expect_object_mut(source_id) {
             obj.timestamp = obj_ts;
         }
         // Collect this source's continuous effects in current-timestamp order,
@@ -981,7 +983,7 @@ impl GameState {
             // PB-AC6 / CR 111.10: mark that this player created a token this turn.
             // Single chokepoint -- every GameEvent::TokenCreated emission site funnels
             // a token GameObject through add_object before emitting.
-            if let Some(ps) = self.players.get_mut(&object.controller) {
+            if let Some(ps) = self.expect_player_mut(object.controller) {
                 ps.created_token_this_turn = true;
             }
         }
@@ -1265,7 +1267,9 @@ impl GameState {
         // CR 702.95e: If the departing object was paired, clear the partner's paired_with.
         // We already have old_object.paired_with from the clone taken before removal.
         if let Some(partner_id) = old_object.paired_with {
-            if let Some(partner) = self.objects.get_mut(&partner_id) {
+            // SR-25: the partner may itself have left the battlefield in the same SBA batch
+            // (CR 400.7 retires its id), so a missing partner is a legal fizzle, not a bug.
+            if let Some(partner) = self.fizzle_object_mut(partner_id) {
                 partner.paired_with = None;
             }
         }
@@ -1411,7 +1415,7 @@ impl GameState {
                     skip_untap_steps: 0,
                 };
                 // Add component to destination zone and objects map.
-                if let Some(zone_set) = self.zones.get_mut(&to) {
+                if let Some(zone_set) = self.expect_zone_mut(&to) {
                     zone_set.insert(component_id);
                 }
                 self.objects.insert(component_id, component_obj);
@@ -1528,7 +1532,7 @@ impl GameState {
 
                         skip_untap_steps: 0,
                     };
-                    if let Some(zone_set) = self.zones.get_mut(&to) {
+                    if let Some(zone_set) = self.expect_zone_mut(&to) {
                         zone_set.insert(component_id);
                     }
                     self.objects.insert(component_id, component_obj);
@@ -1756,7 +1760,9 @@ impl GameState {
         };
         // CR 702.95e: If the departing object was paired, clear the partner's paired_with.
         if let Some(partner_id) = old_object.paired_with {
-            if let Some(partner) = self.objects.get_mut(&partner_id) {
+            // SR-25: the partner may itself have left the battlefield in the same SBA batch
+            // (CR 400.7 retires its id), so a missing partner is a legal fizzle, not a bug.
+            if let Some(partner) = self.fizzle_object_mut(partner_id) {
                 partner.paired_with = None;
             }
         }

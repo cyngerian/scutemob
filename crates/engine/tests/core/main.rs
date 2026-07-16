@@ -7,6 +7,7 @@
 
 mod ability_definition_registry;
 mod authoring_report;
+mod bare_lookup_ratchet;
 mod builder_tests;
 mod card_def_fixes;
 mod card_registry_gate;

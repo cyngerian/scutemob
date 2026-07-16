@@ -134,7 +134,7 @@ pub fn handle_plot_card(
     // - face_down: false (plotted cards are face-up, public information, CR 702.170a)
     // - is_plotted: true (marks this as a plotted card)
     // - plotted_turn: current turn number (cannot cast until a later turn, CR 702.170d)
-    if let Some(exile_obj) = state.objects.get_mut(&new_exile_id) {
+    if let Some(exile_obj) = state.expect_object_mut(new_exile_id) {
         exile_obj.status.face_down = false;
         exile_obj.is_plotted = true;
         exile_obj.plotted_turn = current_turn;
