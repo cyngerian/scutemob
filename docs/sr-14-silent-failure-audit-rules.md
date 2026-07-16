@@ -1,6 +1,15 @@
 # SR-14 — Silent-Failure Audit: the rest of `rules/`
 
-<!-- last_updated: 2026-07-10 -->
+<!-- last_updated: 2026-07-16 -->
+
+> **SR-25 (`scutemob-80`, 2026-07-16) extends this audit** to the last unswept files —
+> `rules/layers.rs`, `rules/commander.rs`, `rules/miracle.rs`, the four small
+> foretell/plot/priority/suspend/turn_structure sites, and the non-primitive swallow-sites in
+> `state/mod.rs` — and adds the **anti-regression ratchet** the discipline never had. See the
+> [SR-25 section](#sr-25--the-last-unswept-files--the-anti-regression-ratchet) at the bottom.
+> Note: SR-14's table below still spells the fizzle helper `lki_object[_mut]`; **SR-23 renamed
+> that family to `fizzle_object[_mut]`** (the `lki_` prefix now means only the
+> `lki_object_snapshot` store). SR-25 used the current names.
 
 > Task: `scutemob-66`. Follow-up to `scutemob-56` (SR-4), which swept `effects/mod.rs`
 > and `rules/resolution.rs`. This task applies the **same method and the same
@@ -151,3 +160,131 @@ SR-13. File a new SR task if this is ever wanted.
 No assertion fires under the existing suite once the two demotions above are applied — the
 ~250 new `expect_*` asserts are tripwires for the next regression, exercised by whatever
 coverage the suite already has.
+
+---
+
+# SR-25 — the last unswept files + the anti-regression ratchet
+
+> Task: `scutemob-80`. Applies the SR-4 method (`docs/sr-4-silent-failure-audit.md`) and the
+> **post-SR-23 `state::diagnostics` vocabulary** (`fizzle_object[_mut]`, not `lki_object[_mut]`)
+> to the files SR-4/SR-14 enumerated but never swept, and closes the gap the re-audit flagged:
+> the "new code must pick a side" discipline had **no machine check**, so the ~760 sites SR-4
+> and SR-14 classified could regress invisibly.
+
+## Two halves
+
+1. **Sweep** the never-swept files.
+2. **Ratchet** — a source-scan test pinning a per-file ceiling on bare
+   `.objects/.players/.zones.get[_mut](` lookups across *all* swept files. A count may only
+   decrease; a new bare lookup fails the suite with a message pointing at the vocabulary.
+
+## Scope swept
+
+`rules/layers.rs` (the characteristics hot path — `calculate_characteristics` lives here, which
+is why SR-14 left it alone), `rules/commander.rs`, `rules/miracle.rs`,
+`rules/{foretell,plot,priority,suspend,turn_structure}.rs` (one site each), and the
+non-primitive sites in `state/mod.rs`.
+
+## Conversions (28 total)
+
+| File | → `expect_*` (IMPOSSIBLE) | → `fizzle_*` (FIZZLE) | Left NONSWALLOW / primitive |
+|---|---|---|---|
+| `layers.rs` | 9 (5 `expect_object`, 2 `expect_object_mut`, 1 `expect_player_mut`, 1 `expect_player`) | – | 27 (see below) |
+| `commander.rs` | 5 (2 `expect_zone`, 2 `expect_object`, 1 `expect_player_mut`) | – | 1 (empty-library `.and_then(z.top())`) |
+| `miracle.rs` | 3 (1 `expect_player`, 2 `expect_object`) | – | – |
+| `foretell.rs` / `plot.rs` / `suspend.rs` | 1 each `expect_object_mut` | – | – |
+| `priority.rs` / `turn_structure.rs` | 1 each `expect_player` | – | – |
+| `state/mod.rs` | 5 (1 `expect_object_mut`, 1 `expect_player_mut`, 2 `expect_zone_mut`) | 2 `fizzle_object_mut` | primitives (accessors, `zone()`, `objects_in_zone`, `face_down_reveal_for`) |
+
+### `layers.rs` — the load-bearing judgment
+
+The 45 single-line bare lookups split cleanly: **9 are IMPOSSIBLE re-reads** and **the rest are
+NONSWALLOW predicates left alone**, exactly as SR-14's "leave object predicates alone" precedent
+(a departed object legitimately answers a `.map(|o| ..).unwrap_or(false)` filter predicate
+`false`).
+
+- The five re-reads of `object_id` inside `calculate_characteristics` (lines 279/303/331/375/412)
+  became `expect_object`. The function takes `&GameState` and holds the line-39 `obj` borrow
+  live across its whole body, so the entry cannot vanish mid-function — a `None` is an engine
+  bug. This **corrected a stale `MR-M5-01` comment** ("if-let instead of expect — object may
+  have been removed by an effect") that contradicted the immutable-borrow ground truth.
+- The untap-step reset loops (1637/1656) read ids collected from live `state.objects` one line
+  above and mutate a single field → `expect_object_mut`; the active-player protection clear
+  (1621) and the CDA poison-counter fold (1785) are player lookups → `expect_player_mut` /
+  `expect_player` (ground truth 1).
+- The ~35 `source_controller` / `obj_controller` dependency-filter reads (690–1012) and the six
+  multi-line `ControlledBy` / `AttachedCreature` predicates stay bare: they are
+  `.map(..).unwrap_or(false)` questions whose `false`-on-absent is the correct answer.
+- `calculate_characteristics`'s own line-39 `state.objects.get(&object_id)?` stays bare **by
+  construction** — it is the primitive whose "`None` iff absent" contract every `fizzle_*` /
+  `expect_characteristics` caller depends on (ground truth 3). Asserting there would make every
+  legitimate fizzle caller panic.
+
+Perf: `expect_*` is `debug_assert!`-only, so the release characteristics hot path (the 23µs
+`priority_cycle_4p` bench) is byte-for-byte a `self.objects.get`. No disjoint-borrow site arose
+in this file (all re-reads are shared borrows; the two `_mut` loops touch only the looked-up
+object).
+
+### `state/mod.rs` — primitives vs. genuine swallow-sites
+
+Most of this file's lookups are the **primitive accessors the whole vocabulary is built on**
+(`object`, `player`, `zone`, `add_object`, `move_object_to_zone`, `objects_in_zone`) — leaving
+them bare is correct; wrapping them in `expect_*` would be circular. The genuine swallow-sites:
+
+- `add_object` set of `created_token_this_turn` on `object.controller` → `expect_player_mut`.
+- `retimestamp_attached_source` (SR-30's new helper) re-timestamps `source_id`; all three
+  callers pass a resolved-present equipment → `expect_object_mut`.
+- The two meld-split zone inserts into the already-validated destination `to` → `expect_zone_mut`.
+- The **two `paired_with` clears (CR 702.95e)** are genuine **FIZZLE**s → `fizzle_object_mut`:
+  a Soulbond partner can leave the battlefield in the same SBA batch (CR 400.7 retires its id),
+  so a missing partner is a legal do-nothing, not corrupted state. This is the file's one
+  bias-to-fizzle call.
+- `face_down_reveal_for` (`self.objects.get(&object_id)?`) is left NONSWALLOW: it is a public
+  query whose `None` ("no object → nothing to reveal") is a legitimate answer, of a piece with
+  the zone/face-down guards that follow it.
+
+## The ratchet — `crates/engine/tests/core/bare_lookup_ratchet.rs`
+
+A source-scan test (in the `core` group, like `lki_diagnostics_scan`) that pins a **per-file
+ceiling** for all 21 swept files (SR-4's 2 + SR-14's 10 + SR-25's 9). Design choices, each
+closing a specific evasion:
+
+- **Comment-stripped** (`//`-to-EOL removed) so a doc comment quoting `.objects.get(` cannot
+  inflate a ceiling (it did: `casting.rs` 39→34, `engine.rs` 26→24 once comments were stripped).
+- **Whitespace-insensitive** (all whitespace removed before matching) so the count is
+  rustfmt-stable *and* un-evadable by line-splitting: a multi-line
+  `state\n .objects\n .get(&id)` chain counts identically to the inline form. (This is why the
+  ceilings — e.g. `effects/mod.rs` 100, `resolution.rs` 102, `layers.rs` 51 — are far above the
+  single-line grep counts: they include the many multi-line NONSWALLOW predicate reads.)
+- **Exact-match, not just a cap.** Over the ceiling → regression (fails, points at the
+  diagnostics vocabulary). *Under* the ceiling → also fails, asking you to lower the pin, so no
+  slack accumulates for a future regression to hide beneath.
+- **Denominator guards**: a floor on the roster size (`MIN_FILES = 21`, so the list can't be
+  gutted to a few green files), a floor on the aggregate count (`MIN_TOTAL = 400`, live total
+  **477** — a counter broken to return 0 would collapse below it), and a per-file `len() > 200`
+  read-proof so a mis-pathed 0 can't pass a 0-ceiling vacuously.
+- **Counter self-tests** (`counter_is_non_vacuous`): proves the counter sees inline lookups,
+  distinguishes `get` from `get_mut`, ignores comments, is blind to line-splitting, and does not
+  false-match `stack_objects` / `lki_objects` (leading `_`, not `.`).
+- **Known limitation** (shared with the SR-5/SR-8 scans): only `//` line comments are stripped,
+  not block comments, so a contrived `state.objects/**/.get(&id)` would evade the needle. Not a
+  realistic regression path (clippy/review would reject it); documented, not defended against.
+- **Vocabulary-exists guard** (`diagnostics_vocabulary_still_exists`): the failure message names
+  `expect_object` / `fizzle_object` / …; this asserts those `fn`s still exist so the message
+  can't rot into pointing at a renamed getter (the SR-23 hazard, one level up).
+
+### Adversarial demonstration
+
+Injecting `let _sr25_demo = state.objects.get(&new_exile_id);` into `foretell.rs` (ceiling 0)
+— edit confirmed present in the file — reddened the ratchet with
+`src/rules/foretell.rs now has 1 bare … lookups, up from the pinned 0`, then reverting restored
+green. So the gate is non-vacuous: it catches a new bare lookup in a fully-swept file.
+
+## Verification
+
+- Full sweep + ratchet: `cargo test --all`, `cargo clippy --all-targets -- -D warnings`,
+  `cargo fmt --all -- --check`, `cargo build --workspace` (the invariant-#3 seal gate) — all
+  clean (see the task's completion record).
+- No new `expect_*` assertion fires under the existing suite (debug assertions ON) — the ~28 new
+  asserts are tripwires for the next regression, exercised by whatever coverage the suite has,
+  exactly as in SR-4/SR-14.

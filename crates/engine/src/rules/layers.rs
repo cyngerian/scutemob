@@ -276,7 +276,7 @@ pub fn calculate_characteristics(
         // present. Uses `cast_alt_cost` (a game-state marker, not an ability) so it persists
         // even if the Impending keyword is removed by Layer 6 effects (e.g., Humility).
         if layer == EffectLayer::TypeChange {
-            if let Some(obj_ref) = state.objects.get(&object_id) {
+            if let Some(obj_ref) = state.expect_object(object_id) {
                 if obj_ref.zone == ZoneId::Battlefield
                     && obj_ref.cast_alt_cost == Some(crate::state::types::AltCostKind::Impending)
                     && obj_ref
@@ -300,7 +300,7 @@ pub fn calculate_characteristics(
         // keyword is removed by Humility/Dress Down while the Equipment is attached.
         // The flag is cleared only when the Equipment becomes unattached.
         if layer == EffectLayer::TypeChange {
-            if let Some(obj_ref) = state.objects.get(&object_id) {
+            if let Some(obj_ref) = state.expect_object(object_id) {
                 if obj_ref.zone == ZoneId::Battlefield
                     && obj_ref.designations.contains(Designations::RECONFIGURED)
                 {
@@ -328,7 +328,7 @@ pub fn calculate_characteristics(
         // removes abilities. Same behavior as Changeling CDA surviving Humility.
         if layer == EffectLayer::TypeChange && chars.keywords.contains(&KeywordAbility::LivingMetal)
         {
-            if let Some(obj_ref) = state.objects.get(&object_id) {
+            if let Some(obj_ref) = state.expect_object(object_id) {
                 if obj_ref.zone == ZoneId::Battlefield
                     && state.turn.active_player == obj_ref.controller
                 {
@@ -371,8 +371,11 @@ pub fn calculate_characteristics(
         // are any static Layer 7c effects.
         if layer == EffectLayer::PtModify {
             // Re-borrow: obj is still valid since we haven't mutated state.
-            // MR-M5-01: if-let instead of expect — object may have been removed by an effect.
-            let Some(obj_ref) = state.objects.get(&object_id) else {
+            // SR-25: `calculate_characteristics` takes `&GameState` and holds the line-39
+            // `obj` borrow live, so `object_id` cannot have been removed here — a `None` is
+            // an engine bug (asserts in debug via `expect_object`, `break`s in release, the
+            // same fallback the old MR-M5-01 if-let took).
+            let Some(obj_ref) = state.expect_object(object_id) else {
                 break;
             };
             let plus_ones = obj_ref
@@ -409,7 +412,7 @@ pub fn calculate_characteristics(
     // They are applied in Layer 6 at the merge timestamp (the permanent's existing timestamp).
     if obj.zone == ZoneId::Battlefield && obj.merged_components.len() > 1 {
         // Re-borrow to get the current merged_components (obj may have changed during layer loop).
-        if let Some(obj_ref) = state.objects.get(&object_id) {
+        if let Some(obj_ref) = state.expect_object(object_id) {
             // Collect abilities from non-topmost components (indices 1..N).
             // Index 0 = topmost, already in base chars from Layer 1.
             let components_slice: Vec<_> = obj_ref.merged_components.iter().skip(1).collect();
@@ -1618,7 +1621,7 @@ pub fn expire_until_next_turn_effects(state: &mut GameState, active_player: Play
         .collect();
     state.flash_grants = keep_grants;
     // Clear temporary protection for the active player.
-    if let Some(ps) = state.players.get_mut(&active_player) {
+    if let Some(ps) = state.expect_player_mut(active_player) {
         if !ps.temporary_protection_qualities.is_empty() {
             ps.temporary_protection_qualities.clear();
         }
@@ -1634,7 +1637,7 @@ pub fn expire_until_next_turn_effects(state: &mut GameState, active_player: Play
         .map(|(id, _)| *id)
         .collect();
     for id in ids {
-        if let Some(obj) = state.objects.get_mut(&id) {
+        if let Some(obj) = state.expect_object_mut(id) {
             obj.abilities_activated_this_turn = 0;
         }
     }
@@ -1653,7 +1656,7 @@ pub fn expire_until_next_turn_effects(state: &mut GameState, active_player: Play
         .map(|(id, _)| *id)
         .collect();
     for id in trigger_reset_ids {
-        if let Some(obj) = state.objects.get_mut(&id) {
+        if let Some(obj) = state.expect_object_mut(id) {
             obj.triggered_abilities_fired_this_turn = imbl::OrdSet::new();
         }
     }
@@ -1782,7 +1785,7 @@ pub(crate) fn resolve_cda_amount(
             match counter {
                 crate::state::types::CounterType::Poison => players
                     .iter()
-                    .filter_map(|pid| state.players.get(pid))
+                    .filter_map(|pid| state.expect_player(*pid))
                     .map(|ps| ps.poison_counters as i32)
                     .sum(),
                 _ => 0,

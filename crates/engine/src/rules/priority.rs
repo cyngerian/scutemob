@@ -63,7 +63,7 @@ pub fn next_priority_player(state: &GameState, current: PlayerId) -> Option<Play
         let idx = (current_pos + offset) % len;
         let candidate = order[idx];
         // Skip eliminated players
-        if let Some(player) = state.players.get(&candidate) {
+        if let Some(player) = state.expect_player(candidate) {
             if player.has_lost || player.has_conceded {
                 continue;
             }
