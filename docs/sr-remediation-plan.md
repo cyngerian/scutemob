@@ -754,6 +754,23 @@ Task-specific extras:
 _One entry per session, newest first. Format:_
 `- YYYY-MM-DD — SR-<N> (scutemob-<id>) — <status: done / in progress / blocked> — <one-line outcome + hazards + pointer for next session>`
 
+- 2026-07-16 — SR-23 + SR-24 (scutemob-78/79, paired in one worktree) — **done** (collected, merge
+  `a8d09955`) — **SR-23**: the fizzle-documenting diagnostics family is renamed **off the `lki_`
+  prefix** (~112 sites, compiler-driven), so it can no longer be read as returning last-known
+  information; `expect_object`/`_mut` assert strings and module docs now send LKI-semantics sites
+  to `lki_object_snapshot` (the real SR-13 store); a scan-test
+  (`tests/core/lki_diagnostics_scan.rs`) pins the assert strings so the misdirection cannot
+  return. `lki_objects` gained its `pub` read accessor (SR-3 convention; the replay viewer can now
+  inspect the store). `capture_lki_snapshot` is reordered **after** the from-zone
+  existence+membership checks in both move fns — an errored move leaves no ghost snapshot.
+  **SR-24**: new criterion bench `board_wipe_4p` (40 lethal creatures, one SBA sweep): capture was
+  **~17% of the path** (~118µs → ~105µs after gating). The snapshot **store** is now gated on
+  relevant-keyword presence (wither/infect/deathtouch/lifelink — exactly the set the store's only
+  readers consult), which is correctness-safe and timing-independent; no `HashInto`/serde change,
+  so **neither SR-17 fingerprint moved** (machine-adjudicated, not asserted). Numbers + reasoning:
+  `docs/sr-24-lki-capture-cost.md`. **Next:** SR-25 (scutemob-80) dispatched — the final re-audit
+  task.
+
 - 2026-07-16 — SR-30 + SR-31 (scutemob-85/86, paired in one worktree) — **done** (collected, merge
   `64446b1e`) — **SR-30**: `GameState::retimestamp_attached_source` re-timestamps an attached
   source's static continuous effects on every (re)attach, wired into all 3 attach sites in
