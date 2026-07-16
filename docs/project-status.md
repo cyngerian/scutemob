@@ -76,18 +76,23 @@
 
 ## Card Health
 
-| Category | Count | Percentage |
-|----------|-------|------------|
-| Clean (no TODOs) | ~785 | 54% |
-| With TODOs (fixable now) | ~88 | 6% |
-| With TODOs (still blocked) | ~578 | 40% |
-| Not Yet Authored | ~286 | — |
-| **Total Universe** | **1743** | — |
-| **Total Authored** | **1456** | **84%** |
-
-**Post-BF-1**: 678 files have TODOs (1,070 lines). ~100 fixable now, ~578 blocked.
-Re-triage report: `memory/card-authoring/bf1-retriage-report.md`.
-As of 2026-03-30 (post PB-37, BF-1 complete).
+> **Do not hand-maintain numbers here.** Card Health is fully derived from the
+> compiled registry and the def files. The canonical, always-current figures live
+> in the generated authoring report — regenerate and read it there:
+>
+> ```
+> python3 tools/authoring-report.py      # writes docs/authoring-status.md
+> ```
+>
+> See **[`authoring-status.md`](authoring-status.md)** (Headline section: clean /
+> todo / empty counts and plan coverage) and its guide
+> [`authoring-status-guide.md`](authoring-status-guide.md).
+>
+> The old static table lived here and drifted badly (it read 54% clean / 1743
+> universe while the registry had moved to ~57.6% clean of 1,748). The report's
+> buckets are now machine-cross-checked against the compiled registry
+> (`all_cards()`) by `crates/engine/tests/core/authoring_report.rs` (SR-26), so a
+> second hand-copied table is exactly the anti-rot hazard that test exists to kill.
 
 ---
 
