@@ -776,18 +776,18 @@ fn execute_effect_inner(
                         }
                     }
                     // Attach to token (CR 702.92a).
-                    // CR 701.3c / CR 613.7e: new timestamp on attach.
-                    state.timestamp_counter += 1;
-                    let new_ts = state.timestamp_counter;
                     if let Some(equip_obj) = state.expect_object_mut(equip_id) {
                         equip_obj.attached_to = Some(token_id);
-                        equip_obj.timestamp = new_ts;
                     }
                     if let Some(target_obj) = state.expect_object_mut(token_id) {
                         if !target_obj.attachments.contains(&equip_id) {
                             target_obj.attachments.push_back(equip_id);
                         }
                     }
+                    // CR 701.3c / CR 613.7e: new timestamp on attach.
+                    // CR 613.7a (SR-30): the equipment's static-ability continuous
+                    // effects receive new timestamps too.
+                    state.retimestamp_attached_source(equip_id);
                     events.push(GameEvent::EquipmentAttached {
                         equipment_id: equip_id,
                         target_id: token_id,
@@ -4144,18 +4144,19 @@ fn execute_effect_inner(
                         }
                     }
                     // Attach to new target.
-                    // CR 701.3c / CR 613.7e: new timestamp on reattach.
-                    state.timestamp_counter += 1;
-                    let new_ts = state.timestamp_counter;
                     if let Some(equip_obj) = state.expect_object_mut(equip_id) {
                         equip_obj.attached_to = Some(target_id);
-                        equip_obj.timestamp = new_ts;
                     }
                     if let Some(target_obj) = state.expect_object_mut(target_id) {
                         if !target_obj.attachments.contains(&equip_id) {
                             target_obj.attachments.push_back(equip_id);
                         }
                     }
+                    // CR 701.3c / CR 613.7e: new timestamp on reattach.
+                    // CR 613.7a (SR-30): the equipment's static-ability continuous
+                    // effects receive new timestamps too, so a re-equip correctly
+                    // wins later same-layer conflicts.
+                    state.retimestamp_attached_source(equip_id);
                     events.push(GameEvent::EquipmentAttached {
                         equipment_id: equip_id,
                         target_id,
@@ -4283,18 +4284,18 @@ fn execute_effect_inner(
                         }
                     }
                     // Attach to new land.
-                    // CR 701.3c / CR 613.7e: new timestamp on reattach.
-                    state.timestamp_counter += 1;
-                    let new_ts = state.timestamp_counter;
                     if let Some(equip_obj) = state.expect_object_mut(equip_id) {
                         equip_obj.attached_to = Some(target_id);
-                        equip_obj.timestamp = new_ts;
                     }
                     if let Some(target_obj) = state.expect_object_mut(target_id) {
                         if !target_obj.attachments.contains(&equip_id) {
                             target_obj.attachments.push_back(equip_id);
                         }
                     }
+                    // CR 701.3c / CR 613.7e: new timestamp on reattach.
+                    // CR 613.7a (SR-30): the fortification's static-ability continuous
+                    // effects receive new timestamps too.
+                    state.retimestamp_attached_source(equip_id);
                     events.push(GameEvent::FortificationAttached {
                         fortification_id: equip_id,
                         target_id,
