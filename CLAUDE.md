@@ -29,7 +29,7 @@
   --workspace` is the only gate that proves the seal** — `test --all` and `clippy
   --all-targets` enable `test-util` workspace-wide via feature unification. It is a CI step.
 - **Tests**: **3185 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
-- **CI**: **LIVE and green** since 2026-07-10 (SR-1, merge `e9742dc2`) — single Ubuntu job (fmt + clippy + `build --workspace` + full tests) on push/PR to main + workflow_dispatch; rust-cache@v2, 45m timeout. **Toolchain pinned (SR-11, `scutemob-63`)**: `rust-toolchain.toml` pins exact stable `1.95.0` and CI reads that `channel` from the file (no more floating to latest stable), so local `clippy -D warnings` is an authoritative CI preview. SR remediation track **COMPLETE** (SR-1..16 all DONE 2026-07-10, final task `scutemob-68`/SR-16): `docs/sr-remediation-plan.md`.
+- **CI**: **LIVE and green** since 2026-07-10 (SR-1, merge `e9742dc2`) — single Ubuntu job (fmt + clippy + `build --workspace` + full tests) on push/PR to main + workflow_dispatch; rust-cache@v2, 45m timeout. **Toolchain pinned (SR-11, `scutemob-63`)**: `rust-toolchain.toml` pins exact stable `1.95.0` and CI reads that `channel` from the file (no more floating to latest stable), so local `clippy -D warnings` is an authoritative CI preview. SR remediation track: original SR-1..16 all DONE 2026-07-10; a 2026-07-11 re-audit of the remediated baseline filed **SR-17..SR-32** (in progress): `docs/sr-remediation-plan.md`.
 - **Abilities**: ~199 validated; 42/42 P1; 17/17 P2; 40/40 P3; 95/95 P4 implemented (9 permanent-n/a; 1 deferred: Banding)
 - **Primitives**: PB-0..PB-37 + named-letter chain (PB-A/B/E/J/M/S/X/Q/Q4/N/D/P/L/T/SFT/CC-{W,B,C,A}/TS/LKI-CC/CD/LKI-Power/EWC/XS/XS-E/XA/EAT/XA2/EWC-D) all DONE. PB-Q2/Q3/Q5 reserved.
 - **Last shipped**: **PB-AC9** (`scutemob-52`, merge `a4750cdb`) — **closes the AC chain**. Recon: 3/5 briefed primitives already existed (`Effect::RollDice` d20+results CR 706, `ReplacementModification::DoubleTokens` CR 614.1, `Effect::AddManaFilterChoice`); SearchLibrary multi-name 0-yield → OOS seed. Built: `Effect::WheelHand` + `Effect::SetNoMaximumHandSize` (unbriefed co-blocker — flag was recomputed each cleanup, "rest of the game" inexpressible). **Token doubling rewired 2→13/13 creation sites** (Squad, Offspring, Myriad, Embalm, Eternalize, Encore, Living Weapon, Gift keyed to recipient, Investigate, Amass — doublers were silently failing, invisible to any marker/roster). Review 0 HIGH / 1 MEDIUM fixed (Amass bypassed `apply_counter_replacement` — CR 701.47a; fix proven non-vacuous). Backfill: 11 clean incl. token doublers (Parallel Lives, Anointed Procession, Doubling Season), wheels (Echo of Eons, Winds of Change), d20 Ancient dragons; 1 backfill HIGH (Reforge the Soul stale Miracle marker — 2nd consecutive stale-marker HIGH; AC8+AC9 workers both recommend a campaign-wide marker sweep next). New gotcha logged: `timestamp_counter` IS the object-id counter — rewinding it aliases ObjectIds (`3d7e216c`). Prior: PB-AC8..AC1 (`scutemob-51..43`). Next per campaign plan: **W-PB2** (author ~55 cards unblocked by AC4..AC6), W-EMPTY/W-MISS derisking batches. Registry-gate debt **CLOSED** by SR-2 (`scutemob-54`); follow-up `scutemob-64` (SR-12).
@@ -85,13 +85,15 @@
   rewind and cannot tell that it does. `decode` is **staged** (probe version → reject → parse
   payload) so a mismatch is never an opaque serde error. `ReplayLog` also carries
   `hash_schema_version` and checks it separately. **The version is machine-checked**:
-  `PROTOCOL_SCHEMA_FINGERPRINT` pins a blake3 digest of the **90-type transitive closure** of
-  the three wire frames, and `tests/protocol_schema.rs` recomputes it from source — so
+  `PROTOCOL_SCHEMA_FINGERPRINT` pins a blake3 digest of the **transitive type closure** of
+  the three wire frames (its size and the digest itself live in `rules/protocol.rs`; do not
+  re-quote them here — they move whenever the wire does), and `tests/protocol_schema.rs` recomputes it from source — so
   `#[serde(skip)]`/`rename`/`rename_all` (all invisible to rustc) and any shape change fail the
   build. The closure reaches `Characteristics` → `Effect` → the whole card DSL, so **adding an
   `Effect` variant is a wire change and most PBs will bump `PROTOCOL_VERSION`**; it stops at
-  `GameState`, which is why this and `HASH_SCHEMA_VERSION` stay separate. `PROTOCOL_VERSION` is
-  **1**. Policy: `docs/mtg-engine-protocol-versioning.md`. **This was M10's hard blocker.**
+  `GameState`, which is why this and `HASH_SCHEMA_VERSION` stay separate. The current
+  `PROTOCOL_VERSION` is the `pub const` in `rules/protocol.rs` (read it there rather than
+  quoting a number that drifts). Policy: `docs/mtg-engine-protocol-versioning.md`. **This was M10's hard blocker.**
 - **Integration tests are 9 targets, not 297 binaries (SR-9a).** `crates/engine/tests/*.rs` became
   `crates/engine/tests/<group>/{main.rs, *.rs}` — `core`, `rules`, `combat`, `casting`,
   `primitives`, `scripts`, `mechanics_{a_d,e_l,m_z}`. Every file moved verbatim; a former
@@ -114,8 +116,8 @@
   (`approved + retired == discovered`) and fails on a `pending_review`/`disputed`/`corrected` script, a file
   that doesn't deserialize (`discover_scripts` no longer swallows the `Err` — six scripts had been invisible
   since written), an approved script with zero `assert_state`, or one using an untranslatable
-  `player_action` outside a **dead-entry-guarded allowlist** (`search_library`, `assign_damage`,
-  `choose_option`, `sacrifice`). The replay *checker* (`script_replay.rs`) was itself largely vacuous:
+  `player_action` outside a **dead-entry-guarded allowlist** (`ALLOWED_UNTRANSLATABLE_ACTIONS` in
+  `run_all_scripts.rs` — currently `search_library` only). The replay *checker* (`script_replay.rs`) was itself largely vacuous:
   an unrecognized assertion path returned "no mismatch" (**244** assertions unchecked) and `zones.stack`
   was tested against a hardcoded empty list (**583** `is_empty:true` always passed). Both are now real —
   an unknown path is a hard mismatch, `zones.stack` reads the live depth, power/toughness read through

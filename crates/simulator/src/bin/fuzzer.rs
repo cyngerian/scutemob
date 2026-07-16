@@ -13,6 +13,28 @@
 //!   --stop-on-error     Stop after first violation
 //!   --replay <SEED>     Replay a specific game by seed
 //!   --verbose           Print each game result
+//!
+//! # Run it with assertions on (SR-32)
+//!
+//! The SR-4 / SR-14 tripwires that flag IMPOSSIBLE-class state absences are
+//! `debug_assert!`s and are compiled out of `--release`. Fuzz through the
+//! dedicated `fuzz` profile (release speed, `debug-assertions = true`,
+//! `overflow-checks = true`; defined in the workspace `Cargo.toml`) so an
+//! anomaly actually trips them instead of silently fizzling:
+//!
+//! ```text
+//! cargo run --profile fuzz --bin mtg-fuzzer -- --games 10000 --stop-on-error
+//! ```
+//!
+//! # Repro seeds are not portable across engine changes
+//!
+//! A `--replay <SEED>` reproduces a game only against the *same* engine build
+//! that produced it. Seeds recorded before 2026-07-10 are dead: SR-10 moved the
+//! RNG to `rand` 0.9 (different value streams for a fixed seed) and SR-12 added
+//! the `random_deck` Complete-only deck-pool filter, so a given seed now evolves
+//! a different game. Treat a crash seed as valid only within the run (and build)
+//! that emitted it; capture the crash JSON, not just the seed, for anything that
+//! must outlive the build.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};

@@ -92,7 +92,22 @@ fn test_try_new_accepts_unique_card_ids() {
 /// that makes `try_new`'s error unreachable in practice — if a new def collides, this
 /// fails by name in CI rather than in a player's game.
 fn test_all_cards_have_unique_card_ids() {
-    CardRegistry::try_new(all_cards()).expect("all_cards() must not contain duplicate CardIds");
+    // Run the check on a thread with an enlarged stack. `all_cards()` materialises
+    // ~1,749 deeply-nested `CardDefinition` trees, and constructing + dropping them
+    // through `try_new` overflows the default 8 MiB test-thread stack when this
+    // binary is executed standalone (`target/debug/deps/core-* --exact`). It passes
+    // under `cargo test` only because libtest's own runner thread is larger — a
+    // latent CI flake that would surface on any toolchain/allocator change. Make the
+    // check environment-insensitive by pinning the stack size it runs under.
+    std::thread::Builder::new()
+        .stack_size(32 * 1024 * 1024)
+        .spawn(|| {
+            CardRegistry::try_new(all_cards())
+                .expect("all_cards() must not contain duplicate CardIds");
+        })
+        .expect("spawn unique-card-id check thread")
+        .join()
+        .expect("unique-card-id check thread panicked");
 }
 
 // ── Completeness markers on the shipped corpus ────────────────────────────────
