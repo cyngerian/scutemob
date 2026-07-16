@@ -56,27 +56,27 @@ Full evidence (file:line) is in each task's ESM description — run
 ### Re-audit batch (2026-07-11) — SR-17 … SR-32
 
 Filed by the full re-audit of the remediated baseline (see the 2026-07-11 session-log
-entry for method and verified-clean claims). Numbering continues the track; `/remedy`
-picks these up unchanged.
+entry for method and verified-clean claims). **Batch COMPLETE — all 16 DONE 2026-07-14..16**
+(rounds: 07-14 SR-17/18/20/28 + SR-19/21/22/29; 07-16 SR-23/24/25/26/27/30/31/32).
 
 | Order | ESM ID | Task | Size | Notes |
 |-------|--------|------|------|-------|
-| 17 | scutemob-72 | SR-17: `HASH_SCHEMA_VERSION` fingerprint gate | M | **HIGH.** The state-hash analogue of SR-8's cure; sentinels force noticing a bump, never making one. Do before M10 replay/rewind work. |
-| 18 | scutemob-73 | SR-18: `proptest-regressions` is an ungoverned auto-built test target | S | **HIGH, cheap.** Demonstrated: stray `.rs` there never compiles, gate 5/5 green; `#![cfg(any())]` in a group module file deleted 14 tests green. |
-| 19 | scutemob-74 | SR-19: HashInto-vs-struct coverage gate; `embedded_effect` hashes zero bits | M | False "Effect has no HashInto impl" comment at `hash.rs:2970`. Pairs naturally with SR-17. |
-| 20 | scutemob-75 | SR-20: Registry-scan alias/glob bypass + simulator scan root | S–M | Demonstrated bypass on **both** registries; `crates/simulator/src/legal_actions.rs` dispatches on 5 keywords outside `SCAN_ROOTS`. |
-| 21 | scutemob-76 | SR-21: Completeness gate bypassed by the script/replay path | M | replay-viewer + `build_initial_state` run games with no `start_game`; SR-12's "no silent bypass" claim is false for this path. |
-| 22 | scutemob-77 | SR-22: Script schema strictness (unknown keys, discovery asymmetry, dead init fields, PROPTEST_CASES) | M | Live evidence: `stack/135` carries a silently-ignored stray top-level `review_status`. |
-| 23 | scutemob-78 | SR-23: `lki_object` / `lki_object_snapshot` API collision + misdirecting assert text | S | SR-4×SR-13 interaction; assert text sends authors to the live getter at LKI sites. |
-| 24 | scutemob-79 | SR-24: Bound `capture_lki_snapshot` cost | S–M | Full layer eval per battlefield departure, unmeasured; measure before gating. Same axis as MR-M1-18/MR-M6-14. |
-| 25 | scutemob-80 | SR-25: Diagnostics ratchet + sweep `layers.rs` (45 bare lookups) / `commander.rs` (6) | M | SR-4/14 discipline has no anti-regression scan; two files were never swept. |
-| 26 | scutemob-81 | SR-26: `authoring-report.py` anti-rot + stale `project-status.md` Card Health | S–M | `Completeness::Partial(…)` direct spelling buckets as "clean"; zero tests on the tool that owns the campaign headline number. |
-| 27 | scutemob-82 | SR-27: Protocol version-bump enforcement + guard token-anchoring | S | Re-pin-without-bump passes today; `contains("Serialize")` matched by "Deserialize". |
-| 28 | scutemob-83 | SR-28: Tap-and-sacrifice mana sources read a dead object (CR 106.12a/b) | M | **Rules bug**, two sites (trigger filter + production replacement); the SR-14 left-open seed, now precise. Fix shape = SR-13 snapshot. |
-| 29 | scutemob-84 | SR-29: CR 616.1 batch — wrong chooser (owner≠controller), no 616.1f fixed point, `OrderReplacements` applies unvalidated ids | M–L | **Rules + M10 trust boundary.** Chooser fix and applicability check are shippable now; the rest lands with interactive choice. |
-| 30 | scutemob-85 | SR-30: Layers hygiene — re-attach doesn't re-timestamp effects (CR 613.7a); vacuous 613.8b test over dead code | S–M | Plus one decisions.md line for the 613.8 static-approximation scope. |
-| 31 | scutemob-86 | SR-31: Equivalence coverage ratchet (6 of 60+ command shapes) | S–M | Known-open from SR-9b, now tracked. |
-| 32 | scutemob-87 | SR-32: Hygiene batch — assert-blind release fuzzing, doc drift (PROTOCOL_VERSION 1→2 etc.), stack-edge flake, floating action refs | S | Bundle of confirmed LOWs; each named with file:line in the task. |
+| 17 | scutemob-72 | SR-17: `HASH_SCHEMA_VERSION` fingerprint gate | M | **DONE 2026-07-14** (merge `b4736f3e`). **HIGH.** The state-hash analogue of SR-8's cure; sentinels force noticing a bump, never making one. Do before M10 replay/rewind work. |
+| 18 | scutemob-73 | SR-18: `proptest-regressions` is an ungoverned auto-built test target | S | **DONE 2026-07-14** (merge `ff8b7dfd`). **HIGH, cheap.** Demonstrated: stray `.rs` there never compiles, gate 5/5 green; `#![cfg(any())]` in a group module file deleted 14 tests green. |
+| 19 | scutemob-74 | SR-19: HashInto-vs-struct coverage gate; `embedded_effect` hashes zero bits | M | **DONE 2026-07-14** (merge `cd1801a1`). False "Effect has no HashInto impl" comment at `hash.rs:2970`. Pairs naturally with SR-17. |
+| 20 | scutemob-75 | SR-20: Registry-scan alias/glob bypass + simulator scan root | S–M | **DONE 2026-07-14** (merge `ff8b7dfd`). Demonstrated bypass on **both** registries; `crates/simulator/src/legal_actions.rs` dispatches on 5 keywords outside `SCAN_ROOTS`. |
+| 21 | scutemob-76 | SR-21: Completeness gate bypassed by the script/replay path | M | **DONE 2026-07-14** (merge `b0c8e815`). replay-viewer + `build_initial_state` run games with no `start_game`; SR-12's "no silent bypass" claim is false for this path. |
+| 22 | scutemob-77 | SR-22: Script schema strictness (unknown keys, discovery asymmetry, dead init fields, PROPTEST_CASES) | M | **DONE 2026-07-14** (merge `b0c8e815`). Live evidence: `stack/135` carries a silently-ignored stray top-level `review_status`. |
+| 23 | scutemob-78 | SR-23: `lki_object` / `lki_object_snapshot` API collision + misdirecting assert text | S | **DONE 2026-07-16** (merge `a8d09955`). SR-4×SR-13 interaction; assert text sends authors to the live getter at LKI sites. |
+| 24 | scutemob-79 | SR-24: Bound `capture_lki_snapshot` cost | S–M | **DONE 2026-07-16** (merge `a8d09955`). Full layer eval per battlefield departure, unmeasured; measure before gating. Same axis as MR-M1-18/MR-M6-14. |
+| 25 | scutemob-80 | SR-25: Diagnostics ratchet + sweep `layers.rs` (45 bare lookups) / `commander.rs` (6) | M | **DONE 2026-07-16** (merge `acc528b9`). SR-4/14 discipline has no anti-regression scan; two files were never swept. |
+| 26 | scutemob-81 | SR-26: `authoring-report.py` anti-rot + stale `project-status.md` Card Health | S–M | **DONE 2026-07-16** (merge `4ccbae08`). `Completeness::Partial(…)` direct spelling buckets as "clean"; zero tests on the tool that owns the campaign headline number. |
+| 27 | scutemob-82 | SR-27: Protocol version-bump enforcement + guard token-anchoring | S | **DONE 2026-07-16** (merge `4ccbae08`). Re-pin-without-bump passes today; `contains("Serialize")` matched by "Deserialize". |
+| 28 | scutemob-83 | SR-28: Tap-and-sacrifice mana sources read a dead object (CR 106.12a/b) | M | **DONE 2026-07-14** (merge `b77d4210`). **Rules bug**, two sites (trigger filter + production replacement); the SR-14 left-open seed, now precise. Fix shape = SR-13 snapshot. |
+| 29 | scutemob-84 | SR-29: CR 616.1 batch — wrong chooser (owner≠controller), no 616.1f fixed point, `OrderReplacements` applies unvalidated ids | M–L | **DONE 2026-07-14** (merge `b622ced4`). **Rules + M10 trust boundary.** Chooser fix and applicability check are shippable now; the rest lands with interactive choice. |
+| 30 | scutemob-85 | SR-30: Layers hygiene — re-attach doesn't re-timestamp effects (CR 613.7a); vacuous 613.8b test over dead code | S–M | **DONE 2026-07-16** (merge `64446b1e`). Plus one decisions.md line for the 613.8 static-approximation scope. |
+| 31 | scutemob-86 | SR-31: Equivalence coverage ratchet (6 of 60+ command shapes) | S–M | **DONE 2026-07-16** (merge `64446b1e`). Known-open from SR-9b, now tracked. |
+| 32 | scutemob-87 | SR-32: Hygiene batch — assert-blind release fuzzing, doc drift (PROTOCOL_VERSION 1→2 etc.), stack-edge flake, floating action refs | S | **DONE 2026-07-16** (merge `170af730`). Bundle of confirmed LOWs; each named with file:line in the task. |
 
 Re-audit sequencing: SR-17 and SR-18 first (HIGH; SR-18 is an hour). SR-28 and the
 shippable half of SR-29 are the only *rules-correctness* bugs — do them before the
@@ -753,6 +753,23 @@ Task-specific extras:
 
 _One entry per session, newest first. Format:_
 `- YYYY-MM-DD — SR-<N> (scutemob-<id>) — <status: done / in progress / blocked> — <one-line outcome + hazards + pointer for next session>`
+
+- 2026-07-16 — SR-25 (scutemob-80) — **done** (collected, merge `acc528b9`) — **Closes the re-audit
+  batch: SR-17..SR-32 are 16/16 DONE.** The never-swept files are classified with the SR-4 method:
+  `layers.rs` 45 → 36 bare lookups (9 impossible re-reads/loops → `expect_*`; the ~35 dependency-
+  filter predicates stay as documented non-swallows per SR-14 precedent — a filter asking "does
+  this object exist" is the question, not a swallow), `commander.rs` 6 → 1, plus miracle/foretell/
+  plot/suspend and `state/mod.rs` primitives. The discipline now has its anti-regression machine:
+  `tests/core/bare_lookup_ratchet.rs` pins exact per-file ceilings for **all 21 swept files**
+  (SR-4's 2 + SR-14's 10 + SR-25's 9), comment-stripped and whitespace-insensitive so line-splitting
+  cannot evade it; exceeding a ceiling fails with a message pointing at the diagnostics vocabulary;
+  lowering is a one-line ratchet update. Audit record appended to
+  `docs/sr-14-silent-failure-audit-rules.md` (conversion table, load-bearing judgments, adversarial
+  demo). **Track state: SR-1..16 (2026-07-10) + SR-17..32 (2026-07-14..16) all DONE.** Final tree:
+  `cargo test --all` **3274 passed / 0 failed** (29 suites), clippy `-D warnings` / fmt / `build
+  --workspace` all clean, CI green. The inventory tables above carry per-task merge hashes. **Next:**
+  nothing open in this track. New findings go in as SR-33+ via a future audit; the 2026-07-11
+  session-log entry records what was verified clean so the next reviewer does not re-falsify it.
 
 - 2026-07-16 — SR-23 + SR-24 (scutemob-78/79, paired in one worktree) — **done** (collected, merge
   `a8d09955`) — **SR-23**: the fizzle-documenting diagnostics family is renamed **off the `lki_`
