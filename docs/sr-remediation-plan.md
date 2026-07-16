@@ -754,6 +754,22 @@ Task-specific extras:
 _One entry per session, newest first. Format:_
 `- YYYY-MM-DD — SR-<N> (scutemob-<id>) — <status: done / in progress / blocked> — <one-line outcome + hazards + pointer for next session>`
 
+- 2026-07-16 — SR-30 + SR-31 (scutemob-85/86, paired in one worktree) — **done** (collected, merge
+  `64446b1e`) — **SR-30**: `GameState::retimestamp_attached_source` re-timestamps an attached
+  source's static continuous effects on every (re)attach, wired into all 3 attach sites in
+  `effects/mod.rs` (CR 613.7a/613.7e); pinned by a layer-order-flip test (re-equipped A now beats
+  newer B, reverting the fix reddens it). The vacuous "613.8b" test renamed to what it actually
+  tests (same-layer timestamp order, made order-sensitive); the unreachable cycle branch is
+  `debug_assert`'d unreachable with a guard test; `decisions.md` records the CR 613.8 static
+  Layer-4-only approximation (no 613.8c re-evaluation, CDA↔CDA timestamp-only). **SR-31**:
+  `cross_validated_shape_coverage_is_ratcheted` enforces covered == recorded in **both**
+  directions (⊇ kills fiction, ⊆ is the ratchet), denominator-guarded against the 79
+  `translate_player_action` arms and negative-tested; 5 new alt-cost equivalence scenarios chosen
+  by actual corpus/card-base usage — convoke (Siege Wurm), delve (Treasure Cruise), kicker (Burst
+  Lightning), escape (Woe Strider), modal (Archmage's Charm) — each script-vs-direct
+  fingerprint-checked per step. Layers (35) and equivalence (19) suites green on main post-merge.
+  **Next:** SR-23/24 (scutemob-78/79) in flight; then wave 2 = SR-25, the final task.
+
 - 2026-07-16 — SR-26 + SR-27 (scutemob-81/82, paired in one worktree) — **done** (collected, merge
   `4ccbae08`) — **SR-26**: `tools/authoring-report.py` hard-fails on any unrecognized
   `Completeness::` spelling (the `Partial(...)`-buckets-as-clean hole is closed), gained denominator
