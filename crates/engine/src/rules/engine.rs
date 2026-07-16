@@ -2231,7 +2231,7 @@ pub fn handle_ring_tempts_you(
                 // CR 400.7: the stored ring_bearer_id may name a creature that has since
                 // left the battlefield (cleared by SBA on zone change, per below); a stale
                 // id is a legal fizzle, so nothing to clear.
-                if let Some(prev_obj) = state.lki_object_mut(prev_id) {
+                if let Some(prev_obj) = state.fizzle_object_mut(prev_id) {
                     prev_obj.designations.remove(Designations::RING_BEARER);
                 }
             }
@@ -2517,7 +2517,7 @@ fn handle_activate_loyalty_ability(
             crate::state::targeting::Target::Object(id) => {
                 // CR 608.2b: a declared target may have left its zone; a stale id captures
                 // no zone (zone_at_cast = None), which the SpellTarget explicitly permits.
-                let zone = state.lki_object(*id).map(|o| o.zone);
+                let zone = state.fizzle_object(*id).map(|o| o.zone);
                 crate::state::targeting::SpellTarget {
                     target: crate::state::targeting::Target::Object(*id),
                     zone_at_cast: zone,

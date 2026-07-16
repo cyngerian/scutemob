@@ -2637,7 +2637,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // allowing the controller to order it relative to other ETB triggers
                 // (e.g., Mulldrifter can resolve draw before sacrifice).
                 // CR 113.7a: the entering object may have left this event batch; use LKI.
-                if let Some(obj) = state.lki_object(*object_id) {
+                if let Some(obj) = state.fizzle_object(*object_id) {
                     if obj.cast_alt_cost == Some(crate::state::types::AltCostKind::Evoke) {
                         let evoke_trigger = PendingTrigger {
                             triggering_event: Some(TriggerEvent::SelfEntersBattlefield),
@@ -2655,7 +2655,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // "When this creature enters, you may sacrifice a creature."
                 // Each instance of Exploit in the card definition triggers separately.
                 // CR 113.7a: the entering object may have left this event batch; use LKI.
-                if let Some(obj) = state.lki_object(*object_id) {
+                if let Some(obj) = state.fizzle_object(*object_id) {
                     if obj
                         .characteristics
                         .keywords
@@ -2704,7 +2704,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // Multiple instances trigger separately (CR 603.2: each keyword instance
                 // is a separate triggered ability).
                 // CR 113.7a: the entering object may have left this event batch; use LKI.
-                if let Some(obj) = state.lki_object(*object_id) {
+                if let Some(obj) = state.fizzle_object(*object_id) {
                     let controller = obj.controller;
                     let hideaway_keywords: Vec<u32> = obj
                         .characteristics
@@ -2742,7 +2742,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // library in a Commander game).
                 {
                     // CR 113.7a: the entering object may have left this event batch; use LKI.
-                    if let Some(obj) = state.lki_object(*object_id) {
+                    if let Some(obj) = state.fizzle_object(*object_id) {
                         let controller = obj.controller;
                         let partner_with_names: Vec<String> = obj
                             .characteristics
@@ -2783,7 +2783,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // CR 702.165a: Only abilities printed BELOW the Backup entry in the definition.
                 {
                     // CR 113.7a: the entering object may have left this event batch; use LKI.
-                    if let Some(obj) = state.lki_object(*object_id) {
+                    if let Some(obj) = state.fizzle_object(*object_id) {
                         let controller = obj.controller;
                         let card_id = obj.card_id.clone();
                         if let Some(cid) = card_id {
@@ -2833,7 +2833,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // another [object] you control."
                 {
                     // CR 113.7a: the entering object may have left this event batch; use LKI.
-                    if let Some(obj) = state.lki_object(*object_id) {
+                    if let Some(obj) = state.fizzle_object(*object_id) {
                         if obj
                             .characteristics
                             .keywords
@@ -2881,7 +2881,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // checked at trigger time AND at resolution.
                 {
                     // CR 113.7a: the entering object may have left this event batch; use LKI.
-                    let entering_controller = state.lki_object(*object_id).map(|o| o.controller);
+                    let entering_controller = state.fizzle_object(*object_id).map(|o| o.controller);
                     let entering_is_creature =
                         crate::rules::layers::calculate_characteristics(state, *object_id)
                             .or_else(|| {
@@ -3025,7 +3025,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     if entering_is_creature {
                         let entering_controller =
                             // CR 113.7a: the entering object may have left this event batch; use LKI.
-                            state.lki_object(*object_id).map(|o| o.controller);
+                            state.fizzle_object(*object_id).map(|o| o.controller);
                         if let Some(controller) = entering_controller {
                             // Get the entering creature's P/T (layer-aware).
                             let entering_chars =
@@ -3402,7 +3402,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // The trigger source is the stack object (source_object_id).
                 // Look up the spell's CardDef for WhenYouCastThisSpell triggered abilities.
                 // CR 113.7a: the cast spell may have left the stack this batch; use LKI.
-                if let Some(stack_obj) = state.lki_object(*source_object_id) {
+                if let Some(stack_obj) = state.fizzle_object(*source_object_id) {
                     let caster = stack_obj.controller;
                     if let Some(card_id) = stack_obj.card_id.clone() {
                         if let Some(def) = state.card_registry.get(card_id) {
@@ -3537,7 +3537,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     // KeywordTrigger (Myriad) stack object (not a plain TriggeredAbility).
                     for t in &mut triggers[pre_len..] {
                         // CR 113.7a: the trigger source may have left this batch; use LKI.
-                        if let Some(obj) = state.lki_object(t.source) {
+                        if let Some(obj) = state.fizzle_object(t.source) {
                             if let Some(ta) =
                                 obj.characteristics.triggered_abilities.get(t.ability_index)
                             {
@@ -3560,7 +3560,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     let mut provoke_targets_used: Vec<ObjectId> = Vec::new();
                     for t in &mut triggers[pre_len..] {
                         // CR 113.7a: the trigger source may have left this batch; use LKI.
-                        if let Some(obj) = state.lki_object(t.source) {
+                        if let Some(obj) = state.fizzle_object(t.source) {
                             if let Some(ta) =
                                 obj.characteristics.triggered_abilities.get(t.ability_index)
                             {
@@ -3604,7 +3604,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     // opponent attacked -- no parameter to carry.
                     for t in &mut triggers[pre_len..] {
                         // CR 113.7a: the trigger source may have left this batch; use LKI.
-                        if let Some(obj) = state.lki_object(t.source) {
+                        if let Some(obj) = state.fizzle_object(t.source) {
                             if let Some(ta) =
                                 obj.characteristics.triggered_abilities.get(t.ability_index)
                             {
@@ -3637,7 +3637,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         let mut enlist_trigger_indices: Vec<usize> = Vec::new();
                         for (i, t) in triggers[pre_len..].iter().enumerate() {
                             // CR 113.7a: the trigger source may have left this batch; use LKI.
-                            if let Some(obj) = state.lki_object(t.source) {
+                            if let Some(obj) = state.fizzle_object(t.source) {
                                 if let Some(ta) =
                                     obj.characteristics.triggered_abilities.get(t.ability_index)
                                 {
@@ -3684,7 +3684,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             .unwrap_or(false);
                         if was_exerted {
                             // CR 113.7a: the attacking source may have left this batch; use LKI.
-                            if let Some(src_obj) = state.lki_object(*attacker_id) {
+                            if let Some(src_obj) = state.fizzle_object(*attacker_id) {
                                 if src_obj.zone == ZoneId::Battlefield && src_obj.is_phased_in() {
                                     let controller = src_obj.controller;
                                     let source_id = src_obj.id;
@@ -4006,7 +4006,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     // with description starting "Rampage N (CR 702.23a):". We detect these
                     // and set the custom StackObjectKind by tagging the PendingTrigger.
                     // CR 113.7a: the blocked attacker may have left this batch; use LKI.
-                    if let Some(obj) = state.lki_object(attacker_id) {
+                    if let Some(obj) = state.fizzle_object(attacker_id) {
                         for t in &mut triggers[pre_len..] {
                             if let Some(ability_def) =
                                 obj.characteristics.triggered_abilities.get(t.ability_index)
@@ -4061,7 +4061,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // of a spell or ability an opponent controls. Only triggers if the
                 // targeting player is an opponent (not the permanent's controller).
                 // CR 113.7a: the targeted permanent may have left this batch; use LKI.
-                if let Some(obj) = state.lki_object(*target_id) {
+                if let Some(obj) = state.fizzle_object(*target_id) {
                     if obj.zone == ZoneId::Battlefield
                         && obj.is_phased_in()
                         && obj.controller != *targeting_controller
@@ -4111,7 +4111,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // object for SelfDies triggers rather than trying to find the battlefield object
                 // (which no longer exists at trigger-check time).
                 // CR 603.10a: the dies trigger reads the graveyard object (LKI); it may already be gone.
-                if let Some(obj) = state.lki_object(*new_grave_id) {
+                if let Some(obj) = state.fizzle_object(*new_grave_id) {
                     for (idx, trigger_def) in
                         obj.characteristics.triggered_abilities.iter().enumerate()
                     {
@@ -4172,7 +4172,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // CR 603.10a: SelfLeavesBattlefield — fires on the dead creature (LKI).
                 // Check graveyard object for WhenLeavesBattlefield triggers.
                 // CR 603.10a: leaves-battlefield trigger reads the graveyard object (LKI); it may already be gone.
-                if let Some(dead_obj) = state.lki_object(*new_grave_id) {
+                if let Some(dead_obj) = state.fizzle_object(*new_grave_id) {
                     let controller = *death_controller;
                     for (idx, trigger_def) in dead_obj
                         .characteristics
@@ -4214,7 +4214,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 //
                 // Identify the owner's graveyard by looking at the new_grave_id object.
                 // CR 603.10a: Recover reads the graveyard object (LKI); it may already be gone.
-                if let Some(dead_obj) = state.lki_object(*new_grave_id) {
+                if let Some(dead_obj) = state.fizzle_object(*new_grave_id) {
                     let owner_gy = crate::state::zone::ZoneId::Graveyard(dead_obj.owner);
                     // Collect Recover cards in the owner's graveyard.
                     // Use a snapshot to avoid borrow conflicts during iteration.
@@ -4261,7 +4261,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // CR 603.10a: LTB triggers look back in time -- champion_exiled_card is
                 // preserved in move_object_to_zone so we can read it from the graveyard object.
                 // CR 603.10a: LKI read; the graveyard object may already be gone.
-                if let Some(dead_obj) = state.lki_object(*new_grave_id) {
+                if let Some(dead_obj) = state.fizzle_object(*new_grave_id) {
                     if let Some(exiled_id) = dead_obj.champion_exiled_card {
                         let champion_controller = *death_controller;
                         triggers.push(PendingTrigger {
@@ -4281,7 +4281,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // haunting another target creature.
                 // Look back in time via new_grave_id to check if the dead creature had Haunt.
                 // CR 603.10a: Haunt reads the graveyard object (LKI); it may already be gone.
-                if let Some(dead_obj) = state.lki_object(*new_grave_id) {
+                if let Some(dead_obj) = state.fizzle_object(*new_grave_id) {
                     if dead_obj
                         .characteristics
                         .keywords
@@ -4466,7 +4466,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // the graveyard object by move_object_to_zone — same look-back pattern as
                 // CreatureDied. Controller defaults to owner (as reset by move_object_to_zone).
                 // CR 603.10a: Aura LTB reads the graveyard object (LKI); it may already be gone.
-                if let Some(obj) = state.lki_object(*new_grave_id) {
+                if let Some(obj) = state.fizzle_object(*new_grave_id) {
                     let controller = obj.controller;
                     for (idx, trigger_def) in
                         obj.characteristics.triggered_abilities.iter().enumerate()
@@ -4567,7 +4567,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // 701.50b, we bypass the helper and generate the trigger inline,
                 // accepting the object in ANY zone.
                 // CR 701.50b / CR 113.7a: the connive source may have left any zone; use LKI.
-                if let Some(obj) = state.lki_object(*object_id) {
+                if let Some(obj) = state.fizzle_object(*object_id) {
                     for (idx, trigger_def) in
                         obj.characteristics.triggered_abilities.iter().enumerate()
                     {
@@ -4629,7 +4629,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         // the card registry fallback (resolution.rs line ~1862).
                         if let CombatDamageTarget::Player(damaged_pid) = &assignment.target {
                             // CR 113.7a: the damage source may have left the battlefield; use LKI.
-                            if let Some(src_obj) = state.lki_object(assignment.source) {
+                            if let Some(src_obj) = state.fizzle_object(assignment.source) {
                                 if src_obj.zone == ZoneId::Battlefield && src_obj.is_phased_in() {
                                     let controller = src_obj.controller;
                                     let source_id = src_obj.id;
@@ -4676,7 +4676,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         // their library."
                         // CR 702.115b: Multiple instances trigger separately.
                         // CR 113.7a: the damage source may have left the battlefield; use LKI.
-                        if let Some(obj) = state.lki_object(assignment.source) {
+                        if let Some(obj) = state.fizzle_object(assignment.source) {
                             if obj.zone == ZoneId::Battlefield
                                 && obj.is_phased_in()
                                 && obj
@@ -4738,7 +4738,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         // CR 603.4: Intervening-if -- checked here at trigger time
                         // (is_renowned must be false) and again at resolution time.
                         // CR 113.7a: the damage source may have left the battlefield; use LKI.
-                        if let Some(obj) = state.lki_object(assignment.source) {
+                        if let Some(obj) = state.fizzle_object(assignment.source) {
                             if obj.zone == ZoneId::Battlefield
                                 && obj.is_phased_in()
                                 && !obj
@@ -4795,7 +4795,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         // damage to a player, that player gets N poison counters."
                         // CR 702.70b: Multiple instances trigger separately.
                         // CR 113.7a: the damage source may have left the battlefield; use LKI.
-                        if let Some(obj) = state.lki_object(assignment.source) {
+                        if let Some(obj) = state.fizzle_object(assignment.source) {
                             if obj.zone == ZoneId::Battlefield && obj.is_phased_in() {
                                 // Already guaranteed by the outer `if matches!(..., Player(_))`
                                 // guard -- use `let...else` for safety.
@@ -4859,7 +4859,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         // the stack but does nothing at resolution (checked in resolution.rs).
                         if assignment.amount > 0 {
                             // CR 113.7a: the damage source may have left the battlefield; use LKI.
-                            if let Some(obj) = state.lki_object(assignment.source) {
+                            if let Some(obj) = state.fizzle_object(assignment.source) {
                                 if obj.zone == ZoneId::Battlefield && obj.is_phased_in() {
                                     let CombatDamageTarget::Player(_damaged_player) =
                                         &assignment.target
@@ -4973,7 +4973,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             continue;
                         };
                         // CR 113.7a: the damage source may have left the battlefield; use LKI.
-                        if let Some(obj) = state.lki_object(assignment.source) {
+                        if let Some(obj) = state.fizzle_object(assignment.source) {
                             if obj.zone == ZoneId::Battlefield && obj.is_phased_in() {
                                 *damaged_by_ctrl
                                     .entry((obj.controller, *damaged_pid))
@@ -5241,7 +5241,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 ..
             } => {
                 // CR 603.10a: LKI read of the graveyard object; it may already be gone.
-                if let Some(dead_obj) = state.lki_object(*new_grave_id) {
+                if let Some(dead_obj) = state.fizzle_object(*new_grave_id) {
                     if let Some(exiled_id) = dead_obj.champion_exiled_card {
                         let champion_controller = dead_obj.controller;
                         triggers.push(PendingTrigger {
@@ -5258,7 +5258,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 }
                 // CR 603.10a: SelfLeavesBattlefield LTB trigger (look-back via graveyard object).
                 // CR 603.10a: LKI read of the graveyard object; it may already be gone.
-                if let Some(dead_obj) = state.lki_object(*new_grave_id) {
+                if let Some(dead_obj) = state.fizzle_object(*new_grave_id) {
                     let controller = dead_obj.controller;
                     for (idx, trigger_def) in dead_obj
                         .characteristics
@@ -5299,7 +5299,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 ..
             } => {
                 // CR 603.10a: LKI read of the exiled object; it may already be gone.
-                if let Some(exiled_obj) = state.lki_object(*new_exile_id) {
+                if let Some(exiled_obj) = state.fizzle_object(*new_exile_id) {
                     if let Some(exiled_card_id) = exiled_obj.champion_exiled_card {
                         let champion_controller = exiled_obj.controller;
                         triggers.push(PendingTrigger {
@@ -5316,7 +5316,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 }
                 // CR 603.10a: SelfLeavesBattlefield LTB trigger on exile (look-back via exile object).
                 // CR 603.10a: LKI read of the exiled object; it may already be gone.
-                if let Some(exiled_obj) = state.lki_object(*new_exile_id) {
+                if let Some(exiled_obj) = state.fizzle_object(*new_exile_id) {
                     let controller = exiled_obj.controller;
                     for (idx, trigger_def) in exiled_obj
                         .characteristics
@@ -5357,7 +5357,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 ..
             } => {
                 // CR 603.10a: LKI read of the hand object; it may already be gone.
-                if let Some(hand_obj) = state.lki_object(*new_hand_id) {
+                if let Some(hand_obj) = state.fizzle_object(*new_hand_id) {
                     if let Some(exiled_id) = hand_obj.champion_exiled_card {
                         let champion_controller = hand_obj.controller;
                         triggers.push(PendingTrigger {
@@ -5374,7 +5374,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 }
                 // CR 603.10a: SelfLeavesBattlefield LTB trigger on bounce (look-back via hand object).
                 // CR 603.10a: LKI read of the hand object; it may already be gone.
-                if let Some(hand_obj) = state.lki_object(*new_hand_id) {
+                if let Some(hand_obj) = state.fizzle_object(*new_hand_id) {
                     let controller = hand_obj.controller;
                     for (idx, trigger_def) in hand_obj
                         .characteristics
@@ -5798,7 +5798,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // SelfLeavesBattlefield: fire on the sacrificed object (LKI in graveyard/exile).
                 // CR 603.10a: look-back trigger — check graveyard/exile object.
                 // CR 603.10a: LKI read of the sacrificed object in its new zone; it may already be gone.
-                if let Some(gone_obj) = state.lki_object(*new_id) {
+                if let Some(gone_obj) = state.fizzle_object(*new_id) {
                     let controller = gone_obj.controller;
                     for (idx, trigger_def) in gone_obj
                         .characteristics
@@ -7816,7 +7816,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
         // override above).
         if once_per_turn_flag {
             // CR 113.7a: the trigger source may have left before its trigger flushed; use LKI.
-            if let Some(obj) = state.lki_object_mut(trigger.source) {
+            if let Some(obj) = state.fizzle_object_mut(trigger.source) {
                 obj.triggered_abilities_fired_this_turn
                     .insert(trigger.ability_index);
             }

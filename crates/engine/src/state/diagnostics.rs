@@ -36,7 +36,7 @@
 //! | Absence means | Use | Behavior |
 //! |---|---|---|
 //! | engine bug | [`GameState::expect_object`] / [`expect_object_mut`](GameState::expect_object_mut) / [`expect_player`](GameState::expect_player) / [`expect_player_mut`](GameState::expect_player_mut) / [`expect_zone`](GameState::expect_zone) | `debug_assert!` fires; releases return `None` |
-//! | legal game state | [`GameState::lki_object`] / [`lki_object_mut`](GameState::lki_object_mut) | returns `None`, no assert |
+//! | legal fizzle — do nothing (CR 608.2b) | [`GameState::fizzle_object`] / [`fizzle_object_mut`](GameState::fizzle_object_mut) | returns `None`, no assert |
 //!
 //! Both families return `Option`, so converting an existing site is a one-token
 //! change and the classification becomes a fact about the code rather than a fact
@@ -44,6 +44,29 @@
 //! a violated `expect_*` panics at the *call site* (`#[track_caller]`), which is
 //! where the diagnosis is cheap, rather than surfacing many turns later as a
 //! replay divergence.
+//!
+//! ## `fizzle_object` is a *live* lookup, not the LKI store
+//!
+//! The `fizzle_*` family is a plain `self.objects.get(&id)`. Its `None` branch is
+//! *documentation*: it marks the absence as a rules-correct fizzle rather than a
+//! swallowed bug. It does **not** return last-known information — a retired
+//! `ObjectId` is simply gone from `self.objects`, so `fizzle_object` gives you
+//! `None`.
+//!
+//! When a site needs the departed object's *last-known characteristics* — a damage
+//! source's keywords once it has left the battlefield (CR 608.2h / 113.7a; wither /
+//! infect / deathtouch / lifelink still "function no matter what zone an object …
+//! deals damage from", CR 702.80c / 702.90e) — that is a **different** mechanism:
+//! [`GameState::lki_object_snapshot`], the layer-resolved snapshot captured on
+//! battlefield departure (see `GameState::lki_objects`). `fizzle_object` has none of
+//! that; do not reach for it at an LKI-semantics site.
+//!
+//! (Historical note: `fizzle_object` was named `lki_object` until SR-23. That name
+//! collided with `lki_object_snapshot` and read as "the LKI store", so an author at a
+//! CR 608.2h site could be steered to a live getter that returns `None` while a valid
+//! snapshot sat unused. The rename makes the `lki_` prefix mean exactly one thing —
+//! the snapshot store — and `fizzle_` mean "this id may be dead; doing nothing is the
+//! correct rules outcome".)
 //!
 //! # Why `PlayerId` lookups are always `expect_*`
 //!
@@ -135,28 +158,41 @@ impl GameState {
     /// between the two reads (CR 400.7), which the caller's control flow claims
     /// cannot happen. Fires a `debug_assert!`.
     ///
-    /// If the id *can* legitimately be stale, use [`lki_object`](GameState::lki_object).
+    /// If the id *can* legitimately be stale, use [`fizzle_object`](GameState::fizzle_object)
+    /// (a quiet `None` — the CR 608.2b fizzle). If the site instead needs the departed
+    /// object's last-known characteristics (CR 608.2h / 113.7a), read
+    /// [`lki_object_snapshot`](GameState::lki_object_snapshot); `fizzle_object` is a live
+    /// lookup and has none.
     #[track_caller]
     pub(crate) fn expect_object(&self, id: ObjectId) -> Option<&GameObject> {
         let found = self.objects.get(&id);
         debug_assert!(
             found.is_some(),
             "engine invariant: ObjectId {id:?} absent from GameState::objects at a site that \
-             requires it to be live. If this id can be last-known-information (CR 400.7), \
-             use GameState::lki_object instead."
+             requires it to be live. If a CR 400.7 zone change can legally have retired this id, \
+             use GameState::fizzle_object (a quiet None — the CR 608.2b fizzle); if the site needs \
+             the departed object's last-known characteristics (CR 608.2h / 113.7a), read \
+             GameState::lki_object_snapshot instead — fizzle_object is a live lookup and has none."
         );
         found
     }
 
     /// Mutable [`expect_object`](GameState::expect_object).
+    ///
+    /// If the id can legally be stale, use [`fizzle_object_mut`](GameState::fizzle_object_mut).
+    /// The last-known-information store ([`lki_object_snapshot`](GameState::lki_object_snapshot))
+    /// is read-only — a departed object is never mutated — so an LKI-semantics site needs a read,
+    /// not this mutable getter.
     #[track_caller]
     pub(crate) fn expect_object_mut(&mut self, id: ObjectId) -> Option<&mut GameObject> {
         let found = self.objects.get_mut(&id);
         debug_assert!(
             found.is_some(),
             "engine invariant: ObjectId {id:?} absent from GameState::objects at a site that \
-             requires it to be live. If this id can be last-known-information (CR 400.7), \
-             use GameState::lki_object_mut instead."
+             requires it to be live. If a CR 400.7 zone change can legally have retired this id, \
+             use GameState::fizzle_object_mut (a quiet None — the CR 608.2b fizzle). The \
+             last-known-information store (GameState::lki_object_snapshot) is read-only, so an \
+             LKI-semantics site is a read, not a mutable lookup."
         );
         found
     }
@@ -202,7 +238,7 @@ impl GameState {
     //
     // A stale (last-known-information) id is *fully removed* from `state.objects`,
     // so it surfaces as `ObjectNotFound` and never as `ObjectNotInZone`. That is
-    // why `lki_move_object_to_zone` can silence `ObjectNotFound` alone and assert
+    // why `fizzle_move_object_to_zone` can silence `ObjectNotFound` alone and assert
     // on the rest without risking a panic on a legitimate fizzle.
     //
     // `add_object` fails only with `ZoneNotFound`, so a discarded `Err` from it is
@@ -228,7 +264,7 @@ impl GameState {
                     false,
                     "engine invariant: move of {object_id:?} to {to:?} failed ({e}) at a site \
                      that requires the object to be live and the zone to exist. If the id may be \
-                     last-known-information (CR 400.7), use lki_move_object_to_zone."
+                     last-known-information (CR 400.7), use fizzle_move_object_to_zone."
                 );
                 None
             }
@@ -242,7 +278,7 @@ impl GameState {
     /// destination zone, or an object whose zone disagrees with that zone's contents
     /// — are corrupted state, never a legal fizzle, and still assert.
     #[track_caller]
-    pub(crate) fn lki_move_object_to_zone(
+    pub(crate) fn fizzle_move_object_to_zone(
         &mut self,
         object_id: ObjectId,
         to: ZoneId,
@@ -314,7 +350,8 @@ impl GameState {
     // Expected-fizzle lookups. A `None` here is legal game state.
     // ---------------------------------------------------------------------
 
-    /// Look up an object by an id that may be *last known information*.
+    /// Look up an object whose id may name something that has since left its zone,
+    /// where the correct rules outcome is to *do nothing*.
     ///
     /// Returns `None` — silently, and correctly — when the object has changed
     /// zones since the id was captured. Per CR 400.7 it became a new object with
@@ -324,16 +361,21 @@ impl GameState {
     /// won't happen." CR 113.7a extends the same treatment to an ability whose
     /// source has left its zone.
     ///
-    /// This is a plain lookup — it exists to *document* that the `None` branch is
-    /// a rules-correct fizzle rather than a swallowed bug, and to keep the
-    /// asserting [`expect_object`](GameState::expect_object) honest by giving
-    /// legitimate stale reads somewhere else to go.
-    pub(crate) fn lki_object(&self, id: ObjectId) -> Option<&GameObject> {
+    /// This is a **live** `self.objects` lookup — it exists to *document* that the
+    /// `None` branch is a rules-correct fizzle rather than a swallowed bug, and to
+    /// keep the asserting [`expect_object`](GameState::expect_object) honest by
+    /// giving legitimate stale reads somewhere else to go. It returns **no**
+    /// last-known information: a retired id is gone from `self.objects`, so you get
+    /// `None`. A site that needs the departed object's last-known characteristics
+    /// (CR 608.2h, e.g. a dead damage source's keywords) wants
+    /// [`lki_object_snapshot`](GameState::lki_object_snapshot), a different store —
+    /// not this getter. (Named `lki_object` before SR-23; see the [module docs](self).)
+    pub(crate) fn fizzle_object(&self, id: ObjectId) -> Option<&GameObject> {
         self.objects.get(&id)
     }
 
-    /// Mutable [`lki_object`](GameState::lki_object).
-    pub(crate) fn lki_object_mut(&mut self, id: ObjectId) -> Option<&mut GameObject> {
+    /// Mutable [`fizzle_object`](GameState::fizzle_object).
+    pub(crate) fn fizzle_object_mut(&mut self, id: ObjectId) -> Option<&mut GameObject> {
         self.objects.get_mut(&id)
     }
 }
@@ -391,11 +433,11 @@ mod tests {
         let _ = state.expect_object(ObjectId(9_999));
     }
 
-    /// CR 400.7: a stale id is a legal thing to hold. `lki_object` must not assert.
+    /// CR 400.7: a stale id is a legal thing to hold. `fizzle_object` must not assert.
     #[test]
     fn lki_object_returns_none_without_panicking() {
         let state = two_player_state();
-        assert!(state.lki_object(ObjectId(9_999)).is_none());
+        assert!(state.fizzle_object(ObjectId(9_999)).is_none());
     }
 
     /// The whole premise of the split, exercised end to end.
@@ -418,10 +460,10 @@ mod tests {
             "CR 400.7: the graveyard card is a new object"
         );
         assert!(
-            state.lki_object(old_id).is_none(),
+            state.fizzle_object(old_id).is_none(),
             "CR 400.7: the old id must name nothing"
         );
-        assert!(state.lki_object(new_id).is_some());
+        assert!(state.fizzle_object(new_id).is_some());
     }
 
     /// A move through a dead id is the CR 400.7 / 608.2b fizzle: silent `None`.
@@ -433,7 +475,7 @@ mod tests {
             .expect("legal move");
 
         assert!(state
-            .lki_move_object_to_zone(old_id, ZoneId::Exile)
+            .fizzle_move_object_to_zone(old_id, ZoneId::Exile)
             .is_none());
     }
 
@@ -449,23 +491,23 @@ mod tests {
         let _ = state.expect_move_object_to_zone(old_id, ZoneId::Exile);
     }
 
-    /// `lki_move_object_to_zone` tolerates a dead object but *not* a missing zone —
+    /// `fizzle_move_object_to_zone` tolerates a dead object but *not* a missing zone —
     /// that part of the error space is never a legal fizzle.
     #[test]
     #[should_panic(expected = "zones are never removed")]
     fn lki_move_still_asserts_on_a_fabricated_destination_zone() {
         let (mut state, id) = state_with_a_creature();
-        let _ = state.lki_move_object_to_zone(id, ZoneId::Graveyard(PlayerId(99)));
+        let _ = state.fizzle_move_object_to_zone(id, ZoneId::Graveyard(PlayerId(99)));
     }
 
-    /// The assumption that makes `lki_move_object_to_zone` safe.
+    /// The assumption that makes `fizzle_move_object_to_zone` safe.
     ///
     /// It silences `ObjectNotFound` and asserts on `ZoneNotFound` and
     /// `ObjectNotInZone`. That is only sound if a last-known-information id can never
     /// produce `ObjectNotInZone` — i.e. a zone change removes the old id from
     /// `state.objects` *entirely*, rather than leaving a stale entry whose `zone`
     /// field disagrees with that zone's contents. If `move_object_to_zone` ever
-    /// stopped doing that, `lki_move_object_to_zone` would start panicking on a
+    /// stopped doing that, `fizzle_move_object_to_zone` would start panicking on a
     /// legitimate CR 400.7 fizzle. This test is the tripwire.
     #[test]
     fn a_stale_id_yields_object_not_found_not_object_not_in_zone() {
@@ -478,7 +520,7 @@ mod tests {
             Err(GameStateError::ObjectNotFound(id)) => assert_eq!(id, old_id),
             other => panic!(
                 "a stale id must surface as ObjectNotFound (CR 400.7), not {other:?} — \
-                 lki_move_object_to_zone's assert would fire on a legal fizzle"
+                 fizzle_move_object_to_zone's assert would fire on a legal fizzle"
             ),
         }
     }
@@ -520,5 +562,64 @@ mod tests {
     fn expect_zone_panics_in_debug_on_a_fabricated_zone() {
         let state = two_player_state();
         let _ = state.expect_zone(&ZoneId::Graveyard(PlayerId(99)));
+    }
+
+    /// SR-13: a *successful* battlefield departure still captures an LKI snapshot,
+    /// unconditionally (the capture is deliberately not gated on a non-empty stack).
+    /// Guards the SR-23 reorder against accidentally skipping capture on the happy path.
+    #[test]
+    fn successful_battlefield_departure_still_captures_lki() {
+        let (mut state, id) = state_with_a_creature();
+        assert!(state.lki_objects.is_empty(), "no snapshots before the move");
+        let (new_id, _) = state
+            .move_object_to_zone(id, ZoneId::Graveyard(PlayerId(0)))
+            .expect("battlefield -> graveyard is legal");
+        assert!(
+            state.lki_object_snapshot(id).is_some(),
+            "SR-13: the retired battlefield id has an LKI snapshot"
+        );
+        assert!(
+            state.lki_object_snapshot(new_id).is_none(),
+            "the fresh graveyard id is live, not a snapshot"
+        );
+    }
+
+    /// SR-23: a move that *errors* must not leave a ghost LKI snapshot for an object
+    /// that is still live. Before the reorder, `capture_lki_snapshot` ran ahead of the
+    /// `ObjectNotInZone` check, so a corrupted-but-recoverable move inserted a snapshot
+    /// for an object it then refused to move. This constructs exactly that error and
+    /// asserts `lki_objects` stays empty.
+    ///
+    /// Under the pre-SR-23 ordering the final assertion fails (the ghost is present),
+    /// so this test is non-vacuous — it distinguishes the two orderings.
+    #[test]
+    fn an_errored_move_captures_no_ghost_lki_snapshot() {
+        let (mut state, id) = state_with_a_creature();
+        // Corrupt the state: the object still claims `zone == Battlefield` and remains in
+        // `state.objects`, but drop it from the battlefield zone's contents. A move now
+        // passes the object-lookup and destination checks, reaches the source-membership
+        // check, and errors with `ObjectNotInZone`.
+        assert!(
+            state
+                .zones
+                .get_mut(&ZoneId::Battlefield)
+                .expect("battlefield zone exists")
+                .remove(&id),
+            "the creature was in the battlefield zone contents"
+        );
+        assert!(state.lki_objects.is_empty(), "no snapshots before the move");
+
+        let result = state.move_object_to_zone(id, ZoneId::Graveyard(PlayerId(0)));
+        assert!(
+            matches!(
+                result,
+                Err(GameStateError::ObjectNotInZone(bad, ZoneId::Battlefield)) if bad == id
+            ),
+            "expected ObjectNotInZone(id, Battlefield), got {result:?}"
+        );
+        assert!(
+            state.lki_objects.is_empty(),
+            "SR-23: an errored move must leave no ghost LKI snapshot"
+        );
     }
 }

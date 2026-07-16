@@ -471,6 +471,19 @@ impl GameState {
         &self.combat
     }
 
+    /// Read-only access to the whole `lki_objects` last-known-information store.
+    ///
+    /// SR-3 one-public-read-accessor convention: `lki_objects` is `pub(crate)`, and
+    /// [`lki_object_snapshot`](GameState::lki_object_snapshot) is a `pub(crate)` keyed
+    /// getter, so nothing outside the engine could observe the LKI store at all — the
+    /// replay viewer, in particular, cannot render a state's captured snapshots. This
+    /// exposes the map by shared reference (read-only; the only mutation paths remain
+    /// `capture_lki_snapshot` and `maybe_clear_lki_objects`). See the `lki_objects`
+    /// field docs for what a snapshot means and when it is captured/cleared.
+    pub fn lki_objects(&self) -> &OrdMap<ObjectId, GameObject> {
+        &self.lki_objects
+    }
+
     /// CR 113.7a / 608.2h: last-known-information snapshot of an object that has left
     /// the battlefield, keyed by its retired `ObjectId`. Returns `None` if no snapshot
     /// was captured for `id` (the object never left the battlefield with the stack
@@ -952,7 +965,10 @@ impl GameState {
     /// empty; the trigger is put on the stack only afterward. Capturing on every
     /// battlefield-leave covers that case; the clear condition keeps the map bounded.
     ///
-    /// Must be called BEFORE the object is removed from `self.objects`.
+    /// Must be called BEFORE the object is removed from `self.objects` (it reads the
+    /// object's live layer-resolved characteristics), and — SR-23 — AFTER the move's
+    /// error checks (source zone exists and contains the object), so a move that errors
+    /// out never leaves a ghost snapshot for an object that is still on the battlefield.
     fn capture_lki_snapshot(&mut self, object_id: ObjectId, from: ZoneId, old_object: &GameObject) {
         if from != ZoneId::Battlefield {
             return;
@@ -989,18 +1005,32 @@ impl GameState {
             .ok_or(GameStateError::ObjectNotFound(object_id))?
             .clone();
         let from = old_object.zone;
+        // SR-23: run *every* error check before capturing LKI, so an errored move
+        // (missing/mismatched source zone) leaves no ghost snapshot for an object that
+        // is still live. Validate the source zone exists and contains the object first,
+        // via a shared borrow, then capture, then remove. The object is still present
+        // in `self.objects` and still in its battlefield zone at capture time — exactly
+        // as before — so `capture_lki_snapshot` sees identical layer-resolved
+        // characteristics and the success-path state hash is unchanged.
+        let from_zone = self
+            .zones
+            .get(&from)
+            .ok_or(GameStateError::ZoneNotFound(from))?;
+        if !from_zone.contains(&object_id) {
+            return Err(GameStateError::ObjectNotInZone(object_id, from));
+        }
         // SR-13: snapshot last-known information before the object is removed, so a
         // damage ability still on the stack can read its source's keywords once the
         // source is gone (CR 113.7a / 608.2h / 702.80c / 702.90e).
         self.capture_lki_snapshot(object_id, from, &old_object);
-        // Remove from old zone
-        let from_zone = self
+        // Remove from old zone. Membership was just verified above and nothing has
+        // mutated the zone since, so this cannot fail.
+        let removed = self
             .zones
             .get_mut(&from)
-            .ok_or(GameStateError::ZoneNotFound(from))?;
-        if !from_zone.remove(&object_id) {
-            return Err(GameStateError::ObjectNotInZone(object_id, from));
-        }
+            .expect("source zone existence checked above")
+            .remove(&object_id);
+        debug_assert!(removed, "membership checked above, cannot fail");
         // Remove old object from objects map
         self.objects.remove(&object_id);
         // Create new object with fresh ID (CR 400.7)
@@ -1483,16 +1513,25 @@ impl GameState {
             .ok_or(GameStateError::ObjectNotFound(object_id))?
             .clone();
         let from = old_object.zone;
-        // SR-13: snapshot last-known information before removal (CR 113.7a / 608.2h).
-        self.capture_lki_snapshot(object_id, from, &old_object);
-        // Remove from old zone.
+        // SR-23: all error checks before capture, so an errored move leaves no ghost
+        // snapshot (see `move_object_to_zone`). Object stays present at capture time, so
+        // characteristics and the success-path hash are unchanged.
         let from_zone = self
             .zones
-            .get_mut(&from)
+            .get(&from)
             .ok_or(GameStateError::ZoneNotFound(from))?;
-        if !from_zone.remove(&object_id) {
+        if !from_zone.contains(&object_id) {
             return Err(GameStateError::ObjectNotInZone(object_id, from));
         }
+        // SR-13: snapshot last-known information before removal (CR 113.7a / 608.2h).
+        self.capture_lki_snapshot(object_id, from, &old_object);
+        // Remove from old zone. Membership verified above; cannot fail.
+        let removed = self
+            .zones
+            .get_mut(&from)
+            .expect("source zone existence checked above")
+            .remove(&object_id);
+        debug_assert!(removed, "membership checked above, cannot fail");
         // Remove old object from objects map.
         self.objects.remove(&object_id);
         // Create new object with fresh ID (CR 400.7).
