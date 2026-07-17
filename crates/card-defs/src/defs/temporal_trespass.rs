@@ -13,9 +13,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("temporal-trespass"),
         name: "Temporal Trespass".to_string(),
-        mana_cost: Some(ManaCost { generic: 8, blue: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 8,
+            blue: 3,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Delve (Each card you exile from your graveyard while casting this spell pays for {1}.)\nTake an extra turn after this one. Exile Temporal Trespass.".to_string(),
+        oracle_text: "Delve (Each card you exile from your graveyard while casting this spell \
+                      pays for {1}.)\nTake an extra turn after this one. Exile Temporal Trespass."
+            .to_string(),
         abilities: vec![
             // CR 702.66: Delve keyword marker — enables graveyard exile during casting.
             AbilityDefinition::Keyword(KeywordAbility::Delve),

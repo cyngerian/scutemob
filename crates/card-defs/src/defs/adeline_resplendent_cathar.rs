@@ -9,13 +9,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("adeline-resplendent-cathar"),
         name: "Adeline, Resplendent Cathar".to_string(),
-        mana_cost: Some(ManaCost { white: 2, generic: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            white: 2,
+            generic: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Human", "Knight"],
         ),
-        oracle_text: "Vigilance\nAdeline's power is equal to the number of creatures you control.\nWhenever you attack, for each opponent, create a 1/1 white Human creature token that's tapped and attacking that player or a planeswalker they control.".to_string(),
+        oracle_text: "Vigilance\nAdeline's power is equal to the number of creatures you \
+                      control.\nWhenever you attack, for each opponent, create a 1/1 white Human \
+                      creature token that's tapped and attacking that player or a planeswalker \
+                      they control."
+            .to_string(),
         // CDA: power = number of creatures you control
         power: None,
         toughness: Some(4),
@@ -25,7 +33,10 @@ pub fn card() -> CardDefinition {
             // toughness is fixed 4 (printed on card).
             AbilityDefinition::CdaPowerToughness {
                 power: EffectAmount::PermanentCount {
-                    filter: TargetFilter { has_card_type: Some(CardType::Creature), ..Default::default() },
+                    filter: TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        ..Default::default()
+                    },
                     controller: PlayerTarget::Controller,
                 },
                 toughness: EffectAmount::Fixed(4),
@@ -33,7 +44,10 @@ pub fn card() -> CardDefinition {
             // TODO: Attack trigger creates tokens per-opponent — DSL lacks per-target token
             // creation for "each opponent" attack triggers. Deferred.
         ],
-        completeness: Completeness::partial("Attack trigger creates tokens per-opponent — DSL lacks per-target token creation for 'each opponent' attack triggers...."),
+        completeness: Completeness::partial(
+            "Attack trigger creates tokens per-opponent — DSL lacks per-target token creation for \
+             'each opponent' attack triggers....",
+        ),
         ..Default::default()
     }
 }

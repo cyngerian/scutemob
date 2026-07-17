@@ -11,23 +11,28 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("corpsejack-menace"),
         name: "Corpsejack Menace".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, black: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            black: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Fungus"]),
-        oracle_text: "If one or more +1/+1 counters would be put on a creature you control, twice that many +1/+1 counters are put on it instead.".to_string(),
+        oracle_text: "If one or more +1/+1 counters would be put on a creature you control, twice \
+                      that many +1/+1 counters are put on it instead."
+            .to_string(),
         power: Some(4),
         toughness: Some(4),
-        abilities: vec![
-            AbilityDefinition::Replacement {
-                trigger: ReplacementTrigger::WouldPlaceCounters {
-                    placer_filter: PlayerFilter::Any,
-                    receiver_filter: ObjectFilter::CreatureControlledBy(PlayerId(0)),
-                    counter_filter: Some(CounterType::PlusOnePlusOne),
-                },
-                modification: ReplacementModification::DoubleCounters,
-                is_self: false,
-                unless_condition: None,
+        abilities: vec![AbilityDefinition::Replacement {
+            trigger: ReplacementTrigger::WouldPlaceCounters {
+                placer_filter: PlayerFilter::Any,
+                receiver_filter: ObjectFilter::CreatureControlledBy(PlayerId(0)),
+                counter_filter: Some(CounterType::PlusOnePlusOne),
             },
-        ],
+            modification: ReplacementModification::DoubleCounters,
+            is_self: false,
+            unless_condition: None,
+        }],
         ..Default::default()
     }
 }

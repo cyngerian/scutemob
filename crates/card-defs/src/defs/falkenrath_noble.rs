@@ -8,9 +8,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("falkenrath-noble"),
         name: "Falkenrath Noble".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Vampire", "Noble"]),
-        oracle_text: "Flying\nWhenever Falkenrath Noble or another creature dies, target player loses 1 life and you gain 1 life.".to_string(),
+        oracle_text: "Flying\nWhenever Falkenrath Noble or another creature dies, target player \
+                      loses 1 life and you gain 1 life."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -18,9 +24,15 @@ pub fn card() -> CardDefinition {
             // "this creature or another creature dies" = any creature dies.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: None, exclude_self: false, nontoken_only: false, filter: None,
-},
-                effect: Effect::DrainLife { amount: EffectAmount::Fixed(1) },
+                trigger_condition: TriggerCondition::WheneverCreatureDies {
+                    controller: None,
+                    exclude_self: false,
+                    nontoken_only: false,
+                    filter: None,
+                },
+                effect: Effect::DrainLife {
+                    amount: EffectAmount::Fixed(1),
+                },
                 intervening_if: None,
                 targets: vec![],
 

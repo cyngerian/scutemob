@@ -8,9 +8,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("sink-into-stupor"),
         name: "Sink into Stupor // Soporific Springs".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, blue: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            blue: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Return target spell or nonland permanent an opponent controls to its owner's hand.".to_string(),
+        oracle_text: "Return target spell or nonland permanent an opponent controls to its \
+                      owner's hand."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::MoveZone {
                 target: EffectTarget::DeclaredTarget { index: 0 },
@@ -30,7 +36,11 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("Two gaps: (1) no combined 'target spell or nonland permanent' TargetRequirement — spell-targeting half omitted; (2) MDFC back face (Soporific Springs, Land — enters tapped, {T}: Add {U}) is not authored (back_face: None)."),
+        completeness: Completeness::partial(
+            "Two gaps: (1) no combined 'target spell or nonland permanent' TargetRequirement — \
+             spell-targeting half omitted; (2) MDFC back face (Soporific Springs, Land — enters \
+             tapped, {T}: Add {U}) is not authored (back_face: None).",
+        ),
         ..Default::default()
     }
 }

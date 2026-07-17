@@ -10,13 +10,24 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("omnath-locus-of-creation"),
         name: "Omnath, Locus of Creation".to_string(),
-        mana_cost: Some(ManaCost { red: 1, green: 1, white: 1, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            red: 1,
+            green: 1,
+            white: 1,
+            blue: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Elemental"],
         ),
-        oracle_text: "When Omnath enters, draw a card.\nLandfall — Whenever a land you control enters, you gain 4 life if this is the first time this ability has resolved this turn. If it's the second time, add {R}{G}{W}{U}. If it's the third time, Omnath deals 4 damage to each opponent and each planeswalker you don't control.".to_string(),
+        oracle_text: "When Omnath enters, draw a card.\nLandfall — Whenever a land you control \
+                      enters, you gain 4 life if this is the first time this ability has resolved \
+                      this turn. If it's the second time, add {R}{G}{W}{U}. If it's the third \
+                      time, Omnath deals 4 damage to each opponent and each planeswalker you \
+                      don't control."
+            .to_string(),
         power: Some(4),
         toughness: Some(4),
         abilities: vec![
@@ -42,7 +53,10 @@ pub fn card() -> CardDefinition {
             // primitive exists the three-branch Landfall ability cannot be expressed without
             // producing wrong game state.
         ],
-        completeness: Completeness::partial("Blocker — per-ability 'this is the Nth time this ability has resolved this turn' tracking. Landfall trigger is covered..."),
+        completeness: Completeness::partial(
+            "Blocker — per-ability 'this is the Nth time this ability has resolved this turn' \
+             tracking. Landfall trigger is covered...",
+        ),
         ..Default::default()
     }
 }

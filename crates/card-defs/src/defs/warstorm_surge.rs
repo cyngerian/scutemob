@@ -13,9 +13,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("warstorm-surge"),
         name: "Warstorm Surge".to_string(),
-        mana_cost: Some(ManaCost { generic: 5, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 5,
+            red: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Whenever a creature you control enters, it deals damage equal to its power to any target.".to_string(),
+        oracle_text: "Whenever a creature you control enters, it deals damage equal to its power \
+                      to any target."
+            .to_string(),
         abilities: vec![
             // CR 603.6a: "Whenever a creature you control enters" — triggered ability.
             // Effect: the entering creature deals damage equal to its power to any target.
@@ -42,7 +48,14 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("Blocked on damage source attribution: oracle is 'it deals damage equal to its power', so the entering creature must be the damage source (its lifelink/deathtouch/source-attribution apply), but Effect::DealDamage always uses the ability's source. The trigger and PowerOf(TriggeringCreature) amount ARE wired and verified (resolution.rs:2109 -> effects/mod.rs:6260); the earlier note claiming the effect is 'approximated as Nothing' is false — read the body."),
+        completeness: Completeness::partial(
+            "Blocked on damage source attribution: oracle is 'it deals damage equal to its \
+             power', so the entering creature must be the damage source (its \
+             lifelink/deathtouch/source-attribution apply), but Effect::DealDamage always uses \
+             the ability's source. The trigger and PowerOf(TriggeringCreature) amount ARE wired \
+             and verified (resolution.rs:2109 -> effects/mod.rs:6260); the earlier note claiming \
+             the effect is 'approximated as Nothing' is false — read the body.",
+        ),
         ..Default::default()
     }
 }

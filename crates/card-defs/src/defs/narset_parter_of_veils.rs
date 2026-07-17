@@ -8,9 +8,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("narset-parter-of-veils"),
         name: "Narset, Parter of Veils".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, blue: 2, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Planeswalker], &["Narset"]),
-        oracle_text: "Each opponent can draw no more than one card each turn.\n\u{2212}2: Look at the top four cards of your library. You may reveal a noncreature, nonland card from among them and put it into your hand. Put the rest on the bottom of your library in a random order.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            blue: 2,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Planeswalker],
+            &["Narset"],
+        ),
+        oracle_text: "Each opponent can draw no more than one card each turn.\n\u{2212}2: Look at \
+                      the top four cards of your library. You may reveal a noncreature, nonland \
+                      card from among them and put it into your hand. Put the rest on the bottom \
+                      of your library in a random order."
+            .to_string(),
         starting_loyalty: Some(5),
         abilities: vec![
             // TODO: "opponents can't draw more than 1 card each turn" — needs
@@ -25,7 +37,9 @@ pub fn card() -> CardDefinition {
                         non_land: true,
                         ..Default::default()
                     },
-                    matched_dest: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                    matched_dest: ZoneTarget::Hand {
+                        owner: PlayerTarget::Controller,
+                    },
                     unmatched_dest: ZoneTarget::Library {
                         owner: PlayerTarget::Controller,
                         position: LibraryPosition::Bottom,
@@ -34,7 +48,10 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
-        completeness: Completeness::partial("'opponents can't draw more than 1 card each turn' — needs GameRestriction::MaxCardsDrawnPerTurn. Not in DSL"),
+        completeness: Completeness::partial(
+            "'opponents can't draw more than 1 card each turn' — needs \
+             GameRestriction::MaxCardsDrawnPerTurn. Not in DSL",
+        ),
         ..Default::default()
     }
 }

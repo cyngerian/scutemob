@@ -11,9 +11,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("allied-strategies"),
         name: "Allied Strategies".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            blue: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Domain \u{2014} Target player draws a card for each basic land type among lands they control.".to_string(),
+        oracle_text: "Domain \u{2014} Target player draws a card for each basic land type among \
+                      lands they control."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             // CR 305.6: Domain — draw cards equal to the number of distinct basic land types
             // among lands the TARGET PLAYER controls (oracle: "lands they control").
@@ -21,7 +27,9 @@ pub fn card() -> CardDefinition {
             // DomainCount uses calculate_characteristics() so Layer 4 effects are accounted for.
             effect: Effect::DrawCards {
                 player: PlayerTarget::DeclaredTarget { index: 0 },
-                count: EffectAmount::DomainCount { player: PlayerTarget::DeclaredTarget { index: 0 } },
+                count: EffectAmount::DomainCount {
+                    player: PlayerTarget::DeclaredTarget { index: 0 },
+                },
             },
             targets: vec![TargetRequirement::TargetPlayer],
             modes: None,

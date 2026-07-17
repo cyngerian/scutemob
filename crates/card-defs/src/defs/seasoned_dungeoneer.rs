@@ -21,9 +21,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("seasoned-dungeoneer"),
         name: "Seasoned Dungeoneer".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            white: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Warrior"]),
-        oracle_text: "When Seasoned Dungeoneer enters the battlefield, you take the initiative.\nWhenever you attack, target attacking Cleric, Rogue, Warrior, or Wizard gains protection from creatures until end of turn. It explores."
+        oracle_text: "When Seasoned Dungeoneer enters the battlefield, you take the \
+                      initiative.\nWhenever you attack, target attacking Cleric, Rogue, Warrior, \
+                      or Wizard gains protection from creatures until end of turn. It explores."
             .to_string(),
         power: Some(3),
         toughness: Some(4),
@@ -67,6 +73,14 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::known_wrong("the attack trigger executes Effect::VentureIntoDungeon, which appears nowhere in the oracle text (oracle: 'target attacking Cleric, Rogue, Warrior, or Wizard gains protection from creatures until end of turn. It explores.'). TriggerCondition::WheneverYouAttack is correct and wired; blocked on Effect::Explore (absent) and a protection-from-creatures grant to a subtype-filtered target. ETB TakeTheInitiative is correct. Prefer dropping the venture effect and re-marking partial."),
+        completeness: Completeness::known_wrong(
+            "the attack trigger executes Effect::VentureIntoDungeon, which appears nowhere in the \
+             oracle text (oracle: 'target attacking Cleric, Rogue, Warrior, or Wizard gains \
+             protection from creatures until end of turn. It explores.'). \
+             TriggerCondition::WheneverYouAttack is correct and wired; blocked on Effect::Explore \
+             (absent) and a protection-from-creatures grant to a subtype-filtered target. ETB \
+             TakeTheInitiative is correct. Prefer dropping the venture effect and re-marking \
+             partial.",
+        ),
     }
 }

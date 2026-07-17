@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("mirkwood-bats"),
         name: "Mirkwood Bats".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Bat"]),
-        oracle_text: "Flying\nWhenever you create or sacrifice a token, each opponent loses 1 life.".to_string(),
+        oracle_text: "Flying\nWhenever you create or sacrifice a token, each opponent loses 1 \
+                      life."
+            .to_string(),
         power: Some(2),
         toughness: Some(3),
         abilities: vec![
@@ -37,7 +43,15 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::known_wrong("the WheneverYouSacrifice trigger is authored with filter: None, so it fires on ANY sacrifice, not just tokens — each opponent loses 1 life when they should not. TargetFilter::is_token exists but is documented as NOT checked by matches_filter (only in the combat_damage_filter path), so it cannot restrict this trigger today. Separately, the 'whenever you create a token' half has no TriggerCondition and is entirely unimplemented (the file comment claiming it is 'already covered by TokenCreated event' is false)."),
+        completeness: Completeness::known_wrong(
+            "the WheneverYouSacrifice trigger is authored with filter: None, so it fires on ANY \
+             sacrifice, not just tokens — each opponent loses 1 life when they should not. \
+             TargetFilter::is_token exists but is documented as NOT checked by matches_filter \
+             (only in the combat_damage_filter path), so it cannot restrict this trigger today. \
+             Separately, the 'whenever you create a token' half has no TriggerCondition and is \
+             entirely unimplemented (the file comment claiming it is 'already covered by \
+             TokenCreated event' is false).",
+        ),
         ..Default::default()
     }
 }

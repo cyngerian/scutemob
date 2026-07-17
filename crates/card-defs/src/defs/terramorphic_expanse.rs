@@ -6,12 +6,11 @@ pub fn card() -> CardDefinition {
         name: "Terramorphic Expanse".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}, Sacrifice Terramorphic Expanse: Search your library for a basic land card and put it onto the battlefield tapped. Then shuffle.".to_string(),
+        oracle_text: "{T}, Sacrifice Terramorphic Expanse: Search your library for a basic land \
+                      card and put it onto the battlefield tapped. Then shuffle."
+            .to_string(),
         abilities: vec![AbilityDefinition::Activated {
-            cost: Cost::Sequence(vec![
-                Cost::Tap,
-                Cost::SacrificeSelf,
-            ]),
+            cost: Cost::Sequence(vec![Cost::Tap, Cost::SacrificeSelf]),
             effect: Effect::Sequence(vec![
                 Effect::SearchLibrary {
                     player: PlayerTarget::Controller,
@@ -21,14 +20,16 @@ pub fn card() -> CardDefinition {
                     shuffle_before_placing: false,
                     also_search_graveyard: false,
                 },
-                Effect::Shuffle { player: PlayerTarget::Controller },
+                Effect::Shuffle {
+                    player: PlayerTarget::Controller,
+                },
             ]),
             timing_restriction: None,
             targets: vec![],
-                activation_condition: None,
-                activation_zone: None,
-        once_per_turn: false,
-}],
+            activation_condition: None,
+            activation_zone: None,
+            once_per_turn: false,
+        }],
         ..Default::default()
     }
 }

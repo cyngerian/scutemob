@@ -9,13 +9,22 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("teferi-hero-of-dominaria"),
         name: "Teferi, Hero of Dominaria".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, white: 1, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            white: 1,
+            blue: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Planeswalker],
             &["Teferi"],
         ),
-        oracle_text: "+1: Draw a card. At the beginning of the next end step, untap up to two lands.\n\u{2212}3: Put target nonland permanent into its owner's library third from the top.\n\u{2212}8: You get an emblem with \"Whenever you draw a card, exile target permanent an opponent controls.\"".to_string(),
+        oracle_text: "+1: Draw a card. At the beginning of the next end step, untap up to two \
+                      lands.\n\u{2212}3: Put target nonland permanent into its owner's library \
+                      third from the top.\n\u{2212}8: You get an emblem with \"Whenever you draw \
+                      a card, exile target permanent an opponent controls.\""
+            .to_string(),
         starting_loyalty: Some(4),
         abilities: vec![
             // +1: Draw a card. At the beginning of the next end step, untap up to two lands.
@@ -37,7 +46,9 @@ pub fn card() -> CardDefinition {
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     to: ZoneTarget::Library {
-                        owner: PlayerTarget::OwnerOf(Box::new(EffectTarget::DeclaredTarget { index: 0 })),
+                        owner: PlayerTarget::OwnerOf(Box::new(EffectTarget::DeclaredTarget {
+                            index: 0,
+                        })),
                         position: LibraryPosition::Top,
                     },
                     controller_override: None,
@@ -60,7 +71,13 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
-        completeness: Completeness::known_wrong("known_wrong — −3 puts the permanent on TOP of the library, not third from top (LibraryPosition lacks NthFromTop); −8 creates an empty emblem. Also missing: the +1 delayed 'untap up to two lands at the next end step' (no delayed-trigger primitive). Note: the emblem's draw trigger IS now expressible (TriggerCondition::WheneverYouDrawACard + CreateEmblem.triggered_abilities)."),
+        completeness: Completeness::known_wrong(
+            "known_wrong — −3 puts the permanent on TOP of the library, not third from top \
+             (LibraryPosition lacks NthFromTop); −8 creates an empty emblem. Also missing: the +1 \
+             delayed 'untap up to two lands at the next end step' (no delayed-trigger primitive). \
+             Note: the emblem's draw trigger IS now expressible \
+             (TriggerCondition::WheneverYouDrawACard + CreateEmblem.triggered_abilities).",
+        ),
         ..Default::default()
     }
 }

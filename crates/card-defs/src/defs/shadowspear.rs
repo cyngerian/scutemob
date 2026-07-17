@@ -15,9 +15,19 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("shadowspear"),
         name: "Shadowspear".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Artifact], &["Equipment"]),
-        oracle_text: "Equipped creature gets +1/+1 and has trample and lifelink.\n{1}: Permanents your opponents control lose hexproof and indestructible until end of turn.\nEquip {2}".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Artifact],
+            &["Equipment"],
+        ),
+        oracle_text: "Equipped creature gets +1/+1 and has trample and lifelink.\n{1}: Permanents \
+                      your opponents control lose hexproof and indestructible until end of \
+                      turn.\nEquip {2}"
+            .to_string(),
         abilities: vec![
             // Static: Equipped creature gets +1/+1 (layer 7c).
             AbilityDefinition::Static {
@@ -45,7 +55,10 @@ pub fn card() -> CardDefinition {
             },
             // Equip {2}: attach this Equipment to target creature you control (CR 702.6b/d).
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { generic: 2, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    generic: 2,
+                    ..Default::default()
+                }),
                 effect: Effect::AttachEquipment {
                     equipment: EffectTarget::Source,
                     target: EffectTarget::DeclaredTarget { index: 0 },
@@ -54,10 +67,13 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("DSL gap — the {1} activated ability removes hexproof and indestructible from all permanents opponents control. There is..."),
+        completeness: Completeness::partial(
+            "DSL gap — the {1} activated ability removes hexproof and indestructible from all \
+             permanents opponents control. There is...",
+        ),
         ..Default::default()
     }
 }

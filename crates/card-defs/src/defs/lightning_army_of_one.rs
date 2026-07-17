@@ -9,13 +9,22 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("lightning-army-of-one"),
         name: "Lightning, Army of One".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, red: 1, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            red: 1,
+            white: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Human", "Soldier"],
         ),
-        oracle_text: "First strike, trample, lifelink\nStagger — Whenever Lightning deals combat damage to a player, until your next turn, if a source would deal damage to that player or a permanent that player controls, it deals double that damage instead.".to_string(),
+        oracle_text: "First strike, trample, lifelink\nStagger — Whenever Lightning deals combat \
+                      damage to a player, until your next turn, if a source would deal damage to \
+                      that player or a permanent that player controls, it deals double that \
+                      damage instead."
+            .to_string(),
         power: Some(3),
         toughness: Some(2),
         abilities: vec![

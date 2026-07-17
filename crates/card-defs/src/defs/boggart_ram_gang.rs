@@ -15,7 +15,9 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: creature_types(&["Goblin", "Warrior"]),
-        oracle_text: "Haste\nWither (This deals damage to creatures in the form of -1/-1 counters.)".to_string(),
+        oracle_text: "Haste\nWither (This deals damage to creatures in the form of -1/-1 \
+                      counters.)"
+            .to_string(),
         power: Some(3),
         toughness: Some(3),
         abilities: vec![
@@ -35,6 +37,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

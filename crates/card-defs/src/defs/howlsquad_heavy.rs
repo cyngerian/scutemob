@@ -17,9 +17,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("howlsquad-heavy"),
         name: "Howlsquad Heavy".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Goblin", "Mercenary"]),
-        oracle_text: "Start your engines!\nOther Goblins you control have haste.\nAt the beginning of combat on your turn, create a 1/1 red Goblin creature token. That token attacks this combat if able.\nMax speed — {T}: Add {R} for each Goblin you control.".to_string(),
+        oracle_text: "Start your engines!\nOther Goblins you control have haste.\nAt the \
+                      beginning of combat on your turn, create a 1/1 red Goblin creature token. \
+                      That token attacks this combat if able.\nMax speed — {T}: Add {R} for each \
+                      Goblin you control."
+            .to_string(),
         power: Some(2),
         toughness: Some(3),
         abilities: vec![
@@ -28,7 +36,9 @@ pub fn card() -> CardDefinition {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::Ability,
                     modification: LayerModification::AddKeyword(KeywordAbility::Haste),
-                    filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType("Goblin".to_string())),
+                    filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType(
+                        "Goblin".to_string(),
+                    )),
                     duration: EffectDuration::WhileSourceOnBattlefield,
                     condition: None,
                 },
@@ -54,10 +64,16 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::known_wrong("the 'Max speed — {T}: Add {R} for each Goblin you control' ability is implemented WITHOUT its Max speed gate, giving unrestricted ramp (W5/KI-2 violation). Speed / 'Start your engines!' is not in the DSL (no speed counter, no activation_condition for max speed). The combat-trigger token that must attack is also omitted. Either drop the mana ability or add the speed mechanic."),
+        completeness: Completeness::known_wrong(
+            "the 'Max speed — {T}: Add {R} for each Goblin you control' ability is implemented \
+             WITHOUT its Max speed gate, giving unrestricted ramp (W5/KI-2 violation). Speed / \
+             'Start your engines!' is not in the DSL (no speed counter, no activation_condition \
+             for max speed). The combat-trigger token that must attack is also omitted. Either \
+             drop the mana ability or add the speed mechanic.",
+        ),
         ..Default::default()
     }
 }

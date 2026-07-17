@@ -5,9 +5,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("mist-intruder"),
         name: "Mist Intruder".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            blue: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Eldrazi", "Drone"]),
-        oracle_text: "Devoid (This card has no color.)\nFlying\nIngest (Whenever this creature deals combat damage to a player, that player exiles the top card of their library.)"
+        oracle_text: "Devoid (This card has no color.)\nFlying\nIngest (Whenever this creature \
+                      deals combat damage to a player, that player exiles the top card of their \
+                      library.)"
             .to_string(),
         power: Some(1),
         toughness: Some(2),
@@ -28,6 +34,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

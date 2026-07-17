@@ -15,13 +15,20 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("ugin-the-spirit-dragon"),
         name: "Ugin, the Spirit Dragon".to_string(),
-        mana_cost: Some(ManaCost { generic: 8, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 8,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Planeswalker],
             &["Ugin"],
         ),
-        oracle_text: "+2: Ugin deals 3 damage to any target.\n\u{2212}X: Exile each permanent with mana value X or less that's one or more colors.\n\u{2212}10: You gain 7 life, draw seven cards, then put up to seven permanent cards from your hand onto the battlefield.".to_string(),
+        oracle_text: "+2: Ugin deals 3 damage to any target.\n\u{2212}X: Exile each permanent \
+                      with mana value X or less that's one or more colors.\n\u{2212}10: You gain \
+                      7 life, draw seven cards, then put up to seven permanent cards from your \
+                      hand onto the battlefield."
+            .to_string(),
         starting_loyalty: Some(7),
         abilities: vec![
             // +2: Ugin deals 3 damage to any target.
@@ -67,7 +74,9 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
-        completeness: Completeness::partial("'mana value X or less' filter — TargetFilter has no dynamic MV <= X predicate"),
+        completeness: Completeness::partial(
+            "'mana value X or less' filter — TargetFilter has no dynamic MV <= X predicate",
+        ),
         ..Default::default()
     }
 }

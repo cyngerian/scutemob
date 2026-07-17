@@ -13,9 +13,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("veil-of-summer"),
         name: "Veil of Summer".to_string(),
-        mana_cost: Some(ManaCost { green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Draw a card if an opponent has cast a blue or black spell this turn. Spells you control can't be countered this turn. You and permanents you control gain hexproof from blue and from black until end of turn.".to_string(),
+        oracle_text: "Draw a card if an opponent has cast a blue or black spell this turn. Spells \
+                      you control can't be countered this turn. You and permanents you control \
+                      gain hexproof from blue and from black until end of turn."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             // TODO: Should be conditional on opponent casting blue/black spell this turn.
             effect: Effect::DrawCards {
@@ -26,7 +32,14 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::known_wrong("the def draws a card UNCONDITIONALLY — oracle draws only 'if an opponent has cast a blue or black spell this turn'. No Condition filters past casts by color (Condition::OpponentCastNSpells is count-only). Also unimplemented: 'spells you control can't be countered this turn' (continuous effect over future spells) and 'hexproof from blue and from black' (no color-specific hexproof keyword). Per W5 the Spell ability should be dropped to vec![]."),
+        completeness: Completeness::known_wrong(
+            "the def draws a card UNCONDITIONALLY — oracle draws only 'if an opponent has cast a \
+             blue or black spell this turn'. No Condition filters past casts by color \
+             (Condition::OpponentCastNSpells is count-only). Also unimplemented: 'spells you \
+             control can't be countered this turn' (continuous effect over future spells) and \
+             'hexproof from blue and from black' (no color-specific hexproof keyword). Per W5 the \
+             Spell ability should be dropped to vec![].",
+        ),
         ..Default::default()
     }
 }

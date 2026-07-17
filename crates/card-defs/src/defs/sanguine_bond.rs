@@ -12,7 +12,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("sanguine-bond"),
         name: "Sanguine Bond".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            black: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
         oracle_text: "Whenever you gain life, target opponent loses that much life.".to_string(),
         abilities: vec![
@@ -22,7 +26,9 @@ pub fn card() -> CardDefinition {
             // WheneverYouGainLife trigger exists but there's no way to forward the
             // triggering amount to LoseLife. W5: omitted.
         ],
-        completeness: Completeness::partial("EffectAmount::TriggeringAmount (life gained this trigger) not in DSL"),
+        completeness: Completeness::partial(
+            "EffectAmount::TriggeringAmount (life gained this trigger) not in DSL",
+        ),
         ..Default::default()
     }
 }

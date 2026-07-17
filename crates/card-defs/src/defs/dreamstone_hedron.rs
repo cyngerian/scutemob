@@ -7,9 +7,13 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("dreamstone-hedron"),
         name: "Dreamstone Hedron".to_string(),
-        mana_cost: Some(ManaCost { generic: 6, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 6,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "{T}: Add {C}{C}{C}.\n{3}, {T}, Sacrifice this artifact: Draw three cards.".to_string(),
+        oracle_text: "{T}: Add {C}{C}{C}.\n{3}, {T}, Sacrifice this artifact: Draw three cards."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
@@ -21,11 +25,14 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 3, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 3,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                     Cost::SacrificeSelf,
                 ]),
@@ -37,7 +44,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

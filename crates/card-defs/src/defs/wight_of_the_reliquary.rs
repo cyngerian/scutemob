@@ -17,9 +17,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("wight-of-the-reliquary"),
         name: "Wight of the Reliquary".to_string(),
-        mana_cost: Some(ManaCost { black: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Zombie", "Knight"]),
-        oracle_text: "Vigilance\nThis creature gets +1/+1 for each creature card in your graveyard.\n{T}, Sacrifice another creature: Search your library for a land card, put it onto the battlefield tapped, then shuffle.".to_string(),
+        oracle_text: "Vigilance\nThis creature gets +1/+1 for each creature card in your \
+                      graveyard.\n{T}, Sacrifice another creature: Search your library for a land \
+                      card, put it onto the battlefield tapped, then shuffle."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -28,7 +35,9 @@ pub fn card() -> CardDefinition {
             // static Layer 7c modify on top of the base 2/2 (PB-AC3 CdaModifyPowerToughness).
             AbilityDefinition::CdaModifyPowerToughness {
                 power: Some(EffectAmount::CardCount {
-                    zone: ZoneTarget::Graveyard { owner: PlayerTarget::Controller },
+                    zone: ZoneTarget::Graveyard {
+                        owner: PlayerTarget::Controller,
+                    },
                     player: PlayerTarget::Controller,
                     filter: Some(TargetFilter {
                         has_card_type: Some(CardType::Creature),
@@ -36,7 +45,9 @@ pub fn card() -> CardDefinition {
                     }),
                 }),
                 toughness: Some(EffectAmount::CardCount {
-                    zone: ZoneTarget::Graveyard { owner: PlayerTarget::Controller },
+                    zone: ZoneTarget::Graveyard {
+                        owner: PlayerTarget::Controller,
+                    },
                     player: PlayerTarget::Controller,
                     filter: Some(TargetFilter {
                         has_card_type: Some(CardType::Creature),
@@ -49,7 +60,10 @@ pub fn card() -> CardDefinition {
             // comment for the exclude-self sacrifice-cost gap and vampire_gourmand.rs
             // precedent.
         ],
-        completeness: Completeness::partial("'Sacrifice another creature' cost requires exclude-self semantics that don't exist on Cost::Sacrifice(TargetFilter) (it..."),
+        completeness: Completeness::partial(
+            "'Sacrifice another creature' cost requires exclude-self semantics that don't exist \
+             on Cost::Sacrifice(TargetFilter) (it...",
+        ),
         ..Default::default()
     }
 }

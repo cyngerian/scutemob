@@ -6,7 +6,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("aetherize"),
         name: "Aetherize".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            blue: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
         oracle_text: "Return all attacking creatures to their owner's hand.".to_string(),
         abilities: vec![AbilityDefinition::Spell {

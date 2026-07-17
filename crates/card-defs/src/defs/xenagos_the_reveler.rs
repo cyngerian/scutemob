@@ -10,9 +10,23 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("xenagos-the-reveler"),
         name: "Xenagos, the Reveler".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 1, green: 1, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Planeswalker], &["Xenagos"]),
-        oracle_text: "+1: Add X mana in any combination of {R} and/or {G}, where X is the number of creatures you control.\n0: Create a 2/2 red and green Satyr creature token with haste.\n\u{2212}6: Exile the top seven cards of your library. You may put any number of creature and/or land cards from among them onto the battlefield.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 1,
+            green: 1,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Planeswalker],
+            &["Xenagos"],
+        ),
+        oracle_text: "+1: Add X mana in any combination of {R} and/or {G}, where X is the number \
+                      of creatures you control.\n0: Create a 2/2 red and green Satyr creature \
+                      token with haste.\n\u{2212}6: Exile the top seven cards of your library. \
+                      You may put any number of creature and/or land cards from among them onto \
+                      the battlefield."
+            .to_string(),
         starting_loyalty: Some(3),
         abilities: vec![
             // +1: TODO — count-based mana production (X = creatures you control) not in DSL

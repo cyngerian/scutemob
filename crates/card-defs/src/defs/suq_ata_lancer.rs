@@ -5,7 +5,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("suq-ata-lancer"),
         name: "Suq'Ata Lancer".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Knight"]),
         oracle_text: "Haste\nFlanking".to_string(),
         power: Some(2),
@@ -26,6 +30,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

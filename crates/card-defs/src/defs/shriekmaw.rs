@@ -8,9 +8,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("shriekmaw"),
         name: "Shriekmaw".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Elemental"]),
-        oracle_text: "Fear (This creature can't be blocked except by artifact creatures and/or black creatures.)\nWhen this creature enters, destroy target nonartifact, nonblack creature.\nEvoke {1}{B} (You may cast this spell for its evoke cost. If you do, it's sacrificed when it enters.)".to_string(),
+        oracle_text: "Fear (This creature can't be blocked except by artifact creatures and/or \
+                      black creatures.)\nWhen this creature enters, destroy target nonartifact, \
+                      nonblack creature.\nEvoke {1}{B} (You may cast this spell for its evoke \
+                      cost. If you do, it's sacrificed when it enters.)"
+            .to_string(),
         power: Some(3),
         toughness: Some(2),
         abilities: vec![
@@ -35,10 +43,17 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
             AbilityDefinition::Evoke {
-                cost: ManaCost { generic: 1, black: 1, ..Default::default() },
+                cost: ManaCost {
+                    generic: 1,
+                    black: 1,
+                    ..Default::default()
+                },
             },
         ],
-        completeness: Completeness::partial("no non_artifact filter on TargetFilter — this targets any nonblack creature including artifact creatures. When..."),
+        completeness: Completeness::partial(
+            "no non_artifact filter on TargetFilter — this targets any nonblack creature \
+             including artifact creatures. When...",
+        ),
         ..Default::default()
     }
 }

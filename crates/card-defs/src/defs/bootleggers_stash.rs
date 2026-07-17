@@ -10,7 +10,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("bootleggers-stash"),
         name: "Bootleggers' Stash".to_string(),
-        mana_cost: Some(ManaCost { generic: 5, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 5,
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
         oracle_text: "Lands you control have \"{T}: Create a Treasure token.\"".to_string(),
         abilities: vec![

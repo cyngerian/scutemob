@@ -8,9 +8,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("butcher-of-malakir"),
         name: "Butcher of Malakir".to_string(),
-        mana_cost: Some(ManaCost { generic: 5, black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 5,
+            black: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Vampire", "Warrior"]),
-        oracle_text: "Flying\nWhenever Butcher of Malakir or another creature you control dies, each opponent sacrifices a creature of their choice.".to_string(),
+        oracle_text: "Flying\nWhenever Butcher of Malakir or another creature you control dies, \
+                      each opponent sacrifices a creature of their choice."
+            .to_string(),
         power: Some(5),
         toughness: Some(4),
         abilities: vec![

@@ -9,7 +9,9 @@ pub fn card() -> CardDefinition {
         name: "Forbidden Orchard".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}: Add one mana of any color.\nWhenever you tap this land for mana, target opponent creates a 1/1 colorless Spirit creature token.".to_string(),
+        oracle_text: "{T}: Add one mana of any color.\nWhenever you tap this land for mana, \
+                      target opponent creates a 1/1 colorless Spirit creature token."
+            .to_string(),
         abilities: vec![
             // {T}: Add one mana of any color.
             AbilityDefinition::Activated {
@@ -62,7 +64,14 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::known_wrong("oracle says 'target opponent creates a 1/1 colorless Spirit'; the def creates the Spirit for Forbidden Orchard's OWN controller, inverting the card's drawback into an upside. Blocker: Effect::CreateToken (card_definition.rs:1372) / TokenSpec (:3673) have no recipient field — tokens always go to ctx.controller. Prefer vec![] for the trigger until a token recipient exists. Secondary (LOW-4): no TargetOpponent requirement variant; TargetPlayer is used."),
+        completeness: Completeness::known_wrong(
+            "oracle says 'target opponent creates a 1/1 colorless Spirit'; the def creates the \
+             Spirit for Forbidden Orchard's OWN controller, inverting the card's drawback into an \
+             upside. Blocker: Effect::CreateToken (card_definition.rs:1372) / TokenSpec (:3673) \
+             have no recipient field — tokens always go to ctx.controller. Prefer vec![] for the \
+             trigger until a token recipient exists. Secondary (LOW-4): no TargetOpponent \
+             requirement variant; TargetPlayer is used.",
+        ),
         ..Default::default()
     }
 }

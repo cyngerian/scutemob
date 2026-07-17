@@ -19,7 +19,13 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: types_sub(&[CardType::Enchantment], &["Class"]),
-        oracle_text: "(Gain the next level as a sorcery to add its ability.)\nLandfall — Whenever a land you control enters, you gain 1 life.\n{2}{G}: Level 2\nYou may play an additional land on each of your turns.\n{4}{G}: Level 3\nWhen this Class becomes level 3, target land you control becomes a creature with haste and \"This creature's power and toughness are each equal to the number of lands you control.\" It's still a land.".to_string(),
+        oracle_text: "(Gain the next level as a sorcery to add its ability.)\nLandfall — Whenever \
+                      a land you control enters, you gain 1 life.\n{2}{G}: Level 2\nYou may play \
+                      an additional land on each of your turns.\n{4}{G}: Level 3\nWhen this Class \
+                      becomes level 3, target land you control becomes a creature with haste and \
+                      \"This creature's power and toughness are each equal to the number of lands \
+                      you control.\" It's still a land."
+            .to_string(),
         abilities: vec![
             // Level 1 ability (always active, not a ClassLevel bar):
             // Landfall — Whenever a land you control enters, you gain 1 life.
@@ -67,7 +73,14 @@ pub fn card() -> CardDefinition {
                 abilities: vec![],
             },
         ],
-        completeness: Completeness::partial("Level 3 blocked on a level-up trigger: 'When this Class becomes level 3, target land you control becomes a creature...' has no TriggerCondition for becoming level N, so ClassLevel{level:3}.abilities cannot be populated. The land-animation half is NO LONGER blocked — AddCardTypes(Creature) + AddKeyword(Haste) + SetPtDynamic with EffectAmount::PermanentCount(lands you control) all exist; it is only the trigger that is missing."),
+        completeness: Completeness::partial(
+            "Level 3 blocked on a level-up trigger: 'When this Class becomes level 3, target land \
+             you control becomes a creature...' has no TriggerCondition for becoming level N, so \
+             ClassLevel{level:3}.abilities cannot be populated. The land-animation half is NO \
+             LONGER blocked — AddCardTypes(Creature) + AddKeyword(Haste) + SetPtDynamic with \
+             EffectAmount::PermanentCount(lands you control) all exist; it is only the trigger \
+             that is missing.",
+        ),
         ..Default::default()
     }
 }

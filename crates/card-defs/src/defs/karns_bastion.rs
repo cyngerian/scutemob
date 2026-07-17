@@ -7,7 +7,9 @@ pub fn card() -> CardDefinition {
         name: "Karn's Bastion".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}: Add {C}.\n{4}, {T}: Proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)".to_string(),
+        oracle_text: "{T}: Add {C}.\n{4}, {T}: Proliferate. (Choose any number of permanents \
+                      and/or players, then give each another counter of each kind already there.)"
+            .to_string(),
         abilities: vec![
             // {T}: Add {C}
             AbilityDefinition::Activated {
@@ -20,12 +22,15 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {4}, {T}: Proliferate.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 4, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 4,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                 ]),
                 effect: Effect::Proliferate,
@@ -33,7 +38,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

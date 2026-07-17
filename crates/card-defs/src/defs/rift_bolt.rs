@@ -9,13 +9,24 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("rift-bolt"),
         name: "Rift Bolt".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Rift Bolt deals 3 damage to any target.\nSuspend 1—{R} (Rather than cast this card from your hand, pay {R} and exile it with a time counter on it. At the beginning of your upkeep, remove a time counter. When the last is removed, cast it without paying its mana cost.)".to_string(),
+        oracle_text: "Rift Bolt deals 3 damage to any target.\nSuspend 1—{R} (Rather than cast \
+                      this card from your hand, pay {R} and exile it with a time counter on it. \
+                      At the beginning of your upkeep, remove a time counter. When the last is \
+                      removed, cast it without paying its mana cost.)"
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Suspend),
             AbilityDefinition::Suspend {
-                cost: ManaCost { red: 1, ..Default::default() },
+                cost: ManaCost {
+                    red: 1,
+                    ..Default::default()
+                },
                 time_counters: 1,
             },
             AbilityDefinition::Spell {

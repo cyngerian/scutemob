@@ -8,7 +8,8 @@ pub fn card() -> CardDefinition {
         name: "Grim Backwoods".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}: Add {C}.\n{2}{B}{G}, {T}, Sacrifice a creature: Draw a card.".to_string(),
+        oracle_text: "{T}: Add {C}.\n{2}{B}{G}, {T}, Sacrifice a creature: Draw a card."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
@@ -20,12 +21,17 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {2}{B}{G}, {T}, Sacrifice a creature: Draw a card
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 2, black: 1, green: 1, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 2,
+                        black: 1,
+                        green: 1,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                     Cost::Sacrifice(TargetFilter {
                         has_card_type: Some(CardType::Creature),
@@ -40,7 +46,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

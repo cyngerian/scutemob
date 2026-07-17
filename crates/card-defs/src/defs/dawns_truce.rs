@@ -10,14 +10,28 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("dawns-truce"),
         name: "Dawn's Truce".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            white: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Gift a card (You may promise an opponent a gift as you cast this spell. If you do, they draw a card before its other effects.)\nYou and permanents you control gain hexproof until end of turn. If the gift was promised, permanents you control also gain indestructible until end of turn.".to_string(),
+        oracle_text: "Gift a card (You may promise an opponent a gift as you cast this spell. If \
+                      you do, they draw a card before its other effects.)\nYou and permanents you \
+                      control gain hexproof until end of turn. If the gift was promised, \
+                      permanents you control also gain indestructible until end of turn."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Gift),
             // TODO: Hexproof + conditional indestructible not easily expressible.
         ],
-        completeness: Completeness::partial("Spell effect unimplemented; def carries only the Gift keyword marker with no cost AbilityDefinition. Primitives exist: AbilityDefinition::Gift { gift_type } (card_definition.rs:866), Condition::GiftWasGiven, Effect::GrantPlayerProtection (effects/mod.rs:5303), ApplyContinuousEffect + AddKeyword + EffectFilter::ControlledBy."),
+        completeness: Completeness::partial(
+            "Spell effect unimplemented; def carries only the Gift keyword marker with no cost \
+             AbilityDefinition. Primitives exist: AbilityDefinition::Gift { gift_type } \
+             (card_definition.rs:866), Condition::GiftWasGiven, Effect::GrantPlayerProtection \
+             (effects/mod.rs:5303), ApplyContinuousEffect + AddKeyword + \
+             EffectFilter::ControlledBy.",
+        ),
         ..Default::default()
     }
 }

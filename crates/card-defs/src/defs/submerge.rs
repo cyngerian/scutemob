@@ -8,9 +8,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("submerge"),
         name: "Submerge".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            blue: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "If an opponent controls a Forest and you control an Island, you may cast this spell without paying its mana cost.\nPut target creature on top of its owner's library.".to_string(),
+        oracle_text: "If an opponent controls a Forest and you control an Island, you may cast \
+                      this spell without paying its mana cost.\nPut target creature on top of its \
+                      owner's library."
+            .to_string(),
         abilities: vec![
             // TODO: Conditional free-cast "if opponent controls a Forest and you control
             // an Island" — no AltCostKind for land-conditional free cast. The spell effect
@@ -19,7 +26,9 @@ pub fn card() -> CardDefinition {
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     to: ZoneTarget::Library {
-                        owner: PlayerTarget::OwnerOf(Box::new(EffectTarget::DeclaredTarget { index: 0 })),
+                        owner: PlayerTarget::OwnerOf(Box::new(EffectTarget::DeclaredTarget {
+                            index: 0,
+                        })),
                         position: LibraryPosition::Top,
                     },
                     controller_override: None,
@@ -29,7 +38,10 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::partial("Conditional free-cast 'if opponent controls a Forest and you control an Island' — no AltCostKind for land-conditional..."),
+        completeness: Completeness::partial(
+            "Conditional free-cast 'if opponent controls a Forest and you control an Island' — no \
+             AltCostKind for land-conditional...",
+        ),
         ..Default::default()
     }
 }

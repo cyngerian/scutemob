@@ -7,7 +7,11 @@ pub fn card() -> CardDefinition {
         name: "Takenuma, Abandoned Mire".to_string(),
         mana_cost: None,
         types: supertypes(&[SuperType::Legendary], &[CardType::Land]),
-        oracle_text: "{T}: Add {B}.\nChannel — {3}{B}, Discard this card: Mill three cards, then return a creature or planeswalker card from your graveyard to your hand. This ability costs {1} less to activate for each legendary creature you control.".to_string(),
+        oracle_text: "{T}: Add {B}.\nChannel — {3}{B}, Discard this card: Mill three cards, then \
+                      return a creature or planeswalker card from your graveyard to your hand. \
+                      This ability costs {1} less to activate for each legendary creature you \
+                      control."
+            .to_string(),
         abilities: vec![
             // {T}: Add {B}.
             AbilityDefinition::Activated {
@@ -20,13 +24,17 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // Channel — {3}{B}, Discard this card: Mill 3, then return creature/planeswalker
             // from graveyard to hand. Deterministic fallback picks highest-ObjectId matching card.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 3, black: 1, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 3,
+                        black: 1,
+                        ..Default::default()
+                    }),
                     Cost::DiscardSelf,
                 ]),
                 effect: Effect::Sequence(vec![
@@ -38,7 +46,9 @@ pub fn card() -> CardDefinition {
                     // your hand" — uses has_card_types (OR semantics) for multi-type filter.
                     Effect::MoveZone {
                         target: EffectTarget::DeclaredTarget { index: 0 },
-                        to: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                        to: ZoneTarget::Hand {
+                            owner: PlayerTarget::Controller,
+                        },
                         controller_override: None,
                     },
                 ]),
@@ -49,7 +59,7 @@ pub fn card() -> CardDefinition {
                 })],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         // CR 602.2b + 601.2f: Channel ability (index 0) costs {1} less per legendary creature.

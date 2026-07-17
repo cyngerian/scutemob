@@ -12,14 +12,26 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("senseis-divining-top"),
         name: "Sensei's Divining Top".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "{1}: Look at the top three cards of your library, then put them back in any order.\n{T}: Draw a card, then put this artifact on top of its owner's library.".to_string(),
+        oracle_text: "{1}: Look at the top three cards of your library, then put them back in any \
+                      order.\n{T}: Draw a card, then put this artifact on top of its owner's \
+                      library."
+            .to_string(),
         abilities: vec![
             // TODO: {1}: Look at top 3 and rearrange — no rearrange-top-of-library effect in DSL.
             // TODO: {T}: Draw a card then put self on top of library — no PutSelfOnTopOfLibrary effect.
         ],
-        completeness: Completeness::partial("{1} 'look at the top three cards, then put them back in any order' is omitted — no rearrange-top-of-library effect (Effect::Scry's deterministic fallback bottoms cards, which is a different card). The {T} ability is NOT blocked and should be wired: Sequence[DrawCards{Controller,1}, MoveZone{target: Source, to: Library{OwnerOf, Top}}] on Cost::Tap."),
+        completeness: Completeness::partial(
+            "{1} 'look at the top three cards, then put them back in any order' is omitted — no \
+             rearrange-top-of-library effect (Effect::Scry's deterministic fallback bottoms \
+             cards, which is a different card). The {T} ability is NOT blocked and should be \
+             wired: Sequence[DrawCards{Controller,1}, MoveZone{target: Source, to: \
+             Library{OwnerOf, Top}}] on Cost::Tap.",
+        ),
         ..Default::default()
     }
 }

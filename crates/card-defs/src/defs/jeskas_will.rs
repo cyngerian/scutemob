@@ -8,9 +8,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("jeskas-will"),
         name: "Jeska's Will".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Choose one. If you control a commander as you cast this spell, you may choose both instead.\n• Add {R} for each card in target opponent's hand.\n• Exile the top three cards of your library. You may play them this turn.".to_string(),
+        oracle_text: "Choose one. If you control a commander as you cast this spell, you may \
+                      choose both instead.\n• Add {R} for each card in target opponent's hand.\n• \
+                      Exile the top three cards of your library. You may play them this turn."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             // TODO: Mode 1 needs mana-scaled-by-opponent-hand-count.
             // TODO: Mode 2 needs impulse-draw (exile top 3, play this turn).
@@ -20,7 +27,13 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("Blocked on conditional mode count — 'if you control a commander you may choose both' needs a Condition-gated ModeSelection.max_modes (currently a fixed u32); and on impulse-exile (exile top 3, playable this turn) which Effect::PlayExiledCard does not express. Mode 1 IS expressible now via Effect::AddManaScaled + EffectAmount::HandSize + mode_targets."),
+        completeness: Completeness::partial(
+            "Blocked on conditional mode count — 'if you control a commander you may choose both' \
+             needs a Condition-gated ModeSelection.max_modes (currently a fixed u32); and on \
+             impulse-exile (exile top 3, playable this turn) which Effect::PlayExiledCard does \
+             not express. Mode 1 IS expressible now via Effect::AddManaScaled + \
+             EffectAmount::HandSize + mode_targets.",
+        ),
         ..Default::default()
     }
 }

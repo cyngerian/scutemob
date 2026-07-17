@@ -6,16 +6,24 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("caustic-caterpillar"),
         name: "Caustic Caterpillar".to_string(),
-        mana_cost: Some(ManaCost { green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Insect"]),
-        oracle_text: "{1}{G}, Sacrifice this creature: Destroy target artifact or enchantment.".to_string(),
+        oracle_text: "{1}{G}, Sacrifice this creature: Destroy target artifact or enchantment."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
             // {1}{G}, Sacrifice this creature: Destroy target artifact or enchantment.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 1, green: 1, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 1,
+                        green: 1,
+                        ..Default::default()
+                    }),
                     Cost::SacrificeSelf,
                 ]),
                 effect: Effect::DestroyPermanent {
@@ -29,7 +37,7 @@ pub fn card() -> CardDefinition {
                 })],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

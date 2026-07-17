@@ -12,13 +12,25 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("kaito-dancing-shadow"),
         name: "Kaito, Dancing Shadow".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, blue: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            blue: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Planeswalker],
             &["Kaito"],
         ),
-        oracle_text: "Whenever one or more creatures you control deal combat damage to a player, you may return one of them to its owner's hand. If you do, you may activate loyalty abilities of Kaito twice this turn rather than only once.\n+1: Up to one target creature can't attack or block until your next turn.\n0: Draw a card.\n\u{2212}2: Create a 2/2 colorless Drone artifact creature token with deathtouch and \"When this token leaves the battlefield, each opponent loses 2 life and you gain 2 life.\"".to_string(),
+        oracle_text: "Whenever one or more creatures you control deal combat damage to a player, \
+                      you may return one of them to its owner's hand. If you do, you may activate \
+                      loyalty abilities of Kaito twice this turn rather than only once.\n+1: Up \
+                      to one target creature can't attack or block until your next turn.\n0: Draw \
+                      a card.\n\u{2212}2: Create a 2/2 colorless Drone artifact creature token \
+                      with deathtouch and \"When this token leaves the battlefield, each opponent \
+                      loses 2 life and you gain 2 life.\""
+            .to_string(),
         starting_loyalty: Some(3),
         abilities: vec![
             // TODO: Combat damage trigger + bounce + double loyalty activation not expressible.
@@ -57,7 +69,9 @@ pub fn card() -> CardDefinition {
                 effect: Effect::CreateToken {
                     spec: TokenSpec {
                         name: "Drone".to_string(),
-                        card_types: [CardType::Artifact, CardType::Creature].into_iter().collect(),
+                        card_types: [CardType::Artifact, CardType::Creature]
+                            .into_iter()
+                            .collect(),
                         subtypes: [SubType("Drone".to_string())].into_iter().collect(),
                         colors: imbl::OrdSet::new(),
                         power: 2,
@@ -77,7 +91,13 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
-        completeness: Completeness::partial("Blocked on 'activate loyalty abilities twice this turn' (no expression) and on the Drone token's LTB drain trigger (TokenSpec carries keywords only). NOT blocked: 'up to one target' — use TargetRequirement::UpToN instead of the current forced TargetCreature. BUG: +1 hardcodes UntilYourNextTurn(PlayerId(0)) — wrong player in multiplayer; and 'can't attack' is silently dropped (only CantBlock granted)."),
+        completeness: Completeness::partial(
+            "Blocked on 'activate loyalty abilities twice this turn' (no expression) and on the \
+             Drone token's LTB drain trigger (TokenSpec carries keywords only). NOT blocked: 'up \
+             to one target' — use TargetRequirement::UpToN instead of the current forced \
+             TargetCreature. BUG: +1 hardcodes UntilYourNextTurn(PlayerId(0)) — wrong player in \
+             multiplayer; and 'can't attack' is silently dropped (only CantBlock granted).",
+        ),
         ..Default::default()
     }
 }

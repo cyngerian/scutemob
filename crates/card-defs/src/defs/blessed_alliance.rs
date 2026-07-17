@@ -9,17 +9,25 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("blessed-alliance"),
         name: "Blessed Alliance".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            white: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Escalate {2} (Pay this cost for each mode chosen beyond the first.)\n\
-            Choose one or more —\n\
-            • Target player gains 4 life.\n\
-            • Untap up to two target creatures.\n\
-            • Target opponent sacrifices an attacking creature of their choice."
+        oracle_text: "Escalate {2} (Pay this cost for each mode chosen beyond the first.)\nChoose \
+                      one or more —\n• Target player gains 4 life.\n• Untap up to two target \
+                      creatures.\n• Target opponent sacrifices an attacking creature of their \
+                      choice."
             .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Escalate),
-            AbilityDefinition::Escalate { cost: ManaCost { generic: 2, ..Default::default() } },
+            AbilityDefinition::Escalate {
+                cost: ManaCost {
+                    generic: 2,
+                    ..Default::default()
+                },
+            },
             AbilityDefinition::Spell {
                 effect: Effect::Sequence(vec![]),
                 // Targets are shared across all modes (flat, NOT migrated to
@@ -91,7 +99,10 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::partial("(two independent reasons, either alone would block this): 1. This card has Escalate, and the engine HARD-REJECTS..."),
+        completeness: Completeness::partial(
+            "(two independent reasons, either alone would block this): 1. This card has Escalate, \
+             and the engine HARD-REJECTS...",
+        ),
         ..Default::default()
     }
 }

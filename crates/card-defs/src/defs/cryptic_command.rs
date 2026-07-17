@@ -10,9 +10,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("cryptic-command"),
         name: "Cryptic Command".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, blue: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            blue: 3,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Choose two —\n• Counter target spell.\n• Return target permanent to its owner's hand.\n• Tap all creatures your opponents control.\n• Draw a card.".to_string(),
+        oracle_text: "Choose two —\n• Counter target spell.\n• Return target permanent to its \
+                      owner's hand.\n• Tap all creatures your opponents control.\n• Draw a card."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![]),
             // PB-AC4 (CR 700.2c/700.2f): per-mode targets — targets are declared only for

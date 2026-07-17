@@ -9,27 +9,25 @@ pub fn card() -> CardDefinition {
         mana_cost: None,
         types: supertypes(&[SuperType::Legendary], &[CardType::Land]),
         oracle_text: "{T}: Add {G} for each creature you control.".to_string(),
-        abilities: vec![
-            AbilityDefinition::Activated {
-                cost: Cost::Tap,
-                effect: Effect::AddManaScaled {
-                    player: PlayerTarget::Controller,
-                    color: ManaColor::Green,
-                    count: EffectAmount::PermanentCount {
-                        filter: TargetFilter {
-                            has_card_type: Some(CardType::Creature),
-                            ..Default::default()
-                        },
-                        controller: PlayerTarget::Controller,
+        abilities: vec![AbilityDefinition::Activated {
+            cost: Cost::Tap,
+            effect: Effect::AddManaScaled {
+                player: PlayerTarget::Controller,
+                color: ManaColor::Green,
+                count: EffectAmount::PermanentCount {
+                    filter: TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        ..Default::default()
                     },
+                    controller: PlayerTarget::Controller,
                 },
-                timing_restriction: None,
-                targets: vec![],
-                activation_condition: None,
-                activation_zone: None,
-            once_per_turn: false,
             },
-        ],
+            timing_restriction: None,
+            targets: vec![],
+            activation_condition: None,
+            activation_zone: None,
+            once_per_turn: false,
+        }],
         ..Default::default()
     }
 }

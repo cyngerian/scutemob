@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("deadly-dispute"),
         name: "Deadly Dispute".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "As an additional cost to cast this spell, sacrifice an artifact or creature.\nDraw two cards. Create a Treasure token.".to_string(),
+        oracle_text: "As an additional cost to cast this spell, sacrifice an artifact or \
+                      creature.\nDraw two cards. Create a Treasure token."
+            .to_string(),
         // CR 118.8: Mandatory sacrifice of an artifact or creature as additional cost.
         spell_additional_costs: vec![SpellAdditionalCost::SacrificeArtifactOrCreature],
         abilities: vec![AbilityDefinition::Spell {

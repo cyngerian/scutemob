@@ -11,13 +11,20 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("lozhan-dragons-legacy"),
         name: "Lozhan, Dragons' Legacy".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, blue: 1, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            blue: 1,
+            red: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Dragon", "Shaman"],
         ),
-        oracle_text: "Flying\nWhenever you cast an Adventure or Dragon spell, Lozhan deals damage equal to that spell's mana value to any target that isn't a commander.".to_string(),
+        oracle_text: "Flying\nWhenever you cast an Adventure or Dragon spell, Lozhan deals damage \
+                      equal to that spell's mana value to any target that isn't a commander."
+            .to_string(),
         power: Some(4),
         toughness: Some(2),
         abilities: vec![
@@ -30,7 +37,12 @@ pub fn card() -> CardDefinition {
             // - EffectAmount::CastSpellManaValue (mana value of the triggering spell)
             // - TargetFilter::NonCommander (target that isn't a commander)
         ],
-        completeness: Completeness::partial("'...to any target that isn't a commander' — TargetFilter has no commander exclusion. (The trigger IS expressible now: WheneverYouCastSpell { spell_subtype_filter: Some([Adventure, Dragon]) }. Unverified: whether EffectAmount::ManaValueOf can reach the triggering spell's MV.)"),
+        completeness: Completeness::partial(
+            "'...to any target that isn't a commander' — TargetFilter has no commander exclusion. \
+             (The trigger IS expressible now: WheneverYouCastSpell { spell_subtype_filter: \
+             Some([Adventure, Dragon]) }. Unverified: whether EffectAmount::ManaValueOf can reach \
+             the triggering spell's MV.)",
+        ),
         ..Default::default()
     }
 }

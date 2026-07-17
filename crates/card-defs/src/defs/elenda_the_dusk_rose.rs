@@ -9,13 +9,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("elenda-the-dusk-rose"),
         name: "Elenda, the Dusk Rose".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, white: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            white: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Vampire", "Knight"],
         ),
-        oracle_text: "Lifelink\nWhenever another creature dies, put a +1/+1 counter on Elenda, the Dusk Rose.\nWhen Elenda, the Dusk Rose dies, create X 1/1 white Vampire creature tokens with lifelink, where X is Elenda's power.".to_string(),
+        oracle_text: "Lifelink\nWhenever another creature dies, put a +1/+1 counter on Elenda, \
+                      the Dusk Rose.\nWhen Elenda, the Dusk Rose dies, create X 1/1 white Vampire \
+                      creature tokens with lifelink, where X is Elenda's power."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
@@ -23,8 +31,12 @@ pub fn card() -> CardDefinition {
             // CR 603.10a: "Whenever another creature dies, put a +1/+1 counter on Elenda."
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: None, exclude_self: true, nontoken_only: false, filter: None,
-},
+                trigger_condition: TriggerCondition::WheneverCreatureDies {
+                    controller: None,
+                    exclude_self: true,
+                    nontoken_only: false,
+                    filter: None,
+                },
                 effect: Effect::AddCounter {
                     target: EffectTarget::Source,
                     counter: CounterType::PlusOnePlusOne,
@@ -67,7 +79,12 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("Replace TokenSpec.count: EffectAmount::Fixed(3) with EffectAmount::SourcePowerAtLastKnownInformation (effects/mod.rs:7003; lki_power captured for SelfDies at abilities.rs:4167). This is the canonical 'X is Elenda's power' death-trigger shape and is fully wired."),
+        completeness: Completeness::partial(
+            "Replace TokenSpec.count: EffectAmount::Fixed(3) with \
+             EffectAmount::SourcePowerAtLastKnownInformation (effects/mod.rs:7003; lki_power \
+             captured for SelfDies at abilities.rs:4167). This is the canonical 'X is Elenda's \
+             power' death-trigger shape and is fully wired.",
+        ),
         ..Default::default()
     }
 }

@@ -12,15 +12,19 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("jadar-ghoulcaller-of-nephalia"),
         name: "Jadar, Ghoulcaller of Nephalia".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Human", "Wizard"],
         ),
-        oracle_text: "At the beginning of your end step, if you control no tokens named \
-Shambling Ghast, create a 2/2 black Zombie creature token with decayed. (It can't block. \
-When it attacks, sacrifice it at end of combat.)"
+        oracle_text: "At the beginning of your end step, if you control no tokens named Shambling \
+                      Ghast, create a 2/2 black Zombie creature token with decayed. (It can't \
+                      block. When it attacks, sacrifice it at end of combat.)"
             .to_string(),
         power: Some(1),
         toughness: Some(1),
@@ -33,7 +37,9 @@ When it attacks, sacrifice it at end of combat.)"
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::AtBeginningOfYourEndStep,
-                effect: Effect::CreateToken { spec: zombie_decayed_token_spec(1) },
+                effect: Effect::CreateToken {
+                    spec: zombie_decayed_token_spec(1),
+                },
                 intervening_if: None,
                 targets: vec![],
 
@@ -53,6 +59,6 @@ When it attacks, sacrifice it at end of combat.)"
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

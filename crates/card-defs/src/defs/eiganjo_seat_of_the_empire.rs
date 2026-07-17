@@ -7,7 +7,10 @@ pub fn card() -> CardDefinition {
         name: "Eiganjo, Seat of the Empire".to_string(),
         mana_cost: None,
         types: full_types(&[SuperType::Legendary], &[CardType::Land], &[]),
-        oracle_text: "{T}: Add {W}.\nChannel — {2}{W}, Discard this card: It deals 4 damage to target attacking or blocking creature. This ability costs {1} less to activate for each legendary creature you control.".to_string(),
+        oracle_text: "{T}: Add {W}.\nChannel — {2}{W}, Discard this card: It deals 4 damage to \
+                      target attacking or blocking creature. This ability costs {1} less to \
+                      activate for each legendary creature you control."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
@@ -26,7 +29,11 @@ pub fn card() -> CardDefinition {
             // rules/casting.rs / rules/abilities.rs). CR 508.1k / 509.1c.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 2, white: 1, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 2,
+                        white: 1,
+                        ..Default::default()
+                    }),
                     Cost::DiscardSelf,
                 ]),
                 effect: Effect::DealDamage {

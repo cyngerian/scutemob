@@ -9,9 +9,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("squee-dubious-monarch"),
         name: "Squee, Dubious Monarch".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 1, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Goblin", "Noble"]),
-        oracle_text: "Haste\nWhenever Squee attacks, create a 1/1 red Goblin creature token that's tapped and attacking.\nYou may cast this card from your graveyard by paying {3}{R} and exiling four other cards from your graveyard rather than paying its mana cost.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 1,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Creature],
+            &["Goblin", "Noble"],
+        ),
+        oracle_text: "Haste\nWhenever Squee attacks, create a 1/1 red Goblin creature token \
+                      that's tapped and attacking.\nYou may cast this card from your graveyard by \
+                      paying {3}{R} and exiling four other cards from your graveyard rather than \
+                      paying its mana cost."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -51,8 +63,14 @@ pub fn card() -> CardDefinition {
             // GY and may be cast again later.
             AbilityDefinition::CastSelfFromGraveyard {
                 condition: None,
-                alt_mana_cost: Some(ManaCost { generic: 3, red: 1, ..Default::default() }),
-                additional_costs: vec![CastFromGraveyardAdditionalCost::ExileOtherGraveyardCards(4)],
+                alt_mana_cost: Some(ManaCost {
+                    generic: 3,
+                    red: 1,
+                    ..Default::default()
+                }),
+                additional_costs: vec![CastFromGraveyardAdditionalCost::ExileOtherGraveyardCards(
+                    4,
+                )],
                 required_alt_cost: None,
             },
         ],

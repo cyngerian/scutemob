@@ -12,9 +12,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("encroaching-dragonstorm"),
         name: "Encroaching Dragonstorm".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "When this enchantment enters, search your library for up to two basic land cards, put them onto the battlefield tapped, then shuffle.\nWhen a Dragon you control enters, return this enchantment to its owner's hand.".to_string(),
+        oracle_text: "When this enchantment enters, search your library for up to two basic land \
+                      cards, put them onto the battlefield tapped, then shuffle.\nWhen a Dragon \
+                      you control enters, return this enchantment to its owner's hand."
+            .to_string(),
         abilities: vec![
             // When this enchantment enters, search for up to two basic lands tapped, then shuffle.
             AbilityDefinition::Triggered {
@@ -37,7 +44,9 @@ pub fn card() -> CardDefinition {
                         shuffle_before_placing: false,
                         also_search_graveyard: false,
                     },
-                    Effect::Shuffle { player: PlayerTarget::Controller },
+                    Effect::Shuffle {
+                        player: PlayerTarget::Controller,
+                    },
                 ]),
                 intervening_if: None,
                 targets: vec![],
@@ -51,7 +60,15 @@ pub fn card() -> CardDefinition {
             //     controller: TargetController::You, ..Default::default() }) }
             // → Effect::ReturnToHand { target: EffectTarget::Source }
         ],
-        completeness: Completeness::partial("Rewire: TriggerCondition::WheneverCreatureEntersBattlefield { filter: Some({ has_subtype: Dragon, controller: You }) } -> Effect::MoveZone { target: EffectTarget::Source, to: ZoneTarget::Hand, controller_override: None } (card_definition.rs:1594-1603 — defaults to owner, which is what the oracle wants). Also review the ETB clause: 'up to two basic land cards' is modeled as two separate SearchLibrary calls (lines 24-39), which is not one search and cannot express 'up to'."),
+        completeness: Completeness::partial(
+            "Rewire: TriggerCondition::WheneverCreatureEntersBattlefield { filter: Some({ \
+             has_subtype: Dragon, controller: You }) } -> Effect::MoveZone { target: \
+             EffectTarget::Source, to: ZoneTarget::Hand, controller_override: None } \
+             (card_definition.rs:1594-1603 — defaults to owner, which is what the oracle wants). \
+             Also review the ETB clause: 'up to two basic land cards' is modeled as two separate \
+             SearchLibrary calls (lines 24-39), which is not one search and cannot express 'up \
+             to'.",
+        ),
         ..Default::default()
     }
 }

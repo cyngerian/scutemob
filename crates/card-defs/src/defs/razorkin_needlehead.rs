@@ -13,9 +13,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("razorkin-needlehead"),
         name: "Razorkin Needlehead".to_string(),
-        mana_cost: Some(ManaCost { red: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            red: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Assassin"]),
-        oracle_text: "This creature has first strike during your turn.\nWhenever an opponent draws a card, this creature deals 1 damage to them.".to_string(),
+        oracle_text: "This creature has first strike during your turn.\nWhenever an opponent \
+                      draws a card, this creature deals 1 damage to them."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -48,7 +53,12 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::known_wrong("'deals 1 damage' is modeled as Effect::LoseLife. CR 119.3 — life loss is not damage: it cannot be prevented or redirected, triggers no damage triggers, and ignores lifelink. The WheneverPlayerDrawsCard{Opponent} trigger and the IsYourTurn first-strike static are both correctly wired."),
+        completeness: Completeness::known_wrong(
+            "'deals 1 damage' is modeled as Effect::LoseLife. CR 119.3 — life loss is not damage: \
+             it cannot be prevented or redirected, triggers no damage triggers, and ignores \
+             lifelink. The WheneverPlayerDrawsCard{Opponent} trigger and the IsYourTurn \
+             first-strike static are both correctly wired.",
+        ),
         ..Default::default()
     }
 }

@@ -8,9 +8,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("leyline-of-abundance"),
         name: "Leyline of Abundance".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "If Leyline of Abundance is in your opening hand, you may begin the game with it on the battlefield.\nWhenever you tap a creature for mana, add an additional {G}.\n{6}{G}{G}: Put a +1/+1 counter on each creature you control.".to_string(),
+        oracle_text: "If Leyline of Abundance is in your opening hand, you may begin the game \
+                      with it on the battlefield.\nWhenever you tap a creature for mana, add an \
+                      additional {G}.\n{6}{G}{G}: Put a +1/+1 counter on each creature you \
+                      control."
+            .to_string(),
         abilities: vec![
             // TODO: DSL gap — "If in opening hand, begin game on battlefield" (Leyline).
             // CR 605.1b / CR 106.12a: "Whenever you tap a creature for mana, add {G}."
@@ -22,7 +30,10 @@ pub fn card() -> CardDefinition {
                 },
                 effect: Effect::AddMana {
                     player: PlayerTarget::Controller,
-                    mana: ManaPool { green: 1, ..Default::default() },
+                    mana: ManaPool {
+                        green: 1,
+                        ..Default::default()
+                    },
                 },
                 intervening_if: None,
                 targets: vec![],
@@ -30,7 +41,11 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { generic: 6, green: 2, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    generic: 6,
+                    green: 2,
+                    ..Default::default()
+                }),
                 effect: Effect::ForEach {
                     over: ForEachTarget::EachCreatureYouControl,
                     effect: Box::new(Effect::AddCounter {
@@ -43,10 +58,15 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("Missing `AbilityDefinition::OpeningHand` — the primitive exists and is wired (engine.rs start_game, CR 113.6b; see leyline_of_the_void.rs). Add it; the other two abilities are implemented. Known deviation to confirm: engine places opening-hand permanents unconditionally, oracle says 'you may'."),
+        completeness: Completeness::partial(
+            "Missing `AbilityDefinition::OpeningHand` — the primitive exists and is wired \
+             (engine.rs start_game, CR 113.6b; see leyline_of_the_void.rs). Add it; the other two \
+             abilities are implemented. Known deviation to confirm: engine places opening-hand \
+             permanents unconditionally, oracle says 'you may'.",
+        ),
         ..Default::default()
     }
 }

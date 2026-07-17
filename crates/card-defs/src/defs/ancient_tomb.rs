@@ -15,26 +15,24 @@ pub fn card() -> CardDefinition {
         mana_cost: None,
         types: types(&[CardType::Land]),
         oracle_text: "{T}: Add {C}{C}. Ancient Tomb deals 2 damage to you.".to_string(),
-        abilities: vec![
-            AbilityDefinition::Activated {
-                cost: Cost::Tap,
-                effect: Effect::Sequence(vec![
-                    Effect::AddMana {
-                        player: PlayerTarget::Controller,
-                        mana: mana_pool(0, 0, 0, 0, 0, 2),
-                    },
-                    Effect::DealDamage {
-                        target: EffectTarget::Controller,
-                        amount: EffectAmount::Fixed(2),
-                    },
-                ]),
-                timing_restriction: None,
-                targets: vec![],
-                activation_condition: None,
-                activation_zone: None,
+        abilities: vec![AbilityDefinition::Activated {
+            cost: Cost::Tap,
+            effect: Effect::Sequence(vec![
+                Effect::AddMana {
+                    player: PlayerTarget::Controller,
+                    mana: mana_pool(0, 0, 0, 0, 0, 2),
+                },
+                Effect::DealDamage {
+                    target: EffectTarget::Controller,
+                    amount: EffectAmount::Fixed(2),
+                },
+            ]),
+            timing_restriction: None,
+            targets: vec![],
+            activation_condition: None,
+            activation_zone: None,
             once_per_turn: false,
-            },
-        ],
+        }],
         ..Default::default()
     }
 }

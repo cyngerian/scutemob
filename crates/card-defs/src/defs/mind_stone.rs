@@ -5,7 +5,10 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("mind-stone"),
         name: "Mind Stone".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
         oracle_text: "{T}: Add {C}.\n{1}, {T}, Sacrifice Mind Stone: Draw a card.".to_string(),
         abilities: vec![
@@ -19,11 +22,14 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 1,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                     Cost::SacrificeSelf,
                 ]),
@@ -35,7 +41,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

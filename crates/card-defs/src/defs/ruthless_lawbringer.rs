@@ -11,9 +11,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("ruthless-lawbringer"),
         name: "Ruthless Lawbringer".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, white: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            white: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Vampire", "Assassin"]),
-        oracle_text: "When this creature enters, you may sacrifice another creature. When you do, destroy target nonland permanent.".to_string(),
+        oracle_text: "When this creature enters, you may sacrifice another creature. When you do, \
+                      destroy target nonland permanent."
+            .to_string(),
         power: Some(3),
         toughness: Some(2),
         abilities: vec![
@@ -22,7 +29,10 @@ pub fn card() -> CardDefinition {
             // the sacrifice is a choice that conditionally fires a second trigger. No DSL
             // support for optional-sacrifice ETB with conditional chained trigger.
         ],
-        completeness: Completeness::partial("DSL gap — 'when you do' reflexive trigger: the ETB trigger allows sacrificing another creature, and only when that..."),
+        completeness: Completeness::partial(
+            "DSL gap — 'when you do' reflexive trigger: the ETB trigger allows sacrificing \
+             another creature, and only when that...",
+        ),
         ..Default::default()
     }
 }

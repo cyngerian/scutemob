@@ -7,7 +7,9 @@ pub fn card() -> CardDefinition {
         name: "Kor Haven".to_string(),
         mana_cost: None,
         types: full_types(&[SuperType::Legendary], &[CardType::Land], &[]),
-        oracle_text: "{T}: Add {C}.\n{1}{W}, {T}: Prevent all combat damage that would be dealt by target attacking creature this turn.".to_string(),
+        oracle_text: "{T}: Add {C}.\n{1}{W}, {T}: Prevent all combat damage that would be dealt \
+                      by target attacking creature this turn."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
@@ -19,13 +21,17 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // CR 615.1: {1}{W},{T}: Prevent all combat damage dealt BY target attacking creature.
             // (Approximation: "attacking creature" → TargetCreature)
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 1, white: 1, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 1,
+                        white: 1,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                 ]),
                 effect: Effect::PreventCombatDamageFromOrTo {
@@ -37,10 +43,13 @@ pub fn card() -> CardDefinition {
                 targets: vec![TargetRequirement::TargetCreature],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::known_wrong("targets any creature; the printed 'attacking creature' restriction is not enforced — TargetFilter::is_attacking now exists (PB-XA2) and should be used"),
+        completeness: Completeness::known_wrong(
+            "targets any creature; the printed 'attacking creature' restriction is not enforced — \
+             TargetFilter::is_attacking now exists (PB-XA2) and should be used",
+        ),
         ..Default::default()
     }
 }

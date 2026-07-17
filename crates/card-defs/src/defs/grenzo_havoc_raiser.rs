@@ -9,9 +9,20 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("grenzo-havoc-raiser"),
         name: "Grenzo, Havoc Raiser".to_string(),
-        mana_cost: Some(ManaCost { red: 2, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Goblin", "Rogue"]),
-        oracle_text: "Whenever a creature you control deals combat damage to a player, choose one —\n• Goad target creature that player controls.\n• Exile the top card of that player's library. Until end of turn, you may cast that card and you may spend mana as though it were mana of any color to cast that spell.".to_string(),
+        mana_cost: Some(ManaCost {
+            red: 2,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Creature],
+            &["Goblin", "Rogue"],
+        ),
+        oracle_text: "Whenever a creature you control deals combat damage to a player, choose one \
+                      —\n• Goad target creature that player controls.\n• Exile the top card of \
+                      that player's library. Until end of turn, you may cast that card and you \
+                      may spend mana as though it were mana of any color to cast that spell."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -19,7 +30,12 @@ pub fn card() -> CardDefinition {
             // Mode 1 (Goad) works but needs per-creature trigger + target from damaged player.
             // Mode 2 (impulse-draw from opponent) needs PlayExiledCard from opponent's library.
         ],
-        completeness: Completeness::partial("Blocked: TargetFilter has no 'controlled by the damaged player' constraint for mode 1's Goad target, and mode 2 needs exile-from-opponent's-library + PlayExiledCard with spend-mana-as-any-color. (The combat-damage trigger, modal triggers, Goad and PlayerTarget::DamagedPlayer all exist.)"),
+        completeness: Completeness::partial(
+            "Blocked: TargetFilter has no 'controlled by the damaged player' constraint for mode \
+             1's Goad target, and mode 2 needs exile-from-opponent's-library + PlayExiledCard \
+             with spend-mana-as-any-color. (The combat-damage trigger, modal triggers, Goad and \
+             PlayerTarget::DamagedPlayer all exist.)",
+        ),
         ..Default::default()
     }
 }

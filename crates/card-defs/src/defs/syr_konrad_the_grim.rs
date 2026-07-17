@@ -9,13 +9,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("syr-konrad-the-grim"),
         name: "Syr Konrad, the Grim".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            black: 2,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Human", "Knight"],
         ),
-        oracle_text: "Whenever another creature dies, or a creature card is put into a graveyard from anywhere other than the battlefield, or a creature card leaves your graveyard, Syr Konrad deals 1 damage to each opponent.\n{1}{B}: Each player mills a card.".to_string(),
+        oracle_text: "Whenever another creature dies, or a creature card is put into a graveyard \
+                      from anywhere other than the battlefield, or a creature card leaves your \
+                      graveyard, Syr Konrad deals 1 damage to each opponent.\n{1}{B}: Each player \
+                      mills a card."
+            .to_string(),
         power: Some(5),
         toughness: Some(4),
         abilities: vec![
@@ -46,7 +54,12 @@ pub fn card() -> CardDefinition {
             },
             // TODO: "{1}{B}: Each player mills a card." — needs Effect::Mill with ForEach::EachPlayer.
         ],
-        completeness: Completeness::partial("DSL gap — no trigger for 'a creature card is put into a graveyard from anywhere other than the battlefield' or 'a creature card leaves your graveyard'. (The 'another creature dies' trigger is wired with exclude_self; the {1}{B} mill ability is authorable via MillCards{PlayerTarget::EachPlayer} and should be added.)"),
+        completeness: Completeness::partial(
+            "DSL gap — no trigger for 'a creature card is put into a graveyard from anywhere \
+             other than the battlefield' or 'a creature card leaves your graveyard'. (The \
+             'another creature dies' trigger is wired with exclude_self; the {1}{B} mill ability \
+             is authorable via MillCards{PlayerTarget::EachPlayer} and should be added.)",
+        ),
         ..Default::default()
     }
 }

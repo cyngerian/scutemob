@@ -7,9 +7,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("talisman-of-resilience"),
         name: "Talisman of Resilience".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "{T}: Add {C}.\n{T}: Add {B} or {G}. Talisman of Resilience deals 1 damage to you.".to_string(),
+        oracle_text: "{T}: Add {C}.\n{T}: Add {B} or {G}. Talisman of Resilience deals 1 damage \
+                      to you."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
@@ -21,7 +26,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
@@ -39,7 +44,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
@@ -57,7 +62,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

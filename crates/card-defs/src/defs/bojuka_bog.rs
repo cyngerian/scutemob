@@ -7,7 +7,9 @@ pub fn card() -> CardDefinition {
         name: "Bojuka Bog".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "This land enters tapped.\nWhen this land enters, exile target player's graveyard.\n{T}: Add {B}.".to_string(),
+        oracle_text: "This land enters tapped.\nWhen this land enters, exile target player's \
+                      graveyard.\n{T}: Add {B}."
+            .to_string(),
         abilities: vec![
             // CR 614.1c: self-replacement — this land enters tapped.
             AbilityDefinition::Replacement {
@@ -30,10 +32,15 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("Blocked on an effect that exiles a target player's graveyard — Effect::ExileAll only reaches battlefield objects (effects/mod.rs:1554) and there is no graveyard-exile effect. Targeted ETB triggers ARE supported (PB-5; see fell_specter.rs). ETB-tapped and {T}: Add {B} are implemented."),
+        completeness: Completeness::partial(
+            "Blocked on an effect that exiles a target player's graveyard — Effect::ExileAll only \
+             reaches battlefield objects (effects/mod.rs:1554) and there is no graveyard-exile \
+             effect. Targeted ETB triggers ARE supported (PB-5; see fell_specter.rs). ETB-tapped \
+             and {T}: Add {B} are implemented.",
+        ),
         ..Default::default()
     }
 }

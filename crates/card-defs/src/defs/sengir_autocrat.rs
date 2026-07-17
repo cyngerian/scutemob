@@ -10,9 +10,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("sengir-autocrat"),
         name: "Sengir Autocrat".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human"]),
-        oracle_text: "When this creature enters, create three 0/1 black Serf creature tokens.\nWhen this creature leaves the battlefield, exile all Serf tokens.".to_string(),
+        oracle_text: "When this creature enters, create three 0/1 black Serf creature \
+                      tokens.\nWhen this creature leaves the battlefield, exile all Serf tokens."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -62,7 +68,13 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("both triggers are implemented (WhenEntersBattlefield → 3 Serf tokens; WhenLeavesBattlefield → ExileAll{has_subtype: Serf}). Deviation: oracle exiles only Serf TOKENS, the def exiles all Serfs — TargetFilter.is_token is a GameObject field and is silently ignored by matches_filter() (see its doc comment at card_definition.rs:2859-2868), so token-only filtering is not honored on ExileAll."),
+        completeness: Completeness::partial(
+            "both triggers are implemented (WhenEntersBattlefield → 3 Serf tokens; \
+             WhenLeavesBattlefield → ExileAll{has_subtype: Serf}). Deviation: oracle exiles only \
+             Serf TOKENS, the def exiles all Serfs — TargetFilter.is_token is a GameObject field \
+             and is silently ignored by matches_filter() (see its doc comment at \
+             card_definition.rs:2859-2868), so token-only filtering is not honored on ExileAll.",
+        ),
         ..Default::default()
     }
 }

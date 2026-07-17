@@ -10,9 +10,22 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("lathril-blade-of-the-elves"),
         name: "Lathril, Blade of the Elves".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, black: 1, green: 1, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Elf", "Noble"]),
-        oracle_text: "Menace (This creature can't be blocked except by two or more creatures.)\nWhenever Lathril deals combat damage to a player, create that many 1/1 green Elf Warrior creature tokens.\n{T}, Tap ten untapped Elves you control: Each opponent loses 10 life and you gain 10 life.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            black: 1,
+            green: 1,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Creature],
+            &["Elf", "Noble"],
+        ),
+        oracle_text: "Menace (This creature can't be blocked except by two or more \
+                      creatures.)\nWhenever Lathril deals combat damage to a player, create that \
+                      many 1/1 green Elf Warrior creature tokens.\n{T}, Tap ten untapped Elves \
+                      you control: Each opponent loses 10 life and you gain 10 life."
+            .to_string(),
         power: Some(2),
         toughness: Some(3),
         abilities: vec![
@@ -55,7 +68,10 @@ pub fn card() -> CardDefinition {
             // TODO: "{T}, Tap ten untapped Elves you control" — cost requiring tap of N other
             //   specific-type permanents not expressible in DSL.
         ],
-        completeness: Completeness::partial("'{T}, Tap ten untapped Elves you control' — cost requiring tap of N other specific-type permanents not expressible in..."),
+        completeness: Completeness::partial(
+            "'{T}, Tap ten untapped Elves you control' — cost requiring tap of N other \
+             specific-type permanents not expressible in...",
+        ),
         ..Default::default()
     }
 }

@@ -7,7 +7,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("canopy-tactician"),
         name: "Canopy Tactician".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Elf", "Warrior"]),
         oracle_text: "Other Elves you control get +1/+1.\n{T}: Add {G}{G}{G}.".to_string(),
         power: Some(3),
@@ -18,7 +22,9 @@ pub fn card() -> CardDefinition {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::PtModify,
                     modification: LayerModification::ModifyBoth(1),
-                    filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType("Elf".to_string())),
+                    filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType(
+                        "Elf".to_string(),
+                    )),
                     duration: EffectDuration::WhileSourceOnBattlefield,
                     condition: None,
                 },
@@ -34,7 +40,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

@@ -8,13 +8,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("roalesk-apex-hybrid"),
         name: "Roalesk, Apex Hybrid".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 2, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 2,
+            blue: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Human", "Mutant"],
         ),
-        oracle_text: "Flying, trample\nWhen Roalesk, Apex Hybrid enters, put two +1/+1 counters on another target creature you control.\nWhen Roalesk, Apex Hybrid dies, proliferate, then proliferate again.".to_string(),
+        oracle_text: "Flying, trample\nWhen Roalesk, Apex Hybrid enters, put two +1/+1 counters \
+                      on another target creature you control.\nWhen Roalesk, Apex Hybrid dies, \
+                      proliferate, then proliferate again."
+            .to_string(),
         power: Some(4),
         toughness: Some(5),
         abilities: vec![
@@ -44,7 +52,12 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — "When Roalesk dies, proliferate, then proliferate again."
             // WhenThisDies trigger + Effect::Proliferate (twice).
         ],
-        completeness: Completeness::partial("needs-rewiring: add Triggered{trigger_condition: WhenDies, effect: Sequence([Proliferate, Proliferate])}. Both primitives shipped — WhenDies (replay_harness.rs:2289) and Effect::Proliferate (effects/mod.rs:3467). Should reach Complete once wired."),
+        completeness: Completeness::partial(
+            "needs-rewiring: add Triggered{trigger_condition: WhenDies, effect: \
+             Sequence([Proliferate, Proliferate])}. Both primitives shipped — WhenDies \
+             (replay_harness.rs:2289) and Effect::Proliferate (effects/mod.rs:3467). Should reach \
+             Complete once wired.",
+        ),
         ..Default::default()
     }
 }

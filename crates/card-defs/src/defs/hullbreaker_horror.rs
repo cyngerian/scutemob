@@ -14,9 +14,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("hullbreaker-horror"),
         name: "Hullbreaker Horror".to_string(),
-        mana_cost: Some(ManaCost { generic: 5, blue: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 5,
+            blue: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Kraken", "Horror"]),
-        oracle_text: "Flash\nThis spell can't be countered.\nWhenever you cast a spell, choose up to one —\n• Return target spell you don't control to its owner's hand.\n• Return target nonland permanent to its owner's hand.".to_string(),
+        oracle_text: "Flash\nThis spell can't be countered.\nWhenever you cast a spell, choose up \
+                      to one —\n• Return target spell you don't control to its owner's hand.\n• \
+                      Return target nonland permanent to its owner's hand."
+            .to_string(),
         power: Some(7),
         toughness: Some(8),
         cant_be_countered: true,

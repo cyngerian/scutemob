@@ -10,9 +10,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("black-market-connections"),
         name: "Black Market Connections".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            black: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "At the beginning of your first main phase, choose one or more —\n• Sell Contraband — Create a Treasure token. You lose 1 life.\n• Buy Information — Draw a card. You lose 2 life.\n• Hire a Mercenary — Create a 3/2 colorless Shapeshifter creature token with changeling. You lose 3 life.".to_string(),
+        oracle_text: "At the beginning of your first main phase, choose one or more —\n• Sell \
+                      Contraband — Create a Treasure token. You lose 1 life.\n• Buy Information — \
+                      Draw a card. You lose 2 life.\n• Hire a Mercenary — Create a 3/2 colorless \
+                      Shapeshifter creature token with changeling. You lose 3 life."
+            .to_string(),
         abilities: vec![
             // ENGINE-BLOCKED: triggered abilities carry a ModeSelection and resolve it
             // (CR 700.2b), but the mode CHOICE is not player-declared — `abilities.rs` hardcodes
@@ -23,7 +31,10 @@ pub fn card() -> CardDefinition {
             // (The "at the beginning of your first main phase" trigger itself is now
             // available as TriggerCondition::AtBeginningOfFirstMainPhase — PB-AC6.)
         ],
-        completeness: Completeness::partial("triggered abilities carry a ModeSelection and resolve it (CR 700.2b), but the mode CHOICE is not player-declared..."),
+        completeness: Completeness::partial(
+            "triggered abilities carry a ModeSelection and resolve it (CR 700.2b), but the mode \
+             CHOICE is not player-declared...",
+        ),
         ..Default::default()
     }
 }

@@ -5,7 +5,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("infernal-grasp"),
         name: "Infernal Grasp".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
         oracle_text: "Destroy target creature. You lose 2 life.".to_string(),
         abilities: vec![AbilityDefinition::Spell {

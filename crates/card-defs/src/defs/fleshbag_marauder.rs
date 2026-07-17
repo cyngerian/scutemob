@@ -6,7 +6,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("fleshbag-marauder"),
         name: "Fleshbag Marauder".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Zombie", "Warrior"]),
         oracle_text: "When this enters, each player sacrifices a creature.".to_string(),
         power: Some(3),

@@ -7,7 +7,12 @@ pub fn card() -> CardDefinition {
         name: "Spinerock Knoll".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "Hideaway 4 (When this land enters, look at the top four cards of your library, exile one face down, then put the rest on the bottom in a random order.)\nThis land enters tapped.\n{T}: Add {R}.\n{R}, {T}: You may play the exiled card without paying its mana cost if an opponent was dealt 7 or more damage this turn.".to_string(),
+        oracle_text: "Hideaway 4 (When this land enters, look at the top four cards of your \
+                      library, exile one face down, then put the rest on the bottom in a random \
+                      order.)\nThis land enters tapped.\n{T}: Add {R}.\n{R}, {T}: You may play \
+                      the exiled card without paying its mana cost if an opponent was dealt 7 or \
+                      more damage this turn."
+            .to_string(),
         abilities: vec![
             // CR 614.1c: self-replacement — this land enters tapped.
             AbilityDefinition::Replacement {
@@ -29,7 +34,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // TODO: Keyword — Hideaway 4
             // TODO: Activated — {R}, {T}: Play exiled card without paying its mana cost

@@ -11,9 +11,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("foundry-street-denizen"),
         name: "Foundry Street Denizen".to_string(),
-        mana_cost: Some(ManaCost { red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Goblin", "Warrior"]),
-        oracle_text: "Whenever another red creature enters the battlefield under your control, this creature gets +1/+0 until end of turn.".to_string(),
+        oracle_text: "Whenever another red creature enters the battlefield under your control, \
+                      this creature gets +1/+0 until end of turn."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![

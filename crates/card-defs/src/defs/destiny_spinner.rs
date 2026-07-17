@@ -11,9 +11,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("destiny-spinner"),
         name: "Destiny Spinner".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Enchantment, CardType::Creature], &["Human"]),
-        oracle_text: "Creature and enchantment spells you control can't be countered.\n{3}{G}: Target land you control becomes an X/X Elemental creature with trample and haste until end of turn, where X is the number of enchantments you control. It's still a land.".to_string(),
+        oracle_text: "Creature and enchantment spells you control can't be countered.\n{3}{G}: \
+                      Target land you control becomes an X/X Elemental creature with trample and \
+                      haste until end of turn, where X is the number of enchantments you control. \
+                      It's still a land."
+            .to_string(),
         power: Some(2),
         toughness: Some(3),
         abilities: vec![
@@ -21,7 +29,11 @@ pub fn card() -> CardDefinition {
             // CR 613.1d/613.4b: {3}{G}: Target land becomes an X/X Elemental with trample
             // and haste until end of turn, where X is the number of enchantments you control.
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { generic: 3, green: 1, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    generic: 3,
+                    green: 1,
+                    ..Default::default()
+                }),
                 effect: Effect::Sequence(vec![
                     Effect::ApplyContinuousEffect {
                         effect_def: Box::new(ContinuousEffectDef {
@@ -89,11 +101,18 @@ pub fn card() -> CardDefinition {
                 targets: vec![TargetRequirement::TargetLand],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         // TODO: static "can't counter creature/enchantment spells you control"
-        completeness: Completeness::partial("Blocked on the static 'Creature and enchantment spells you control can't be countered': cant_be_countered is read only off the spell's own CardDefinition (casting.rs:3563-3594); there is no static grant conferring uncounterability on other spells. The {3}{G} land-animation ability IS fully implemented (the old note wrongly claimed otherwise). Also note the def omits 'Target land YOU CONTROL' — targets is TargetRequirement::TargetLand, unfiltered; verify before completing."),
+        completeness: Completeness::partial(
+            "Blocked on the static 'Creature and enchantment spells you control can't be \
+             countered': cant_be_countered is read only off the spell's own CardDefinition \
+             (casting.rs:3563-3594); there is no static grant conferring uncounterability on \
+             other spells. The {3}{G} land-animation ability IS fully implemented (the old note \
+             wrongly claimed otherwise). Also note the def omits 'Target land YOU CONTROL' — \
+             targets is TargetRequirement::TargetLand, unfiltered; verify before completing.",
+        ),
         ..Default::default()
     }
 }

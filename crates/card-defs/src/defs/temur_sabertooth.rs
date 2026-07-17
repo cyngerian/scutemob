@@ -13,15 +13,24 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("temur-sabertooth"),
         name: "Temur Sabertooth".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Cat"]),
-        oracle_text: "{1}{G}: You may return another creature you control to its owner's hand. If you do, this creature gains indestructible until end of turn.".to_string(),
+        oracle_text: "{1}{G}: You may return another creature you control to its owner's hand. If \
+                      you do, this creature gains indestructible until end of turn."
+            .to_string(),
         power: Some(4),
         toughness: Some(3),
         abilities: vec![
             // ENGINE-BLOCKED: see module comment — bounce-as-cost has no Cost variant.
         ],
-        completeness: Completeness::partial("out of PB-AC2 scope: PB-AC2's `Effect::MayPayThenEffect` only wraps `Cost` variants..."),
+        completeness: Completeness::partial(
+            "out of PB-AC2 scope: PB-AC2's `Effect::MayPayThenEffect` only wraps `Cost` \
+             variants...",
+        ),
         ..Default::default()
     }
 }

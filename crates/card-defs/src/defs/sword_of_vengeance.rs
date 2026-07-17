@@ -11,9 +11,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("sword-of-vengeance"),
         name: "Sword of Vengeance".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Artifact], &["Equipment"]),
-        oracle_text: "Equipped creature gets +2/+0 and has first strike, vigilance, trample, and haste.\nEquip {3}".to_string(),
+        oracle_text: "Equipped creature gets +2/+0 and has first strike, vigilance, trample, and \
+                      haste.\nEquip {3}"
+            .to_string(),
         abilities: vec![
             // Static: Equipped creature gets +2/+0 (layer 7c).
             AbilityDefinition::Static {
@@ -46,7 +51,10 @@ pub fn card() -> CardDefinition {
             },
             // Equip {3}: attach this Equipment to target creature you control (CR 702.6b/d).
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { generic: 3, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    generic: 3,
+                    ..Default::default()
+                }),
                 effect: Effect::AttachEquipment {
                     equipment: EffectTarget::Source,
                     target: EffectTarget::DeclaredTarget { index: 0 },
@@ -55,7 +63,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

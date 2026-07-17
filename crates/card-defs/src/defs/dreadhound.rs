@@ -8,9 +8,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("dreadhound"),
         name: "Dreadhound".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            black: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Demon", "Dog"]),
-        oracle_text: "When Dreadhound enters, mill three cards.\nWhenever a creature dies or a creature card is put into a graveyard from a library, each opponent loses 1 life.".to_string(),
+        oracle_text: "When Dreadhound enters, mill three cards.\nWhenever a creature dies or a \
+                      creature card is put into a graveyard from a library, each opponent loses 1 \
+                      life."
+            .to_string(),
         power: Some(6),
         toughness: Some(6),
         abilities: vec![
@@ -37,8 +44,8 @@ pub fn card() -> CardDefinition {
                     controller: None,
                     exclude_self: false,
                     nontoken_only: false,
-                                filter: None,
-            },
+                    filter: None,
+                },
                 effect: Effect::ForEach {
                     over: ForEachTarget::EachOpponent,
                     effect: Box::new(Effect::LoseLife {

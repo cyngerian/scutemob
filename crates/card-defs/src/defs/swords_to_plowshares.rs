@@ -5,7 +5,10 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("swords-to-plowshares"),
         name: "Swords to Plowshares".to_string(),
-        mana_cost: Some(ManaCost { white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            white: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
         oracle_text: "Exile target creature. Its controller gains life equal to its power."
             .to_string(),
@@ -15,9 +18,9 @@ pub fn card() -> CardDefinition {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                 },
                 Effect::GainLife {
-                    player: PlayerTarget::ControllerOf(Box::new(
-                        EffectTarget::DeclaredTarget { index: 0 },
-                    )),
+                    player: PlayerTarget::ControllerOf(Box::new(EffectTarget::DeclaredTarget {
+                        index: 0,
+                    })),
                     amount: EffectAmount::PowerOf(EffectTarget::DeclaredTarget { index: 0 }),
                 },
             ]),

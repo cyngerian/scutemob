@@ -5,9 +5,18 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("call-of-the-nightwing"),
         name: "Call of the Nightwing".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, blue: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            blue: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Create a 1/1 blue and black Horror creature token with flying.\nCipher (Then you may exile this spell card encoded on a creature you control. Whenever that creature deals combat damage to a player, its controller may cast a copy of the encoded card without paying its mana cost.)".to_string(),
+        oracle_text: "Create a 1/1 blue and black Horror creature token with flying.\nCipher \
+                      (Then you may exile this spell card encoded on a creature you control. \
+                      Whenever that creature deals combat damage to a player, its controller may \
+                      cast a copy of the encoded card without paying its mana cost.)"
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Spell {
                 effect: Effect::CreateToken {

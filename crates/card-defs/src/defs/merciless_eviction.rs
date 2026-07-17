@@ -6,9 +6,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("merciless-eviction"),
         name: "Merciless Eviction".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, white: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            white: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Choose one —\n• Exile all artifacts.\n• Exile all creatures.\n• Exile all enchantments.\n• Exile all planeswalkers.".to_string(),
+        oracle_text: "Choose one —\n• Exile all artifacts.\n• Exile all creatures.\n• Exile all \
+                      enchantments.\n• Exile all planeswalkers."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![]),
             targets: vec![],

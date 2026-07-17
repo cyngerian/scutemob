@@ -8,9 +8,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("mirror-entity"),
         name: "Mirror Entity".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            white: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Shapeshifter"]),
-        oracle_text: "Changeling (This card is every creature type.)\n{X}: Until end of turn, creatures you control have base power and toughness X/X and gain all creature types.".to_string(),
+        oracle_text: "Changeling (This card is every creature type.)\n{X}: Until end of turn, \
+                      creatures you control have base power and toughness X/X and gain all \
+                      creature types."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
@@ -19,7 +26,10 @@ pub fn card() -> CardDefinition {
             // P/T X/X (Layer 7b, PB-AC3 SetBothDynamic — locked in at resolution) and gain
             // all creature types (Layer 4 type-changing, AddAllCreatureTypes — CR 613.1d).
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { x_count: 1, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    x_count: 1,
+                    ..Default::default()
+                }),
                 effect: Effect::Sequence(vec![
                     Effect::ApplyContinuousEffect {
                         effect_def: Box::new(ContinuousEffectDef {
@@ -46,7 +56,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

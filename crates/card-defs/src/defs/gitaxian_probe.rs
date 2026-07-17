@@ -14,7 +14,9 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "({U/P} can be paid with either {U} or 2 life.)\nLook at target player's hand.\nDraw a card.".to_string(),
+        oracle_text: "({U/P} can be paid with either {U} or 2 life.)\nLook at target player's \
+                      hand.\nDraw a card."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             // TODO: "Look at hand" not expressible. Draw only.
             effect: Effect::DrawCards {

@@ -14,7 +14,10 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Destroy target permanent an opponent controls. Its controller may search their library for a basic land card, put it onto the battlefield, then shuffle.".to_string(),
+        oracle_text: "Destroy target permanent an opponent controls. Its controller may search \
+                      their library for a basic land card, put it onto the battlefield, then \
+                      shuffle."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![
                 Effect::DestroyPermanent {
@@ -48,7 +51,9 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::known_wrong("'may search' is modeled as an unconditional search — the controller cannot decline"),
+        completeness: Completeness::known_wrong(
+            "'may search' is modeled as an unconditional search — the controller cannot decline",
+        ),
         ..Default::default()
     }
 }

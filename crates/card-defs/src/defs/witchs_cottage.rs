@@ -9,7 +9,10 @@ pub fn card() -> CardDefinition {
         name: "Witch's Cottage".to_string(),
         mana_cost: None,
         types: types_sub(&[CardType::Land], &["Swamp"]),
-        oracle_text: "({T}: Add {B}.)\nThis land enters tapped unless you control three or more other Swamps.\nWhen this land enters untapped, you may put target creature card from your graveyard on top of your library.".to_string(),
+        oracle_text: "({T}: Add {B}.)\nThis land enters tapped unless you control three or more \
+                      other Swamps.\nWhen this land enters untapped, you may put target creature \
+                      card from your graveyard on top of your library."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Replacement {
                 trigger: ReplacementTrigger::WouldEnterBattlefield {
@@ -32,11 +35,16 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // TODO: Triggered — When this land enters untapped, you may put target creature card from your graveyard on top of your library.
         ],
-        completeness: Completeness::partial("Blocked on (a) no trigger condition for 'enters UNTAPPED' (WhenEntersBattlefield fires regardless of tapped state; no intervening_if reads the source's own tapped state) and (b) 'you may' has no interactive expression. TargetCardInYourGraveyard and Effect::PutOnLibrary both exist — the effect half is not the blocker."),
+        completeness: Completeness::partial(
+            "Blocked on (a) no trigger condition for 'enters UNTAPPED' (WhenEntersBattlefield \
+             fires regardless of tapped state; no intervening_if reads the source's own tapped \
+             state) and (b) 'you may' has no interactive expression. TargetCardInYourGraveyard \
+             and Effect::PutOnLibrary both exist — the effect half is not the blocker.",
+        ),
         ..Default::default()
     }
 }

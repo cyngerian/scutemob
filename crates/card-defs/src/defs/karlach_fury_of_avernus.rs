@@ -13,13 +13,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("karlach-fury-of-avernus"),
         name: "Karlach, Fury of Avernus".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            red: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Tiefling", "Barbarian"],
         ),
-        oracle_text: "Whenever you attack, if it's the first combat phase of the turn, untap all attacking creatures. They gain first strike until end of turn. After this phase, there is an additional combat phase.\nChoose a Background (You can have a Background as a second commander.)".to_string(),
+        oracle_text: "Whenever you attack, if it's the first combat phase of the turn, untap all \
+                      attacking creatures. They gain first strike until end of turn. After this \
+                      phase, there is an additional combat phase.\nChoose a Background (You can \
+                      have a Background as a second commander.)"
+            .to_string(),
         power: Some(5),
         toughness: Some(4),
         abilities: vec![
@@ -56,7 +64,9 @@ pub fn card() -> CardDefinition {
                         }),
                     },
                     // After this phase, there is an additional combat phase.
-                    Effect::AdditionalCombatPhase { followed_by_main: false },
+                    Effect::AdditionalCombatPhase {
+                        followed_by_main: false,
+                    },
                 ]),
                 targets: vec![],
 
@@ -64,7 +74,11 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::known_wrong("'whenever you attack' modelled as WhenAttacks on Karlach — she must attack personally; TriggerCondition::WheneverYouAttack now exists and is wired (replay_harness.rs:3250, abilities.rs:3897) and should be used"),
+        completeness: Completeness::known_wrong(
+            "'whenever you attack' modelled as WhenAttacks on Karlach — she must attack \
+             personally; TriggerCondition::WheneverYouAttack now exists and is wired \
+             (replay_harness.rs:3250, abilities.rs:3897) and should be used",
+        ),
         ..Default::default()
     }
 }

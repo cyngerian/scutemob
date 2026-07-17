@@ -8,13 +8,20 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("the-reaver-cleaver"),
         name: "The Reaver Cleaver".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Artifact],
             &["Equipment"],
         ),
-        oracle_text: "Equipped creature gets +1/+1 and has trample and \"Whenever this creature deals combat damage to a player or planeswalker, create that many Treasure tokens.\"\nEquip {3}".to_string(),
+        oracle_text: "Equipped creature gets +1/+1 and has trample and \"Whenever this creature \
+                      deals combat damage to a player or planeswalker, create that many Treasure \
+                      tokens.\"\nEquip {3}"
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Static {
                 continuous_effect: ContinuousEffectDef {

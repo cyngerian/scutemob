@@ -9,9 +9,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("hero-of-bladehold"),
         name: "Hero of Bladehold".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, white: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            white: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Knight"]),
-        oracle_text: "Battle cry (Whenever this creature attacks, each other attacking creature gets +1/+0 until end of turn.)\nWhenever this creature attacks, create two 1/1 white Soldier creature tokens that are tapped and attacking.".to_string(),
+        oracle_text: "Battle cry (Whenever this creature attacks, each other attacking creature \
+                      gets +1/+0 until end of turn.)\nWhenever this creature attacks, create two \
+                      1/1 white Soldier creature tokens that are tapped and attacking."
+            .to_string(),
         power: Some(3),
         toughness: Some(4),
         abilities: vec![

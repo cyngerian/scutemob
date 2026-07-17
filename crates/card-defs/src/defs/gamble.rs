@@ -10,13 +10,19 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("gamble"),
         name: "Gamble".to_string(),
-        mana_cost: Some(ManaCost { red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            red: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text:
-            "Search your library for a card, put that card into your hand, discard a card at random, then shuffle."
-                .to_string(),
+        oracle_text: "Search your library for a card, put that card into your hand, discard a \
+                      card at random, then shuffle."
+            .to_string(),
         abilities: vec![],
-        completeness: Completeness::inert("Effect::DiscardAtRandom does not exist in the DSL. The 'discard a card at random' effect cannot be distinguished from a..."),
+        completeness: Completeness::inert(
+            "Effect::DiscardAtRandom does not exist in the DSL. The 'discard a card at random' \
+             effect cannot be distinguished from a...",
+        ),
         ..Default::default()
     }
 }

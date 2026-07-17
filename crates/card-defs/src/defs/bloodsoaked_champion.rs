@@ -11,16 +11,25 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("bloodsoaked-champion"),
         name: "Bloodsoaked Champion".to_string(),
-        mana_cost: Some(ManaCost { black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Warrior"]),
-        oracle_text: "This creature can't block.\nRaid — {1}{B}: Return this card from your graveyard to the battlefield. Activate only if you attacked this turn.".to_string(),
+        oracle_text: "This creature can't block.\nRaid — {1}{B}: Return this card from your \
+                      graveyard to the battlefield. Activate only if you attacked this turn."
+            .to_string(),
         power: Some(2),
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::CantBlock),
             // Raid: {1}{B} from graveyard, activate only if you attacked this turn.
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { generic: 1, black: 1, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    generic: 1,
+                    black: 1,
+                    ..Default::default()
+                }),
                 effect: Effect::MoveZone {
                     target: EffectTarget::Source,
                     to: ZoneTarget::Battlefield { tapped: false },

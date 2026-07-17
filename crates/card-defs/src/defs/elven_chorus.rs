@@ -8,9 +8,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("elven-chorus"),
         name: "Elven Chorus".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "You may look at the top card of your library any time.\nYou may cast creature spells from the top of your library.\nCreatures you control have \"{T}: Add one mana of any color.\"".to_string(),
+        oracle_text: "You may look at the top card of your library any time.\nYou may cast \
+                      creature spells from the top of your library.\nCreatures you control have \
+                      \"{T}: Add one mana of any color.\""
+            .to_string(),
         abilities: vec![
             // CR 601.3 (PB-A): "You may look at the top card of your library any time.
             // You may cast creature spells from the top of your library."
@@ -26,7 +33,12 @@ pub fn card() -> CardDefinition {
             // TODO: "Creatures you control have '{T}: Add one mana of any color.'"
             // Requires GrantActivatedAbility DSL support (separate gap). Deferred.
         ],
-        completeness: Completeness::partial("Rewire only: add AbilityDefinition::Static with LayerModification::AddManaAbility(ManaAbility { requires_tap: true, any_color: true, .. }) + EffectFilter::CreaturesYouControl, duration WhileSourceOnBattlefield. Verbatim precedent: enduring_vitality.rs:21-35. Expected to reach Complete."),
+        completeness: Completeness::partial(
+            "Rewire only: add AbilityDefinition::Static with \
+             LayerModification::AddManaAbility(ManaAbility { requires_tap: true, any_color: true, \
+             .. }) + EffectFilter::CreaturesYouControl, duration WhileSourceOnBattlefield. \
+             Verbatim precedent: enduring_vitality.rs:21-35. Expected to reach Complete.",
+        ),
         ..Default::default()
     }
 }

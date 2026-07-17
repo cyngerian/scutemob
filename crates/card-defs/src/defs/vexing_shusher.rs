@@ -15,7 +15,8 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: creature_types(&["Goblin", "Shaman"]),
-        oracle_text: "This spell can't be countered.\n{R/G}: Target spell can't be countered.".to_string(),
+        oracle_text: "This spell can't be countered.\n{R/G}: Target spell can't be countered."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         cant_be_countered: true,
@@ -24,7 +25,10 @@ pub fn card() -> CardDefinition {
             // that applies "can't be countered" to a target spell on the stack. No
             // Effect::MakeSpellUncounterable variant exists.
         ],
-        completeness: Completeness::partial("'{R/G}: Target spell can't be countered' — needs an activated ability that applies 'can't be countered' to a target..."),
+        completeness: Completeness::partial(
+            "'{R/G}: Target spell can't be countered' — needs an activated ability that applies \
+             'can't be countered' to a target...",
+        ),
         ..Default::default()
     }
 }

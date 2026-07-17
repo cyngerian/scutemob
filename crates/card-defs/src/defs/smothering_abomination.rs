@@ -12,9 +12,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("smothering-abomination"),
         name: "Smothering Abomination".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            black: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Eldrazi"]),
-        oracle_text: "Devoid\nFlying\nAt the beginning of your upkeep, sacrifice a creature.\nWhenever you sacrifice a creature, draw a card.".to_string(),
+        oracle_text: "Devoid\nFlying\nAt the beginning of your upkeep, sacrifice a \
+                      creature.\nWhenever you sacrifice a creature, draw a card."
+            .to_string(),
         power: Some(4),
         toughness: Some(3),
         abilities: vec![
@@ -42,7 +48,12 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("'At the beginning of your upkeep, sacrifice a creature' is unimplemented — no Effect expresses a forced controller-chosen sacrifice. The card currently has its upside (draw on sacrifice) without its drawback. (WheneverYouSacrifice is shipped and already wired.)"),
+        completeness: Completeness::partial(
+            "'At the beginning of your upkeep, sacrifice a creature' is unimplemented — no Effect \
+             expresses a forced controller-chosen sacrifice. The card currently has its upside \
+             (draw on sacrifice) without its drawback. (WheneverYouSacrifice is shipped and \
+             already wired.)",
+        ),
         ..Default::default()
     }
 }

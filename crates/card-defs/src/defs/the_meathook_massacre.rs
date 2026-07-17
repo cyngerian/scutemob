@@ -5,11 +5,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("the-meathook-massacre"),
         name: "The Meathook Massacre".to_string(),
-        mana_cost: Some(ManaCost { black: 2, x_count: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 2,
+            x_count: 1,
+            ..Default::default()
+        }),
         types: full_types(&[SuperType::Legendary], &[CardType::Enchantment], &[]),
-        oracle_text: "When The Meathook Massacre enters, each creature gets -X/-X until end of turn.
+        oracle_text: "When The Meathook Massacre enters, each creature gets -X/-X until end of \
+                      turn.
 Whenever a creature you control dies, each opponent loses 1 life.
-Whenever a creature an opponent controls dies, you gain 1 life.".to_string(),
+Whenever a creature an opponent controls dies, you gain 1 life."
+            .to_string(),
         abilities: vec![
             // TODO: ETB "each creature gets -X/-X until end of turn" — requires
             // LayerModification::ModifyBothDynamic(EffectAmount) to set -X/-X from XValue.
@@ -23,8 +29,8 @@ Whenever a creature an opponent controls dies, you gain 1 life.".to_string(),
                     controller: Some(TargetController::You),
                     exclude_self: false,
                     nontoken_only: false,
-                                filter: None,
-            },
+                    filter: None,
+                },
                 effect: Effect::LoseLife {
                     player: PlayerTarget::EachOpponent,
                     amount: EffectAmount::Fixed(1),
@@ -43,8 +49,8 @@ Whenever a creature an opponent controls dies, you gain 1 life.".to_string(),
                     controller: Some(TargetController::Opponent),
                     exclude_self: false,
                     nontoken_only: false,
-                                filter: None,
-            },
+                    filter: None,
+                },
                 effect: Effect::GainLife {
                     player: PlayerTarget::Controller,
                     amount: EffectAmount::Fixed(1),
@@ -56,7 +62,12 @@ Whenever a creature an opponent controls dies, you gain 1 life.".to_string(),
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("ModifyBothDynamic{amount: XValue, negate: true} + EffectFilter::AllCreatures + UntilEndOfTurn now expresses the ETB (continuous_effect.rs:430). Rewire and verify X is readable from the ETB trigger's context (doc warns unsubstituted XValue resolves to 0). Both death triggers already implemented."),
+        completeness: Completeness::partial(
+            "ModifyBothDynamic{amount: XValue, negate: true} + EffectFilter::AllCreatures + \
+             UntilEndOfTurn now expresses the ETB (continuous_effect.rs:430). Rewire and verify X \
+             is readable from the ETB trigger's context (doc warns unsubstituted XValue resolves \
+             to 0). Both death triggers already implemented.",
+        ),
         ..Default::default()
     }
 }

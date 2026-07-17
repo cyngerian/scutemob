@@ -6,11 +6,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("aura-shards"),
         name: "Aura Shards".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, green: 1, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            green: 1,
+            white: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text:
-            "Whenever a creature you control enters, you may destroy target artifact or enchantment."
-                .to_string(),
+        oracle_text: "Whenever a creature you control enters, you may destroy target artifact or \
+                      enchantment."
+            .to_string(),
         abilities: vec![
             // CR 603.1: Triggered — fires when any creature you control enters the battlefield.
             // Oracle says "a creature" (not "another"), so exclude_self: false matches the

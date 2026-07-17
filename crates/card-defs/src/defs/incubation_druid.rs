@@ -17,9 +17,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("incubation-druid"),
         name: "Incubation Druid".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Elf", "Druid"]),
-        oracle_text: "{T}: Add one mana of any type that a land you control could produce. If this creature has a +1/+1 counter on it, add three mana of that type instead.\n{3}{G}{G}: Adapt 3. (If this creature has no +1/+1 counters on it, put three +1/+1 counters on it.)".to_string(),
+        oracle_text: "{T}: Add one mana of any type that a land you control could produce. If \
+                      this creature has a +1/+1 counter on it, add three mana of that type \
+                      instead.\n{3}{G}{G}: Adapt 3. (If this creature has no +1/+1 counters on \
+                      it, put three +1/+1 counters on it.)"
+            .to_string(),
         power: Some(0),
         toughness: Some(2),
         abilities: vec![
@@ -28,7 +36,11 @@ pub fn card() -> CardDefinition {
             // Activated ability: {3}{G}{G}, {T}: Adapt 3
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 3, green: 2, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 3,
+                        green: 2,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                 ]),
                 effect: Effect::Conditional {
@@ -46,10 +58,13 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("First ability — two DSL gaps: (1) 'mana of any type that a land you control could produce' requires querying which..."),
+        completeness: Completeness::partial(
+            "First ability — two DSL gaps: (1) 'mana of any type that a land you control could \
+             produce' requires querying which...",
+        ),
         ..Default::default()
     }
 }

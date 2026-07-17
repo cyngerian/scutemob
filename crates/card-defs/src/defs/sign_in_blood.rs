@@ -5,7 +5,10 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("sign-in-blood"),
         name: "Sign in Blood".to_string(),
-        mana_cost: Some(ManaCost { black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
         oracle_text: "Target player draws two cards and loses 2 life.".to_string(),
         abilities: vec![AbilityDefinition::Spell {

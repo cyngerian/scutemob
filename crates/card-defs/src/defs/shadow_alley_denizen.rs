@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("shadow-alley-denizen"),
         name: "Shadow Alley Denizen".to_string(),
-        mana_cost: Some(ManaCost { black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Vampire", "Rogue"]),
-        oracle_text: "Whenever another black creature you control enters, target creature gains intimidate until end of turn. (It can't be blocked except by artifact creatures and/or creatures that share a color with it.)".to_string(),
+        oracle_text: "Whenever another black creature you control enters, target creature gains \
+                      intimidate until end of turn. (It can't be blocked except by artifact \
+                      creatures and/or creatures that share a color with it.)"
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![

@@ -8,9 +8,19 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("binding-the-old-gods"),
         name: "Binding the Old Gods".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, black: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            black: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Enchantment], &["Saga"]),
-        oracle_text: "(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)\nI — Destroy target nonland permanent an opponent controls.\nII — Search your library for a Forest card, put it onto the battlefield tapped, then shuffle.\nIII — Creatures you control gain deathtouch until end of turn.".to_string(),
+        oracle_text: "(As this Saga enters and after your draw step, add a lore counter. \
+                      Sacrifice after III.)\nI — Destroy target nonland permanent an opponent \
+                      controls.\nII — Search your library for a Forest card, put it onto the \
+                      battlefield tapped, then shuffle.\nIII — Creatures you control gain \
+                      deathtouch until end of turn."
+            .to_string(),
         abilities: vec![
             // Chapter I: Destroy target nonland permanent an opponent controls.
             AbilityDefinition::SagaChapter {
@@ -41,7 +51,9 @@ pub fn card() -> CardDefinition {
                         shuffle_before_placing: false,
                         also_search_graveyard: false,
                     },
-                    Effect::Shuffle { player: PlayerTarget::Controller },
+                    Effect::Shuffle {
+                        player: PlayerTarget::Controller,
+                    },
                 ]),
                 targets: vec![],
             },

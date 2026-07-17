@@ -33,13 +33,21 @@ pub fn card() -> CardDefinition {
             &[CardType::Creature],
             &["Dragon", "God"],
         ),
-        oracle_text: "Flying\nWhen Tiamat enters, if you cast it, search your library for up to five Dragon cards not named Tiamat that each have different names, reveal them, put them into your hand, then shuffle.".to_string(),
+        oracle_text: "Flying\nWhen Tiamat enters, if you cast it, search your library for up to \
+                      five Dragon cards not named Tiamat that each have different names, reveal \
+                      them, put them into your hand, then shuffle."
+            .to_string(),
         power: Some(7),
         toughness: Some(7),
-        abilities: vec![
-            AbilityDefinition::Keyword(KeywordAbility::Flying),
-        ],
-        completeness: Completeness::partial("Blocked on SearchLibrary having no count field (card_definition.rs:1648) — 'up to five' — and no 'each have different names' uniqueness constraint. Also needs a name-exclusion (TargetFilter.has_name is inclusion-only). NOT gaps: arbitrary TargetFilter and ZoneTarget::Hand destinations are supported (see thaumatic_compass.rs, tooth_and_nail.rs), and 'if you cast it' is Condition::WasCast. Flying implemented."),
+        abilities: vec![AbilityDefinition::Keyword(KeywordAbility::Flying)],
+        completeness: Completeness::partial(
+            "Blocked on SearchLibrary having no count field (card_definition.rs:1648) — 'up to \
+             five' — and no 'each have different names' uniqueness constraint. Also needs a \
+             name-exclusion (TargetFilter.has_name is inclusion-only). NOT gaps: arbitrary \
+             TargetFilter and ZoneTarget::Hand destinations are supported (see \
+             thaumatic_compass.rs, tooth_and_nail.rs), and 'if you cast it' is \
+             Condition::WasCast. Flying implemented.",
+        ),
         ..Default::default()
     }
 }

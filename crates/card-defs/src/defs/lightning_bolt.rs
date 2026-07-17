@@ -5,7 +5,10 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("lightning-bolt"),
         name: "Lightning Bolt".to_string(),
-        mana_cost: Some(ManaCost { red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            red: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
         oracle_text: "Lightning Bolt deals 3 damage to any target.".to_string(),
         abilities: vec![AbilityDefinition::Spell {

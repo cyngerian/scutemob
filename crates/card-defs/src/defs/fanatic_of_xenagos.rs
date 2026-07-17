@@ -7,9 +7,18 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("fanatic-of-xenagos"),
         name: "Fanatic of Xenagos".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, red: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            red: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Centaur", "Warrior"]),
-        oracle_text: "Trample\nTribute 1 (As this creature enters the battlefield, an opponent of your choice may put a +1/+1 counter on it. If that opponent doesn't, you get a benefit.)\nWhen Fanatic of Xenagos enters the battlefield, if tribute wasn't paid, it gets +1/+1 and gains haste until end of turn.".to_string(),
+        oracle_text: "Trample\nTribute 1 (As this creature enters the battlefield, an opponent of \
+                      your choice may put a +1/+1 counter on it. If that opponent doesn't, you \
+                      get a benefit.)\nWhen Fanatic of Xenagos enters the battlefield, if tribute \
+                      wasn't paid, it gets +1/+1 and gains haste until end of turn."
+            .to_string(),
         power: Some(3),
         toughness: Some(3),
         abilities: vec![
@@ -56,6 +65,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

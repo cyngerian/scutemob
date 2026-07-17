@@ -8,9 +8,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("avenger-of-zendikar"),
         name: "Avenger of Zendikar".to_string(),
-        mana_cost: Some(ManaCost { generic: 5, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 5,
+            green: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Elemental"]),
-        oracle_text: "When this creature enters, create a 0/1 green Plant creature token for each land you control.\nLandfall \u{2014} Whenever a land you control enters, you may put a +1/+1 counter on each Plant creature you control.".to_string(),
+        oracle_text: "When this creature enters, create a 0/1 green Plant creature token for each \
+                      land you control.\nLandfall \u{2014} Whenever a land you control enters, \
+                      you may put a +1/+1 counter on each Plant creature you control."
+            .to_string(),
         power: Some(5),
         toughness: Some(5),
         abilities: vec![
@@ -48,7 +55,13 @@ pub fn card() -> CardDefinition {
             // Landfall: +1/+1 counter on each Plant
             // TODO: "Each Plant you control" counter distribution not in DSL.
         ],
-        completeness: Completeness::partial("needs-rewiring: replace EffectAmount::Fixed(5) with EffectAmount::PermanentCount { filter: has_card_type Land, controller: Controller } (effects/mod.rs:6749; pattern at ashaya_soul_of_the_wild.rs:34). Until then this is known_wrong, not partial — it creates exactly 5 Plants regardless of lands. Landfall clause still unauthored (evaluate ForEachTarget::EachPermanentMatching + AddCounter)."),
+        completeness: Completeness::partial(
+            "needs-rewiring: replace EffectAmount::Fixed(5) with EffectAmount::PermanentCount { \
+             filter: has_card_type Land, controller: Controller } (effects/mod.rs:6749; pattern \
+             at ashaya_soul_of_the_wild.rs:34). Until then this is known_wrong, not partial — it \
+             creates exactly 5 Plants regardless of lands. Landfall clause still unauthored \
+             (evaluate ForEachTarget::EachPermanentMatching + AddCounter).",
+        ),
         ..Default::default()
     }
 }

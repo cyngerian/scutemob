@@ -17,13 +17,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("iroas-god-of-victory"),
         name: "Iroas, God of Victory".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 1, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 1,
+            white: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Enchantment, CardType::Creature],
             &["God"],
         ),
-        oracle_text: "Indestructible\nAs long as your devotion to red and white is less than seven, Iroas isn't a creature.\nCreatures you control have menace.\nPrevent all damage that would be dealt to attacking creatures you control.".to_string(),
+        oracle_text: "Indestructible\nAs long as your devotion to red and white is less than \
+                      seven, Iroas isn't a creature.\nCreatures you control have menace.\nPrevent \
+                      all damage that would be dealt to attacking creatures you control."
+            .to_string(),
         power: Some(7),
         toughness: Some(4),
         abilities: vec![
@@ -58,7 +66,10 @@ pub fn card() -> CardDefinition {
             // TODO: "Prevent all damage that would be dealt to attacking creatures you control."
             // DSL gap: no blanket damage prevention replacement for attacking creatures.
         ],
-        completeness: Completeness::partial("'Prevent all damage that would be dealt to attacking creatures you control.' is a blanket prevention replacement effect..."),
+        completeness: Completeness::partial(
+            "'Prevent all damage that would be dealt to attacking creatures you control.' is a \
+             blanket prevention replacement effect...",
+        ),
         ..Default::default()
     }
 }

@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("natures-will"),
         name: "Nature's Will".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Whenever one or more creatures you control deal combat damage to a player, tap all lands that player controls and untap all lands you control.".to_string(),
+        oracle_text: "Whenever one or more creatures you control deal combat damage to a player, \
+                      tap all lands that player controls and untap all lands you control."
+            .to_string(),
         abilities: vec![
             // CR 510.3a / CR 603.2c: Full implementation.
             // Sequence: (1) tap all lands that the damaged player controls (DamagedPlayer ForEach),
@@ -17,7 +23,10 @@ pub fn card() -> CardDefinition {
             // DeclaredTarget { index: 0 } inside ForEach resolves to the current iteration object.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer { filter: None },
+                trigger_condition:
+                    TriggerCondition::WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer {
+                        filter: None,
+                    },
                 effect: Effect::Sequence(vec![
                     // Tap all lands that the damaged player controls.
                     Effect::ForEach {

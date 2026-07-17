@@ -11,13 +11,25 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("blood-seeker"),
         name: "Blood Seeker".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Vampire", "Shaman"]),
-        oracle_text: "Whenever a creature an opponent controls enters, you may have that player lose 1 life.".to_string(),
+        oracle_text: "Whenever a creature an opponent controls enters, you may have that player \
+                      lose 1 life."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![],
-        completeness: Completeness::inert("Authorable now: WheneverCreatureEntersBattlefield{filter: controller=Opponent} + LoseLife{player: PlayerTarget::TriggeringPlayer or ControllerOf(TriggeringCreature), amount: 1}. Remaining author decision: the optional 'you may' — no `optional` field exists on AbilityDefinition::Triggered, and Effect::Choose is not interactive (always executes choices[0])."),
+        completeness: Completeness::inert(
+            "Authorable now: WheneverCreatureEntersBattlefield{filter: controller=Opponent} + \
+             LoseLife{player: PlayerTarget::TriggeringPlayer or ControllerOf(TriggeringCreature), \
+             amount: 1}. Remaining author decision: the optional 'you may' — no `optional` field \
+             exists on AbilityDefinition::Triggered, and Effect::Choose is not interactive \
+             (always executes choices[0]).",
+        ),
         ..Default::default()
     }
 }

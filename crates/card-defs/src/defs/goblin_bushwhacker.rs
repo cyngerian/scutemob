@@ -8,15 +8,23 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("goblin-bushwhacker"),
         name: "Goblin Bushwhacker".to_string(),
-        mana_cost: Some(ManaCost { red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Goblin", "Warrior"]),
-        oracle_text: "Kicker {R}\nWhen this creature enters, if it was kicked, creatures you control get +1/+0 and gain haste until end of turn.".to_string(),
+        oracle_text: "Kicker {R}\nWhen this creature enters, if it was kicked, creatures you \
+                      control get +1/+0 and gain haste until end of turn."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Kicker),
             AbilityDefinition::Kicker {
-                cost: ManaCost { red: 1, ..Default::default() },
+                cost: ManaCost {
+                    red: 1,
+                    ..Default::default()
+                },
                 is_multikicker: false,
             },
             AbilityDefinition::Triggered {

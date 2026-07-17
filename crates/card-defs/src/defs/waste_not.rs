@@ -13,9 +13,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("waste-not"),
         name: "Waste Not".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Whenever an opponent discards a creature card, create a 2/2 black Zombie creature token.\nWhenever an opponent discards a land card, add {B}{B}.\nWhenever an opponent discards a noncreature, nonland card, draw a card.".to_string(),
+        oracle_text: "Whenever an opponent discards a creature card, create a 2/2 black Zombie \
+                      creature token.\nWhenever an opponent discards a land card, add \
+                      {B}{B}.\nWhenever an opponent discards a noncreature, nonland card, draw a \
+                      card."
+            .to_string(),
         abilities: vec![
             // Whenever an opponent discards a card, create a 2/2 Zombie.
             // TODO: Discarded-card type filter (creature/land/noncreature-nonland) not in DSL.
@@ -49,7 +57,14 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::known_wrong("the discard trigger fires unconditionally and always creates a 2/2 Zombie, regardless of the discarded card's type — so the land ({B}{B}) and noncreature-nonland (draw) clauses are wrong, not merely missing. Blocked on a discarded-card type filter on the discard trigger. TriggerCondition::WheneverOpponentDiscards DOES exist and is wired (the def already uses it); the old note claiming otherwise was false."),
+        completeness: Completeness::known_wrong(
+            "the discard trigger fires unconditionally and always creates a 2/2 Zombie, \
+             regardless of the discarded card's type — so the land ({B}{B}) and \
+             noncreature-nonland (draw) clauses are wrong, not merely missing. Blocked on a \
+             discarded-card type filter on the discard trigger. \
+             TriggerCondition::WheneverOpponentDiscards DOES exist and is wired (the def already \
+             uses it); the old note claiming otherwise was false.",
+        ),
         ..Default::default()
     }
 }

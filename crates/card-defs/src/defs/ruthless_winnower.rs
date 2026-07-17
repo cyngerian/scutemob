@@ -11,9 +11,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("ruthless-winnower"),
         name: "Ruthless Winnower".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            black: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Elf", "Rogue"]),
-        oracle_text: "At the beginning of each player's upkeep, that player sacrifices a non-Elf creature of their choice.".to_string(),
+        oracle_text: "At the beginning of each player's upkeep, that player sacrifices a non-Elf \
+                      creature of their choice."
+            .to_string(),
         power: Some(4),
         toughness: Some(4),
         abilities: vec![
@@ -34,7 +40,14 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("needs-rewiring: switch trigger_condition to AtBeginningOfEachUpkeep (dispatched turn_actions.rs:294) and set SacrificePermanents.filter to TargetFilter{has_card_type: Creature, exclude_subtypes: vec![Elf]} (enforced effects/mod.rs:8059). Both old TODOs are stale. Verify PlayerTarget for 'that player' — TriggeringPlayer vs the current EachPlayer — resolves correctly under an each-upkeep trigger before flipping to Complete."),
+        completeness: Completeness::partial(
+            "needs-rewiring: switch trigger_condition to AtBeginningOfEachUpkeep (dispatched \
+             turn_actions.rs:294) and set SacrificePermanents.filter to \
+             TargetFilter{has_card_type: Creature, exclude_subtypes: vec![Elf]} (enforced \
+             effects/mod.rs:8059). Both old TODOs are stale. Verify PlayerTarget for 'that \
+             player' — TriggeringPlayer vs the current EachPlayer — resolves correctly under an \
+             each-upkeep trigger before flipping to Complete.",
+        ),
         ..Default::default()
     }
 }

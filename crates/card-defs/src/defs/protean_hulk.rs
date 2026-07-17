@@ -7,9 +7,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("protean-hulk"),
         name: "Protean Hulk".to_string(),
-        mana_cost: Some(ManaCost { generic: 5, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 5,
+            green: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Beast"]),
-        oracle_text: "When Protean Hulk dies, search your library for any number of creature cards with total mana value 6 or less, put them onto the battlefield, then shuffle.".to_string(),
+        oracle_text: "When Protean Hulk dies, search your library for any number of creature \
+                      cards with total mana value 6 or less, put them onto the battlefield, then \
+                      shuffle."
+            .to_string(),
         power: Some(6),
         toughness: Some(6),
         abilities: vec![
@@ -17,7 +24,10 @@ pub fn card() -> CardDefinition {
             // SearchLibrary finds one card; "any number with total MV 6 or less" needs
             // multi-card search with cumulative cost tracking (M10 player choice).
         ],
-        completeness: Completeness::partial("DSL gap — death trigger + multi-card search with total MV constraint. SearchLibrary finds one card; 'any number with..."),
+        completeness: Completeness::partial(
+            "DSL gap — death trigger + multi-card search with total MV constraint. SearchLibrary \
+             finds one card; 'any number with...",
+        ),
         ..Default::default()
     }
 }

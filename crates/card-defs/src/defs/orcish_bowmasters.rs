@@ -9,9 +9,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("orcish-bowmasters"),
         name: "Orcish Bowmasters".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Orc", "Archer"]),
-        oracle_text: "Flash\nWhen this creature enters and whenever an opponent draws a card except the first one they draw in each of their draw steps, this creature deals 1 damage to any target. Then amass Orcs 1.".to_string(),
+        oracle_text: "Flash\nWhen this creature enters and whenever an opponent draws a card \
+                      except the first one they draw in each of their draw steps, this creature \
+                      deals 1 damage to any target. Then amass Orcs 1."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
@@ -39,7 +46,10 @@ pub fn card() -> CardDefinition {
             // TODO: "whenever an opponent draws a card except the first one they draw in
             // each of their draw steps" — no draw-tracking trigger in DSL.
         ],
-        completeness: Completeness::partial("'whenever an opponent draws a card except the first one they draw in each of their draw steps' — no draw-tracking..."),
+        completeness: Completeness::partial(
+            "'whenever an opponent draws a card except the first one they draw in each of their \
+             draw steps' — no draw-tracking...",
+        ),
         ..Default::default()
     }
 }

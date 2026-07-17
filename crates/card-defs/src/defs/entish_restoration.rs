@@ -16,11 +16,22 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("entish-restoration"),
         name: "Entish Restoration".to_string(),
-        mana_cost: Some(ManaCost { green: 1, generic: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            green: 1,
+            generic: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Sacrifice a land. Search your library for up to two basic land cards, put them onto the battlefield tapped, then shuffle. If you control a creature with power 4 or greater, instead search your library for up to three basic land cards, put them onto the battlefield tapped, then shuffle.".to_string(),
+        oracle_text: "Sacrifice a land. Search your library for up to two basic land cards, put \
+                      them onto the battlefield tapped, then shuffle. If you control a creature \
+                      with power 4 or greater, instead search your library for up to three basic \
+                      land cards, put them onto the battlefield tapped, then shuffle."
+            .to_string(),
         abilities: vec![],
-        completeness: Completeness::inert("Two DSL gaps prevent faithful implementation: 1. SacrificePermanents has no type filter — sacrificing specifically a..."),
+        completeness: Completeness::inert(
+            "Two DSL gaps prevent faithful implementation: 1. SacrificePermanents has no type \
+             filter — sacrificing specifically a...",
+        ),
         ..Default::default()
     }
 }

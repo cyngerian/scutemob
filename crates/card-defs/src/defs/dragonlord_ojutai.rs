@@ -16,13 +16,22 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("dragonlord-ojutai"),
         name: "Dragonlord Ojutai".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, white: 1, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            white: 1,
+            blue: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Elder", "Dragon"],
         ),
-        oracle_text: "Flying\nDragonlord Ojutai has hexproof as long as it's untapped.\nWhenever Dragonlord Ojutai deals combat damage to a player, look at the top three cards of your library. Put one of them into your hand and the rest on the bottom of your library in any order.".to_string(),
+        oracle_text: "Flying\nDragonlord Ojutai has hexproof as long as it's untapped.\nWhenever \
+                      Dragonlord Ojutai deals combat damage to a player, look at the top three \
+                      cards of your library. Put one of them into your hand and the rest on the \
+                      bottom of your library in any order."
+            .to_string(),
         power: Some(5),
         toughness: Some(4),
         abilities: vec![
@@ -42,7 +51,10 @@ pub fn card() -> CardDefinition {
             // TODO: triggered — combat damage to player → look at top 3, put 1 in hand, rest on bottom.
             // DSL gap: no Effect::LookAtTopCards with put-to-hand/bottom choice.
         ],
-        completeness: Completeness::partial("'Whenever Dragonlord Ojutai deals combat damage to a player, look at the top three cards of your library. Put one of..."),
+        completeness: Completeness::partial(
+            "'Whenever Dragonlord Ojutai deals combat damage to a player, look at the top three \
+             cards of your library. Put one of...",
+        ),
         ..Default::default()
     }
 }

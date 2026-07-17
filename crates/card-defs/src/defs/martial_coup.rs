@@ -6,9 +6,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("martial-coup"),
         name: "Martial Coup".to_string(),
-        mana_cost: Some(ManaCost { white: 2, x_count: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            white: 2,
+            x_count: 1,
+            ..Default::default()
+        }),
         types: full_types(&[], &[CardType::Sorcery], &[]),
-        oracle_text: "Create X 1/1 white Soldier creature tokens. If X is 5 or more, destroy all other creatures.".to_string(),
+        oracle_text: "Create X 1/1 white Soldier creature tokens. If X is 5 or more, destroy all \
+                      other creatures."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![
                 // CR 107.3m: Create X 1/1 white Soldier tokens.
@@ -57,7 +63,11 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::known_wrong("when X >= 5, DestroyAll destroys the Soldier tokens this spell just created; oracle says 'all OTHER creatures'. No DestroyAllExcept variant and no exclude-created-this-effect flag on TargetFilter."),
+        completeness: Completeness::known_wrong(
+            "when X >= 5, DestroyAll destroys the Soldier tokens this spell just created; oracle \
+             says 'all OTHER creatures'. No DestroyAllExcept variant and no \
+             exclude-created-this-effect flag on TargetFilter.",
+        ),
         ..Default::default()
     }
 }

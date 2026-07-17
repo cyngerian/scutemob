@@ -10,7 +10,10 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("jet-medallion"),
         name: "Jet Medallion".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
         oracle_text: "Black spells you cast cost {1} less to cast.".to_string(),
         abilities: vec![],

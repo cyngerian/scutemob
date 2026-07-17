@@ -8,13 +8,20 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("balthor-the-defiled"),
         name: "Balthor the Defiled".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            black: 2,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Zombie", "Dwarf"],
         ),
-        oracle_text: "Minion creatures get +1/+1.\n{B}{B}{B}, Exile Balthor the Defiled: Each player returns all black and all red creature cards from their graveyard to the battlefield.".to_string(),
+        oracle_text: "Minion creatures get +1/+1.\n{B}{B}{B}, Exile Balthor the Defiled: Each \
+                      player returns all black and all red creature cards from their graveyard to \
+                      the battlefield."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -36,7 +43,10 @@ pub fn card() -> CardDefinition {
             // CR 400.7: after exile, Balthor's static ability ceases to apply.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { black: 3, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        black: 3,
+                        ..Default::default()
+                    }),
                     Cost::ExileSelf,
                 ]),
                 // CR 401.1: "each player returns ... from their graveyard to the battlefield"
@@ -46,9 +56,7 @@ pub fn card() -> CardDefinition {
                     graveyards: PlayerTarget::EachPlayer,
                     filter: TargetFilter {
                         has_card_type: Some(CardType::Creature),
-                        colors: Some(
-                            [Color::Black, Color::Red].into_iter().collect(),
-                        ),
+                        colors: Some([Color::Black, Color::Red].into_iter().collect()),
                         ..Default::default()
                     },
                     tapped: false,

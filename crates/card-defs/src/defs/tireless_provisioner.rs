@@ -6,9 +6,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("tireless-provisioner"),
         name: "Tireless Provisioner".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Elf", "Scout"]),
-        oracle_text: "Landfall \u{2014} Whenever a land you control enters, create a Food token or a Treasure token.".to_string(),
+        oracle_text: "Landfall \u{2014} Whenever a land you control enters, create a Food token \
+                      or a Treasure token."
+            .to_string(),
         power: Some(3),
         toughness: Some(2),
         abilities: vec![
@@ -24,7 +30,9 @@ pub fn card() -> CardDefinition {
                     }),
                     exclude_self: false,
                 },
-                effect: Effect::CreateToken { spec: treasure_token_spec(1) },
+                effect: Effect::CreateToken {
+                    spec: treasure_token_spec(1),
+                },
                 intervening_if: None,
                 targets: vec![],
 
@@ -32,7 +40,12 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::known_wrong("'create a Food token or a Treasure token' is modeled as an unconditional Treasure. The player never gets the choice and never gets Food. Effect::Choose is non-interactive (effects/mod.rs:3190 executes choices.first()), so the modal choice has no correct expression today."),
+        completeness: Completeness::known_wrong(
+            "'create a Food token or a Treasure token' is modeled as an unconditional Treasure. \
+             The player never gets the choice and never gets Food. Effect::Choose is \
+             non-interactive (effects/mod.rs:3190 executes choices.first()), so the modal choice \
+             has no correct expression today.",
+        ),
         ..Default::default()
     }
 }

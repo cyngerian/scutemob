@@ -11,9 +11,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("quest-for-the-goblin-lord"),
         name: "Quest for the Goblin Lord".to_string(),
-        mana_cost: Some(ManaCost { red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            red: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Whenever a Goblin you control enters, you may put a quest counter on this enchantment.\nAs long as this enchantment has five or more quest counters on it, creatures you control get +2/+0.".to_string(),
+        oracle_text: "Whenever a Goblin you control enters, you may put a quest counter on this \
+                      enchantment.\nAs long as this enchantment has five or more quest counters \
+                      on it, creatures you control get +2/+0."
+            .to_string(),
         abilities: vec![
             // Whenever a Goblin you control enters, you may put a quest counter on ~.
             AbilityDefinition::Triggered {

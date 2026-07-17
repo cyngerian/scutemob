@@ -5,9 +5,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("treasure-cruise"),
         name: "Treasure Cruise".to_string(),
-        mana_cost: Some(ManaCost { blue: 1, generic: 7, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            blue: 1,
+            generic: 7,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Delve (Each card you exile from your graveyard while casting this spell pays for {1}.)\nDraw three cards.".to_string(),
+        oracle_text: "Delve (Each card you exile from your graveyard while casting this spell \
+                      pays for {1}.)\nDraw three cards."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Delve),
             AbilityDefinition::Spell {

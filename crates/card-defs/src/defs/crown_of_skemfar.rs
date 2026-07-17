@@ -11,9 +11,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("crown-of-skemfar"),
         name: "Crown of Skemfar".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 2,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Enchantment], &["Aura"]),
-        oracle_text: "Enchant creature\nEnchanted creature gets +1/+1 for each Elf you control and has reach.\n{2}{G}: Return this card from your graveyard to your hand.".to_string(),
+        oracle_text: "Enchant creature\nEnchanted creature gets +1/+1 for each Elf you control \
+                      and has reach.\n{2}{G}: Return this card from your graveyard to your hand."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Enchant(EnchantTarget::Creature)),
             // Static: enchanted creature has Reach (CR 613.1f, Layer 6)
@@ -30,7 +36,11 @@ pub fn card() -> CardDefinition {
             // (no EffectAmount variant for subtype count).
             // CR 602.2 / PB-35: "{2}{G}: Return this card from your graveyard to your hand."
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { generic: 2, green: 1, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    generic: 2,
+                    green: 1,
+                    ..Default::default()
+                }),
                 effect: Effect::MoveZone {
                     target: EffectTarget::Source,
                     to: ZoneTarget::Hand {
@@ -45,7 +55,13 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("Static '+1/+1 for each Elf you control' unimplemented. PermanentCount + TargetFilter::has_subtype and Static+ModifyBothDynamic live-eval (layers.rs:1269) now exist; CdaModifyPowerToughness is Source-filtered only (replacement.rs:2192) so it cannot be used. Confirm controller attribution in resolve_cda_amount (layers.rs:1270) before authoring. Reach grant and graveyard return are implemented."),
+        completeness: Completeness::partial(
+            "Static '+1/+1 for each Elf you control' unimplemented. PermanentCount + \
+             TargetFilter::has_subtype and Static+ModifyBothDynamic live-eval (layers.rs:1269) \
+             now exist; CdaModifyPowerToughness is Source-filtered only (replacement.rs:2192) so \
+             it cannot be used. Confirm controller attribution in resolve_cda_amount \
+             (layers.rs:1270) before authoring. Reach grant and graveyard return are implemented.",
+        ),
         ..Default::default()
     }
 }

@@ -12,9 +12,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("pyroblast"),
         name: "Pyroblast".to_string(),
-        mana_cost: Some(ManaCost { red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            red: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Choose one —\n• Counter target spell if it's blue.\n• Destroy target permanent if it's blue.".to_string(),
+        oracle_text: "Choose one —\n• Counter target spell if it's blue.\n• Destroy target \
+                      permanent if it's blue."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![]),
             targets: vec![
@@ -39,14 +44,20 @@ pub fn card() -> CardDefinition {
                     // Mode 1: Destroy target permanent if it's blue.
                     Effect::DestroyPermanent {
                         target: EffectTarget::DeclaredTarget { index: 1 },
-                    cant_be_regenerated: false,
+                        cant_be_regenerated: false,
                     },
                 ],
                 mode_targets: None,
             }),
             cant_be_countered: false,
         }],
-        completeness: Completeness::known_wrong("both modes resolve unconditionally, so this counters any spell / destroys any permanent regardless of color. Oracle gates both on 'if it's blue', checked at resolution (2016-06-08 ruling), and no Condition variant expresses a target's color nor can mode effects apply a conditional resolution check. Needs Condition::TargetHasColor + conditional mode resolution."),
+        completeness: Completeness::known_wrong(
+            "both modes resolve unconditionally, so this counters any spell / destroys any \
+             permanent regardless of color. Oracle gates both on 'if it's blue', checked at \
+             resolution (2016-06-08 ruling), and no Condition variant expresses a target's color \
+             nor can mode effects apply a conditional resolution check. Needs \
+             Condition::TargetHasColor + conditional mode resolution.",
+        ),
         ..Default::default()
     }
 }

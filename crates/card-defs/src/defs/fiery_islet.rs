@@ -9,9 +9,9 @@ pub fn card() -> CardDefinition {
         name: "Fiery Islet".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text:
-            "{T}, Pay 1 life: Add {U} or {R}.\n{1}, {T}, Sacrifice this land: Draw a card."
-                .to_string(),
+        oracle_text: "{T}, Pay 1 life: Add {U} or {R}.\n{1}, {T}, Sacrifice this land: Draw a \
+                      card."
+            .to_string(),
         abilities: vec![
             // {T}, Pay 1 life: Add {U} or {R}.
             // SR-34: the "or" is modeled as two separate activated abilities, one per

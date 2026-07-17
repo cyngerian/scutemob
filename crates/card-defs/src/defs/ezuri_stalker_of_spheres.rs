@@ -17,13 +17,20 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("ezuri-stalker-of-spheres"),
         name: "Ezuri, Stalker of Spheres".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 1, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 1,
+            blue: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Phyrexian", "Elf", "Warrior"],
         ),
-        oracle_text: "When Ezuri enters, you may pay {3}. If you do, proliferate twice.\nWhenever you proliferate, draw a card.".to_string(),
+        oracle_text: "When Ezuri enters, you may pay {3}. If you do, proliferate twice.\nWhenever \
+                      you proliferate, draw a card."
+            .to_string(),
         power: Some(3),
         toughness: Some(3),
         abilities: vec![
@@ -33,7 +40,10 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::MayPayThenEffect {
-                    cost: Cost::Mana(ManaCost { generic: 3, ..Default::default() }),
+                    cost: Cost::Mana(ManaCost {
+                        generic: 3,
+                        ..Default::default()
+                    }),
                     payer: PlayerTarget::Controller,
                     then: Box::new(Effect::Sequence(vec![
                         Effect::Proliferate,
@@ -48,7 +58,10 @@ pub fn card() -> CardDefinition {
             // ENGINE-BLOCKED: "Whenever you proliferate, draw a card." — see module
             // comment. No TriggerCondition variant reaches TriggerEvent::ControllerProliferates.
         ],
-        completeness: Completeness::partial("(2nd ability only): 'Whenever you proliferate, draw a card.' The runtime fires an internal..."),
+        completeness: Completeness::partial(
+            "(2nd ability only): 'Whenever you proliferate, draw a card.' The runtime fires an \
+             internal...",
+        ),
         ..Default::default()
     }
 }

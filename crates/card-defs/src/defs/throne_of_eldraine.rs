@@ -31,16 +31,29 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("throne-of-eldraine"),
         name: "Throne of Eldraine".to_string(),
-        mana_cost: Some(ManaCost { generic: 5, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 5,
+            ..Default::default()
+        }),
         types: supertypes(&[SuperType::Legendary], &[CardType::Artifact]),
-        oracle_text: "As Throne of Eldraine enters, choose a color.\n{T}: Add four mana of the chosen color. Spend this mana only to cast monocolored spells of that color.\n{3}, {T}: Draw two cards. Spend only mana of the chosen color to activate this ability.".to_string(),
+        oracle_text: "As Throne of Eldraine enters, choose a color.\n{T}: Add four mana of the \
+                      chosen color. Spend this mana only to cast monocolored spells of that \
+                      color.\n{3}, {T}: Draw two cards. Spend only mana of the chosen color to \
+                      activate this ability."
+            .to_string(),
         // No abilities authored — both mana ability and draw ability require
         // spending restrictions (PB-Q2 / PB-Q5) that don't yet exist in the DSL.
         // The ChooseColor replacement is intentionally NOT authored alone, since
         // a Throne with a chosen color but no functioning {T} ability is also
         // wrong game state (its other abilities would be missing).
         abilities: vec![],
-        completeness: Completeness::inert("PB-Q5: produced mana cannot carry 'spend only to cast monocolored spells of the chosen color' (no ManaRestriction variant). PB-Q2: no per-ability cost-payment color filter for 'spend only mana of the chosen color to activate'. ChooseColor replacement and AddManaOfChosenColor exist but authoring them alone leaves both restrictions unenforced — wrong game state per W6."),
+        completeness: Completeness::inert(
+            "PB-Q5: produced mana cannot carry 'spend only to cast monocolored spells of the \
+             chosen color' (no ManaRestriction variant). PB-Q2: no per-ability cost-payment color \
+             filter for 'spend only mana of the chosen color to activate'. ChooseColor \
+             replacement and AddManaOfChosenColor exist but authoring them alone leaves both \
+             restrictions unenforced — wrong game state per W6.",
+        ),
         ..Default::default()
     }
 }

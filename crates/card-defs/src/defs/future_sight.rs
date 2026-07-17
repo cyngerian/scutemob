@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("future-sight"),
         name: "Future Sight".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, blue: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            blue: 3,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Play with the top card of your library revealed. You may play lands and cast spells from the top of your library.".to_string(),
+        oracle_text: "Play with the top card of your library revealed. You may play lands and \
+                      cast spells from the top of your library."
+            .to_string(),
         abilities: vec![
             // CR 601.3 / CR 305.1 (PB-A): "Play with the top card of your library revealed.
             // You may play lands and cast spells from the top of your library."

@@ -8,9 +8,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("sun-titan"),
         name: "Sun Titan".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, white: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            white: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Giant"]),
-        oracle_text: "Vigilance\nWhenever Sun Titan enters or attacks, you may return target permanent card with mana value 3 or less from your graveyard to the battlefield.".to_string(),
+        oracle_text: "Vigilance\nWhenever Sun Titan enters or attacks, you may return target \
+                      permanent card with mana value 3 or less from your graveyard to the \
+                      battlefield."
+            .to_string(),
         power: Some(6),
         toughness: Some(6),
         abilities: vec![
@@ -28,8 +35,11 @@ pub fn card() -> CardDefinition {
                 targets: vec![TargetRequirement::TargetCardInYourGraveyard(TargetFilter {
                     max_cmc: Some(3),
                     has_card_types: vec![
-                        CardType::Creature, CardType::Artifact, CardType::Enchantment,
-                        CardType::Planeswalker, CardType::Land,
+                        CardType::Creature,
+                        CardType::Artifact,
+                        CardType::Enchantment,
+                        CardType::Planeswalker,
+                        CardType::Land,
                     ],
                     ..Default::default()
                 })],
@@ -40,7 +50,11 @@ pub fn card() -> CardDefinition {
             // TODO: TriggerCondition::WhenAttacks not yet available for self-attack triggers.
             // When implemented, duplicate the above trigger with WhenAttacks condition.
         ],
-        completeness: Completeness::partial("WhenAttacks half is authorable (duplicate the ETB trigger). Remaining: 'you may return' optionality has no correct expression — Effect::Choose always takes the first branch (effects/mod.rs:3190)."),
+        completeness: Completeness::partial(
+            "WhenAttacks half is authorable (duplicate the ETB trigger). Remaining: 'you may \
+             return' optionality has no correct expression — Effect::Choose always takes the \
+             first branch (effects/mod.rs:3190).",
+        ),
         ..Default::default()
     }
 }

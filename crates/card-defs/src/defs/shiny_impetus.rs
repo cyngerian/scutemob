@@ -7,9 +7,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("shiny-impetus"),
         name: "Shiny Impetus".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 1,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Enchantment], &["Aura"]),
-        oracle_text: "Enchant creature\nEnchanted creature gets +2/+2 and is goaded. (It attacks each combat if able and attacks a player other than you if able.)\nWhenever enchanted creature attacks, you create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")".to_string(),
+        oracle_text: "Enchant creature\nEnchanted creature gets +2/+2 and is goaded. (It attacks \
+                      each combat if able and attacks a player other than you if able.)\nWhenever \
+                      enchanted creature attacks, you create a Treasure token. (It's an artifact \
+                      with \"{T}, Sacrifice this token: Add one mana of any color.\")"
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Enchant(EnchantTarget::Creature)),
             // Static: enchanted creature gets +2/+2
@@ -27,7 +35,10 @@ pub fn card() -> CardDefinition {
             // TODO: "Whenever enchanted creature attacks, you create a Treasure token" —
             // WhenEnchantedCreatureAttacks trigger does not exist in the DSL.
         ],
-        completeness: Completeness::partial("'Enchanted creature is goaded' — static goad applied to attached creature not expressible in DSL. Goad is an Effect..."),
+        completeness: Completeness::partial(
+            "'Enchanted creature is goaded' — static goad applied to attached creature not \
+             expressible in DSL. Goad is an Effect...",
+        ),
         ..Default::default()
     }
 }

@@ -8,9 +8,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("brotherhoods-end"),
         name: "Brotherhood's End".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, red: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            red: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Choose one —\n\u{2022} Brotherhood's End deals 3 damage to each creature and each planeswalker.\n\u{2022} Destroy all artifacts with mana value 3 or less.".to_string(),
+        oracle_text: "Choose one —\n\u{2022} Brotherhood's End deals 3 damage to each creature \
+                      and each planeswalker.\n\u{2022} Destroy all artifacts with mana value 3 or \
+                      less."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![]),
             targets: vec![],

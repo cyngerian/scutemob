@@ -18,16 +18,25 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("vampire-gourmand"),
         name: "Vampire Gourmand".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Vampire"]),
-        oracle_text: "Whenever this creature attacks, you may sacrifice another creature. If you do, draw a card and this creature can't be blocked this turn.".to_string(),
+        oracle_text: "Whenever this creature attacks, you may sacrifice another creature. If you \
+                      do, draw a card and this creature can't be blocked this turn."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
             // ENGINE-BLOCKED: see module comment -- blocked on missing "another
             // creature" (exclude-self) sacrifice-cost semantics.
         ],
-        completeness: Completeness::partial("PB-AC2's Effect::MayPayThenEffect (CR 118.12) can express the 'may sacrifice -> then draw + evasion' shape, and the..."),
+        completeness: Completeness::partial(
+            "PB-AC2's Effect::MayPayThenEffect (CR 118.12) can express the 'may sacrifice -> then \
+             draw + evasion' shape, and the...",
+        ),
         ..Default::default()
     }
 }

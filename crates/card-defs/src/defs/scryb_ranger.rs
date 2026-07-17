@@ -14,9 +14,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("scryb-ranger"),
         name: "Scryb Ranger".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Faerie", "Ranger"]),
-        oracle_text: "Flash\nFlying, protection from blue\nReturn a Forest you control to its owner's hand: Untap target creature. Activate only once each turn.".to_string(),
+        oracle_text: "Flash\nFlying, protection from blue\nReturn a Forest you control to its \
+                      owner's hand: Untap target creature. Activate only once each turn."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
@@ -28,7 +34,13 @@ pub fn card() -> CardDefinition {
             // TODO: Return a Forest to hand: Untap target creature (once per turn)
             // — Cost::ReturnPermanentToHand not in DSL; Effect::UntapPermanent not in DSL
         ],
-        completeness: Completeness::partial("the activated ability is omitted, blocked solely on the cost — no Cost variant returns a permanent you control to its owner's hand ('Return a Forest you control to its owner's hand'). The rest is expressible today: Effect::UntapPermanent + targets: [TargetCreature] + the once_per_turn field on AbilityDefinition::Activated. Flash/Flying/protection from blue are implemented."),
+        completeness: Completeness::partial(
+            "the activated ability is omitted, blocked solely on the cost — no Cost variant \
+             returns a permanent you control to its owner's hand ('Return a Forest you control to \
+             its owner's hand'). The rest is expressible today: Effect::UntapPermanent + targets: \
+             [TargetCreature] + the once_per_turn field on AbilityDefinition::Activated. \
+             Flash/Flying/protection from blue are implemented.",
+        ),
         ..Default::default()
     }
 }

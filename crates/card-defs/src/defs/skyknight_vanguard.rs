@@ -8,9 +8,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("skyknight-vanguard"),
         name: "Skyknight Vanguard".to_string(),
-        mana_cost: Some(ManaCost { red: 1, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            red: 1,
+            white: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Knight"]),
-        oracle_text: "Flying\nWhenever this creature attacks, create a 1/1 white Soldier creature token that's tapped and attacking.".to_string(),
+        oracle_text: "Flying\nWhenever this creature attacks, create a 1/1 white Soldier creature \
+                      token that's tapped and attacking."
+            .to_string(),
         power: Some(1),
         toughness: Some(2),
         abilities: vec![

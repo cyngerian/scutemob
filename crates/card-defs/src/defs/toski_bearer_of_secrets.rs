@@ -9,9 +9,20 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("toski-bearer-of-secrets"),
         name: "Toski, Bearer of Secrets".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, green: 1, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Squirrel"]),
-        oracle_text: "This spell can't be countered.\nIndestructible\nToski attacks each combat if able.\nWhenever a creature you control deals combat damage to a player, draw a card.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            green: 1,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Creature],
+            &["Squirrel"],
+        ),
+        oracle_text: "This spell can't be countered.\nIndestructible\nToski attacks each combat \
+                      if able.\nWhenever a creature you control deals combat damage to a player, \
+                      draw a card."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         cant_be_countered: true,
@@ -24,7 +35,10 @@ pub fn card() -> CardDefinition {
             // draw a card." PB-23: WheneverCreatureYouControlDealsCombatDamageToPlayer.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer { filter: None },
+                trigger_condition:
+                    TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer {
+                        filter: None,
+                    },
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,
                     count: EffectAmount::Fixed(1),

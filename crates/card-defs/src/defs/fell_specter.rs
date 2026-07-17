@@ -8,9 +8,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("fell-specter"),
         name: "Fell Specter".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Specter"]),
-        oracle_text: "Flying\nWhen this creature enters, target opponent discards a card.\nWhenever an opponent discards a card, that player loses 2 life.".to_string(),
+        oracle_text: "Flying\nWhen this creature enters, target opponent discards a \
+                      card.\nWhenever an opponent discards a card, that player loses 2 life."
+            .to_string(),
         power: Some(1),
         toughness: Some(3),
         abilities: vec![

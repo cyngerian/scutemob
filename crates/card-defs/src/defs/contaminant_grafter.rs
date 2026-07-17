@@ -10,9 +10,18 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("contaminant-grafter"),
         name: "Contaminant Grafter".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Phyrexian", "Druid"]),
-        oracle_text: "Trample, toxic 1\nWhenever one or more creatures you control deal combat damage to one or more players, proliferate.\nCorrupted \u{2014} At the beginning of your end step, if an opponent has three or more poison counters, draw a card, then you may put a land card from your hand onto the battlefield.".to_string(),
+        oracle_text: "Trample, toxic 1\nWhenever one or more creatures you control deal combat \
+                      damage to one or more players, proliferate.\nCorrupted \u{2014} At the \
+                      beginning of your end step, if an opponent has three or more poison \
+                      counters, draw a card, then you may put a land card from your hand onto the \
+                      battlefield."
+            .to_string(),
         power: Some(5),
         toughness: Some(5),
         abilities: vec![
@@ -22,7 +31,10 @@ pub fn card() -> CardDefinition {
             // damage to one or more players, proliferate." — batch trigger.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer { filter: None },
+                trigger_condition:
+                    TriggerCondition::WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer {
+                        filter: None,
+                    },
                 effect: Effect::Proliferate,
                 intervening_if: None,
                 targets: vec![],

@@ -8,7 +8,9 @@ pub fn card() -> CardDefinition {
         name: "Blazemire Verge".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}: Add {B}.\n{T}: Add {R}. Activate only if you control a Swamp or a Mountain.".to_string(),
+        oracle_text: "{T}: Add {B}.\n{T}: Add {R}. Activate only if you control a Swamp or a \
+                      Mountain."
+            .to_string(),
         abilities: vec![
             // {T}: Add {B}. (unconditional)
             AbilityDefinition::Activated {
@@ -21,7 +23,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {T}: Add {R}. Activate only if you control a Swamp or a Mountain.
             AbilityDefinition::Activated {
@@ -38,7 +40,7 @@ pub fn card() -> CardDefinition {
                 ])),
 
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

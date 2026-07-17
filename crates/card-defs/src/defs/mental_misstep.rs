@@ -12,7 +12,9 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: types(&[CardType::Instant]),
-        oracle_text: "({U/P} can be paid with either {U} or 2 life.)\nCounter target spell with mana value 1.".to_string(),
+        oracle_text: "({U/P} can be paid with either {U} or 2 life.)\nCounter target spell with \
+                      mana value 1."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::CounterSpell {
                 target: EffectTarget::DeclaredTarget { index: 0 },

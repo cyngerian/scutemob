@@ -9,9 +9,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("scourge-of-valkas"),
         name: "Scourge of Valkas".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 3,
+            ..Default::default()
+        }),
         types: creature_types(&["Dragon"]),
-        oracle_text: "Flying\nWhenever this creature or another Dragon you control enters, it deals X damage to any target, where X is the number of Dragons you control.\n{R}: This creature gets +1/+0 until end of turn.".to_string(),
+        oracle_text: "Flying\nWhenever this creature or another Dragon you control enters, it \
+                      deals X damage to any target, where X is the number of Dragons you \
+                      control.\n{R}: This creature gets +1/+0 until end of turn."
+            .to_string(),
         power: Some(4),
         toughness: Some(4),
         abilities: vec![
@@ -23,7 +30,10 @@ pub fn card() -> CardDefinition {
             // CR 613.4c: "{R}: This creature gets +1/+0 until end of turn."
             // EffectFilter::Source resolves to SingleObject(ctx.source) at execution time.
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { red: 1, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    red: 1,
+                    ..Default::default()
+                }),
                 effect: Effect::ApplyContinuousEffect {
                     effect_def: Box::new(ContinuousEffectDef {
                         layer: EffectLayer::PtModify,
@@ -37,10 +47,17 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("the Dragon-ETB damage trigger is unimplemented but EXPRESSIBLE — WheneverCreatureEntersBattlefield{filter: {controller: You, has_subtype: Dragon}, exclude_self: false} + DealDamage with EffectAmount::PermanentCount{filter: {has_subtype: Dragon}, controller: Controller} + targets: [TargetAny]. Remaining known deviation on rewiring: 'it deals X damage' sources the damage to the entering Dragon, but DealDamage sources to the ability's source (Scourge)."),
+        completeness: Completeness::partial(
+            "the Dragon-ETB damage trigger is unimplemented but EXPRESSIBLE — \
+             WheneverCreatureEntersBattlefield{filter: {controller: You, has_subtype: Dragon}, \
+             exclude_self: false} + DealDamage with EffectAmount::PermanentCount{filter: \
+             {has_subtype: Dragon}, controller: Controller} + targets: [TargetAny]. Remaining \
+             known deviation on rewiring: 'it deals X damage' sources the damage to the entering \
+             Dragon, but DealDamage sources to the ability's source (Scourge).",
+        ),
         ..Default::default()
     }
 }

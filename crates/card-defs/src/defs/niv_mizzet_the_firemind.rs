@@ -8,13 +8,20 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("niv-mizzet-the-firemind"),
         name: "Niv-Mizzet, the Firemind".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, blue: 2, red: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            blue: 2,
+            red: 2,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Dragon", "Wizard"],
         ),
-        oracle_text: "Flying\nWhenever you draw a card, Niv-Mizzet, the Firemind deals 1 damage to any target.\n{T}: Draw a card.".to_string(),
+        oracle_text: "Flying\nWhenever you draw a card, Niv-Mizzet, the Firemind deals 1 damage \
+                      to any target.\n{T}: Draw a card."
+            .to_string(),
         power: Some(4),
         toughness: Some(4),
         abilities: vec![
@@ -48,10 +55,15 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("'any target' is modeled as Effect::ForEach{over: EachOpponent}, dealing 1 damage to every opponent on each draw instead of 1 damage to a single chosen target. Fix: use targets: vec![TargetRequirement::TargetAny] + DealDamage to DeclaredTarget{index:0}, as niv_mizzet_parun.rs already does."),
+        completeness: Completeness::partial(
+            "'any target' is modeled as Effect::ForEach{over: EachOpponent}, dealing 1 damage to \
+             every opponent on each draw instead of 1 damage to a single chosen target. Fix: use \
+             targets: vec![TargetRequirement::TargetAny] + DealDamage to DeclaredTarget{index:0}, \
+             as niv_mizzet_parun.rs already does.",
+        ),
         ..Default::default()
     }
 }

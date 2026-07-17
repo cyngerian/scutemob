@@ -8,13 +8,20 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("general-kreat-the-boltbringer"),
         name: "General Kreat, the Boltbringer".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Goblin", "Soldier"],
         ),
-        oracle_text: "Whenever one or more Goblins you control attack, create a 1/1 red Goblin creature token that's tapped and attacking.\nWhenever another creature you control enters, General Kreat deals 1 damage to each opponent.".to_string(),
+        oracle_text: "Whenever one or more Goblins you control attack, create a 1/1 red Goblin \
+                      creature token that's tapped and attacking.\nWhenever another creature you \
+                      control enters, General Kreat deals 1 damage to each opponent."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -47,7 +54,10 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("DSL gap — 'Whenever one or more Goblins you control attack' fires ONCE per combat if at least one Goblin attacked...."),
+        completeness: Completeness::partial(
+            "DSL gap — 'Whenever one or more Goblins you control attack' fires ONCE per combat if \
+             at least one Goblin attacked....",
+        ),
         ..Default::default()
     }
 }

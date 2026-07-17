@@ -10,25 +10,34 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("skemfar-shadowsage"),
         name: "Skemfar Shadowsage".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Elf", "Cleric"]),
-        oracle_text: "When this creature enters, choose one —\n• Each opponent loses X life, where X is the greatest number of creatures you control that share a creature type.\n• You gain X life, where X is the greatest number of creatures you control that share a creature type.".to_string(),
+        oracle_text: "When this creature enters, choose one —\n• Each opponent loses X life, \
+                      where X is the greatest number of creatures you control that share a \
+                      creature type.\n• You gain X life, where X is the greatest number of \
+                      creatures you control that share a creature type."
+            .to_string(),
         power: Some(2),
         toughness: Some(5),
-        abilities: vec![
-            AbilityDefinition::Triggered {
-                once_per_turn: false,
-                trigger_condition: TriggerCondition::WhenEntersBattlefield,
-                // TODO: X = greatest number of creatures sharing a creature type.
-                // No EffectAmount variant for this. Using Fixed(0) stub.
-                effect: Effect::Nothing,
-                intervening_if: None,
-                targets: vec![],
-                modes: None,
-                trigger_zone: None,
-            },
-        ],
-        completeness: Completeness::partial("X = greatest number of creatures sharing a creature type. No EffectAmount variant for this. Using Fixed(0) stub"),
+        abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
+            trigger_condition: TriggerCondition::WhenEntersBattlefield,
+            // TODO: X = greatest number of creatures sharing a creature type.
+            // No EffectAmount variant for this. Using Fixed(0) stub.
+            effect: Effect::Nothing,
+            intervening_if: None,
+            targets: vec![],
+            modes: None,
+            trigger_zone: None,
+        }],
+        completeness: Completeness::partial(
+            "X = greatest number of creatures sharing a creature type. No EffectAmount variant \
+             for this. Using Fixed(0) stub",
+        ),
         ..Default::default()
     }
 }

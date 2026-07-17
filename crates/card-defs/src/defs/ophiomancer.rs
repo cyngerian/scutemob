@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("ophiomancer"),
         name: "Ophiomancer".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Shaman"]),
-        oracle_text: "At the beginning of each upkeep, if you control no Snakes, create a 1/1 black Snake creature token with deathtouch.".to_string(),
+        oracle_text: "At the beginning of each upkeep, if you control no Snakes, create a 1/1 \
+                      black Snake creature token with deathtouch."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -44,7 +50,14 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("Blocker stale: set intervening_if: Some(Condition::Not(Box::new(Condition::ControlCreatureWithSubtype(SubType(\"Snake\".into()))))) — Option<Condition> is the def-level type and check_condition handles Not + ControlCreatureWithSubtype (dispatched at resolution.rs:2073). Until rewired this def creates a Snake every upkeep regardless of board state; marker should be known_wrong, not partial."),
+        completeness: Completeness::partial(
+            "Blocker stale: set intervening_if: \
+             Some(Condition::Not(Box::new(Condition::ControlCreatureWithSubtype(SubType(\"Snake\".\
+             into()))))) — Option<Condition> is the def-level type and check_condition handles \
+             Not + ControlCreatureWithSubtype (dispatched at resolution.rs:2073). Until rewired \
+             this def creates a Snake every upkeep regardless of board state; marker should be \
+             known_wrong, not partial.",
+        ),
         ..Default::default()
     }
 }

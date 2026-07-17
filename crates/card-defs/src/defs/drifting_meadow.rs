@@ -7,7 +7,9 @@ pub fn card() -> CardDefinition {
         name: "Drifting Meadow".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "This land enters tapped.\n{T}: Add {W}.\nCycling {2} ({2}, Discard this card: Draw a card.)".to_string(),
+        oracle_text: "This land enters tapped.\n{T}: Add {W}.\nCycling {2} ({2}, Discard this \
+                      card: Draw a card.)"
+            .to_string(),
         abilities: vec![
             // CR 614.1c: self-replacement — this land enters tapped.
             AbilityDefinition::Replacement {
@@ -28,12 +30,15 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // CR 702.29: Cycling {2}.
             AbilityDefinition::Keyword(KeywordAbility::Cycling),
             AbilityDefinition::Cycling {
-                cost: ManaCost { generic: 2, ..Default::default() },
+                cost: ManaCost {
+                    generic: 2,
+                    ..Default::default()
+                },
             },
         ],
         ..Default::default()

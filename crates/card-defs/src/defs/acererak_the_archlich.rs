@@ -20,13 +20,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("acererak-the-archlich"),
         name: "Acererak the Archlich".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            black: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Zombie", "Wizard"],
         ),
-        oracle_text: "When Acererak the Archlich enters the battlefield, if you haven't completed Tomb of Annihilation, return Acererak the Archlich to its owner's hand and venture into the dungeon.\nWhenever Acererak the Archlich attacks, for each opponent, that player creates a 2/2 black Zombie creature token unless that player sacrifices a creature."
+        oracle_text: "When Acererak the Archlich enters the battlefield, if you haven't completed \
+                      Tomb of Annihilation, return Acererak the Archlich to its owner's hand and \
+                      venture into the dungeon.\nWhenever Acererak the Archlich attacks, for each \
+                      opponent, that player creates a 2/2 black Zombie creature token unless that \
+                      player sacrifices a creature."
             .to_string(),
         power: Some(5),
         toughness: Some(5),
@@ -41,7 +49,9 @@ pub fn card() -> CardDefinition {
                     // CR 400.7: Return to owner's hand — zone change creates new object identity.
                     Effect::MoveZone {
                         target: EffectTarget::Source,
-                        to: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                        to: ZoneTarget::Hand {
+                            owner: PlayerTarget::Controller,
+                        },
                         controller_override: None,
                     },
                     // CR 701.49a-c: Venture into the dungeon.
@@ -102,6 +112,14 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::known_wrong("Two wrongnesses. (1) Token recipient: oracle says 'that player creates', but ForEach{EachOpponent} keeps ctx.controller (effects/mod.rs:3113) and CreateToken reads the recipient from ctx.controller (effects/mod.rs:677), so all tokens enter under Acererak's controller's control — wrong in multiplayer. Needs a token-recipient field or EffectTarget::CurrentIterationPlayer. (2) Attack trigger skips 'unless that player sacrifices a creature'; MayPayOrElse cannot help (effects/mod.rs:3196 always applies or_else without offering payment)."),
+        completeness: Completeness::known_wrong(
+            "Two wrongnesses. (1) Token recipient: oracle says 'that player creates', but \
+             ForEach{EachOpponent} keeps ctx.controller (effects/mod.rs:3113) and CreateToken \
+             reads the recipient from ctx.controller (effects/mod.rs:677), so all tokens enter \
+             under Acererak's controller's control — wrong in multiplayer. Needs a \
+             token-recipient field or EffectTarget::CurrentIterationPlayer. (2) Attack trigger \
+             skips 'unless that player sacrifices a creature'; MayPayOrElse cannot help \
+             (effects/mod.rs:3196 always applies or_else without offering payment).",
+        ),
     }
 }

@@ -7,13 +7,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("oketras-monument"),
         name: "Oketra's Monument".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, ..Default::default() }),
-        types: full_types(
-            &[SuperType::Legendary],
-            &[CardType::Artifact],
-            &[],
-        ),
-        oracle_text: "White creature spells you cast cost {1} less to cast.\nWhenever you cast a creature spell, create a 1/1 white Warrior creature token with vigilance.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            ..Default::default()
+        }),
+        types: full_types(&[SuperType::Legendary], &[CardType::Artifact], &[]),
+        oracle_text: "White creature spells you cast cost {1} less to cast.\nWhenever you cast a \
+                      creature spell, create a 1/1 white Warrior creature token with vigilance."
+            .to_string(),
         // CR 601.2f: White creature spells controller casts cost {1} less.
         // Uses ColorAndCreature(White) — compound filter (must be both creature AND white).
         spell_cost_modifiers: vec![SpellCostModifier {
@@ -33,7 +34,7 @@ pub fn card() -> CardDefinition {
                     spell_type_filter: Some(vec![CardType::Creature]),
                     noncreature_only: false,
                     chosen_subtype_filter: false,
-                spell_subtype_filter: None,
+                    spell_subtype_filter: None,
                 },
                 effect: Effect::CreateToken {
                     spec: TokenSpec {

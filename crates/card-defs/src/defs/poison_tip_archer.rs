@@ -5,11 +5,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("poison-tip-archer"),
         name: "Poison-Tip Archer".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, black: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            black: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Elf", "Archer"]),
         oracle_text: "Reach
 Deathtouch
-Whenever another creature dies, each opponent loses 1 life.".to_string(),
+Whenever another creature dies, each opponent loses 1 life."
+            .to_string(),
         power: Some(2),
         toughness: Some(3),
         abilities: vec![
@@ -20,8 +26,12 @@ Whenever another creature dies, each opponent loses 1 life.".to_string(),
             // This is correct for Poison-Tip Archer ("another creature" = any creature).
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: None, exclude_self: true, nontoken_only: false, filter: None,
-},
+                trigger_condition: TriggerCondition::WheneverCreatureDies {
+                    controller: None,
+                    exclude_self: true,
+                    nontoken_only: false,
+                    filter: None,
+                },
                 effect: Effect::ForEach {
                     over: ForEachTarget::EachOpponent,
                     effect: Box::new(Effect::DealDamage {

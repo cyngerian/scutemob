@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("necron-deathmark"),
         name: "Necron Deathmark".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Necron"]),
-        oracle_text: "Flash\nWhen this enters, destroy target creature an opponent controls. Each player mills two cards.".to_string(),
+        oracle_text: "Flash\nWhen this enters, destroy target creature an opponent controls. Each \
+                      player mills two cards."
+            .to_string(),
         power: Some(4),
         toughness: Some(2),
         abilities: vec![

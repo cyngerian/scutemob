@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("gnarlroot-trapper"),
         name: "Gnarlroot Trapper".to_string(),
-        mana_cost: Some(ManaCost { black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Elf", "Druid"]),
-        oracle_text: "{T}, Pay 1 life: Add {G}. Spend this mana only to cast an Elf creature spell.\n{T}: Target attacking Elf you control gains deathtouch until end of turn.".to_string(),
+        oracle_text: "{T}, Pay 1 life: Add {G}. Spend this mana only to cast an Elf creature \
+                      spell.\n{T}: Target attacking Elf you control gains deathtouch until end of \
+                      turn."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
@@ -25,12 +31,21 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // TODO: {T}: Target attacking Elf you control gains deathtouch until end of turn.
             // DSL gap: EffectTarget has no AttackingCreatureWithSubtype variant.
         ],
-        completeness: Completeness::partial("Second ability ('{T}: Target attacking Elf you control gains deathtouch until end of turn') is now fully expressible and just needs authoring: AbilityDefinition::Activated { cost: Cost::Tap, targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter { is_attacking: true, has_subtype: Some(Elf), controller: TargetController::You, ..default })], effect: Effect::ApplyContinuousEffect(AddKeyword(Deathtouch), filter: EffectFilter::DeclaredTarget, UntilEndOfTurn) }. Once wired the card should be Complete — the mana ability is already correct."),
+        completeness: Completeness::partial(
+            "Second ability ('{T}: Target attacking Elf you control gains deathtouch until end of \
+             turn') is now fully expressible and just needs authoring: \
+             AbilityDefinition::Activated { cost: Cost::Tap, targets: \
+             vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter { is_attacking: true, \
+             has_subtype: Some(Elf), controller: TargetController::You, ..default })], effect: \
+             Effect::ApplyContinuousEffect(AddKeyword(Deathtouch), filter: \
+             EffectFilter::DeclaredTarget, UntilEndOfTurn) }. Once wired the card should be \
+             Complete — the mana ability is already correct.",
+        ),
         ..Default::default()
     }
 }

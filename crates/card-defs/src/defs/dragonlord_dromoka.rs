@@ -16,13 +16,20 @@ pub fn card() -> CardDefinition {
         cant_be_countered: true,
         card_id: cid("dragonlord-dromoka"),
         name: "Dragonlord Dromoka".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, green: 1, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            green: 1,
+            white: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Elder", "Dragon"],
         ),
-        oracle_text: "This spell can't be countered.\nFlying, lifelink\nYour opponents can't cast spells during your turn.".to_string(),
+        oracle_text: "This spell can't be countered.\nFlying, lifelink\nYour opponents can't cast \
+                      spells during your turn."
+            .to_string(),
         power: Some(5),
         toughness: Some(7),
         abilities: vec![

@@ -10,12 +10,25 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("simic-ascendancy"),
         name: "Simic Ascendancy".to_string(),
-        mana_cost: Some(ManaCost { green: 1, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            green: 1,
+            blue: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "{1}{G}{U}: Put a +1/+1 counter on target creature you control.\nWhenever one or more +1/+1 counters are put on a creature you control, put that many growth counters on Simic Ascendancy.\nAt the beginning of your upkeep, if Simic Ascendancy has twenty or more growth counters on it, you win the game.".to_string(),
+        oracle_text: "{1}{G}{U}: Put a +1/+1 counter on target creature you control.\nWhenever \
+                      one or more +1/+1 counters are put on a creature you control, put that many \
+                      growth counters on Simic Ascendancy.\nAt the beginning of your upkeep, if \
+                      Simic Ascendancy has twenty or more growth counters on it, you win the game."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { generic: 1, green: 1, blue: 1, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    generic: 1,
+                    green: 1,
+                    blue: 1,
+                    ..Default::default()
+                }),
                 effect: Effect::AddCounter {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     counter: CounterType::PlusOnePlusOne,
@@ -28,7 +41,7 @@ pub fn card() -> CardDefinition {
                 })],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // ENGINE-BLOCKED: "Whenever one or more +1/+1 counters are put on a creature you
             // control, put that many growth counters on this enchantment." PB-AC1 shipped
@@ -58,7 +71,10 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("'Whenever one or more +1/+1 counters are put on a creature you control, put that many growth counters on this..."),
+        completeness: Completeness::partial(
+            "'Whenever one or more +1/+1 counters are put on a creature you control, put that \
+             many growth counters on this...",
+        ),
         ..Default::default()
     }
 }

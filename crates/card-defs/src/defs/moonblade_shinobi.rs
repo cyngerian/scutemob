@@ -8,15 +8,27 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("moonblade-shinobi"),
         name: "Moonblade Shinobi".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            blue: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Ninja"]),
-        oracle_text: "Ninjutsu {2}{U} ({2}{U}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)\nWhenever this creature deals combat damage to a player, create a 1/1 blue Illusion creature token with flying.".to_string(),
+        oracle_text: "Ninjutsu {2}{U} ({2}{U}, Return an unblocked attacker you control to hand: \
+                      Put this card onto the battlefield from your hand tapped and \
+                      attacking.)\nWhenever this creature deals combat damage to a player, create \
+                      a 1/1 blue Illusion creature token with flying."
+            .to_string(),
         power: Some(3),
         toughness: Some(2),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Ninjutsu),
             AbilityDefinition::Ninjutsu {
-                cost: ManaCost { generic: 2, blue: 1, ..Default::default() },
+                cost: ManaCost {
+                    generic: 2,
+                    blue: 1,
+                    ..Default::default()
+                },
             },
             AbilityDefinition::Triggered {
                 once_per_turn: false,

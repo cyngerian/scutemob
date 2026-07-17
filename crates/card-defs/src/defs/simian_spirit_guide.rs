@@ -8,7 +8,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("simian-spirit-guide"),
         name: "Simian Spirit Guide".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Ape", "Spirit"]),
         oracle_text: "Exile this card from your hand: Add {R}.".to_string(),
         power: Some(2),
@@ -19,7 +23,10 @@ pub fn card() -> CardDefinition {
                 cost: Cost::Mana(ManaCost::default()),
                 effect: Effect::AddMana {
                     player: PlayerTarget::Controller,
-                    mana: ManaPool { red: 1, ..Default::default() },
+                    mana: ManaPool {
+                        red: 1,
+                        ..Default::default()
+                    },
                 },
                 timing_restriction: None,
                 targets: vec![],
@@ -28,7 +35,11 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("activated ability is authored with Cost::Mana(default) — a free, repeatable 'Add {R}' (infinite mana). Cost::ExileFromHand (casting.rs:4168) + activation_zone: Hand are shipped; rewire to complete."),
+        completeness: Completeness::partial(
+            "activated ability is authored with Cost::Mana(default) — a free, repeatable 'Add \
+             {R}' (infinite mana). Cost::ExileFromHand (casting.rs:4168) + activation_zone: Hand \
+             are shipped; rewire to complete.",
+        ),
         ..Default::default()
     }
 }

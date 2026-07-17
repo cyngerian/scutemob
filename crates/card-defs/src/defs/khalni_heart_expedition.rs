@@ -12,9 +12,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("khalni-heart-expedition"),
         name: "Khalni Heart Expedition".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Landfall — Whenever a land you control enters, you may put a quest counter on this enchantment.\nRemove three quest counters from this enchantment and sacrifice it: Search your library for up to two basic land cards, put them onto the battlefield tapped, then shuffle.".to_string(),
+        oracle_text: "Landfall — Whenever a land you control enters, you may put a quest counter \
+                      on this enchantment.\nRemove three quest counters from this enchantment and \
+                      sacrifice it: Search your library for up to two basic land cards, put them \
+                      onto the battlefield tapped, then shuffle."
+            .to_string(),
         abilities: vec![
             // Landfall — Whenever a land you control enters, put a quest counter on this.
             // CR 207.2c: "Landfall" is an ability word; trigger uses WheneverPermanentEntersBattlefield.
@@ -39,7 +47,6 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 trigger_zone: None,
             },
-
             // Remove three quest counters from this enchantment and sacrifice it: search for
             // up to two basic lands, put them onto battlefield tapped, then shuffle.
             AbilityDefinition::Activated {
@@ -67,7 +74,9 @@ pub fn card() -> CardDefinition {
                         shuffle_before_placing: false,
                         also_search_graveyard: false,
                     },
-                    Effect::Shuffle { player: PlayerTarget::Controller },
+                    Effect::Shuffle {
+                        player: PlayerTarget::Controller,
+                    },
                 ]),
                 timing_restriction: None,
                 targets: vec![],

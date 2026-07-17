@@ -10,9 +10,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("retreat-to-kazandu"),
         name: "Retreat to Kazandu".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Landfall — Whenever a land you control enters, choose one —\n• Put a +1/+1 counter on target creature.\n• You gain 2 life.".to_string(),
+        oracle_text: "Landfall — Whenever a land you control enters, choose one —\n• Put a +1/+1 \
+                      counter on target creature.\n• You gain 2 life."
+            .to_string(),
         abilities: vec![
             // CR 700.2b / PB-35: Landfall modal triggered ability.
             // Mode 0: Put a +1/+1 counter on target creature.

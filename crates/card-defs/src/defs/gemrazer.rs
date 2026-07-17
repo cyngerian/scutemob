@@ -12,11 +12,18 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("gemrazer"),
         name: "Gemrazer".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Beast"]),
-        oracle_text:
-            "Mutate {1}{G}{G} (If you cast this spell for its mutate cost, put it over or under target non-Human creature you own. They mutate into the creature on top plus all abilities from under it.)\nReach\nTrample\nWhenever this creature mutates, destroy target artifact or enchantment an opponent controls."
-                .to_string(),
+        oracle_text: "Mutate {1}{G}{G} (If you cast this spell for its mutate cost, put it over \
+                      or under target non-Human creature you own. They mutate into the creature \
+                      on top plus all abilities from under it.)\nReach\nTrample\nWhenever this \
+                      creature mutates, destroy target artifact or enchantment an opponent \
+                      controls."
+            .to_string(),
         power: Some(4),
         toughness: Some(4),
         abilities: vec![
@@ -24,7 +31,11 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Mutate),
             // CR 702.140a: Mutate cost {1}{G}{G}.
             AbilityDefinition::MutateCost {
-                cost: ManaCost { generic: 1, green: 2, ..Default::default() },
+                cost: ManaCost {
+                    generic: 1,
+                    green: 2,
+                    ..Default::default()
+                },
             },
             AbilityDefinition::Keyword(KeywordAbility::Reach),
             AbilityDefinition::Keyword(KeywordAbility::Trample),
@@ -60,6 +71,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

@@ -12,7 +12,11 @@ pub fn card() -> CardDefinition {
         name: "Inventors' Fair".to_string(),
         mana_cost: None,
         types: supertypes(&[SuperType::Legendary], &[CardType::Land]),
-        oracle_text: "At the beginning of your upkeep, if you control three or more artifacts, you gain 1 life.\n{T}: Add {C}.\n{4}, {T}, Sacrifice Inventors' Fair: Search your library for an artifact card, reveal it, put it into your hand, then shuffle. Activate only if you control three or more artifacts.".to_string(),
+        oracle_text: "At the beginning of your upkeep, if you control three or more artifacts, \
+                      you gain 1 life.\n{T}: Add {C}.\n{4}, {T}, Sacrifice Inventors' Fair: \
+                      Search your library for an artifact card, reveal it, put it into your hand, \
+                      then shuffle. Activate only if you control three or more artifacts."
+            .to_string(),
         abilities: vec![
             // {T}: Add {C}.
             AbilityDefinition::Activated {
@@ -25,7 +29,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // TODO: At the beginning of your upkeep, if you control 3+ artifacts, gain 1 life.
             // {4}, {T}, Sacrifice: Search for artifact, reveal, put into hand, shuffle.
@@ -51,7 +55,7 @@ pub fn card() -> CardDefinition {
                             owner: PlayerTarget::Controller,
                         },
                         shuffle_before_placing: false,
-                    also_search_graveyard: false,
+                        also_search_graveyard: false,
                     },
                     Effect::Shuffle {
                         player: PlayerTarget::Controller,
@@ -61,10 +65,17 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("Blocked on an InterveningIf count-threshold variant for the upkeep 'if you control three or more artifacts' clause (InterveningIf has only ControllerLifeAtLeast / SourceHadNoCounterOfType). The search ability's 'activate only if you control three or more artifacts' IS expressible now via activation_condition: Some(Condition::YouControlNOrMoreWithFilter) (PB-22 S1) and must be wired — the def currently permits illegal activation."),
+        completeness: Completeness::partial(
+            "Blocked on an InterveningIf count-threshold variant for the upkeep 'if you control \
+             three or more artifacts' clause (InterveningIf has only ControllerLifeAtLeast / \
+             SourceHadNoCounterOfType). The search ability's 'activate only if you control three \
+             or more artifacts' IS expressible now via activation_condition: \
+             Some(Condition::YouControlNOrMoreWithFilter) (PB-22 S1) and must be wired — the def \
+             currently permits illegal activation.",
+        ),
         ..Default::default()
     }
 }

@@ -15,9 +15,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("kenriths-transformation"),
         name: "Kenrith's Transformation".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: full_types(&[], &[CardType::Enchantment], &["Aura"]),
-        oracle_text: "Enchant creature\nWhen this Aura enters, draw a card.\nEnchanted creature loses all abilities and is a green Elk creature with base power and toughness 3/3. (It loses all other card types and creature types.)".to_string(),
+        oracle_text: "Enchant creature\nWhen this Aura enters, draw a card.\nEnchanted creature \
+                      loses all abilities and is a green Elk creature with base power and \
+                      toughness 3/3. (It loses all other card types and creature types.)"
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Enchant(EnchantTarget::Creature)),
             // When ETB, draw a card.
@@ -86,7 +93,10 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Static {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::PtSet,
-                    modification: LayerModification::SetPowerToughness { power: 3, toughness: 3 },
+                    modification: LayerModification::SetPowerToughness {
+                        power: 3,
+                        toughness: 3,
+                    },
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
                     condition: None,

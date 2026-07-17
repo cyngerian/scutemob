@@ -7,7 +7,10 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("thought-vessel"),
         name: "Thought Vessel".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
         oracle_text: "You have no maximum hand size.\n{T}: Add {C}.".to_string(),
         abilities: vec![
@@ -23,7 +26,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

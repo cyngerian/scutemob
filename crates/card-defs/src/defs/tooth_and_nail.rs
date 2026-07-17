@@ -8,9 +8,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("tooth-and-nail"),
         name: "Tooth and Nail".to_string(),
-        mana_cost: Some(ManaCost { generic: 5, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 5,
+            green: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Choose one —\n• Search your library for up to two creature cards, reveal them, put them into your hand, then shuffle.\n• Put up to two creature cards from your hand onto the battlefield.\nEntwine {2} (Choose both if you pay the entwine cost.)".to_string(),
+        oracle_text: "Choose one —\n• Search your library for up to two creature cards, reveal \
+                      them, put them into your hand, then shuffle.\n• Put up to two creature \
+                      cards from your hand onto the battlefield.\nEntwine {2} (Choose both if you \
+                      pay the entwine cost.)"
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Entwine),
             AbilityDefinition::Spell {
@@ -29,7 +37,9 @@ pub fn card() -> CardDefinition {
                                 has_card_type: Some(CardType::Creature),
                                 ..Default::default()
                             },
-                            destination: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                            destination: ZoneTarget::Hand {
+                                owner: PlayerTarget::Controller,
+                            },
                             reveal: true,
                             player: PlayerTarget::Controller,
                             also_search_graveyard: false,

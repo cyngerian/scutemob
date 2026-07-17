@@ -8,9 +8,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("blood-tribute"),
         name: "Blood Tribute".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            black: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Kicker—Tap an untapped Vampire you control. (You may tap a Vampire you control in addition to any other costs as you cast this spell.)\nTarget opponent loses half their life, rounded up. If this spell was kicked, you gain life equal to the life lost this way.".to_string(),
+        oracle_text: "Kicker—Tap an untapped Vampire you control. (You may tap a Vampire you \
+                      control in addition to any other costs as you cast this spell.)\nTarget \
+                      opponent loses half their life, rounded up. If this spell was kicked, you \
+                      gain life equal to the life lost this way."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Kicker),
             AbilityDefinition::Spell {
@@ -23,7 +31,9 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::partial("'loses half life rounded up' needs EffectAmount::HalfLife"),
+        completeness: Completeness::partial(
+            "'loses half life rounded up' needs EffectAmount::HalfLife",
+        ),
         ..Default::default()
     }
 }

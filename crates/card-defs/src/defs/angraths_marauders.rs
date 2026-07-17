@@ -11,9 +11,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("angraths-marauders"),
         name: "Angrath's Marauders".to_string(),
-        mana_cost: Some(ManaCost { generic: 5, red: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 5,
+            red: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Pirate"]),
-        oracle_text: "If a source you control would deal damage to a permanent or player, it deals double that damage instead.".to_string(),
+        oracle_text: "If a source you control would deal damage to a permanent or player, it \
+                      deals double that damage instead."
+            .to_string(),
         power: Some(4),
         toughness: Some(4),
         abilities: vec![

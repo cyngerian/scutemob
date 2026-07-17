@@ -15,9 +15,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("breath-of-fury"),
         name: "Breath of Fury".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 2,
+            ..Default::default()
+        }),
         types: full_types(&[], &[CardType::Enchantment], &["Aura"]),
-        oracle_text: "Enchant creature you control\nWhen enchanted creature deals combat damage to a player, sacrifice it and attach Breath of Fury to a creature you control. If you do, untap all creatures you control and after this phase, there is an additional combat phase.".to_string(),
+        oracle_text: "Enchant creature you control\nWhen enchanted creature deals combat damage \
+                      to a player, sacrifice it and attach Breath of Fury to a creature you \
+                      control. If you do, untap all creatures you control and after this phase, \
+                      there is an additional combat phase."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Enchant(EnchantTarget::Creature)),
             // TODO: Triggered ability -- when enchanted creature deals combat damage to a player:
@@ -27,7 +35,10 @@ pub fn card() -> CardDefinition {
             // 4. If successful: add an additional combat phase.
             // DSL gaps: Aura re-attachment effect; sacrifice-enchanted-creature cost.
         ],
-        completeness: Completeness::partial("Triggered ability -- when enchanted creature deals combat damage to a player: 1. Sacrifice the enchanted creature. 2...."),
+        completeness: Completeness::partial(
+            "Triggered ability -- when enchanted creature deals combat damage to a player: 1. \
+             Sacrifice the enchanted creature. 2....",
+        ),
         ..Default::default()
     }
 }

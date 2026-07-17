@@ -7,9 +7,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("vivisection-evangelist"),
         name: "Vivisection Evangelist".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, white: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            white: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Phyrexian", "Cleric"]),
-        oracle_text: "Vigilance\nCorrupted — When this creature enters, if an opponent has three or more poison counters, destroy target creature or planeswalker an opponent controls.".to_string(),
+        oracle_text: "Vigilance\nCorrupted — When this creature enters, if an opponent has three \
+                      or more poison counters, destroy target creature or planeswalker an \
+                      opponent controls."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Vigilance),
             // CR 603.1: Corrupted — When this creature enters, if an opponent has 3+
@@ -46,6 +54,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

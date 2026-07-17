@@ -6,9 +6,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("signal-pest"),
         name: "Signal Pest".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Artifact, CardType::Creature], &["Pest"]),
-        oracle_text: "Battle cry (Whenever this creature attacks, each other attacking creature gets +1/+0 until end of turn.)\nThis creature can't be blocked except by creatures with flying or reach."
+        oracle_text: "Battle cry (Whenever this creature attacks, each other attacking creature \
+                      gets +1/+0 until end of turn.)\nThis creature can't be blocked except by \
+                      creatures with flying or reach."
             .to_string(),
         power: Some(0),
         toughness: Some(1),
@@ -34,6 +39,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

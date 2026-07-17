@@ -9,9 +9,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("phyrexian-swarmlord"),
         name: "Phyrexian Swarmlord".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            green: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Phyrexian", "Insect", "Horror"]),
-        oracle_text: "Infect (This creature deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)\nAt the beginning of your upkeep, create a 1/1 green Phyrexian Insect creature token with infect for each poison counter your opponents have.".to_string(),
+        oracle_text: "Infect (This creature deals damage to creatures in the form of -1/-1 \
+                      counters and to players in the form of poison counters.)\nAt the beginning \
+                      of your upkeep, create a 1/1 green Phyrexian Insect creature token with \
+                      infect for each poison counter your opponents have."
+            .to_string(),
         power: Some(4),
         toughness: Some(4),
         abilities: vec![

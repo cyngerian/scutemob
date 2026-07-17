@@ -11,15 +11,27 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("keen-eyed-curator"),
         name: "Keen-Eyed Curator".to_string(),
-        mana_cost: Some(ManaCost { green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            green: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Raccoon", "Scout"]),
-        oracle_text: "As long as there are four or more card types among cards exiled with this creature, it gets +4/+4 and has trample.\n{1}: Exile target card from a graveyard.".to_string(),
+        oracle_text: "As long as there are four or more card types among cards exiled with this \
+                      creature, it gets +4/+4 and has trample.\n{1}: Exile target card from a \
+                      graveyard."
+            .to_string(),
         power: Some(3),
         toughness: Some(3),
         abilities: vec![],
         // TODO: conditional +4/+4 and trample when 4+ card types exiled with this creature
         // TODO: {1}: exile target card from a graveyard
-        completeness: Completeness::inert("Static buff blocked: no 'cards exiled with this permanent' association is tracked on GameObject, and no Condition counts distinct card types among such cards. The {1} exile ability is expressible (TargetCardInGraveyard) but is withheld until the static can ship, since a Curator that exiles without ever getting +4/+4 and trample is wrong game state (W5)."),
+        completeness: Completeness::inert(
+            "Static buff blocked: no 'cards exiled with this permanent' association is tracked on \
+             GameObject, and no Condition counts distinct card types among such cards. The {1} \
+             exile ability is expressible (TargetCardInGraveyard) but is withheld until the \
+             static can ship, since a Curator that exiles without ever getting +4/+4 and trample \
+             is wrong game state (W5).",
+        ),
         ..Default::default()
     }
 }

@@ -6,9 +6,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("canopy-crawler"),
         name: "Canopy Crawler".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Beast"]),
-        oracle_text: "Amplify 1 (As this creature enters, put a +1/+1 counter on it for each Beast card you reveal in your hand.)\n{T}: Target creature gets +1/+1 until end of turn for each +1/+1 counter on Canopy Crawler.".to_string(),
+        oracle_text: "Amplify 1 (As this creature enters, put a +1/+1 counter on it for each \
+                      Beast card you reveal in your hand.)\n{T}: Target creature gets +1/+1 until \
+                      end of turn for each +1/+1 counter on Canopy Crawler."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -29,6 +36,11 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::partial("Activated ability is authorable — EffectAmount::CounterCount { target: Source, counter: PlusOnePlusOne } exists (card_definition.rs:2511). Open question for the author: CR 608.2 locks the amount in at resolution; ModifyBothDynamic recalculates continuously. Needs a fixed-at-resolution amount or a documented deviation."),
+        completeness: Completeness::partial(
+            "Activated ability is authorable — EffectAmount::CounterCount { target: Source, \
+             counter: PlusOnePlusOne } exists (card_definition.rs:2511). Open question for the \
+             author: CR 608.2 locks the amount in at resolution; ModifyBothDynamic recalculates \
+             continuously. Needs a fixed-at-resolution amount or a documented deviation.",
+        ),
     }
 }

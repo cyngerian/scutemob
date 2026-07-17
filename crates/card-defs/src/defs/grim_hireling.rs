@@ -12,9 +12,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("grim-hireling"),
         name: "Grim Hireling".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Tiefling", "Rogue"]),
-        oracle_text: "Whenever one or more creatures you control deal combat damage to a player, create two Treasure tokens.\n{B}, Sacrifice X Treasures: Target creature gets -X/-X until end of turn. Activate only as a sorcery.".to_string(),
+        oracle_text: "Whenever one or more creatures you control deal combat damage to a player, \
+                      create two Treasure tokens.\n{B}, Sacrifice X Treasures: Target creature \
+                      gets -X/-X until end of turn. Activate only as a sorcery."
+            .to_string(),
         power: Some(3),
         toughness: Some(2),
         abilities: vec![
@@ -22,7 +29,10 @@ pub fn card() -> CardDefinition {
             // damage to a player, create two Treasure tokens." — batch trigger.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer { filter: None },
+                trigger_condition:
+                    TriggerCondition::WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer {
+                        filter: None,
+                    },
                 effect: Effect::CreateToken {
                     spec: treasure_token_spec(2),
                 },
@@ -35,7 +45,10 @@ pub fn card() -> CardDefinition {
             // TODO: "{B}, Sacrifice X Treasures: Target creature gets -X/-X" — X-cost
             //   activated ability with variable sacrifice count not expressible in DSL.
         ],
-        completeness: Completeness::partial("'{B}, Sacrifice X Treasures: Target creature gets -X/-X' — X-cost activated ability with variable sacrifice count is..."),
+        completeness: Completeness::partial(
+            "'{B}, Sacrifice X Treasures: Target creature gets -X/-X' — X-cost activated ability \
+             with variable sacrifice count is...",
+        ),
         ..Default::default()
     }
 }

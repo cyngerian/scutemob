@@ -9,9 +9,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("devilish-valet"),
         name: "Devilish Valet".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Devil", "Warrior"]),
-        oracle_text: "Trample, haste\nAlliance \u{2014} Whenever another creature you control enters, double this creature's power until end of turn.".to_string(),
+        oracle_text: "Trample, haste\nAlliance \u{2014} Whenever another creature you control \
+                      enters, double this creature's power until end of turn."
+            .to_string(),
         power: Some(1),
         toughness: Some(3),
         abilities: vec![
@@ -20,7 +26,13 @@ pub fn card() -> CardDefinition {
         ],
         // TODO: Alliance trigger — "double this creature's power until EOT"
         // (requires LayerModification for multiplicative power change)
-        completeness: Completeness::partial("Alliance trigger unimplemented. Primitives exist: WheneverCreatureEntersBattlefield { filter: creature/controller You, exclude_self: true } (card_definition.rs:3079) + Effect::ApplyContinuousEffect with ModifyPowerDynamic { amount: PowerOf(Source) } (locked at resolution per effects/mod.rs:3013, CR 608.2h) on EffectFilter::Source, UntilEndOfTurn."),
+        completeness: Completeness::partial(
+            "Alliance trigger unimplemented. Primitives exist: WheneverCreatureEntersBattlefield \
+             { filter: creature/controller You, exclude_self: true } (card_definition.rs:3079) + \
+             Effect::ApplyContinuousEffect with ModifyPowerDynamic { amount: PowerOf(Source) } \
+             (locked at resolution per effects/mod.rs:3013, CR 608.2h) on EffectFilter::Source, \
+             UntilEndOfTurn.",
+        ),
         ..Default::default()
     }
 }

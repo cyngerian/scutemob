@@ -7,9 +7,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("metastatic-evangel"),
         name: "Metastatic Evangel".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            white: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Phyrexian", "Cleric"]),
-        oracle_text: "Whenever another nontoken creature you control enters, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)".to_string(),
+        oracle_text: "Whenever another nontoken creature you control enters, proliferate. (Choose \
+                      any number of permanents and/or players, then give each another counter of \
+                      each kind already there.)"
+            .to_string(),
         power: Some(1),
         toughness: Some(3),
         abilities: vec![

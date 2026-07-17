@@ -20,7 +20,11 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: creature_types(&["Drake"]),
-        oracle_text: "Flying\nWhen this creature enters, exchange control of this creature and up to one target creature an opponent controls. If you don't or can't make an exchange, sacrifice this creature. This ability still resolves if its target becomes illegal.".to_string(),
+        oracle_text: "Flying\nWhen this creature enters, exchange control of this creature and up \
+                      to one target creature an opponent controls. If you don't or can't make an \
+                      exchange, sacrifice this creature. This ability still resolves if its \
+                      target becomes illegal."
+            .to_string(),
         power: Some(3),
         toughness: Some(3),
         abilities: vec![
@@ -38,20 +42,21 @@ pub fn card() -> CardDefinition {
                     duration: EffectDuration::Indefinite,
                 },
                 intervening_if: None,
-                targets: vec![
-                    TargetRequirement::UpToN {
-                        count: 1,
-                        inner: Box::new(TargetRequirement::TargetCreatureWithFilter(TargetFilter {
-                            controller: TargetController::Opponent,
-                            ..Default::default()
-                        })),
-                    },
-                ],
+                targets: vec![TargetRequirement::UpToN {
+                    count: 1,
+                    inner: Box::new(TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                        controller: TargetController::Opponent,
+                        ..Default::default()
+                    })),
+                }],
                 modes: None,
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("'If you don't or can't make an exchange, sacrifice this creature.' — there is no Condition variant expressing whether..."),
+        completeness: Completeness::partial(
+            "'If you don't or can't make an exchange, sacrifice this creature.' — there is no \
+             Condition variant expressing whether...",
+        ),
         ..Default::default()
     }
 }

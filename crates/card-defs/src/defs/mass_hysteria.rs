@@ -10,20 +10,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("mass-hysteria"),
         name: "Mass Hysteria".to_string(),
-        mana_cost: Some(ManaCost { red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            red: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
         oracle_text: "All creatures have haste.".to_string(),
-        abilities: vec![
-            AbilityDefinition::Static {
-                continuous_effect: ContinuousEffectDef {
-                    layer: EffectLayer::Ability,
-                    modification: LayerModification::AddKeyword(KeywordAbility::Haste),
-                    filter: EffectFilter::AllCreatures,
-                    duration: EffectDuration::WhileSourceOnBattlefield,
-                    condition: None,
-                },
+        abilities: vec![AbilityDefinition::Static {
+            continuous_effect: ContinuousEffectDef {
+                layer: EffectLayer::Ability,
+                modification: LayerModification::AddKeyword(KeywordAbility::Haste),
+                filter: EffectFilter::AllCreatures,
+                duration: EffectDuration::WhileSourceOnBattlefield,
+                condition: None,
             },
-        ],
+        }],
         ..Default::default()
     }
 }

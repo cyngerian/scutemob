@@ -9,13 +9,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("aesi-tyrant-of-gyre-strait"),
         name: "Aesi, Tyrant of Gyre Strait".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, green: 1, blue: 1, ..Default::default() }),
-        types: full_types(
-            &[SuperType::Legendary],
-            &[CardType::Creature],
-            &["Serpent"],
-        ),
-        oracle_text: "You may play an additional land on each of your turns.\nLandfall — Whenever a land you control enters, you may draw a card.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            green: 1,
+            blue: 1,
+            ..Default::default()
+        }),
+        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Serpent"]),
+        oracle_text: "You may play an additional land on each of your turns.\nLandfall — Whenever \
+                      a land you control enters, you may draw a card."
+            .to_string(),
         power: Some(5),
         toughness: Some(5),
         abilities: vec![

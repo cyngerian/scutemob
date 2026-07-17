@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("shared-animosity"),
         name: "Shared Animosity".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Whenever a creature you control attacks, it gets +1/+0 until end of turn for each other attacking creature that shares a creature type with it.".to_string(),
+        oracle_text: "Whenever a creature you control attacks, it gets +1/+0 until end of turn \
+                      for each other attacking creature that shares a creature type with it."
+            .to_string(),
         abilities: vec![
             // CR 508.1m / CR 603.2: "Whenever a creature you control attacks, it gets +1/+0
             // until end of turn for each other attacking creature that shares a creature type."
@@ -23,7 +29,10 @@ pub fn card() -> CardDefinition {
             // EffectFilter::TriggeringCreature in ContinuousEffectDef. Both gaps must be filled
             // before this ability can be expressed without producing wrong game state.
         ],
-        completeness: Completeness::partial("DSL gap — EffectAmount has no variant for 'count of other attacking creatures that share a creature type with the..."),
+        completeness: Completeness::partial(
+            "DSL gap — EffectAmount has no variant for 'count of other attacking creatures that \
+             share a creature type with the...",
+        ),
         ..Default::default()
     }
 }

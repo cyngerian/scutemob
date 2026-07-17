@@ -7,17 +7,26 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("cordial-vampire"),
         name: "Cordial Vampire".to_string(),
-        mana_cost: Some(ManaCost { black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Vampire"]),
-        oracle_text: "Whenever Cordial Vampire or another creature dies, put a +1/+1 counter on each Vampire you control.".to_string(),
+        oracle_text: "Whenever Cordial Vampire or another creature dies, put a +1/+1 counter on \
+                      each Vampire you control."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
             // "Whenever this creature or another creature dies" = any creature dies.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: None, exclude_self: false, nontoken_only: false, filter: None,
-},
+                trigger_condition: TriggerCondition::WheneverCreatureDies {
+                    controller: None,
+                    exclude_self: false,
+                    nontoken_only: false,
+                    filter: None,
+                },
                 effect: Effect::ForEach {
                     over: ForEachTarget::EachPermanentMatching(Box::new(TargetFilter {
                         has_card_type: Some(CardType::Creature),

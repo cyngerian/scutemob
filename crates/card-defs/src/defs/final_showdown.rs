@@ -8,14 +8,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("final-showdown"),
         name: "Final Showdown".to_string(),
-        mana_cost: Some(ManaCost { white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            white: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text:
-            "Spree (Choose one or more additional costs.)\n\
-             + {1} — All creatures lose all abilities until end of turn.\n\
-             + {1} — Choose a creature you control. It gains indestructible until end of turn.\n\
-             + {3}{W}{W} — Destroy all creatures."
-                .to_string(),
+        oracle_text: "Spree (Choose one or more additional costs.)\n+ {1} — All creatures lose \
+                      all abilities until end of turn.\n+ {1} — Choose a creature you control. It \
+                      gains indestructible until end of turn.\n+ {3}{W}{W} — Destroy all \
+                      creatures."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Spree),
             AbilityDefinition::Spell {
@@ -31,9 +33,19 @@ pub fn card() -> CardDefinition {
                     // CR 700.2h / 702.172a: per-mode additional costs.
                     // Mode 0: +{1}; Mode 1: +{1}; Mode 2: +{3}{W}{W}
                     mode_costs: Some(vec![
-                        ManaCost { generic: 1, ..Default::default() },
-                        ManaCost { generic: 1, ..Default::default() },
-                        ManaCost { generic: 3, white: 2, ..Default::default() },
+                        ManaCost {
+                            generic: 1,
+                            ..Default::default()
+                        },
+                        ManaCost {
+                            generic: 1,
+                            ..Default::default()
+                        },
+                        ManaCost {
+                            generic: 3,
+                            white: 2,
+                            ..Default::default()
+                        },
                     ]),
                     modes: vec![
                         // Mode 0 (+{1}): All creatures lose all abilities until end of turn.
@@ -50,7 +62,6 @@ pub fn card() -> CardDefinition {
                                 condition: None,
                             }),
                         },
-
                         // Mode 1 (+{1}): Choose a creature you control. It gains
                         // indestructible until end of turn.
                         // ENGINE-BLOCKED (still, per PB-AC7 roster review): the ruling
@@ -67,7 +78,6 @@ pub fn card() -> CardDefinition {
                         // one creature. This mode has no effect when resolved
                         // (no-op placeholder) — OOS-AC7-2.
                         Effect::Sequence(vec![]),
-
                         // Mode 2 (+{3}{W}{W}): Destroy all creatures (CR 701.8).
                         Effect::DestroyAll {
                             filter: TargetFilter {
@@ -82,7 +92,10 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::partial("(still, per PB-AC7 roster review): the ruling clarifies this is a non-target selection made on resolution ('The second..."),
+        completeness: Completeness::partial(
+            "(still, per PB-AC7 roster review): the ruling clarifies this is a non-target \
+             selection made on resolution ('The second...",
+        ),
         ..Default::default()
     }
 }

@@ -12,22 +12,38 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("dokuchi-silencer"),
         name: "Dokuchi Silencer".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Ninja"]),
-        oracle_text: "Ninjutsu {1}{B} ({1}{B}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)\nWhenever this creature deals combat damage to a player, you may discard a creature card. When you do, destroy target creature or planeswalker that player controls.".to_string(),
+        oracle_text: "Ninjutsu {1}{B} ({1}{B}, Return an unblocked attacker you control to hand: \
+                      Put this card onto the battlefield from your hand tapped and \
+                      attacking.)\nWhenever this creature deals combat damage to a player, you \
+                      may discard a creature card. When you do, destroy target creature or \
+                      planeswalker that player controls."
+            .to_string(),
         power: Some(2),
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Ninjutsu),
             AbilityDefinition::Ninjutsu {
-                cost: ManaCost { generic: 1, black: 1, ..Default::default() },
+                cost: ManaCost {
+                    generic: 1,
+                    black: 1,
+                    ..Default::default()
+                },
             },
             // TODO: "Whenever this creature deals combat damage to a player, you may discard a
             // creature card. When you do, destroy target creature or planeswalker that player
             // controls." — requires reflexive trigger ("when you do") fired by a discard within
             // the combat damage trigger. DSL gap: no reflexive trigger support.
         ],
-        completeness: Completeness::partial("DSL gap — 'when you do' reflexive trigger: the combat damage trigger allows discarding a creature card, and only when..."),
+        completeness: Completeness::partial(
+            "DSL gap — 'when you do' reflexive trigger: the combat damage trigger allows \
+             discarding a creature card, and only when...",
+        ),
         ..Default::default()
     }
 }

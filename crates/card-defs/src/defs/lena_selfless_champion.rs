@@ -9,13 +9,20 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("lena-selfless-champion"),
         name: "Lena, Selfless Champion".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, white: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            white: 2,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Human", "Knight"],
         ),
-        oracle_text: "When Lena enters, create a 1/1 white Soldier creature token for each nontoken creature you control.\nSacrifice Lena: Creatures you control with power less than Lena's power gain indestructible until end of turn.".to_string(),
+        oracle_text: "When Lena enters, create a 1/1 white Soldier creature token for each \
+                      nontoken creature you control.\nSacrifice Lena: Creatures you control with \
+                      power less than Lena's power gain indestructible until end of turn."
+            .to_string(),
         power: Some(3),
         toughness: Some(3),
         abilities: vec![
@@ -26,7 +33,13 @@ pub fn card() -> CardDefinition {
             //   power less than Lena's power — requires dynamic power comparison in filter.
             //   DSL lacks this conditional filter. W5 policy: omitted.
         ],
-        completeness: Completeness::partial("ETB 'for each nontoken creature you control': EffectAmount::PermanentCount exists but TargetFilter::is_nontoken is silently ignored by matches_filter, and PermanentCount (effects/mod.rs:6749) never checks it — tokens would be counted. Sacrifice ability needs a power-comparison filter vs Lena's own power (TargetFilter::max_power is static only)."),
+        completeness: Completeness::partial(
+            "ETB 'for each nontoken creature you control': EffectAmount::PermanentCount exists \
+             but TargetFilter::is_nontoken is silently ignored by matches_filter, and \
+             PermanentCount (effects/mod.rs:6749) never checks it — tokens would be counted. \
+             Sacrifice ability needs a power-comparison filter vs Lena's own power \
+             (TargetFilter::max_power is static only).",
+        ),
         ..Default::default()
     }
 }

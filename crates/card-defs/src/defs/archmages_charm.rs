@@ -9,9 +9,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("archmages-charm"),
         name: "Archmage's Charm".to_string(),
-        mana_cost: Some(ManaCost { blue: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            blue: 3,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Choose one —\n• Counter target spell.\n• Target player draws two cards.\n• Gain control of target nonland permanent with mana value 1 or less.".to_string(),
+        oracle_text: "Choose one —\n• Counter target spell.\n• Target player draws two cards.\n• \
+                      Gain control of target nonland permanent with mana value 1 or less."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             // PB-AC4 (CR 700.2c/700.2f): per-mode targets — all three modes are fully
             // expressible (previously stubbed as `Effect::Nothing`; the plan flagged mode 2

@@ -6,9 +6,19 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("krenko-mob-boss"),
         name: "Krenko, Mob Boss".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 2, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Goblin", "Warrior"]),
-        oracle_text: "{T}: Create X 1/1 red Goblin creature tokens, where X is the number of Goblins you control.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 2,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Creature],
+            &["Goblin", "Warrior"],
+        ),
+        oracle_text: "{T}: Create X 1/1 red Goblin creature tokens, where X is the number of \
+                      Goblins you control."
+            .to_string(),
         power: Some(3),
         toughness: Some(3),
         abilities: vec![

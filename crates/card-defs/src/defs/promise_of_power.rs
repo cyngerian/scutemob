@@ -5,16 +5,24 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("promise-of-power"),
         name: "Promise of Power".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, black: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            black: 3,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Choose one —\n\
-            • You draw five cards and you lose 5 life.\n\
-            • Create an X/X black Demon creature token with flying, where X is the number of cards in your hand.\n\
-            Entwine {4} (Choose both if you pay the entwine cost.)"
+        oracle_text: "Choose one —\n• You draw five cards and you lose 5 life.\n• Create an X/X \
+                      black Demon creature token with flying, where X is the number of cards in \
+                      your hand.\nEntwine {4} (Choose both if you pay the entwine cost.)"
             .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Entwine),
-            AbilityDefinition::Entwine { cost: ManaCost { generic: 4, ..Default::default() } },
+            AbilityDefinition::Entwine {
+                cost: ManaCost {
+                    generic: 4,
+                    ..Default::default()
+                },
+            },
             AbilityDefinition::Spell {
                 effect: Effect::Sequence(vec![]),
                 targets: vec![],
@@ -64,7 +72,12 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::known_wrong("mode 1's X/X Demon is hardcoded to 5/5. TokenSpec.power/toughness are fixed i32 (card_definition.rs:3675) so dynamic token P/T (X = cards in hand, EffectAmount::HandSize) cannot be expressed. Selecting mode 1 produces a wrong-sized creature. Mode 0 and Entwine {4} are correct."),
+        completeness: Completeness::known_wrong(
+            "mode 1's X/X Demon is hardcoded to 5/5. TokenSpec.power/toughness are fixed i32 \
+             (card_definition.rs:3675) so dynamic token P/T (X = cards in hand, \
+             EffectAmount::HandSize) cannot be expressed. Selecting mode 1 produces a wrong-sized \
+             creature. Mode 0 and Entwine {4} are correct.",
+        ),
         ..Default::default()
     }
 }

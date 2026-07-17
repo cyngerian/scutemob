@@ -5,9 +5,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("radical-idea"),
         name: "Radical Idea".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            blue: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Draw a card.\nJump-start (You may cast this card from your graveyard by discarding a card in addition to paying its other costs. Then exile this card.)".to_string(),
+        oracle_text: "Draw a card.\nJump-start (You may cast this card from your graveyard by \
+                      discarding a card in addition to paying its other costs. Then exile this \
+                      card.)"
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Spell {
                 effect: Effect::DrawCards {

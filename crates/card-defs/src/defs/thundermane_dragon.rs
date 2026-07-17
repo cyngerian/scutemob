@@ -9,9 +9,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("thundermane-dragon"),
         name: "Thundermane Dragon".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Dragon"]),
-        oracle_text: "Flying\nYou may look at the top card of your library any time.\nYou may cast creature spells with power 4 or greater from the top of your library. If you cast a creature spell this way, it gains haste until end of turn.".to_string(),
+        oracle_text: "Flying\nYou may look at the top card of your library any time.\nYou may \
+                      cast creature spells with power 4 or greater from the top of your library. \
+                      If you cast a creature spell this way, it gains haste until end of turn."
+            .to_string(),
         power: Some(4),
         toughness: Some(4),
         abilities: vec![

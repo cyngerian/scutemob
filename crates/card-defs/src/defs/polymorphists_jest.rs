@@ -11,9 +11,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("polymorphists-jest"),
         name: "Polymorphist's Jest".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, blue: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            blue: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Until end of turn, each creature target player controls loses all abilities and becomes a blue Frog with base power and toughness 1/1.".to_string(),
+        oracle_text: "Until end of turn, each creature target player controls loses all abilities \
+                      and becomes a blue Frog with base power and toughness 1/1."
+            .to_string(),
         abilities: vec![
             // TODO: "target player" targeting, then apply to all creatures that player controls.
             // Needs TargetRequirement::TargetPlayer + EffectFilter::CreaturesControlledByTarget.
@@ -25,7 +31,13 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::partial("TargetRequirement::TargetPlayer exists; the layer 4/5/6/7b modifications (SetCreatureTypes, SetColors, RemoveAllAbilities, SetPowerToughness) all exist. Blocked only on scoping an EffectFilter to creatures controlled by declared-target-0 — verify EffectFilter::CreaturesControlledBy's parameter before authoring. Currently Effect::Nothing."),
+        completeness: Completeness::partial(
+            "TargetRequirement::TargetPlayer exists; the layer 4/5/6/7b modifications \
+             (SetCreatureTypes, SetColors, RemoveAllAbilities, SetPowerToughness) all exist. \
+             Blocked only on scoping an EffectFilter to creatures controlled by declared-target-0 \
+             — verify EffectFilter::CreaturesControlledBy's parameter before authoring. Currently \
+             Effect::Nothing.",
+        ),
         ..Default::default()
     }
 }

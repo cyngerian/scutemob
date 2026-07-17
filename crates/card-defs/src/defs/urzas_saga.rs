@@ -10,8 +10,17 @@ pub fn card() -> CardDefinition {
         card_id: cid("urzas-saga"),
         name: "Urza's Saga".to_string(),
         mana_cost: None,
-        types: types_sub(&[CardType::Enchantment, CardType::Land], &["Urza's", "Saga"]),
-        oracle_text: "(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)\nI — This Saga gains \"{T}: Add {C}.\"\nII — This Saga gains \"{2}, {T}: Create a 0/0 colorless Construct artifact creature token with 'This token gets +1/+1 for each artifact you control.'\"\nIII — Search your library for an artifact card with mana cost {0} or {1}, put it onto the battlefield, then shuffle.".to_string(),
+        types: types_sub(
+            &[CardType::Enchantment, CardType::Land],
+            &["Urza's", "Saga"],
+        ),
+        oracle_text: "(As this Saga enters and after your draw step, add a lore counter. \
+                      Sacrifice after III.)\nI — This Saga gains \"{T}: Add {C}.\"\nII — This \
+                      Saga gains \"{2}, {T}: Create a 0/0 colorless Construct artifact creature \
+                      token with 'This token gets +1/+1 for each artifact you control.'\"\nIII — \
+                      Search your library for an artifact card with mana cost {0} or {1}, put it \
+                      onto the battlefield, then shuffle."
+            .to_string(),
         abilities: vec![
             // Chapter I: This Saga gains "{T}: Add {C}."
             // TODO: Needs "gains activated ability" continuous effect — placeholder GainLife(0)
@@ -48,7 +57,7 @@ pub fn card() -> CardDefinition {
                         reveal: false,
                         destination: ZoneTarget::Battlefield { tapped: false },
                         shuffle_before_placing: false,
-                    also_search_graveyard: false,
+                        also_search_graveyard: false,
                     },
                     Effect::Shuffle {
                         player: PlayerTarget::Controller,
@@ -57,7 +66,14 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
-        completeness: Completeness::partial("chapter II only. Its granted ability creates a 0/0 Construct token with a CDA ('gets +1/+1 for each artifact you control'), and TokenSpec carries fixed power/toughness — no CDA-on-token support. Chapter I ('This Saga gains \"{T}: Add {C}\"') is now expressible via LayerModification::AddManaAbility (PB-S) + EffectFilter::Source and should be wired; the GainLife(0) placeholders on I and II must go (KI-10). Chapter III approximates 'mana cost {0} or {1}' as max_cmc: Some(1) (mana value, CR 202.3)."),
+        completeness: Completeness::partial(
+            "chapter II only. Its granted ability creates a 0/0 Construct token with a CDA ('gets \
+             +1/+1 for each artifact you control'), and TokenSpec carries fixed power/toughness — \
+             no CDA-on-token support. Chapter I ('This Saga gains \"{T}: Add {C}\"') is now \
+             expressible via LayerModification::AddManaAbility (PB-S) + EffectFilter::Source and \
+             should be wired; the GainLife(0) placeholders on I and II must go (KI-10). Chapter \
+             III approximates 'mana cost {0} or {1}' as max_cmc: Some(1) (mana value, CR 202.3).",
+        ),
         ..Default::default()
     }
 }

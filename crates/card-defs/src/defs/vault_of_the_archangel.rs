@@ -11,7 +11,9 @@ pub fn card() -> CardDefinition {
         name: "Vault of the Archangel".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}: Add {C}.\n{2}{W}{B}, {T}: Creatures you control gain deathtouch and lifelink until end of turn.".to_string(),
+        oracle_text: "{T}: Add {C}.\n{2}{W}{B}, {T}: Creatures you control gain deathtouch and \
+                      lifelink until end of turn."
+            .to_string(),
         abilities: vec![
             // {T}: Add {C}.
             AbilityDefinition::Activated {
@@ -24,12 +26,17 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {2}{W}{B}, {T}: Creatures you control gain deathtouch and lifelink until end of turn.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 2, white: 1, black: 1, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 2,
+                        white: 1,
+                        black: 1,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                 ]),
                 effect: Effect::Sequence(vec![
@@ -56,7 +63,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

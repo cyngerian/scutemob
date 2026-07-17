@@ -10,9 +10,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("zulaport-cutthroat"),
         name: "Zulaport Cutthroat".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Rogue"]),
-        oracle_text: "Whenever Zulaport Cutthroat or another creature you control dies, each opponent loses 1 life and you gain 1 life for each opponent that lost life.".to_string(),
+        oracle_text: "Whenever Zulaport Cutthroat or another creature you control dies, each \
+                      opponent loses 1 life and you gain 1 life for each opponent that lost life."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
@@ -20,9 +26,15 @@ pub fn card() -> CardDefinition {
             // you control dies." Self is covered since Zulaport is your creature.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You), exclude_self: false, nontoken_only: false, filter: None,
-},
-                effect: Effect::DrainLife { amount: EffectAmount::Fixed(1) },
+                trigger_condition: TriggerCondition::WheneverCreatureDies {
+                    controller: Some(TargetController::You),
+                    exclude_self: false,
+                    nontoken_only: false,
+                    filter: None,
+                },
+                effect: Effect::DrainLife {
+                    amount: EffectAmount::Fixed(1),
+                },
                 intervening_if: None,
                 targets: vec![],
 
@@ -42,6 +54,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

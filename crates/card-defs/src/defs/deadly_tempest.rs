@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("deadly-tempest"),
         name: "Deadly Tempest".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            black: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Destroy all creatures. Each player loses life equal to the number of creatures they controlled that were destroyed this way.".to_string(),
+        oracle_text: "Destroy all creatures. Each player loses life equal to the number of \
+                      creatures they controlled that were destroyed this way."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             // CR 701.8: Destroy all creatures.
             // TODO: The "each player loses life equal to creatures they controlled" requires
@@ -29,7 +35,10 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("The 'each player loses life equal to creatures they controlled' requires per-player tracking of how many creatures each..."),
+        completeness: Completeness::partial(
+            "The 'each player loses life equal to creatures they controlled' requires per-player \
+             tracking of how many creatures each...",
+        ),
         ..Default::default()
     }
 }

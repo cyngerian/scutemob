@@ -8,9 +8,19 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("ayara-first-of-locthwain"),
         name: "Ayara, First of Locthwain".to_string(),
-        mana_cost: Some(ManaCost { black: 3, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Elf", "Noble"]),
-        oracle_text: "Whenever Ayara, First of Locthwain or another black creature you control enters, each opponent loses 1 life and you gain 1 life.\n{T}, Sacrifice another black creature: Draw a card.".to_string(),
+        mana_cost: Some(ManaCost {
+            black: 3,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Creature],
+            &["Elf", "Noble"],
+        ),
+        oracle_text: "Whenever Ayara, First of Locthwain or another black creature you control \
+                      enters, each opponent loses 1 life and you gain 1 life.\n{T}, Sacrifice \
+                      another black creature: Draw a card."
+            .to_string(),
         power: Some(2),
         toughness: Some(3),
         abilities: vec![

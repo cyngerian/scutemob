@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("elvish-archdruid"),
         name: "Elvish Archdruid".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            green: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Elf", "Druid"]),
-        oracle_text: "Other Elf creatures you control get +1/+1.\n{T}: Add {G} for each Elf you control.".to_string(),
+        oracle_text: "Other Elf creatures you control get +1/+1.\n{T}: Add {G} for each Elf you \
+                      control."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -18,7 +24,9 @@ pub fn card() -> CardDefinition {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::PtModify,
                     modification: LayerModification::ModifyBoth(1),
-                    filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType("Elf".to_string())),
+                    filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType(
+                        "Elf".to_string(),
+                    )),
                     duration: EffectDuration::WhileSourceOnBattlefield,
                     condition: None,
                 },
@@ -43,7 +51,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("vindictive-vampire"),
         name: "Vindictive Vampire".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Vampire"]),
-        oracle_text: "Whenever another creature you control dies, this creature deals 1 damage to each opponent and you gain 1 life.".to_string(),
+        oracle_text: "Whenever another creature you control dies, this creature deals 1 damage to \
+                      each opponent and you gain 1 life."
+            .to_string(),
         power: Some(2),
         toughness: Some(3),
         abilities: vec![
@@ -17,8 +23,12 @@ pub fn card() -> CardDefinition {
             // "another creature you control"). DSL gap — no controller/exclusion filter.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You), exclude_self: true, nontoken_only: false, filter: None,
-},
+                trigger_condition: TriggerCondition::WheneverCreatureDies {
+                    controller: Some(TargetController::You),
+                    exclude_self: true,
+                    nontoken_only: false,
+                    filter: None,
+                },
                 effect: Effect::Sequence(vec![
                     Effect::ForEach {
                         over: ForEachTarget::EachOpponent,

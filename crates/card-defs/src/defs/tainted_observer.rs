@@ -7,9 +7,18 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("tainted-observer"),
         name: "Tainted Observer".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, green: 1, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            green: 1,
+            blue: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Phyrexian", "Bird"]),
-        oracle_text: "Flying\nToxic 1 (Players dealt combat damage by this creature also get a poison counter.)\nWhenever another creature you control enters, you may pay {2}. If you do, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)".to_string(),
+        oracle_text: "Flying\nToxic 1 (Players dealt combat damage by this creature also get a \
+                      poison counter.)\nWhenever another creature you control enters, you may pay \
+                      {2}. If you do, proliferate. (Choose any number of permanents and/or \
+                      players, then give each another counter of each kind already there.)"
+            .to_string(),
         power: Some(2),
         toughness: Some(3),
         abilities: vec![
@@ -27,7 +36,10 @@ pub fn card() -> CardDefinition {
                     exclude_self: true,
                 },
                 effect: Effect::MayPayThenEffect {
-                    cost: Cost::Mana(ManaCost { generic: 2, ..Default::default() }),
+                    cost: Cost::Mana(ManaCost {
+                        generic: 2,
+                        ..Default::default()
+                    }),
                     payer: PlayerTarget::Controller,
                     then: Box::new(Effect::Proliferate),
                 },

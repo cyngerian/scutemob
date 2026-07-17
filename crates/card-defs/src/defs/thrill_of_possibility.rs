@@ -9,9 +9,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("thrill-of-possibility"),
         name: "Thrill of Possibility".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            red: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "As an additional cost to cast this spell, discard a card.\nDraw two cards.".to_string(),
+        oracle_text: "As an additional cost to cast this spell, discard a card.\nDraw two cards."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::DrawCards {
                 player: PlayerTarget::Controller,
@@ -21,7 +26,9 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("Discard additional cost not expressible on CardDefinition. Draw only"),
+        completeness: Completeness::partial(
+            "Discard additional cost not expressible on CardDefinition. Draw only",
+        ),
         ..Default::default()
     }
 }

@@ -22,9 +22,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("cankerbloom"),
         name: "Cankerbloom".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Creature], &["Phyrexian", "Fungus"]),
-        oracle_text: "{1}, Sacrifice this creature: Choose one —\n• Destroy target artifact.\n• Destroy target enchantment.\n• Proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)".to_string(),
+        oracle_text: "{1}, Sacrifice this creature: Choose one —\n• Destroy target artifact.\n• \
+                      Destroy target enchantment.\n• Proliferate. (Choose any number of \
+                      permanents and/or players, then give each another counter of each kind \
+                      already there.)"
+            .to_string(),
         power: Some(3),
         toughness: Some(2),
         abilities: vec![
@@ -34,21 +42,25 @@ pub fn card() -> CardDefinition {
             // Mode 2 (proliferate) has no target.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 1,
+                        ..Default::default()
+                    }),
                     Cost::SacrificeSelf,
                 ]),
                 effect: Effect::Choose {
-                    prompt: "Choose one: destroy artifact, destroy enchantment, or proliferate".to_string(),
+                    prompt: "Choose one: destroy artifact, destroy enchantment, or proliferate"
+                        .to_string(),
                     choices: vec![
                         // Mode 0: Destroy target artifact.
                         Effect::DestroyPermanent {
                             target: EffectTarget::DeclaredTarget { index: 0 },
-                    cant_be_regenerated: false,
+                            cant_be_regenerated: false,
                         },
                         // Mode 1: Destroy target enchantment.
                         Effect::DestroyPermanent {
                             target: EffectTarget::DeclaredTarget { index: 1 },
-                    cant_be_regenerated: false,
+                            cant_be_regenerated: false,
                         },
                         // Mode 2: Proliferate.
                         Effect::Proliferate,
@@ -61,15 +73,15 @@ pub fn card() -> CardDefinition {
                 ],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         completeness: Completeness::known_wrong(
-            "SR-33: only mode 0 (destroy target artifact) is reachable. `Effect::Choose` \
-             always executes `choices.first()` (effects/mod.rs), so destroy-enchantment and \
-             proliferate never happen, and the up-front target declaration additionally \
-             requires a legal artifact AND enchantment to activate at all. Needs a general \
-             choice Command plus per-mode targets on `AbilityDefinition::Activated`.",
+            "SR-33: only mode 0 (destroy target artifact) is reachable. `Effect::Choose` always \
+             executes `choices.first()` (effects/mod.rs), so destroy-enchantment and proliferate \
+             never happen, and the up-front target declaration additionally requires a legal \
+             artifact AND enchantment to activate at all. Needs a general choice Command plus \
+             per-mode targets on `AbilityDefinition::Activated`.",
         ),
         ..Default::default()
     }

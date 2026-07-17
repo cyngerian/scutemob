@@ -32,9 +32,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("master-biomancer"),
         name: "Master Biomancer".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 1, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 1,
+            blue: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Elf", "Wizard"]),
-        oracle_text: "Each other creature you control enters with a number of additional +1/+1 counters on it equal to this creature's power and as a Mutant in addition to its other types.".to_string(),
+        oracle_text: "Each other creature you control enters with a number of additional +1/+1 \
+                      counters on it equal to this creature's power and as a Mutant in addition \
+                      to its other types."
+            .to_string(),
         power: Some(2),
         toughness: Some(4),
         abilities: vec![

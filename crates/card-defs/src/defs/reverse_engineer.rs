@@ -5,9 +5,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("reverse-engineer"),
         name: "Reverse Engineer".to_string(),
-        mana_cost: Some(ManaCost { blue: 2, generic: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            blue: 2,
+            generic: 3,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Improvise (Your artifacts can help cast this spell. Each artifact you tap after you're done activating mana abilities pays for {1}.)\nDraw three cards.".to_string(),
+        oracle_text: "Improvise (Your artifacts can help cast this spell. Each artifact you tap \
+                      after you're done activating mana abilities pays for {1}.)\nDraw three \
+                      cards."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Improvise),
             AbilityDefinition::Spell {

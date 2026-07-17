@@ -7,9 +7,20 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("kazuul-tyrant-of-the-cliffs"),
         name: "Kazuul, Tyrant of the Cliffs".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, red: 2, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Ogre", "Warrior"]),
-        oracle_text: "Whenever a creature an opponent controls attacks, if you're the defending player, create a 3/3 red Ogre creature token unless that creature's controller pays {3}.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            red: 2,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Creature],
+            &["Ogre", "Warrior"],
+        ),
+        oracle_text: "Whenever a creature an opponent controls attacks, if you're the defending \
+                      player, create a 3/3 red Ogre creature token unless that creature's \
+                      controller pays {3}."
+            .to_string(),
         power: Some(5),
         toughness: Some(4),
         abilities: vec![
@@ -28,7 +39,10 @@ pub fn card() -> CardDefinition {
             //    attacking creature" — the payer cannot be addressed. The or_else (create a
             //    3/3 red Ogre) is itself expressible once the payer can be resolved.
         ],
-        completeness: Completeness::partial("ENGINE-BLOCKED. Two genuine gaps: 1. No TriggerCondition for 'whenever a creature an opponent controls attacks.'..."),
+        completeness: Completeness::partial(
+            "ENGINE-BLOCKED. Two genuine gaps: 1. No TriggerCondition for 'whenever a creature an \
+             opponent controls attacks.'...",
+        ),
         ..Default::default()
     }
 }

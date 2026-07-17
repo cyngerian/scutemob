@@ -6,9 +6,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("blasphemous-act"),
         name: "Blasphemous Act".to_string(),
-        mana_cost: Some(ManaCost { generic: 8, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 8,
+            red: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "This spell costs {1} less to cast for each creature on the battlefield.\nBlasphemous Act deals 13 damage to each creature.".to_string(),
+        oracle_text: "This spell costs {1} less to cast for each creature on the \
+                      battlefield.\nBlasphemous Act deals 13 damage to each creature."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::DealDamage {
                 target: EffectTarget::AllCreatures,

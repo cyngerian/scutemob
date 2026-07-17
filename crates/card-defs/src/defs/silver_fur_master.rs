@@ -8,15 +8,25 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("silver-fur-master"),
         name: "Silver-Fur Master".to_string(),
-        mana_cost: Some(ManaCost { blue: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            blue: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Rat", "Ninja"]),
-        oracle_text: "Ninjutsu {U}{B}\nNinjutsu abilities you activate cost {1} less to activate.\nOther Ninja and Rogue creatures you control get +1/+1.".to_string(),
+        oracle_text: "Ninjutsu {U}{B}\nNinjutsu abilities you activate cost {1} less to \
+                      activate.\nOther Ninja and Rogue creatures you control get +1/+1."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Ninjutsu),
             AbilityDefinition::Ninjutsu {
-                cost: ManaCost { blue: 1, black: 1, ..Default::default() },
+                cost: ManaCost {
+                    blue: 1,
+                    black: 1,
+                    ..Default::default()
+                },
             },
             // TODO: DSL gap — "Ninjutsu abilities you activate cost {1} less to activate."
             // Ability cost reduction (not spell cost reduction) not in DSL. Blocked on PB-29.
@@ -35,7 +45,10 @@ pub fn card() -> CardDefinition {
                 },
             },
         ],
-        completeness: Completeness::partial("DSL gap — 'Ninjutsu abilities you activate cost {1} less to activate.' Ability cost reduction (not spell cost..."),
+        completeness: Completeness::partial(
+            "DSL gap — 'Ninjutsu abilities you activate cost {1} less to activate.' Ability cost \
+             reduction (not spell cost...",
+        ),
         ..Default::default()
     }
 }

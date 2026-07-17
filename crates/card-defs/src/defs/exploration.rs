@@ -6,7 +6,10 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("exploration"),
         name: "Exploration".to_string(),
-        mana_cost: Some(ManaCost { green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
         oracle_text: "You may play an additional land on each of your turns.".to_string(),
         abilities: vec![

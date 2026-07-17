@@ -10,10 +10,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("voldaren-epicure"),
         name: "Voldaren Epicure".to_string(),
-        mana_cost: Some(ManaCost { red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Vampire"]),
-        oracle_text: "When Voldaren Epicure enters the battlefield, create a Blood token. \
-(It's an artifact with \"{1}, {T}, Discard a card, Sacrifice this token: Draw a card.\")"
+        oracle_text: "When Voldaren Epicure enters the battlefield, create a Blood token. (It's \
+                      an artifact with \"{1}, {T}, Discard a card, Sacrifice this token: Draw a \
+                      card.\")"
             .to_string(),
         power: Some(1),
         toughness: Some(1),
@@ -22,7 +26,9 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
-                effect: Effect::CreateToken { spec: blood_token_spec(1) },
+                effect: Effect::CreateToken {
+                    spec: blood_token_spec(1),
+                },
                 intervening_if: None,
                 targets: vec![],
 
@@ -42,6 +48,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

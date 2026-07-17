@@ -6,7 +6,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("wall-of-omens"),
         name: "Wall of Omens".to_string(),
-        mana_cost: Some(ManaCost { white: 1, generic: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            white: 1,
+            generic: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Wall"]),
         oracle_text: "Defender\nWhen Wall of Omens enters the battlefield, draw a card."
             .to_string(),
@@ -40,6 +44,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

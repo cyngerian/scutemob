@@ -11,9 +11,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("perennial-behemoth"),
         name: "Perennial Behemoth".to_string(),
-        mana_cost: Some(ManaCost { generic: 5, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 5,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Artifact, CardType::Creature], &["Beast"]),
-        oracle_text: "You may play lands from your graveyard.\nUnearth {G}{G} ({G}{G}: Return this card from your graveyard to the battlefield. It gains haste. Exile it at the beginning of the next end step or if it would leave the battlefield. Unearth only as a sorcery.)".to_string(),
+        oracle_text: "You may play lands from your graveyard.\nUnearth {G}{G} ({G}{G}: Return \
+                      this card from your graveyard to the battlefield. It gains haste. Exile it \
+                      at the beginning of the next end step or if it would leave the battlefield. \
+                      Unearth only as a sorcery.)"
+            .to_string(),
         power: Some(2),
         toughness: Some(7),
         abilities: vec![
@@ -29,7 +36,10 @@ pub fn card() -> CardDefinition {
             // CR 702.83a: Unearth activated ability — {G}{G}: Return from graveyard.
             AbilityDefinition::AltCastAbility {
                 kind: AltCostKind::Unearth,
-                cost: ManaCost { green: 2, ..Default::default() },
+                cost: ManaCost {
+                    green: 2,
+                    ..Default::default()
+                },
                 details: None,
             },
         ],

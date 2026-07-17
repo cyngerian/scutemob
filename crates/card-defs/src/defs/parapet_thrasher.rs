@@ -11,11 +11,18 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("parapet-thrasher"),
         name: "Parapet Thrasher".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Dragon"]),
-        oracle_text:
-            "Flying\nWhenever one or more Dragons you control deal combat damage to an opponent, choose one that hasn't been chosen this turn —\n• Destroy target artifact that opponent controls.\n• This creature deals 4 damage to each other opponent.\n• Exile the top card of your library. You may play it this turn."
-                .to_string(),
+        oracle_text: "Flying\nWhenever one or more Dragons you control deal combat damage to an \
+                      opponent, choose one that hasn't been chosen this turn —\n• Destroy target \
+                      artifact that opponent controls.\n• This creature deals 4 damage to each \
+                      other opponent.\n• Exile the top card of your library. You may play it this \
+                      turn."
+            .to_string(),
         power: Some(4),
         toughness: Some(3),
         abilities: vec![
@@ -31,7 +38,14 @@ pub fn card() -> CardDefinition {
             // 3. "Exile top card; you may play it this turn" requires PlayExiledCard which
             //    needs DSL support for play-from-exile with end-of-turn expiry.
         ],
-        completeness: Completeness::partial("Blocked on the modal constraint 'choose one that hasn't been chosen this turn' — no per-ability per-turn chosen-mode tracking exists in the DSL. (The other two previously-noted gaps are stale: TriggerCondition::WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer takes a filter: Option<TargetFilter> so Dragon-scoping works, and Effect::PlayExiledCard exists.)"),
+        completeness: Completeness::partial(
+            "Blocked on the modal constraint 'choose one that hasn't been chosen this turn' — no \
+             per-ability per-turn chosen-mode tracking exists in the DSL. (The other two \
+             previously-noted gaps are stale: \
+             TriggerCondition::WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer takes a \
+             filter: Option<TargetFilter> so Dragon-scoping works, and Effect::PlayExiledCard \
+             exists.)",
+        ),
         ..Default::default()
     }
 }

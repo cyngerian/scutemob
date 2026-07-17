@@ -10,9 +10,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("carnelian-orb-of-dragonkind"),
         name: "Carnelian Orb of Dragonkind".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "{T}: Add {R}. If that mana is spent on a Dragon creature spell, it gains haste until end of turn.".to_string(),
+        oracle_text: "{T}: Add {R}. If that mana is spent on a Dragon creature spell, it gains \
+                      haste until end of turn."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
@@ -24,11 +30,14 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // TODO: mana-spend Dragon trigger (haste grant) — DSL gap
         ],
-        completeness: Completeness::partial("Mana-spend Dragon trigger (haste grant) — no mana-spend trigger in DSL. Implementing only the base {T}: Add {R} ability"),
+        completeness: Completeness::partial(
+            "Mana-spend Dragon trigger (haste grant) — no mana-spend trigger in DSL. Implementing \
+             only the base {T}: Add {R} ability",
+        ),
         ..Default::default()
     }
 }

@@ -6,9 +6,18 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("riveteers-requisitioner"),
         name: "Riveteers Requisitioner".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Lizard", "Rogue"]),
-        oracle_text: "When this creature dies, create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")\nBlitz {2}{R} (If you cast this spell for its blitz cost, it gains haste and \"When this creature dies, draw a card.\" Sacrifice it at the beginning of the next end step.)".to_string(),
+        oracle_text: "When this creature dies, create a Treasure token. (It's an artifact with \
+                      \"{T}, Sacrifice this token: Add one mana of any color.\")\nBlitz {2}{R} \
+                      (If you cast this spell for its blitz cost, it gains haste and \"When this \
+                      creature dies, draw a card.\" Sacrifice it at the beginning of the next end \
+                      step.)"
+            .to_string(),
         power: Some(3),
         toughness: Some(1),
         abilities: vec![
@@ -18,7 +27,11 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Blitz),
             AbilityDefinition::AltCastAbility {
                 kind: AltCostKind::Blitz,
-                cost: ManaCost { generic: 2, red: 1, ..Default::default() },
+                cost: ManaCost {
+                    generic: 2,
+                    red: 1,
+                    ..Default::default()
+                },
                 details: None,
             },
             // CR 603.1: When Riveteers Requisitioner dies, create a Treasure token.
@@ -47,6 +60,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

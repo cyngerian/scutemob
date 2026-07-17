@@ -7,9 +7,9 @@ pub fn card() -> CardDefinition {
         name: "Drowned Catacomb".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text:
-            "This land enters tapped unless you control an Island or a Swamp.\n{T}: Add {U} or {B}."
-                .to_string(),
+        oracle_text: "This land enters tapped unless you control an Island or a Swamp.\n{T}: Add \
+                      {U} or {B}."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Replacement {
                 trigger: ReplacementTrigger::WouldEnterBattlefield {

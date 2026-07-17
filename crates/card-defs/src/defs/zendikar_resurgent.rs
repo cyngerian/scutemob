@@ -7,9 +7,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("zendikar-resurgent"),
         name: "Zendikar Resurgent".to_string(),
-        mana_cost: Some(ManaCost { generic: 5, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 5,
+            green: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Whenever you tap a land for mana, add one mana of any type that land produced. (The types of mana are white, blue, black, red, green, and colorless.)\nWhenever you cast a creature spell, draw a card.".to_string(),
+        oracle_text: "Whenever you tap a land for mana, add one mana of any type that land \
+                      produced. (The types of mana are white, blue, black, red, green, and \
+                      colorless.)\nWhenever you cast a creature spell, draw a card."
+            .to_string(),
         abilities: vec![
             // CR 605.1b / CR 106.12a: "Whenever you tap a land for mana, add one mana of
             // any type that land produced."
@@ -35,7 +42,7 @@ pub fn card() -> CardDefinition {
                     spell_type_filter: Some(vec![CardType::Creature]),
                     noncreature_only: false,
                     chosen_subtype_filter: false,
-                spell_subtype_filter: None,
+                    spell_subtype_filter: None,
                 },
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,

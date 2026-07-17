@@ -8,9 +8,19 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("call-the-spirit-dragons"),
         name: "Call the Spirit Dragons".to_string(),
-        mana_cost: Some(ManaCost { white: 1, blue: 1, black: 1, red: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            white: 1,
+            blue: 1,
+            black: 1,
+            red: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Dragons you control have indestructible.\nAt the beginning of your upkeep, for each color, put a +1/+1 counter on a Dragon you control of that color. If you put +1/+1 counters on five Dragons this way, you win the game.".to_string(),
+        oracle_text: "Dragons you control have indestructible.\nAt the beginning of your upkeep, \
+                      for each color, put a +1/+1 counter on a Dragon you control of that color. \
+                      If you put +1/+1 counters on five Dragons this way, you win the game."
+            .to_string(),
         abilities: vec![
             // Layer 6: Dragons you control have indestructible.
             // Using OtherCreaturesYouControlWithSubtype — source is an enchantment, not a Dragon.
@@ -18,7 +28,9 @@ pub fn card() -> CardDefinition {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::Ability,
                     modification: LayerModification::AddKeyword(KeywordAbility::Indestructible),
-                    filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType("Dragon".to_string())),
+                    filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType(
+                        "Dragon".to_string(),
+                    )),
                     duration: EffectDuration::WhileSourceOnBattlefield,
                     condition: None,
                 },
@@ -30,7 +42,10 @@ pub fn card() -> CardDefinition {
             // -- but the per-color-per-Dragon counter placement it depends on still is, so
             // the whole trigger remains omitted.
         ],
-        completeness: Completeness::partial("DSL gap — upkeep trigger with per-color counter placement on Dragons (put a +1/+1 counter on a Dragon you control OF..."),
+        completeness: Completeness::partial(
+            "DSL gap — upkeep trigger with per-color counter placement on Dragons (put a +1/+1 \
+             counter on a Dragon you control OF...",
+        ),
         ..Default::default()
     }
 }

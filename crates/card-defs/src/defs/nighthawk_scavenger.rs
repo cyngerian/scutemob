@@ -15,7 +15,9 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: creature_types(&["Vampire", "Rogue"]),
-        oracle_text: "Flying, deathtouch, lifelink\nNighthawk Scavenger's power is equal to 1 plus the number of card types among cards in your opponents' graveyards.".to_string(),
+        oracle_text: "Flying, deathtouch, lifelink\nNighthawk Scavenger's power is equal to 1 \
+                      plus the number of card types among cards in your opponents' graveyards."
+            .to_string(),
         power: Some(1),
         toughness: Some(3),
         abilities: vec![
@@ -23,7 +25,10 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Deathtouch),
             AbilityDefinition::Keyword(KeywordAbility::Lifelink),
         ],
-        completeness: Completeness::partial("DSL gap — CDA 'Nighthawk Scavenger's power is equal to 1 plus the number of card types among cards in your opponents'..."),
+        completeness: Completeness::partial(
+            "DSL gap — CDA 'Nighthawk Scavenger's power is equal to 1 plus the number of card \
+             types among cards in your opponents'...",
+        ),
         ..Default::default()
     }
 }

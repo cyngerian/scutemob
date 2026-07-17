@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("dockside-extortionist"),
         name: "Dockside Extortionist".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Goblin", "Pirate"]),
-        oracle_text: "When this creature enters, create X Treasure tokens, where X is the number of artifacts and enchantments your opponents control.".to_string(),
+        oracle_text: "When this creature enters, create X Treasure tokens, where X is the number \
+                      of artifacts and enchantments your opponents control."
+            .to_string(),
         power: Some(1),
         toughness: Some(2),
         abilities: vec![
@@ -18,7 +24,9 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
-                effect: Effect::CreateToken { spec: treasure_token_spec(3) },
+                effect: Effect::CreateToken {
+                    spec: treasure_token_spec(3),
+                },
                 intervening_if: None,
                 targets: vec![],
 
@@ -26,7 +34,12 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("Wire ETB to Effect::CreateToken with TokenSpec.count = EffectAmount::PermanentCount { filter: TargetFilter { has_card_types: vec![CardType::Artifact, CardType::Enchantment], ..Default::default() }, controller: PlayerTarget::EachOpponent }. Remove the fixed-3 approximation."),
+        completeness: Completeness::partial(
+            "Wire ETB to Effect::CreateToken with TokenSpec.count = EffectAmount::PermanentCount \
+             { filter: TargetFilter { has_card_types: vec![CardType::Artifact, \
+             CardType::Enchantment], ..Default::default() }, controller: \
+             PlayerTarget::EachOpponent }. Remove the fixed-3 approximation.",
+        ),
         ..Default::default()
     }
 }

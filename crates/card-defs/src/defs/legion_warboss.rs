@@ -8,9 +8,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("legion-warboss"),
         name: "Legion Warboss".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Goblin", "Soldier"]),
-        oracle_text: "Mentor (Whenever this creature attacks, put a +1/+1 counter on target attacking creature with lesser power.)\nAt the beginning of combat on your turn, create a 1/1 red Goblin creature token. That token gains haste until end of turn and attacks this combat if able.".to_string(),
+        oracle_text: "Mentor (Whenever this creature attacks, put a +1/+1 counter on target \
+                      attacking creature with lesser power.)\nAt the beginning of combat on your \
+                      turn, create a 1/1 red Goblin creature token. That token gains haste until \
+                      end of turn and attacks this combat if able."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![

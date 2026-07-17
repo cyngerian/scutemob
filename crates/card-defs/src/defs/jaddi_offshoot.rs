@@ -7,9 +7,13 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("jaddi-offshoot"),
         name: "Jaddi Offshoot".to_string(),
-        mana_cost: Some(ManaCost { green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Plant"]),
-        oracle_text: "Defender\nLandfall — Whenever a land you control enters, you gain 1 life.".to_string(),
+        oracle_text: "Defender\nLandfall — Whenever a land you control enters, you gain 1 life."
+            .to_string(),
         power: Some(0),
         toughness: Some(3),
         abilities: vec![

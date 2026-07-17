@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("wonder"),
         name: "Wonder".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            blue: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Incarnation"]),
-        oracle_text: "Flying\nAs long as this card is in your graveyard and you control an Island, creatures you control have flying.".to_string(),
+        oracle_text: "Flying\nAs long as this card is in your graveyard and you control an \
+                      Island, creatures you control have flying."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -17,7 +23,10 @@ pub fn card() -> CardDefinition {
             // TODO: Static ability — grant flying to creatures you control while this is in graveyard
             // and you control an Island. DSL gap: no graveyard-zone static effect with land-type condition.
         ],
-        completeness: Completeness::partial("Static ability — grant flying to creatures you control while this is in graveyard and you control an Island. DSL gap:..."),
+        completeness: Completeness::partial(
+            "Static ability — grant flying to creatures you control while this is in graveyard \
+             and you control an Island. DSL gap:...",
+        ),
         ..Default::default()
     }
 }

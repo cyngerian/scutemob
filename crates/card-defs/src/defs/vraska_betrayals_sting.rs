@@ -23,7 +23,14 @@ pub fn card() -> CardDefinition {
             &[CardType::Planeswalker],
             &["Vraska"],
         ),
-        oracle_text: "Compleated ({B/P} can be paid with {B} or 2 life. If life was paid, this planeswalker enters with two fewer loyalty counters.)\n0: You draw a card and lose 1 life. Proliferate.\n\u{2212}2: Target creature becomes a Treasure artifact with \"{T}, Sacrifice this artifact: Add one mana of any color\" and loses all other card types and abilities.\n\u{2212}9: If target player has fewer than nine poison counters, they get a number of poison counters equal to the difference.".to_string(),
+        oracle_text: "Compleated ({B/P} can be paid with {B} or 2 life. If life was paid, this \
+                      planeswalker enters with two fewer loyalty counters.)\n0: You draw a card \
+                      and lose 1 life. Proliferate.\n\u{2212}2: Target creature becomes a \
+                      Treasure artifact with \"{T}, Sacrifice this artifact: Add one mana of any \
+                      color\" and loses all other card types and abilities.\n\u{2212}9: If target \
+                      player has fewer than nine poison counters, they get a number of poison \
+                      counters equal to the difference."
+            .to_string(),
         starting_loyalty: Some(6),
         abilities: vec![
             // 0: Draw a card and lose 1 life. Proliferate.
@@ -123,7 +130,13 @@ pub fn card() -> CardDefinition {
             // Needs EffectAmount::PoisonDifference or similar (OOS-AC7-1). Genuine
             // remaining gap — not addressed by PB-AC7.
         ],
-        completeness: Completeness::partial("Blocked on (a) the -9: no EffectAmount for 'poison counters equal to the difference from nine', and Effect::AddCounter cannot target a player (effects/mod.rs:2321 handles ResolvedTarget::Object only); (b) Compleated is not modeled — starting_loyalty is fixed at 6, so paying {B/P} with 2 life wrongly yields 6 loyalty instead of 4."),
+        completeness: Completeness::partial(
+            "Blocked on (a) the -9: no EffectAmount for 'poison counters equal to the difference \
+             from nine', and Effect::AddCounter cannot target a player (effects/mod.rs:2321 \
+             handles ResolvedTarget::Object only); (b) Compleated is not modeled — \
+             starting_loyalty is fixed at 6, so paying {B/P} with 2 life wrongly yields 6 loyalty \
+             instead of 4.",
+        ),
         ..Default::default()
     }
 }

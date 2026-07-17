@@ -15,13 +15,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("glissa-sunslayer"),
         name: "Glissa Sunslayer".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Phyrexian", "Zombie", "Elf"],
         ),
-        oracle_text: "First strike, deathtouch\nWhenever Glissa Sunslayer deals combat damage to a player, choose one —\n• You draw a card and lose 1 life.\n• Destroy target enchantment.\n• Remove up to three counters from target permanent.".to_string(),
+        oracle_text: "First strike, deathtouch\nWhenever Glissa Sunslayer deals combat damage to \
+                      a player, choose one —\n• You draw a card and lose 1 life.\n• Destroy \
+                      target enchantment.\n• Remove up to three counters from target permanent."
+            .to_string(),
         power: Some(3),
         toughness: Some(3),
         abilities: vec![
@@ -74,7 +82,10 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("DSL gap — mode 2 'remove up to three counters from target permanent' cannot be fully implemented. Effect::RemoveCounter..."),
+        completeness: Completeness::partial(
+            "DSL gap — mode 2 'remove up to three counters from target permanent' cannot be fully \
+             implemented. Effect::RemoveCounter...",
+        ),
         ..Default::default()
     }
 }

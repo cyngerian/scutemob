@@ -7,9 +7,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("eerie-ultimatum"),
         name: "Eerie Ultimatum".to_string(),
-        mana_cost: Some(ManaCost { white: 2, black: 3, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            white: 2,
+            black: 3,
+            green: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Return any number of permanent cards with different names from your graveyard to the battlefield.".to_string(),
+        oracle_text: "Return any number of permanent cards with different names from your \
+                      graveyard to the battlefield."
+            .to_string(),
         abilities: vec![
             // CR 400.7, 603.6a: Return permanent cards with different names from the
             // controller's graveyard to the battlefield.
@@ -31,7 +38,9 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::partial("(M10+): Add interactive selection so player can choose a subset"),
+        completeness: Completeness::partial(
+            "(M10+): Add interactive selection so player can choose a subset",
+        ),
         ..Default::default()
     }
 }

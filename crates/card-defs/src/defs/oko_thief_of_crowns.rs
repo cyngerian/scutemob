@@ -10,9 +10,19 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("oko-thief-of-crowns"),
         name: "Oko, Thief of Crowns".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, green: 1, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            green: 1,
+            blue: 1,
+            ..Default::default()
+        }),
         types: full_types(&[SuperType::Legendary], &[CardType::Planeswalker], &["Oko"]),
-        oracle_text: "+2: Create a Food token. (It's an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\")\n+1: Target artifact or creature loses all abilities and becomes a green Elk creature with base power and toughness 3/3.\n\u{2212}5: Exchange control of target artifact or creature you control and target creature an opponent controls with power 3 or less.".to_string(),
+        oracle_text: "+2: Create a Food token. (It's an artifact with \"{2}, {T}, Sacrifice this \
+                      token: You gain 3 life.\")\n+1: Target artifact or creature loses all \
+                      abilities and becomes a green Elk creature with base power and toughness \
+                      3/3.\n\u{2212}5: Exchange control of target artifact or creature you \
+                      control and target creature an opponent controls with power 3 or less."
+            .to_string(),
         starting_loyalty: Some(4),
         abilities: vec![
             // +2: Create a Food token
@@ -96,7 +106,11 @@ pub fn card() -> CardDefinition {
                 ],
             },
         ],
-        completeness: Completeness::known_wrong("+1 and -5 use bare TargetPermanent: the 'artifact or creature' type filters AND the 'you control' / 'an opponent controls' controller constraints on the -5 are all omitted; has_card_types and TargetController both exist and should be used"),
+        completeness: Completeness::known_wrong(
+            "+1 and -5 use bare TargetPermanent: the 'artifact or creature' type filters AND the \
+             'you control' / 'an opponent controls' controller constraints on the -5 are all \
+             omitted; has_card_types and TargetController both exist and should be used",
+        ),
         ..Default::default()
     }
 }

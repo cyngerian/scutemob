@@ -9,9 +9,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("consecrated-sphinx"),
         name: "Consecrated Sphinx".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, blue: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            blue: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Sphinx"]),
-        oracle_text: "Flying\nWhenever an opponent draws a card, you may draw two cards.".to_string(),
+        oracle_text: "Flying\nWhenever an opponent draws a card, you may draw two cards."
+            .to_string(),
         power: Some(4),
         toughness: Some(6),
         abilities: vec![
@@ -35,7 +40,9 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::known_wrong("'you may draw two cards' implemented as a mandatory draw"),
+        completeness: Completeness::known_wrong(
+            "'you may draw two cards' implemented as a mandatory draw",
+        ),
         ..Default::default()
     }
 }

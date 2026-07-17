@@ -6,15 +6,25 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("academy-manufactor"),
         name: "Academy Manufactor".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, ..Default::default() }),
-        types: types_sub(&[CardType::Artifact, CardType::Creature], &["Assembly-Worker"]),
-        oracle_text: "If you would create a Clue, Food, or Treasure token, instead create one of each.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            ..Default::default()
+        }),
+        types: types_sub(
+            &[CardType::Artifact, CardType::Creature],
+            &["Assembly-Worker"],
+        ),
+        oracle_text: "If you would create a Clue, Food, or Treasure token, instead create one of \
+                      each."
+            .to_string(),
         power: Some(1),
         toughness: Some(3),
         abilities: vec![
             // TODO: Token replacement effect — "instead create one of each" not in DSL
         ],
-        completeness: Completeness::partial("Token replacement effect — 'instead create one of each' not in DSL"),
+        completeness: Completeness::partial(
+            "Token replacement effect — 'instead create one of each' not in DSL",
+        ),
         ..Default::default()
     }
 }

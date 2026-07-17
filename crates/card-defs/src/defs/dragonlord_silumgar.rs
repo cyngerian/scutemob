@@ -12,13 +12,20 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("dragonlord-silumgar"),
         name: "Dragonlord Silumgar".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, blue: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            blue: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Elder", "Dragon"],
         ),
-        oracle_text: "Flying, deathtouch\nWhen Dragonlord Silumgar enters, gain control of target creature or planeswalker for as long as you control Dragonlord Silumgar.".to_string(),
+        oracle_text: "Flying, deathtouch\nWhen Dragonlord Silumgar enters, gain control of target \
+                      creature or planeswalker for as long as you control Dragonlord Silumgar."
+            .to_string(),
         power: Some(3),
         toughness: Some(5),
         abilities: vec![
@@ -43,7 +50,12 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::known_wrong("'for as long as you control Silumgar' modelled as WhileSourceOnBattlefield: control correctly reverts when Silumgar leaves, but does NOT revert if an opponent gains control of Silumgar while he remains on the battlefield; no 'while you control source' EffectDuration exists"),
+        completeness: Completeness::known_wrong(
+            "'for as long as you control Silumgar' modelled as WhileSourceOnBattlefield: control \
+             correctly reverts when Silumgar leaves, but does NOT revert if an opponent gains \
+             control of Silumgar while he remains on the battlefield; no 'while you control \
+             source' EffectDuration exists",
+        ),
         ..Default::default()
     }
 }

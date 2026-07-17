@@ -10,7 +10,9 @@ pub fn card() -> CardDefinition {
         name: "Mana Crypt".to_string(),
         mana_cost: Some(ManaCost::default()),
         types: types(&[CardType::Artifact]),
-        oracle_text: "At the beginning of your upkeep, flip a coin. If you lose the flip, Mana Crypt deals 3 damage to you.\n{T}: Add {C}{C}.".to_string(),
+        oracle_text: "At the beginning of your upkeep, flip a coin. If you lose the flip, Mana \
+                      Crypt deals 3 damage to you.\n{T}: Add {C}{C}."
+            .to_string(),
         abilities: vec![
             // CR 705.1: Upkeep trigger — flip a coin; lose = 3 damage to controller.
             AbilityDefinition::Triggered {
@@ -39,7 +41,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

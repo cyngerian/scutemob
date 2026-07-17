@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("grave-titan"),
         name: "Grave Titan".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            black: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Giant"]),
-        oracle_text: "Deathtouch\nWhenever this creature enters or attacks, create two 2/2 black Zombie creature tokens.".to_string(),
+        oracle_text: "Deathtouch\nWhenever this creature enters or attacks, create two 2/2 black \
+                      Zombie creature tokens."
+            .to_string(),
         power: Some(6),
         toughness: Some(6),
         abilities: vec![

@@ -10,7 +10,10 @@ pub fn card() -> CardDefinition {
         name: "Voldaren Estate".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}: Add {C}.\n{T}, Pay 1 life: Add one mana of any color. Spend this mana only to cast a Vampire spell.\n{5}, {T}: Create a Blood token. This ability costs {1} less to activate for each Vampire you control.".to_string(),
+        oracle_text: "{T}: Add {C}.\n{T}, Pay 1 life: Add one mana of any color. Spend this mana \
+                      only to cast a Vampire spell.\n{5}, {T}: Create a Blood token. This ability \
+                      costs {1} less to activate for each Vampire you control."
+            .to_string(),
         abilities: vec![
             // {T}: Add {C}.
             AbilityDefinition::Activated {
@@ -41,7 +44,10 @@ pub fn card() -> CardDefinition {
             // {5}, {T}: Create a Blood token. This ability costs {1} less for each Vampire you control.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 5, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 5,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                 ]),
                 effect: Effect::CreateToken {
@@ -69,7 +75,16 @@ pub fn card() -> CardDefinition {
                 controller: PlayerTarget::Controller,
             },
         )],
-        completeness: Completeness::known_wrong("Two defects, both probed. (1) CR 106.1b: '{T}, Pay 1 life: Add one mana of any color. Spend this mana only to cast a Vampire spell' adds one COLORLESS mana. The RESTRICTION is honoured correctly (probed: pool.restricted = [Colorless x1 (SubtypeOnly(Vampire))]) but colorless is not a color, so the mana itself is wrong state. (2) SF-9 — the Pay 1 life is never charged (probed: life 40 -> 40), because Effect::AddManaAnyColorRestricted has no try_as_tap_mana_ability arm, so this ability stays on the stack path where flatten_cost_into silently drops Cost::PayLife. The '{T}: Add {C}' ability is correct."),
+        completeness: Completeness::known_wrong(
+            "Two defects, both probed. (1) CR 106.1b: '{T}, Pay 1 life: Add one mana of any \
+             color. Spend this mana only to cast a Vampire spell' adds one COLORLESS mana. The \
+             RESTRICTION is honoured correctly (probed: pool.restricted = [Colorless x1 \
+             (SubtypeOnly(Vampire))]) but colorless is not a color, so the mana itself is wrong \
+             state. (2) SF-9 — the Pay 1 life is never charged (probed: life 40 -> 40), because \
+             Effect::AddManaAnyColorRestricted has no try_as_tap_mana_ability arm, so this \
+             ability stays on the stack path where flatten_cost_into silently drops \
+             Cost::PayLife. The '{T}: Add {C}' ability is correct.",
+        ),
         ..Default::default()
     }
 }

@@ -7,7 +7,9 @@ pub fn card() -> CardDefinition {
         name: "Access Tunnel".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}: Add {C}.\n{3}, {T}: Target creature with power 3 or less can't be blocked this turn.".to_string(),
+        oracle_text: "{T}: Add {C}.\n{3}, {T}: Target creature with power 3 or less can't be \
+                      blocked this turn."
+            .to_string(),
         abilities: vec![
             // {T}: Add {C}.
             AbilityDefinition::Activated {
@@ -20,12 +22,15 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {3}, {T}: Target creature with power 3 or less can't be blocked this turn.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 3, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 3,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                 ]),
                 effect: Effect::ApplyContinuousEffect {
@@ -46,7 +51,7 @@ pub fn card() -> CardDefinition {
                 })],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

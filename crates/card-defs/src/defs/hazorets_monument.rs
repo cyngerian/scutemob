@@ -7,9 +7,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("hazorets-monument"),
         name: "Hazoret's Monument".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            ..Default::default()
+        }),
         types: supertypes(&[SuperType::Legendary], &[CardType::Artifact]),
-        oracle_text: "Red creature spells you cast cost {1} less to cast.\nWhenever you cast a creature spell, you may discard a card. If you do, draw a card.".to_string(),
+        oracle_text: "Red creature spells you cast cost {1} less to cast.\nWhenever you cast a \
+                      creature spell, you may discard a card. If you do, draw a card."
+            .to_string(),
         // CR 601.2f: Red creature spells controller casts cost {1} less.
         // Uses ColorAndCreature(Red) — compound filter (must be both creature AND red).
         spell_cost_modifiers: vec![SpellCostModifier {
@@ -32,7 +37,7 @@ pub fn card() -> CardDefinition {
                     spell_type_filter: Some(vec![CardType::Creature]),
                     noncreature_only: false,
                     chosen_subtype_filter: false,
-                spell_subtype_filter: None,
+                    spell_subtype_filter: None,
                 },
                 effect: Effect::MayPayThenEffect {
                     cost: Cost::DiscardCard,

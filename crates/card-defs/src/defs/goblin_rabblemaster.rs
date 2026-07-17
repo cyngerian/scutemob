@@ -8,9 +8,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("goblin-rabblemaster"),
         name: "Goblin Rabblemaster".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Goblin", "Warrior"]),
-        oracle_text: "Other Goblin creatures you control attack each combat if able.\nAt the beginning of combat on your turn, create a 1/1 red Goblin creature token with haste.\nWhenever Goblin Rabblemaster attacks, it gets +1/+0 until end of turn for each other attacking Goblin.".to_string(),
+        oracle_text: "Other Goblin creatures you control attack each combat if able.\nAt the \
+                      beginning of combat on your turn, create a 1/1 red Goblin creature token \
+                      with haste.\nWhenever Goblin Rabblemaster attacks, it gets +1/+0 until end \
+                      of turn for each other attacking Goblin."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -45,7 +53,15 @@ pub fn card() -> CardDefinition {
             },
             // TODO: "+1/+0 per attacking Goblin" — count-based pump not in DSL.
         ],
-        completeness: Completeness::partial("Blocked on the forced-attack clause only: 'Other Goblin creatures you control attack each combat if able' has no GameRestriction (all 11 variants are prohibitions; none is a must-attack requirement, and none filters to a subtype). The '+1/+0 for each other attacking Goblin' clause is NOT blocked — EffectAmount::AttackingCreatureCount{controller: Controller, filter: has_subtype Goblin, exclude_self} + LayerModification::ModifyPowerDynamic express it (confirm exclude_self is honored at that call site). Combat token trigger is correct."),
+        completeness: Completeness::partial(
+            "Blocked on the forced-attack clause only: 'Other Goblin creatures you control attack \
+             each combat if able' has no GameRestriction (all 11 variants are prohibitions; none \
+             is a must-attack requirement, and none filters to a subtype). The '+1/+0 for each \
+             other attacking Goblin' clause is NOT blocked — \
+             EffectAmount::AttackingCreatureCount{controller: Controller, filter: has_subtype \
+             Goblin, exclude_self} + LayerModification::ModifyPowerDynamic express it (confirm \
+             exclude_self is honored at that call site). Combat token trigger is correct.",
+        ),
         ..Default::default()
     }
 }

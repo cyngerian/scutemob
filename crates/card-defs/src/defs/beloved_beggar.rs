@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("beloved-beggar-generous-soul"),
         name: "Beloved Beggar".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            white: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Peasant"]),
-        oracle_text: "When Beloved Beggar dies, you gain 3 life.\nDisturb {4}{W}{W} (You may cast this card transformed from your graveyard for its disturb cost.)".to_string(),
+        oracle_text: "When Beloved Beggar dies, you gain 3 life.\nDisturb {4}{W}{W} (You may cast \
+                      this card transformed from your graveyard for its disturb cost.)"
+            .to_string(),
         power: Some(0),
         toughness: Some(4),
         abilities: vec![
@@ -17,7 +23,11 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Disturb),
             // CR 702.146a: Disturb cost {4}{W}{W}.
             AbilityDefinition::Disturb {
-                cost: ManaCost { generic: 4, white: 2, ..Default::default() },
+                cost: ManaCost {
+                    generic: 4,
+                    white: 2,
+                    ..Default::default()
+                },
             },
             // "When Beloved Beggar dies, you gain 3 life."
             AbilityDefinition::Triggered {
@@ -38,9 +48,15 @@ pub fn card() -> CardDefinition {
         back_face: Some(CardFace {
             name: "Generous Soul".to_string(),
             // Back face has a printed mana cost {4}{W}{W} (used for Disturb casting).
-            mana_cost: Some(ManaCost { generic: 4, white: 2, ..Default::default() }),
+            mana_cost: Some(ManaCost {
+                generic: 4,
+                white: 2,
+                ..Default::default()
+            }),
             types: creature_types(&["Spirit"]),
-            oracle_text: "Flying\nVigilance\nIf Generous Soul would be put into a graveyard from anywhere, exile it instead.".to_string(),
+            oracle_text: "Flying\nVigilance\nIf Generous Soul would be put into a graveyard from \
+                          anywhere, exile it instead."
+                .to_string(),
             power: Some(3),
             toughness: Some(4),
             abilities: vec![
@@ -61,6 +77,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

@@ -6,9 +6,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("guttersnipe"),
         name: "Guttersnipe".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Goblin", "Shaman"]),
-        oracle_text: "Whenever you cast an instant or sorcery spell, this creature deals 2 damage to each opponent.".to_string(),
+        oracle_text: "Whenever you cast an instant or sorcery spell, this creature deals 2 damage \
+                      to each opponent."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -20,7 +26,7 @@ pub fn card() -> CardDefinition {
                     spell_type_filter: Some(vec![CardType::Instant, CardType::Sorcery]),
                     noncreature_only: false,
                     chosen_subtype_filter: false,
-                spell_subtype_filter: None,
+                    spell_subtype_filter: None,
                 },
                 effect: Effect::ForEach {
                     over: ForEachTarget::EachOpponent,

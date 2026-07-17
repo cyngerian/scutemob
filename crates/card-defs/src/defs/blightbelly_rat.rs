@@ -7,7 +7,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("blightbelly-rat"),
         name: "Blightbelly Rat".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Phyrexian", "Rat"]),
         oracle_text: "Toxic 1\nWhen Blightbelly Rat dies, proliferate.".to_string(),
         power: Some(2),

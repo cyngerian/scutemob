@@ -8,9 +8,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("voice-of-victory"),
         name: "Voice of Victory".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            white: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Bard"]),
-        oracle_text: "Mobilize 2 (Whenever this creature attacks, create two tapped and attacking 1/1 red Warrior creature tokens. Sacrifice them at the beginning of the next end step.)\nYour opponents can't cast spells during your turn.".to_string(),
+        oracle_text: "Mobilize 2 (Whenever this creature attacks, create two tapped and attacking \
+                      1/1 red Warrior creature tokens. Sacrifice them at the beginning of the \
+                      next end step.)\nYour opponents can't cast spells during your turn."
+            .to_string(),
         power: Some(1),
         toughness: Some(3),
         abilities: vec![
@@ -46,7 +53,12 @@ pub fn card() -> CardDefinition {
             },
             // TODO: "Opponents can't cast during your turn" stax restriction not in DSL.
         ],
-        completeness: Completeness::partial("Blocker shipped. Add AbilityDefinition::StaticRestriction { restriction: GameRestriction::OpponentsCantCastDuringYourTurn } (pattern: dragonlord_dromoka.rs:33). Mobilize 2 already implemented; this is the only remaining clause."),
+        completeness: Completeness::partial(
+            "Blocker shipped. Add AbilityDefinition::StaticRestriction { restriction: \
+             GameRestriction::OpponentsCantCastDuringYourTurn } (pattern: \
+             dragonlord_dromoka.rs:33). Mobilize 2 already implemented; this is the only \
+             remaining clause.",
+        ),
         ..Default::default()
     }
 }

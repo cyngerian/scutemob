@@ -8,16 +8,25 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("agadeems-awakening"),
         name: "Agadeem's Awakening // Agadeem, the Undercrypt".to_string(),
-        mana_cost: Some(ManaCost { black: 3, x_count: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 3,
+            x_count: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Return from your graveyard to the battlefield any number of target creature cards that each have a different mana value X or less.".to_string(),
+        oracle_text: "Return from your graveyard to the battlefield any number of target creature \
+                      cards that each have a different mana value X or less."
+            .to_string(),
         abilities: vec![
             // TODO: "Return creature cards from your graveyard with different mana values X or less."
             // Requires: multi-target graveyard selection with mana value <= X filter (dynamic),
             // and each-different-mana-value uniqueness constraint. Neither is expressible in the
             // current DSL. Deferred until dynamic MV filter and multi-target GY selection are added.
         ],
-        completeness: Completeness::partial("'Return creature cards from your graveyard with different mana values X or less.' Requires: multi-target graveyard..."),
+        completeness: Completeness::partial(
+            "'Return creature cards from your graveyard with different mana values X or less.' \
+             Requires: multi-target graveyard...",
+        ),
         ..Default::default()
     }
 }

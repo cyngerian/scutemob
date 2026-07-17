@@ -7,9 +7,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("crackling-doom"),
         name: "Crackling Doom".to_string(),
-        mana_cost: Some(ManaCost { red: 1, white: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            red: 1,
+            white: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Crackling Doom deals 2 damage to each opponent. Each opponent sacrifices a creature with the greatest power among creatures that player controls.".to_string(),
+        oracle_text: "Crackling Doom deals 2 damage to each opponent. Each opponent sacrifices a \
+                      creature with the greatest power among creatures that player controls."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             // Deal 2 damage to each opponent.
             // TODO: Second part — "Each opponent sacrifices a creature with the greatest power"
@@ -25,7 +32,10 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("Second part — 'Each opponent sacrifices a creature with the greatest power' requires per-opponent greatest-power..."),
+        completeness: Completeness::partial(
+            "Second part — 'Each opponent sacrifices a creature with the greatest power' requires \
+             per-opponent greatest-power...",
+        ),
         ..Default::default()
     }
 }

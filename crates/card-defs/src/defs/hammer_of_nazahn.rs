@@ -26,7 +26,10 @@ pub fn card() -> CardDefinition {
             &[CardType::Artifact],
             &["Equipment"],
         ),
-        oracle_text: "Whenever Hammer of Nazahn or another Equipment you control enters, you may attach that Equipment to target creature you control.\nEquipped creature gets +2/+0 and has indestructible.\nEquip {4}".to_string(),
+        oracle_text: "Whenever Hammer of Nazahn or another Equipment you control enters, you may \
+                      attach that Equipment to target creature you control.\nEquipped creature \
+                      gets +2/+0 and has indestructible.\nEquip {4}"
+            .to_string(),
         abilities: vec![
             // TODO: ETB trigger watching for any Equipment entering (self or other you control)
             // and attaching it to target creature — see top-of-file comment for full DSL gap analysis.
@@ -51,7 +54,10 @@ pub fn card() -> CardDefinition {
                 },
             },
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { generic: 4, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    generic: 4,
+                    ..Default::default()
+                }),
                 effect: Effect::AttachEquipment {
                     equipment: EffectTarget::Source,
                     target: EffectTarget::DeclaredTarget { index: 0 },
@@ -60,10 +66,13 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("'Whenever Hammer of Nazahn or another Equipment you control enters, you may attach that Equipment to target creature..."),
+        completeness: Completeness::partial(
+            "'Whenever Hammer of Nazahn or another Equipment you control enters, you may attach \
+             that Equipment to target creature...",
+        ),
         ..Default::default()
     }
 }

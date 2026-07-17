@@ -13,9 +13,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("eaten-by-piranhas"),
         name: "Eaten by Piranhas".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            blue: 1,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Enchantment], &["Aura"]),
-        oracle_text: "Flash\nEnchant creature\nEnchanted creature loses all abilities and is a black Skeleton creature with base power and toughness 1/1. (It loses all other colors, card types, and creature types.)".to_string(),
+        oracle_text: "Flash\nEnchant creature\nEnchanted creature loses all abilities and is a \
+                      black Skeleton creature with base power and toughness 1/1. (It loses all \
+                      other colors, card types, and creature types.)"
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flash),
             AbilityDefinition::Keyword(KeywordAbility::Enchant(EnchantTarget::Creature)),
@@ -70,7 +77,10 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Static {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::PtSet,
-                    modification: LayerModification::SetPowerToughness { power: 1, toughness: 1 },
+                    modification: LayerModification::SetPowerToughness {
+                        power: 1,
+                        toughness: 1,
+                    },
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
                     condition: None,

@@ -5,9 +5,13 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("talisman-of-creativity"),
         name: "Talisman of Creativity".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "{T}: Add {C}.\n{T}: Add {U} or {R}. This artifact deals 1 damage to you.".to_string(),
+        oracle_text: "{T}: Add {C}.\n{T}: Add {U} or {R}. This artifact deals 1 damage to you."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
@@ -19,7 +23,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {T}: Add {U}. This artifact deals 1 damage to you.
             AbilityDefinition::Activated {
@@ -38,7 +42,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {T}: Add {R}. This artifact deals 1 damage to you.
             AbilityDefinition::Activated {
@@ -57,7 +61,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

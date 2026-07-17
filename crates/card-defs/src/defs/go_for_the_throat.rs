@@ -6,7 +6,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("go-for-the-throat"),
         name: "Go for the Throat".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
         oracle_text: "Destroy target nonartifact creature.".to_string(),
         abilities: vec![AbilityDefinition::Spell {
@@ -20,7 +24,10 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("'nonartifact creature' — no exclude_card_types on TargetFilter. This targets any creature including artifact creatures"),
+        completeness: Completeness::partial(
+            "'nonartifact creature' — no exclude_card_types on TargetFilter. This targets any \
+             creature including artifact creatures",
+        ),
         ..Default::default()
     }
 }

@@ -10,10 +10,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("jagged-scar-archers"),
         name: "Jagged-Scar Archers".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            green: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Elf", "Archer"]),
-        oracle_text: "Jagged-Scar Archers's power and toughness are each equal to the number of Elves you control.\n{T}: This creature deals damage equal to its power to target creature with flying.".to_string(),
-        power: None,   // */* CDA — P/T set dynamically by Layer 7a
+        oracle_text: "Jagged-Scar Archers's power and toughness are each equal to the number of \
+                      Elves you control.\n{T}: This creature deals damage equal to its power to \
+                      target creature with flying."
+            .to_string(),
+        power: None, // */* CDA — P/T set dynamically by Layer 7a
         toughness: None,
         abilities: vec![
             // CR 604.3, 613.4a: CDA — P/T each equal to the number of Elves you control.
@@ -36,7 +43,10 @@ pub fn card() -> CardDefinition {
                 },
             },
         ],
-        completeness: Completeness::partial("Stale — remove marker after wiring the {T} ability. EffectAmount::PowerOf(EffectTarget::Source) and TargetFilter.has_keywords both exist."),
+        completeness: Completeness::partial(
+            "Stale — remove marker after wiring the {T} ability. \
+             EffectAmount::PowerOf(EffectTarget::Source) and TargetFilter.has_keywords both exist.",
+        ),
         ..Default::default()
     }
 }

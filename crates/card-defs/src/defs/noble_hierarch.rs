@@ -6,9 +6,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("noble-hierarch"),
         name: "Noble Hierarch".to_string(),
-        mana_cost: Some(ManaCost { green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Druid"]),
-        oracle_text: "Exalted (Whenever a creature you control attacks alone, that creature gets +1/+1 until end of turn.)\n{T}: Add {G}, {W}, or {U}.".to_string(),
+        oracle_text: "Exalted (Whenever a creature you control attacks alone, that creature gets \
+                      +1/+1 until end of turn.)\n{T}: Add {G}, {W}, or {U}."
+            .to_string(),
         power: Some(0),
         toughness: Some(1),
         abilities: vec![

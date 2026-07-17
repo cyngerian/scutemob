@@ -9,15 +9,28 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("prosperous-innkeeper"),
         name: "Prosperous Innkeeper".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, green: 1, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Halfling", "Citizen"]),
-        oracle_text: "When this creature enters, create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")\nAlliance — Whenever another creature you control enters, you gain 1 life.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            green: 1,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Creature],
+            &["Halfling", "Citizen"],
+        ),
+        oracle_text: "When this creature enters, create a Treasure token. (It's an artifact with \
+                      \"{T}, Sacrifice this token: Add one mana of any color.\")\nAlliance — \
+                      Whenever another creature you control enters, you gain 1 life."
+            .to_string(),
         abilities: vec![
             // CR 603.1: ETB trigger — create a Treasure token.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
-                effect: Effect::CreateToken { spec: treasure_token_spec(1) },
+                effect: Effect::CreateToken {
+                    spec: treasure_token_spec(1),
+                },
                 intervening_if: None,
                 targets: vec![],
 
@@ -61,6 +74,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

@@ -8,9 +8,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("last-march-of-the-ents"),
         name: "Last March of the Ents".to_string(),
-        mana_cost: Some(ManaCost { generic: 6, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 6,
+            green: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "This spell can't be countered.\nDraw cards equal to the greatest toughness among creatures you control, then put any number of creature cards from your hand onto the battlefield.".to_string(),
+        oracle_text: "This spell can't be countered.\nDraw cards equal to the greatest toughness \
+                      among creatures you control, then put any number of creature cards from \
+                      your hand onto the battlefield."
+            .to_string(),
         abilities: vec![
             // TODO: "Draw cards equal to greatest toughness" — needs
             // EffectAmount::GreatestToughnessAmongCreaturesYouControl.
@@ -23,7 +30,10 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: true,
             },
         ],
-        completeness: Completeness::partial("'Draw cards equal to greatest toughness' — needs EffectAmount::GreatestToughnessAmongCreaturesYouControl"),
+        completeness: Completeness::partial(
+            "'Draw cards equal to greatest toughness' — needs \
+             EffectAmount::GreatestToughnessAmongCreaturesYouControl",
+        ),
         ..Default::default()
     }
 }

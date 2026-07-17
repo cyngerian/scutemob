@@ -7,9 +7,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("urzas-incubator"),
         name: "Urza's Incubator".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "As this artifact enters, choose a creature type.\nCreature spells of the chosen type cost {2} less to cast.".to_string(),
+        oracle_text: "As this artifact enters, choose a creature type.\nCreature spells of the \
+                      chosen type cost {2} less to cast."
+            .to_string(),
         // CR 601.2f: Creature spells of the chosen type cost {2} less (all players).
         // Uses HasChosenCreatureSubtype — reads chosen_creature_type from source object at cast time.
         // Note: "Creature spells of the chosen type cost {2} less" has no "you cast" qualifier,
@@ -28,7 +33,9 @@ pub fn card() -> CardDefinition {
                 trigger: ReplacementTrigger::WouldEnterBattlefield {
                     filter: ObjectFilter::Any,
                 },
-                modification: ReplacementModification::ChooseCreatureType(SubType("Human".to_string())),
+                modification: ReplacementModification::ChooseCreatureType(SubType(
+                    "Human".to_string(),
+                )),
                 is_self: true,
                 unless_condition: None,
             },

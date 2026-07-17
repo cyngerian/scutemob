@@ -7,33 +7,39 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("wirewood-herald"),
         name: "Wirewood Herald".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Elf"]),
-        oracle_text: "When Wirewood Herald dies, you may search your library for an Elf card, reveal that card, put it into your hand, then shuffle.".to_string(),
+        oracle_text: "When Wirewood Herald dies, you may search your library for an Elf card, \
+                      reveal that card, put it into your hand, then shuffle."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
-        abilities: vec![
-            AbilityDefinition::Triggered {
-                once_per_turn: false,
-                trigger_condition: TriggerCondition::WhenDies,
-                effect: Effect::SearchLibrary {
-                    filter: TargetFilter {
-                        has_subtype: Some(SubType("Elf".to_string())),
-                        ..Default::default()
-                    },
-                    destination: ZoneTarget::Hand { owner: PlayerTarget::Controller },
-                    reveal: true,
-                    player: PlayerTarget::Controller,
-                    also_search_graveyard: false,
-                    shuffle_before_placing: true,
+        abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
+            trigger_condition: TriggerCondition::WhenDies,
+            effect: Effect::SearchLibrary {
+                filter: TargetFilter {
+                    has_subtype: Some(SubType("Elf".to_string())),
+                    ..Default::default()
                 },
-                intervening_if: None,
-                targets: vec![],
-
-                modes: None,
-                trigger_zone: None,
+                destination: ZoneTarget::Hand {
+                    owner: PlayerTarget::Controller,
+                },
+                reveal: true,
+                player: PlayerTarget::Controller,
+                also_search_graveyard: false,
+                shuffle_before_placing: true,
             },
-        ],
+            intervening_if: None,
+            targets: vec![],
+
+            modes: None,
+            trigger_zone: None,
+        }],
         ..Default::default()
     }
 }

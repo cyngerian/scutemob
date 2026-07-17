@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("roiling-dragonstorm"),
         name: "Roiling Dragonstorm".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            blue: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "When this enchantment enters, draw two cards, then discard a card.\nWhen a Dragon you control enters, return this enchantment to its owner's hand.".to_string(),
+        oracle_text: "When this enchantment enters, draw two cards, then discard a card.\nWhen a \
+                      Dragon you control enters, return this enchantment to its owner's hand."
+            .to_string(),
         abilities: vec![
             // ETB: draw 2, then discard 1
             // TODO: "then discard a card" — forced discard not easily expressible.
@@ -29,7 +35,13 @@ pub fn card() -> CardDefinition {
             // TODO: "When a Dragon you control enters, return this to hand" —
             //   Dragon-ETB self-bounce trigger not expressible.
         ],
-        completeness: Completeness::partial("needs-rewiring: (1) ETB — wrap the draw in Sequence([DrawCards 2, DiscardCards{Controller, Fixed(1)}]); Effect::DiscardCards exists. (2) Dragon-ETB bounce — TriggerCondition::WheneverPermanentEntersBattlefield{filter: TargetFilter{has_subtype: Dragon, controller: You}, exclude_self: false} + Effect::MoveZone to hand (card_definition.rs:3097). Both old TODOs are stale."),
+        completeness: Completeness::partial(
+            "needs-rewiring: (1) ETB — wrap the draw in Sequence([DrawCards 2, \
+             DiscardCards{Controller, Fixed(1)}]); Effect::DiscardCards exists. (2) Dragon-ETB \
+             bounce — TriggerCondition::WheneverPermanentEntersBattlefield{filter: \
+             TargetFilter{has_subtype: Dragon, controller: You}, exclude_self: false} + \
+             Effect::MoveZone to hand (card_definition.rs:3097). Both old TODOs are stale.",
+        ),
         ..Default::default()
     }
 }

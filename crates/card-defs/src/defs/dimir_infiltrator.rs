@@ -12,14 +12,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("dimir-infiltrator"),
         name: "Dimir Infiltrator".to_string(),
-        mana_cost: Some(ManaCost { blue: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            blue: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Spirit"]),
-        oracle_text:
-            "This creature can't be blocked.\n\
-             Transmute {1}{U}{B} ({1}{U}{B}, Discard this card: Search your library for a card \
-             with the same mana value as this card, reveal it, put it into your hand, then shuffle. \
-             Transmute only as a sorcery.)"
-                .to_string(),
+        oracle_text: "This creature can't be blocked.\nTransmute {1}{U}{B} ({1}{U}{B}, Discard \
+                      this card: Search your library for a card with the same mana value as this \
+                      card, reveal it, put it into your hand, then shuffle. Transmute only as a \
+                      sorcery.)"
+            .to_string(),
         power: Some(1),
         toughness: Some(3),
         abilities: vec![
@@ -27,14 +30,25 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Transmute),
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 1, blue: 1, black: 1, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 1,
+                        blue: 1,
+                        black: 1,
+                        ..Default::default()
+                    }),
                     Cost::DiscardSelf,
                 ]),
                 effect: Effect::SearchLibrary {
                     player: PlayerTarget::Controller,
-                    filter: TargetFilter { min_cmc: Some(2), max_cmc: Some(2), ..Default::default() },
+                    filter: TargetFilter {
+                        min_cmc: Some(2),
+                        max_cmc: Some(2),
+                        ..Default::default()
+                    },
                     reveal: true,
-                    destination: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                    destination: ZoneTarget::Hand {
+                        owner: PlayerTarget::Controller,
+                    },
                     shuffle_before_placing: false,
                     also_search_graveyard: false,
                 },

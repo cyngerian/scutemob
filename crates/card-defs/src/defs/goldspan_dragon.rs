@@ -8,9 +8,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("goldspan-dragon"),
         name: "Goldspan Dragon".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, red: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            red: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Dragon"]),
-        oracle_text: "Flying, haste\nWhenever this creature attacks or becomes the target of a spell, create a Treasure token.\nTreasures you control have \"{T}, Sacrifice this artifact: Add two mana of any one color.\"".to_string(),
+        oracle_text: "Flying, haste\nWhenever this creature attacks or becomes the target of a \
+                      spell, create a Treasure token.\nTreasures you control have \"{T}, \
+                      Sacrifice this artifact: Add two mana of any one color.\""
+            .to_string(),
         power: Some(4),
         toughness: Some(4),
         abilities: vec![
@@ -20,7 +27,9 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenAttacks,
-                effect: Effect::CreateToken { spec: treasure_token_spec(1) },
+                effect: Effect::CreateToken {
+                    spec: treasure_token_spec(1),
+                },
                 intervening_if: None,
                 targets: vec![],
 
@@ -40,7 +49,9 @@ pub fn card() -> CardDefinition {
                     by_opponent: false,
                     include_abilities: false,
                 },
-                effect: Effect::CreateToken { spec: treasure_token_spec(1) },
+                effect: Effect::CreateToken {
+                    spec: treasure_token_spec(1),
+                },
                 intervening_if: None,
                 targets: vec![],
 
@@ -52,7 +63,10 @@ pub fn card() -> CardDefinition {
             // own printed mana ability. No static grant to a filtered set of permanents that
             // can override an existing activated ability's mana output.
         ],
-        completeness: Completeness::partial("'Treasures you control have '{T}, Sacrifice: Add two mana of any one color.'' — a static ability-granting override that..."),
+        completeness: Completeness::partial(
+            "'Treasures you control have '{T}, Sacrifice: Add two mana of any one color.'' — a \
+             static ability-granting override that...",
+        ),
         ..Default::default()
     }
 }

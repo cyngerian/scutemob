@@ -6,9 +6,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("torch-courier"),
         name: "Torch Courier".to_string(),
-        mana_cost: Some(ManaCost { red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Goblin"]),
-        oracle_text: "Haste\nSacrifice this creature: Another target creature gains haste until end of turn.".to_string(),
+        oracle_text: "Haste\nSacrifice this creature: Another target creature gains haste until \
+                      end of turn."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
@@ -23,7 +28,9 @@ pub fn card() -> CardDefinition {
                 effect: Effect::ApplyContinuousEffect {
                     effect_def: Box::new(ContinuousEffectDef {
                         layer: crate::state::EffectLayer::Ability,
-                        modification: crate::state::LayerModification::AddKeyword(KeywordAbility::Haste),
+                        modification: crate::state::LayerModification::AddKeyword(
+                            KeywordAbility::Haste,
+                        ),
                         filter: crate::state::EffectFilter::DeclaredTarget { index: 0 },
                         duration: crate::state::EffectDuration::UntilEndOfTurn,
                         condition: None,
@@ -36,7 +43,7 @@ pub fn card() -> CardDefinition {
                 })],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

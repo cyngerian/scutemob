@@ -7,11 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("broken-bond"),
         name: "Broken Bond".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text:
-            "Destroy target artifact or enchantment. You may put a land card from your hand onto the battlefield."
-                .to_string(),
+        oracle_text: "Destroy target artifact or enchantment. You may put a land card from your \
+                      hand onto the battlefield."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             // CR 701.8: Destroy target artifact or enchantment.
             // CR 305.4: Then you may put a land card from your hand onto the battlefield.

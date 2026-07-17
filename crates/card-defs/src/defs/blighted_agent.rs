@@ -7,9 +7,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("blighted-agent"),
         name: "Blighted Agent".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            blue: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Phyrexian", "Human", "Rogue"]),
-        oracle_text: "Infect (This creature deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)\nBlighted Agent can't be blocked.".to_string(),
+        oracle_text: "Infect (This creature deals damage to creatures in the form of -1/-1 \
+                      counters and to players in the form of poison counters.)\nBlighted Agent \
+                      can't be blocked."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![

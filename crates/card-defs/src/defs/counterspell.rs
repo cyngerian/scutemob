@@ -5,7 +5,10 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("counterspell"),
         name: "Counterspell".to_string(),
-        mana_cost: Some(ManaCost { blue: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            blue: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
         oracle_text: "Counter target spell.".to_string(),
         abilities: vec![AbilityDefinition::Spell {

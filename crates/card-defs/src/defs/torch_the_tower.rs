@@ -9,9 +9,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("torch-the-tower"),
         name: "Torch the Tower".to_string(),
-        mana_cost: Some(ManaCost { red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            red: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Bargain (You may sacrifice an artifact, enchantment, or token as you cast this spell.)\nTorch the Tower deals 2 damage to target creature or planeswalker. If this spell was bargained, it deals 3 damage instead and the controller can't gain life this turn.".to_string(),
+        oracle_text: "Bargain (You may sacrifice an artifact, enchantment, or token as you cast \
+                      this spell.)\nTorch the Tower deals 2 damage to target creature or \
+                      planeswalker. If this spell was bargained, it deals 3 damage instead and \
+                      the controller can't gain life this turn."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Bargain),
             AbilityDefinition::Spell {
@@ -38,7 +45,10 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::partial("also apply 'controller can't gain life this turn' — no CantGainLife effect variant exists in the DSL yet. When..."),
+        completeness: Completeness::partial(
+            "also apply 'controller can't gain life this turn' — no CantGainLife effect variant \
+             exists in the DSL yet. When...",
+        ),
         ..Default::default()
     }
 }

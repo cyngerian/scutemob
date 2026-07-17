@@ -13,15 +13,26 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("temporal-mastery"),
         name: "Temporal Mastery".to_string(),
-        mana_cost: Some(ManaCost { generic: 5, blue: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 5,
+            blue: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Take an extra turn after this one. Exile Temporal Mastery.\nMiracle {1}{U} (You may cast this card for its miracle cost when you draw it if it's the first card you drew this turn.)".to_string(),
+        oracle_text: "Take an extra turn after this one. Exile Temporal Mastery.\nMiracle {1}{U} \
+                      (You may cast this card for its miracle cost when you draw it if it's the \
+                      first card you drew this turn.)"
+            .to_string(),
         abilities: vec![
             // CR 702.94a: Miracle keyword marker — enables miracle casting in miracle.rs.
             AbilityDefinition::Keyword(KeywordAbility::Miracle),
             // CR 702.94a: The miracle alternative cost ({1}{U}).
             AbilityDefinition::Miracle {
-                cost: ManaCost { generic: 1, blue: 1, ..Default::default() },
+                cost: ManaCost {
+                    generic: 1,
+                    blue: 1,
+                    ..Default::default()
+                },
             },
             // CR 500.7: Take an extra turn after this one.
             AbilityDefinition::Spell {

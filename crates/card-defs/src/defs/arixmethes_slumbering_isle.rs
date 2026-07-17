@@ -21,9 +21,18 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("arixmethes-slumbering-isle"),
         name: "Arixmethes, Slumbering Isle".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, blue: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            blue: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Kraken"]),
-        oracle_text: "Arixmethes enters tapped with five slumber counters on it.\nAs long as Arixmethes has a slumber counter on it, it's a land. (It's not a creature.)\nWhenever you cast a spell, you may remove a slumber counter from Arixmethes.\n{T}: Add {G}{U}.".to_string(),
+        oracle_text: "Arixmethes enters tapped with five slumber counters on it.\nAs long as \
+                      Arixmethes has a slumber counter on it, it's a land. (It's not a \
+                      creature.)\nWhenever you cast a spell, you may remove a slumber counter \
+                      from Arixmethes.\n{T}: Add {G}{U}."
+            .to_string(),
         abilities: vec![
             // CR 614.1c: self-replacement — enters tapped.
             AbilityDefinition::Replacement {
@@ -77,7 +86,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // TODO: ETB — five slumber counters (ETB-with-counters replacement not in DSL).
             // TODO: "Whenever you cast a spell, you may remove a slumber counter from Arixmethes."
@@ -85,7 +94,13 @@ pub fn card() -> CardDefinition {
         ],
         power: Some(12),
         toughness: Some(12),
-        completeness: Completeness::partial("needs-rewiring: author (a) ReplacementModification::EntersWithCounters { Slumber, 5 } (replacement.rs:1607) and (b) TriggerCondition::WheneverYouCastSpell -> optional Effect::RemoveCounter. Both primitives shipped; the old note citing them as DSL gaps is stale. Until rewired the def is known_wrong — with no slumber counters the type-change statics never fire and Arixmethes is a 12/12 creature on ETB."),
+        completeness: Completeness::partial(
+            "needs-rewiring: author (a) ReplacementModification::EntersWithCounters { Slumber, 5 \
+             } (replacement.rs:1607) and (b) TriggerCondition::WheneverYouCastSpell -> optional \
+             Effect::RemoveCounter. Both primitives shipped; the old note citing them as DSL gaps \
+             is stale. Until rewired the def is known_wrong — with no slumber counters the \
+             type-change statics never fire and Arixmethes is a 12/12 creature on ETB.",
+        ),
         ..Default::default()
     }
 }

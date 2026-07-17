@@ -5,7 +5,10 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("fyndhorn-elves"),
         name: "Fyndhorn Elves".to_string(),
-        mana_cost: Some(ManaCost { green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Elf", "Druid"]),
         oracle_text: "{T}: Add {G}.".to_string(),
         power: Some(1),
@@ -18,10 +21,10 @@ pub fn card() -> CardDefinition {
             },
             timing_restriction: None,
             targets: vec![],
-                activation_condition: None,
-                activation_zone: None,
-        once_per_turn: false,
-}],
+            activation_condition: None,
+            activation_zone: None,
+            once_per_turn: false,
+        }],
         color_indicator: None,
         back_face: None,
         spell_cost_modifiers: vec![],
@@ -34,6 +37,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

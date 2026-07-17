@@ -12,13 +12,19 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("vito-thorn-of-the-dusk-rose"),
         name: "Vito, Thorn of the Dusk Rose".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            black: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Vampire", "Cleric"],
         ),
-        oracle_text: "Whenever you gain life, target opponent loses that much life.\n{3}{B}{B}: Creatures you control gain lifelink until end of turn.".to_string(),
+        oracle_text: "Whenever you gain life, target opponent loses that much life.\n{3}{B}{B}: \
+                      Creatures you control gain lifelink until end of turn."
+            .to_string(),
         power: Some(1),
         toughness: Some(3),
         abilities: vec![
@@ -39,7 +45,11 @@ pub fn card() -> CardDefinition {
             },
             // "{3}{B}{B}: Creatures you control gain lifelink until end of turn."
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { generic: 3, black: 2, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    generic: 3,
+                    black: 2,
+                    ..Default::default()
+                }),
                 effect: Effect::ApplyContinuousEffect {
                     effect_def: Box::new(ContinuousEffectDef {
                         layer: EffectLayer::Ability,
@@ -53,10 +63,15 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::known_wrong("'target opponent loses that much life' is modeled as EachOpponent losing Fixed(1). Two deviations: no EffectAmount carries the triggering life-gain amount, and EachOpponent hits every opponent instead of one target. The WheneverYouGainLife trigger itself is wired and correct."),
+        completeness: Completeness::known_wrong(
+            "'target opponent loses that much life' is modeled as EachOpponent losing Fixed(1). \
+             Two deviations: no EffectAmount carries the triggering life-gain amount, and \
+             EachOpponent hits every opponent instead of one target. The WheneverYouGainLife \
+             trigger itself is wired and correct.",
+        ),
         ..Default::default()
     }
 }

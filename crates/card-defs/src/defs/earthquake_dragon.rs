@@ -11,9 +11,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("earthquake-dragon"),
         name: "Earthquake Dragon".to_string(),
-        mana_cost: Some(ManaCost { generic: 14, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 14,
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Elemental", "Dragon"]),
-        oracle_text: "This spell costs {X} less to cast, where X is the total mana value of Dragons you control.\nFlying, trample\n{2}{G}, Sacrifice a land: Return this card from your graveyard to your hand.".to_string(),
+        oracle_text: "This spell costs {X} less to cast, where X is the total mana value of \
+                      Dragons you control.\nFlying, trample\n{2}{G}, Sacrifice a land: Return \
+                      this card from your graveyard to your hand."
+            .to_string(),
         power: Some(10),
         toughness: Some(10),
         abilities: vec![
@@ -23,7 +30,11 @@ pub fn card() -> CardDefinition {
             // graveyard to your hand." — activated from the graveyard zone.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 2, green: 1, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 2,
+                        green: 1,
+                        ..Default::default()
+                    }),
                     Cost::Sacrifice(TargetFilter {
                         has_card_type: Some(CardType::Land),
                         ..Default::default()
@@ -31,14 +42,16 @@ pub fn card() -> CardDefinition {
                 ]),
                 effect: Effect::MoveZone {
                     target: EffectTarget::Source,
-                    to: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                    to: ZoneTarget::Hand {
+                        owner: PlayerTarget::Controller,
+                    },
                     controller_override: None,
                 },
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: Some(ActivationZone::Graveyard),
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         self_cost_reduction: Some(SelfCostReduction::TotalManaValue {

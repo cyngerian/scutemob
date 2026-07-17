@@ -5,9 +5,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("wings-of-the-guard"),
         name: "Wings of the Guard".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            white: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Bird"]),
-        oracle_text: "Flying\nMelee (Whenever this creature attacks, it gets +1/+1 until end of turn for each opponent you attacked this combat.)".to_string(),
+        oracle_text: "Flying\nMelee (Whenever this creature attacks, it gets +1/+1 until end of \
+                      turn for each opponent you attacked this combat.)"
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
@@ -26,6 +32,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

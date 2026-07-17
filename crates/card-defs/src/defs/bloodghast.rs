@@ -16,9 +16,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("bloodghast"),
         name: "Bloodghast".to_string(),
-        mana_cost: Some(ManaCost { black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Vampire", "Spirit"]),
-        oracle_text: "This creature can't block.\nThis creature has haste as long as an opponent has 10 or less life.\nLandfall \u{2014} Whenever a land you control enters, you may return this card from your graveyard to the battlefield.".to_string(),
+        oracle_text: "This creature can't block.\nThis creature has haste as long as an opponent \
+                      has 10 or less life.\nLandfall \u{2014} Whenever a land you control enters, \
+                      you may return this card from your graveyard to the battlefield."
+            .to_string(),
         power: Some(2),
         toughness: Some(1),
         abilities: vec![
@@ -61,7 +67,9 @@ pub fn card() -> CardDefinition {
                 trigger_zone: Some(TriggerZone::Graveyard),
             },
         ],
-        completeness: Completeness::partial("Oracle says 'you may return' — currently non-optional (bot always returns)"),
+        completeness: Completeness::partial(
+            "Oracle says 'you may return' — currently non-optional (bot always returns)",
+        ),
         ..Default::default()
     }
 }

@@ -9,9 +9,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("delighted-halfling"),
         name: "Delighted Halfling".to_string(),
-        mana_cost: Some(ManaCost { green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Halfling", "Citizen"]),
-        oracle_text: "{T}: Add {G}. If this mana is spent to cast a legendary spell, that spell can't be countered.".to_string(),
+        oracle_text: "{T}: Add {G}. If this mana is spent to cast a legendary spell, that spell \
+                      can't be countered."
+            .to_string(),
         power: Some(1),
         toughness: Some(2),
         abilities: vec![AbilityDefinition::Activated {
@@ -22,10 +27,10 @@ pub fn card() -> CardDefinition {
             },
             timing_restriction: None,
             targets: vec![],
-                activation_condition: None,
-                activation_zone: None,
-        once_per_turn: false,
-}],
+            activation_condition: None,
+            activation_zone: None,
+            once_per_turn: false,
+        }],
         color_indicator: None,
         back_face: None,
         spell_cost_modifiers: vec![],
@@ -38,6 +43,9 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::partial("DSL gap — 'mana tracking' (conditional uncounterability based on mana source) is not expressible. Modeled as a plain..."),
+        completeness: Completeness::partial(
+            "DSL gap — 'mana tracking' (conditional uncounterability based on mana source) is not \
+             expressible. Modeled as a plain...",
+        ),
     }
 }

@@ -6,9 +6,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("beast-within"),
         name: "Beast Within".to_string(),
-        mana_cost: Some(ManaCost { green: 1, generic: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            green: 1,
+            generic: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Destroy target permanent. Its controller creates a 3/3 green Beast creature token.".to_string(),
+        oracle_text: "Destroy target permanent. Its controller creates a 3/3 green Beast creature \
+                      token."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![
                 Effect::DestroyPermanent {

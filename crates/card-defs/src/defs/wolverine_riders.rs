@@ -7,9 +7,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("wolverine-riders"),
         name: "Wolverine Riders".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            green: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Elf", "Warrior"]),
-        oracle_text: "At the beginning of each upkeep, create a 1/1 green Elf Warrior creature token.\nWhenever another Elf you control enters, you gain life equal to its toughness.".to_string(),
+        oracle_text: "At the beginning of each upkeep, create a 1/1 green Elf Warrior creature \
+                      token.\nWhenever another Elf you control enters, you gain life equal to its \
+                      toughness."
+            .to_string(),
         power: Some(4),
         toughness: Some(4),
         abilities: vec![
@@ -20,7 +27,9 @@ pub fn card() -> CardDefinition {
                     spec: TokenSpec {
                         name: "Elf Warrior".to_string(),
                         card_types: [CardType::Creature].into_iter().collect(),
-                        subtypes: [SubType("Elf".to_string()), SubType("Warrior".to_string())].into_iter().collect(),
+                        subtypes: [SubType("Elf".to_string()), SubType("Warrior".to_string())]
+                            .into_iter()
+                            .collect(),
                         colors: [Color::Green].into_iter().collect(),
                         power: 1,
                         toughness: 1,
@@ -44,7 +53,14 @@ pub fn card() -> CardDefinition {
             // TODO: "Whenever another Elf enters, gain life equal to toughness" —
             //   EffectAmount lacks toughness-of-entering-creature variant.
         ],
-        completeness: Completeness::partial("Second ability not yet authored. Fully expressible: TriggerCondition::WheneverCreatureEntersBattlefield { filter: Some(TargetFilter { has_subtype: Elf, controller: You }), exclude_self: true } + Effect::GainLife { player: Controller, amount: EffectAmount::ToughnessOf(EffectTarget::TriggeringCreature) }. Authoring work, not a DSL gap."),
+        completeness: Completeness::partial(
+            "Second ability not yet authored. Fully expressible: \
+             TriggerCondition::WheneverCreatureEntersBattlefield { filter: Some(TargetFilter { \
+             has_subtype: Elf, controller: You }), exclude_self: true } + Effect::GainLife { \
+             player: Controller, amount: \
+             EffectAmount::ToughnessOf(EffectTarget::TriggeringCreature) }. Authoring work, not a \
+             DSL gap.",
+        ),
         ..Default::default()
     }
 }

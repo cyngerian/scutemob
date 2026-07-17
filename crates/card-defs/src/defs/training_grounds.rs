@@ -12,14 +12,22 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("training-grounds"),
         name: "Training Grounds".to_string(),
-        mana_cost: Some(ManaCost { blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            blue: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Activated abilities of creatures you control cost {2} less to activate. This effect can't reduce the mana in that cost to less than one mana.".to_string(),
+        oracle_text: "Activated abilities of creatures you control cost {2} less to activate. \
+                      This effect can't reduce the mana in that cost to less than one mana."
+            .to_string(),
         abilities: vec![
             // TODO: activated abilities of creatures you control cost {2} less
             //   (no EffectFilter::ActivatedAbilitiesOfCreaturesYouControl + ReduceActivatedAbilityCost)
         ],
-        completeness: Completeness::partial("activated abilities of creatures you control cost {2} less (no EffectFilter::ActivatedAbilitiesOfCreaturesYouControl +..."),
+        completeness: Completeness::partial(
+            "activated abilities of creatures you control cost {2} less (no \
+             EffectFilter::ActivatedAbilitiesOfCreaturesYouControl +...",
+        ),
         ..Default::default()
     }
 }

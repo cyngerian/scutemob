@@ -8,9 +8,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("ponder"),
         name: "Ponder".to_string(),
-        mana_cost: Some(ManaCost { blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            blue: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Look at the top three cards of your library, then put them back in any order. You may shuffle.\nDraw a card.".to_string(),
+        oracle_text: "Look at the top three cards of your library, then put them back in any \
+                      order. You may shuffle.\nDraw a card."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             // TODO: "Look at top 3, put back in any order, may shuffle" not in DSL.
             // Implementing the draw only.
@@ -22,7 +27,10 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("'Look at top 3, put back in any order, may shuffle' not in DSL. Implementing the draw only"),
+        completeness: Completeness::partial(
+            "'Look at top 3, put back in any order, may shuffle' not in DSL. Implementing the \
+             draw only",
+        ),
         ..Default::default()
     }
 }

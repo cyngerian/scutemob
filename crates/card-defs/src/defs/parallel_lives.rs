@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("parallel-lives"),
         name: "Parallel Lives".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead.".to_string(),
+        oracle_text: "If an effect would create one or more tokens under your control, it creates \
+                      twice that many of those tokens instead."
+            .to_string(),
         abilities: vec![
             // CR 111.1 / CR 614.1: Token-doubling replacement effect.
             // PlayerId(0) placeholder — bound to the controller at registration.

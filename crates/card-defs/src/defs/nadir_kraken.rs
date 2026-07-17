@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("nadir-kraken"),
         name: "Nadir Kraken".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, blue: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            blue: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Kraken"]),
-        oracle_text: "Whenever you draw a card, you may pay {1}. If you do, put a +1/+1 counter on Nadir Kraken and create a 1/1 blue Tentacle creature token.".to_string(),
+        oracle_text: "Whenever you draw a card, you may pay {1}. If you do, put a +1/+1 counter \
+                      on Nadir Kraken and create a 1/1 blue Tentacle creature token."
+            .to_string(),
         power: Some(2),
         toughness: Some(3),
         abilities: vec![
@@ -19,7 +25,10 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouDrawACard,
                 effect: Effect::MayPayThenEffect {
-                    cost: Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
+                    cost: Cost::Mana(ManaCost {
+                        generic: 1,
+                        ..Default::default()
+                    }),
                     payer: PlayerTarget::Controller,
                     then: Box::new(Effect::Sequence(vec![
                         Effect::AddCounter {

@@ -8,15 +8,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("kogla-the-titan-ape"),
         name: "Kogla, the Titan Ape".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, green: 3, ..Default::default() }),
-        types: full_types(
-            &[SuperType::Legendary],
-            &[CardType::Creature],
-            &["Ape"],
-        ),
-        oracle_text:
-            "When Kogla enters, it fights up to one target creature you don't control.\nWhenever Kogla attacks, destroy target artifact or enchantment defending player controls.\n{1}{G}: Return target Human you control to its owner's hand. Kogla gains indestructible until end of turn."
-                .to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            green: 3,
+            ..Default::default()
+        }),
+        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Ape"]),
+        oracle_text: "When Kogla enters, it fights up to one target creature you don't \
+                      control.\nWhenever Kogla attacks, destroy target artifact or enchantment \
+                      defending player controls.\n{1}{G}: Return target Human you control to its \
+                      owner's hand. Kogla gains indestructible until end of turn."
+            .to_string(),
         power: Some(7),
         toughness: Some(6),
         abilities: vec![
@@ -63,12 +65,18 @@ pub fn card() -> CardDefinition {
             // {1}{G}: Return target Human you control to its owner's hand.
             //         Kogla gains indestructible until end of turn.
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { generic: 1, green: 1, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    generic: 1,
+                    green: 1,
+                    ..Default::default()
+                }),
                 effect: Effect::Sequence(vec![
                     Effect::MoveZone {
                         target: EffectTarget::DeclaredTarget { index: 0 },
                         to: ZoneTarget::Hand {
-                            owner: PlayerTarget::OwnerOf(Box::new(EffectTarget::DeclaredTarget { index: 0 })),
+                            owner: PlayerTarget::OwnerOf(Box::new(EffectTarget::DeclaredTarget {
+                                index: 0,
+                            })),
                         },
                         controller_override: None,
                     },
@@ -92,10 +100,12 @@ pub fn card() -> CardDefinition {
                 })],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::known_wrong("'defending player controls' is approximated as 'an opponent' — no defender tracking"),
+        completeness: Completeness::known_wrong(
+            "'defending player controls' is approximated as 'an opponent' — no defender tracking",
+        ),
         ..Default::default()
     }
 }

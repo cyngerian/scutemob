@@ -9,9 +9,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("tectonic-giant"),
         name: "Tectonic Giant".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Elemental", "Giant"]),
-        oracle_text: "Whenever this creature attacks or becomes the target of a spell an opponent controls, choose one —\n• This creature deals 3 damage to each opponent.\n• Exile the top two cards of your library. Choose one of them. Until the end of your next turn, you may play that card.".to_string(),
+        oracle_text: "Whenever this creature attacks or becomes the target of a spell an opponent \
+                      controls, choose one —\n• This creature deals 3 damage to each opponent.\n• \
+                      Exile the top two cards of your library. Choose one of them. Until the end \
+                      of your next turn, you may play that card."
+            .to_string(),
         power: Some(3),
         toughness: Some(4),
         abilities: vec![
@@ -31,7 +39,10 @@ pub fn card() -> CardDefinition {
             // dropped, the player is forced into mode 0 and loses a choice the oracle grants.
             // A partial modal ability is worse than an absent one (W6 policy).
         ],
-        completeness: Completeness::partial("mode 1 ('Exile the top two cards of your library. Choose one of them. Until the end of your next turn, you may play..."),
+        completeness: Completeness::partial(
+            "mode 1 ('Exile the top two cards of your library. Choose one of them. Until the end \
+             of your next turn, you may play...",
+        ),
         ..Default::default()
     }
 }

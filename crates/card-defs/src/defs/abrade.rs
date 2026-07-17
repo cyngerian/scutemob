@@ -5,9 +5,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("abrade"),
         name: "Abrade".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            red: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Choose one —\n• Abrade deals 3 damage to target creature.\n• Destroy target artifact.".to_string(),
+        oracle_text: "Choose one —\n• Abrade deals 3 damage to target creature.\n• Destroy target \
+                      artifact."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![]),
             targets: vec![
@@ -28,7 +34,7 @@ pub fn card() -> CardDefinition {
                     // Mode 1: Destroy target artifact.
                     Effect::DestroyPermanent {
                         target: EffectTarget::DeclaredTarget { index: 1 },
-                    cant_be_regenerated: false,
+                        cant_be_regenerated: false,
                     },
                 ],
                 mode_targets: None,

@@ -16,10 +16,10 @@ pub fn card() -> CardDefinition {
             },
             timing_restriction: None,
             targets: vec![],
-                activation_condition: None,
-                activation_zone: None,
-        once_per_turn: false,
-}],
+            activation_condition: None,
+            activation_zone: None,
+            once_per_turn: false,
+        }],
         ..Default::default()
     }
 }

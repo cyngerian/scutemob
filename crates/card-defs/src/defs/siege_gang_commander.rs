@@ -7,9 +7,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("siege-gang-commander"),
         name: "Siege-Gang Commander".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, red: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            red: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Goblin"]),
-        oracle_text: "When this creature enters, create three 1/1 red Goblin creature tokens.\n{1}{R}, Sacrifice a Goblin: This creature deals 2 damage to any target.".to_string(),
+        oracle_text: "When this creature enters, create three 1/1 red Goblin creature \
+                      tokens.\n{1}{R}, Sacrifice a Goblin: This creature deals 2 damage to any \
+                      target."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -45,7 +52,11 @@ pub fn card() -> CardDefinition {
             // {1}{R}, Sacrifice a Goblin: This creature deals 2 damage to any target.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 1, red: 1, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 1,
+                        red: 1,
+                        ..Default::default()
+                    }),
                     Cost::Sacrifice(TargetFilter {
                         has_subtype: Some(SubType("Goblin".to_string())),
                         has_card_type: Some(CardType::Creature),
@@ -60,7 +71,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![TargetRequirement::TargetAny],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

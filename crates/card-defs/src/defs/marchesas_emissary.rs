@@ -7,7 +7,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("marchesas-emissary"),
         name: "Marchesa's Emissary".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            blue: 1,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Creature], &["Human", "Rogue"]),
         oracle_text: "Hexproof\nDethrone".to_string(),
         power: Some(2),
@@ -28,6 +32,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

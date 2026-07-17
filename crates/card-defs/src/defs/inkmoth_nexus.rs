@@ -10,7 +10,11 @@ pub fn card() -> CardDefinition {
         name: "Inkmoth Nexus".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}: Add {C}.\n{1}: This land becomes a 1/1 Phyrexian Blinkmoth artifact creature with flying and infect until end of turn. It's still a land. (It deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)".to_string(),
+        oracle_text: "{T}: Add {C}.\n{1}: This land becomes a 1/1 Phyrexian Blinkmoth artifact \
+                      creature with flying and infect until end of turn. It's still a land. (It \
+                      deals damage to creatures in the form of -1/-1 counters and to players in \
+                      the form of poison counters.)"
+            .to_string(),
         abilities: vec![
             // {T}: Add {C}
             AbilityDefinition::Activated {
@@ -23,17 +27,22 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {1}: Animate — becomes 1/1 Phyrexian Blinkmoth artifact creature with flying + infect
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    generic: 1,
+                    ..Default::default()
+                }),
                 effect: Effect::Sequence(vec![
                     Effect::ApplyContinuousEffect {
                         effect_def: Box::new(ContinuousEffectDef {
                             layer: EffectLayer::TypeChange,
                             modification: LayerModification::AddCardTypes(
-                                [CardType::Artifact, CardType::Creature].into_iter().collect(),
+                                [CardType::Artifact, CardType::Creature]
+                                    .into_iter()
+                                    .collect(),
                             ),
                             filter: EffectFilter::Source,
                             duration: EffectDuration::UntilEndOfTurn,
@@ -44,8 +53,12 @@ pub fn card() -> CardDefinition {
                         effect_def: Box::new(ContinuousEffectDef {
                             layer: EffectLayer::TypeChange,
                             modification: LayerModification::AddSubtypes(
-                                [SubType("Phyrexian".to_string()), SubType("Blinkmoth".to_string())]
-                                    .into_iter().collect(),
+                                [
+                                    SubType("Phyrexian".to_string()),
+                                    SubType("Blinkmoth".to_string()),
+                                ]
+                                .into_iter()
+                                .collect(),
                             ),
                             filter: EffectFilter::Source,
                             duration: EffectDuration::UntilEndOfTurn,
@@ -55,7 +68,10 @@ pub fn card() -> CardDefinition {
                     Effect::ApplyContinuousEffect {
                         effect_def: Box::new(ContinuousEffectDef {
                             layer: EffectLayer::PtSet,
-                            modification: LayerModification::SetPowerToughness { power: 1, toughness: 1 },
+                            modification: LayerModification::SetPowerToughness {
+                                power: 1,
+                                toughness: 1,
+                            },
                             filter: EffectFilter::Source,
                             duration: EffectDuration::UntilEndOfTurn,
                             condition: None,
@@ -65,7 +81,9 @@ pub fn card() -> CardDefinition {
                         effect_def: Box::new(ContinuousEffectDef {
                             layer: EffectLayer::Ability,
                             modification: LayerModification::AddKeywords(
-                                [KeywordAbility::Flying, KeywordAbility::Infect].into_iter().collect(),
+                                [KeywordAbility::Flying, KeywordAbility::Infect]
+                                    .into_iter()
+                                    .collect(),
                             ),
                             filter: EffectFilter::Source,
                             duration: EffectDuration::UntilEndOfTurn,
@@ -77,7 +95,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

@@ -15,7 +15,11 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: creature_types(&["Drake"]),
-        oracle_text: "Flying, hexproof from activated and triggered abilities\nWhen this creature enters, exchange control of this creature and target creature an opponent controls. If you do, you get {E}{E}{E}{E}, then sacrifice that creature unless you pay an amount of {E} equal to its mana value.".to_string(),
+        oracle_text: "Flying, hexproof from activated and triggered abilities\nWhen this creature \
+                      enters, exchange control of this creature and target creature an opponent \
+                      controls. If you do, you get {E}{E}{E}{E}, then sacrifice that creature \
+                      unless you pay an amount of {E} equal to its mana value."
+            .to_string(),
         power: Some(3),
         toughness: Some(2),
         abilities: vec![
@@ -24,7 +28,12 @@ pub fn card() -> CardDefinition {
             // hexproof variant not representable as KeywordAbility::Hexproof (which is total).
             // TODO: ETB trigger exchanging control and energy counter mechanics not in DSL.
         ],
-        completeness: Completeness::partial("Blocked on (a) 'hexproof from activated and triggered abilities' — no source-scoped hexproof variant (KeywordAbility::Hexproof is total); (b) energy — Effect::AddCounter cannot target a player and no pay-energy Cost variant exists. Effect::ExchangeControl DOES now exist; the exchange half is no longer a blocker."),
+        completeness: Completeness::partial(
+            "Blocked on (a) 'hexproof from activated and triggered abilities' — no source-scoped \
+             hexproof variant (KeywordAbility::Hexproof is total); (b) energy — \
+             Effect::AddCounter cannot target a player and no pay-energy Cost variant exists. \
+             Effect::ExchangeControl DOES now exist; the exchange half is no longer a blocker.",
+        ),
         ..Default::default()
     }
 }

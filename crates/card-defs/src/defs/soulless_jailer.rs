@@ -7,9 +7,18 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("soulless-jailer"),
         name: "Soulless Jailer".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, ..Default::default() }),
-        types: full_types(&[], &[CardType::Artifact, CardType::Creature], &["Phyrexian", "Golem"]),
-        oracle_text: "Permanent cards in graveyards can't enter the battlefield.\nPlayers can't cast noncreature spells from graveyards or exile.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[],
+            &[CardType::Artifact, CardType::Creature],
+            &["Phyrexian", "Golem"],
+        ),
+        oracle_text: "Permanent cards in graveyards can't enter the battlefield.\nPlayers can't \
+                      cast noncreature spells from graveyards or exile."
+            .to_string(),
         power: Some(0),
         toughness: Some(4),
         abilities: vec![
@@ -19,7 +28,10 @@ pub fn card() -> CardDefinition {
             // 2. "Players can't cast noncreature spells from graveyards or exile" —
             //    needs GameRestriction::CantCastNoncreatureFromGraveyardOrExile.
         ],
-        completeness: Completeness::partial("Two static restrictions not in DSL: 1. 'Permanent cards in graveyards can't enter the battlefield' — needs..."),
+        completeness: Completeness::partial(
+            "Two static restrictions not in DSL: 1. 'Permanent cards in graveyards can't enter \
+             the battlefield' — needs...",
+        ),
         ..Default::default()
     }
 }

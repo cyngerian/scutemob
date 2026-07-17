@@ -11,7 +11,10 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: creature_types(&["Vampire"]),
-        oracle_text: "Deathtouch (Any amount of damage this deals to a creature is enough to destroy it.)\nLifelink (Damage dealt by this creature also causes you to gain that much life.)".to_string(),
+        oracle_text: "Deathtouch (Any amount of damage this deals to a creature is enough to \
+                      destroy it.)\nLifelink (Damage dealt by this creature also causes you to \
+                      gain that much life.)"
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![

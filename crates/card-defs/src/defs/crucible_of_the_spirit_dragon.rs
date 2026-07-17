@@ -7,7 +7,10 @@ pub fn card() -> CardDefinition {
         name: "Crucible of the Spirit Dragon".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}: Add {C}.\n{1}, {T}: Put a storage counter on this land.\n{T}, Remove X storage counters from this land: Add X mana in any combination of colors. Spend this mana only to cast Dragon spells or activate abilities of Dragons.".to_string(),
+        oracle_text: "{T}: Add {C}.\n{1}, {T}: Put a storage counter on this land.\n{T}, Remove X \
+                      storage counters from this land: Add X mana in any combination of colors. \
+                      Spend this mana only to cast Dragon spells or activate abilities of Dragons."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
@@ -19,7 +22,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // TODO: {1}, {T}: Put a storage counter on this land.
             // DSL gap: no Effect::AddCounter targeting self with CounterType::Storage.
@@ -27,7 +30,13 @@ pub fn card() -> CardDefinition {
             // Spend this mana only to cast Dragon spells or activate abilities of Dragons.
             // DSL gap: X-removal cost + variable mana output + mana restriction not expressible.
         ],
-        completeness: Completeness::partial("{T}: Add {C} implemented. Storage-counter add ({1},{T}) is now expressible (Effect::AddCounter + EffectTarget::Source + CounterType::Custom) but is omitted because the payoff ability is blocked: Cost::RemoveCounter (card_definition.rs:1240) has a fixed u32 count, so 'Remove X storage counters: Add X mana in any combination of colors' cannot be expressed. Unblock: X-valued counter-removal cost."),
+        completeness: Completeness::partial(
+            "{T}: Add {C} implemented. Storage-counter add ({1},{T}) is now expressible \
+             (Effect::AddCounter + EffectTarget::Source + CounterType::Custom) but is omitted \
+             because the payoff ability is blocked: Cost::RemoveCounter (card_definition.rs:1240) \
+             has a fixed u32 count, so 'Remove X storage counters: Add X mana in any combination \
+             of colors' cannot be expressed. Unblock: X-valued counter-removal cost.",
+        ),
         ..Default::default()
     }
 }

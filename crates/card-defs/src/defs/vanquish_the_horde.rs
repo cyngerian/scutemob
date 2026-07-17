@@ -7,11 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("vanquish-the-horde"),
         name: "Vanquish the Horde".to_string(),
-        mana_cost: Some(ManaCost { generic: 6, white: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 6,
+            white: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text:
-            "This spell costs {1} less to cast for each creature on the battlefield.\nDestroy all creatures."
-                .to_string(),
+        oracle_text: "This spell costs {1} less to cast for each creature on the \
+                      battlefield.\nDestroy all creatures."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             // CR 701.8: Destroy all creatures.
             effect: Effect::DestroyAll {

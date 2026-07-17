@@ -6,9 +6,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("elven-ambush"),
         name: "Elven Ambush".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Create a 1/1 green Elf Warrior creature token for each Elf you control.".to_string(),
+        oracle_text: "Create a 1/1 green Elf Warrior creature token for each Elf you control."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             // TODO: "For each Elf you control" — count-based token creation not in DSL.
             //   Using fixed 3 as approximation.
@@ -16,7 +21,9 @@ pub fn card() -> CardDefinition {
                 spec: TokenSpec {
                     name: "Elf Warrior".to_string(),
                     card_types: [CardType::Creature].into_iter().collect(),
-                    subtypes: [SubType("Elf".to_string()), SubType("Warrior".to_string())].into_iter().collect(),
+                    subtypes: [SubType("Elf".to_string()), SubType("Warrior".to_string())]
+                        .into_iter()
+                        .collect(),
                     colors: [Color::Green].into_iter().collect(),
                     power: 1,
                     toughness: 1,
@@ -35,7 +42,12 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("Rewire only: count: EffectAmount::PermanentCount { filter: TargetFilter { has_card_type: Some(CardType::Creature), has_subtype: Some(SubType(\"Elf\")), controller: TargetController::You, ..default }, controller: PlayerTarget::Controller }. Precedent: howlsquad_heavy.rs:43. Expected to reach Complete."),
+        completeness: Completeness::partial(
+            "Rewire only: count: EffectAmount::PermanentCount { filter: TargetFilter { \
+             has_card_type: Some(CardType::Creature), has_subtype: Some(SubType(\"Elf\")), \
+             controller: TargetController::You, ..default }, controller: PlayerTarget::Controller \
+             }. Precedent: howlsquad_heavy.rs:43. Expected to reach Complete.",
+        ),
         ..Default::default()
     }
 }

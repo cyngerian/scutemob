@@ -12,7 +12,11 @@ pub fn card() -> CardDefinition {
         name: "Shifting Woodland".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "This land enters tapped unless you control a Forest.\n{T}: Add {G}.\nDelirium — {2}{G}{G}: This land becomes a copy of target permanent card in your graveyard until end of turn. Activate only if there are four or more card types among cards in your graveyard.".to_string(),
+        oracle_text: "This land enters tapped unless you control a Forest.\n{T}: Add \
+                      {G}.\nDelirium — {2}{G}{G}: This land becomes a copy of target permanent \
+                      card in your graveyard until end of turn. Activate only if there are four \
+                      or more card types among cards in your graveyard."
+            .to_string(),
         abilities: vec![
             // ETB tapped unless you control a Forest.
             AbilityDefinition::Replacement {
@@ -36,7 +40,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // Delirium — {2}{G}{G}: Become a copy of target permanent card in your graveyard
             // until end of turn. Activation condition: 4+ card types in graveyard.
@@ -60,10 +64,14 @@ pub fn card() -> CardDefinition {
                 )],
                 activation_condition: Some(Condition::CardTypesInGraveyardAtLeast(4)),
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("Delirium copy ability targets TargetFilter::default() — allows instant/sorcery cards. Express 'permanent card' via has_card_types: [Artifact, Creature, Enchantment, Land, Planeswalker, Battle]."),
+        completeness: Completeness::partial(
+            "Delirium copy ability targets TargetFilter::default() — allows instant/sorcery \
+             cards. Express 'permanent card' via has_card_types: [Artifact, Creature, \
+             Enchantment, Land, Planeswalker, Battle].",
+        ),
         ..Default::default()
     }
 }

@@ -18,15 +18,23 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("broodcaller-scourge"),
         name: "Broodcaller Scourge".to_string(),
-        mana_cost: Some(ManaCost { generic: 5, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 5,
+            green: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Dragon"]),
-        oracle_text: "Flying\nWhenever one or more Dragons you control deal combat damage to a player, you may put a permanent card with mana value less than or equal to that damage from your hand onto the battlefield.".to_string(),
+        oracle_text: "Flying\nWhenever one or more Dragons you control deal combat damage to a \
+                      player, you may put a permanent card with mana value less than or equal to \
+                      that damage from your hand onto the battlefield."
+            .to_string(),
         power: Some(5),
         toughness: Some(7),
-        abilities: vec![
-            AbilityDefinition::Keyword(KeywordAbility::Flying),
-        ],
-        completeness: Completeness::partial("DSL gap — the triggered ability requires: 1. A trigger that fires when one or more Dragons you control deal combat..."),
+        abilities: vec![AbilityDefinition::Keyword(KeywordAbility::Flying)],
+        completeness: Completeness::partial(
+            "DSL gap — the triggered ability requires: 1. A trigger that fires when one or more \
+             Dragons you control deal combat...",
+        ),
         ..Default::default()
     }
 }

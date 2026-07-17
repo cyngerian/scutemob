@@ -12,9 +12,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("stock-up"),
         name: "Stock Up".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            blue: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Look at the top five cards of your library. Put two of them into your hand and the rest on the bottom in a random order.".to_string(),
+        oracle_text: "Look at the top five cards of your library. Put two of them into your hand \
+                      and the rest on the bottom in a random order."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             // TODO: "look at top 5, choose 2 to hand, rest on bottom" requires interactive
             // library-top selection (M10). Approximated as DrawCards(2) which draws from top
@@ -27,7 +33,12 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::known_wrong("approximated as DrawCards(2). Deviates twice — no selection from the top five, and the unchosen three stay on top instead of going to the bottom in random order, so all later draws differ. Needs interactive top-N selection (Command::SelectLibraryCard, M10) and a bottom-random ZoneTarget."),
+        completeness: Completeness::known_wrong(
+            "approximated as DrawCards(2). Deviates twice — no selection from the top five, and \
+             the unchosen three stay on top instead of going to the bottom in random order, so \
+             all later draws differ. Needs interactive top-N selection \
+             (Command::SelectLibraryCard, M10) and a bottom-random ZoneTarget.",
+        ),
         ..Default::default()
     }
 }

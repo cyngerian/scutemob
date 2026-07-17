@@ -7,9 +7,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("thirsting-roots"),
         name: "Thirsting Roots".to_string(),
-        mana_cost: Some(ManaCost { green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Choose one —\n• Search your library for a basic land card, reveal it, put it into your hand, then shuffle.\n• Proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)".to_string(),
+        oracle_text: "Choose one —\n• Search your library for a basic land card, reveal it, put \
+                      it into your hand, then shuffle.\n• Proliferate. (Choose any number of \
+                      permanents and/or players, then give each another counter of each kind \
+                      already there.)"
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![]),
             targets: vec![],
@@ -25,11 +32,15 @@ pub fn card() -> CardDefinition {
                             player: PlayerTarget::Controller,
                             filter: basic_land_filter(),
                             reveal: true,
-                            destination: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                            destination: ZoneTarget::Hand {
+                                owner: PlayerTarget::Controller,
+                            },
                             shuffle_before_placing: false,
                             also_search_graveyard: false,
                         },
-                        Effect::Shuffle { player: PlayerTarget::Controller },
+                        Effect::Shuffle {
+                            player: PlayerTarget::Controller,
+                        },
                     ]),
                     // Mode 1: Proliferate.
                     Effect::Proliferate,

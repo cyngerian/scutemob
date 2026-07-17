@@ -14,12 +14,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("untimely-malfunction"),
         name: "Untimely Malfunction".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            red: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Choose one —\n\
-            • Destroy target artifact.\n\
-            • Change the target of target spell or ability with a single target.\n\
-            • One or two target creatures can't block this turn."
+        oracle_text: "Choose one —\n• Destroy target artifact.\n• Change the target of target \
+                      spell or ability with a single target.\n• One or two target creatures can't \
+                      block this turn."
             .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![]),
@@ -28,9 +31,9 @@ pub fn card() -> CardDefinition {
             //   index 1: mode 1 — spell or ability with a single target (CR 115.7a)
             //   index 2: mode 2 — creature that can't block
             targets: vec![
-                TargetRequirement::TargetArtifact, // mode 0
+                TargetRequirement::TargetArtifact,                       // mode 0
                 TargetRequirement::TargetSpellOrAbilityWithSingleTarget, // mode 1
-                TargetRequirement::TargetCreature, // mode 2
+                TargetRequirement::TargetCreature,                       // mode 2
             ],
             modes: Some(ModeSelection {
                 min_modes: 1,
@@ -68,7 +71,13 @@ pub fn card() -> CardDefinition {
             }),
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("mode 2 ('One or two target creatures can't block this turn') applies CantBlock to a single target only. TargetRequirement::UpToN exists but has no minimum — UpToN{count:2} would allow 0 targets, violating oracle's 'one or two'. Needs a min/max target-count requirement (NToM). Modes 0 and 1 are complete. Same gap as Abzan Charm mode 2."),
+        completeness: Completeness::partial(
+            "mode 2 ('One or two target creatures can't block this turn') applies CantBlock to a \
+             single target only. TargetRequirement::UpToN exists but has no minimum — \
+             UpToN{count:2} would allow 0 targets, violating oracle's 'one or two'. Needs a \
+             min/max target-count requirement (NToM). Modes 0 and 1 are complete. Same gap as \
+             Abzan Charm mode 2.",
+        ),
         ..Default::default()
     }
 }

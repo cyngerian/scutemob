@@ -7,9 +7,9 @@ pub fn card() -> CardDefinition {
         name: "Sea of Clouds".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text:
-            "This land enters tapped unless you have two or more opponents.\n{T}: Add {W} or {U}."
-                .to_string(),
+        oracle_text: "This land enters tapped unless you have two or more opponents.\n{T}: Add \
+                      {W} or {U}."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Replacement {
                 trigger: ReplacementTrigger::WouldEnterBattlefield {

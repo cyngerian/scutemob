@@ -12,7 +12,10 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: creature_types(&["Goblin"]),
-        oracle_text: "Indestructible\nWhenever this creature is dealt damage, it deals that much damage to target opponent.\n{2}{R}, {T}: This creature fights another target creature.".to_string(),
+        oracle_text: "Indestructible\nWhenever this creature is dealt damage, it deals that much \
+                      damage to target opponent.\n{2}{R}, {T}: This creature fights another \
+                      target creature."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
@@ -42,10 +45,17 @@ pub fn card() -> CardDefinition {
                 })],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("Blocked on a damage-amount variable for non-combat damage triggers: TriggerCondition::WhenDealtDamage is wired (abilities.rs:5413 -> SelfIsDealtDamage, used by ripjaw_raptor.rs) and targeted triggers exist (PB-5), but the dispatch never populates combat_damage_amount and EffectAmount has no 'damage dealt in the triggering event' variable, so 'it deals THAT MUCH damage to target opponent' is inexpressible."),
+        completeness: Completeness::partial(
+            "Blocked on a damage-amount variable for non-combat damage triggers: \
+             TriggerCondition::WhenDealtDamage is wired (abilities.rs:5413 -> SelfIsDealtDamage, \
+             used by ripjaw_raptor.rs) and targeted triggers exist (PB-5), but the dispatch never \
+             populates combat_damage_amount and EffectAmount has no 'damage dealt in the \
+             triggering event' variable, so 'it deals THAT MUCH damage to target opponent' is \
+             inexpressible.",
+        ),
         ..Default::default()
     }
 }

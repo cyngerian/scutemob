@@ -16,15 +16,24 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("cloudstone-curio"),
         name: "Cloudstone Curio".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "Whenever a nonartifact permanent you control enters, you may return another permanent you control that shares a permanent type with it to its owner's hand.".to_string(),
+        oracle_text: "Whenever a nonartifact permanent you control enters, you may return another \
+                      permanent you control that shares a permanent type with it to its owner's \
+                      hand."
+            .to_string(),
         abilities: vec![
             // TODO: No WheneverNonartifactPermanentEntersUnderYourControl trigger condition.
             //   Also requires "shares a permanent type with" filter for the return target.
             //   DSL gap: both trigger condition and shared-type filter missing. Omitted per W5 policy.
         ],
-        completeness: Completeness::partial("'Whenever a nonartifact permanent you control enters' — no TriggerCondition that fires on any nonartifact permanent..."),
+        completeness: Completeness::partial(
+            "'Whenever a nonartifact permanent you control enters' — no TriggerCondition that \
+             fires on any nonartifact permanent...",
+        ),
         ..Default::default()
     }
 }

@@ -18,9 +18,18 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("thassas-oracle"),
         name: "Thassa's Oracle".to_string(),
-        mana_cost: Some(ManaCost { blue: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            blue: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Merfolk", "Wizard"]),
-        oracle_text: "When this creature enters, look at the top X cards of your library, where X is your devotion to blue. Put up to one of them on top of your library and the rest on the bottom of your library in a random order. If X is greater than or equal to the number of cards in your library, you win the game. (Each {U} in the mana costs of permanents you control counts toward your devotion to blue.)".to_string(),
+        oracle_text: "When this creature enters, look at the top X cards of your library, where X \
+                      is your devotion to blue. Put up to one of them on top of your library and \
+                      the rest on the bottom of your library in a random order. If X is greater \
+                      than or equal to the number of cards in your library, you win the game. \
+                      (Each {U} in the mana costs of permanents you control counts toward your \
+                      devotion to blue.)"
+            .to_string(),
         power: Some(1),
         toughness: Some(3),
         abilities: vec![
@@ -29,7 +38,10 @@ pub fn card() -> CardDefinition {
             // TODO: Win condition — if devotion >= library size, you win. Effect::WinGame exists
             //   (PB-AC8) but there is no Condition comparing devotion to library size yet.
         ],
-        completeness: Completeness::partial("'Look at top X cards where X = devotion to blue, put up to one on top, rest on bottom' — no..."),
+        completeness: Completeness::partial(
+            "'Look at top X cards where X = devotion to blue, put up to one on top, rest on \
+             bottom' — no...",
+        ),
         ..Default::default()
     }
 }

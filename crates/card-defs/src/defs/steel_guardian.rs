@@ -20,9 +20,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("steel-guardian"),
         name: "Steel Guardian".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Artifact], &["Vehicle"]),
-        oracle_text: "Living Metal (During your turn, this Vehicle is also a creature.)\nCrew 2 (Tap any number of creatures you control with total power 2 or greater: This Vehicle becomes an artifact creature until end of turn.)".to_string(),
+        oracle_text: "Living Metal (During your turn, this Vehicle is also a creature.)\nCrew 2 \
+                      (Tap any number of creatures you control with total power 2 or greater: \
+                      This Vehicle becomes an artifact creature until end of turn.)"
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::LivingMetal),
             AbilityDefinition::Keyword(KeywordAbility::Crew(2)),
@@ -41,6 +47,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

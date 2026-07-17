@@ -8,12 +8,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("golgari-charm"),
         name: "Golgari Charm".to_string(),
-        mana_cost: Some(ManaCost { black: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Choose one —\n\
-            • All creatures get -1/-1 until end of turn.\n\
-            • Destroy target enchantment.\n\
-            • Regenerate each creature you control."
+        oracle_text: "Choose one —\n• All creatures get -1/-1 until end of turn.\n• Destroy \
+                      target enchantment.\n• Regenerate each creature you control."
             .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![]),
@@ -54,7 +56,11 @@ pub fn card() -> CardDefinition {
                         })),
                     },
                 ],
-                mode_targets: Some(vec![vec![], vec![TargetRequirement::TargetEnchantment], vec![]]),
+                mode_targets: Some(vec![
+                    vec![],
+                    vec![TargetRequirement::TargetEnchantment],
+                    vec![],
+                ]),
             }),
             cant_be_countered: false,
         }],

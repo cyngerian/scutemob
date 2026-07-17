@@ -14,27 +14,34 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("monster-manual"),
         name: "Monster Manual // Zoological Study".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text:
-            "{1}{G}, {T}: You may put a creature card from your hand onto the battlefield."
-                .to_string(),
+        oracle_text: "{1}{G}, {T}: You may put a creature card from your hand onto the \
+                      battlefield."
+            .to_string(),
         // TODO: activated ability blocked by TargetCardInHand DSL gap
         abilities: vec![],
         // CR 715.2: Adventure face — Zoological Study.
         // Oracle: "Mill five cards, then return a creature card from your graveyard to your hand."
         adventure_face: Some(CardFace {
             name: "Zoological Study".to_string(),
-            mana_cost: Some(ManaCost { generic: 2, green: 1, ..Default::default() }),
+            mana_cost: Some(ManaCost {
+                generic: 2,
+                green: 1,
+                ..Default::default()
+            }),
             types: TypeLine {
                 card_types: [CardType::Sorcery].iter().copied().collect(),
-                subtypes: [SubType("Adventure".to_string())]
-                    .iter()
-                    .cloned()
-                    .collect(),
+                subtypes: [SubType("Adventure".to_string())].iter().cloned().collect(),
                 supertypes: Default::default(),
             },
-            oracle_text: "Mill five cards, then return a creature card from your graveyard to your hand.".to_string(),
+            oracle_text: "Mill five cards, then return a creature card from your graveyard to \
+                          your hand."
+                .to_string(),
             power: None,
             toughness: None,
             color_indicator: None,
@@ -48,7 +55,9 @@ pub fn card() -> CardDefinition {
                     // CR 400.7: Return target creature card from your graveyard to your hand.
                     Effect::MoveZone {
                         target: EffectTarget::DeclaredTarget { index: 0 },
-                        to: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                        to: ZoneTarget::Hand {
+                            owner: PlayerTarget::Controller,
+                        },
                         controller_override: None,
                     },
                 ]),
@@ -60,7 +69,10 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             }],
         }),
-        completeness: Completeness::inert("Main activated ability — '{1}{G}, {T}: put creature from hand onto battlefield' — requires TargetCardInHand DSL variant..."),
+        completeness: Completeness::inert(
+            "Main activated ability — '{1}{G}, {T}: put creature from hand onto battlefield' — \
+             requires TargetCardInHand DSL variant...",
+        ),
         ..Default::default()
     }
 }

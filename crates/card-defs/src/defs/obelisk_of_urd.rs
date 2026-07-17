@@ -7,9 +7,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("obelisk-of-urd"),
         name: "Obelisk of Urd".to_string(),
-        mana_cost: Some(ManaCost { generic: 6, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 6,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nAs this artifact enters, choose a creature type.\nCreatures you control of the chosen type get +2/+2.".to_string(),
+        oracle_text: "Convoke (Your creatures can help cast this spell. Each creature you tap \
+                      while casting this spell pays for {1} or one mana of that creature's \
+                      color.)\nAs this artifact enters, choose a creature type.\nCreatures you \
+                      control of the chosen type get +2/+2."
+            .to_string(),
         abilities: vec![
             // CR 702.51: Convoke — creatures you control can help pay the mana cost.
             AbilityDefinition::Keyword(KeywordAbility::Convoke),
@@ -23,7 +30,9 @@ pub fn card() -> CardDefinition {
                 trigger: ReplacementTrigger::WouldEnterBattlefield {
                     filter: ObjectFilter::Any,
                 },
-                modification: ReplacementModification::ChooseCreatureType(SubType("Human".to_string())),
+                modification: ReplacementModification::ChooseCreatureType(SubType(
+                    "Human".to_string(),
+                )),
                 is_self: true,
                 unless_condition: None,
             },

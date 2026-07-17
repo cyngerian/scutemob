@@ -7,9 +7,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("vampire-hexmage"),
         name: "Vampire Hexmage".to_string(),
-        mana_cost: Some(ManaCost { black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Vampire", "Shaman"]),
-        oracle_text: "First strike\nSacrifice this creature: Remove all counters from target permanent.".to_string(),
+        oracle_text: "First strike\nSacrifice this creature: Remove all counters from target \
+                      permanent."
+            .to_string(),
         power: Some(2),
         toughness: Some(1),
         abilities: vec![
@@ -17,7 +22,10 @@ pub fn card() -> CardDefinition {
             // TODO: Sacrifice: Remove all counters from target permanent — PB-5 (targeted)
             // Cost::SacrificeSelf available; blocked on targeted RemoveAllCounters effect
         ],
-        completeness: Completeness::partial("Sacrifice: Remove all counters from target permanent — PB-5 (targeted) Cost::SacrificeSelf available; blocked on..."),
+        completeness: Completeness::partial(
+            "Sacrifice: Remove all counters from target permanent — PB-5 (targeted) \
+             Cost::SacrificeSelf available; blocked on...",
+        ),
         ..Default::default()
     }
 }

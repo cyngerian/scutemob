@@ -9,11 +9,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("shambling-ghast"),
         name: "Shambling Ghast".to_string(),
-        mana_cost: Some(ManaCost { black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Zombie"]),
-        oracle_text:
-            "Decayed (This creature can't block. When it attacks, sacrifice it at end of combat.)\nWhen Shambling Ghast enters, create a Treasure token or put a -1/-1 counter on target creature."
-                .to_string(),
+        oracle_text: "Decayed (This creature can't block. When it attacks, sacrifice it at end of \
+                      combat.)\nWhen Shambling Ghast enters, create a Treasure token or put a \
+                      -1/-1 counter on target creature."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
@@ -67,6 +71,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

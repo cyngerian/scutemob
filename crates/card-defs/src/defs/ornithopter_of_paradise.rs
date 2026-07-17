@@ -6,7 +6,10 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("ornithopter-of-paradise"),
         name: "Ornithopter of Paradise".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Artifact, CardType::Creature], &["Thopter"]),
         oracle_text: "Flying\n{T}: Add one mana of any color.".to_string(),
         power: Some(0),
@@ -15,12 +18,14 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
-                effect: Effect::AddManaAnyColor { player: PlayerTarget::Controller },
+                effect: Effect::AddManaAnyColor {
+                    player: PlayerTarget::Controller,
+                },
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

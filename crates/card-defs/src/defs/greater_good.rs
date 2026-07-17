@@ -11,9 +11,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("greater-good"),
         name: "Greater Good".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Sacrifice a creature: Draw cards equal to the sacrificed creature's power, then discard three cards.".to_string(),
+        oracle_text: "Sacrifice a creature: Draw cards equal to the sacrificed creature's power, \
+                      then discard three cards."
+            .to_string(),
         abilities: vec![
             // CR 602.2 + CR 701.16 + CR 608.2b: Sacrifice a creature, draw cards equal to its
             // LKI power, then discard three cards. The Sequence ensures draw happens before discard

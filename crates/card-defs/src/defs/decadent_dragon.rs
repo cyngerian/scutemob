@@ -9,9 +9,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("decadent-dragon"),
         name: "Decadent Dragon // Expensive Taste".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Dragon"]),
-        oracle_text: "Flying, trample\nWhenever this creature attacks, create a Treasure token.".to_string(),
+        oracle_text: "Flying, trample\nWhenever this creature attacks, create a Treasure token."
+            .to_string(),
         power: Some(4),
         toughness: Some(4),
         abilities: vec![
@@ -21,7 +26,9 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenAttacks,
-                effect: Effect::CreateToken { spec: treasure_token_spec(1) },
+                effect: Effect::CreateToken {
+                    spec: treasure_token_spec(1),
+                },
                 intervening_if: None,
                 targets: vec![],
 
@@ -33,16 +40,20 @@ pub fn card() -> CardDefinition {
         back_face: None,
         adventure_face: Some(CardFace {
             name: "Expensive Taste".to_string(),
-            mana_cost: Some(ManaCost { generic: 2, black: 1, ..Default::default() }),
+            mana_cost: Some(ManaCost {
+                generic: 2,
+                black: 1,
+                ..Default::default()
+            }),
             types: TypeLine {
                 card_types: [CardType::Instant].iter().copied().collect(),
-                subtypes: [SubType("Adventure".to_string())]
-                    .iter()
-                    .cloned()
-                    .collect(),
+                subtypes: [SubType("Adventure".to_string())].iter().cloned().collect(),
                 supertypes: Default::default(),
             },
-            oracle_text: "Exile the top two cards of target player's library face down. You may look at and play those cards for as long as they remain exiled, and you may spend mana as though it were mana of any color to cast them.".to_string(),
+            oracle_text: "Exile the top two cards of target player's library face down. You may \
+                          look at and play those cards for as long as they remain exiled, and you \
+                          may spend mana as though it were mana of any color to cast them."
+                .to_string(),
             power: None,
             toughness: None,
             color_indicator: None,
@@ -59,6 +70,9 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::partial("DSL gap — exile-face-down + play-from-exile + any-color mana spending. Complex exile-play mechanic not expressible"),
+        completeness: Completeness::partial(
+            "DSL gap — exile-face-down + play-from-exile + any-color mana spending. Complex \
+             exile-play mechanic not expressible",
+        ),
     }
 }

@@ -17,13 +17,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("athreos-god-of-passage"),
         name: "Athreos, God of Passage".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, white: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            white: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Enchantment, CardType::Creature],
             &["God"],
         ),
-        oracle_text: "Indestructible\nAs long as your devotion to white and black is less than seven, Athreos isn't a creature.\nWhenever another creature you own dies, return it to your hand unless target opponent pays 3 life.".to_string(),
+        oracle_text: "Indestructible\nAs long as your devotion to white and black is less than \
+                      seven, Athreos isn't a creature.\nWhenever another creature you own dies, \
+                      return it to your hand unless target opponent pays 3 life."
+            .to_string(),
         power: Some(5),
         toughness: Some(4),
         abilities: vec![
@@ -48,7 +56,14 @@ pub fn card() -> CardDefinition {
             // TODO: "Whenever another creature you own dies, return it to your hand unless
             // target opponent pays 3 life." DSL gap: no opponent-pays-life alternative.
         ],
-        completeness: Completeness::partial("needs-rewiring, with two residual gaps: (1) death_filter has no owner scope (only controller_you) — oracle says 'creature you own'; (2) Effect::MayPayOrElse ignores payer/cost at effects/mod.rs:3196 and always applies or_else, so 'unless target opponent pays 3 life' would resolve as 'always returns'. The old note's claim that no opponent-pays-life mechanic exists is stale (MayPayOrElse { payer } + Cost::PayLife)."),
+        completeness: Completeness::partial(
+            "needs-rewiring, with two residual gaps: (1) death_filter has no owner scope (only \
+             controller_you) — oracle says 'creature you own'; (2) Effect::MayPayOrElse ignores \
+             payer/cost at effects/mod.rs:3196 and always applies or_else, so 'unless target \
+             opponent pays 3 life' would resolve as 'always returns'. The old note's claim that \
+             no opponent-pays-life mechanic exists is stale (MayPayOrElse { payer } + \
+             Cost::PayLife).",
+        ),
         ..Default::default()
     }
 }

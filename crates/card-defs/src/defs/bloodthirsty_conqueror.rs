@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("bloodthirsty-conqueror"),
         name: "Bloodthirsty Conqueror".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            black: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Vampire", "Knight"]),
-        oracle_text: "Flying, deathtouch\nWhenever an opponent loses life, you gain that much life. (Damage causes loss of life.)".to_string(),
+        oracle_text: "Flying, deathtouch\nWhenever an opponent loses life, you gain that much \
+                      life. (Damage causes loss of life.)"
+            .to_string(),
         power: Some(5),
         toughness: Some(5),
         abilities: vec![
@@ -18,7 +24,10 @@ pub fn card() -> CardDefinition {
             // TODO: Triggered ability — whenever an opponent loses life, you gain that much life.
             // DSL gap: no "whenever opponent loses life" trigger with life-amount mirror gain.
         ],
-        completeness: Completeness::partial("Triggered ability — whenever an opponent loses life, you gain that much life. DSL gap: no 'whenever opponent loses..."),
+        completeness: Completeness::partial(
+            "Triggered ability — whenever an opponent loses life, you gain that much life. DSL \
+             gap: no 'whenever opponent loses...",
+        ),
         ..Default::default()
     }
 }

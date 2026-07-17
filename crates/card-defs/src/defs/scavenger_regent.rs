@@ -7,7 +7,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("scavenger-regent"),
         name: "Scavenger Regent // Exude Toxin".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Dragon"]),
         oracle_text: "Flying\nWard—Discard a card.".to_string(),
         power: Some(4),
@@ -17,7 +21,10 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — Ward(u32) only supports generic mana cost.
             // "Ward—Discard a card" requires a non-mana ward cost variant.
         ],
-        completeness: Completeness::partial("DSL gap — Ward(u32) only supports generic mana cost. 'Ward—Discard a card' requires a non-mana ward cost variant"),
+        completeness: Completeness::partial(
+            "DSL gap — Ward(u32) only supports generic mana cost. 'Ward—Discard a card' requires \
+             a non-mana ward cost variant",
+        ),
         ..Default::default()
     }
 }

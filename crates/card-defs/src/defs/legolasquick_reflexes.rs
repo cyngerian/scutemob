@@ -16,14 +16,25 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("legolasquick-reflexes"),
         name: "Legolas's Quick Reflexes".to_string(),
-        mana_cost: Some(ManaCost { green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Split second (As long as this spell is on the stack, players can't cast spells or activate abilities that aren't mana abilities.)\nUntap target creature. Until end of turn, it gains hexproof, reach, and \"Whenever this creature becomes tapped, it deals damage equal to its power to up to one target creature.\"".to_string(),
+        oracle_text: "Split second (As long as this spell is on the stack, players can't cast \
+                      spells or activate abilities that aren't mana abilities.)\nUntap target \
+                      creature. Until end of turn, it gains hexproof, reach, and \"Whenever this \
+                      creature becomes tapped, it deals damage equal to its power to up to one \
+                      target creature.\""
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::SplitSecond),
             // TODO: DSL gap — untap + grant hexproof/reach + temporary tapped trigger not expressible.
         ],
-        completeness: Completeness::partial("DSL gap — the main spell effect (untap + grant hexproof/reach + tap trigger) is a complex instant-speed effect with..."),
+        completeness: Completeness::partial(
+            "DSL gap — the main spell effect (untap + grant hexproof/reach + tap trigger) is a \
+             complex instant-speed effect with...",
+        ),
         ..Default::default()
     }
 }

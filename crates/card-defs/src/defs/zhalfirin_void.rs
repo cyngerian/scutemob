@@ -7,7 +7,9 @@ pub fn card() -> CardDefinition {
         name: "Zhalfirin Void".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "When this land enters, scry 1. (Look at the top card of your library. You may put that card on the bottom.)\n{T}: Add {C}.".to_string(),
+        oracle_text: "When this land enters, scry 1. (Look at the top card of your library. You \
+                      may put that card on the bottom.)\n{T}: Add {C}."
+            .to_string(),
         abilities: vec![
             // CR 701.18: Scry 1 on ETB.
             AbilityDefinition::Triggered {
@@ -33,7 +35,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

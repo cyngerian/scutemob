@@ -6,7 +6,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("explore"),
         name: "Explore".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
         oracle_text: "You may play an additional land this turn.\nDraw a card.".to_string(),
         abilities: vec![AbilityDefinition::Spell {

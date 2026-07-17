@@ -22,7 +22,12 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: creature_types(&["Vampire", "Cleric"]),
-        oracle_text: "Flying\nAscend (If you control ten or more permanents, you get the city's blessing for the rest of the game.)\nAt the beginning of your upkeep, if you have the city's blessing, reveal the top card of your library and put it into your hand. Each opponent loses X life and you gain X life, where X is that card's mana value.".to_string(),
+        oracle_text: "Flying\nAscend (If you control ten or more permanents, you get the city's \
+                      blessing for the rest of the game.)\nAt the beginning of your upkeep, if \
+                      you have the city's blessing, reveal the top card of your library and put \
+                      it into your hand. Each opponent loses X life and you gain X life, where X \
+                      is that card's mana value."
+            .to_string(),
         power: Some(2),
         toughness: Some(4),
         abilities: vec![
@@ -32,7 +37,10 @@ pub fn card() -> CardDefinition {
             // TODO: Upkeep trigger conditioned on city's blessing, with drain-life based on
             // revealed card's mana value — requires EffectAmount::ManaValueOfRevealed or similar.
         ],
-        completeness: Completeness::partial("Upkeep trigger conditioned on HasCitysBlessing requires: 1. TriggerCondition::AtBeginningOfYourUpkeep — EXISTS in DSL..."),
+        completeness: Completeness::partial(
+            "Upkeep trigger conditioned on HasCitysBlessing requires: 1. \
+             TriggerCondition::AtBeginningOfYourUpkeep — EXISTS in DSL...",
+        ),
         ..Default::default()
     }
 }

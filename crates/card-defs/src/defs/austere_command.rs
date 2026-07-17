@@ -10,9 +10,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("austere-command"),
         name: "Austere Command".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, white: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            white: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Choose two —\n\u{2022} Destroy all artifacts.\n\u{2022} Destroy all enchantments.\n\u{2022} Destroy all creatures with mana value 3 or less.\n\u{2022} Destroy all creatures with mana value 4 or greater.".to_string(),
+        oracle_text: "Choose two —\n\u{2022} Destroy all artifacts.\n\u{2022} Destroy all \
+                      enchantments.\n\u{2022} Destroy all creatures with mana value 3 or \
+                      less.\n\u{2022} Destroy all creatures with mana value 4 or greater."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![]),
             targets: vec![],

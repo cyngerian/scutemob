@@ -9,32 +9,35 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("heroic-intervention"),
         name: "Heroic Intervention".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Creatures you control gain hexproof and indestructible until end of turn.".to_string(),
-        abilities: vec![
-            AbilityDefinition::Spell {
-                effect: Effect::ForEach {
-                    over: ForEachTarget::EachCreatureYouControl,
-                    effect: Box::new(Effect::ApplyContinuousEffect {
-                        effect_def: Box::new(ContinuousEffectDef {
-                            layer: EffectLayer::Ability,
-                            modification: LayerModification::AddKeywords(
-                                [KeywordAbility::Hexproof, KeywordAbility::Indestructible]
-                                    .into_iter()
-                                    .collect(),
-                            ),
-                            filter: EffectFilter::DeclaredTarget { index: 0 },
-                            duration: EffectDuration::UntilEndOfTurn,
-                            condition: None,
-                        }),
+        oracle_text: "Creatures you control gain hexproof and indestructible until end of turn."
+            .to_string(),
+        abilities: vec![AbilityDefinition::Spell {
+            effect: Effect::ForEach {
+                over: ForEachTarget::EachCreatureYouControl,
+                effect: Box::new(Effect::ApplyContinuousEffect {
+                    effect_def: Box::new(ContinuousEffectDef {
+                        layer: EffectLayer::Ability,
+                        modification: LayerModification::AddKeywords(
+                            [KeywordAbility::Hexproof, KeywordAbility::Indestructible]
+                                .into_iter()
+                                .collect(),
+                        ),
+                        filter: EffectFilter::DeclaredTarget { index: 0 },
+                        duration: EffectDuration::UntilEndOfTurn,
+                        condition: None,
                     }),
-                },
-                targets: vec![],
-                modes: None,
-                cant_be_countered: false,
+                }),
             },
-        ],
+            targets: vec![],
+            modes: None,
+            cant_be_countered: false,
+        }],
         ..Default::default()
     }
 }

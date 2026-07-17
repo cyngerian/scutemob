@@ -9,9 +9,20 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("anafenza-unyielding-lineage"),
         name: "Anafenza, Unyielding Lineage".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, white: 1, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Spirit", "Soldier"]),
-        oracle_text: "Flash\nFirst strike\nWhenever another nontoken creature you control dies, Anafenza endures 2. (Put two +1/+1 counters on it or create a 2/2 white Spirit creature token.)".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            white: 1,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Creature],
+            &["Spirit", "Soldier"],
+        ),
+        oracle_text: "Flash\nFirst strike\nWhenever another nontoken creature you control dies, \
+                      Anafenza endures 2. (Put two +1/+1 counters on it or create a 2/2 white \
+                      Spirit creature token.)"
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -21,7 +32,12 @@ pub fn card() -> CardDefinition {
             // nontoken + controller filter not in DSL. Endure keyword (put counters OR create
             // token) also not in DSL.
         ],
-        completeness: Completeness::partial("Endure 2 (CR 702.183): modal 'two +1/+1 counters on this OR create a 2/2 white Spirit' choice at trigger resolution. The nontoken/controller death filter IS in the DSL (death_filter.nontoken_only + controller_you) — only the Endure choice is unauthored."),
+        completeness: Completeness::partial(
+            "Endure 2 (CR 702.183): modal 'two +1/+1 counters on this OR create a 2/2 white \
+             Spirit' choice at trigger resolution. The nontoken/controller death filter IS in the \
+             DSL (death_filter.nontoken_only + controller_you) — only the Endure choice is \
+             unauthored.",
+        ),
         ..Default::default()
     }
 }

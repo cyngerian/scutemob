@@ -17,13 +17,20 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("niv-mizzet-visionary"),
         name: "Niv-Mizzet, Visionary".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, blue: 1, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            blue: 1,
+            red: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Dragon", "Wizard"],
         ),
-        oracle_text: "Flying\nYou have no maximum hand size.\nWhenever a source you control deals noncombat damage to an opponent, you draw that many cards.".to_string(),
+        oracle_text: "Flying\nYou have no maximum hand size.\nWhenever a source you control deals \
+                      noncombat damage to an opponent, you draw that many cards."
+            .to_string(),
         power: Some(5),
         toughness: Some(5),
         abilities: vec![
@@ -32,7 +39,10 @@ pub fn card() -> CardDefinition {
             // TODO: ENGINE-BLOCKED — any-source noncombat-damage trigger with variable
             // draw amount gap (see header).
         ],
-        completeness: Completeness::partial("ENGINE-BLOCKED — 'whenever a source you control deals noncombat damage to an opponent, draw that many cards' requires a..."),
+        completeness: Completeness::partial(
+            "ENGINE-BLOCKED — 'whenever a source you control deals noncombat damage to an \
+             opponent, draw that many cards' requires a...",
+        ),
         ..Default::default()
     }
 }

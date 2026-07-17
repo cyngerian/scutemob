@@ -7,9 +7,9 @@ pub fn card() -> CardDefinition {
         name: "Woodland Cemetery".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text:
-            "This land enters tapped unless you control a Swamp or a Forest.\n{T}: Add {B} or {G}."
-                .to_string(),
+        oracle_text: "This land enters tapped unless you control a Swamp or a Forest.\n{T}: Add \
+                      {B} or {G}."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Replacement {
                 trigger: ReplacementTrigger::WouldEnterBattlefield {

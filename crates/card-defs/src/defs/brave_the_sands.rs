@@ -18,7 +18,9 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Creatures you control have vigilance.\nEach creature you control can block an additional creature each combat.".to_string(),
+        oracle_text: "Creatures you control have vigilance.\nEach creature you control can block \
+                      an additional creature each combat."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Static {
                 continuous_effect: ContinuousEffectDef {
@@ -32,7 +34,10 @@ pub fn card() -> CardDefinition {
             // TODO: "Each creature you control can block an additional creature each combat"
             // requires combat rules infrastructure for additional blockers.
         ],
-        completeness: Completeness::partial("DSL gap — 'Each creature you control can block an additional creature each combat.' (additional blocker assignment not..."),
+        completeness: Completeness::partial(
+            "DSL gap — 'Each creature you control can block an additional creature each combat.' \
+             (additional blocker assignment not...",
+        ),
         ..Default::default()
     }
 }

@@ -14,9 +14,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("rancor"),
         name: "Rancor".to_string(),
-        mana_cost: Some(ManaCost { green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            green: 1,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Enchantment], &["Aura"]),
-        oracle_text: "Enchant creature\nEnchanted creature gets +2/+0 and has trample.\nWhen Rancor is put into a graveyard from the battlefield, return Rancor to its owner's hand.".to_string(),
+        oracle_text: "Enchant creature\nEnchanted creature gets +2/+0 and has trample.\nWhen \
+                      Rancor is put into a graveyard from the battlefield, return Rancor to its \
+                      owner's hand."
+            .to_string(),
         abilities: vec![
             // CR 702.5a: Enchant creature — defines legal targets and attachment restriction.
             AbilityDefinition::Keyword(KeywordAbility::Enchant(EnchantTarget::Creature)),
@@ -48,7 +54,9 @@ pub fn card() -> CardDefinition {
                 trigger_condition: TriggerCondition::WhenDies,
                 effect: Effect::MoveZone {
                     target: EffectTarget::Source,
-                    to: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                    to: ZoneTarget::Hand {
+                        owner: PlayerTarget::Controller,
+                    },
                     controller_override: None,
                 },
                 intervening_if: None,

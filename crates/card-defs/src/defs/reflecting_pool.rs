@@ -10,17 +10,22 @@ pub fn card() -> CardDefinition {
         name: "Reflecting Pool".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}: Add one mana of any type that a land you control could produce.".to_string(),
+        oracle_text: "{T}: Add one mana of any type that a land you control could produce."
+            .to_string(),
         abilities: vec![AbilityDefinition::Activated {
             cost: Cost::Tap,
-            effect: Effect::AddManaAnyColor { player: PlayerTarget::Controller },
+            effect: Effect::AddManaAnyColor {
+                player: PlayerTarget::Controller,
+            },
             timing_restriction: None,
             targets: vec![],
-                activation_condition: None,
-                activation_zone: None,
-        once_per_turn: false,
-}],
-        completeness: Completeness::known_wrong("adds any color, not only colors lands you control could produce"),
+            activation_condition: None,
+            activation_zone: None,
+            once_per_turn: false,
+        }],
+        completeness: Completeness::known_wrong(
+            "adds any color, not only colors lands you control could produce",
+        ),
         ..Default::default()
     }
 }

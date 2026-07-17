@@ -14,11 +14,22 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("naya-charm"),
         name: "Naya Charm".to_string(),
-        mana_cost: Some(ManaCost { red: 1, green: 1, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            red: 1,
+            green: 1,
+            white: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Choose one —\n• Naya Charm deals 3 damage to target creature.\n• Return target card from a graveyard to its owner's hand.\n• Tap all creatures target player controls.".to_string(),
+        oracle_text: "Choose one —\n• Naya Charm deals 3 damage to target creature.\n• Return \
+                      target card from a graveyard to its owner's hand.\n• Tap all creatures \
+                      target player controls."
+            .to_string(),
         abilities: vec![],
-        completeness: Completeness::inert("DSL gap — Mode 3 ('Tap all creatures target player controls') requires TapPermanent targeting creatures filtered by a..."),
+        completeness: Completeness::inert(
+            "DSL gap — Mode 3 ('Tap all creatures target player controls') requires TapPermanent \
+             targeting creatures filtered by a...",
+        ),
         ..Default::default()
     }
 }

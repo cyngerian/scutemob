@@ -9,9 +9,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("ancient-silver-dragon"),
         name: "Ancient Silver Dragon".to_string(),
-        mana_cost: Some(ManaCost { generic: 6, blue: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 6,
+            blue: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Elder", "Dragon"]),
-        oracle_text: "Flying\nWhenever this creature deals combat damage to a player, roll a d20. Draw cards equal to the result. You have no maximum hand size for the rest of the game.".to_string(),
+        oracle_text: "Flying\nWhenever this creature deals combat damage to a player, roll a d20. \
+                      Draw cards equal to the result. You have no maximum hand size for the rest \
+                      of the game."
+            .to_string(),
         power: Some(8),
         toughness: Some(8),
         abilities: vec![
@@ -28,10 +35,14 @@ pub fn card() -> CardDefinition {
                         sides: 20,
                         results: vec![
                             // All results 1-20: draw cards equal to the roll result.
-                            (1, 20, Effect::DrawCards {
-                                player: PlayerTarget::Controller,
-                                count: EffectAmount::LastDiceRoll,
-                            }),
+                            (
+                                1,
+                                20,
+                                Effect::DrawCards {
+                                    player: PlayerTarget::Controller,
+                                    count: EffectAmount::LastDiceRoll,
+                                },
+                            ),
                         ],
                     },
                     // CR 402.2: no maximum hand size for the rest of the game.

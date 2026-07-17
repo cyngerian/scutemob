@@ -10,9 +10,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("altar-of-dementia"),
         name: "Altar of Dementia".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "Sacrifice a creature: Target player mills cards equal to the sacrificed creature's power.".to_string(),
+        oracle_text: "Sacrifice a creature: Target player mills cards equal to the sacrificed \
+                      creature's power."
+            .to_string(),
         abilities: vec![
             // CR 602.2 + CR 701.16 + CR 608.2b: Sacrifice a creature, target player mills
             // cards equal to the sacrificed creature's LKI power.

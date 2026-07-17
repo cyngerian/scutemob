@@ -31,13 +31,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("frodo-saurons-bane"),
         name: "Frodo, Sauron's Bane".to_string(),
-        mana_cost: Some(ManaCost { white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            white: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Halfling", "Citizen"],
         ),
-        oracle_text: "{W/B}{W/B}: If Frodo, Sauron's Bane is a Citizen, it becomes a Halfling Scout with base power and toughness 2/3 and lifelink.\n{B}{B}{B}: If Frodo, Sauron's Bane is a Scout, it becomes a Halfling Rogue with \"Whenever this creature deals combat damage to a player, that player loses the game if the Ring has tempted you four or more times this game. Otherwise, the Ring tempts you.\""
+        oracle_text: "{W/B}{W/B}: If Frodo, Sauron's Bane is a Citizen, it becomes a Halfling \
+                      Scout with base power and toughness 2/3 and lifelink.\n{B}{B}{B}: If Frodo, \
+                      Sauron's Bane is a Scout, it becomes a Halfling Rogue with \"Whenever this \
+                      creature deals combat damage to a player, that player loses the game if the \
+                      Ring has tempted you four or more times this game. Otherwise, the Ring \
+                      tempts you.\""
             .to_string(),
         power: Some(1),
         toughness: Some(2),
@@ -64,6 +72,9 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::partial("{W/B}{W/B} ability — if Frodo is a Citizen, change subtype to Halfling Scout, set base P/T to 2/3, and grant lifelink..."),
+        completeness: Completeness::partial(
+            "{W/B}{W/B} ability — if Frodo is a Citizen, change subtype to Halfling Scout, set \
+             base P/T to 2/3, and grant lifelink...",
+        ),
     }
 }

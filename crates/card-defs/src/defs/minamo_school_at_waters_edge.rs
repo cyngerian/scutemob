@@ -20,12 +20,15 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {U}, {T}: Untap target legendary permanent.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { blue: 1, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        blue: 1,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                 ]),
                 effect: Effect::UntapPermanent {
@@ -38,10 +41,15 @@ pub fn card() -> CardDefinition {
                 // TODO: Target should be "legendary permanent" — TargetFilter lacks supertype constraint.
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("Rewire: TargetPermanentWithFilter(TargetFilter { legendary: true, ..Default::default() }) — TargetFilter.legendary shipped and is enforced at effects/mod.rs:8045. The def currently targets any permanent. Likely Complete after this one-field change."),
+        completeness: Completeness::partial(
+            "Rewire: TargetPermanentWithFilter(TargetFilter { legendary: true, \
+             ..Default::default() }) — TargetFilter.legendary shipped and is enforced at \
+             effects/mod.rs:8045. The def currently targets any permanent. Likely Complete after \
+             this one-field change.",
+        ),
         ..Default::default()
     }
 }

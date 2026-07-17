@@ -8,15 +8,26 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("mistblade-shinobi"),
         name: "Mistblade Shinobi".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            blue: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Ninja"]),
-        oracle_text: "Ninjutsu {U} ({U}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)\nWhenever this creature deals combat damage to a player, you may return target creature that player controls to its owner's hand.".to_string(),
+        oracle_text: "Ninjutsu {U} ({U}, Return an unblocked attacker you control to hand: Put \
+                      this card onto the battlefield from your hand tapped and \
+                      attacking.)\nWhenever this creature deals combat damage to a player, you \
+                      may return target creature that player controls to its owner's hand."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Ninjutsu),
             AbilityDefinition::Ninjutsu {
-                cost: ManaCost { blue: 1, ..Default::default() },
+                cost: ManaCost {
+                    blue: 1,
+                    ..Default::default()
+                },
             },
             // CR 510.3a: "Whenever this creature deals combat damage to a player, you may
             // return target creature that player controls to its owner's hand."
@@ -29,7 +40,9 @@ pub fn card() -> CardDefinition {
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     to: ZoneTarget::Hand {
-                        owner: PlayerTarget::OwnerOf(Box::new(EffectTarget::DeclaredTarget { index: 0 })),
+                        owner: PlayerTarget::OwnerOf(Box::new(EffectTarget::DeclaredTarget {
+                            index: 0,
+                        })),
                     },
                     controller_override: None,
                 },

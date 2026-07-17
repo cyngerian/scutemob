@@ -10,9 +10,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("sword-of-war-and-peace"),
         name: "Sword of War and Peace".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Artifact], &["Equipment"]),
-        oracle_text: "Equipped creature gets +2/+2 and has protection from red and from white.\nWhenever equipped creature deals combat damage to a player, Sword of War and Peace deals damage to that player equal to the number of cards in their hand and you gain 1 life for each card in your hand.\nEquip {2}".to_string(),
+        oracle_text: "Equipped creature gets +2/+2 and has protection from red and from \
+                      white.\nWhenever equipped creature deals combat damage to a player, Sword \
+                      of War and Peace deals damage to that player equal to the number of cards \
+                      in their hand and you gain 1 life for each card in your hand.\nEquip {2}"
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Static {
                 continuous_effect: ContinuousEffectDef {
@@ -26,7 +33,9 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Static {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::Ability,
-                    modification: LayerModification::AddKeyword(KeywordAbility::ProtectionFrom(ProtectionQuality::FromColor(Color::Red))),
+                    modification: LayerModification::AddKeyword(KeywordAbility::ProtectionFrom(
+                        ProtectionQuality::FromColor(Color::Red),
+                    )),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
                     condition: None,
@@ -35,7 +44,9 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Static {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::Ability,
-                    modification: LayerModification::AddKeyword(KeywordAbility::ProtectionFrom(ProtectionQuality::FromColor(Color::White))),
+                    modification: LayerModification::AddKeyword(KeywordAbility::ProtectionFrom(
+                        ProtectionQuality::FromColor(Color::White),
+                    )),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
                     condition: None,
@@ -51,7 +62,9 @@ pub fn card() -> CardDefinition {
                     Effect::DealDamage {
                         target: EffectTarget::DeclaredTarget { index: 0 },
                         amount: EffectAmount::CardCount {
-                            zone: ZoneTarget::Hand { owner: PlayerTarget::DeclaredTarget { index: 0 } },
+                            zone: ZoneTarget::Hand {
+                                owner: PlayerTarget::DeclaredTarget { index: 0 },
+                            },
                             player: PlayerTarget::DeclaredTarget { index: 0 },
                             filter: None,
                         },
@@ -59,7 +72,9 @@ pub fn card() -> CardDefinition {
                     Effect::GainLife {
                         player: PlayerTarget::Controller,
                         amount: EffectAmount::CardCount {
-                            zone: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                            zone: ZoneTarget::Hand {
+                                owner: PlayerTarget::Controller,
+                            },
                             player: PlayerTarget::Controller,
                             filter: None,
                         },

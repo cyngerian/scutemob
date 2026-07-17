@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("vengeful-bloodwitch"),
         name: "Vengeful Bloodwitch".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Vampire", "Warlock"]),
-        oracle_text: "Whenever Vengeful Bloodwitch or another creature you control dies, target opponent loses 1 life and you gain 1 life.".to_string(),
+        oracle_text: "Whenever Vengeful Bloodwitch or another creature you control dies, target \
+                      opponent loses 1 life and you gain 1 life."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
@@ -23,8 +29,8 @@ pub fn card() -> CardDefinition {
                     controller: Some(TargetController::You),
                     exclude_self: false,
                     nontoken_only: false,
-                                filter: None,
-            },
+                    filter: None,
+                },
                 effect: Effect::Sequence(vec![
                     Effect::LoseLife {
                         player: PlayerTarget::DeclaredTarget { index: 0 },
@@ -42,7 +48,11 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::known_wrong("'target opponent' is modeled as TargetRequirement::TargetPlayer — TargetRequirement has no opponent-only player variant, so the controller is an illegal-but-accepted target (CR 115.1)."),
+        completeness: Completeness::known_wrong(
+            "'target opponent' is modeled as TargetRequirement::TargetPlayer — TargetRequirement \
+             has no opponent-only player variant, so the controller is an illegal-but-accepted \
+             target (CR 115.1).",
+        ),
         ..Default::default()
     }
 }

@@ -8,9 +8,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("blade-of-the-bloodchief"),
         name: "Blade of the Bloodchief".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Artifact], &["Equipment"]),
-        oracle_text: "Whenever a creature dies, put a +1/+1 counter on equipped creature. If equipped creature is a Vampire, put two +1/+1 counters on it instead.\nEquip {1}".to_string(),
+        oracle_text: "Whenever a creature dies, put a +1/+1 counter on equipped creature. If \
+                      equipped creature is a Vampire, put two +1/+1 counters on it \
+                      instead.\nEquip {1}"
+            .to_string(),
         abilities: vec![
             // TODO: DSL gap — "Whenever a creature dies, put +1/+1 counter on equipped
             // creature (2 if Vampire)." WheneverCreatureDies trigger exists, but
@@ -18,7 +24,12 @@ pub fn card() -> CardDefinition {
             // based on equipped creature's subtype is not in DSL.
             AbilityDefinition::Keyword(KeywordAbility::Equip),
         ],
-        completeness: Completeness::partial("Blocked on a Condition testing the equipped creature's subtype ('two +1/+1 counters instead if equipped creature is a Vampire'). EffectTarget::EquippedCreature and WheneverCreatureDies both exist; Equip {1} should be authored as an Activated/AttachEquipment ability (see skullclamp.rs)."),
+        completeness: Completeness::partial(
+            "Blocked on a Condition testing the equipped creature's subtype ('two +1/+1 counters \
+             instead if equipped creature is a Vampire'). EffectTarget::EquippedCreature and \
+             WheneverCreatureDies both exist; Equip {1} should be authored as an \
+             Activated/AttachEquipment ability (see skullclamp.rs).",
+        ),
         ..Default::default()
     }
 }

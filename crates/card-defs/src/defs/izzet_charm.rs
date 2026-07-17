@@ -9,9 +9,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("izzet-charm"),
         name: "Izzet Charm".to_string(),
-        mana_cost: Some(ManaCost { blue: 1, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            blue: 1,
+            red: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Choose one —\n• Counter target noncreature spell unless its controller pays {2}.\n• Izzet Charm deals 2 damage to target creature.\n• Draw two cards, then discard two cards.".to_string(),
+        oracle_text: "Choose one —\n• Counter target noncreature spell unless its controller pays \
+                      {2}.\n• Izzet Charm deals 2 damage to target creature.\n• Draw two cards, \
+                      then discard two cards."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![]),
             // PB-AC4 (CR 700.2c/700.2f): per-mode targets — targets are declared only for
@@ -28,7 +35,10 @@ pub fn card() -> CardDefinition {
                     // PB-AC2 (CR 118.12a): CounterUnlessPays — controller declines -> countered.
                     Effect::CounterUnlessPays {
                         target: EffectTarget::DeclaredTarget { index: 0 },
-                        cost: Cost::Mana(ManaCost { generic: 2, ..Default::default() }),
+                        cost: Cost::Mana(ManaCost {
+                            generic: 2,
+                            ..Default::default()
+                        }),
                     },
                     // Mode 1: Deal 2 damage to target creature.
                     Effect::DealDamage {

@@ -10,9 +10,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("dig-through-time"),
         name: "Dig Through Time".to_string(),
-        mana_cost: Some(ManaCost { generic: 6, blue: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 6,
+            blue: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Delve (Each card you exile from your graveyard while casting this spell pays for {1}.)\nLook at the top seven cards of your library. Put two of them into your hand and the rest on the bottom of your library in any order.".to_string(),
+        oracle_text: "Delve (Each card you exile from your graveyard while casting this spell \
+                      pays for {1}.)\nLook at the top seven cards of your library. Put two of \
+                      them into your hand and the rest on the bottom of your library in any order."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Delve),
             // TODO: "look at top 7, choose 2" — approximated as DrawCards(2).
@@ -26,7 +33,9 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::partial("Interactive 'choose 2 of 7' — M10 player choice. Approximated as DrawCards(2)"),
+        completeness: Completeness::partial(
+            "Interactive 'choose 2 of 7' — M10 player choice. Approximated as DrawCards(2)",
+        ),
         ..Default::default()
     }
 }

@@ -16,7 +16,12 @@ pub fn card() -> CardDefinition {
         name: "Boseiju, Who Endures".to_string(),
         mana_cost: None,
         types: supertypes(&[SuperType::Legendary], &[CardType::Land]),
-        oracle_text: "{T}: Add {G}.\nChannel — {1}{G}, Discard this card: Destroy target artifact, enchantment, or nonbasic land an opponent controls. That player may search their library for a land card with a basic land type, put it onto the battlefield, then shuffle. This ability costs {1} less to activate for each legendary creature you control.".to_string(),
+        oracle_text: "{T}: Add {G}.\nChannel — {1}{G}, Discard this card: Destroy target \
+                      artifact, enchantment, or nonbasic land an opponent controls. That player \
+                      may search their library for a land card with a basic land type, put it \
+                      onto the battlefield, then shuffle. This ability costs {1} less to activate \
+                      for each legendary creature you control."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
@@ -28,7 +33,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // Channel — {1}{G}, Discard: Destroy target + opponent searches.
             // Target filter restricts to opponent-controlled permanents (partial).
@@ -45,7 +50,7 @@ pub fn card() -> CardDefinition {
                 effect: Effect::Sequence(vec![
                     Effect::DestroyPermanent {
                         target: EffectTarget::DeclaredTarget { index: 0 },
-                    cant_be_regenerated: false,
+                        cant_be_regenerated: false,
                     },
                     Effect::SearchLibrary {
                         player: PlayerTarget::ControllerOf(Box::new(
@@ -68,7 +73,7 @@ pub fn card() -> CardDefinition {
                         reveal: false,
                         destination: ZoneTarget::Battlefield { tapped: false },
                         shuffle_before_placing: false,
-                    also_search_graveyard: false,
+                        also_search_graveyard: false,
                     },
                     Effect::Shuffle {
                         player: PlayerTarget::ControllerOf(Box::new(
@@ -83,7 +88,7 @@ pub fn card() -> CardDefinition {
                 })],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         // CR 602.2b + 601.2f: Channel ability (index 0) costs {1} less per legendary creature
@@ -101,7 +106,13 @@ pub fn card() -> CardDefinition {
                 controller: PlayerTarget::Controller,
             },
         )],
-        completeness: Completeness::partial("Rewire only — no blocker. TargetFilter.has_card_types (OR semantics, card_definition.rs:2854) + nonbasic (card_definition.rs:2829) express 'artifact, enchantment, or nonbasic land an opponent controls' exactly. NOTE: the current filter is overbroad (any opponent-controlled permanent is a legal target), so this is a correctness fix, not just polish. Everything else on the card is complete."),
+        completeness: Completeness::partial(
+            "Rewire only — no blocker. TargetFilter.has_card_types (OR semantics, \
+             card_definition.rs:2854) + nonbasic (card_definition.rs:2829) express 'artifact, \
+             enchantment, or nonbasic land an opponent controls' exactly. NOTE: the current \
+             filter is overbroad (any opponent-controlled permanent is a legal target), so this \
+             is a correctness fix, not just polish. Everything else on the card is complete.",
+        ),
         ..Default::default()
     }
 }

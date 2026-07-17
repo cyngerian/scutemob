@@ -8,7 +8,8 @@ pub fn card() -> CardDefinition {
         name: "Tainted Field".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}: Add {C}.\n{T}: Add {W} or {B}. Activate only if you control a Swamp.".to_string(),
+        oracle_text: "{T}: Add {C}.\n{T}: Add {W} or {B}. Activate only if you control a Swamp."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
@@ -20,7 +21,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {T}: Add {W} or {B}. Activate only if you control a Swamp.
             // The "or" is modeled as two separate activated abilities, one per color;
@@ -33,9 +34,11 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
-                activation_condition: Some(Condition::ControlLandWithSubtypes(vec![SubType("Swamp".to_string())])),
+                activation_condition: Some(Condition::ControlLandWithSubtypes(vec![SubType(
+                    "Swamp".to_string(),
+                )])),
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // Second color option: {B}
             AbilityDefinition::Activated {
@@ -46,9 +49,11 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
-                activation_condition: Some(Condition::ControlLandWithSubtypes(vec![SubType("Swamp".to_string())])),
+                activation_condition: Some(Condition::ControlLandWithSubtypes(vec![SubType(
+                    "Swamp".to_string(),
+                )])),
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

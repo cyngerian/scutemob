@@ -9,9 +9,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("sundering-eruption"),
         name: "Sundering Eruption // Volcanic Fissure".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Destroy target land. Its controller may search their library for a basic land card, put it onto the battlefield tapped, then shuffle. Creatures without flying can't block this turn.".to_string(),
+        oracle_text: "Destroy target land. Its controller may search their library for a basic \
+                      land card, put it onto the battlefield tapped, then shuffle. Creatures \
+                      without flying can't block this turn."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![
                 // CR 701.7a: Destroy target land.
@@ -22,9 +29,9 @@ pub fn card() -> CardDefinition {
                 // Its controller searches for a basic land (enters tapped).
                 // "may search" modeled as unconditional (deterministic fallback).
                 Effect::SearchLibrary {
-                    player: PlayerTarget::ControllerOf(Box::new(
-                        EffectTarget::DeclaredTarget { index: 0 },
-                    )),
+                    player: PlayerTarget::ControllerOf(Box::new(EffectTarget::DeclaredTarget {
+                        index: 0,
+                    })),
                     filter: TargetFilter {
                         has_card_type: Some(CardType::Land),
                         basic: true,
@@ -36,9 +43,9 @@ pub fn card() -> CardDefinition {
                     also_search_graveyard: false,
                 },
                 Effect::Shuffle {
-                    player: PlayerTarget::ControllerOf(Box::new(
-                        EffectTarget::DeclaredTarget { index: 0 },
-                    )),
+                    player: PlayerTarget::ControllerOf(Box::new(EffectTarget::DeclaredTarget {
+                        index: 0,
+                    })),
                 },
                 // TODO: "Creatures without flying can't block this turn" — mass blocking
                 // restriction not expressible as spell effect.
@@ -47,7 +54,10 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("'Creatures without flying can't block this turn' — mass blocking restriction not expressible as spell effect"),
+        completeness: Completeness::partial(
+            "'Creatures without flying can't block this turn' — mass blocking restriction not \
+             expressible as spell effect",
+        ),
         ..Default::default()
     }
 }

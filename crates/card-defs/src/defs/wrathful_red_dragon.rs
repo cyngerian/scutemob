@@ -16,13 +16,16 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: creature_types(&["Dragon"]),
-        oracle_text: "Flying\nWhenever a Dragon you control is dealt damage, it deals that much damage to any target that isn't a Dragon.".to_string(),
+        oracle_text: "Flying\nWhenever a Dragon you control is dealt damage, it deals that much \
+                      damage to any target that isn't a Dragon."
+            .to_string(),
         power: Some(5),
         toughness: Some(5),
-        abilities: vec![
-            AbilityDefinition::Keyword(KeywordAbility::Flying),
-        ],
-        completeness: Completeness::partial("DSL gap — triggered ability 'Whenever a Dragon you control is dealt damage, it deals that much damage to any target..."),
+        abilities: vec![AbilityDefinition::Keyword(KeywordAbility::Flying)],
+        completeness: Completeness::partial(
+            "DSL gap — triggered ability 'Whenever a Dragon you control is dealt damage, it deals \
+             that much damage to any target...",
+        ),
         ..Default::default()
     }
 }

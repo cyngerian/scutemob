@@ -8,9 +8,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("dragons-hoard"),
         name: "Dragon's Hoard".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "Whenever a Dragon you control enters, put a gold counter on Dragon's Hoard.\n{T}, Remove a gold counter from Dragon's Hoard: Draw a card.\n{T}: Add one mana of any color.".to_string(),
+        oracle_text: "Whenever a Dragon you control enters, put a gold counter on Dragon's \
+                      Hoard.\n{T}, Remove a gold counter from Dragon's Hoard: Draw a card.\n{T}: \
+                      Add one mana of any color."
+            .to_string(),
         abilities: vec![
             // Whenever a Dragon you control enters, put a gold counter on this.
             AbilityDefinition::Triggered {
@@ -51,17 +57,19 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {T}: Add one mana of any color.
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
-                effect: Effect::AddManaAnyColor { player: PlayerTarget::Controller },
+                effect: Effect::AddManaAnyColor {
+                    player: PlayerTarget::Controller,
+                },
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

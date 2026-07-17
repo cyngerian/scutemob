@@ -9,9 +9,18 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("sky-hussar"),
         name: "Sky Hussar".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, white: 1, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            white: 1,
+            blue: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Knight"]),
-        oracle_text: "Flying\nWhen this creature enters, untap all creatures you control.\nForecast — Tap two untapped white and/or blue creatures you control, Reveal this card from your hand: Draw a card. (Activate only during your upkeep and only once each turn.)".to_string(),
+        oracle_text: "Flying\nWhen this creature enters, untap all creatures you \
+                      control.\nForecast — Tap two untapped white and/or blue creatures you \
+                      control, Reveal this card from your hand: Draw a card. (Activate only \
+                      during your upkeep and only once each turn.)"
+            .to_string(),
         power: Some(4),
         toughness: Some(3),
         abilities: vec![
@@ -53,6 +62,9 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::partial("Forecast's actual activation cost is 'Tap two untapped white and/or blue creatures you control, Reveal this card from..."),
+        completeness: Completeness::partial(
+            "Forecast's actual activation cost is 'Tap two untapped white and/or blue creatures \
+             you control, Reveal this card from...",
+        ),
     }
 }

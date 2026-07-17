@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("goblin-warchief"),
         name: "Goblin Warchief".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, red: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            red: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Goblin", "Warrior"]),
-        oracle_text: "Goblin spells you cast cost {1} less to cast.\nGoblins you control have haste.".to_string(),
+        oracle_text: "Goblin spells you cast cost {1} less to cast.\nGoblins you control have \
+                      haste."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -24,7 +30,9 @@ pub fn card() -> CardDefinition {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::Ability,
                     modification: LayerModification::AddKeyword(KeywordAbility::Haste),
-                    filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType("Goblin".to_string())),
+                    filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType(
+                        "Goblin".to_string(),
+                    )),
                     duration: EffectDuration::WhileSourceOnBattlefield,
                     condition: None,
                 },

@@ -11,13 +11,19 @@ pub fn card() -> CardDefinition {
         card_id: cid("cut-ribbons"),
         name: "Cut // Ribbons".to_string(),
         // Cut half: {1}{R}
-        mana_cost: Some(ManaCost { generic: 1, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            red: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Cut — Target creature gets -2/-2 until end of turn.\nRibbons — Aftermath (Cast this spell only from your graveyard. Then exile it.) Each opponent loses X life.".to_string(),
+        oracle_text: "Cut — Target creature gets -2/-2 until end of turn.\nRibbons — Aftermath \
+                      (Cast this spell only from your graveyard. Then exile it.) Each opponent \
+                      loses X life."
+            .to_string(),
         abilities: vec![
             // CR 702.127a: Aftermath keyword marker — enables graveyard casting of Ribbons half.
             AbilityDefinition::Keyword(KeywordAbility::Aftermath),
-
             // Cut half: target creature gets -2/-2 until end of turn.
             // CR 613.4c: P/T-modifying effect in layer 7c with UntilEndOfTurn duration.
             AbilityDefinition::Spell {
@@ -34,12 +40,15 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 cant_be_countered: false,
             },
-
             // Ribbons half: {X}{B}{B}, Aftermath — each opponent loses X life.
             // CR 702.127: cast from graveyard only; exiled when it leaves the stack.
             AbilityDefinition::Aftermath {
                 name: "Ribbons".to_string(),
-                cost: ManaCost { black: 2, x_count: 1, ..Default::default() },
+                cost: ManaCost {
+                    black: 2,
+                    x_count: 1,
+                    ..Default::default()
+                },
                 card_type: CardType::Sorcery,
                 effect: Effect::ForEach {
                     over: ForEachTarget::EachOpponent,

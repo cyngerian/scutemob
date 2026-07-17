@@ -10,9 +10,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("goblin-cratermaker"),
         name: "Goblin Cratermaker".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Goblin", "Warrior"]),
-        oracle_text: "{1}, Sacrifice this creature: Choose one —\n• Goblin Cratermaker deals 2 damage to target creature.\n• Destroy target colorless nonland permanent.".to_string(),
+        oracle_text: "{1}, Sacrifice this creature: Choose one —\n• Goblin Cratermaker deals 2 \
+                      damage to target creature.\n• Destroy target colorless nonland permanent."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -22,11 +28,16 @@ pub fn card() -> CardDefinition {
             // Mode 1: Destroy target colorless nonland permanent.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 1,
+                        ..Default::default()
+                    }),
                     Cost::SacrificeSelf,
                 ]),
                 effect: Effect::Choose {
-                    prompt: "Choose one — deal 2 damage to target creature; or destroy target colorless nonland permanent".to_string(),
+                    prompt: "Choose one — deal 2 damage to target creature; or destroy target \
+                             colorless nonland permanent"
+                        .to_string(),
                     choices: vec![
                         // Mode 0: Goblin Cratermaker deals 2 damage to target creature.
                         Effect::DealDamage {
@@ -54,10 +65,13 @@ pub fn card() -> CardDefinition {
                 ],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::known_wrong("mode-1 target filter is 'any nonland permanent'; should be exclude_colors: Some({W,U,B,R,G}) + non_land to express 'colorless nonland permanent'"),
+        completeness: Completeness::known_wrong(
+            "mode-1 target filter is 'any nonland permanent'; should be exclude_colors: \
+             Some({W,U,B,R,G}) + non_land to express 'colorless nonland permanent'",
+        ),
         ..Default::default()
     }
 }

@@ -8,16 +8,26 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("maskwood-nexus"),
         name: "Maskwood Nexus".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "Creatures you control are every creature type. The same is true for creature spells you control and creature cards you own that aren't on the battlefield.\n{3}, {T}: Create a 2/2 blue Shapeshifter creature token with changeling. (It is every creature type.)".to_string(),
+        oracle_text: "Creatures you control are every creature type. The same is true for \
+                      creature spells you control and creature cards you own that aren't on the \
+                      battlefield.\n{3}, {T}: Create a 2/2 blue Shapeshifter creature token with \
+                      changeling. (It is every creature type.)"
+            .to_string(),
         abilities: vec![
             // TODO: Static — "Creatures you control are every creature type" — DSL lacks a
             //   "grant all subtypes / changeling" layer modification for permanents you control.
             // {3}, {T}: Create a 2/2 blue Shapeshifter token with changeling.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 3, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 3,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                 ]),
                 effect: Effect::CreateToken {
@@ -43,10 +53,15 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("Rewire the battlefield half: AbilityDefinition::Static with LayerModification::AddAllCreatureTypes + EffectFilter::CreaturesYouControl (shipped; layers.rs:1106 names this card). Remaining blocker: no EffectFilter covers creature spells you control or creature cards you own outside the battlefield."),
+        completeness: Completeness::partial(
+            "Rewire the battlefield half: AbilityDefinition::Static with \
+             LayerModification::AddAllCreatureTypes + EffectFilter::CreaturesYouControl (shipped; \
+             layers.rs:1106 names this card). Remaining blocker: no EffectFilter covers creature \
+             spells you control or creature cards you own outside the battlefield.",
+        ),
         ..Default::default()
     }
 }

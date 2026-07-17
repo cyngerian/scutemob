@@ -7,13 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("insatiable-avarice"),
         name: "Insatiable Avarice".to_string(),
-        mana_cost: Some(ManaCost { black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text:
-            "Spree (Choose one or more additional costs.)\n\
-             + {2} — Search your library for a card, then shuffle and put that card on top.\n\
-             + {B}{B} — Target player draws three cards and loses 3 life."
-                .to_string(),
+        oracle_text: "Spree (Choose one or more additional costs.)\n+ {2} — Search your library \
+                      for a card, then shuffle and put that card on top.\n+ {B}{B} — Target \
+                      player draws three cards and loses 3 life."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Spree),
             AbilityDefinition::Spell {
@@ -29,8 +31,14 @@ pub fn card() -> CardDefinition {
                     // CR 700.2h / 702.172a: per-mode additional costs.
                     // Mode 0: +{2}; Mode 1: +{B}{B}
                     mode_costs: Some(vec![
-                        ManaCost { generic: 2, ..Default::default() },
-                        ManaCost { black: 2, ..Default::default() },
+                        ManaCost {
+                            generic: 2,
+                            ..Default::default()
+                        },
+                        ManaCost {
+                            black: 2,
+                            ..Default::default()
+                        },
                     ]),
                     modes: vec![
                         // Mode 0 (+{2}): Search your library for a card, then shuffle and
@@ -47,7 +55,6 @@ pub fn card() -> CardDefinition {
                             shuffle_before_placing: true,
                             also_search_graveyard: false,
                         },
-
                         // Mode 1 (+{B}{B}): Target player draws three cards and loses 3 life.
                         // TODO: the DSL has no way to attach a per-mode TargetRequirement to
                         // an individual Spree mode. A spell-level target would wrongly require
@@ -60,7 +67,10 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::partial("Rewire onto ModeSelection.mode_targets (PB-AC4, casting.rs:3627). Mode 1 (+{B}{B}) currently resolves as a no-op — a player can pay for it and get nothing."),
+        completeness: Completeness::partial(
+            "Rewire onto ModeSelection.mode_targets (PB-AC4, casting.rs:3627). Mode 1 (+{B}{B}) \
+             currently resolves as a no-op — a player can pay for it and get nothing.",
+        ),
         ..Default::default()
     }
 }

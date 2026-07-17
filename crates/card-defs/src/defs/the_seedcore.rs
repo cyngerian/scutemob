@@ -10,7 +10,11 @@ pub fn card() -> CardDefinition {
         name: "The Seedcore".to_string(),
         mana_cost: None,
         types: types_sub(&[CardType::Land], &["Sphere"]),
-        oracle_text: "{T}: Add {C}.\n{T}: Add one mana of any color. Spend this mana only to cast Phyrexian creature spells.\nCorrupted — {T}: Target 1/1 creature gets +2/+1 until end of turn. Activate only if an opponent has three or more poison counters.".to_string(),
+        oracle_text: "{T}: Add {C}.\n{T}: Add one mana of any color. Spend this mana only to cast \
+                      Phyrexian creature spells.\nCorrupted — {T}: Target 1/1 creature gets +2/+1 \
+                      until end of turn. Activate only if an opponent has three or more poison \
+                      counters."
+            .to_string(),
         abilities: vec![
             // {T}: Add {C}.
             AbilityDefinition::Activated {
@@ -23,7 +27,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {T}: Add one mana of any color. Spend this mana only to cast Phyrexian creature spells.
             // Note: "Phyrexian" is a creature type in MTG. Using CreatureWithSubtype to enforce
@@ -40,7 +44,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // Corrupted — {T}: Target 1/1 creature gets +2/+1 until end of turn.
             // Activate only if an opponent has three or more poison counters.
@@ -71,10 +75,12 @@ pub fn card() -> CardDefinition {
                 targets: vec![TargetRequirement::TargetCreature],
                 activation_condition: Some(Condition::OpponentHasPoisonCounters(3)),
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("Target should be '1/1 creature' — TargetFilter lacks exact P/T constraint"),
+        completeness: Completeness::partial(
+            "Target should be '1/1 creature' — TargetFilter lacks exact P/T constraint",
+        ),
         ..Default::default()
     }
 }

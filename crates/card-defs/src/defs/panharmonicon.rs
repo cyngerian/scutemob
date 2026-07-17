@@ -12,9 +12,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("panharmonicon"),
         name: "Panharmonicon".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "If an artifact or creature entering causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time.".to_string(),
+        oracle_text: "If an artifact or creature entering causes a triggered ability of a \
+                      permanent you control to trigger, that ability triggers an additional time."
+            .to_string(),
         abilities: vec![
             // CR 603.2d: ETB trigger doubling for artifacts and creatures.
             AbilityDefinition::TriggerDoubling {

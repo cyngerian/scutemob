@@ -8,11 +8,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("patron-of-the-vein"),
         name: "Patron of the Vein".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            black: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Vampire", "Shaman"]),
-        oracle_text:
-            "Flying\nWhen this creature enters, destroy target creature an opponent controls.\nWhenever a creature an opponent controls dies, exile it and put a +1/+1 counter on each Vampire you control."
-                .to_string(),
+        oracle_text: "Flying\nWhen this creature enters, destroy target creature an opponent \
+                      controls.\nWhenever a creature an opponent controls dies, exile it and put \
+                      a +1/+1 counter on each Vampire you control."
+            .to_string(),
         power: Some(4),
         toughness: Some(4),
         abilities: vec![
@@ -44,7 +49,15 @@ pub fn card() -> CardDefinition {
             //    information, now in the graveyard). ExileObject with a dying-creature
             //    reference is not in the DSL.
         ],
-        completeness: Completeness::partial("Second trigger unimplemented. Blocker partly stale: TriggerCondition::WheneverCreatureDies has controller: Option<TargetController> (card_definition.rs:3048), so 'a creature an opponent controls dies' is expressible directly — KI-5/overbroad no longer applies. Remaining question is 'exile it': verify EffectTarget::TriggeringCreature resolves to the graveyard object for Effect::ExileObject (CR 400.7 / LKI) before authoring; the counter half is AddCounter over AllPermanentsMatching(Vampire, You)."),
+        completeness: Completeness::partial(
+            "Second trigger unimplemented. Blocker partly stale: \
+             TriggerCondition::WheneverCreatureDies has controller: Option<TargetController> \
+             (card_definition.rs:3048), so 'a creature an opponent controls dies' is expressible \
+             directly — KI-5/overbroad no longer applies. Remaining question is 'exile it': \
+             verify EffectTarget::TriggeringCreature resolves to the graveyard object for \
+             Effect::ExileObject (CR 400.7 / LKI) before authoring; the counter half is \
+             AddCounter over AllPermanentsMatching(Vampire, You).",
+        ),
         ..Default::default()
     }
 }

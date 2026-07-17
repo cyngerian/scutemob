@@ -18,13 +18,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("ossification"),
         name: "Ossification".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            white: 1,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Enchantment], &["Aura"]),
-        oracle_text:
-            "Enchant basic land you control\nWhen Ossification enters the battlefield, exile \
-             target creature or planeswalker an opponent controls until Ossification leaves the \
-             battlefield."
-                .to_string(),
+        oracle_text: "Enchant basic land you control\nWhen Ossification enters the battlefield, \
+                      exile target creature or planeswalker an opponent controls until \
+                      Ossification leaves the battlefield."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Enchant(EnchantTarget::Filtered(
                 enchant_filter,
@@ -38,8 +41,7 @@ pub fn card() -> CardDefinition {
                     return_timing:
                         crate::state::stubs::DelayedTriggerTiming::WhenSourceLeavesBattlefield,
                     return_tapped: false,
-                    return_to:
-                        crate::cards::card_definition::DelayedReturnDestination::Battlefield,
+                    return_to: crate::cards::card_definition::DelayedReturnDestination::Battlefield,
                 },
                 intervening_if: None,
                 targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {

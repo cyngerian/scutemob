@@ -9,9 +9,23 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("ureni-of-the-unwritten"),
         name: "Ureni of the Unwritten".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, green: 1, blue: 1, red: 1, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Spirit", "Dragon"]),
-        oracle_text: "Flying, trample\nWhenever Ureni enters or attacks, look at the top eight cards of your library. You may put a Dragon creature card from among them onto the battlefield. Put the rest on the bottom of your library in a random order.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            green: 1,
+            blue: 1,
+            red: 1,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Creature],
+            &["Spirit", "Dragon"],
+        ),
+        oracle_text: "Flying, trample\nWhenever Ureni enters or attacks, look at the top eight \
+                      cards of your library. You may put a Dragon creature card from among them \
+                      onto the battlefield. Put the rest on the bottom of your library in a \
+                      random order."
+            .to_string(),
         power: Some(7),
         toughness: Some(7),
         abilities: vec![
@@ -25,7 +39,10 @@ pub fn card() -> CardDefinition {
             // TODO: Attack trigger ("whenever Ureni attacks") has the same pattern.
             // Both triggers omitted per W5 policy.
         ],
-        completeness: Completeness::partial("'look at top 8, you may put a Dragon creature card onto the battlefield, rest on bottom in random order'..."),
+        completeness: Completeness::partial(
+            "'look at top 8, you may put a Dragon creature card onto the battlefield, rest on \
+             bottom in random order'...",
+        ),
         ..Default::default()
     }
 }

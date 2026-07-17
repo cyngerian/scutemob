@@ -9,9 +9,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("evolution-charm"),
         name: "Evolution Charm".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Choose one —\n• Search your library for a basic land card, reveal it, put it into your hand, then shuffle.\n• Return target creature card from your graveyard to your hand.\n• Target creature gains flying until end of turn.".to_string(),
+        oracle_text: "Choose one —\n• Search your library for a basic land card, reveal it, put \
+                      it into your hand, then shuffle.\n• Return target creature card from your \
+                      graveyard to your hand.\n• Target creature gains flying until end of turn."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![]),
             // PB-AC4 (CR 700.2c/700.2f): per-mode targets — mode 1 and mode 2 each declare
@@ -30,16 +37,22 @@ pub fn card() -> CardDefinition {
                             player: PlayerTarget::Controller,
                             filter: basic_land_filter(),
                             reveal: true,
-                            destination: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                            destination: ZoneTarget::Hand {
+                                owner: PlayerTarget::Controller,
+                            },
                             shuffle_before_placing: false,
                             also_search_graveyard: false,
                         },
-                        Effect::Shuffle { player: PlayerTarget::Controller },
+                        Effect::Shuffle {
+                            player: PlayerTarget::Controller,
+                        },
                     ]),
                     // Mode 1: Return target creature card from your graveyard to your hand.
                     Effect::MoveZone {
                         target: EffectTarget::DeclaredTarget { index: 0 },
-                        to: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                        to: ZoneTarget::Hand {
+                            owner: PlayerTarget::Controller,
+                        },
                         controller_override: None,
                     },
                     // Mode 2: Target creature gains flying until end of turn.

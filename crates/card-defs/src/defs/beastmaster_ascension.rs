@@ -12,14 +12,23 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("beastmaster-ascension"),
         name: "Beastmaster Ascension".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Whenever a creature you control attacks, you may put a quest counter on this enchantment.\nAs long as this enchantment has seven or more quest counters on it, creatures you control get +5/+5.".to_string(),
+        oracle_text: "Whenever a creature you control attacks, you may put a quest counter on \
+                      this enchantment.\nAs long as this enchantment has seven or more quest \
+                      counters on it, creatures you control get +5/+5."
+            .to_string(),
         abilities: vec![
             // CR 508.1m: "Whenever a creature you control attacks, put a quest counter on this."
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WheneverCreatureYouControlAttacks { filter: None },
+                trigger_condition: TriggerCondition::WheneverCreatureYouControlAttacks {
+                    filter: None,
+                },
                 effect: Effect::AddCounter {
                     target: EffectTarget::Source,
                     counter: CounterType::Quest,

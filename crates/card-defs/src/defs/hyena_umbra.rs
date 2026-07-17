@@ -14,9 +14,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("hyena-umbra"),
         name: "Hyena Umbra".to_string(),
-        mana_cost: Some(ManaCost { white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            white: 1,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Enchantment], &["Aura"]),
-        oracle_text: "Enchant creature\nEnchanted creature gets +1/+1 and has first strike.\nUmbra armor (If enchanted creature would be destroyed, instead remove all damage from it and destroy this Aura.)".to_string(),
+        oracle_text: "Enchant creature\nEnchanted creature gets +1/+1 and has first \
+                      strike.\nUmbra armor (If enchanted creature would be destroyed, instead \
+                      remove all damage from it and destroy this Aura.)"
+            .to_string(),
         abilities: vec![
             // CR 702.5a: Enchant creature — defines legal targets and attachment restriction.
             AbilityDefinition::Keyword(KeywordAbility::Enchant(EnchantTarget::Creature)),

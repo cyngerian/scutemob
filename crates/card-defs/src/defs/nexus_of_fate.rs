@@ -14,9 +14,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("nexus-of-fate"),
         name: "Nexus of Fate".to_string(),
-        mana_cost: Some(ManaCost { generic: 5, blue: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 5,
+            blue: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Take an extra turn after this one.\nIf Nexus of Fate would be put into a graveyard from anywhere, reveal Nexus of Fate and shuffle it into its owner's library instead.".to_string(),
+        oracle_text: "Take an extra turn after this one.\nIf Nexus of Fate would be put into a \
+                      graveyard from anywhere, reveal Nexus of Fate and shuffle it into its \
+                      owner's library instead."
+            .to_string(),
         abilities: vec![
             // CR 500.7: Take an extra turn after this one.
             AbilityDefinition::Spell {
@@ -34,7 +41,10 @@ pub fn card() -> CardDefinition {
         ],
         // CR 614.1a: Shuffle into library instead of going to graveyard on resolution.
         self_shuffle_on_resolution: true,
-        completeness: Completeness::partial("CR 614.1a — 'from anywhere' graveyard replacement (discard, mill, counter) needs full replacement infrastructure for..."),
+        completeness: Completeness::partial(
+            "CR 614.1a — 'from anywhere' graveyard replacement (discard, mill, counter) needs \
+             full replacement infrastructure for...",
+        ),
         ..Default::default()
     }
 }

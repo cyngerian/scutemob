@@ -12,22 +12,38 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("biting-palm-ninja"),
         name: "Biting-Palm Ninja".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Ninja"]),
-        oracle_text: "Ninjutsu {2}{B}\nThis creature enters with a menace counter on it.\nWhenever this creature deals combat damage to a player, you may remove a menace counter from it. When you do, that player reveals their hand and you choose a nonland card from it. Exile that card.".to_string(),
+        oracle_text: "Ninjutsu {2}{B}\nThis creature enters with a menace counter on \
+                      it.\nWhenever this creature deals combat damage to a player, you may remove \
+                      a menace counter from it. When you do, that player reveals their hand and \
+                      you choose a nonland card from it. Exile that card."
+            .to_string(),
         power: Some(3),
         toughness: Some(3),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Ninjutsu),
             AbilityDefinition::Ninjutsu {
-                cost: ManaCost { generic: 2, black: 1, ..Default::default() },
+                cost: ManaCost {
+                    generic: 2,
+                    black: 1,
+                    ..Default::default()
+                },
             },
             // TODO: ETB — enters with a menace counter.
             // DSL gap: CounterType::Menace doesn't exist.
             // TODO: triggered — combat damage to player → may remove menace counter → reveal hand, exile nonland card.
             // DSL gap: no "when you do" chained trigger; no hand-reveal + targeted exile from hand effect.
         ],
-        completeness: Completeness::partial("Blocked on keyword counters (CR 122.1d — a menace counter must grant menace; CounterType::Custom is inert) and on the reflexive 'when you do' trigger chain with hand reveal + choose-and-exile. Ninjutsu is implemented."),
+        completeness: Completeness::partial(
+            "Blocked on keyword counters (CR 122.1d — a menace counter must grant menace; \
+             CounterType::Custom is inert) and on the reflexive 'when you do' trigger chain with \
+             hand reveal + choose-and-exile. Ninjutsu is implemented.",
+        ),
         ..Default::default()
     }
 }

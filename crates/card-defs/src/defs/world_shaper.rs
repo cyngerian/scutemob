@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("world-shaper"),
         name: "World Shaper".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Merfolk", "Shaman"]),
-        oracle_text: "Whenever World Shaper attacks, you may mill three cards.\nWhen World Shaper dies, return all land cards from your graveyard to the battlefield tapped.".to_string(),
+        oracle_text: "Whenever World Shaper attacks, you may mill three cards.\nWhen World Shaper \
+                      dies, return all land cards from your graveyard to the battlefield tapped."
+            .to_string(),
         power: Some(3),
         toughness: Some(3),
         abilities: vec![

@@ -16,12 +16,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("awaken-the-ancient"),
         name: "Awaken the Ancient".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, red: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            red: 3,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Enchantment], &["Aura"]),
-        oracle_text:
-            "Enchant Mountain\nEnchanted Mountain is a 7/7 red Giant creature with haste. \
-             It's still a land."
-                .to_string(),
+        oracle_text: "Enchant Mountain\nEnchanted Mountain is a 7/7 red Giant creature with \
+                      haste. It's still a land."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Enchant(EnchantTarget::Filtered(
                 enchant_filter,
@@ -54,9 +57,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Static {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::ColorChange,
-                    modification: LayerModification::SetColors(
-                        [Color::Red].into_iter().collect(),
-                    ),
+                    modification: LayerModification::SetColors([Color::Red].into_iter().collect()),
                     filter: EffectFilter::AttachedLand,
                     duration: EffectDuration::WhileSourceOnBattlefield,
                     condition: None,
@@ -66,7 +67,10 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Static {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::PtSet,
-                    modification: LayerModification::SetPowerToughness { power: 7, toughness: 7 },
+                    modification: LayerModification::SetPowerToughness {
+                        power: 7,
+                        toughness: 7,
+                    },
                     filter: EffectFilter::AttachedLand,
                     duration: EffectDuration::WhileSourceOnBattlefield,
                     condition: None,

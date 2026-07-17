@@ -8,13 +8,19 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("agent-venom"),
         name: "Agent Venom".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            black: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Symbiote", "Soldier", "Hero"],
         ),
-        oracle_text: "Flash\nMenace\nWhenever another nontoken creature you control dies, you draw a card and lose 1 life.".to_string(),
+        oracle_text: "Flash\nMenace\nWhenever another nontoken creature you control dies, you \
+                      draw a card and lose 1 life."
+            .to_string(),
         power: Some(2),
         toughness: Some(3),
         abilities: vec![
@@ -24,8 +30,12 @@ pub fn card() -> CardDefinition {
             // PB-23: controller_you + exclude_self + nontoken_only filters via DeathTriggerFilter.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You), exclude_self: true, nontoken_only: true, filter: None,
-},
+                trigger_condition: TriggerCondition::WheneverCreatureDies {
+                    controller: Some(TargetController::You),
+                    exclude_self: true,
+                    nontoken_only: true,
+                    filter: None,
+                },
                 effect: Effect::Sequence(vec![
                     Effect::DrawCards {
                         player: PlayerTarget::Controller,

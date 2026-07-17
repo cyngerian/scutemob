@@ -28,7 +28,10 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "If this card is in your opening hand, you may begin the game with it on the battlefield.\nEach nonland permanent you control is all colors.\nLands you control are every basic land type in addition to their other types.".to_string(),
+        oracle_text: "If this card is in your opening hand, you may begin the game with it on the \
+                      battlefield.\nEach nonland permanent you control is all colors.\nLands you \
+                      control are every basic land type in addition to their other types."
+            .to_string(),
         abilities: vec![
             // TODO: Opening-hand leyline placement — DSL gap (no opening-hand-to-battlefield primitive).
             // TODO: "Each nonland permanent you control is all colors" — layer 5 static.
@@ -36,7 +39,14 @@ pub fn card() -> CardDefinition {
             // TODO: "Lands you control are every basic land type" — layer 4 static.
             //   DSL gap: no LayerModification::AddAllBasicLandTypes variant.
         ],
-        completeness: Completeness::partial("'Each nonland permanent you control is all colors' — EffectFilter has no nonland-permanents-you-control variant (ControlledBy(PlayerId) is unfiltered and needs a concrete PlayerId). The other two clauses ARE now expressible: AbilityDefinition::OpeningHand (see leyline_of_the_void.rs) and EffectFilter::LandsYouControl + AddSubtypes(5 basic types) (see dryad_of_the_ilysian_grove.rs)."),
+        completeness: Completeness::partial(
+            "'Each nonland permanent you control is all colors' — EffectFilter has no \
+             nonland-permanents-you-control variant (ControlledBy(PlayerId) is unfiltered and \
+             needs a concrete PlayerId). The other two clauses ARE now expressible: \
+             AbilityDefinition::OpeningHand (see leyline_of_the_void.rs) and \
+             EffectFilter::LandsYouControl + AddSubtypes(5 basic types) (see \
+             dryad_of_the_ilysian_grove.rs).",
+        ),
         ..Default::default()
     }
 }

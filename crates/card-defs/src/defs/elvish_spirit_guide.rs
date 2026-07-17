@@ -10,7 +10,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("elvish-spirit-guide"),
         name: "Elvish Spirit Guide".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Elf", "Spirit"]),
         oracle_text: "Exile this card from your hand: Add {G}.".to_string(),
         power: Some(2),
@@ -22,7 +26,10 @@ pub fn card() -> CardDefinition {
                 cost: Cost::Mana(ManaCost::default()),
                 effect: Effect::AddMana {
                     player: PlayerTarget::Controller,
-                    mana: ManaPool { green: 1, ..Default::default() },
+                    mana: ManaPool {
+                        green: 1,
+                        ..Default::default()
+                    },
                 },
                 timing_restriction: None,
                 targets: vec![],
@@ -31,7 +38,14 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
         ],
-        completeness: Completeness::known_wrong("Oracle: 'Exile this creature from your hand: Add {G}.' Hand activation is inexpressible — ActivationZone (card_definition.rs:4049) has only Graveyard. The def currently ships a FREE, repeatable, battlefield-activated 'Add {G}' (cost: Cost::Mana(default), activation_zone: None) = unbounded infinite mana. Blocked on ActivationZone::Hand + an exile-self-from-hand cost. Consider abilities: vec![] per W5 until then."),
+        completeness: Completeness::known_wrong(
+            "Oracle: 'Exile this creature from your hand: Add {G}.' Hand activation is \
+             inexpressible — ActivationZone (card_definition.rs:4049) has only Graveyard. The def \
+             currently ships a FREE, repeatable, battlefield-activated 'Add {G}' (cost: \
+             Cost::Mana(default), activation_zone: None) = unbounded infinite mana. Blocked on \
+             ActivationZone::Hand + an exile-self-from-hand cost. Consider abilities: vec![] per \
+             W5 until then.",
+        ),
         ..Default::default()
     }
 }

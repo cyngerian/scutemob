@@ -9,9 +9,20 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("enduring-vitality"),
         name: "Enduring Vitality".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, green: 2, ..Default::default() }),
-        types: types_sub(&[CardType::Enchantment, CardType::Creature], &["Elk", "Glimmer"]),
-        oracle_text: "Vigilance\nCreatures you control have \"{T}: Add one mana of any color.\"\nWhen Enduring Vitality dies, if it was a creature, return it to the battlefield under its owner's control. It's an enchantment. (It's not a creature.)".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            green: 2,
+            ..Default::default()
+        }),
+        types: types_sub(
+            &[CardType::Enchantment, CardType::Creature],
+            &["Elk", "Glimmer"],
+        ),
+        oracle_text: "Vigilance\nCreatures you control have \"{T}: Add one mana of any \
+                      color.\"\nWhen Enduring Vitality dies, if it was a creature, return it to \
+                      the battlefield under its owner's control. It's an enchantment. (It's not a \
+                      creature.)"
+            .to_string(),
         power: Some(3),
         toughness: Some(3),
         abilities: vec![
@@ -37,7 +48,10 @@ pub fn card() -> CardDefinition {
             // TODO: die-return-as-enchantment (Enduring cycle mechanic — zone-change
             // replacement + type change not yet in DSL)
         ],
-        completeness: Completeness::partial("die-return-as-enchantment (Enduring cycle mechanic — zone-change replacement + type change not yet in DSL)"),
+        completeness: Completeness::partial(
+            "die-return-as-enchantment (Enduring cycle mechanic — zone-change replacement + type \
+             change not yet in DSL)",
+        ),
         ..Default::default()
     }
 }

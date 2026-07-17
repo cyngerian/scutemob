@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("fathom-mage"),
         name: "Fathom Mage".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 1, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 1,
+            blue: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Wizard"]),
-        oracle_text: "Evolve\nWhenever a +1/+1 counter is put on Fathom Mage, you may draw a card.".to_string(),
+        oracle_text: "Evolve\nWhenever a +1/+1 counter is put on Fathom Mage, you may draw a card."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
@@ -40,7 +46,10 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("(optional-draw): oracle says 'you MAY draw' — the DSL has no optional-effect wrapper, so this is authored as a..."),
+        completeness: Completeness::partial(
+            "(optional-draw): oracle says 'you MAY draw' — the DSL has no optional-effect \
+             wrapper, so this is authored as a...",
+        ),
         ..Default::default()
     }
 }

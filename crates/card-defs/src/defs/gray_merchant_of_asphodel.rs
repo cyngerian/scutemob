@@ -10,9 +10,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("gray-merchant-of-asphodel"),
         name: "Gray Merchant of Asphodel".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            black: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Zombie"]),
-        oracle_text: "When this creature enters, each opponent loses X life, where X is your devotion to black. You gain life equal to the life lost this way. (Each {B} in the mana costs of permanents you control counts toward your devotion to black.)".to_string(),
+        oracle_text: "When this creature enters, each opponent loses X life, where X is your \
+                      devotion to black. You gain life equal to the life lost this way. (Each {B} \
+                      in the mana costs of permanents you control counts toward your devotion to \
+                      black.)"
+            .to_string(),
         power: Some(2),
         toughness: Some(4),
         abilities: vec![

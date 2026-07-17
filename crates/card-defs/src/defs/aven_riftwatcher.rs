@@ -6,9 +6,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("aven-riftwatcher"),
         name: "Aven Riftwatcher".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            white: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Bird", "Rebel", "Soldier"]),
-        oracle_text: "Flying\nVanishing 3 (This creature enters with three time counters on it. At the beginning of your upkeep, remove a time counter from it. When the last is removed, sacrifice it.)\nWhen this creature enters or leaves the battlefield, you gain 2 life."
+        oracle_text: "Flying\nVanishing 3 (This creature enters with three time counters on it. \
+                      At the beginning of your upkeep, remove a time counter from it. When the \
+                      last is removed, sacrifice it.)\nWhen this creature enters or leaves the \
+                      battlefield, you gain 2 life."
             .to_string(),
         power: Some(2),
         toughness: Some(3),
@@ -55,6 +62,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

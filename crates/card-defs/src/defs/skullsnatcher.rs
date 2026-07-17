@@ -23,15 +23,26 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("skullsnatcher"),
         name: "Skullsnatcher".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Rat", "Ninja"]),
-        oracle_text: "Ninjutsu {B} ({B}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)\nWhenever this creature deals combat damage to a player, exile up to two target cards from that player's graveyard.".to_string(),
+        oracle_text: "Ninjutsu {B} ({B}, Return an unblocked attacker you control to hand: Put \
+                      this card onto the battlefield from your hand tapped and \
+                      attacking.)\nWhenever this creature deals combat damage to a player, exile \
+                      up to two target cards from that player's graveyard."
+            .to_string(),
         power: Some(2),
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Ninjutsu),
             AbilityDefinition::Ninjutsu {
-                cost: ManaCost { black: 1, ..Default::default() },
+                cost: ManaCost {
+                    black: 1,
+                    ..Default::default()
+                },
             },
             // CR 510.3a: "Whenever this deals combat damage, exile up to two cards from
             // that player's graveyard." See file-level comment for the residual auto-target
@@ -59,7 +70,10 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("(residual, documented — NOT fixed by this migration): this is a *triggered* ability. `abilities.rs`'s trigger..."),
+        completeness: Completeness::partial(
+            "(residual, documented — NOT fixed by this migration): this is a *triggered* ability. \
+             `abilities.rs`'s trigger...",
+        ),
         ..Default::default()
     }
 }

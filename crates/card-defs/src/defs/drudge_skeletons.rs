@@ -6,22 +6,29 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("drudge-skeletons"),
         name: "Drudge Skeletons".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Skeleton"]),
         oracle_text: "{B}: Regenerate Drudge Skeletons.".to_string(),
         power: Some(1),
         toughness: Some(1),
-        abilities: vec![
-            AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { black: 1, ..Default::default() }),
-                effect: Effect::Regenerate { target: EffectTarget::Source },
-                timing_restriction: None,
-                targets: vec![],
-                activation_condition: None,
-                activation_zone: None,
-            once_per_turn: false,
+        abilities: vec![AbilityDefinition::Activated {
+            cost: Cost::Mana(ManaCost {
+                black: 1,
+                ..Default::default()
+            }),
+            effect: Effect::Regenerate {
+                target: EffectTarget::Source,
             },
-        ],
+            timing_restriction: None,
+            targets: vec![],
+            activation_condition: None,
+            activation_zone: None,
+            once_per_turn: false,
+        }],
         color_indicator: None,
         back_face: None,
         spell_cost_modifiers: vec![],
@@ -34,6 +41,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

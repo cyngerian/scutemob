@@ -11,9 +11,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("skyclave-apparition"),
         name: "Skyclave Apparition".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, white: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            white: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Kor", "Spirit"]),
-        oracle_text: "When this creature enters, exile up to one target nonland, nontoken permanent you don't control with mana value 4 or less.\nWhen this creature leaves the battlefield, the exiled card's owner creates an X/X blue Illusion creature token, where X is the mana value of the exiled card.".to_string(),
+        oracle_text: "When this creature enters, exile up to one target nonland, nontoken \
+                      permanent you don't control with mana value 4 or less.\nWhen this creature \
+                      leaves the battlefield, the exiled card's owner creates an X/X blue \
+                      Illusion creature token, where X is the mana value of the exiled card."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -47,7 +55,12 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("ETB filter is over-permissive (any permanent an opponent controls): non_land + max_cmc: Some(4) are shipped and should be applied; is_nontoken exists but needs call-site enforcement. LTB clause is unimplemented (Effect::Nothing) — requires exiled-by-source tracking and token P/T = exiled card's mana value."),
+        completeness: Completeness::partial(
+            "ETB filter is over-permissive (any permanent an opponent controls): non_land + \
+             max_cmc: Some(4) are shipped and should be applied; is_nontoken exists but needs \
+             call-site enforcement. LTB clause is unimplemented (Effect::Nothing) — requires \
+             exiled-by-source tracking and token P/T = exiled card's mana value.",
+        ),
         ..Default::default()
     }
 }

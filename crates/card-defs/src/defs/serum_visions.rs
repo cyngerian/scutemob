@@ -6,7 +6,10 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("serum-visions"),
         name: "Serum Visions".to_string(),
-        mana_cost: Some(ManaCost { blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            blue: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
         oracle_text: "Draw a card. Scry 2.".to_string(),
         abilities: vec![AbilityDefinition::Spell {

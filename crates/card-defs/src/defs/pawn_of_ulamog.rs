@@ -7,9 +7,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("pawn-of-ulamog"),
         name: "Pawn of Ulamog".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Vampire", "Shaman"]),
-        oracle_text: "Whenever Pawn of Ulamog or another nontoken creature you control dies, you may create a 0/1 colorless Eldrazi Spawn creature token. It has \"Sacrifice this creature: Add {C}.\"".to_string(),
+        oracle_text: "Whenever Pawn of Ulamog or another nontoken creature you control dies, you \
+                      may create a 0/1 colorless Eldrazi Spawn creature token. It has \"Sacrifice \
+                      this creature: Add {C}.\""
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -18,13 +25,19 @@ pub fn card() -> CardDefinition {
             // Note: "Pawn of Ulamog or another" = self included, so exclude_self: false.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You), exclude_self: false, nontoken_only: true, filter: None,
-},
+                trigger_condition: TriggerCondition::WheneverCreatureDies {
+                    controller: Some(TargetController::You),
+                    exclude_self: false,
+                    nontoken_only: true,
+                    filter: None,
+                },
                 effect: Effect::CreateToken {
                     spec: TokenSpec {
                         name: "Eldrazi Spawn".to_string(),
                         card_types: [CardType::Creature].into_iter().collect(),
-                        subtypes: [SubType("Eldrazi".to_string()), SubType("Spawn".to_string())].into_iter().collect(),
+                        subtypes: [SubType("Eldrazi".to_string()), SubType("Spawn".to_string())]
+                            .into_iter()
+                            .collect(),
                         colors: imbl::OrdSet::new(),
                         power: 0,
                         toughness: 1,

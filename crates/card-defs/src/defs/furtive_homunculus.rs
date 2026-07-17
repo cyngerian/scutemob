@@ -5,7 +5,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("furtive-homunculus"),
         name: "Furtive Homunculus".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            blue: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Homunculus"]),
         oracle_text: "Skulk (This creature can't be blocked by creatures with greater power.)"
             .to_string(),
@@ -24,6 +28,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

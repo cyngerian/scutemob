@@ -7,7 +7,10 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("faerie-seer"),
         name: "Faerie Seer".to_string(),
-        mana_cost: Some(ManaCost { blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            blue: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Faerie", "Wizard"]),
         oracle_text: "Flying\nWhen this creature enters, scry 2.".to_string(),
         power: Some(1),

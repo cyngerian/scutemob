@@ -6,8 +6,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("azusa-lost-but-seeking"),
         name: "Azusa, Lost but Seeking".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 1, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Human", "Monk"]),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 1,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Creature],
+            &["Human", "Monk"],
+        ),
         oracle_text: "You may play two additional lands on each of your turns.".to_string(),
         power: Some(1),
         toughness: Some(2),

@@ -13,13 +13,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("darksteel-colossus"),
         name: "Darksteel Colossus".to_string(),
-        mana_cost: Some(ManaCost { generic: 11, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 11,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Artifact, CardType::Creature], &["Golem"]),
-        oracle_text:
-            "Trample, indestructible.\n\
-             If Darksteel Colossus would be put into a graveyard from anywhere, reveal it \
-             and shuffle it into its owner's library instead."
-                .to_string(),
+        oracle_text: "Trample, indestructible.\nIf Darksteel Colossus would be put into a \
+                      graveyard from anywhere, reveal it and shuffle it into its owner's library \
+                      instead."
+            .to_string(),
         power: Some(11),
         toughness: Some(11),
         abilities: vec![
@@ -51,6 +53,9 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::known_wrong("the 'reveal it' clause is not modelled; the shuffle-into-owner's-library replacement itself is correct (ReplacementModification::ShuffleIntoOwnerLibrary)"),
+        completeness: Completeness::known_wrong(
+            "the 'reveal it' clause is not modelled; the shuffle-into-owner's-library replacement \
+             itself is correct (ReplacementModification::ShuffleIntoOwnerLibrary)",
+        ),
     }
 }

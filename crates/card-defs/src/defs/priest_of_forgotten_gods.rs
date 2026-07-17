@@ -7,16 +7,29 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("priest-of-forgotten-gods"),
         name: "Priest of Forgotten Gods".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Cleric"]),
-        oracle_text: "{T}, Sacrifice two other creatures: Any number of target players each lose 2 life and sacrifice a creature of their choice. You add {B}{B} and draw a card.".to_string(),
+        oracle_text: "{T}, Sacrifice two other creatures: Any number of target players each lose \
+                      2 life and sacrifice a creature of their choice. You add {B}{B} and draw a \
+                      card."
+            .to_string(),
         power: Some(1),
         toughness: Some(2),
         abilities: vec![
             // TODO: "Tap, Sacrifice two other creatures" cost — sacrificing self instead of
             //   two others is wrong game state. Complex multi-target effect not expressible.
         ],
-        completeness: Completeness::partial("Blocked on the effect, not the cost: 'any number of target players' has no variable-count player TargetRequirement, and 'each sacrifices a creature of their choice' needs per-player interactive choice. Cost::Sacrifice(TargetFilter) + Cost::Sequence + Cost::Tap now exist for the activation cost — verify Cost::Sacrifice supports a count of 2 and an exclude-self filter."),
+        completeness: Completeness::partial(
+            "Blocked on the effect, not the cost: 'any number of target players' has no \
+             variable-count player TargetRequirement, and 'each sacrifices a creature of their \
+             choice' needs per-player interactive choice. Cost::Sacrifice(TargetFilter) + \
+             Cost::Sequence + Cost::Tap now exist for the activation cost — verify \
+             Cost::Sacrifice supports a count of 2 and an exclude-self filter.",
+        ),
         ..Default::default()
     }
 }

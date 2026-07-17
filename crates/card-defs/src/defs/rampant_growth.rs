@@ -5,9 +5,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("rampant-growth"),
         name: "Rampant Growth".to_string(),
-        mana_cost: Some(ManaCost { green: 1, generic: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            green: 1,
+            generic: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.".to_string(),
+        oracle_text: "Search your library for a basic land card, put it onto the battlefield \
+                      tapped, then shuffle."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![
                 Effect::SearchLibrary {
@@ -18,7 +24,9 @@ pub fn card() -> CardDefinition {
                     shuffle_before_placing: false,
                     also_search_graveyard: false,
                 },
-                Effect::Shuffle { player: PlayerTarget::Controller },
+                Effect::Shuffle {
+                    player: PlayerTarget::Controller,
+                },
             ]),
             targets: vec![],
             modes: None,

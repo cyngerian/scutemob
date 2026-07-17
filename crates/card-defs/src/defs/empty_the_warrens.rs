@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("empty-the-warrens"),
         name: "Empty the Warrens".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            red: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Create two 1/1 red Goblin creature tokens.\nStorm (When you cast this spell, copy it for each spell cast before it this turn.)".to_string(),
+        oracle_text: "Create two 1/1 red Goblin creature tokens.\nStorm (When you cast this \
+                      spell, copy it for each spell cast before it this turn.)"
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Spell {
                 effect: Effect::CreateToken {

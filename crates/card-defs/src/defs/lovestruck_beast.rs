@@ -13,7 +13,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("lovestruck-beast-hearts-desire"),
         name: "Lovestruck Beast // Heart's Desire".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 1,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Creature], &["Beast", "Noble"]),
         oracle_text: "Lovestruck Beast can't attack unless you control a 1/1 creature.".to_string(),
         power: Some(5),
@@ -25,13 +29,13 @@ pub fn card() -> CardDefinition {
         // CR 715.2: Adventure face — Heart's Desire.
         adventure_face: Some(CardFace {
             name: "Heart's Desire".to_string(),
-            mana_cost: Some(ManaCost { green: 1, ..Default::default() }),
+            mana_cost: Some(ManaCost {
+                green: 1,
+                ..Default::default()
+            }),
             types: TypeLine {
                 card_types: [CardType::Sorcery].iter().copied().collect(),
-                subtypes: [SubType("Adventure".to_string())]
-                    .iter()
-                    .cloned()
-                    .collect(),
+                subtypes: [SubType("Adventure".to_string())].iter().cloned().collect(),
                 supertypes: Default::default(),
             },
             oracle_text: "Create a 1/1 white Human creature token.".to_string(),
@@ -59,7 +63,9 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             }],
         }),
-        completeness: Completeness::partial("Attack restriction 'can't attack unless you control a 1/1 creature' — DSL gap: no..."),
+        completeness: Completeness::partial(
+            "Attack restriction 'can't attack unless you control a 1/1 creature' — DSL gap: no...",
+        ),
         ..Default::default()
     }
 }

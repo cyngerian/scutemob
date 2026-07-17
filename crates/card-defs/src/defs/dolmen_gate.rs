@@ -12,16 +12,24 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("dolmen-gate"),
         name: "Dolmen Gate".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "Prevent all combat damage that would be dealt to attacking creatures you control.".to_string(),
+        oracle_text: "Prevent all combat damage that would be dealt to attacking creatures you \
+                      control."
+            .to_string(),
         abilities: vec![
             // TODO: No static replacement effect with filter "attacking creatures you control" exists.
             // Effect::PreventAllCombatDamage is too broad (prevents damage to all creatures).
             // DSL gap: ReplacementModification::PreventCombatDamageTo { filter: attacking_you_control }
             // needed. Omitted per W5 policy.
         ],
-        completeness: Completeness::partial("Effect::PreventAllCombatDamage prevents ALL combat damage (attacker and defender). Oracle says 'to attacking creatures..."),
+        completeness: Completeness::partial(
+            "Effect::PreventAllCombatDamage prevents ALL combat damage (attacker and defender). \
+             Oracle says 'to attacking creatures...",
+        ),
         ..Default::default()
     }
 }

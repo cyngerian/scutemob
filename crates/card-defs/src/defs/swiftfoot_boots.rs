@@ -8,7 +8,10 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("swiftfoot-boots"),
         name: "Swiftfoot Boots".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Artifact], &["Equipment"]),
         oracle_text: "Equipped creature has haste and hexproof.\nEquip {1}".to_string(),
         abilities: vec![
@@ -29,7 +32,10 @@ pub fn card() -> CardDefinition {
             // Equip {1}: attach this Equipment to target creature you control.
             // CR 702.6b: Equip is an activated ability; sorcery speed (CR 702.6d).
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { generic: 1, ..Default::default() }), // Equip {1}
+                cost: Cost::Mana(ManaCost {
+                    generic: 1,
+                    ..Default::default()
+                }), // Equip {1}
                 effect: Effect::AttachEquipment {
                     equipment: EffectTarget::Source,
                     target: EffectTarget::DeclaredTarget { index: 0 },
@@ -38,7 +44,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

@@ -10,9 +10,13 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("exsanguinate"),
         name: "Exsanguinate".to_string(),
-        mana_cost: Some(ManaCost { black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Each opponent loses X life. You gain life equal to the life lost this way.".to_string(),
+        oracle_text: "Each opponent loses X life. You gain life equal to the life lost this way."
+            .to_string(),
         abilities: vec![
             // TODO: X spells — "each opponent loses X life, you gain that much."
             // DrainLife exists but EffectAmount::XValue is not yet wired into DrainLife's
@@ -20,7 +24,14 @@ pub fn card() -> CardDefinition {
             //   Effect::DrainLife { amount: EffectAmount::XValue }
             // W5: a Fixed(0) placeholder would produce wrong game state — omitted.
         ],
-        completeness: Completeness::partial("Rewire only: mana_cost: Some(ManaCost { black: 2, x_count: 1, ..default }) (currently missing x_count — the card is mis-costed as {B}{B}) and abilities: vec![AbilityDefinition::Spell { effect: Effect::DrainLife { amount: EffectAmount::XValue }, .. }]. DrainLife already resolves XValue via resolve_amount (effects/mod.rs:544-546); precedents goblin_negotiation.rs:10,18 and cut_ribbons.rs:42,48. Expected to reach Complete."),
+        completeness: Completeness::partial(
+            "Rewire only: mana_cost: Some(ManaCost { black: 2, x_count: 1, ..default }) \
+             (currently missing x_count — the card is mis-costed as {B}{B}) and abilities: \
+             vec![AbilityDefinition::Spell { effect: Effect::DrainLife { amount: \
+             EffectAmount::XValue }, .. }]. DrainLife already resolves XValue via resolve_amount \
+             (effects/mod.rs:544-546); precedents goblin_negotiation.rs:10,18 and \
+             cut_ribbons.rs:42,48. Expected to reach Complete.",
+        ),
         ..Default::default()
     }
 }

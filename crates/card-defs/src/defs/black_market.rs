@@ -8,15 +8,26 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("black-market"),
         name: "Black Market".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            black: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Whenever a creature dies, put a charge counter on Black Market.\nAt the beginning of your first main phase, add {B} for each charge counter on Black Market.".to_string(),
+        oracle_text: "Whenever a creature dies, put a charge counter on Black Market.\nAt the \
+                      beginning of your first main phase, add {B} for each charge counter on \
+                      Black Market."
+            .to_string(),
         abilities: vec![
             // "Whenever a creature dies" = any creature, no filter needed.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: None, exclude_self: false, nontoken_only: false, filter: None,
-},
+                trigger_condition: TriggerCondition::WheneverCreatureDies {
+                    controller: None,
+                    exclude_self: false,
+                    nontoken_only: false,
+                    filter: None,
+                },
                 effect: Effect::AddCounter {
                     target: EffectTarget::Source,
                     counter: CounterType::Charge,

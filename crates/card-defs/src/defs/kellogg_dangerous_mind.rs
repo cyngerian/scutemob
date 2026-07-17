@@ -14,9 +14,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("kellogg-dangerous-mind"),
         name: "Kellogg, Dangerous Mind".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 1, red: 1, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Human", "Mercenary"]),
-        oracle_text: "First strike, haste\nWhenever Kellogg attacks, create a Treasure token.\nSacrifice five Treasures: Gain control of target creature for as long as you control Kellogg. Activate only as a sorcery.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 1,
+            red: 1,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Creature],
+            &["Human", "Mercenary"],
+        ),
+        oracle_text: "First strike, haste\nWhenever Kellogg attacks, create a Treasure \
+                      token.\nSacrifice five Treasures: Gain control of target creature for as \
+                      long as you control Kellogg. Activate only as a sorcery."
+            .to_string(),
         power: Some(3),
         toughness: Some(2),
         abilities: vec![
@@ -37,7 +49,12 @@ pub fn card() -> CardDefinition {
             // TODO: "Sacrifice five Treasures: Gain control of target creature for as long as
             // you control Kellogg." — see comment above.
         ],
-        completeness: Completeness::partial("'Sacrifice five Treasures:' — Cost::Sacrifice(TargetFilter) has no count field; sacrificing N permanents of a subtype as an activation cost is not expressible. (GainControl + 'for as long as you control this' duration ARE available — Dragonlord Silumgar pattern.)"),
+        completeness: Completeness::partial(
+            "'Sacrifice five Treasures:' — Cost::Sacrifice(TargetFilter) has no count field; \
+             sacrificing N permanents of a subtype as an activation cost is not expressible. \
+             (GainControl + 'for as long as you control this' duration ARE available — Dragonlord \
+             Silumgar pattern.)",
+        ),
         ..Default::default()
     }
 }

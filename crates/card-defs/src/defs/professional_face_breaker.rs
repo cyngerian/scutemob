@@ -11,9 +11,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("professional-face-breaker"),
         name: "Professional Face-Breaker".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Warrior"]),
-        oracle_text: "Menace\nWhenever one or more creatures you control deal combat damage to a player, create a Treasure token.\nSacrifice a Treasure: Exile the top card of your library. You may play that card this turn.".to_string(),
+        oracle_text: "Menace\nWhenever one or more creatures you control deal combat damage to a \
+                      player, create a Treasure token.\nSacrifice a Treasure: Exile the top card \
+                      of your library. You may play that card this turn."
+            .to_string(),
         power: Some(2),
         toughness: Some(3),
         abilities: vec![
@@ -22,7 +29,10 @@ pub fn card() -> CardDefinition {
             // damage to a player, create a Treasure token." — batch trigger (fires once).
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer { filter: None },
+                trigger_condition:
+                    TriggerCondition::WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer {
+                        filter: None,
+                    },
                 effect: Effect::CreateToken {
                     spec: treasure_token_spec(1),
                 },
@@ -34,7 +44,9 @@ pub fn card() -> CardDefinition {
             },
             // TODO: "Sacrifice a Treasure: Exile the top card of your library. You may play that card this turn." — impulse draw not expressible.
         ],
-        completeness: Completeness::partial("'Sacrifice a Treasure: exile top card + impulse draw' not expressible"),
+        completeness: Completeness::partial(
+            "'Sacrifice a Treasure: exile top card + impulse draw' not expressible",
+        ),
         ..Default::default()
     }
 }

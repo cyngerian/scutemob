@@ -12,21 +12,24 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("hardened-scales"),
         name: "Hardened Scales".to_string(),
-        mana_cost: Some(ManaCost { green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "If one or more +1/+1 counters would be put on a creature you control, that many plus one +1/+1 counters are put on it instead.".to_string(),
-        abilities: vec![
-            AbilityDefinition::Replacement {
-                trigger: ReplacementTrigger::WouldPlaceCounters {
-                    placer_filter: PlayerFilter::Any,
-                    receiver_filter: ObjectFilter::CreatureControlledBy(PlayerId(0)),
-                    counter_filter: Some(CounterType::PlusOnePlusOne),
-                },
-                modification: ReplacementModification::AddExtraCounter,
-                is_self: false,
-                unless_condition: None,
+        oracle_text: "If one or more +1/+1 counters would be put on a creature you control, that \
+                      many plus one +1/+1 counters are put on it instead."
+            .to_string(),
+        abilities: vec![AbilityDefinition::Replacement {
+            trigger: ReplacementTrigger::WouldPlaceCounters {
+                placer_filter: PlayerFilter::Any,
+                receiver_filter: ObjectFilter::CreatureControlledBy(PlayerId(0)),
+                counter_filter: Some(CounterType::PlusOnePlusOne),
             },
-        ],
+            modification: ReplacementModification::AddExtraCounter,
+            is_self: false,
+            unless_condition: None,
+        }],
         ..Default::default()
     }
 }

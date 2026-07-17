@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("crossway-troublemakers"),
         name: "Crossway Troublemakers".to_string(),
-        mana_cost: Some(ManaCost { generic: 5, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 5,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Vampire"]),
-        oracle_text: "Attacking Vampires you control have deathtouch and lifelink.\nWhenever a Vampire you control dies, you may pay 2 life. If you do, draw a card.".to_string(),
+        oracle_text: "Attacking Vampires you control have deathtouch and lifelink.\nWhenever a \
+                      Vampire you control dies, you may pay 2 life. If you do, draw a card."
+            .to_string(),
         power: Some(5),
         toughness: Some(5),
         abilities: vec![
@@ -18,9 +24,9 @@ pub fn card() -> CardDefinition {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::Ability,
                     modification: LayerModification::AddKeyword(KeywordAbility::Deathtouch),
-                    filter: EffectFilter::AttackingCreaturesYouControlWithSubtype(
-                        SubType("Vampire".to_string()),
-                    ),
+                    filter: EffectFilter::AttackingCreaturesYouControlWithSubtype(SubType(
+                        "Vampire".to_string(),
+                    )),
                     duration: EffectDuration::WhileSourceOnBattlefield,
                     condition: None,
                 },
@@ -30,9 +36,9 @@ pub fn card() -> CardDefinition {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::Ability,
                     modification: LayerModification::AddKeyword(KeywordAbility::Lifelink),
-                    filter: EffectFilter::AttackingCreaturesYouControlWithSubtype(
-                        SubType("Vampire".to_string()),
-                    ),
+                    filter: EffectFilter::AttackingCreaturesYouControlWithSubtype(SubType(
+                        "Vampire".to_string(),
+                    )),
                     duration: EffectDuration::WhileSourceOnBattlefield,
                     condition: None,
                 },

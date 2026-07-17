@@ -16,14 +16,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("akroma-angel-of-fury"),
         name: "Akroma, Angel of Fury".to_string(),
-        mana_cost: Some(ManaCost { generic: 5, red: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 5,
+            red: 3,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Creature], &["Angel"]),
-        oracle_text:
-            "Flying, trample, protection from white and from blue.\n\
-             Akroma, Angel of Fury can't be countered.\n\
-             {R}: Akroma, Angel of Fury gets +1/+0 until end of turn.\n\
-             Morph {R}{R}{R}"
-                .to_string(),
+        oracle_text: "Flying, trample, protection from white and from blue.\nAkroma, Angel of \
+                      Fury can't be countered.\n{R}: Akroma, Angel of Fury gets +1/+0 until end \
+                      of turn.\nMorph {R}{R}{R}"
+            .to_string(),
         power: Some(6),
         toughness: Some(6),
         abilities: vec![
@@ -38,7 +40,12 @@ pub fn card() -> CardDefinition {
             // "Can't be countered" — DSL gap, omitted.
             // {R}: +1/+0 activated ability — DSL gap (no self-pump with color cost), omitted.
             AbilityDefinition::Keyword(KeywordAbility::Morph),
-            AbilityDefinition::Morph { cost: ManaCost { red: 3, ..Default::default() } },
+            AbilityDefinition::Morph {
+                cost: ManaCost {
+                    red: 3,
+                    ..Default::default()
+                },
+            },
         ],
         color_indicator: None,
         back_face: None,
@@ -52,6 +59,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

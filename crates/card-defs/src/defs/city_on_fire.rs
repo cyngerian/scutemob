@@ -7,9 +7,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("city-on-fire"),
         name: "City on Fire".to_string(),
-        mana_cost: Some(ManaCost { generic: 5, red: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 5,
+            red: 3,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nIf a source you control would deal damage to a permanent or player, it deals triple that damage instead.".to_string(),
+        oracle_text: "Convoke (Your creatures can help cast this spell. Each creature you tap \
+                      while casting this spell pays for {1} or one mana of that creature's \
+                      color.)\nIf a source you control would deal damage to a permanent or \
+                      player, it deals triple that damage instead."
+            .to_string(),
         abilities: vec![
             // CR 702.51: Convoke — creatures you control can help pay the mana cost.
             AbilityDefinition::Keyword(KeywordAbility::Convoke),

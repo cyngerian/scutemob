@@ -8,9 +8,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("ram-through"),
         name: "Ram Through".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Target creature you control deals damage equal to its power to target creature you don't control. If the creature you control has trample, excess damage is dealt to that creature's controller instead.".to_string(),
+        oracle_text: "Target creature you control deals damage equal to its power to target \
+                      creature you don't control. If the creature you control has trample, excess \
+                      damage is dealt to that creature's controller instead."
+            .to_string(),
         abilities: vec![
             // CR 701.14 (one-sided Bite): target[0] (you control) deals damage equal to its
             // power to target[1] (opponent controls). Only one creature deals damage (no fight).
@@ -36,7 +43,10 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::partial("The trample excess-damage clause ('if the creature you control has trample, excess damage is dealt to that creature's..."),
+        completeness: Completeness::partial(
+            "The trample excess-damage clause ('if the creature you control has trample, excess \
+             damage is dealt to that creature's...",
+        ),
         ..Default::default()
     }
 }

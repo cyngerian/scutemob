@@ -9,13 +9,23 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("sarkhan-unbroken"),
         name: "Sarkhan Unbroken".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 1, blue: 1, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 1,
+            blue: 1,
+            red: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Planeswalker],
             &["Sarkhan"],
         ),
-        oracle_text: "+1: Draw a card, then add one mana of any color.\n\u{2212}2: Create a 4/4 red Dragon creature token with flying.\n\u{2212}8: Search your library for any number of Dragon creature cards, put them onto the battlefield, then shuffle.".to_string(),
+        oracle_text: "+1: Draw a card, then add one mana of any color.\n\u{2212}2: Create a 4/4 \
+                      red Dragon creature token with flying.\n\u{2212}8: Search your library for \
+                      any number of Dragon creature cards, put them onto the battlefield, then \
+                      shuffle."
+            .to_string(),
         starting_loyalty: Some(4),
         abilities: vec![
             // +1: Draw + add mana
@@ -67,7 +77,12 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
-        completeness: Completeness::partial("two gaps. (1) '+1: add one mana of any color' — interactive color choice is M10-deferred (Effect::AddManaAnyColor resolves to colorless at effects/mod.rs:2120), so green is hardcoded. (2) '-8: search for any number of Dragon creature cards' is Effect::Nothing — SearchLibrary has no variable/any-number count."),
+        completeness: Completeness::partial(
+            "two gaps. (1) '+1: add one mana of any color' — interactive color choice is \
+             M10-deferred (Effect::AddManaAnyColor resolves to colorless at effects/mod.rs:2120), \
+             so green is hardcoded. (2) '-8: search for any number of Dragon creature cards' is \
+             Effect::Nothing — SearchLibrary has no variable/any-number count.",
+        ),
         ..Default::default()
     }
 }

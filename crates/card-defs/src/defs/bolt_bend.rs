@@ -9,9 +9,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("bolt-bend"),
         name: "Bolt Bend".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            red: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "This spell costs {3} less to cast if you control a creature with power 4 or greater.\nChange the target of target spell or ability with a single target.".to_string(),
+        oracle_text: "This spell costs {3} less to cast if you control a creature with power 4 or \
+                      greater.\nChange the target of target spell or ability with a single target."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             // CR 115.7a: Change the target of target spell or ability with a single target.
             // must_change: true — the target MUST be changed to a different legal target.

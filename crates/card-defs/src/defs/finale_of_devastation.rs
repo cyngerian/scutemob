@@ -14,7 +14,11 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Search your library and/or graveyard for a creature card with mana value X or less and put it onto the battlefield. If you search your library this way, shuffle. If X is 10 or more, creatures you control get +X/+X and gain haste until end of turn.".to_string(),
+        oracle_text: "Search your library and/or graveyard for a creature card with mana value X \
+                      or less and put it onto the battlefield. If you search your library this \
+                      way, shuffle. If X is 10 or more, creatures you control get +X/+X and gain \
+                      haste until end of turn."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![
                 // CR 701.23: Search library and/or graveyard for a creature card.
@@ -70,7 +74,10 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("max_cmc should be dynamic (XValue) — TargetFilter.max_cmc is Option<u32>, not EffectAmount. Dynamic MV filter deferred..."),
+        completeness: Completeness::partial(
+            "max_cmc should be dynamic (XValue) — TargetFilter.max_cmc is Option<u32>, not \
+             EffectAmount. Dynamic MV filter deferred...",
+        ),
         ..Default::default()
     }
 }

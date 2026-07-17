@@ -7,9 +7,19 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("talrand-sky-summoner"),
         name: "Talrand, Sky Summoner".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, blue: 2, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Merfolk", "Wizard"]),
-        oracle_text: "Whenever you cast an instant or sorcery spell, create a 2/2 blue Drake creature token with flying.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            blue: 2,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Creature],
+            &["Merfolk", "Wizard"],
+        ),
+        oracle_text: "Whenever you cast an instant or sorcery spell, create a 2/2 blue Drake \
+                      creature token with flying."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -21,7 +31,7 @@ pub fn card() -> CardDefinition {
                     spell_type_filter: Some(vec![CardType::Instant, CardType::Sorcery]),
                     noncreature_only: false,
                     chosen_subtype_filter: false,
-                spell_subtype_filter: None,
+                    spell_subtype_filter: None,
                 },
                 effect: Effect::CreateToken {
                     spec: TokenSpec {

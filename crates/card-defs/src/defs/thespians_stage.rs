@@ -14,7 +14,9 @@ pub fn card() -> CardDefinition {
         name: "Thespian's Stage".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}: Add {C}.\n{2}, {T}: This land becomes a copy of target land, except it has this ability.".to_string(),
+        oracle_text: "{T}: Add {C}.\n{2}, {T}: This land becomes a copy of target land, except it \
+                      has this ability."
+            .to_string(),
         abilities: vec![
             // {T}: Add {C}
             AbilityDefinition::Activated {
@@ -27,7 +29,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {2}, {T}: This land becomes a copy of target land.
             // CR 707.2: Indefinite copy effect (no duration).
@@ -51,10 +53,13 @@ pub fn card() -> CardDefinition {
                 })],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("'except it has this ability' — retained ability after copy not yet expressible. Currently the copy overwrites all..."),
+        completeness: Completeness::partial(
+            "'except it has this ability' — retained ability after copy not yet expressible. \
+             Currently the copy overwrites all...",
+        ),
         ..Default::default()
     }
 }

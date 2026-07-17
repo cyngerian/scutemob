@@ -9,9 +9,22 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("radha-heart-of-keld"),
         name: "Radha, Heart of Keld".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, red: 1, green: 1, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Elf", "Warrior"]),
-        oracle_text: "During your turn, Radha has first strike.\nYou may look at the top card of your library any time, and you may play lands from the top of your library.\n{4}{R}{G}: Radha gets +X/+X until end of turn, where X is the number of lands you control.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            red: 1,
+            green: 1,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Creature],
+            &["Elf", "Warrior"],
+        ),
+        oracle_text: "During your turn, Radha has first strike.\nYou may look at the top card of \
+                      your library any time, and you may play lands from the top of your \
+                      library.\n{4}{R}{G}: Radha gets +X/+X until end of turn, where X is the \
+                      number of lands you control."
+            .to_string(),
         power: Some(3),
         toughness: Some(3),
         abilities: vec![
@@ -42,7 +55,13 @@ pub fn card() -> CardDefinition {
             // (e.g., ModifyBothDynamic(EffectAmount)). ModifyBoth only supports fixed i32.
             // Deferred — the play-from-top and conditional first strike abilities are implemented.
         ],
-        completeness: Completeness::partial("'{4}{R}{G}: Radha gets +X/+X until end of turn, where X is the number of lands you control' is NOT blocked — LayerModification::ModifyBothDynamic (card_definition.rs:1002/1015) plus EffectAmount::PermanentCount express it. The activated ability just needs authoring; the other two abilities are already implemented."),
+        completeness: Completeness::partial(
+            "'{4}{R}{G}: Radha gets +X/+X until end of turn, where X is the number of lands you \
+             control' is NOT blocked — LayerModification::ModifyBothDynamic \
+             (card_definition.rs:1002/1015) plus EffectAmount::PermanentCount express it. The \
+             activated ability just needs authoring; the other two abilities are already \
+             implemented.",
+        ),
         ..Default::default()
     }
 }

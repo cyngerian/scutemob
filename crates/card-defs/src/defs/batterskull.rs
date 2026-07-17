@@ -10,15 +10,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("batterskull"),
         name: "Batterskull".to_string(),
-        mana_cost: Some(ManaCost { generic: 5, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 5,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Artifact], &["Equipment"]),
-        oracle_text:
-            "Living weapon (When this Equipment enters, create a 0/0 black Phyrexian Germ \
-             creature token, then attach this Equipment to it.)\n\
-             Equipped creature gets +4/+4 and has vigilance and lifelink.\n\
-             {3}: Return this Equipment to its owner's hand.\n\
-             Equip {5}"
-                .to_string(),
+        oracle_text: "Living weapon (When this Equipment enters, create a 0/0 black Phyrexian \
+                      Germ creature token, then attach this Equipment to it.)\nEquipped creature \
+                      gets +4/+4 and has vigilance and lifelink.\n{3}: Return this Equipment to \
+                      its owner's hand.\nEquip {5}"
+            .to_string(),
         abilities: vec![
             // CR 702.92a: Living weapon — ETB trigger handled by builder.rs keyword wiring.
             AbilityDefinition::Keyword(KeywordAbility::LivingWeapon),
@@ -49,22 +50,30 @@ pub fn card() -> CardDefinition {
             // {3}: Return this Equipment to its owner's hand.
             // Allows resetting Living Weapon by bouncing back to hand.
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { generic: 3, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    generic: 3,
+                    ..Default::default()
+                }),
                 effect: Effect::MoveZone {
                     target: EffectTarget::Source,
-                    to: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                    to: ZoneTarget::Hand {
+                        owner: PlayerTarget::Controller,
+                    },
                     controller_override: None,
                 },
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // Equip {5}: attach this Equipment to target creature you control.
             // CR 702.6b/d: Equip is a sorcery-speed activated ability.
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { generic: 5, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    generic: 5,
+                    ..Default::default()
+                }),
                 effect: Effect::AttachEquipment {
                     equipment: EffectTarget::Source,
                     target: EffectTarget::DeclaredTarget { index: 0 },
@@ -73,7 +82,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

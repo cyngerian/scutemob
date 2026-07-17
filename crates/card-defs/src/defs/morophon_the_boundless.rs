@@ -10,13 +10,20 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("morophon-the-boundless"),
         name: "Morophon, the Boundless".to_string(),
-        mana_cost: Some(ManaCost { generic: 7, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 7,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Shapeshifter"],
         ),
-        oracle_text: "Changeling (This card is every creature type.)\nAs Morophon enters, choose a creature type.\nSpells of the chosen type you cast cost {W}{U}{B}{R}{G} less to cast. This effect reduces only the amount of colored mana you pay.\nOther creatures you control of the chosen type get +1/+1.".to_string(),
+        oracle_text: "Changeling (This card is every creature type.)\nAs Morophon enters, choose \
+                      a creature type.\nSpells of the chosen type you cast cost {W}{U}{B}{R}{G} \
+                      less to cast. This effect reduces only the amount of colored mana you \
+                      pay.\nOther creatures you control of the chosen type get +1/+1."
+            .to_string(),
         power: Some(6),
         toughness: Some(6),
         abilities: vec![
@@ -26,7 +33,9 @@ pub fn card() -> CardDefinition {
                 trigger: ReplacementTrigger::WouldEnterBattlefield {
                     filter: ObjectFilter::Any,
                 },
-                modification: ReplacementModification::ChooseCreatureType(SubType("Human".to_string())),
+                modification: ReplacementModification::ChooseCreatureType(SubType(
+                    "Human".to_string(),
+                )),
                 is_self: true,
                 unless_condition: None,
             },

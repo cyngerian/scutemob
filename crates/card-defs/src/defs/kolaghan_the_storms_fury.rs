@@ -8,13 +8,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("kolaghan-the-storms-fury"),
         name: "Kolaghan, the Storm's Fury".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, black: 1, red: 1, ..Default::default() }),
-        types: full_types(
-            &[SuperType::Legendary],
-            &[CardType::Creature],
-            &["Dragon"],
-        ),
-        oracle_text: "Flying\nWhenever a Dragon you control attacks, creatures you control get +1/+0 until end of turn.\nDash {3}{B}{R}".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            black: 1,
+            red: 1,
+            ..Default::default()
+        }),
+        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Dragon"]),
+        oracle_text: "Flying\nWhenever a Dragon you control attacks, creatures you control get \
+                      +1/+0 until end of turn.\nDash {3}{B}{R}"
+            .to_string(),
         power: Some(4),
         toughness: Some(5),
         abilities: vec![
@@ -47,7 +50,12 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Dash),
             AbilityDefinition::AltCastAbility {
                 kind: AltCostKind::Dash,
-                cost: ManaCost { generic: 3, black: 1, red: 1, ..Default::default() },
+                cost: ManaCost {
+                    generic: 3,
+                    black: 1,
+                    red: 1,
+                    ..Default::default()
+                },
                 details: None,
             },
         ],

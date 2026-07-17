@@ -8,9 +8,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("ganax-astral-hunter"),
         name: "Ganax, Astral Hunter".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            red: 1,
+            ..Default::default()
+        }),
         types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Dragon"]),
-        oracle_text: "Flying\nWhenever Ganax or another Dragon you control enters, create a Treasure token.\nChoose a Background".to_string(),
+        oracle_text: "Flying\nWhenever Ganax or another Dragon you control enters, create a \
+                      Treasure token.\nChoose a Background"
+            .to_string(),
         power: Some(3),
         toughness: Some(4),
         abilities: vec![
@@ -29,7 +35,9 @@ pub fn card() -> CardDefinition {
                     }),
                     exclude_self: false,
                 },
-                effect: Effect::CreateToken { spec: treasure_token_spec(1) },
+                effect: Effect::CreateToken {
+                    spec: treasure_token_spec(1),
+                },
                 intervening_if: None,
                 targets: vec![],
                 modes: None,

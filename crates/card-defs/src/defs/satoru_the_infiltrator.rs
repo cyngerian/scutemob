@@ -8,13 +8,20 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("satoru-the-infiltrator"),
         name: "Satoru, the Infiltrator".to_string(),
-        mana_cost: Some(ManaCost { blue: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            blue: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Human", "Ninja", "Rogue"],
         ),
-        oracle_text: "Menace\nWhenever Satoru and/or one or more other nontoken creatures you control enter, if none of them were cast or no mana was spent to cast them, draw a card.".to_string(),
+        oracle_text: "Menace\nWhenever Satoru and/or one or more other nontoken creatures you \
+                      control enter, if none of them were cast or no mana was spent to cast them, \
+                      draw a card."
+            .to_string(),
         power: Some(2),
         toughness: Some(3),
         abilities: vec![
@@ -41,7 +48,12 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::known_wrong("ETB draw fires on every nontoken/token creature you control entering; oracle requires 'none of them were cast or no mana was spent to cast them' (no Condition variant for cast-ness/mana-spent of an entering permanent) and a batched Satoru-and/or-others trigger. Current def over-draws."),
+        completeness: Completeness::known_wrong(
+            "ETB draw fires on every nontoken/token creature you control entering; oracle \
+             requires 'none of them were cast or no mana was spent to cast them' (no Condition \
+             variant for cast-ness/mana-spent of an entering permanent) and a batched \
+             Satoru-and/or-others trigger. Current def over-draws.",
+        ),
         ..Default::default()
     }
 }

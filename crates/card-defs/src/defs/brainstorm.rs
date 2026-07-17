@@ -6,9 +6,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("brainstorm"),
         name: "Brainstorm".to_string(),
-        mana_cost: Some(ManaCost { blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            blue: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Draw three cards, then put two cards from your hand on top of your library in any order.".to_string(),
+        oracle_text: "Draw three cards, then put two cards from your hand on top of your library \
+                      in any order."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![
                 Effect::DrawCards {

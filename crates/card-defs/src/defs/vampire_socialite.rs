@@ -10,9 +10,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("vampire-socialite"),
         name: "Vampire Socialite".to_string(),
-        mana_cost: Some(ManaCost { black: 1, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 1,
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Vampire", "Noble"]),
-        oracle_text: "Menace\nWhen this creature enters, if an opponent lost life this turn, put a +1/+1 counter on each other Vampire you control.\nAs long as an opponent lost life this turn, each other Vampire you control enters with an additional +1/+1 counter on it.".to_string(),
+        oracle_text: "Menace\nWhen this creature enters, if an opponent lost life this turn, put \
+                      a +1/+1 counter on each other Vampire you control.\nAs long as an opponent \
+                      lost life this turn, each other Vampire you control enters with an \
+                      additional +1/+1 counter on it."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -22,7 +30,10 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — replacement effect for "enters with an additional +1/+1 counter"
             // conditional on opponent life loss. Needs conditional ETB replacement.
         ],
-        completeness: Completeness::partial("DSL gap — intervening-if 'if an opponent lost life this turn' (Condition::OpponentLostLifeThisTurn) does not exist"),
+        completeness: Completeness::partial(
+            "DSL gap — intervening-if 'if an opponent lost life this turn' \
+             (Condition::OpponentLostLifeThisTurn) does not exist",
+        ),
         ..Default::default()
     }
 }

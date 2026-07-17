@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("skemfar-avenger"),
         name: "Skemfar Avenger".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Elf", "Berserker"]),
-        oracle_text: "Whenever another nontoken Elf or Berserker you control dies, you draw a card and you lose 1 life.".to_string(),
+        oracle_text: "Whenever another nontoken Elf or Berserker you control dies, you draw a \
+                      card and you lose 1 life."
+            .to_string(),
         power: Some(3),
         toughness: Some(1),
         abilities: vec![

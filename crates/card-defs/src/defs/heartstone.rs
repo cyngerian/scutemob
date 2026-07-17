@@ -12,14 +12,22 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("heartstone"),
         name: "Heartstone".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "Activated abilities of creatures cost {1} less to activate. This effect can't reduce the mana in that cost to less than one mana.".to_string(),
+        oracle_text: "Activated abilities of creatures cost {1} less to activate. This effect \
+                      can't reduce the mana in that cost to less than one mana."
+            .to_string(),
         abilities: vec![
             // TODO: activated abilities of creatures cost {1} less (applies globally, not just controller)
             //   (no EffectFilter::ActivatedAbilitiesOfCreatures + ReduceActivatedAbilityCost in DSL)
         ],
-        completeness: Completeness::partial("activated abilities of creatures cost {1} less (applies globally, not just controller) (no..."),
+        completeness: Completeness::partial(
+            "activated abilities of creatures cost {1} less (applies globally, not just \
+             controller) (no...",
+        ),
         ..Default::default()
     }
 }

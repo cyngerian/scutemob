@@ -7,7 +7,10 @@ pub fn card() -> CardDefinition {
         name: "Otawara, Soaring City".to_string(),
         mana_cost: None,
         types: supertypes(&[SuperType::Legendary], &[CardType::Land]),
-        oracle_text: "{T}: Add {U}.\nChannel — {3}{U}, Discard this card: Return target artifact, creature, enchantment, or planeswalker to its owner's hand. This ability costs {1} less to activate for each legendary creature you control.".to_string(),
+        oracle_text: "{T}: Add {U}.\nChannel — {3}{U}, Discard this card: Return target artifact, \
+                      creature, enchantment, or planeswalker to its owner's hand. This ability \
+                      costs {1} less to activate for each legendary creature you control."
+            .to_string(),
         abilities: vec![
             // {T}: Add {U}
             AbilityDefinition::Activated {
@@ -20,19 +23,27 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // Channel — {3}{U}, Discard this card: Return target non-land permanent to
             // owner's hand. "artifact, creature, enchantment, or planeswalker" = any permanent
             // that is not a land. Using non_land filter to approximate (excludes lands).
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 3, blue: 1, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 3,
+                        blue: 1,
+                        ..Default::default()
+                    }),
                     Cost::DiscardSelf,
                 ]),
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },
-                    to: ZoneTarget::Hand { owner: PlayerTarget::OwnerOf(Box::new(EffectTarget::DeclaredTarget { index: 0 })) },
+                    to: ZoneTarget::Hand {
+                        owner: PlayerTarget::OwnerOf(Box::new(EffectTarget::DeclaredTarget {
+                            index: 0,
+                        })),
+                    },
                     controller_override: None,
                 },
                 timing_restriction: None,
@@ -42,7 +53,7 @@ pub fn card() -> CardDefinition {
                 })],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         // CR 602.2b + 601.2f: Channel ability (index 0) costs {1} less per legendary creature.
@@ -58,7 +69,10 @@ pub fn card() -> CardDefinition {
                 controller: PlayerTarget::Controller,
             },
         )],
-        completeness: Completeness::known_wrong("channel target uses non_land, which wrongly admits Battles; should be has_card_types: vec![Artifact, Creature, Enchantment, Planeswalker]"),
+        completeness: Completeness::known_wrong(
+            "channel target uses non_land, which wrongly admits Battles; should be \
+             has_card_types: vec![Artifact, Creature, Enchantment, Planeswalker]",
+        ),
         ..Default::default()
     }
 }

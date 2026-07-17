@@ -7,33 +7,40 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("fierce-empath"),
         name: "Fierce Empath".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Elf"]),
-        oracle_text: "When this creature enters, you may search your library for a creature card with mana value 6 or greater, reveal it, put it into your hand, then shuffle.".to_string(),
+        oracle_text: "When this creature enters, you may search your library for a creature card \
+                      with mana value 6 or greater, reveal it, put it into your hand, then \
+                      shuffle."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
-        abilities: vec![
-            AbilityDefinition::Triggered {
-                once_per_turn: false,
-                trigger_condition: TriggerCondition::WhenEntersBattlefield,
-                effect: Effect::SearchLibrary {
-                    filter: TargetFilter {
-                        has_card_type: Some(CardType::Creature),
-                        min_cmc: Some(6),
-                        ..Default::default()
-                    },
-                    destination: ZoneTarget::Hand { owner: PlayerTarget::Controller },
-                    reveal: true,
-                    player: PlayerTarget::Controller,
-                    also_search_graveyard: false,
-                    shuffle_before_placing: false,
+        abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
+            trigger_condition: TriggerCondition::WhenEntersBattlefield,
+            effect: Effect::SearchLibrary {
+                filter: TargetFilter {
+                    has_card_type: Some(CardType::Creature),
+                    min_cmc: Some(6),
+                    ..Default::default()
                 },
-                intervening_if: None,
-                targets: vec![],
-                modes: None,
-                trigger_zone: None,
+                destination: ZoneTarget::Hand {
+                    owner: PlayerTarget::Controller,
+                },
+                reveal: true,
+                player: PlayerTarget::Controller,
+                also_search_graveyard: false,
+                shuffle_before_placing: false,
             },
-        ],
+            intervening_if: None,
+            targets: vec![],
+            modes: None,
+            trigger_zone: None,
+        }],
         ..Default::default()
     }
 }

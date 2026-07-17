@@ -11,7 +11,11 @@ pub fn card() -> CardDefinition {
         name: "Temple of the Dragon Queen".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "As this land enters, you may reveal a Dragon card from your hand. This land enters tapped unless you revealed a Dragon card this way or you control a Dragon.\nAs this land enters, choose a color.\n{T}: Add one mana of the chosen color.".to_string(),
+        oracle_text: "As this land enters, you may reveal a Dragon card from your hand. This land \
+                      enters tapped unless you revealed a Dragon card this way or you control a \
+                      Dragon.\nAs this land enters, choose a color.\n{T}: Add one mana of the \
+                      chosen color."
+            .to_string(),
         abilities: vec![
             // CR 614.1c: enters tapped unless you revealed a Dragon or control a Dragon.
             AbilityDefinition::Replacement {
@@ -57,7 +61,18 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("CR 605.1a/605.3b: '{T}: Add one mana of the chosen color' is a mana ability but Effect::AddManaOfChosenColor has no arm in try_as_tap_mana_ability (testing/replay_harness.rs), so it registers ZERO mana abilities and uses the stack. The COLOR is correct: ReplacementModification::ChooseColor is NOT a hardcoded stub — replacement.rs scans the controller's battlefield and picks the most common layer-resolved color (CR 613.1e), falling back to the declared default only when nothing is on board (probed: white board -> White, black board -> Black), and AddManaOfChosenColor then adds exactly that color. The choice is deterministic rather than player-made (M10), but it is always a LEGAL option, unlike the any_color -> colorless class. Fix: add an AddManaOfChosenColor arm to try_as_tap_mana_ability."),
+        completeness: Completeness::partial(
+            "CR 605.1a/605.3b: '{T}: Add one mana of the chosen color' is a mana ability but \
+             Effect::AddManaOfChosenColor has no arm in try_as_tap_mana_ability \
+             (testing/replay_harness.rs), so it registers ZERO mana abilities and uses the stack. \
+             The COLOR is correct: ReplacementModification::ChooseColor is NOT a hardcoded stub — \
+             replacement.rs scans the controller's battlefield and picks the most common \
+             layer-resolved color (CR 613.1e), falling back to the declared default only when \
+             nothing is on board (probed: white board -> White, black board -> Black), and \
+             AddManaOfChosenColor then adds exactly that color. The choice is deterministic \
+             rather than player-made (M10), but it is always a LEGAL option, unlike the any_color \
+             -> colorless class. Fix: add an AddManaOfChosenColor arm to try_as_tap_mana_ability.",
+        ),
         ..Default::default()
     }
 }

@@ -7,7 +7,9 @@ pub fn card() -> CardDefinition {
         name: "Slayers' Stronghold".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}: Add {C}.\n{R}{W}, {T}: Target creature gets +2/+0 and gains vigilance and haste until end of turn.".to_string(),
+        oracle_text: "{T}: Add {C}.\n{R}{W}, {T}: Target creature gets +2/+0 and gains vigilance \
+                      and haste until end of turn."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
@@ -19,12 +21,16 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {R}{W}, {T}: Target creature gets +2/+0 and gains vigilance and haste until EOT.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { red: 1, white: 1, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        red: 1,
+                        white: 1,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                 ]),
                 effect: Effect::Sequence(vec![
@@ -55,7 +61,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![TargetRequirement::TargetCreature],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

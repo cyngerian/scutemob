@@ -9,9 +9,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("rakdos-charm"),
         name: "Rakdos Charm".to_string(),
-        mana_cost: Some(ManaCost { black: 1, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 1,
+            red: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Choose one —\n• Exile target player's graveyard.\n• Destroy target artifact.\n• Each creature deals 1 damage to its controller.".to_string(),
+        oracle_text: "Choose one —\n• Exile target player's graveyard.\n• Destroy target \
+                      artifact.\n• Each creature deals 1 damage to its controller."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![]),
             // PB-AC4 (CR 700.2c/700.2f): per-mode targets — mode 0 and mode 1 each declare
@@ -51,7 +57,10 @@ pub fn card() -> CardDefinition {
             }),
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("no Effect variant exiles an entire graveyard zone (only single-object ExileObject exists). Unrelated to AC4's..."),
+        completeness: Completeness::partial(
+            "no Effect variant exiles an entire graveyard zone (only single-object ExileObject \
+             exists). Unrelated to AC4's...",
+        ),
         ..Default::default()
     }
 }

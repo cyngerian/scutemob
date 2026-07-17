@@ -9,16 +9,25 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("heralds-horn"),
         name: "Herald's Horn".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "As Herald's Horn enters, choose a creature type.\nCreature spells you cast of the chosen type cost {1} less to cast.\nAt the beginning of your upkeep, look at the top card of your library. If it's a creature card of the chosen type, you may reveal it and put it into your hand.".to_string(),
+        oracle_text: "As Herald's Horn enters, choose a creature type.\nCreature spells you cast \
+                      of the chosen type cost {1} less to cast.\nAt the beginning of your upkeep, \
+                      look at the top card of your library. If it's a creature card of the chosen \
+                      type, you may reveal it and put it into your hand."
+            .to_string(),
         abilities: vec![
             // "As this enters, choose a creature type" — self-replacement (CR 614.1c)
             AbilityDefinition::Replacement {
                 trigger: ReplacementTrigger::WouldEnterBattlefield {
                     filter: ObjectFilter::Any,
                 },
-                modification: ReplacementModification::ChooseCreatureType(SubType("Human".to_string())),
+                modification: ReplacementModification::ChooseCreatureType(SubType(
+                    "Human".to_string(),
+                )),
                 is_self: true,
                 unless_condition: None,
             },
@@ -52,7 +61,9 @@ pub fn card() -> CardDefinition {
             exclude_self: false,
             colored_mana_reduction: None,
         }],
-        completeness: Completeness::known_wrong("'you may put that card into your hand' implemented as a mandatory draw"),
+        completeness: Completeness::known_wrong(
+            "'you may put that card into your hand' implemented as a mandatory draw",
+        ),
         ..Default::default()
     }
 }

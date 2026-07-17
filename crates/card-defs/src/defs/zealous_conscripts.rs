@@ -12,7 +12,9 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: creature_types(&["Human", "Warrior"]),
-        oracle_text: "Haste\nWhen this creature enters, gain control of target permanent until end of turn. Untap that permanent. It gains haste until end of turn.".to_string(),
+        oracle_text: "Haste\nWhen this creature enters, gain control of target permanent until \
+                      end of turn. Untap that permanent. It gains haste until end of turn."
+            .to_string(),
         power: Some(3),
         toughness: Some(3),
         abilities: vec![

@@ -15,19 +15,33 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("yuriko-the-tigers-shadow"),
         name: "Yuriko, the Tiger's Shadow".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, blue: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            blue: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Human", "Ninja"],
         ),
-        oracle_text: "Commander ninjutsu {U}{B} ({U}{B}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand or the command zone tapped and attacking.)\nWhenever a Ninja you control deals combat damage to a player, reveal the top card of your library and put that card into your hand. Each opponent loses life equal to that card's mana value.".to_string(),
+        oracle_text: "Commander ninjutsu {U}{B} ({U}{B}, Return an unblocked attacker you control \
+                      to hand: Put this card onto the battlefield from your hand or the command \
+                      zone tapped and attacking.)\nWhenever a Ninja you control deals combat \
+                      damage to a player, reveal the top card of your library and put that card \
+                      into your hand. Each opponent loses life equal to that card's mana value."
+            .to_string(),
         power: Some(1),
         toughness: Some(3),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::CommanderNinjutsu),
             AbilityDefinition::CommanderNinjutsu {
-                cost: ManaCost { blue: 1, black: 1, ..Default::default() },
+                cost: ManaCost {
+                    blue: 1,
+                    black: 1,
+                    ..Default::default()
+                },
             },
             // Whenever a Ninja you control deals combat damage to a player, reveal the
             // top card of your library and put that card into your hand.
@@ -36,18 +50,23 @@ pub fn card() -> CardDefinition {
             // EffectTarget variant for the card revealed by RevealAndRoute exists.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer {
-                    filter: Some(TargetFilter {
-                        has_subtype: Some(SubType("Ninja".to_string())),
-                        ..Default::default()
-                    }),
-                },
+                trigger_condition:
+                    TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer {
+                        filter: Some(TargetFilter {
+                            has_subtype: Some(SubType("Ninja".to_string())),
+                            ..Default::default()
+                        }),
+                    },
                 effect: Effect::RevealAndRoute {
                     player: PlayerTarget::Controller,
                     count: EffectAmount::Fixed(1),
                     filter: TargetFilter::default(), // all cards match — reveal the top card
-                    matched_dest: ZoneTarget::Hand { owner: PlayerTarget::Controller },
-                    unmatched_dest: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                    matched_dest: ZoneTarget::Hand {
+                        owner: PlayerTarget::Controller,
+                    },
+                    unmatched_dest: ZoneTarget::Hand {
+                        owner: PlayerTarget::Controller,
+                    },
                 },
                 intervening_if: None,
                 targets: vec![],
@@ -55,7 +74,10 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("'each opponent loses life equal to that card's mana value' requires EffectAmount::ManaValueOf pointing at the..."),
+        completeness: Completeness::partial(
+            "'each opponent loses life equal to that card's mana value' requires \
+             EffectAmount::ManaValueOf pointing at the...",
+        ),
         ..Default::default()
     }
 }

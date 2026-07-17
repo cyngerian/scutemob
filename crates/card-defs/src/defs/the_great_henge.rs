@@ -11,9 +11,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("the-great-henge"),
         name: "The Great Henge".to_string(),
-        mana_cost: Some(ManaCost { generic: 7, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 7,
+            green: 2,
+            ..Default::default()
+        }),
         types: supertypes(&[SuperType::Legendary], &[CardType::Artifact]),
-        oracle_text: "This spell costs {X} less to cast, where X is the greatest power among creatures you control.\n{T}: Add {G}{G}. You gain 2 life.\nWhenever a nontoken creature you control enters, put a +1/+1 counter on it and draw a card.".to_string(),
+        oracle_text: "This spell costs {X} less to cast, where X is the greatest power among \
+                      creatures you control.\n{T}: Add {G}{G}. You gain 2 life.\nWhenever a \
+                      nontoken creature you control enters, put a +1/+1 counter on it and draw a \
+                      card."
+            .to_string(),
         abilities: vec![
             // {T}: Add {G}{G}. You gain 2 life.
             AbilityDefinition::Activated {
@@ -32,7 +40,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // CR 603.2: "Whenever a nontoken creature you control enters, put a +1/+1
             // counter on it and draw a card." PB-AC0: is_nontoken now honored on the
@@ -66,7 +74,10 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("SelfCostReduction::GreatestPowerAmongCreatures — DSL has TotalPowerOfCreatures (Ghalta) but not greatest-power. Cost..."),
+        completeness: Completeness::partial(
+            "SelfCostReduction::GreatestPowerAmongCreatures — DSL has TotalPowerOfCreatures \
+             (Ghalta) but not greatest-power. Cost...",
+        ),
         ..Default::default()
     }
 }

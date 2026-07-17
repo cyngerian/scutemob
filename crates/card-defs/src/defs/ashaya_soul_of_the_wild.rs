@@ -17,13 +17,20 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("ashaya-soul-of-the-wild"),
         name: "Ashaya, Soul of the Wild".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            green: 2,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Elemental"],
         ),
-        oracle_text: "Ashaya, Soul of the Wild's power and toughness are each equal to the number of lands you control.\nNontoken creatures you control are Forest lands in addition to their other types.".to_string(),
+        oracle_text: "Ashaya, Soul of the Wild's power and toughness are each equal to the number \
+                      of lands you control.\nNontoken creatures you control are Forest lands in \
+                      addition to their other types."
+            .to_string(),
         power: None,
         toughness: None,
         abilities: vec![
@@ -49,7 +56,10 @@ pub fn card() -> CardDefinition {
             // other types" — no nontoken-scoped EffectFilter exists yet. See file-header
             // comment for full disposition.
         ],
-        completeness: Completeness::partial("'Nontoken creatures you control are Forest lands in addition to their other types' — EffectFilter has no..."),
+        completeness: Completeness::partial(
+            "'Nontoken creatures you control are Forest lands in addition to their other types' — \
+             EffectFilter has no...",
+        ),
         ..Default::default()
     }
 }

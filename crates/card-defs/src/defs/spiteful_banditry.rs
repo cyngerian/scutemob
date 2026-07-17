@@ -8,9 +8,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("spiteful-banditry"),
         name: "Spiteful Banditry".to_string(),
-        mana_cost: Some(ManaCost { red: 2, x_count: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            red: 2,
+            x_count: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "When this enchantment enters, it deals X damage to each creature.\nWhenever one or more creatures your opponents control die, you create a Treasure token. This ability triggers only once each turn.".to_string(),
+        oracle_text: "When this enchantment enters, it deals X damage to each creature.\nWhenever \
+                      one or more creatures your opponents control die, you create a Treasure \
+                      token. This ability triggers only once each turn."
+            .to_string(),
         abilities: vec![
             // CR 107.3m: "When this enchantment enters, it deals X damage to each creature."
             AbilityDefinition::Triggered {
@@ -34,7 +41,12 @@ pub fn card() -> CardDefinition {
             // "only once each turn" per-turn throttle is not expressible in the current DSL.
             // Deferred until trigger throttle support is added.
         ],
-        completeness: Completeness::partial("Ready to author: second trigger is expressible as Triggered { once_per_turn: true, trigger_condition: WheneverCreatureDies { controller: Some(TargetController::Opponent), .. }, effect: CreateToken(treasure_token_spec(1)) } — once_per_turn gate is live (abilities.rs:6521, PB-AC1)."),
+        completeness: Completeness::partial(
+            "Ready to author: second trigger is expressible as Triggered { once_per_turn: true, \
+             trigger_condition: WheneverCreatureDies { controller: \
+             Some(TargetController::Opponent), .. }, effect: CreateToken(treasure_token_spec(1)) \
+             } — once_per_turn gate is live (abilities.rs:6521, PB-AC1).",
+        ),
         ..Default::default()
     }
 }

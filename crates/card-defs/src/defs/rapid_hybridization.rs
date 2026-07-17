@@ -7,11 +7,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("rapid-hybridization"),
         name: "Rapid Hybridization".to_string(),
-        mana_cost: Some(ManaCost { blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            blue: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text:
-            "Destroy target creature. It can't be regenerated. That creature's controller creates a 3/3 green Frog Lizard creature token."
-                .to_string(),
+        oracle_text: "Destroy target creature. It can't be regenerated. That creature's \
+                      controller creates a 3/3 green Frog Lizard creature token."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![
                 Effect::DestroyPermanent {
@@ -26,12 +29,9 @@ pub fn card() -> CardDefinition {
                         colors: [Color::Green].into_iter().collect(),
                         supertypes: OrdSet::new(),
                         card_types: [CardType::Creature].into_iter().collect(),
-                        subtypes: [
-                            SubType("Frog".to_string()),
-                            SubType("Lizard".to_string()),
-                        ]
-                        .into_iter()
-                        .collect(),
+                        subtypes: [SubType("Frog".to_string()), SubType("Lizard".to_string())]
+                            .into_iter()
+                            .collect(),
                         keywords: OrdSet::new(),
                         count: EffectAmount::Fixed(1),
                         tapped: false,

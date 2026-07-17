@@ -9,9 +9,23 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("carth-the-lion"),
         name: "Carth the Lion".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, black: 1, green: 1, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Human", "Warrior"]),
-        oracle_text: "Whenever Carth enters or a planeswalker you control dies, look at the top seven cards of your library. You may reveal a planeswalker card from among them and put it into your hand. Put the rest on the bottom of your library in a random order.\nPlaneswalkers' loyalty abilities you activate cost an additional [+1] to activate.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            black: 1,
+            green: 1,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Creature],
+            &["Human", "Warrior"],
+        ),
+        oracle_text: "Whenever Carth enters or a planeswalker you control dies, look at the top \
+                      seven cards of your library. You may reveal a planeswalker card from among \
+                      them and put it into your hand. Put the rest on the bottom of your library \
+                      in a random order.\nPlaneswalkers' loyalty abilities you activate cost an \
+                      additional [+1] to activate."
+            .to_string(),
         power: Some(3),
         toughness: Some(5),
         abilities: vec![
@@ -26,7 +40,10 @@ pub fn card() -> CardDefinition {
             // — requires a new LoyaltyCostModifier static effect. No equivalent in DSL.
             // Static ability omitted per W5 policy.
         ],
-        completeness: Completeness::partial("ETB trigger — 'look at the top seven cards, may put a planeswalker card into hand, rest on bottom in random order'..."),
+        completeness: Completeness::partial(
+            "ETB trigger — 'look at the top seven cards, may put a planeswalker card into hand, \
+             rest on bottom in random order'...",
+        ),
         ..Default::default()
     }
 }

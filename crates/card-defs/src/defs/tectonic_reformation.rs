@@ -9,17 +9,26 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("tectonic-reformation"),
         name: "Tectonic Reformation".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            red: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
         oracle_text: "Each land card in your hand has cycling {R}.\nCycling {2}".to_string(),
         abilities: vec![
             // TODO: Grant cycling to hand lands not expressible.
             AbilityDefinition::Keyword(KeywordAbility::Cycling),
             AbilityDefinition::Cycling {
-                cost: ManaCost { generic: 2, ..Default::default() },
+                cost: ManaCost {
+                    generic: 2,
+                    ..Default::default()
+                },
             },
         ],
-        completeness: Completeness::partial("'Grant cycling to cards in hand' — static ability grant to cards in hand not in DSL"),
+        completeness: Completeness::partial(
+            "'Grant cycling to cards in hand' — static ability grant to cards in hand not in DSL",
+        ),
         ..Default::default()
     }
 }

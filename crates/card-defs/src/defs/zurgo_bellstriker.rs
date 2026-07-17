@@ -6,12 +6,19 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("zurgo-bellstriker"),
         name: "Zurgo Bellstriker".to_string(),
-        mana_cost: Some(ManaCost { red: 1, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Orc", "Warrior"]),
-        oracle_text: "Dash {1}{R} (You may cast this spell for its dash cost. If you do, it \
-                      gains haste, and it's returned from the battlefield to its owner's hand \
-                      at the beginning of the next end step.)\n\
-                      Zurgo Bellstriker can't block creatures with power 2 or greater."
+        mana_cost: Some(ManaCost {
+            red: 1,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Creature],
+            &["Orc", "Warrior"],
+        ),
+        oracle_text: "Dash {1}{R} (You may cast this spell for its dash cost. If you do, it gains \
+                      haste, and it's returned from the battlefield to its owner's hand at the \
+                      beginning of the next end step.)\nZurgo Bellstriker can't block creatures \
+                      with power 2 or greater."
             .to_string(),
         power: Some(2),
         toughness: Some(2),
@@ -19,7 +26,11 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Dash),
             AbilityDefinition::AltCastAbility {
                 kind: AltCostKind::Dash,
-                cost: ManaCost { generic: 1, red: 1, ..Default::default() },
+                cost: ManaCost {
+                    generic: 1,
+                    red: 1,
+                    ..Default::default()
+                },
                 details: None,
             },
             // TODO: static ability "can't block creatures with power 2 or greater" —
@@ -37,6 +48,9 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::partial("static ability 'can't block creatures with power 2 or greater' — no CantBlock { filter: PowerGTE(2) } variant exists..."),
+        completeness: Completeness::partial(
+            "static ability 'can't block creatures with power 2 or greater' — no CantBlock { \
+             filter: PowerGTE(2) } variant exists...",
+        ),
     }
 }

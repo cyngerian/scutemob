@@ -10,9 +10,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("jade-orb-of-dragonkind"),
         name: "Jade Orb of Dragonkind".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "{T}: Add {G}. When you spend this mana to cast a Dragon creature spell, it enters with an additional +1/+1 counter on it and gains hexproof until your next turn.".to_string(),
+        oracle_text: "{T}: Add {G}. When you spend this mana to cast a Dragon creature spell, it \
+                      enters with an additional +1/+1 counter on it and gains hexproof until your \
+                      next turn."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
@@ -24,11 +31,14 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // TODO: mana-spend Dragon trigger (counter + hexproof) — DSL gap
         ],
-        completeness: Completeness::partial("'When you spend this mana to cast a Dragon creature spell' trigger — no mana-spend trigger mechanism in DSL...."),
+        completeness: Completeness::partial(
+            "'When you spend this mana to cast a Dragon creature spell' trigger — no mana-spend \
+             trigger mechanism in DSL....",
+        ),
         ..Default::default()
     }
 }

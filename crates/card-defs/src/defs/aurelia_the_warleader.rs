@@ -8,9 +8,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("aurelia-the-warleader"),
         name: "Aurelia, the Warleader".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 2, white: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 2,
+            white: 2,
+            ..Default::default()
+        }),
         types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Angel"]),
-        oracle_text: "Flying, vigilance, haste\nWhenever Aurelia attacks for the first time each turn, untap all creatures you control. After this phase, there is an additional combat phase.".to_string(),
+        oracle_text: "Flying, vigilance, haste\nWhenever Aurelia attacks for the first time each \
+                      turn, untap all creatures you control. After this phase, there is an \
+                      additional combat phase."
+            .to_string(),
         power: Some(3),
         toughness: Some(4),
         abilities: vec![
@@ -32,7 +40,9 @@ pub fn card() -> CardDefinition {
                         }),
                     },
                     // After this phase, there is an additional combat phase.
-                    Effect::AdditionalCombatPhase { followed_by_main: false },
+                    Effect::AdditionalCombatPhase {
+                        followed_by_main: false,
+                    },
                 ]),
                 targets: vec![],
 

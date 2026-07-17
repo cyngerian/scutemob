@@ -9,13 +9,22 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("camellia-the-seedmiser"),
         name: "Camellia, the Seedmiser".to_string(),
-        mana_cost: Some(ManaCost { black: 1, green: 1, generic: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 1,
+            green: 1,
+            generic: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Squirrel", "Warlock"],
         ),
-        oracle_text: "Menace\nOther Squirrels you control have menace.\nWhenever you sacrifice one or more Foods, create a 1/1 green Squirrel creature token.\n{2}, Forage: Put a +1/+1 counter on each other Squirrel you control. (To forage, exile three cards from your graveyard or sacrifice a Food.)".to_string(),
+        oracle_text: "Menace\nOther Squirrels you control have menace.\nWhenever you sacrifice \
+                      one or more Foods, create a 1/1 green Squirrel creature token.\n{2}, \
+                      Forage: Put a +1/+1 counter on each other Squirrel you control. (To forage, \
+                      exile three cards from your graveyard or sacrifice a Food.)"
+            .to_string(),
         abilities: vec![
             // CR 702.110: Menace (self).
             AbilityDefinition::Keyword(KeywordAbility::Menace),
@@ -24,12 +33,13 @@ pub fn card() -> CardDefinition {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::Ability,
                     modification: LayerModification::AddKeyword(KeywordAbility::Menace),
-                    filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType("Squirrel".to_string())),
+                    filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType(
+                        "Squirrel".to_string(),
+                    )),
                     duration: EffectDuration::WhileSourceOnBattlefield,
                     condition: None,
                 },
             },
-
             // CR 701.21a / CR 603.2: "Whenever you sacrifice one or more Foods, create a 1/1
             // green Squirrel creature token." Per-sacrifice firing (not batched) is the engine-wide
             // approximation; "one or more" is not enforceable with per-event triggers.
@@ -67,13 +77,15 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 trigger_zone: None,
             },
-
             // CR 701.61a: "{2}, Forage: Put a +1/+1 counter on each other Squirrel you control."
             // Note: TargetFilter has no exclude_source field, so this also targets Camellia
             // herself. This is a minor deviation; exclude-source filtering is a deferred DSL gap.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 2, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 2,
+                        ..Default::default()
+                    }),
                     Cost::Forage,
                 ]),
                 effect: Effect::AddCounter {
@@ -90,7 +102,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         power: Some(3),
@@ -107,6 +119,13 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::known_wrong("Forage ability puts a +1/+1 counter on Camellia herself; oracle says 'each other Squirrel you control'. TargetFilter::exclude_self exists (card_definition.rs:2991) but is silently ignored at the EffectTarget::AllPermanentsMatching resolution site (effects/mod.rs:6220-6244); ForEachTarget::EachOtherCreatureYouControl excludes the source but takes no subtype filter. Needs exclude_self enforcement at AllPermanentsMatching, or a subtype-filtered other-creatures ForEach."),
+        completeness: Completeness::known_wrong(
+            "Forage ability puts a +1/+1 counter on Camellia herself; oracle says 'each other \
+             Squirrel you control'. TargetFilter::exclude_self exists (card_definition.rs:2991) \
+             but is silently ignored at the EffectTarget::AllPermanentsMatching resolution site \
+             (effects/mod.rs:6220-6244); ForEachTarget::EachOtherCreatureYouControl excludes the \
+             source but takes no subtype filter. Needs exclude_self enforcement at \
+             AllPermanentsMatching, or a subtype-filtered other-creatures ForEach.",
+        ),
     }
 }

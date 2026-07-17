@@ -7,7 +7,9 @@ pub fn card() -> CardDefinition {
         name: "Lonely Sandbar".to_string(),
         mana_cost: None,
         types: types_sub(&[CardType::Land], &["Island"]),
-        oracle_text: "This land enters tapped.\n{T}: Add {U}.\nCycling {U} ({U}, Discard this card: Draw a card.)".to_string(),
+        oracle_text: "This land enters tapped.\n{T}: Add {U}.\nCycling {U} ({U}, Discard this \
+                      card: Draw a card.)"
+            .to_string(),
         abilities: vec![
             // CR 614.1c: self-replacement effect — this permanent enters tapped.
             AbilityDefinition::Replacement {
@@ -29,12 +31,15 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // CR 702.29: Cycling {U} — pay {U} and discard this card to draw a card.
             AbilityDefinition::Keyword(KeywordAbility::Cycling),
             AbilityDefinition::Cycling {
-                cost: ManaCost { blue: 1, ..Default::default() },
+                cost: ManaCost {
+                    blue: 1,
+                    ..Default::default()
+                },
             },
         ],
         ..Default::default()

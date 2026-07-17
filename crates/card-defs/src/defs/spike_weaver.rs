@@ -9,9 +9,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("spike-weaver"),
         name: "Spike Weaver".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Spike"]),
-        oracle_text: "Spike Weaver enters with three +1/+1 counters on it.\n{2}, Remove a +1/+1 counter from Spike Weaver: Put a +1/+1 counter on target creature.\n{1}, Remove a +1/+1 counter from Spike Weaver: Prevent all combat damage that would be dealt this turn.".to_string(),
+        oracle_text: "Spike Weaver enters with three +1/+1 counters on it.\n{2}, Remove a +1/+1 \
+                      counter from Spike Weaver: Put a +1/+1 counter on target creature.\n{1}, \
+                      Remove a +1/+1 counter from Spike Weaver: Prevent all combat damage that \
+                      would be dealt this turn."
+            .to_string(),
         power: Some(0),
         toughness: Some(0),
         abilities: vec![
@@ -33,8 +41,14 @@ pub fn card() -> CardDefinition {
             // CR 602.2: {2}, Remove a +1/+1 counter: Put a +1/+1 counter on target creature.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 2, ..Default::default() }),
-                    Cost::RemoveCounter { counter: CounterType::PlusOnePlusOne, count: 1 },
+                    Cost::Mana(ManaCost {
+                        generic: 2,
+                        ..Default::default()
+                    }),
+                    Cost::RemoveCounter {
+                        counter: CounterType::PlusOnePlusOne,
+                        count: 1,
+                    },
                 ]),
                 effect: Effect::AddCounter {
                     target: EffectTarget::DeclaredTarget { index: 0 },
@@ -45,20 +59,26 @@ pub fn card() -> CardDefinition {
                 targets: vec![TargetRequirement::TargetCreature],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // CR 615.1: {1}, Remove a +1/+1 counter: Prevent all combat damage this turn.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
-                    Cost::RemoveCounter { counter: CounterType::PlusOnePlusOne, count: 1 },
+                    Cost::Mana(ManaCost {
+                        generic: 1,
+                        ..Default::default()
+                    }),
+                    Cost::RemoveCounter {
+                        counter: CounterType::PlusOnePlusOne,
+                        count: 1,
+                    },
                 ]),
                 effect: Effect::PreventAllCombatDamage,
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

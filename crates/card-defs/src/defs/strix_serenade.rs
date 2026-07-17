@@ -13,14 +13,26 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("strix-serenade"),
         name: "Strix Serenade".to_string(),
-        mana_cost: Some(ManaCost { blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            blue: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Counter target artifact, creature, or planeswalker spell. Its controller creates a 2/2 blue Bird creature token with flying.".to_string(),
+        oracle_text: "Counter target artifact, creature, or planeswalker spell. Its controller \
+                      creates a 2/2 blue Bird creature token with flying."
+            .to_string(),
         abilities: vec![
             // TODO: DSL gap — multi-type target filter (artifact/creature/planeswalker)
             // and "its controller" token creation not expressible.
         ],
-        completeness: Completeness::partial("Sole blocker: token recipient. 'Its controller creates a 2/2 blue Bird token' — Effect::CreateToken/TokenSpec has no player field, so tokens always go to ctx.controller; in multiplayer the token would go to the caster instead of the countered spell's controller. The multi-type target filter EXISTS (TargetSpellWithFilter + TargetFilter::has_card_types). Same blocker as stroke_of_midnight, pongify, rapid_hybridization, beast_within."),
+        completeness: Completeness::partial(
+            "Sole blocker: token recipient. 'Its controller creates a 2/2 blue Bird token' — \
+             Effect::CreateToken/TokenSpec has no player field, so tokens always go to \
+             ctx.controller; in multiplayer the token would go to the caster instead of the \
+             countered spell's controller. The multi-type target filter EXISTS \
+             (TargetSpellWithFilter + TargetFilter::has_card_types). Same blocker as \
+             stroke_of_midnight, pongify, rapid_hybridization, beast_within.",
+        ),
         ..Default::default()
     }
 }

@@ -7,7 +7,10 @@ pub fn card() -> CardDefinition {
         name: "Thundering Falls".to_string(),
         mana_cost: None,
         types: types_sub(&[CardType::Land], &["Island", "Mountain"]),
-        oracle_text: "({T}: Add {U} or {R}.)\nThis land enters tapped.\nWhen this land enters, surveil 1. (Look at the top card of your library. You may put it into your graveyard.)".to_string(),
+        oracle_text: "({T}: Add {U} or {R}.)\nThis land enters tapped.\nWhen this land enters, \
+                      surveil 1. (Look at the top card of your library. You may put it into your \
+                      graveyard.)"
+            .to_string(),
         abilities: vec![
             // SR-33 (CR 305.6 / 605.1a): the printed mana ability, modelled
             // explicitly — one activated ability per colour, as `forest.rs`

@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("shamanic-revelation"),
         name: "Shamanic Revelation".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            green: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Draw a card for each creature you control.\nFerocious — You gain 4 life for each creature you control with power 4 or greater.".to_string(),
+        oracle_text: "Draw a card for each creature you control.\nFerocious — You gain 4 life for \
+                      each creature you control with power 4 or greater."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![
                 // Draw a card for each creature you control.
@@ -31,7 +37,11 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("Ferocious life-gain clause unimplemented. TargetFilter.min_power + EffectAmount::PermanentCount/ForEach::EachPermanentMatching make it expressible — needs authoring, not a primitive."),
+        completeness: Completeness::partial(
+            "Ferocious life-gain clause unimplemented. TargetFilter.min_power + \
+             EffectAmount::PermanentCount/ForEach::EachPermanentMatching make it expressible — \
+             needs authoring, not a primitive.",
+        ),
         ..Default::default()
     }
 }

@@ -13,18 +13,20 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("sidisi-undead-vizier"),
         name: "Sidisi, Undead Vizier".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            black: 2,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Zombie", "Snake"],
         ),
-        oracle_text:
-            "Deathtouch\n\
-             Exploit (When this creature enters, you may sacrifice a creature.)\n\
-             When Sidisi exploits a creature, you may search your library for a card, \
-             put it into your hand, then shuffle."
-                .to_string(),
+        oracle_text: "Deathtouch\nExploit (When this creature enters, you may sacrifice a \
+                      creature.)\nWhen Sidisi exploits a creature, you may search your library \
+                      for a card, put it into your hand, then shuffle."
+            .to_string(),
         power: Some(4),
         toughness: Some(6),
         abilities: vec![
@@ -34,7 +36,10 @@ pub fn card() -> CardDefinition {
             // exploit-specific triggers. The search-library effect tied to exploit sacrifice
             // cannot be expressed in the DSL.
         ],
-        completeness: Completeness::partial("TriggerCondition::WhenThisExploitsACreature does not exist in the DSL. The 'when this creature exploits a creature'..."),
+        completeness: Completeness::partial(
+            "TriggerCondition::WhenThisExploitsACreature does not exist in the DSL. The 'when \
+             this creature exploits a creature'...",
+        ),
         ..Default::default()
     }
 }

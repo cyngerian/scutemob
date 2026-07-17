@@ -7,9 +7,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("aetherflux-reservoir"),
         name: "Aetherflux Reservoir".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "Whenever you cast a spell, you gain 1 life for each spell you've cast this turn.\nPay 50 life: Aetherflux Reservoir deals 50 damage to any target.".to_string(),
+        oracle_text: "Whenever you cast a spell, you gain 1 life for each spell you've cast this \
+                      turn.\nPay 50 life: Aetherflux Reservoir deals 50 damage to any target."
+            .to_string(),
         abilities: vec![
             // Whenever you cast a spell, gain 1 life per spell cast this turn.
             // TODO: TriggerCondition::ControllerCastsSpell exists but "gain 1 life for
@@ -26,10 +31,13 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("TriggerCondition::ControllerCastsSpell exists but 'gain 1 life for each spell you've cast this turn' needs a..."),
+        completeness: Completeness::partial(
+            "TriggerCondition::ControllerCastsSpell exists but 'gain 1 life for each spell you've \
+             cast this turn' needs a...",
+        ),
         ..Default::default()
     }
 }

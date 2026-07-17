@@ -10,9 +10,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("crystal-barricade"),
         name: "Crystal Barricade".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            white: 1,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Artifact, CardType::Creature], &["Wall"]),
-        oracle_text: "Defender (This creature can't attack.)\nYou have hexproof. (You can't be the target of spells or abilities your opponents control.)\nPrevent all noncombat damage that would be dealt to other creatures you control.".to_string(),
+        oracle_text: "Defender (This creature can't attack.)\nYou have hexproof. (You can't be \
+                      the target of spells or abilities your opponents control.)\nPrevent all \
+                      noncombat damage that would be dealt to other creatures you control."
+            .to_string(),
         power: Some(0),
         toughness: Some(4),
         abilities: vec![
@@ -27,7 +34,12 @@ pub fn card() -> CardDefinition {
             // card_definition.rs AbilityDefinition::Replacement yet for blanket prevention.
             // Deferred until damage prevention replacement effects are added to the DSL.
         ],
-        completeness: Completeness::partial("'Prevent all noncombat damage dealt to other creatures you control' unimplemented. DamageWouldBeDealt + PreventAllDamage exist, but DamageTargetFilter has no combat/noncombat discriminator and no 'other creatures you control' variant. Unblock: extend DamageTargetFilter. Defender and HexproofPlayer are implemented."),
+        completeness: Completeness::partial(
+            "'Prevent all noncombat damage dealt to other creatures you control' unimplemented. \
+             DamageWouldBeDealt + PreventAllDamage exist, but DamageTargetFilter has no \
+             combat/noncombat discriminator and no 'other creatures you control' variant. \
+             Unblock: extend DamageTargetFilter. Defender and HexproofPlayer are implemented.",
+        ),
         ..Default::default()
     }
 }

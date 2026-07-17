@@ -5,7 +5,10 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("reach-through-mists"),
         name: "Reach Through Mists".to_string(),
-        mana_cost: Some(ManaCost { blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            blue: 1,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Instant], &["Arcane"]),
         oracle_text: "Draw a card.".to_string(),
         abilities: vec![AbilityDefinition::Spell {

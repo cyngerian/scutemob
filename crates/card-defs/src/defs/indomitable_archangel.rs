@@ -10,9 +10,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("indomitable-archangel"),
         name: "Indomitable Archangel".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, white: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            white: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Angel"]),
-        oracle_text: "Flying\nMetalcraft \u{2014} Artifacts you control have shroud as long as you control three or more artifacts. (An artifact with shroud can't be the target of spells or abilities.)".to_string(),
+        oracle_text: "Flying\nMetalcraft \u{2014} Artifacts you control have shroud as long as \
+                      you control three or more artifacts. (An artifact with shroud can't be the \
+                      target of spells or abilities.)"
+            .to_string(),
         power: Some(4),
         toughness: Some(4),
         abilities: vec![

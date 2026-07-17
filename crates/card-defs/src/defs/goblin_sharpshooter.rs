@@ -8,9 +8,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("goblin-sharpshooter"),
         name: "Goblin Sharpshooter".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Goblin"]),
-        oracle_text: "Goblin Sharpshooter doesn't untap during your untap step.\nWhenever a creature dies, untap Goblin Sharpshooter.\n{T}: Goblin Sharpshooter deals 1 damage to any target.".to_string(),
+        oracle_text: "Goblin Sharpshooter doesn't untap during your untap step.\nWhenever a \
+                      creature dies, untap Goblin Sharpshooter.\n{T}: Goblin Sharpshooter deals 1 \
+                      damage to any target."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
@@ -23,8 +30,8 @@ pub fn card() -> CardDefinition {
                     controller: None,
                     exclude_self: false,
                     nontoken_only: false,
-                                filter: None,
-            },
+                    filter: None,
+                },
                 effect: Effect::UntapPermanent {
                     target: EffectTarget::Source,
                 },
@@ -44,7 +51,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

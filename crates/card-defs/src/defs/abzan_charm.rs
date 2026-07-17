@@ -14,12 +14,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("abzan-charm"),
         name: "Abzan Charm".to_string(),
-        mana_cost: Some(ManaCost { white: 1, black: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            white: 1,
+            black: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Choose one —\n\
-            • Exile target creature with power 3 or greater.\n\
-            • You draw two cards and you lose 2 life.\n\
-            • Distribute two +1/+1 counters among one or two target creatures."
+        oracle_text: "Choose one —\n• Exile target creature with power 3 or greater.\n• You draw \
+                      two cards and you lose 2 life.\n• Distribute two +1/+1 counters among one \
+                      or two target creatures."
             .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![]),
@@ -72,7 +76,10 @@ pub fn card() -> CardDefinition {
             }),
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("approximated — add 2 counters to a single target creature. See inline comment on mode 2 below for the missing..."),
+        completeness: Completeness::partial(
+            "approximated — add 2 counters to a single target creature. See inline comment on \
+             mode 2 below for the missing...",
+        ),
         ..Default::default()
     }
 }

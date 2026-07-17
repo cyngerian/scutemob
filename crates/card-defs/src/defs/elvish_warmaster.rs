@@ -8,9 +8,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("elvish-warmaster"),
         name: "Elvish Warmaster".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Elf", "Warrior"]),
-        oracle_text: "Whenever one or more other Elves you control enter, create a 1/1 green Elf Warrior creature token. This ability triggers only once each turn.\n{5}{G}{G}: Elves you control get +2/+2 and gain deathtouch until end of turn.".to_string(),
+        oracle_text: "Whenever one or more other Elves you control enter, create a 1/1 green Elf \
+                      Warrior creature token. This ability triggers only once each \
+                      turn.\n{5}{G}{G}: Elves you control get +2/+2 and gain deathtouch until end \
+                      of turn."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -32,7 +40,9 @@ pub fn card() -> CardDefinition {
                     spec: TokenSpec {
                         name: "Elf Warrior".to_string(),
                         card_types: [CardType::Creature].into_iter().collect(),
-                        subtypes: [SubType("Elf".to_string()), SubType("Warrior".to_string())].into_iter().collect(),
+                        subtypes: [SubType("Elf".to_string()), SubType("Warrior".to_string())]
+                            .into_iter()
+                            .collect(),
                         colors: [Color::Green].into_iter().collect(),
                         power: 1,
                         toughness: 1,
@@ -56,15 +66,19 @@ pub fn card() -> CardDefinition {
             // CR 613.4c / CR 613.1f: "{5}{G}{G}: Elves you control get +2/+2 and gain
             // deathtouch until end of turn."
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { generic: 5, green: 2, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    generic: 5,
+                    green: 2,
+                    ..Default::default()
+                }),
                 effect: Effect::Sequence(vec![
                     Effect::ApplyContinuousEffect {
                         effect_def: Box::new(ContinuousEffectDef {
                             layer: EffectLayer::PtModify,
                             modification: LayerModification::ModifyBoth(2),
-                            filter: EffectFilter::CreaturesYouControlWithSubtype(
-                                SubType("Elf".to_string()),
-                            ),
+                            filter: EffectFilter::CreaturesYouControlWithSubtype(SubType(
+                                "Elf".to_string(),
+                            )),
                             duration: EffectDuration::UntilEndOfTurn,
                             condition: None,
                         }),
@@ -73,9 +87,9 @@ pub fn card() -> CardDefinition {
                         effect_def: Box::new(ContinuousEffectDef {
                             layer: EffectLayer::Ability,
                             modification: LayerModification::AddKeyword(KeywordAbility::Deathtouch),
-                            filter: EffectFilter::CreaturesYouControlWithSubtype(
-                                SubType("Elf".to_string()),
-                            ),
+                            filter: EffectFilter::CreaturesYouControlWithSubtype(SubType(
+                                "Elf".to_string(),
+                            )),
                             duration: EffectDuration::UntilEndOfTurn,
                             condition: None,
                         }),
@@ -85,7 +99,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

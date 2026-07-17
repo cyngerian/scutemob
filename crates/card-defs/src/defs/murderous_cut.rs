@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("murderous-cut"),
         name: "Murderous Cut".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            black: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Delve (Each card you exile from your graveyard while casting this spell pays for {1}.)\nDestroy target creature.".to_string(),
+        oracle_text: "Delve (Each card you exile from your graveyard while casting this spell \
+                      pays for {1}.)\nDestroy target creature."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Delve),
             AbilityDefinition::Spell {

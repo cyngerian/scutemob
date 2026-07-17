@@ -14,7 +14,11 @@ pub fn card() -> CardDefinition {
         name: "Haven of the Spirit Dragon".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}: Add {C}.\n{T}: Add one mana of any color. Spend this mana only to cast a Dragon creature spell.\n{2}, {T}, Sacrifice this land: Return target Dragon creature card or Ugin planeswalker card from your graveyard to your hand.".to_string(),
+        oracle_text: "{T}: Add {C}.\n{T}: Add one mana of any color. Spend this mana only to cast \
+                      a Dragon creature spell.\n{2}, {T}, Sacrifice this land: Return target \
+                      Dragon creature card or Ugin planeswalker card from your graveyard to your \
+                      hand."
+            .to_string(),
         abilities: vec![
             // {T}: Add {C}.
             AbilityDefinition::Activated {
@@ -27,20 +31,22 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {T}: Add one mana of any color. Spend this mana only to cast a Dragon creature spell.
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
                 effect: Effect::AddManaAnyColorRestricted {
                     player: PlayerTarget::Controller,
-                    restriction: ManaRestriction::CreatureWithSubtype(SubType("Dragon".to_string())),
+                    restriction: ManaRestriction::CreatureWithSubtype(SubType(
+                        "Dragon".to_string(),
+                    )),
                 },
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {2}, {T}, Sacrifice: Return target Dragon creature card from graveyard to hand.
             // TODO: Also targets "Ugin planeswalker card" (name + type union not expressible)
@@ -68,10 +74,13 @@ pub fn card() -> CardDefinition {
                 })],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("'or Ugin planeswalker card' part of the target filter (name + type union) is not expressible. Currently only targets..."),
+        completeness: Completeness::partial(
+            "'or Ugin planeswalker card' part of the target filter (name + type union) is not \
+             expressible. Currently only targets...",
+        ),
         ..Default::default()
     }
 }

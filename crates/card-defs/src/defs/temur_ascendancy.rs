@@ -7,9 +7,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("temur-ascendancy"),
         name: "Temur Ascendancy".to_string(),
-        mana_cost: Some(ManaCost { green: 1, blue: 1, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            green: 1,
+            blue: 1,
+            red: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Creatures you control have haste.\nWhenever a creature you control with power 4 or greater enters, you may draw a card.".to_string(),
+        oracle_text: "Creatures you control have haste.\nWhenever a creature you control with \
+                      power 4 or greater enters, you may draw a card."
+            .to_string(),
         abilities: vec![
             // Creatures you control have haste.
             AbilityDefinition::Static {
@@ -44,7 +51,11 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::known_wrong("known_wrong — 'you may draw a card' is implemented as a MANDATORY draw; no optional-trigger primitive exists (Effect::Choose always takes the first option, effects/mod.rs:3190)."),
+        completeness: Completeness::known_wrong(
+            "known_wrong — 'you may draw a card' is implemented as a MANDATORY draw; no \
+             optional-trigger primitive exists (Effect::Choose always takes the first option, \
+             effects/mod.rs:3190).",
+        ),
         ..Default::default()
     }
 }

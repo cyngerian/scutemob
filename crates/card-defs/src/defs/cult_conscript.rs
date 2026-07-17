@@ -12,9 +12,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("cult-conscript"),
         name: "Cult Conscript".to_string(),
-        mana_cost: Some(ManaCost { black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Skeleton", "Warrior"]),
-        oracle_text: "This creature enters tapped.\n{1}{B}: Return this card from your graveyard to the battlefield. Activate only if a non-Skeleton creature died under your control this turn.".to_string(),
+        oracle_text: "This creature enters tapped.\n{1}{B}: Return this card from your graveyard \
+                      to the battlefield. Activate only if a non-Skeleton creature died under \
+                      your control this turn."
+            .to_string(),
         abilities: vec![
             // CR 614.1c: self-replacement — this creature enters tapped.
             AbilityDefinition::Replacement {
@@ -32,7 +38,11 @@ pub fn card() -> CardDefinition {
             // variant not yet in the DSL. The ability fires unconditionally as an
             // approximation. This is a known DSL gap deferred to PB-37.
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { generic: 1, black: 1, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    generic: 1,
+                    black: 1,
+                    ..Default::default()
+                }),
                 effect: Effect::MoveZone {
                     target: EffectTarget::Source,
                     to: ZoneTarget::Battlefield { tapped: false },
@@ -42,12 +52,17 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: Some(ActivationZone::Graveyard),
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         power: Some(2),
         toughness: Some(1),
-        completeness: Completeness::known_wrong("{1}{B} graveyard recursion is activatable with no restriction: 'Activate only if a non-Skeleton creature died under your control this turn' is omitted because no Condition variant tracks creature deaths this turn. Strictly more permissive than oracle. Unblock: Condition::CreatureDiedThisTurn { filter }."),
+        completeness: Completeness::known_wrong(
+            "{1}{B} graveyard recursion is activatable with no restriction: 'Activate only if a \
+             non-Skeleton creature died under your control this turn' is omitted because no \
+             Condition variant tracks creature deaths this turn. Strictly more permissive than \
+             oracle. Unblock: Condition::CreatureDiedThisTurn { filter }.",
+        ),
         ..Default::default()
     }
 }

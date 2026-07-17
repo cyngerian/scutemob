@@ -5,9 +5,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("monastery-swiftspear"),
         name: "Monastery Swiftspear".to_string(),
-        mana_cost: Some(ManaCost { red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Monk"]),
-        oracle_text: "Haste\nProwess (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.)".to_string(),
+        oracle_text: "Haste\nProwess (Whenever you cast a noncreature spell, this creature gets \
+                      +1/+1 until end of turn.)"
+            .to_string(),
         power: Some(1),
         toughness: Some(2),
         abilities: vec![
@@ -27,6 +32,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

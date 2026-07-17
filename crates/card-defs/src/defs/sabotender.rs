@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("sabotender"),
         name: "Sabotender".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Plant"]),
-        oracle_text: "Reach\nLandfall — Whenever a land you control enters, this creature deals 1 damage to each opponent.".to_string(),
+        oracle_text: "Reach\nLandfall — Whenever a land you control enters, this creature deals 1 \
+                      damage to each opponent."
+            .to_string(),
         power: Some(2),
         toughness: Some(1),
         abilities: vec![

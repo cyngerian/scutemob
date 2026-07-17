@@ -6,9 +6,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("golgari-findbroker"),
         name: "Golgari Findbroker".to_string(),
-        mana_cost: Some(ManaCost { black: 2, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 2,
+            green: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Elf", "Shaman"]),
-        oracle_text: "When this creature enters, return target permanent card from your graveyard to your hand.".to_string(),
+        oracle_text: "When this creature enters, return target permanent card from your graveyard \
+                      to your hand."
+            .to_string(),
         power: Some(3),
         toughness: Some(4),
         abilities: vec![
@@ -21,7 +27,9 @@ pub fn card() -> CardDefinition {
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },
-                    to: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                    to: ZoneTarget::Hand {
+                        owner: PlayerTarget::Controller,
+                    },
                     controller_override: None,
                 },
                 intervening_if: None,
@@ -39,7 +47,10 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::known_wrong("the permanent-card filter omits CardType::Battle, so Battle cards in your graveyard are not legal targets (CardType::Battle exists; add it to has_card_types)"),
+        completeness: Completeness::known_wrong(
+            "the permanent-card filter omits CardType::Battle, so Battle cards in your graveyard \
+             are not legal targets (CardType::Battle exists; add it to has_card_types)",
+        ),
         ..Default::default()
     }
 }

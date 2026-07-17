@@ -8,15 +8,29 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("goro-goro-disciple-of-ryusei"),
         name: "Goro-Goro, Disciple of Ryusei".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, red: 1, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Goblin", "Samurai"]),
-        oracle_text: "{R}: Creatures you control gain haste until end of turn.\n{3}{R}{R}: Create a 5/5 red Dragon Spirit creature token with flying. Activate only if you control an attacking modified creature.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            red: 1,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Creature],
+            &["Goblin", "Samurai"],
+        ),
+        oracle_text: "{R}: Creatures you control gain haste until end of turn.\n{3}{R}{R}: Create \
+                      a 5/5 red Dragon Spirit creature token with flying. Activate only if you \
+                      control an attacking modified creature."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
             // CR 613.1f: "{R}: Creatures you control gain haste until end of turn."
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { red: 1, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    red: 1,
+                    ..Default::default()
+                }),
                 effect: Effect::ApplyContinuousEffect {
                     effect_def: Box::new(ContinuousEffectDef {
                         layer: EffectLayer::Ability,
@@ -30,13 +44,16 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // TODO: "{3}{R}{R}: Create Dragon Spirit token. Activate only if you control
             // an attacking modified creature." Blocked: activation condition "control
             // attacking modified creature" not in DSL (modified = equipment/aura/counters).
         ],
-        completeness: Completeness::partial("'{3}{R}{R}: Create Dragon Spirit token. Activate only if you control an attacking modified creature.' Blocked:..."),
+        completeness: Completeness::partial(
+            "'{3}{R}{R}: Create Dragon Spirit token. Activate only if you control an attacking \
+             modified creature.' Blocked:...",
+        ),
         ..Default::default()
     }
 }

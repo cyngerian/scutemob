@@ -8,9 +8,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("brutal-cathar-moonrage-brute"),
         name: "Brutal Cathar".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            white: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Soldier", "Werewolf"]),
-        oracle_text: "When this creature enters the battlefield, exile target creature an opponent controls until this creature leaves the battlefield.\nDaybound".to_string(),
+        oracle_text: "When this creature enters the battlefield, exile target creature an \
+                      opponent controls until this creature leaves the battlefield.\nDaybound"
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -22,7 +28,8 @@ pub fn card() -> CardDefinition {
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::ExileWithDelayedReturn {
                     target: EffectTarget::DeclaredTarget { index: 0 },
-                    return_timing: crate::state::stubs::DelayedTriggerTiming::WhenSourceLeavesBattlefield,
+                    return_timing:
+                        crate::state::stubs::DelayedTriggerTiming::WhenSourceLeavesBattlefield,
                     return_tapped: false,
                     return_to: crate::cards::card_definition::DelayedReturnDestination::Battlefield,
                 },
@@ -62,6 +69,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

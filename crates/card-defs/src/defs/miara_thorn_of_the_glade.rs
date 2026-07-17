@@ -8,13 +8,20 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("miara-thorn-of-the-glade"),
         name: "Miara, Thorn of the Glade".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Elf", "Scout"],
         ),
-        oracle_text: "Whenever Miara, Thorn of the Glade or another Elf you control dies, you may pay {1} and 1 life. If you do, draw a card.\nPartner (You can have two commanders if both have partner.)".to_string(),
+        oracle_text: "Whenever Miara, Thorn of the Glade or another Elf you control dies, you may \
+                      pay {1} and 1 life. If you do, draw a card.\nPartner (You can have two \
+                      commanders if both have partner.)"
+            .to_string(),
         power: Some(1),
         toughness: Some(2),
         abilities: vec![
@@ -36,7 +43,10 @@ pub fn card() -> CardDefinition {
                 },
                 effect: Effect::MayPayThenEffect {
                     cost: Cost::Sequence(vec![
-                        Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
+                        Cost::Mana(ManaCost {
+                            generic: 1,
+                            ..Default::default()
+                        }),
                         Cost::PayLife(1),
                     ]),
                     payer: PlayerTarget::Controller,

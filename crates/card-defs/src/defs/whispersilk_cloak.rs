@@ -8,9 +8,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("whispersilk-cloak"),
         name: "Whispersilk Cloak".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Artifact], &["Equipment"]),
-        oracle_text: "Equipped creature can't be blocked and has shroud. (It can't be the target of spells or abilities.)\nEquip {2}".to_string(),
+        oracle_text: "Equipped creature can't be blocked and has shroud. (It can't be the target \
+                      of spells or abilities.)\nEquip {2}"
+            .to_string(),
         abilities: vec![
             // CR 702.6a: Equipped creature has Shroud (layer 6 ability grant).
             AbilityDefinition::Static {
@@ -36,7 +41,10 @@ pub fn card() -> CardDefinition {
             // Equip {2}: attach this Equipment to target creature you control.
             // CR 702.6b: Equip is an activated ability; sorcery speed (CR 702.6d).
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { generic: 2, ..Default::default() }), // Equip {2}
+                cost: Cost::Mana(ManaCost {
+                    generic: 2,
+                    ..Default::default()
+                }), // Equip {2}
                 effect: Effect::AttachEquipment {
                     equipment: EffectTarget::Source,
                     target: EffectTarget::DeclaredTarget { index: 0 },
@@ -45,7 +53,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

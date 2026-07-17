@@ -17,9 +17,22 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("satoru-umezawa"),
         name: "Satoru Umezawa".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, blue: 1, black: 1, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Human", "Ninja"]),
-        oracle_text: "Whenever you activate a ninjutsu ability, look at the top three cards of your library. Put one of them into your hand and the rest on the bottom of your library in any order. This ability triggers only once each turn.\nEach creature card in your hand has ninjutsu {2}{U}{B}.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            blue: 1,
+            black: 1,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Creature],
+            &["Human", "Ninja"],
+        ),
+        oracle_text: "Whenever you activate a ninjutsu ability, look at the top three cards of \
+                      your library. Put one of them into your hand and the rest on the bottom of \
+                      your library in any order. This ability triggers only once each turn.\nEach \
+                      creature card in your hand has ninjutsu {2}{U}{B}."
+            .to_string(),
         power: Some(2),
         toughness: Some(4),
         abilities: vec![
@@ -27,7 +40,10 @@ pub fn card() -> CardDefinition {
             // TODO: look-at-top-3-put-1-in-hand — DSL gap (no SelectFromTopN effect).
             // TODO: static grant ninjutsu to cards in hand — DSL gap (EffectFilter::InHand not supported).
         ],
-        completeness: Completeness::partial("TriggerCondition::WheneverYouActivateNinjutsu does not exist in DSL. The ninjutsu activation trigger cannot be..."),
+        completeness: Completeness::partial(
+            "TriggerCondition::WheneverYouActivateNinjutsu does not exist in DSL. The ninjutsu \
+             activation trigger cannot be...",
+        ),
         ..Default::default()
     }
 }

@@ -14,15 +14,24 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("scapeshift"),
         name: "Scapeshift".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Sacrifice any number of lands. Search your library for up to that many land cards, put them onto the battlefield tapped, then shuffle.".to_string(),
+        oracle_text: "Sacrifice any number of lands. Search your library for up to that many land \
+                      cards, put them onto the battlefield tapped, then shuffle."
+            .to_string(),
         abilities: vec![
             // TODO: Requires Cost::SacrificeAnyNumber(TargetFilter { has_card_type: Land, .. })
             // and EffectAmount::NumberSacrificed (or similar) to cap the SearchLibrary count.
             // Neither primitive exists in the current DSL.
         ],
-        completeness: Completeness::partial("'Sacrifice any number of lands' as a spell cost is not expressible in the DSL. There is no..."),
+        completeness: Completeness::partial(
+            "'Sacrifice any number of lands' as a spell cost is not expressible in the DSL. There \
+             is no...",
+        ),
         ..Default::default()
     }
 }

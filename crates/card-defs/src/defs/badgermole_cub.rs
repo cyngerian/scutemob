@@ -7,9 +7,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("badgermole-cub"),
         name: "Badgermole Cub".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Badger", "Mole"]),
-        oracle_text: "When this creature enters, earthbend 1. (Target land you control becomes a 0/0 creature with haste that's still a land. Put a +1/+1 counter on it. When it dies or is exiled, return it to the battlefield tapped.)\nWhenever you tap a creature for mana, add an additional {G}.".to_string(),
+        oracle_text: "When this creature enters, earthbend 1. (Target land you control becomes a \
+                      0/0 creature with haste that's still a land. Put a +1/+1 counter on it. \
+                      When it dies or is exiled, return it to the battlefield tapped.)\nWhenever \
+                      you tap a creature for mana, add an additional {G}."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -23,7 +31,10 @@ pub fn card() -> CardDefinition {
                 },
                 effect: Effect::AddMana {
                     player: PlayerTarget::Controller,
-                    mana: ManaPool { green: 1, ..Default::default() },
+                    mana: ManaPool {
+                        green: 1,
+                        ..Default::default()
+                    },
                 },
                 intervening_if: None,
                 targets: vec![],
@@ -31,7 +42,10 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("DSL gap — Earthbend (keyword action) not in DSL. CR 605.1b / CR 106.12a: 'Whenever you tap a creature for mana, add..."),
+        completeness: Completeness::partial(
+            "DSL gap — Earthbend (keyword action) not in DSL. CR 605.1b / CR 106.12a: 'Whenever \
+             you tap a creature for mana, add...",
+        ),
         ..Default::default()
     }
 }

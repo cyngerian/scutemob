@@ -7,9 +7,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("whitemane-lion"),
         name: "Whitemane Lion".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            white: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Cat"]),
-        oracle_text: "Flash\nWhen this enters, return a creature you control to its owner's hand.".to_string(),
+        oracle_text: "Flash\nWhen this enters, return a creature you control to its owner's hand."
+            .to_string(),
         power: Some(2),
         toughness: Some(1),
         abilities: vec![
@@ -21,7 +26,9 @@ pub fn card() -> CardDefinition {
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     to: ZoneTarget::Hand {
-                        owner: PlayerTarget::OwnerOf(Box::new(EffectTarget::DeclaredTarget { index: 0 })),
+                        owner: PlayerTarget::OwnerOf(Box::new(EffectTarget::DeclaredTarget {
+                            index: 0,
+                        })),
                     },
                     controller_override: None,
                 },

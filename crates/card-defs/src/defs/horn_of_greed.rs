@@ -10,7 +10,10 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("horn-of-greed"),
         name: "Horn of Greed".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
         oracle_text: "Whenever a player plays a land, that player draws a card.".to_string(),
         abilities: vec![
@@ -37,7 +40,14 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::known_wrong("the Horn's controller draws whenever ANY player's land enters (should be 'that player draws'). PlayerTarget::TriggeringPlayer exists but the PermanentEnteredBattlefield dispatch never sets trigger.triggering_player, so it is unresolvable here. Also fires on lands PUT onto the battlefield, not just lands played (CR 305.1). Prefer abilities: vec![] per W5 until the dispatch tags the entering permanent's controller."),
+        completeness: Completeness::known_wrong(
+            "the Horn's controller draws whenever ANY player's land enters (should be 'that \
+             player draws'). PlayerTarget::TriggeringPlayer exists but the \
+             PermanentEnteredBattlefield dispatch never sets trigger.triggering_player, so it is \
+             unresolvable here. Also fires on lands PUT onto the battlefield, not just lands \
+             played (CR 305.1). Prefer abilities: vec![] per W5 until the dispatch tags the \
+             entering permanent's controller.",
+        ),
         ..Default::default()
     }
 }

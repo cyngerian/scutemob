@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("ohran-frostfang"),
         name: "Ohran Frostfang".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            green: 2,
+            ..Default::default()
+        }),
         types: full_types(&[SuperType::Snow], &[CardType::Creature], &["Snake"]),
-        oracle_text: "Attacking creatures you control have deathtouch.\nWhenever a creature you control deals combat damage to a player, draw a card.".to_string(),
+        oracle_text: "Attacking creatures you control have deathtouch.\nWhenever a creature you \
+                      control deals combat damage to a player, draw a card."
+            .to_string(),
         power: Some(2),
         toughness: Some(6),
         abilities: vec![
@@ -27,7 +33,10 @@ pub fn card() -> CardDefinition {
             // draw a card." (PB-23: WheneverCreatureYouControlDealsCombatDamageToPlayer)
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer { filter: None },
+                trigger_condition:
+                    TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer {
+                        filter: None,
+                    },
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,
                     count: EffectAmount::Fixed(1),

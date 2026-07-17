@@ -14,17 +14,32 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("tinybones-trinket-thief"),
         name: "Tinybones, Trinket Thief".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: TypeLine {
             supertypes: [SuperType::Legendary].into_iter().collect(),
             card_types: [CardType::Creature].into_iter().collect(),
-            subtypes: [SubType("Skeleton".to_string()), SubType("Rogue".to_string())].into_iter().collect(),
+            subtypes: [
+                SubType("Skeleton".to_string()),
+                SubType("Rogue".to_string()),
+            ]
+            .into_iter()
+            .collect(),
         },
-        oracle_text: "At the beginning of each end step, if an opponent discarded a card this turn, you draw a card and you lose 1 life.\n{4}{B}{B}: Each opponent with no cards in hand loses 10 life.".to_string(),
+        oracle_text: "At the beginning of each end step, if an opponent discarded a card this \
+                      turn, you draw a card and you lose 1 life.\n{4}{B}{B}: Each opponent with \
+                      no cards in hand loses 10 life."
+            .to_string(),
         power: Some(1),
         toughness: Some(2),
         abilities: vec![],
-        completeness: Completeness::inert("First ability requires a game-state condition 'an opponent discarded a card this turn'..."),
+        completeness: Completeness::inert(
+            "First ability requires a game-state condition 'an opponent discarded a card this \
+             turn'...",
+        ),
         ..Default::default()
     }
 }

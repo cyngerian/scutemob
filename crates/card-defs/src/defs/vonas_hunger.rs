@@ -16,15 +16,28 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("vonas-hunger"),
         name: "Vona's Hunger".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            black: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Ascend (If you control ten or more permanents, you get the city's blessing for the rest of the game.)\nEach opponent sacrifices a creature of their choice. If you have the city's blessing, instead each opponent sacrifices half the creatures they control of their choice, rounded up.".to_string(),
+        oracle_text: "Ascend (If you control ten or more permanents, you get the city's blessing \
+                      for the rest of the game.)\nEach opponent sacrifices a creature of their \
+                      choice. If you have the city's blessing, instead each opponent sacrifices \
+                      half the creatures they control of their choice, rounded up."
+            .to_string(),
         abilities: vec![
             // TODO: Ascend conditional — Condition::HasCitysBlessing + half-creature-count
             // EffectAmount variant not in DSL. Basic sacrifice also deferred to avoid
             // producing incorrect game state when city's blessing is active. W5.
         ],
-        completeness: Completeness::partial("Blocked on an EffectAmount for 'half the creatures they control, rounded up' — no division/half variant exists. Condition::HasCitysBlessing DOES now exist and is no longer a blocker. Abilities remain empty per W5 (implementing only the non-Ascend half is wrong once the city's blessing is active)."),
+        completeness: Completeness::partial(
+            "Blocked on an EffectAmount for 'half the creatures they control, rounded up' — no \
+             division/half variant exists. Condition::HasCitysBlessing DOES now exist and is no \
+             longer a blocker. Abilities remain empty per W5 (implementing only the non-Ascend \
+             half is wrong once the city's blessing is active).",
+        ),
         ..Default::default()
     }
 }

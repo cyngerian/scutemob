@@ -19,13 +19,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("skrelv-defector-mite"),
         name: "Skrelv, Defector Mite".to_string(),
-        mana_cost: Some(ManaCost { white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            white: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Artifact, CardType::Creature],
             &["Phyrexian", "Mite"],
         ),
-        oracle_text: "Toxic 1 (Players dealt combat damage by this creature also get a poison counter.)\nSkrelv can't block.\n{W/P}, {T}: Choose a color. Another target creature you control gains toxic 1 and hexproof from that color until end of turn. It can't be blocked by creatures of that color this turn. ({W/P} can be paid with either {W} or 2 life.)".to_string(),
+        oracle_text: "Toxic 1 (Players dealt combat damage by this creature also get a poison \
+                      counter.)\nSkrelv can't block.\n{W/P}, {T}: Choose a color. Another target \
+                      creature you control gains toxic 1 and hexproof from that color until end \
+                      of turn. It can't be blocked by creatures of that color this turn. ({W/P} \
+                      can be paid with either {W} or 2 life.)"
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
@@ -33,7 +41,12 @@ pub fn card() -> CardDefinition {
             // CR 509.1b: "Skrelv can't block."
             AbilityDefinition::Keyword(KeywordAbility::CantBlock),
         ],
-        completeness: Completeness::partial("Activated ability blocked on: no Effect::ChooseColor primitive, no hexproof-from-chosen-color grant, no 'can't be blocked by creatures of that color' restriction. (Phyrexian mana and CantBlock are both shipped and CantBlock is already implemented.)"),
+        completeness: Completeness::partial(
+            "Activated ability blocked on: no Effect::ChooseColor primitive, no \
+             hexproof-from-chosen-color grant, no 'can't be blocked by creatures of that color' \
+             restriction. (Phyrexian mana and CantBlock are both shipped and CantBlock is already \
+             implemented.)",
+        ),
         ..Default::default()
     }
 }

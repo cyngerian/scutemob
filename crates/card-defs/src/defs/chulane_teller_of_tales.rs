@@ -9,13 +9,22 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("chulane-teller-of-tales"),
         name: "Chulane, Teller of Tales".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 1, white: 1, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 1,
+            white: 1,
+            blue: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Human", "Druid"],
         ),
-        oracle_text: "Vigilance\nWhenever you cast a creature spell, draw a card, then you may put a land card from your hand onto the battlefield.\n{3}, {T}: Return target creature you control to its owner's hand.".to_string(),
+        oracle_text: "Vigilance\nWhenever you cast a creature spell, draw a card, then you may \
+                      put a land card from your hand onto the battlefield.\n{3}, {T}: Return \
+                      target creature you control to its owner's hand."
+            .to_string(),
         power: Some(2),
         toughness: Some(4),
         abilities: vec![
@@ -29,7 +38,7 @@ pub fn card() -> CardDefinition {
                     spell_type_filter: Some(vec![CardType::Creature]),
                     noncreature_only: false,
                     chosen_subtype_filter: false,
-                spell_subtype_filter: None,
+                    spell_subtype_filter: None,
                 },
                 effect: Effect::Sequence(vec![
                     Effect::DrawCards {
@@ -46,12 +55,19 @@ pub fn card() -> CardDefinition {
             // CR 602.2: "{3}, {T}: Return target creature you control to its owner's hand."
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 3, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 3,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                 ]),
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },
-                    to: ZoneTarget::Hand { owner: PlayerTarget::OwnerOf(Box::new(EffectTarget::DeclaredTarget { index: 0 })) },
+                    to: ZoneTarget::Hand {
+                        owner: PlayerTarget::OwnerOf(Box::new(EffectTarget::DeclaredTarget {
+                            index: 0,
+                        })),
+                    },
                     controller_override: None,
                 },
                 timing_restriction: None,

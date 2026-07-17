@@ -6,14 +6,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("glistener-elf"),
         name: "Glistener Elf".to_string(),
-        mana_cost: Some(ManaCost { green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Elf", "Warrior"]),
-        oracle_text: "Infect (This creature deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)".to_string(),
+        oracle_text: "Infect (This creature deals damage to creatures in the form of -1/-1 \
+                      counters and to players in the form of poison counters.)"
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
-        abilities: vec![
-            AbilityDefinition::Keyword(KeywordAbility::Infect),
-        ],
+        abilities: vec![AbilityDefinition::Keyword(KeywordAbility::Infect)],
         color_indicator: None,
         back_face: None,
         spell_cost_modifiers: vec![],
@@ -26,6 +29,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

@@ -9,13 +9,19 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("rith-liberated-primeval"),
         name: "Rith, Liberated Primeval".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 1, green: 1, white: 1, ..Default::default() }),
-        types: full_types(
-            &[SuperType::Legendary],
-            &[CardType::Creature],
-            &["Dragon"],
-        ),
-        oracle_text: "Flying, ward {2}\nOther Dragons you control have ward {2}.\nAt the beginning of your end step, if a creature or planeswalker an opponent controlled was dealt excess damage this turn, create a 4/4 red Dragon creature token with flying.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 1,
+            green: 1,
+            white: 1,
+            ..Default::default()
+        }),
+        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Dragon"]),
+        oracle_text: "Flying, ward {2}\nOther Dragons you control have ward {2}.\nAt the \
+                      beginning of your end step, if a creature or planeswalker an opponent \
+                      controlled was dealt excess damage this turn, create a 4/4 red Dragon \
+                      creature token with flying."
+            .to_string(),
         power: Some(5),
         toughness: Some(5),
         abilities: vec![
@@ -26,9 +32,9 @@ pub fn card() -> CardDefinition {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::Ability,
                     modification: LayerModification::AddKeyword(KeywordAbility::Ward(2)),
-                    filter: EffectFilter::OtherCreaturesYouControlWithSubtype(
-                        SubType("Dragon".to_string()),
-                    ),
+                    filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType(
+                        "Dragon".to_string(),
+                    )),
                     duration: EffectDuration::WhileSourceOnBattlefield,
                     condition: None,
                 },
@@ -37,7 +43,10 @@ pub fn card() -> CardDefinition {
             // opponent controlled was dealt excess damage this turn, create a 4/4 Dragon token."
             // Blocked: "excess damage this turn" intervening-if condition not in DSL.
         ],
-        completeness: Completeness::partial("'At the beginning of your end step, if a creature or planeswalker an opponent controlled was dealt excess damage this..."),
+        completeness: Completeness::partial(
+            "'At the beginning of your end step, if a creature or planeswalker an opponent \
+             controlled was dealt excess damage this...",
+        ),
         ..Default::default()
     }
 }

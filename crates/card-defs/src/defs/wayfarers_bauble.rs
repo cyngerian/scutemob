@@ -5,12 +5,20 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("wayfarers-bauble"),
         name: "Wayfarer's Bauble".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "{2}, {T}, Sacrifice Wayfarer's Bauble: Search your library for a basic land card and put it onto the battlefield tapped. Then shuffle.".to_string(),
+        oracle_text: "{2}, {T}, Sacrifice Wayfarer's Bauble: Search your library for a basic land \
+                      card and put it onto the battlefield tapped. Then shuffle."
+            .to_string(),
         abilities: vec![AbilityDefinition::Activated {
             cost: Cost::Sequence(vec![
-                Cost::Mana(ManaCost { generic: 2, ..Default::default() }),
+                Cost::Mana(ManaCost {
+                    generic: 2,
+                    ..Default::default()
+                }),
                 Cost::Tap,
                 Cost::SacrificeSelf,
             ]),
@@ -23,14 +31,16 @@ pub fn card() -> CardDefinition {
                     shuffle_before_placing: false,
                     also_search_graveyard: false,
                 },
-                Effect::Shuffle { player: PlayerTarget::Controller },
+                Effect::Shuffle {
+                    player: PlayerTarget::Controller,
+                },
             ]),
             timing_restriction: None,
             targets: vec![],
-                activation_condition: None,
-                activation_zone: None,
-        once_per_turn: false,
-}],
+            activation_condition: None,
+            activation_zone: None,
+            once_per_turn: false,
+        }],
         ..Default::default()
     }
 }

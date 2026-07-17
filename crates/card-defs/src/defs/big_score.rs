@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("big-score"),
         name: "Big Score".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            red: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "As an additional cost to cast this spell, discard a card.\nDraw two cards and create two Treasure tokens.".to_string(),
+        oracle_text: "As an additional cost to cast this spell, discard a card.\nDraw two cards \
+                      and create two Treasure tokens."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             // TODO: Discard additional cost not expressible. Draw + treasure.
             effect: Effect::Sequence(vec![
@@ -25,7 +31,9 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("Discard additional cost not expressible. Draw + treasure"),
+        completeness: Completeness::partial(
+            "Discard additional cost not expressible. Draw + treasure",
+        ),
         ..Default::default()
     }
 }

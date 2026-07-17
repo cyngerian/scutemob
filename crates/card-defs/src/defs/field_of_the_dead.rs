@@ -7,7 +7,10 @@ pub fn card() -> CardDefinition {
         name: "Field of the Dead".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "This land enters tapped.\n{T}: Add {C}.\nWhenever this land or another land you control enters, if you control seven or more lands with different names, create a 2/2 black Zombie creature token.".to_string(),
+        oracle_text: "This land enters tapped.\n{T}: Add {C}.\nWhenever this land or another land \
+                      you control enters, if you control seven or more lands with different \
+                      names, create a 2/2 black Zombie creature token."
+            .to_string(),
         abilities: vec![
             // CR 614.1c: self-replacement — this land enters tapped.
             AbilityDefinition::Replacement {
@@ -28,13 +31,16 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // TODO: Triggered — Whenever this land or another land you control enters, if you control
             // seven or more lands with different names, create a 2/2 black Zombie creature token.
             // DSL gap: count_threshold (cannot count lands with different names).
         ],
-        completeness: Completeness::partial("Triggered — Whenever this land or another land you control enters, if you control seven or more lands with different..."),
+        completeness: Completeness::partial(
+            "Triggered — Whenever this land or another land you control enters, if you control \
+             seven or more lands with different...",
+        ),
         ..Default::default()
     }
 }

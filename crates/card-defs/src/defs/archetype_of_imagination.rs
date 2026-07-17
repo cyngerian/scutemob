@@ -12,9 +12,18 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("archetype-of-imagination"),
         name: "Archetype of Imagination".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, blue: 2, ..Default::default() }),
-        types: types_sub(&[CardType::Enchantment, CardType::Creature], &["Human", "Wizard"]),
-        oracle_text: "Creatures you control have flying.\nCreatures your opponents control lose flying and can't have or gain flying.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            blue: 2,
+            ..Default::default()
+        }),
+        types: types_sub(
+            &[CardType::Enchantment, CardType::Creature],
+            &["Human", "Wizard"],
+        ),
+        oracle_text: "Creatures you control have flying.\nCreatures your opponents control lose \
+                      flying and can't have or gain flying."
+            .to_string(),
         power: Some(3),
         toughness: Some(2),
         abilities: vec![

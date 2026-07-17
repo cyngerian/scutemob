@@ -8,7 +8,9 @@ pub fn card() -> CardDefinition {
         name: "Mistrise Village".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "This land enters tapped unless you control a Mountain or a Forest.\n{T}: Add {U}.\n{U}, {T}: The next spell you cast this turn can't be countered.".to_string(),
+        oracle_text: "This land enters tapped unless you control a Mountain or a Forest.\n{T}: \
+                      Add {U}.\n{U}, {T}: The next spell you cast this turn can't be countered."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Replacement {
                 trigger: ReplacementTrigger::WouldEnterBattlefield {
@@ -16,7 +18,10 @@ pub fn card() -> CardDefinition {
                 },
                 modification: ReplacementModification::EntersTapped,
                 is_self: true,
-                unless_condition: Some(Condition::ControlLandWithSubtypes(vec![SubType("Mountain".to_string()), SubType("Forest".to_string())])),
+                unless_condition: Some(Condition::ControlLandWithSubtypes(vec![
+                    SubType("Mountain".to_string()),
+                    SubType("Forest".to_string()),
+                ])),
             },
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
@@ -28,11 +33,13 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // TODO: Activated — {U}, {T}: The next spell you cast this turn can't be countered.
         ],
-        completeness: Completeness::partial("Activated — {U}, {T}: The next spell you cast this turn can't be countered"),
+        completeness: Completeness::partial(
+            "Activated — {U}, {T}: The next spell you cast this turn can't be countered",
+        ),
         ..Default::default()
     }
 }

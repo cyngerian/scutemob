@@ -6,9 +6,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("swan-song"),
         name: "Swan Song".to_string(),
-        mana_cost: Some(ManaCost { blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            blue: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Counter target instant, sorcery, or enchantment spell. Its controller creates a 2/2 blue Bird creature token with flying.".to_string(),
+        oracle_text: "Counter target instant, sorcery, or enchantment spell. Its controller \
+                      creates a 2/2 blue Bird creature token with flying."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![
                 Effect::CounterSpell {

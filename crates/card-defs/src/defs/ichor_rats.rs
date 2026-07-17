@@ -12,9 +12,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("ichor-rats"),
         name: "Ichor Rats".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Phyrexian", "Rat"]),
-        oracle_text: "Infect (This creature deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)\nWhen this enters, each player gets a poison counter.".to_string(),
+        oracle_text: "Infect (This creature deals damage to creatures in the form of -1/-1 \
+                      counters and to players in the form of poison counters.)\nWhen this enters, \
+                      each player gets a poison counter."
+            .to_string(),
         power: Some(2),
         toughness: Some(1),
         abilities: vec![
@@ -23,7 +30,10 @@ pub fn card() -> CardDefinition {
             // variant exists for giving poison counters to players. Omitted until
             // Effect::GivePlayerPoisonCounters is added.
         ],
-        completeness: Completeness::partial("DSL gap — no Effect variant to give poison counters to players directly. 'Each player gets a poison counter' requires a..."),
+        completeness: Completeness::partial(
+            "DSL gap — no Effect variant to give poison counters to players directly. 'Each \
+             player gets a poison counter' requires a...",
+        ),
         ..Default::default()
     }
 }

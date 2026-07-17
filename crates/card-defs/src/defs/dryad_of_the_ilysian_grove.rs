@@ -7,13 +7,19 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("dryad-of-the-ilysian-grove"),
         name: "Dryad of the Ilysian Grove".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[],
             &[CardType::Enchantment, CardType::Creature],
             &["Nymph", "Dryad"],
         ),
-        oracle_text: "You may play an additional land on each of your turns.\nLands you control are every basic land type in addition to their other types.".to_string(),
+        oracle_text: "You may play an additional land on each of your turns.\nLands you control \
+                      are every basic land type in addition to their other types."
+            .to_string(),
         power: Some(2),
         toughness: Some(4),
         abilities: vec![

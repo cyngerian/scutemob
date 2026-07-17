@@ -10,7 +10,9 @@ pub fn card() -> CardDefinition {
         name: "Blighted Woodland".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}: Add {C}.\n{3}{G}, {T}, Sacrifice this land: Search your library for up to two basic land cards, put them onto the battlefield tapped, then shuffle.".to_string(),
+        oracle_text: "{T}: Add {C}.\n{3}{G}, {T}, Sacrifice this land: Search your library for up \
+                      to two basic land cards, put them onto the battlefield tapped, then shuffle."
+            .to_string(),
         abilities: vec![
             // {T}: Add {C}.
             AbilityDefinition::Activated {
@@ -28,7 +30,11 @@ pub fn card() -> CardDefinition {
             // {3}{G}, {T}, Sacrifice this land: Search for up to two basic lands tapped.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 3, green: 1, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 3,
+                        green: 1,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                     Cost::SacrificeSelf,
                 ]),
@@ -49,7 +55,9 @@ pub fn card() -> CardDefinition {
                         shuffle_before_placing: false,
                         also_search_graveyard: false,
                     },
-                    Effect::Shuffle { player: PlayerTarget::Controller },
+                    Effect::Shuffle {
+                        player: PlayerTarget::Controller,
+                    },
                 ]),
                 timing_restriction: None,
                 targets: vec![],

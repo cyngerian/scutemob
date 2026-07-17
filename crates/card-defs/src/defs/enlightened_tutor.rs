@@ -7,9 +7,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("enlightened-tutor"),
         name: "Enlightened Tutor".to_string(),
-        mana_cost: Some(ManaCost { white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            white: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Search your library for an artifact or enchantment card, reveal it, then shuffle and put that card on top of your library.".to_string(),
+        oracle_text: "Search your library for an artifact or enchantment card, reveal it, then \
+                      shuffle and put that card on top of your library."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::SearchLibrary {
                 filter: TargetFilter {

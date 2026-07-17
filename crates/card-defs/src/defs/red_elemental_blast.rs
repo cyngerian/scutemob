@@ -6,9 +6,13 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("red-elemental-blast"),
         name: "Red Elemental Blast".to_string(),
-        mana_cost: Some(ManaCost { red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            red: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Choose one —\n• Counter target blue spell.\n• Destroy target blue permanent.".to_string(),
+        oracle_text: "Choose one —\n• Counter target blue spell.\n• Destroy target blue permanent."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![]),
             targets: vec![

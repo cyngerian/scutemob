@@ -7,9 +7,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("diamond-pick-axe"),
         name: "Diamond Pick-Axe".to_string(),
-        mana_cost: Some(ManaCost { red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            red: 1,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Artifact], &["Equipment"]),
-        oracle_text: "Indestructible (Effects that say \"destroy\" don't destroy this Equipment.)\nEquipped creature gets +1/+1 and has \"Whenever this creature attacks, create a Treasure token.\" (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")\nEquip {2}".to_string(),
+        oracle_text: "Indestructible (Effects that say \"destroy\" don't destroy this \
+                      Equipment.)\nEquipped creature gets +1/+1 and has \"Whenever this creature \
+                      attacks, create a Treasure token.\" (It's an artifact with \"{T}, Sacrifice \
+                      this token: Add one mana of any color.\")\nEquip {2}"
+            .to_string(),
         abilities: vec![
             // Indestructible (self)
             AbilityDefinition::Keyword(KeywordAbility::Indestructible),
@@ -28,7 +35,10 @@ pub fn card() -> CardDefinition {
             // DSL gap: no GrantTrigger/GrantTriggeredAbility to attached creature.
             // Equip {2}
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { generic: 2, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    generic: 2,
+                    ..Default::default()
+                }),
                 effect: Effect::AttachEquipment {
                     equipment: EffectTarget::Source,
                     target: EffectTarget::DeclaredTarget { index: 0 },
@@ -37,10 +47,13 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("'Equipped creature has 'Whenever this creature attacks, create a Treasure token'' — granting a triggered ability to the..."),
+        completeness: Completeness::partial(
+            "'Equipped creature has 'Whenever this creature attacks, create a Treasure token'' — \
+             granting a triggered ability to the...",
+        ),
         ..Default::default()
     }
 }

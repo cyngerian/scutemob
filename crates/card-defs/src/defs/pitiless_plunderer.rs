@@ -6,9 +6,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("pitiless-plunderer"),
         name: "Pitiless Plunderer".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Pirate"]),
-        oracle_text: "Whenever another creature you control dies, create a Treasure token.".to_string(),
+        oracle_text: "Whenever another creature you control dies, create a Treasure token."
+            .to_string(),
         power: Some(1),
         toughness: Some(4),
         abilities: vec![
@@ -20,8 +25,8 @@ pub fn card() -> CardDefinition {
                     controller: Some(TargetController::You),
                     exclude_self: true,
                     nontoken_only: false,
-                                filter: None,
-            },
+                    filter: None,
+                },
                 effect: Effect::CreateToken {
                     spec: treasure_token_spec(1),
                 },
@@ -44,6 +49,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

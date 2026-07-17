@@ -17,15 +17,25 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("sylvan-messenger"),
         name: "Sylvan Messenger".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Elf"]),
-        oracle_text: "Trample (This creature can deal excess combat damage to the player or planeswalker it's attacking.)\nWhen this creature enters, reveal the top four cards of your library. Put all Elf cards revealed this way into your hand and the rest on the bottom of your library in any order.".to_string(),
+        oracle_text: "Trample (This creature can deal excess combat damage to the player or \
+                      planeswalker it's attacking.)\nWhen this creature enters, reveal the top \
+                      four cards of your library. Put all Elf cards revealed this way into your \
+                      hand and the rest on the bottom of your library in any order."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
-        abilities: vec![
-            AbilityDefinition::Keyword(KeywordAbility::Trample),
-        ],
-        completeness: Completeness::partial("Authorable now via Effect::RevealAndRoute (count 4, Elf subtype filter, matched→Hand, unmatched→Library Bottom). Only residual: bottom order is deterministic rather than chosen."),
+        abilities: vec![AbilityDefinition::Keyword(KeywordAbility::Trample)],
+        completeness: Completeness::partial(
+            "Authorable now via Effect::RevealAndRoute (count 4, Elf subtype filter, \
+             matched→Hand, unmatched→Library Bottom). Only residual: bottom order is \
+             deterministic rather than chosen.",
+        ),
         ..Default::default()
     }
 }

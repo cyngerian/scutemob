@@ -7,9 +7,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("scheming-symmetry"),
         name: "Scheming Symmetry".to_string(),
-        mana_cost: Some(ManaCost { black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Choose an opponent. You and that player each search your libraries for a card, then shuffle and put that card on top.".to_string(),
+        oracle_text: "Choose an opponent. You and that player each search your libraries for a \
+                      card, then shuffle and put that card on top."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             // "You search" part — the opponent search needs player choice (M10).
             effect: Effect::SearchLibrary {
@@ -28,7 +33,9 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("Opponent also searches — needs second SearchLibrary for chosen opponent"),
+        completeness: Completeness::partial(
+            "Opponent also searches — needs second SearchLibrary for chosen opponent",
+        ),
         ..Default::default()
     }
 }

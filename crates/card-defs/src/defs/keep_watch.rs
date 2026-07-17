@@ -6,7 +6,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("keep-watch"),
         name: "Keep Watch".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            blue: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
         oracle_text: "Draw a card for each attacking creature.".to_string(),
         abilities: vec![AbilityDefinition::Spell {

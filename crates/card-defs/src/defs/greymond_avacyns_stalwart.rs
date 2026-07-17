@@ -13,16 +13,34 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("greymond-avacyns-stalwart"),
         name: "Greymond, Avacyn's Stalwart".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, white: 2, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Human", "Soldier"]),
-        oracle_text: "As Greymond, Avacyn's Stalwart enters, choose two abilities from among first strike, vigilance, and lifelink.\nHumans you control have each of the chosen abilities.\nAs long as you control four or more Humans, Humans you control get +2/+2.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            white: 2,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Creature],
+            &["Human", "Soldier"],
+        ),
+        oracle_text: "As Greymond, Avacyn's Stalwart enters, choose two abilities from among \
+                      first strike, vigilance, and lifelink.\nHumans you control have each of the \
+                      chosen abilities.\nAs long as you control four or more Humans, Humans you \
+                      control get +2/+2."
+            .to_string(),
         power: Some(3),
         toughness: Some(4),
         abilities: vec![
             // TODO: ETB choose-two modal ability grant (no ChooseAbility ETB in DSL)
             // TODO: Conditional +2/+2 static requiring count_threshold filter
         ],
-        completeness: Completeness::partial("Blocked: 'As this enters, choose two abilities from among first strike, vigilance, and lifelink' — no as-enters ability-choice replacement and no layer grant keyed to a chosen ability set. The +2/+2 conditional static IS now expressible (Condition::YouControlNOrMoreWithFilter + ContinuousEffectDef.condition) and should be wired."),
+        completeness: Completeness::partial(
+            "Blocked: 'As this enters, choose two abilities from among first strike, vigilance, \
+             and lifelink' — no as-enters ability-choice replacement and no layer grant keyed to \
+             a chosen ability set. The +2/+2 conditional static IS now expressible \
+             (Condition::YouControlNOrMoreWithFilter + ContinuousEffectDef.condition) and should \
+             be wired.",
+        ),
         ..Default::default()
     }
 }

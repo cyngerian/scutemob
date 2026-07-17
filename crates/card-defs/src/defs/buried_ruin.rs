@@ -9,7 +9,9 @@ pub fn card() -> CardDefinition {
         name: "Buried Ruin".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}: Add {C}.\n{2}, {T}, Sacrifice this land: Return target artifact card from your graveyard to your hand.".to_string(),
+        oracle_text: "{T}: Add {C}.\n{2}, {T}, Sacrifice this land: Return target artifact card \
+                      from your graveyard to your hand."
+            .to_string(),
         abilities: vec![
             // {T}: Add {C}.
             AbilityDefinition::Activated {
@@ -22,18 +24,23 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {2}, {T}, Sacrifice this land: Return target artifact card from your GY to hand.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 2, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 2,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                     Cost::SacrificeSelf,
                 ]),
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },
-                    to: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                    to: ZoneTarget::Hand {
+                        owner: PlayerTarget::Controller,
+                    },
                     controller_override: None,
                 },
                 timing_restriction: None,
@@ -43,7 +50,7 @@ pub fn card() -> CardDefinition {
                 })],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

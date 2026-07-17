@@ -27,9 +27,11 @@ pub fn card() -> CardDefinition {
             &[CardType::Creature],
             &["Nightmare", "Beast", "Elemental"],
         ),
-        oracle_text:
-            "Mutate {2}{U/B}{G}{G} (If you cast this spell for its mutate cost, put it over or under target non-Human creature you own. They mutate into the creature on top plus all abilities from under it.)\nTrample\nYou may cast Brokkos, Apex of Forever from your graveyard using its mutate ability."
-                .to_string(),
+        oracle_text: "Mutate {2}{U/B}{G}{G} (If you cast this spell for its mutate cost, put it \
+                      over or under target non-Human creature you own. They mutate into the \
+                      creature on top plus all abilities from under it.)\nTrample\nYou may cast \
+                      Brokkos, Apex of Forever from your graveyard using its mutate ability."
+            .to_string(),
         power: Some(6),
         toughness: Some(6),
         abilities: vec![
@@ -67,6 +69,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }
