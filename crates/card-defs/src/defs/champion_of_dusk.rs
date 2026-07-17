@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("champion-of-dusk"),
         name: "Champion of Dusk".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            black: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Vampire", "Knight"]),
-        oracle_text: "When this enters, you draw X cards and you lose X life, where X is the number of Vampires you control.".to_string(),
+        oracle_text: "When this enters, you draw X cards and you lose X life, where X is the \
+                      number of Vampires you control."
+            .to_string(),
         power: Some(4),
         toughness: Some(4),
         abilities: vec![

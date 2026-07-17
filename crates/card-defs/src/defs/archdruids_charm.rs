@@ -17,9 +17,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("archdruids-charm"),
         name: "Archdruid's Charm".to_string(),
-        mana_cost: Some(ManaCost { green: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            green: 3,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Choose one —\n• Search your library for a creature or land card and reveal it. Put it onto the battlefield tapped if it's a land card. Otherwise, put it into your hand. Then shuffle.\n• Put a +1/+1 counter on target creature you control. It deals damage equal to its power to target creature you don't control.\n• Exile target artifact or enchantment.".to_string(),
+        oracle_text: "Choose one —\n• Search your library for a creature or land card and reveal \
+                      it. Put it onto the battlefield tapped if it's a land card. Otherwise, put \
+                      it into your hand. Then shuffle.\n• Put a +1/+1 counter on target creature \
+                      you control. It deals damage equal to its power to target creature you \
+                      don't control.\n• Exile target artifact or enchantment."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![]),
             // PB-AC4 (CR 700.2c/700.2f): per-mode targets — mode 1 (two targets) and mode 2
@@ -78,7 +86,10 @@ pub fn card() -> CardDefinition {
             }),
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("'creature or land' search with conditional destination (battlefield tapped if land, hand if creature) — SearchLibrary..."),
+        completeness: Completeness::partial(
+            "'creature or land' search with conditional destination (battlefield tapped if land, \
+             hand if creature) — SearchLibrary...",
+        ),
         ..Default::default()
     }
 }

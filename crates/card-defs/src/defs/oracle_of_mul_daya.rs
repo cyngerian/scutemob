@@ -8,9 +8,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("oracle-of-mul-daya"),
         name: "Oracle of Mul Daya".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            green: 1,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Creature], &["Elf", "Shaman"]),
-        oracle_text: "You may play an additional land on each of your turns.\nPlay with the top card of your library revealed.\nYou may play lands from the top of your library.".to_string(),
+        oracle_text: "You may play an additional land on each of your turns.\nPlay with the top \
+                      card of your library revealed.\nYou may play lands from the top of your \
+                      library."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![

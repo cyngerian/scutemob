@@ -7,11 +7,7 @@ pub fn card() -> CardDefinition {
         card_id: cid("urborg-tomb-of-yawgmoth"),
         name: "Urborg, Tomb of Yawgmoth".to_string(),
         mana_cost: None,
-        types: full_types(
-            &[SuperType::Legendary],
-            &[CardType::Land],
-            &[],
-        ),
+        types: full_types(&[SuperType::Legendary], &[CardType::Land], &[]),
         oracle_text: "Each land is a Swamp in addition to its other land types.".to_string(),
         abilities: vec![
             // Layer 4: Each land gains Swamp subtype.

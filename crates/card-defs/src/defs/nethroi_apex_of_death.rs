@@ -14,15 +14,25 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("nethroi-apex-of-death"),
         name: "Nethroi, Apex of Death".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, white: 1, black: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            white: 1,
+            black: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Cat", "Nightmare", "Beast"],
         ),
-        oracle_text:
-            "Mutate {4}{G/W}{B}{B} (If you cast this spell for its mutate cost, put it over or under target non-Human creature you own. They mutate into the creature on top plus all abilities from under it.)\nLifelink\nDeathtouch\nWhenever this creature mutates, return any number of target creature cards with total power 10 or less from your graveyard to the battlefield."
-                .to_string(),
+        oracle_text: "Mutate {4}{G/W}{B}{B} (If you cast this spell for its mutate cost, put it \
+                      over or under target non-Human creature you own. They mutate into the \
+                      creature on top plus all abilities from under \
+                      it.)\nLifelink\nDeathtouch\nWhenever this creature mutates, return any \
+                      number of target creature cards with total power 10 or less from your \
+                      graveyard to the battlefield."
+            .to_string(),
         power: Some(5),
         toughness: Some(5),
         abilities: vec![
@@ -65,6 +75,9 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::partial("The 'total power 10 or less' multi-target graveyard constraint is a DSL gap. Effect::ReturnFromGraveyard does not..."),
+        completeness: Completeness::partial(
+            "The 'total power 10 or less' multi-target graveyard constraint is a DSL gap. \
+             Effect::ReturnFromGraveyard does not...",
+        ),
     }
 }

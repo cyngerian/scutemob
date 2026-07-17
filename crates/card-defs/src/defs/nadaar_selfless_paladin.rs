@@ -13,13 +13,19 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("nadaar-selfless-paladin"),
         name: "Nadaar, Selfless Paladin".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            white: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Dragon", "Knight"],
         ),
-        oracle_text: "Vigilance\nWhenever Nadaar, Selfless Paladin enters the battlefield or attacks, venture into the dungeon.\nOther creatures you control get +1/+1 as long as you've completed a dungeon."
+        oracle_text: "Vigilance\nWhenever Nadaar, Selfless Paladin enters the battlefield or \
+                      attacks, venture into the dungeon.\nOther creatures you control get +1/+1 \
+                      as long as you've completed a dungeon."
             .to_string(),
         power: Some(3),
         toughness: Some(3),
@@ -72,6 +78,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

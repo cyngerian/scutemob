@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("goblin-trashmaster"),
         name: "Goblin Trashmaster".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Goblin", "Warrior"]),
-        oracle_text: "Other Goblins you control get +1/+1.\nSacrifice a Goblin: Destroy target artifact.".to_string(),
+        oracle_text: "Other Goblins you control get +1/+1.\nSacrifice a Goblin: Destroy target \
+                      artifact."
+            .to_string(),
         power: Some(3),
         toughness: Some(3),
         abilities: vec![
@@ -18,7 +24,9 @@ pub fn card() -> CardDefinition {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::PtModify,
                     modification: LayerModification::ModifyBoth(1),
-                    filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType("Goblin".to_string())),
+                    filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType(
+                        "Goblin".to_string(),
+                    )),
                     duration: EffectDuration::WhileSourceOnBattlefield,
                     condition: None,
                 },
@@ -38,7 +46,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![TargetRequirement::TargetArtifact],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

@@ -10,9 +10,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("storm-kiln-artist"),
         name: "Storm-Kiln Artist".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Dwarf", "Shaman"]),
-        oracle_text: "This creature gets +1/+0 for each artifact you control.\nMagecraft — Whenever you cast or copy an instant or sorcery spell, create a Treasure token.".to_string(),
+        oracle_text: "This creature gets +1/+0 for each artifact you control.\nMagecraft — \
+                      Whenever you cast or copy an instant or sorcery spell, create a Treasure \
+                      token."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -36,7 +43,7 @@ pub fn card() -> CardDefinition {
                     spell_type_filter: Some(vec![CardType::Instant, CardType::Sorcery]),
                     noncreature_only: false,
                     chosen_subtype_filter: false,
-                spell_subtype_filter: None,
+                    spell_subtype_filter: None,
                 },
                 effect: Effect::CreateToken {
                     spec: treasure_token_spec(1),
@@ -48,7 +55,9 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::known_wrong("Magecraft triggers on cast only; the printed 'or copy' half does not trigger"),
+        completeness: Completeness::known_wrong(
+            "Magecraft triggers on cast only; the printed 'or copy' half does not trigger",
+        ),
         ..Default::default()
     }
 }

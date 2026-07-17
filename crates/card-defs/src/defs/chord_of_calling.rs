@@ -8,9 +8,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("chord-of-calling"),
         name: "Chord of Calling".to_string(),
-        mana_cost: Some(ManaCost { green: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            green: 3,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nSearch your library for a creature card with mana value X or less, put it onto the battlefield, then shuffle.".to_string(),
+        oracle_text: "Convoke (Your creatures can help cast this spell. Each creature you tap \
+                      while casting this spell pays for {1} or one mana of that creature's \
+                      color.)\nSearch your library for a creature card with mana value X or less, \
+                      put it onto the battlefield, then shuffle."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Convoke),
             AbilityDefinition::Spell {

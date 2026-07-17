@@ -12,13 +12,26 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("the-ur-dragon"),
         name: "The Ur-Dragon".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, white: 1, blue: 1, black: 1, red: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            white: 1,
+            blue: 1,
+            black: 1,
+            red: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Dragon", "Avatar"],
         ),
-        oracle_text: "Eminence — As long as The Ur-Dragon is in the command zone or on the battlefield, other Dragon spells you cast cost {1} less to cast.\nFlying\nWhenever one or more Dragons you control attack, draw that many cards, then you may put a permanent card from your hand onto the battlefield.".to_string(),
+        oracle_text: "Eminence — As long as The Ur-Dragon is in the command zone or on the \
+                      battlefield, other Dragon spells you cast cost {1} less to \
+                      cast.\nFlying\nWhenever one or more Dragons you control attack, draw that \
+                      many cards, then you may put a permanent card from your hand onto the \
+                      battlefield."
+            .to_string(),
         power: Some(10),
         toughness: Some(10),
         abilities: vec![
@@ -35,7 +48,14 @@ pub fn card() -> CardDefinition {
             exclude_self: true,
             colored_mana_reduction: None,
         }],
-        completeness: Completeness::partial("Attack trigger: 'draw that many' is now expressible (EffectAmount::AttackingCreatureCount with a Dragon filter, card_definition.rs:2697). Still blocked on (a) an effect putting a *permanent* card from hand onto the battlefield (only PutLandFromHandOntoBattlefield exists) and (b) 'you may' optionality — Effect::Choose is non-interactive (effects/mod.rs:3190 always takes the first option). Eminence is implemented via spell_cost_modifiers."),
+        completeness: Completeness::partial(
+            "Attack trigger: 'draw that many' is now expressible \
+             (EffectAmount::AttackingCreatureCount with a Dragon filter, \
+             card_definition.rs:2697). Still blocked on (a) an effect putting a *permanent* card \
+             from hand onto the battlefield (only PutLandFromHandOntoBattlefield exists) and (b) \
+             'you may' optionality — Effect::Choose is non-interactive (effects/mod.rs:3190 \
+             always takes the first option). Eminence is implemented via spell_cost_modifiers.",
+        ),
         ..Default::default()
     }
 }

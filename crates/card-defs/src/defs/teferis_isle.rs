@@ -8,7 +8,10 @@ pub fn card() -> CardDefinition {
         name: "Teferi's Isle".to_string(),
         mana_cost: None,
         types: supertypes(&[SuperType::Legendary], &[CardType::Land]),
-        oracle_text: "Phasing (This phases in or out before you untap during each of your untap steps. While it's phased out, it's treated as though it doesn't exist.)\nTeferi's Isle enters tapped.\n{T}: Add {U}{U}.".to_string(),
+        oracle_text: "Phasing (This phases in or out before you untap during each of your untap \
+                      steps. While it's phased out, it's treated as though it doesn't \
+                      exist.)\nTeferi's Isle enters tapped.\n{T}: Add {U}{U}."
+            .to_string(),
         abilities: vec![
             // CR 702.26a: Phasing — phases in or out before untap.
             AbilityDefinition::Keyword(KeywordAbility::Phasing),
@@ -32,7 +35,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

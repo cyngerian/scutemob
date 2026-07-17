@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("archmage-of-runes"),
         name: "Archmage of Runes".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, blue: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            blue: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Giant", "Wizard"]),
-        oracle_text: "Instant and sorcery spells you cast cost {1} less to cast.\nWhenever you cast an instant or sorcery spell, draw a card.".to_string(),
+        oracle_text: "Instant and sorcery spells you cast cost {1} less to cast.\nWhenever you \
+                      cast an instant or sorcery spell, draw a card."
+            .to_string(),
         power: Some(3),
         toughness: Some(6),
         // CR 601.2f: Instant and sorcery spells controller casts cost {1} less.
@@ -32,7 +38,7 @@ pub fn card() -> CardDefinition {
                     spell_type_filter: Some(vec![CardType::Instant, CardType::Sorcery]),
                     noncreature_only: false,
                     chosen_subtype_filter: false,
-                spell_subtype_filter: None,
+                    spell_subtype_filter: None,
                 },
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,

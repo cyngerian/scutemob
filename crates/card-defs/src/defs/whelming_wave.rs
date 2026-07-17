@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("whelming-wave"),
         name: "Whelming Wave".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, blue: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            blue: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Return all creatures to their owners' hands except for Krakens, Leviathans, Octopuses, and Serpents.".to_string(),
+        oracle_text: "Return all creatures to their owners' hands except for Krakens, Leviathans, \
+                      Octopuses, and Serpents."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::BounceAll {
                 filter: TargetFilter {

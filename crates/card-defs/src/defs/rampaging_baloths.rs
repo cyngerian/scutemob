@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("rampaging-baloths"),
         name: "Rampaging Baloths".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            green: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Beast"]),
-        oracle_text: "Trample\nLandfall \u{2014} Whenever a land you control enters, create a 4/4 green Beast creature token.".to_string(),
+        oracle_text: "Trample\nLandfall \u{2014} Whenever a land you control enters, create a 4/4 \
+                      green Beast creature token."
+            .to_string(),
         power: Some(6),
         toughness: Some(6),
         abilities: vec![

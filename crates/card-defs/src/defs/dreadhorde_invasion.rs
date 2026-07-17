@@ -7,9 +7,18 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("dreadhorde-invasion"),
         name: "Dreadhorde Invasion".to_string(),
-        mana_cost: Some(ManaCost { black: 1, generic: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 1,
+            generic: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "At the beginning of your upkeep, you lose 1 life and amass Zombies 1. (Put a +1/+1 counter on an Army you control. It's also a Zombie. If you don't control an Army, create a 0/0 black Zombie Army creature token first.)\nWhenever a Zombie token you control with power 6 or greater attacks, it gains lifelink until end of turn.".to_string(),
+        oracle_text: "At the beginning of your upkeep, you lose 1 life and amass Zombies 1. (Put \
+                      a +1/+1 counter on an Army you control. It's also a Zombie. If you don't \
+                      control an Army, create a 0/0 black Zombie Army creature token \
+                      first.)\nWhenever a Zombie token you control with power 6 or greater \
+                      attacks, it gains lifelink until end of turn."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Triggered {
                 once_per_turn: false,
@@ -35,7 +44,15 @@ pub fn card() -> CardDefinition {
             // filter (Zombie) and power threshold (≥6) + grant Lifelink until EOT effect.
             // No DSL support for this pattern yet.
         ],
-        completeness: Completeness::partial("Blocked on granting an ability to the triggering creature: 'Whenever a Zombie token you control with power 6 or greater attacks, IT gains lifelink until end of turn.' The trigger itself is now expressible — WheneverCreatureYouControlAttacks { filter: Some(TargetFilter { has_subtype: Some(Zombie), min_power: Some(6), is_token: true, .. }) } (PB-N; is_token honored at abilities.rs:6092/6108). The gap is EffectFilter, which has no TriggeringCreature variant, so the until-EOT lifelink grant cannot be aimed at the attacker that fired the trigger. Omitted per W5 policy."),
+        completeness: Completeness::partial(
+            "Blocked on granting an ability to the triggering creature: 'Whenever a Zombie token \
+             you control with power 6 or greater attacks, IT gains lifelink until end of turn.' \
+             The trigger itself is now expressible — WheneverCreatureYouControlAttacks { filter: \
+             Some(TargetFilter { has_subtype: Some(Zombie), min_power: Some(6), is_token: true, \
+             .. }) } (PB-N; is_token honored at abilities.rs:6092/6108). The gap is EffectFilter, \
+             which has no TriggeringCreature variant, so the until-EOT lifelink grant cannot be \
+             aimed at the attacker that fired the trigger. Omitted per W5 policy.",
+        ),
         ..Default::default()
     }
 }

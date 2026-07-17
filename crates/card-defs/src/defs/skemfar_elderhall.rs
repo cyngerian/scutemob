@@ -7,7 +7,11 @@ pub fn card() -> CardDefinition {
         name: "Skemfar Elderhall".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "This land enters tapped.\n{T}: Add {G}.\n{2}{B}{B}{G}, {T}, Sacrifice this land: Up to one target creature you don't control gets -2/-2 until end of turn. Create two 1/1 green Elf Warrior creature tokens. Activate only as a sorcery.".to_string(),
+        oracle_text: "This land enters tapped.\n{T}: Add {G}.\n{2}{B}{B}{G}, {T}, Sacrifice this \
+                      land: Up to one target creature you don't control gets -2/-2 until end of \
+                      turn. Create two 1/1 green Elf Warrior creature tokens. Activate only as a \
+                      sorcery."
+            .to_string(),
         abilities: vec![
             // CR 614.1c: self-replacement — this land enters tapped.
             AbilityDefinition::Replacement {
@@ -21,19 +25,27 @@ pub fn card() -> CardDefinition {
             // {T}: Add {G}.
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
-                effect: Effect::AddMana { player: PlayerTarget::Controller, mana: mana_pool(0, 0, 0, 0, 1, 0) },
+                effect: Effect::AddMana {
+                    player: PlayerTarget::Controller,
+                    mana: mana_pool(0, 0, 0, 0, 1, 0),
+                },
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {2}{B}{B}{G}, {T}, Sacrifice this land: Up to one target creature you don't control
             // gets -2/-2 until end of turn. Create two 1/1 green Elf Warrior creature tokens.
             // Activate only as a sorcery.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 2, black: 2, green: 1, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 2,
+                        black: 2,
+                        green: 1,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                     Cost::SacrificeSelf,
                 ]),
@@ -57,7 +69,9 @@ pub fn card() -> CardDefinition {
                             colors: [Color::Green].into_iter().collect(),
                             supertypes: imbl::OrdSet::new(),
                             card_types: [CardType::Creature].into_iter().collect(),
-                            subtypes: [SubType("Elf".to_string()), SubType("Warrior".to_string())].into_iter().collect(),
+                            subtypes: [SubType("Elf".to_string()), SubType("Warrior".to_string())]
+                                .into_iter()
+                                .collect(),
                             keywords: imbl::OrdSet::new(),
                             count: EffectAmount::Fixed(2),
                             tapped: false,
@@ -80,7 +94,7 @@ pub fn card() -> CardDefinition {
                 }],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

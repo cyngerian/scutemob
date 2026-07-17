@@ -5,9 +5,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("predator-dragon"),
         name: "Predator Dragon".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, red: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            red: 3,
+            ..Default::default()
+        }),
         types: creature_types(&["Dragon"]),
-        oracle_text: "Flying, haste\nDevour 2 (As this creature enters, you may sacrifice any number of creatures. It enters with twice that many +1/+1 counters on it.)".to_string(),
+        oracle_text: "Flying, haste\nDevour 2 (As this creature enters, you may sacrifice any \
+                      number of creatures. It enters with twice that many +1/+1 counters on it.)"
+            .to_string(),
         power: Some(4),
         toughness: Some(4),
         abilities: vec![
@@ -27,6 +33,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

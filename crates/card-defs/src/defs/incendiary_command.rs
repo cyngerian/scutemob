@@ -10,9 +10,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("incendiary-command"),
         name: "Incendiary Command".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, red: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            red: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Choose two —\n• Incendiary Command deals 4 damage to target player or planeswalker.\n• Incendiary Command deals 2 damage to each creature.\n• Destroy target nonbasic land.\n• Each player discards all the cards in their hand, then draws that many cards.".to_string(),
+        oracle_text: "Choose two —\n• Incendiary Command deals 4 damage to target player or \
+                      planeswalker.\n• Incendiary Command deals 2 damage to each creature.\n• \
+                      Destroy target nonbasic land.\n• Each player discards all the cards in \
+                      their hand, then draws that many cards."
+            .to_string(),
         abilities: vec![
             // PB-AC4 (CR 700.2c/700.2f): per-mode targets — modes 0, 1, 2 are fully
             // expressible and migrated. `Spell.targets` is empty; each mode's target (if

@@ -6,14 +6,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("vampiric-rites"),
         name: "Vampiric Rites".to_string(),
-        mana_cost: Some(ManaCost { black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
         oracle_text: "{1}{B}, Sacrifice a creature: You gain 1 life and draw a card.".to_string(),
         abilities: vec![
             // CR 602.2: "{1}{B}, Sacrifice a creature: You gain 1 life and draw a card."
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 1, black: 1, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 1,
+                        black: 1,
+                        ..Default::default()
+                    }),
                     Cost::Sacrifice(TargetFilter {
                         has_card_type: Some(CardType::Creature),
                         ..Default::default()
@@ -33,7 +40,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

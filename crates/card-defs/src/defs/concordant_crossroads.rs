@@ -11,7 +11,10 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("concordant-crossroads"),
         name: "Concordant Crossroads".to_string(),
-        mana_cost: Some(ManaCost { green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            green: 1,
+            ..Default::default()
+        }),
         types: supertypes(&[SuperType::World], &[CardType::Enchantment]),
         oracle_text: "All creatures have haste.".to_string(),
         abilities: vec![

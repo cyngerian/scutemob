@@ -17,11 +17,16 @@ pub fn card() -> CardDefinition {
         name: "Myriad Landscape".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "This land enters tapped.\n{T}: Add {C}.\n{2}, {T}, Sacrifice this land: Search your library for up to two basic land cards that share a land type, put them onto the battlefield tapped, then shuffle.".to_string(),
+        oracle_text: "This land enters tapped.\n{T}: Add {C}.\n{2}, {T}, Sacrifice this land: \
+                      Search your library for up to two basic land cards that share a land type, \
+                      put them onto the battlefield tapped, then shuffle."
+            .to_string(),
         abilities: vec![
             // ETB tapped (always).
             AbilityDefinition::Replacement {
-                trigger: ReplacementTrigger::WouldEnterBattlefield { filter: ObjectFilter::Any },
+                trigger: ReplacementTrigger::WouldEnterBattlefield {
+                    filter: ObjectFilter::Any,
+                },
                 modification: ReplacementModification::EntersTapped,
                 is_self: true,
                 unless_condition: None,
@@ -45,7 +50,10 @@ pub fn card() -> CardDefinition {
             // does not support. Two sequential SearchLibrary calls with basic_land_filter()
             // would not enforce the shared-type constraint.
         ],
-        completeness: Completeness::partial("The search ability requires a filter constraint 'share a land type' — i.e., both found basic lands must have the same..."),
+        completeness: Completeness::partial(
+            "The search ability requires a filter constraint 'share a land type' — i.e., both \
+             found basic lands must have the same...",
+        ),
         ..Default::default()
     }
 }

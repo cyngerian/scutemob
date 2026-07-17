@@ -18,7 +18,12 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: creature_types(&["Human", "Ninja"]),
-        oracle_text: "Ninjutsu {2}{U}{U} ({2}{U}{U}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)\nFlying\nWhen this creature enters from your hand, if it's attacking, create a token that's a copy of another target attacking creature. The token enters tapped and attacking.".to_string(),
+        oracle_text: "Ninjutsu {2}{U}{U} ({2}{U}{U}, Return an unblocked attacker you control to \
+                      hand: Put this card onto the battlefield from your hand tapped and \
+                      attacking.)\nFlying\nWhen this creature enters from your hand, if it's \
+                      attacking, create a token that's a copy of another target attacking \
+                      creature. The token enters tapped and attacking."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Ninjutsu),
             AbilityDefinition::Ninjutsu {
@@ -56,7 +61,10 @@ pub fn card() -> CardDefinition {
         ],
         power: Some(1),
         toughness: Some(1),
-        completeness: Completeness::partial("'enters from your hand, if it's attacking' — intervening-if condition on ETB trigger not fully expressible. Currently..."),
+        completeness: Completeness::partial(
+            "'enters from your hand, if it's attacking' — intervening-if condition on ETB trigger \
+             not fully expressible. Currently...",
+        ),
         ..Default::default()
     }
 }

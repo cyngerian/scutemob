@@ -12,9 +12,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("twinflame-tyrant"),
         name: "Twinflame Tyrant".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, red: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            red: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Dragon"]),
-        oracle_text: "Flying\nIf a source you control would deal damage to an opponent or a permanent an opponent controls, it deals double that damage instead.".to_string(),
+        oracle_text: "Flying\nIf a source you control would deal damage to an opponent or a \
+                      permanent an opponent controls, it deals double that damage instead."
+            .to_string(),
         power: Some(3),
         toughness: Some(5),
         abilities: vec![

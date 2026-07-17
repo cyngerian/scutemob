@@ -8,13 +8,19 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("kokusho-the-evening-star"),
         name: "Kokusho, the Evening Star".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            black: 2,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Dragon", "Spirit"],
         ),
-        oracle_text: "Flying\nWhen Kokusho, the Evening Star dies, each opponent loses 5 life. You gain life equal to the life lost this way.".to_string(),
+        oracle_text: "Flying\nWhen Kokusho, the Evening Star dies, each opponent loses 5 life. \
+                      You gain life equal to the life lost this way."
+            .to_string(),
         power: Some(5),
         toughness: Some(5),
         abilities: vec![
@@ -27,7 +33,9 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDies,
-                effect: Effect::DrainLife { amount: EffectAmount::Fixed(5) },
+                effect: Effect::DrainLife {
+                    amount: EffectAmount::Fixed(5),
+                },
                 intervening_if: None,
                 targets: vec![],
 

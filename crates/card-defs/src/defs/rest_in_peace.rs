@@ -13,12 +13,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("rest-in-peace"),
         name: "Rest in Peace".to_string(),
-        mana_cost: Some(ManaCost { white: 1, generic: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            white: 1,
+            generic: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text:
-            "When Rest in Peace enters the battlefield, exile all cards from all graveyards.\n\
-             If a card would be put into a graveyard from anywhere, exile it instead."
-                .to_string(),
+        oracle_text: "When Rest in Peace enters the battlefield, exile all cards from all \
+                      graveyards.\nIf a card would be put into a graveyard from anywhere, exile \
+                      it instead."
+            .to_string(),
         abilities: vec![
             // CR 603.3, 603.6a: ETB triggered ability — exile all cards from all graveyards.
             // Queued as PendingTrigger by queue_carddef_etb_triggers; resolves via stack.

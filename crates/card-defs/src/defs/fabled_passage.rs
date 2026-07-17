@@ -11,12 +11,12 @@ pub fn card() -> CardDefinition {
         name: "Fabled Passage".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}, Sacrifice this land: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle. Then if you control four or more lands, untap that land.".to_string(),
+        oracle_text: "{T}, Sacrifice this land: Search your library for a basic land card, put it \
+                      onto the battlefield tapped, then shuffle. Then if you control four or more \
+                      lands, untap that land."
+            .to_string(),
         abilities: vec![AbilityDefinition::Activated {
-            cost: Cost::Sequence(vec![
-                Cost::Tap,
-                Cost::SacrificeSelf,
-            ]),
+            cost: Cost::Sequence(vec![Cost::Tap, Cost::SacrificeSelf]),
             effect: Effect::Sequence(vec![
                 Effect::SearchLibrary {
                     player: PlayerTarget::Controller,
@@ -26,7 +26,9 @@ pub fn card() -> CardDefinition {
                     shuffle_before_placing: false,
                     also_search_graveyard: false,
                 },
-                Effect::Shuffle { player: PlayerTarget::Controller },
+                Effect::Shuffle {
+                    player: PlayerTarget::Controller,
+                },
             ]),
             timing_restriction: None,
             targets: vec![],
@@ -34,7 +36,16 @@ pub fn card() -> CardDefinition {
             activation_zone: None,
             once_per_turn: false,
         }],
-        completeness: Completeness::partial("'Then if you control four or more lands, untap that land' — blocked ONLY on referencing the searched land. Effect::SearchLibrary does not set ctx.last_created_permanent (written solely by CreateToken/Manifest/Cloak — effects/mod.rs:714/3637/3687/4893), so EffectTarget::LastCreatedPermanent has no referent. The condition half is NOT a gap: Condition::YouControlNOrMoreWithFilter { count: 4, filter: { has_card_type: Land, controller: You } } exists (card_definition.rs:3571). Needs SearchLibrary to publish the placed card into EffectContext. Search-and-tapped clause implemented."),
+        completeness: Completeness::partial(
+            "'Then if you control four or more lands, untap that land' — blocked ONLY on \
+             referencing the searched land. Effect::SearchLibrary does not set \
+             ctx.last_created_permanent (written solely by CreateToken/Manifest/Cloak — \
+             effects/mod.rs:714/3637/3687/4893), so EffectTarget::LastCreatedPermanent has no \
+             referent. The condition half is NOT a gap: Condition::YouControlNOrMoreWithFilter { \
+             count: 4, filter: { has_card_type: Land, controller: You } } exists \
+             (card_definition.rs:3571). Needs SearchLibrary to publish the placed card into \
+             EffectContext. Search-and-tapped clause implemented.",
+        ),
         ..Default::default()
     }
 }

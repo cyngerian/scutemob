@@ -6,7 +6,10 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("silence"),
         name: "Silence".to_string(),
-        mana_cost: Some(ManaCost { white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            white: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
         oracle_text: "Your opponents can't cast spells this turn.".to_string(),
         abilities: vec![
@@ -20,7 +23,10 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::partial("'Your opponents can't cast spells this turn' — needs a one-shot effect that registers a turn-scoped restriction (not a..."),
+        completeness: Completeness::partial(
+            "'Your opponents can't cast spells this turn' — needs a one-shot effect that \
+             registers a turn-scoped restriction (not a...",
+        ),
         ..Default::default()
     }
 }

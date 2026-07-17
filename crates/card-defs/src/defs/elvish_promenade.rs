@@ -6,9 +6,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("elvish-promenade"),
         name: "Elvish Promenade".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            green: 1,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Sorcery], &["Elf"]),
-        oracle_text: "Create a 1/1 green Elf Warrior creature token for each Elf you control.".to_string(),
+        oracle_text: "Create a 1/1 green Elf Warrior creature token for each Elf you control."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             // TODO: "For each Elf you control" — count-based token creation not in DSL.
             //   Using fixed 3 as approximation.
@@ -16,7 +21,9 @@ pub fn card() -> CardDefinition {
                 spec: TokenSpec {
                     name: "Elf Warrior".to_string(),
                     card_types: [CardType::Creature].into_iter().collect(),
-                    subtypes: [SubType("Elf".to_string()), SubType("Warrior".to_string())].into_iter().collect(),
+                    subtypes: [SubType("Elf".to_string()), SubType("Warrior".to_string())]
+                        .into_iter()
+                        .collect(),
                     colors: [Color::Green].into_iter().collect(),
                     power: 1,
                     toughness: 1,
@@ -35,7 +42,12 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("Rewire: count: EffectAmount::PermanentCount { filter: { has_card_type: Creature, has_subtype: Elf, controller: You }, controller: PlayerTarget::Controller } (precedent howlsquad_heavy.rs:43). Also fix the type line — oracle is 'Kindred Sorcery — Elf'; the def omits the Kindred card type."),
+        completeness: Completeness::partial(
+            "Rewire: count: EffectAmount::PermanentCount { filter: { has_card_type: Creature, \
+             has_subtype: Elf, controller: You }, controller: PlayerTarget::Controller } \
+             (precedent howlsquad_heavy.rs:43). Also fix the type line — oracle is 'Kindred \
+             Sorcery — Elf'; the def omits the Kindred card type.",
+        ),
         ..Default::default()
     }
 }

@@ -9,9 +9,9 @@ pub fn card() -> CardDefinition {
         name: "Nurturing Peatland".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text:
-            "{T}, Pay 1 life: Add {B} or {G}.\n{1}, {T}, Sacrifice this land: Draw a card."
-                .to_string(),
+        oracle_text: "{T}, Pay 1 life: Add {B} or {G}.\n{1}, {T}, Sacrifice this land: Draw a \
+                      card."
+            .to_string(),
         abilities: vec![
             // {T}, Pay 1 life: Add {B} or {G}.
             // SR-34: the "or" is modeled as two separate activated abilities, one per

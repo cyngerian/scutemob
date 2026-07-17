@@ -5,9 +5,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("pestilent-syphoner"),
         name: "Pestilent Syphoner".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Phyrexian", "Insect"]),
-        oracle_text: "Flying\nToxic 1 (Players dealt combat damage by this creature also get a poison counter.)".to_string(),
+        oracle_text: "Flying\nToxic 1 (Players dealt combat damage by this creature also get a \
+                      poison counter.)"
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
@@ -26,6 +32,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

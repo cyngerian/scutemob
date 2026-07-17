@@ -10,13 +10,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("burst-lightning"),
         name: "Burst Lightning".to_string(),
-        mana_cost: Some(ManaCost { red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            red: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Kicker {4}\nBurst Lightning deals 2 damage to any target. If this spell was kicked, it deals 4 damage instead.".to_string(),
+        oracle_text: "Kicker {4}\nBurst Lightning deals 2 damage to any target. If this spell was \
+                      kicked, it deals 4 damage instead."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Kicker),
             AbilityDefinition::Kicker {
-                cost: ManaCost { generic: 4, ..Default::default() },
+                cost: ManaCost {
+                    generic: 4,
+                    ..Default::default()
+                },
                 is_multikicker: false,
             },
             AbilityDefinition::Spell {

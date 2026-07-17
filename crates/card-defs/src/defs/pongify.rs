@@ -6,9 +6,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("pongify"),
         name: "Pongify".to_string(),
-        mana_cost: Some(ManaCost { blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            blue: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Destroy target creature. It can't be regenerated. Its controller creates a 3/3 green Ape creature token.".to_string(),
+        oracle_text: "Destroy target creature. It can't be regenerated. Its controller creates a \
+                      3/3 green Ape creature token."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             // KI-8 note: "its controller creates a token" — using Controller as approximation.
             // TODO: PlayerTarget::TargetController when available (wrong in multiplayer when
@@ -42,7 +47,13 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::known_wrong("'Its controller creates a 3/3 Ape' is modeled as the caster creating the token. Effect::CreateToken takes no recipient (card_definition.rs:1372) and TokenSpec has no recipient field, so the token always goes to the spell's controller — wrong whenever the destroyed creature belongs to another player. Needs a recipient on CreateToken/TokenSpec."),
+        completeness: Completeness::known_wrong(
+            "'Its controller creates a 3/3 Ape' is modeled as the caster creating the token. \
+             Effect::CreateToken takes no recipient (card_definition.rs:1372) and TokenSpec has \
+             no recipient field, so the token always goes to the spell's controller — wrong \
+             whenever the destroyed creature belongs to another player. Needs a recipient on \
+             CreateToken/TokenSpec.",
+        ),
         ..Default::default()
     }
 }

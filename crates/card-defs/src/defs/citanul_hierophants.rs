@@ -6,7 +6,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("citanul-hierophants"),
         name: "Citanul Hierophants".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Druid"]),
         oracle_text: "Creatures you control have \"{T}: Add {G}.\"".to_string(),
         power: Some(3),
@@ -17,9 +21,9 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Static {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::Ability,
-                    modification: LayerModification::AddManaAbility(
-                        ManaAbility::tap_for(ManaColor::Green),
-                    ),
+                    modification: LayerModification::AddManaAbility(ManaAbility::tap_for(
+                        ManaColor::Green,
+                    )),
                     filter: EffectFilter::CreaturesYouControl,
                     duration: EffectDuration::WhileSourceOnBattlefield,
                     condition: None,

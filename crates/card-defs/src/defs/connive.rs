@@ -26,7 +26,10 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Connive — Gain control of target creature with power 2 or less.\nConcoct — Surveil 3, then return a creature card from your graveyard to the battlefield.".to_string(),
+        oracle_text: "Connive — Gain control of target creature with power 2 or less.\nConcoct — \
+                      Surveil 3, then return a creature card from your graveyard to the \
+                      battlefield."
+            .to_string(),
         abilities: vec![
             // Connive (left half): Gain control of target creature with power 2 or less.
             // CR 613.1b: Indefinite control change (no duration — permanent).
@@ -42,14 +45,18 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 cant_be_countered: false,
             },
-
             // Concoct (right half): {3}{U}{B}. Surveil 3, then return a creature card from
             // your graveyard to the battlefield. (PB-10 Finding 7 fix: implemented with PB-10
             // primitives TargetCardInYourGraveyard + MoveZone.)
             // Encoded as Fuse for data representation; KeywordAbility::Fuse NOT added.
             AbilityDefinition::Fuse {
                 name: "Concoct".to_string(),
-                cost: ManaCost { generic: 3, blue: 1, black: 1, ..Default::default() },
+                cost: ManaCost {
+                    generic: 3,
+                    blue: 1,
+                    black: 1,
+                    ..Default::default()
+                },
                 card_type: CardType::Sorcery,
                 // CR 701.25: Surveil 3, then return a creature card from GY to battlefield.
                 effect: Effect::Sequence(vec![

@@ -8,13 +8,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("fiery-temper"),
         name: "Fiery Temper".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, red: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            red: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text:
-            "Fiery Temper deals 3 damage to any target.\n\
-             Madness {R} (If you discard this card, discard it into exile. When you do, \
-             cast it for its madness cost or put it into your graveyard.)"
-                .to_string(),
+        oracle_text: "Fiery Temper deals 3 damage to any target.\nMadness {R} (If you discard \
+                      this card, discard it into exile. When you do, cast it for its madness cost \
+                      or put it into your graveyard.)"
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Spell {
                 effect: Effect::DealDamage {
@@ -26,7 +29,12 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
             AbilityDefinition::Keyword(KeywordAbility::Madness),
-            AbilityDefinition::Madness { cost: ManaCost { red: 1, ..Default::default() } },
+            AbilityDefinition::Madness {
+                cost: ManaCost {
+                    red: 1,
+                    ..Default::default()
+                },
+            },
         ],
         ..Default::default()
     }

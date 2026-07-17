@@ -7,9 +7,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("crypt-ghast"),
         name: "Crypt Ghast".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Spirit"]),
-        oracle_text: "Extort (Whenever you cast a spell, you may pay {W/B}. If you do, each opponent loses 1 life and you gain that much life.)\nWhenever you tap a Swamp for mana, add an additional {B}.".to_string(),
+        oracle_text: "Extort (Whenever you cast a spell, you may pay {W/B}. If you do, each \
+                      opponent loses 1 life and you gain that much life.)\nWhenever you tap a \
+                      Swamp for mana, add an additional {B}."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -23,7 +30,10 @@ pub fn card() -> CardDefinition {
                 },
                 effect: Effect::AddMana {
                     player: PlayerTarget::Controller,
-                    mana: ManaPool { black: 1, ..Default::default() },
+                    mana: ManaPool {
+                        black: 1,
+                        ..Default::default()
+                    },
                 },
                 intervening_if: None,
                 targets: vec![],

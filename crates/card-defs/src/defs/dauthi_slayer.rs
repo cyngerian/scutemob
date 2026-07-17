@@ -5,11 +5,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("dauthi-slayer"),
         name: "Dauthi Slayer".to_string(),
-        mana_cost: Some(ManaCost { black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Dauthi", "Soldier"]),
-        oracle_text:
-            "Shadow (This creature can block or be blocked by only creatures with shadow.)\nThis creature attacks each combat if able."
-                .to_string(),
+        oracle_text: "Shadow (This creature can block or be blocked by only creatures with \
+                      shadow.)\nThis creature attacks each combat if able."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -29,6 +32,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

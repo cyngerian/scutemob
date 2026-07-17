@@ -8,15 +8,25 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("glowstone-recluse"),
         name: "Glowstone Recluse".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Spider"]),
-        oracle_text: "Mutate {3}{G}\nReach\nWhenever this creature mutates, put two +1/+1 counters on it.".to_string(),
+        oracle_text: "Mutate {3}{G}\nReach\nWhenever this creature mutates, put two +1/+1 \
+                      counters on it."
+            .to_string(),
         power: Some(2),
         toughness: Some(3),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Mutate),
             AbilityDefinition::MutateCost {
-                cost: ManaCost { generic: 3, green: 1, ..Default::default() },
+                cost: ManaCost {
+                    generic: 3,
+                    green: 1,
+                    ..Default::default()
+                },
             },
             AbilityDefinition::Keyword(KeywordAbility::Reach),
             AbilityDefinition::Triggered {

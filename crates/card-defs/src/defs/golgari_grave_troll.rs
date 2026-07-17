@@ -35,9 +35,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("golgari-grave-troll"),
         name: "Golgari Grave-Troll".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Troll", "Skeleton"]),
-        oracle_text: "This creature enters with a +1/+1 counter on it for each creature card in your graveyard.\n{1}, Remove a +1/+1 counter from this creature: Regenerate this creature.\nDredge 6 (If you would draw a card, you may mill six cards instead. If you do, return this card from your graveyard to your hand.)"
+        oracle_text: "This creature enters with a +1/+1 counter on it for each creature card in \
+                      your graveyard.\n{1}, Remove a +1/+1 counter from this creature: Regenerate \
+                      this creature.\nDredge 6 (If you would draw a card, you may mill six cards \
+                      instead. If you do, return this card from your graveyard to your hand.)"
             .to_string(),
         power: Some(0),
         toughness: Some(0),
@@ -56,7 +63,9 @@ pub fn card() -> CardDefinition {
                 modification: ReplacementModification::EntersWithCounters {
                     counter: CounterType::PlusOnePlusOne,
                     count: Box::new(EffectAmount::CardCount {
-                        zone: ZoneTarget::Graveyard { owner: PlayerTarget::Controller },
+                        zone: ZoneTarget::Graveyard {
+                            owner: PlayerTarget::Controller,
+                        },
                         player: PlayerTarget::Controller,
                         filter: Some(TargetFilter {
                             has_card_type: Some(CardType::Creature),
@@ -72,10 +81,18 @@ pub fn card() -> CardDefinition {
             // CR 602.2: {1}, Remove a +1/+1 counter from this creature: Regenerate.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
-                    Cost::RemoveCounter { counter: CounterType::PlusOnePlusOne, count: 1 },
+                    Cost::Mana(ManaCost {
+                        generic: 1,
+                        ..Default::default()
+                    }),
+                    Cost::RemoveCounter {
+                        counter: CounterType::PlusOnePlusOne,
+                        count: 1,
+                    },
                 ]),
-                effect: Effect::Regenerate { target: EffectTarget::Source },
+                effect: Effect::Regenerate {
+                    target: EffectTarget::Source,
+                },
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,

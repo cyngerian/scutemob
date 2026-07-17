@@ -9,13 +9,22 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("sarkhan-vol"),
         name: "Sarkhan Vol".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Planeswalker],
             &["Sarkhan"],
         ),
-        oracle_text: "+1: Creatures you control get +1/+1 and gain haste until end of turn.\n\u{2212}2: Gain control of target creature until end of turn. Untap that creature. It gains haste until end of turn.\n\u{2212}6: Create five 4/4 red Dragon creature tokens with flying.".to_string(),
+        oracle_text: "+1: Creatures you control get +1/+1 and gain haste until end of \
+                      turn.\n\u{2212}2: Gain control of target creature until end of turn. Untap \
+                      that creature. It gains haste until end of turn.\n\u{2212}6: Create five \
+                      4/4 red Dragon creature tokens with flying."
+            .to_string(),
         starting_loyalty: Some(4),
         abilities: vec![
             // +1: Pump + haste
@@ -76,7 +85,11 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
-        completeness: Completeness::partial("+1 unimplemented (Effect::Nothing). Expressible now — ApplyContinuousEffect x2 over EffectFilter::CreaturesYouControl (ModifyBoth(1) at PtModify, AddKeywords([Haste]) at Ability, UntilEndOfTurn). Needs wiring."),
+        completeness: Completeness::partial(
+            "+1 unimplemented (Effect::Nothing). Expressible now — ApplyContinuousEffect x2 over \
+             EffectFilter::CreaturesYouControl (ModifyBoth(1) at PtModify, AddKeywords([Haste]) \
+             at Ability, UntilEndOfTurn). Needs wiring.",
+        ),
         ..Default::default()
     }
 }

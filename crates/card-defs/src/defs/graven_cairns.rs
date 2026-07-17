@@ -20,7 +20,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {B/R}, {T}: Add {B}{B}, {B}{R}, or {R}{R}
             // CR 605.1a: filter land mana ability. Simplified to 1{B}+1{R} (middle option).
@@ -41,10 +41,13 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::known_wrong("filter mana ability fixed to the {B}{R} mode; the other CR 605.1a modes are unavailable"),
+        completeness: Completeness::known_wrong(
+            "filter mana ability fixed to the {B}{R} mode; the other CR 605.1a modes are \
+             unavailable",
+        ),
         ..Default::default()
     }
 }

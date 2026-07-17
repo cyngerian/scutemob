@@ -8,12 +8,22 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("adrix-and-nev-twincasters"),
         name: "Adrix and Nev, Twincasters".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 1, blue: 1, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Merfolk", "Wizard"]),
-        oracle_text:
-            "Ward {2} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {2}.)\n\
-             If one or more tokens would be created under your control, twice that many of those tokens are created instead."
-                .to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 1,
+            blue: 1,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Creature],
+            &["Merfolk", "Wizard"],
+        ),
+        oracle_text: "Ward {2} (Whenever this creature becomes the target of a spell or ability \
+                      an opponent controls, counter it unless that player pays {2}.)\nIf one or \
+                      more tokens would be created under your control, twice that many of those \
+                      tokens are created instead."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -41,6 +51,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

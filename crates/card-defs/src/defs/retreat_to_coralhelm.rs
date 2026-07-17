@@ -11,9 +11,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("retreat-to-coralhelm"),
         name: "Retreat to Coralhelm".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            blue: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Landfall — Whenever a land you control enters, choose one —\n• You may tap or untap target creature.\n• Scry 1.".to_string(),
+        oracle_text: "Landfall — Whenever a land you control enters, choose one —\n• You may tap \
+                      or untap target creature.\n• Scry 1."
+            .to_string(),
         abilities: vec![
             // CR 700.2b / PB-35: Landfall modal triggered ability.
             // Mode 0: You may tap or untap target creature (approximated as untap).
@@ -55,7 +61,9 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::known_wrong("'tap or untap' is modeled as 'untap' only — the tap mode is unavailable"),
+        completeness: Completeness::known_wrong(
+            "'tap or untap' is modeled as 'untap' only — the tap mode is unavailable",
+        ),
         ..Default::default()
     }
 }

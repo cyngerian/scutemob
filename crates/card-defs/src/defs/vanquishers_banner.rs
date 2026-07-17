@@ -8,16 +8,24 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("vanquishers-banner"),
         name: "Vanquisher's Banner".to_string(),
-        mana_cost: Some(ManaCost { generic: 5, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 5,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "As this artifact enters, choose a creature type.\nCreatures you control of the chosen type get +1/+1.\nWhenever you cast a creature spell of the chosen type, draw a card.".to_string(),
+        oracle_text: "As this artifact enters, choose a creature type.\nCreatures you control of \
+                      the chosen type get +1/+1.\nWhenever you cast a creature spell of the \
+                      chosen type, draw a card."
+            .to_string(),
         abilities: vec![
             // "As this enters, choose a creature type" — self-replacement (CR 614.1c)
             AbilityDefinition::Replacement {
                 trigger: ReplacementTrigger::WouldEnterBattlefield {
                     filter: ObjectFilter::Any,
                 },
-                modification: ReplacementModification::ChooseCreatureType(SubType("Human".to_string())),
+                modification: ReplacementModification::ChooseCreatureType(SubType(
+                    "Human".to_string(),
+                )),
                 is_self: true,
                 unless_condition: None,
             },
@@ -40,7 +48,7 @@ pub fn card() -> CardDefinition {
                     spell_type_filter: Some(vec![CardType::Creature]),
                     noncreature_only: false,
                     chosen_subtype_filter: true,
-                spell_subtype_filter: None,
+                    spell_subtype_filter: None,
                 },
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,

@@ -9,9 +9,19 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("prossh-skyraider-of-kher"),
         name: "Prossh, Skyraider of Kher".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, black: 1, red: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            black: 1,
+            red: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Dragon"]),
-        oracle_text: "When you cast this spell, create X 0/1 red Kobold creature tokens named Kobolds of Kher Keep, where X is the amount of mana spent to cast it.\nFlying\nSacrifice another creature: Prossh gets +1/+0 until end of turn.".to_string(),
+        oracle_text: "When you cast this spell, create X 0/1 red Kobold creature tokens named \
+                      Kobolds of Kher Keep, where X is the amount of mana spent to cast \
+                      it.\nFlying\nSacrifice another creature: Prossh gets +1/+0 until end of \
+                      turn."
+            .to_string(),
         power: Some(5),
         toughness: Some(5),
         abilities: vec![
@@ -21,7 +31,12 @@ pub fn card() -> CardDefinition {
             // TODO: "Sacrifice another creature: Prossh gets +1/+0 until end of turn"
             // — pump effect (Effect for +N/+M until EOT) not in DSL
         ],
-        completeness: Completeness::partial("Cast trigger blocked: TriggerCondition::WhenYouCastThisSpell exists but no EffectAmount expresses 'amount of mana spent to cast it' (XValue is the cost's X, which Prossh lacks). The sacrifice-pump ability IS now expressible (Cost::Sacrifice + ApplyContinuousEffect/ModifyPower/UntilEndOfTurn) and should be authored."),
+        completeness: Completeness::partial(
+            "Cast trigger blocked: TriggerCondition::WhenYouCastThisSpell exists but no \
+             EffectAmount expresses 'amount of mana spent to cast it' (XValue is the cost's X, \
+             which Prossh lacks). The sacrifice-pump ability IS now expressible (Cost::Sacrifice \
+             + ApplyContinuousEffect/ModifyPower/UntilEndOfTurn) and should be authored.",
+        ),
         ..Default::default()
     }
 }

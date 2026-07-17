@@ -7,7 +7,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("thalia-guardian-of-thraben"),
         name: "Thalia, Guardian of Thraben".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            white: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
@@ -16,9 +20,7 @@ pub fn card() -> CardDefinition {
         oracle_text: "First strike\nNoncreature spells cost {1} more to cast.".to_string(),
         power: Some(2),
         toughness: Some(1),
-        abilities: vec![
-            AbilityDefinition::Keyword(KeywordAbility::FirstStrike),
-        ],
+        abilities: vec![AbilityDefinition::Keyword(KeywordAbility::FirstStrike)],
         spell_cost_modifiers: vec![SpellCostModifier {
             change: 1,
             filter: SpellCostFilter::NonCreature,

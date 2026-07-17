@@ -9,24 +9,36 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("battle-cry-goblin"),
         name: "Battle Cry Goblin".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Goblin"]),
-        oracle_text: "{1}{R}: Goblins you control get +1/+0 and gain haste until end of turn.\nPack tactics \u{2014} Whenever this creature attacks, if you attacked with creatures with total power 6 or greater this combat, create a 1/1 red Goblin creature token that's tapped and attacking.".to_string(),
+        oracle_text: "{1}{R}: Goblins you control get +1/+0 and gain haste until end of \
+                      turn.\nPack tactics \u{2014} Whenever this creature attacks, if you \
+                      attacked with creatures with total power 6 or greater this combat, create a \
+                      1/1 red Goblin creature token that's tapped and attacking."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
             // CR 613.4c / CR 613.1f: "{1}{R}: Goblins you control get +1/+0 and gain haste
             // until end of turn."
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { generic: 1, red: 1, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    generic: 1,
+                    red: 1,
+                    ..Default::default()
+                }),
                 effect: Effect::Sequence(vec![
                     Effect::ApplyContinuousEffect {
                         effect_def: Box::new(ContinuousEffectDef {
                             layer: EffectLayer::PtModify,
                             modification: LayerModification::ModifyPower(1),
-                            filter: EffectFilter::CreaturesYouControlWithSubtype(
-                                SubType("Goblin".to_string()),
-                            ),
+                            filter: EffectFilter::CreaturesYouControlWithSubtype(SubType(
+                                "Goblin".to_string(),
+                            )),
                             duration: EffectDuration::UntilEndOfTurn,
                             condition: None,
                         }),
@@ -35,9 +47,9 @@ pub fn card() -> CardDefinition {
                         effect_def: Box::new(ContinuousEffectDef {
                             layer: EffectLayer::Ability,
                             modification: LayerModification::AddKeyword(KeywordAbility::Haste),
-                            filter: EffectFilter::CreaturesYouControlWithSubtype(
-                                SubType("Goblin".to_string()),
-                            ),
+                            filter: EffectFilter::CreaturesYouControlWithSubtype(SubType(
+                                "Goblin".to_string(),
+                            )),
                             duration: EffectDuration::UntilEndOfTurn,
                             condition: None,
                         }),
@@ -47,14 +59,17 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // ENGINE-BLOCKED: Pack tactics — "if you attacked with creatures with total power
             // 6 or greater this combat" needs Condition::AttackedWithTotalPowerAtLeast(6).
             // PB-AC6's Condition::YouAttackedThisTurn is a bool and is insufficient: it cannot
             // express a total-power threshold, and it is scoped to the turn, not the combat.
         ],
-        completeness: Completeness::partial("Pack tactics — 'if you attacked with creatures with total power 6 or greater this combat' needs..."),
+        completeness: Completeness::partial(
+            "Pack tactics — 'if you attacked with creatures with total power 6 or greater this \
+             combat' needs...",
+        ),
         ..Default::default()
     }
 }

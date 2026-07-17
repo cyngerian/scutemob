@@ -11,9 +11,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("aspect-of-hydra"),
         name: "Aspect of Hydra".to_string(),
-        mana_cost: Some(ManaCost { green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Target creature gets +X/+X until end of turn, where X is your devotion to green. (Your devotion to green is the number of green mana symbols in the mana costs of permanents you control.)".to_string(),
+        oracle_text: "Target creature gets +X/+X until end of turn, where X is your devotion to \
+                      green. (Your devotion to green is the number of green mana symbols in the \
+                      mana costs of permanents you control.)"
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             // TODO: CR 702.5c: devotion to green = number of {G} symbols in mana costs of
             // permanents you control. EffectAmount::DevotionTo(Color::Green) computes this,
@@ -24,7 +30,14 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("needs-rewiring: author Effect::ApplyContinuousEffect { ContinuousEffectDef { layer: PtModify, modification: ModifyBothDynamic { amount: EffectAmount::DevotionTo(Color::Green), negate: false }, filter: DeclaredTarget{0}, duration: UntilEndOfTurn } }. ModifyBothDynamic shipped in PB-X (continuous_effect.rs:430, effects/mod.rs:3008, layers.rs:1269); the old note is stale."),
+        completeness: Completeness::partial(
+            "needs-rewiring: author Effect::ApplyContinuousEffect { ContinuousEffectDef { layer: \
+             PtModify, modification: ModifyBothDynamic { amount: \
+             EffectAmount::DevotionTo(Color::Green), negate: false }, filter: DeclaredTarget{0}, \
+             duration: UntilEndOfTurn } }. ModifyBothDynamic shipped in PB-X \
+             (continuous_effect.rs:430, effects/mod.rs:3008, layers.rs:1269); the old note is \
+             stale.",
+        ),
         ..Default::default()
     }
 }

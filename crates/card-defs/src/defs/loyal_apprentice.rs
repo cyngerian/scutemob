@@ -9,9 +9,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("loyal-apprentice"),
         name: "Loyal Apprentice".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Artificer"]),
-        oracle_text: "Haste\nLieutenant — At the beginning of combat on your turn, if you control your commander, create a 1/1 colorless Thopter artifact creature token with flying. That token gains haste until end of turn.".to_string(),
+        oracle_text: "Haste\nLieutenant — At the beginning of combat on your turn, if you control \
+                      your commander, create a 1/1 colorless Thopter artifact creature token with \
+                      flying. That token gains haste until end of turn."
+            .to_string(),
         power: Some(2),
         toughness: Some(1),
         abilities: vec![
@@ -21,7 +28,12 @@ pub fn card() -> CardDefinition {
             //   (Effect::Sequence with CreateToken then ApplyContinuousEffect targeting the
             //   newly created token is not supported). W5 policy: no approximation.
         ],
-        completeness: Completeness::partial("Lieutenant — no Condition expresses 'if you control your commander' (Condition::YouControlPermanent takes a TargetFilter, which has no commander flag). The token-haste half IS expressible (TokenSpec.keywords, or EffectTarget::LastCreatedPermanent for a true until-EOT grant)."),
+        completeness: Completeness::partial(
+            "Lieutenant — no Condition expresses 'if you control your commander' \
+             (Condition::YouControlPermanent takes a TargetFilter, which has no commander flag). \
+             The token-haste half IS expressible (TokenSpec.keywords, or \
+             EffectTarget::LastCreatedPermanent for a true until-EOT grant).",
+        ),
         ..Default::default()
     }
 }

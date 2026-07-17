@@ -6,9 +6,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("in-garruks-wake"),
         name: "In Garruk's Wake".to_string(),
-        mana_cost: Some(ManaCost { generic: 7, black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 7,
+            black: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Destroy all creatures you don't control and all planeswalkers you don't control.".to_string(),
+        oracle_text: "Destroy all creatures you don't control and all planeswalkers you don't \
+                      control."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![
                 // Destroy all creatures opponents control.

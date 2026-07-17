@@ -24,9 +24,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("bonecrusher-giant-stomp"),
         name: "Bonecrusher Giant // Stomp".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 1,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Creature], &["Giant"]),
-        oracle_text: "Whenever Bonecrusher Giant becomes the target of a spell, Bonecrusher Giant deals 2 damage to that spell's controller.".to_string(),
+        oracle_text: "Whenever Bonecrusher Giant becomes the target of a spell, Bonecrusher Giant \
+                      deals 2 damage to that spell's controller."
+            .to_string(),
         power: Some(4),
         toughness: Some(3),
         abilities: vec![
@@ -44,16 +50,18 @@ pub fn card() -> CardDefinition {
         // CR 715.2: Adventure face — Stomp.
         adventure_face: Some(CardFace {
             name: "Stomp".to_string(),
-            mana_cost: Some(ManaCost { generic: 1, red: 1, ..Default::default() }),
+            mana_cost: Some(ManaCost {
+                generic: 1,
+                red: 1,
+                ..Default::default()
+            }),
             types: TypeLine {
                 card_types: [CardType::Instant].iter().copied().collect(),
-                subtypes: [SubType("Adventure".to_string())]
-                    .iter()
-                    .cloned()
-                    .collect(),
+                subtypes: [SubType("Adventure".to_string())].iter().cloned().collect(),
                 supertypes: Default::default(),
             },
-            oracle_text: "Damage can't be prevented this turn. Stomp deals 2 damage to any target.".to_string(),
+            oracle_text: "Damage can't be prevented this turn. Stomp deals 2 damage to any target."
+                .to_string(),
             power: None,
             toughness: None,
             color_indicator: None,
@@ -69,7 +77,10 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             }],
         }),
-        completeness: Completeness::partial("(1): the effect must deal 2 damage to 'that spell's controller'. Effect::DealDamage takes an EffectTarget, and..."),
+        completeness: Completeness::partial(
+            "(1): the effect must deal 2 damage to 'that spell's controller'. Effect::DealDamage \
+             takes an EffectTarget, and...",
+        ),
         ..Default::default()
     }
 }

@@ -17,11 +17,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("serpents-soul-jar"),
         name: "Serpent's Soul-Jar".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            black: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "Whenever an Elf you control dies, exile it.\n{T}, Pay 2 life: Until end of turn, you may cast a creature spell from among cards exiled with this artifact.".to_string(),
+        oracle_text: "Whenever an Elf you control dies, exile it.\n{T}, Pay 2 life: Until end of \
+                      turn, you may cast a creature spell from among cards exiled with this \
+                      artifact."
+            .to_string(),
         abilities: vec![],
-        completeness: Completeness::inert("Multiple DSL gaps: 1. 'Whenever an Elf you control dies, exile it' requires a death trigger that exiles the dying..."),
+        completeness: Completeness::inert(
+            "Multiple DSL gaps: 1. 'Whenever an Elf you control dies, exile it' requires a death \
+             trigger that exiles the dying...",
+        ),
         ..Default::default()
     }
 }

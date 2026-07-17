@@ -11,7 +11,11 @@ pub fn card() -> CardDefinition {
         name: "Hanweir Battlements".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}: Add {C}.\n{R}, {T}: Target creature gains haste until end of turn.\n{3}{R}{R}, {T}: If you both own and control this land and a creature named Hanweir Garrison, exile them, then meld them into Hanweir, the Writhing Township.".to_string(),
+        oracle_text: "{T}: Add {C}.\n{R}, {T}: Target creature gains haste until end of \
+                      turn.\n{3}{R}{R}, {T}: If you both own and control this land and a creature \
+                      named Hanweir Garrison, exile them, then meld them into Hanweir, the \
+                      Writhing Township."
+            .to_string(),
         abilities: vec![
             // {T}: Add {C}
             AbilityDefinition::Activated {
@@ -24,12 +28,15 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {R}, {T}: Target creature gains haste until end of turn.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { red: 1, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        red: 1,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                 ]),
                 effect: Effect::ApplyContinuousEffect {
@@ -47,12 +54,16 @@ pub fn card() -> CardDefinition {
                 targets: vec![TargetRequirement::TargetCreature],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {3}{R}{R}, {T}: Meld with Hanweir Garrison (CR 701.42a / CR 712.4a)
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 3, red: 2, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 3,
+                        red: 2,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                 ]),
                 effect: Effect::Meld,
@@ -60,7 +71,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         meld_pair: Some(MeldPair {

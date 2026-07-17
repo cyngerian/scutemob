@@ -8,9 +8,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("chasm-skulker"),
         name: "Chasm Skulker".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            blue: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Squid", "Horror"]),
-        oracle_text: "Whenever you draw a card, put a +1/+1 counter on Chasm Skulker.\nWhen Chasm Skulker dies, create X 1/1 blue Squid creature tokens with islandwalk, where X is the number of +1/+1 counters on Chasm Skulker.".to_string(),
+        oracle_text: "Whenever you draw a card, put a +1/+1 counter on Chasm Skulker.\nWhen Chasm \
+                      Skulker dies, create X 1/1 blue Squid creature tokens with islandwalk, \
+                      where X is the number of +1/+1 counters on Chasm Skulker."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
@@ -42,9 +49,9 @@ pub fn card() -> CardDefinition {
                         colors: [Color::Blue].into_iter().collect(),
                         card_types: [CardType::Creature].into_iter().collect(),
                         subtypes: [SubType("Squid".to_string())].into_iter().collect(),
-                        keywords: [KeywordAbility::Landwalk(LandwalkType::BasicType(
-                            SubType("Island".to_string()),
-                        ))]
+                        keywords: [KeywordAbility::Landwalk(LandwalkType::BasicType(SubType(
+                            "Island".to_string(),
+                        )))]
                         .into_iter()
                         .collect(),
                         count: EffectAmount::CounterCountAtLastKnownInformation {

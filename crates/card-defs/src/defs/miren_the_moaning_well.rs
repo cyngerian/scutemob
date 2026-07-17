@@ -14,7 +14,9 @@ pub fn card() -> CardDefinition {
         name: "Miren, the Moaning Well".to_string(),
         mana_cost: None,
         types: supertypes(&[SuperType::Legendary], &[CardType::Land]),
-        oracle_text: "{T}: Add {C}.\n{3}, {T}, Sacrifice a creature: You gain life equal to the sacrificed creature's toughness.".to_string(),
+        oracle_text: "{T}: Add {C}.\n{3}, {T}, Sacrifice a creature: You gain life equal to the \
+                      sacrificed creature's toughness."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
@@ -26,12 +28,15 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // TODO: {3}, {T}, Sacrifice a creature: Gain life = sacrificed creature's toughness.
             // Requires EffectAmount::SacrificedCreatureToughness which does not exist in the DSL.
         ],
-        completeness: Completeness::partial("'gain life equal to the sacrificed creature's toughness' requires EffectAmount::SacrificedCreatureToughness (dynamic..."),
+        completeness: Completeness::partial(
+            "'gain life equal to the sacrificed creature's toughness' requires \
+             EffectAmount::SacrificedCreatureToughness (dynamic...",
+        ),
         ..Default::default()
     }
 }

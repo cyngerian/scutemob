@@ -8,9 +8,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("mardu-ascendancy"),
         name: "Mardu Ascendancy".to_string(),
-        mana_cost: Some(ManaCost { red: 1, white: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            red: 1,
+            white: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Whenever a nontoken creature you control attacks, create a 1/1 red Goblin creature token that's tapped and attacking.\nSacrifice this enchantment: Creatures you control get +0/+3 until end of turn.".to_string(),
+        oracle_text: "Whenever a nontoken creature you control attacks, create a 1/1 red Goblin \
+                      creature token that's tapped and attacking.\nSacrifice this enchantment: \
+                      Creatures you control get +0/+3 until end of turn."
+            .to_string(),
         abilities: vec![
             // CR 508.1m: "Whenever a nontoken creature you control attacks, create a 1/1 red
             // Goblin token tapped and attacking."
@@ -19,7 +27,9 @@ pub fn card() -> CardDefinition {
             // attackers (including Goblin tokens created by this ability itself).
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WheneverCreatureYouControlAttacks { filter: None },
+                trigger_condition: TriggerCondition::WheneverCreatureYouControlAttacks {
+                    filter: None,
+                },
                 effect: Effect::CreateToken {
                     spec: TokenSpec {
                         name: "Goblin".to_string(),
@@ -59,7 +69,10 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("Nontoken filter not yet in DSL for attack triggers — over-triggers on token attackers (including Goblin tokens created..."),
+        completeness: Completeness::partial(
+            "Nontoken filter not yet in DSL for attack triggers — over-triggers on token \
+             attackers (including Goblin tokens created...",
+        ),
         ..Default::default()
     }
 }

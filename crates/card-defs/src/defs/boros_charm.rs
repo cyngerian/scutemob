@@ -8,9 +8,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("boros-charm"),
         name: "Boros Charm".to_string(),
-        mana_cost: Some(ManaCost { red: 1, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            red: 1,
+            white: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Choose one —\n• Boros Charm deals 4 damage to target player or planeswalker.\n• Permanents you control gain indestructible until end of turn.\n• Target creature gains double strike until end of turn.".to_string(),
+        oracle_text: "Choose one —\n• Boros Charm deals 4 damage to target player or \
+                      planeswalker.\n• Permanents you control gain indestructible until end of \
+                      turn.\n• Target creature gains double strike until end of turn."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![]),
             // PB-AC4 (CR 700.2c/700.2f): per-mode targets — mode 0 and mode 2 each declare
@@ -39,7 +46,9 @@ pub fn card() -> CardDefinition {
                     Effect::ApplyContinuousEffect {
                         effect_def: Box::new(ContinuousEffectDef {
                             layer: EffectLayer::Ability,
-                            modification: LayerModification::AddKeyword(KeywordAbility::DoubleStrike),
+                            modification: LayerModification::AddKeyword(
+                                KeywordAbility::DoubleStrike,
+                            ),
                             filter: EffectFilter::DeclaredTarget { index: 0 },
                             duration: EffectDuration::UntilEndOfTurn,
                             condition: None,
@@ -54,7 +63,10 @@ pub fn card() -> CardDefinition {
             }),
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("`EffectFilter`/`ContinuousEffectDef` has no catch-all 'all permanents you control' variant — only type-scoped variants..."),
+        completeness: Completeness::partial(
+            "`EffectFilter`/`ContinuousEffectDef` has no catch-all 'all permanents you control' \
+             variant — only type-scoped variants...",
+        ),
         ..Default::default()
     }
 }

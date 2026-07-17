@@ -6,9 +6,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("plague-myr"),
         name: "Plague Myr".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, ..Default::default() }),
-        types: types_sub(&[CardType::Artifact, CardType::Creature], &["Phyrexian", "Myr"]),
-        oracle_text: "Infect (This creature deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)\n{T}: Add {C}.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
+        types: types_sub(
+            &[CardType::Artifact, CardType::Creature],
+            &["Phyrexian", "Myr"],
+        ),
+        oracle_text: "Infect (This creature deals damage to creatures in the form of -1/-1 \
+                      counters and to players in the form of poison counters.)\n{T}: Add {C}."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
@@ -23,7 +31,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

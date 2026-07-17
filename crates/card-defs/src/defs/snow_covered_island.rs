@@ -6,19 +6,24 @@ pub fn card() -> CardDefinition {
         card_id: cid("snow-covered-island"),
         name: "Snow-Covered Island".to_string(),
         mana_cost: None,
-        types: full_types(&[SuperType::Basic, SuperType::Snow], &[CardType::Land], &["Island"]),
+        types: full_types(
+            &[SuperType::Basic, SuperType::Snow],
+            &[CardType::Land],
+            &["Island"],
+        ),
         oracle_text: "({T}: Add {U}.)".to_string(),
-        abilities: vec![
-            AbilityDefinition::Activated {
-                cost: Cost::Tap,
-                effect: Effect::AddMana { player: PlayerTarget::Controller, mana: mana_pool(0, 1, 0, 0, 0, 0) },
-                timing_restriction: None,
-                targets: vec![],
-                activation_condition: None,
-                activation_zone: None,
-            once_per_turn: false,
+        abilities: vec![AbilityDefinition::Activated {
+            cost: Cost::Tap,
+            effect: Effect::AddMana {
+                player: PlayerTarget::Controller,
+                mana: mana_pool(0, 1, 0, 0, 0, 0),
             },
-        ],
+            timing_restriction: None,
+            targets: vec![],
+            activation_condition: None,
+            activation_zone: None,
+            once_per_turn: false,
+        }],
         ..Default::default()
     }
 }

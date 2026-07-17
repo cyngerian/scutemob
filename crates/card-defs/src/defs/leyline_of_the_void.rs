@@ -14,12 +14,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("leyline-of-the-void"),
         name: "Leyline of the Void".to_string(),
-        mana_cost: Some(ManaCost { black: 2, generic: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 2,
+            generic: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text:
-            "If Leyline of the Void is in your opening hand, you may begin the game with it on the battlefield.\n\
-             If a card an opponent owns would be put into that player's graveyard from anywhere, exile it instead."
-                .to_string(),
+        oracle_text: "If Leyline of the Void is in your opening hand, you may begin the game with \
+                      it on the battlefield.\nIf a card an opponent owns would be put into that \
+                      player's graveyard from anywhere, exile it instead."
+            .to_string(),
         abilities: vec![
             // CR 113.6b: If Leyline of the Void is in your opening hand, you may begin
             // the game with it on the battlefield. Handled by start_game pre-game check.
@@ -38,7 +42,11 @@ pub fn card() -> CardDefinition {
                 unless_condition: None,
             },
         ],
-        completeness: Completeness::known_wrong("the opening-hand rule IS modelled (AbilityDefinition::OpeningHand, engine.rs:1888), but the 'you MAY begin the game with it on the battlefield' choice is auto-taken — Leyline is always placed pre-game and the controller cannot decline"),
+        completeness: Completeness::known_wrong(
+            "the opening-hand rule IS modelled (AbilityDefinition::OpeningHand, engine.rs:1888), \
+             but the 'you MAY begin the game with it on the battlefield' choice is auto-taken — \
+             Leyline is always placed pre-game and the controller cannot decline",
+        ),
         ..Default::default()
     }
 }

@@ -15,16 +15,26 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("hellkite-courser"),
         name: "Hellkite Courser".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, red: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            red: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Dragon"]),
-        oracle_text: "Flying\nWhen this creature enters, you may put a commander you own from the command zone onto the battlefield. It gains haste. Return it to the command zone at the beginning of the next end step.".to_string(),
+        oracle_text: "Flying\nWhen this creature enters, you may put a commander you own from the \
+                      command zone onto the battlefield. It gains haste. Return it to the command \
+                      zone at the beginning of the next end step."
+            .to_string(),
         power: Some(6),
         toughness: Some(5),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             // TODO: DSL gap — ETB command zone manipulation not expressible.
         ],
-        completeness: Completeness::partial("DSL gap — the ETB triggered ability involves command zone manipulation (put commander from command zone to battlefield..."),
+        completeness: Completeness::partial(
+            "DSL gap — the ETB triggered ability involves command zone manipulation (put \
+             commander from command zone to battlefield...",
+        ),
         ..Default::default()
     }
 }

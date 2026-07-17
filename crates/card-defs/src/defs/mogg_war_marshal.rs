@@ -7,9 +7,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("mogg-war-marshal"),
         name: "Mogg War Marshal".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Goblin", "Warrior"]),
-        oracle_text: "Echo {1}{R} (At the beginning of your upkeep, if this came under your control since the beginning of your last upkeep, sacrifice it unless you pay its echo cost.)\nWhen this creature enters or dies, create a 1/1 red Goblin creature token.".to_string(),
+        oracle_text: "Echo {1}{R} (At the beginning of your upkeep, if this came under your \
+                      control since the beginning of your last upkeep, sacrifice it unless you \
+                      pay its echo cost.)\nWhen this creature enters or dies, create a 1/1 red \
+                      Goblin creature token."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![

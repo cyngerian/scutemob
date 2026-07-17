@@ -12,13 +12,19 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("juri-master-of-the-revue"),
         name: "Juri, Master of the Revue".to_string(),
-        mana_cost: Some(ManaCost { black: 1, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 1,
+            red: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Human", "Shaman"],
         ),
-        oracle_text: "Whenever you sacrifice a permanent, put a +1/+1 counter on Juri.\nWhen Juri dies, it deals damage equal to its power to any target.".to_string(),
+        oracle_text: "Whenever you sacrifice a permanent, put a +1/+1 counter on Juri.\nWhen Juri \
+                      dies, it deals damage equal to its power to any target."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![

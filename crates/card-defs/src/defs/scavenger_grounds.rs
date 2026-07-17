@@ -8,7 +8,8 @@ pub fn card() -> CardDefinition {
         name: "Scavenger Grounds".to_string(),
         mana_cost: None,
         types: types_sub(&[CardType::Land], &["Desert"]),
-        oracle_text: "{T}: Add {C}.\n{2}, {T}, Sacrifice a Desert: Exile all graveyards.".to_string(),
+        oracle_text: "{T}: Add {C}.\n{2}, {T}, Sacrifice a Desert: Exile all graveyards."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
@@ -20,12 +21,15 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // CR 406.2: {2}, {T}, Sacrifice a Desert: Exile all cards from all graveyards.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 2, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 2,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                     Cost::Sacrifice(TargetFilter {
                         has_subtype: Some(SubType("Desert".to_string())),
@@ -42,7 +46,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

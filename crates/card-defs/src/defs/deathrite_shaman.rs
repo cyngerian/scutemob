@@ -13,7 +13,11 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: creature_types(&["Elf", "Shaman"]),
-        oracle_text: "{T}: Exile target land card from a graveyard. Add one mana of any color.\n{B}, {T}: Exile target instant or sorcery card from a graveyard. Each opponent loses 2 life.\n{G}, {T}: Exile target creature card from a graveyard. You gain 2 life.".to_string(),
+        oracle_text: "{T}: Exile target land card from a graveyard. Add one mana of any \
+                      color.\n{B}, {T}: Exile target instant or sorcery card from a graveyard. \
+                      Each opponent loses 2 life.\n{G}, {T}: Exile target creature card from a \
+                      graveyard. You gain 2 life."
+            .to_string(),
         power: Some(1),
         toughness: Some(2),
         abilities: vec![
@@ -35,13 +39,16 @@ pub fn card() -> CardDefinition {
                 })],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {B}, {T}: Exile target instant or sorcery card from a graveyard.
             // Each opponent loses 2 life.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { black: 1, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        black: 1,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                 ]),
                 effect: Effect::Sequence(vec![
@@ -63,12 +70,15 @@ pub fn card() -> CardDefinition {
                 })],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {G}, {T}: Exile target creature card from a graveyard. You gain 2 life.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { green: 1, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        green: 1,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                 ]),
                 effect: Effect::Sequence(vec![
@@ -87,7 +97,7 @@ pub fn card() -> CardDefinition {
                 })],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

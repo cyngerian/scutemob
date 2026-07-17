@@ -7,7 +7,9 @@ pub fn card() -> CardDefinition {
         name: "Halimar Depths".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "This land enters tapped.\nWhen this land enters, look at the top three cards of your library, then put them back in any order.\n{T}: Add {U}.".to_string(),
+        oracle_text: "This land enters tapped.\nWhen this land enters, look at the top three \
+                      cards of your library, then put them back in any order.\n{T}: Add {U}."
+            .to_string(),
         abilities: vec![
             // CR 614.1c: self-replacement — this land enters tapped.
             AbilityDefinition::Replacement {
@@ -34,15 +36,21 @@ pub fn card() -> CardDefinition {
             // {T}: Add {U}.
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
-                effect: Effect::AddMana { player: PlayerTarget::Controller, mana: mana_pool(0, 1, 0, 0, 0, 0) },
+                effect: Effect::AddMana {
+                    player: PlayerTarget::Controller,
+                    mana: mana_pool(0, 1, 0, 0, 0, 0),
+                },
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("DSL gap — no 'rearrange top N' effect. Scry 3 is wrong (allows bottoming). Need Effect::RearrangeTopN or similar. Using..."),
+        completeness: Completeness::partial(
+            "DSL gap — no 'rearrange top N' effect. Scry 3 is wrong (allows bottoming). Need \
+             Effect::RearrangeTopN or similar. Using...",
+        ),
         ..Default::default()
     }
 }

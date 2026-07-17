@@ -6,9 +6,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("crux-of-fate"),
         name: "Crux of Fate".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            black: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Choose one —\n• Destroy all Dragon creatures.\n• Destroy all non-Dragon creatures.".to_string(),
+        oracle_text: "Choose one —\n• Destroy all Dragon creatures.\n• Destroy all non-Dragon \
+                      creatures."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![]),
             targets: vec![],

@@ -13,19 +13,29 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("bident-of-thassa"),
         name: "Bident of Thassa".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, blue: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            blue: 2,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Enchantment, CardType::Artifact],
             &[],
         ),
-        oracle_text: "Whenever a creature you control deals combat damage to a player, you may draw a card.\n{1}{U}, {T}: Creatures your opponents control attack this turn if able.".to_string(),
+        oracle_text: "Whenever a creature you control deals combat damage to a player, you may \
+                      draw a card.\n{1}{U}, {T}: Creatures your opponents control attack this \
+                      turn if able."
+            .to_string(),
         abilities: vec![
             // CR 510.3a: "Whenever a creature you control deals combat damage to a player,
             // draw a card." PB-23: WheneverCreatureYouControlDealsCombatDamageToPlayer.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer { filter: None },
+                trigger_condition:
+                    TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer {
+                        filter: None,
+                    },
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,
                     count: EffectAmount::Fixed(1),
@@ -39,7 +49,15 @@ pub fn card() -> CardDefinition {
             // TODO: "{1}{U}, {T}: Creatures your opponents control attack this turn if able."
             // Forced attack effect not expressible in current DSL.
         ],
-        completeness: Completeness::partial("Blocked on forced attack: '{1}{U}, {T}: Creatures your opponents control attack this turn if able' has no DSL primitive (GameRestriction covers can't-attack restrictions, not attack requirements). Also: the combat-damage trigger is authored (line 28) but draws unconditionally — oracle says 'you may draw a card', so the draw is mandatory in the engine (relevant on an empty library). The old note claiming WheneverCreatureYouControlDealsCombatDamageToPlayer is missing is stale — it shipped in PB-23 and the def uses it."),
+        completeness: Completeness::partial(
+            "Blocked on forced attack: '{1}{U}, {T}: Creatures your opponents control attack this \
+             turn if able' has no DSL primitive (GameRestriction covers can't-attack \
+             restrictions, not attack requirements). Also: the combat-damage trigger is authored \
+             (line 28) but draws unconditionally — oracle says 'you may draw a card', so the draw \
+             is mandatory in the engine (relevant on an empty library). The old note claiming \
+             WheneverCreatureYouControlDealsCombatDamageToPlayer is missing is stale — it shipped \
+             in PB-23 and the def uses it.",
+        ),
         ..Default::default()
     }
 }

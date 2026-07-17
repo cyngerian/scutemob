@@ -6,7 +6,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("read-the-bones"),
         name: "Read the Bones".to_string(),
-        mana_cost: Some(ManaCost { black: 1, generic: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 1,
+            generic: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
         oracle_text: "Scry 2, then draw two cards. You lose 2 life.".to_string(),
         abilities: vec![AbilityDefinition::Spell {

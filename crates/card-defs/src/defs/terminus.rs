@@ -12,15 +12,25 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("terminus"),
         name: "Terminus".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, white: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            white: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Put all creatures on the bottom of their owners' libraries.\nMiracle {W} (You may cast this card for its miracle cost. Cast it only as the first card you drew this turn.)".to_string(),
+        oracle_text: "Put all creatures on the bottom of their owners' libraries.\nMiracle {W} \
+                      (You may cast this card for its miracle cost. Cast it only as the first \
+                      card you drew this turn.)"
+            .to_string(),
         abilities: vec![
             // CR 702.94a: Miracle keyword marker.
             AbilityDefinition::Keyword(KeywordAbility::Miracle),
             // CR 702.94a: The miracle alternative cost ({W}).
             AbilityDefinition::Miracle {
-                cost: ManaCost { white: 1, ..Default::default() },
+                cost: ManaCost {
+                    white: 1,
+                    ..Default::default()
+                },
             },
             // The spell effect: destroy all creatures (approximates "put on bottom of
             // their owners' libraries" — owners' library routing deferred to M10+).
@@ -34,7 +44,10 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::known_wrong("destroys all creatures instead of putting them on the bottom of their owners' libraries"),
+        completeness: Completeness::known_wrong(
+            "destroys all creatures instead of putting them on the bottom of their owners' \
+             libraries",
+        ),
         ..Default::default()
     }
 }

@@ -12,9 +12,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("qarsi-revenant"),
         name: "Qarsi Revenant".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Vampire"]),
-        oracle_text: "Flying, deathtouch, lifelink\nRenew — {2}{B}, Exile this card from your graveyard: Put a flying counter, a deathtouch counter, and a lifelink counter on target creature. Activate only as a sorcery.".to_string(),
+        oracle_text: "Flying, deathtouch, lifelink\nRenew — {2}{B}, Exile this card from your \
+                      graveyard: Put a flying counter, a deathtouch counter, and a lifelink \
+                      counter on target creature. Activate only as a sorcery."
+            .to_string(),
         power: Some(3),
         toughness: Some(3),
         abilities: vec![
@@ -24,7 +31,10 @@ pub fn card() -> CardDefinition {
             // TODO: Renew — graveyard activated ability with exile-self cost and keyword counter
             // placement not supported in DSL.
         ],
-        completeness: Completeness::partial("Renew activated ability cannot be expressed — it activates from the graveyard (not battlefield), costs exile-self, and..."),
+        completeness: Completeness::partial(
+            "Renew activated ability cannot be expressed — it activates from the graveyard (not \
+             battlefield), costs exile-self, and...",
+        ),
         ..Default::default()
     }
 }

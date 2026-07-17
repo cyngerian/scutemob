@@ -9,7 +9,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("bloodmark-mentor"),
         name: "Bloodmark Mentor".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Goblin", "Warrior"]),
         oracle_text: "Red creatures you control have first strike.".to_string(),
         power: Some(1),

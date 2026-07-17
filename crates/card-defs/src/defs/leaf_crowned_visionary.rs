@@ -10,9 +10,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("leaf-crowned-visionary"),
         name: "Leaf-Crowned Visionary".to_string(),
-        mana_cost: Some(ManaCost { green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            green: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Elf", "Druid"]),
-        oracle_text: "Other Elves you control get +1/+1.\nWhenever you cast an Elf spell, you may pay {G}. If you do, draw a card.".to_string(),
+        oracle_text: "Other Elves you control get +1/+1.\nWhenever you cast an Elf spell, you may \
+                      pay {G}. If you do, draw a card."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
@@ -21,7 +26,9 @@ pub fn card() -> CardDefinition {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::PtModify,
                     modification: LayerModification::ModifyBoth(1),
-                    filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType("Elf".to_string())),
+                    filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType(
+                        "Elf".to_string(),
+                    )),
                     duration: EffectDuration::WhileSourceOnBattlefield,
                     condition: None,
                 },
@@ -37,7 +44,10 @@ pub fn card() -> CardDefinition {
                     spell_subtype_filter: Some(vec![SubType("Elf".to_string())]),
                 },
                 effect: Effect::MayPayThenEffect {
-                    cost: Cost::Mana(ManaCost { green: 1, ..Default::default() }),
+                    cost: Cost::Mana(ManaCost {
+                        green: 1,
+                        ..Default::default()
+                    }),
                     payer: PlayerTarget::Controller,
                     then: Box::new(Effect::DrawCards {
                         player: PlayerTarget::Controller,

@@ -7,9 +7,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("spidersilk-net"),
         name: "Spidersilk Net".to_string(),
-        mana_cost: Some(ManaCost { ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Artifact], &["Equipment"]),
-        oracle_text: "Equipped creature gets +0/+2 and has reach. (It can block creatures with flying.)\nEquip {2} ({2}: Attach to target creature you control. Equip only as a sorcery.)".to_string(),
+        oracle_text: "Equipped creature gets +0/+2 and has reach. (It can block creatures with \
+                      flying.)\nEquip {2} ({2}: Attach to target creature you control. Equip only \
+                      as a sorcery.)"
+            .to_string(),
         abilities: vec![
             // Static: equipped creature gets +0/+2
             AbilityDefinition::Static {
@@ -35,7 +40,10 @@ pub fn card() -> CardDefinition {
             },
             // Equip {2}
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { generic: 2, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    generic: 2,
+                    ..Default::default()
+                }),
                 effect: Effect::AttachEquipment {
                     equipment: EffectTarget::Source,
                     target: EffectTarget::DeclaredTarget { index: 0 },
@@ -44,7 +52,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

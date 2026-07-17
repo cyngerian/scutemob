@@ -20,7 +20,13 @@ pub fn card() -> CardDefinition {
             &[CardType::Planeswalker],
             &["Basri"],
         ),
-        oracle_text: "+1: Put a +1/+1 counter on up to one target creature. It gains indestructible until end of turn.\n\u{2212}2: Whenever one or more nontoken creatures attack this turn, create that many 1/1 white Soldier creature tokens that are tapped and attacking.\n\u{2212}6: You get an emblem with \"At the beginning of combat on your turn, create a 1/1 white Soldier creature token, then put a +1/+1 counter on each creature you control.\"".to_string(),
+        oracle_text: "+1: Put a +1/+1 counter on up to one target creature. It gains \
+                      indestructible until end of turn.\n\u{2212}2: Whenever one or more nontoken \
+                      creatures attack this turn, create that many 1/1 white Soldier creature \
+                      tokens that are tapped and attacking.\n\u{2212}6: You get an emblem with \
+                      \"At the beginning of combat on your turn, create a 1/1 white Soldier \
+                      creature token, then put a +1/+1 counter on each creature you control.\""
+            .to_string(),
         abilities: vec![
             AbilityDefinition::LoyaltyAbility {
                 cost: LoyaltyCost::Plus(1),
@@ -35,7 +41,9 @@ pub fn card() -> CardDefinition {
                     Effect::ApplyContinuousEffect {
                         effect_def: Box::new(ContinuousEffectDef {
                             layer: EffectLayer::Ability,
-                            modification: LayerModification::AddKeyword(KeywordAbility::Indestructible),
+                            modification: LayerModification::AddKeyword(
+                                KeywordAbility::Indestructible,
+                            ),
                             filter: EffectFilter::DeclaredTarget { index: 0 },
                             duration: EffectDuration::UntilEndOfTurn,
                             condition: None,
@@ -63,37 +71,36 @@ pub fn card() -> CardDefinition {
                 // NOTE: Uses TriggerEvent::AtBeginningOfCombat. Emblem scanning for
                 // step-based trigger events is wired in begin_combat() in turn_actions.rs.
                 effect: Effect::CreateEmblem {
-                    triggered_abilities: vec![
-                        TriggeredAbilityDef {
-                            counter_filter: None,
-                            counter_on_self: false,
-                            once_per_turn: false,
-                            trigger_on: TriggerEvent::AtBeginningOfCombat,
-                            intervening_if: None,
-                            description: "At the beginning of combat on your turn, create a 1/1 white Soldier creature token, then put a +1/+1 counter on each creature you control.".to_string(),
-                            // TODO: Full effect (create token + distribute counters on all creatures)
-                            // using AtBeginningOfCombat trigger.
-                            effect: Some(Effect::CreateToken {
-                                spec: TokenSpec {
-                                    name: "Soldier".to_string(),
-                                    power: 1,
-                                    toughness: 1,
-                                    colors: [Color::White].into_iter().collect(),
-                                    card_types: [CardType::Creature].into_iter().collect(),
-                                    subtypes: [SubType("Soldier".to_string())]
-                                        .into_iter()
-                                        .collect(),
-                                    count: EffectAmount::Fixed(1),
-                                    ..Default::default()
-                                },
-                            }),
-                            etb_filter: None,
-                            death_filter: None,
-                combat_damage_filter: None,
+                    triggered_abilities: vec![TriggeredAbilityDef {
+                        counter_filter: None,
+                        counter_on_self: false,
+                        once_per_turn: false,
+                        trigger_on: TriggerEvent::AtBeginningOfCombat,
+                        intervening_if: None,
+                        description: "At the beginning of combat on your turn, create a 1/1 white \
+                                      Soldier creature token, then put a +1/+1 counter on each \
+                                      creature you control."
+                            .to_string(),
+                        // TODO: Full effect (create token + distribute counters on all creatures)
+                        // using AtBeginningOfCombat trigger.
+                        effect: Some(Effect::CreateToken {
+                            spec: TokenSpec {
+                                name: "Soldier".to_string(),
+                                power: 1,
+                                toughness: 1,
+                                colors: [Color::White].into_iter().collect(),
+                                card_types: [CardType::Creature].into_iter().collect(),
+                                subtypes: [SubType("Soldier".to_string())].into_iter().collect(),
+                                count: EffectAmount::Fixed(1),
+                                ..Default::default()
+                            },
+                        }),
+                        etb_filter: None,
+                        death_filter: None,
+                        combat_damage_filter: None,
                         triggering_creature_filter: None,
-                            targets: vec![],
-                        },
-                    ],
+                        targets: vec![],
+                    }],
                     static_effects: vec![],
                     play_from_graveyard: None,
                 },
@@ -106,7 +113,13 @@ pub fn card() -> CardDefinition {
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
         cant_be_countered: false,
-        completeness: Completeness::known_wrong("the -6 emblem creates the Soldier token but silently omits 'then put a +1/+1 counter on each creature you control' (see TODO at line 74) — a shipped ability with half its effect. The -2 is separately blocked on turn-scoped delayed triggered abilities (real gap, no DSL primitive). Fix the -6 (ForEachTarget::EachCreatureYouControl + AddCounter) before this can drop to partial."),
+        completeness: Completeness::known_wrong(
+            "the -6 emblem creates the Soldier token but silently omits 'then put a +1/+1 counter \
+             on each creature you control' (see TODO at line 74) — a shipped ability with half \
+             its effect. The -2 is separately blocked on turn-scoped delayed triggered abilities \
+             (real gap, no DSL primitive). Fix the -6 (ForEachTarget::EachCreatureYouControl + \
+             AddCounter) before this can drop to partial.",
+        ),
         ..Default::default()
     }
 }

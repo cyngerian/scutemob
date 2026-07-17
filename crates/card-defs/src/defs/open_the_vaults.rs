@@ -7,9 +7,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("open-the-vaults"),
         name: "Open the Vaults".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, white: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            white: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Return all artifact and enchantment cards from all graveyards to the battlefield under their owners' control. (Auras with nothing to enchant remain in graveyards.)".to_string(),
+        oracle_text: "Return all artifact and enchantment cards from all graveyards to the \
+                      battlefield under their owners' control. (Auras with nothing to enchant \
+                      remain in graveyards.)"
+            .to_string(),
         abilities: vec![
             // CR 400.7, 603.6a: Return all artifact and enchantment cards from all graveyards
             // to the battlefield under their owners' control simultaneously.
@@ -35,7 +42,9 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::partial("(M10+): Add Aura placement choice so Auras can attach to valid targets"),
+        completeness: Completeness::partial(
+            "(M10+): Add Aura placement choice so Auras can attach to valid targets",
+        ),
         ..Default::default()
     }
 }

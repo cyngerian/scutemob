@@ -12,9 +12,22 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("marisi-breaker-of-the-coil"),
         name: "Marisi, Breaker of the Coil".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, red: 1, green: 1, white: 1, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Cat", "Warrior"]),
-        oracle_text: "Your opponents can't cast spells during combat.\nWhenever a creature you control deals combat damage to a player, goad each creature that player controls.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            red: 1,
+            green: 1,
+            white: 1,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Creature],
+            &["Cat", "Warrior"],
+        ),
+        oracle_text: "Your opponents can't cast spells during combat.\nWhenever a creature you \
+                      control deals combat damage to a player, goad each creature that player \
+                      controls."
+            .to_string(),
         power: Some(5),
         toughness: Some(4),
         abilities: vec![
@@ -22,7 +35,12 @@ pub fn card() -> CardDefinition {
             // TODO: "goad each creature that player controls" — ForEach over DamagedPlayer's
             //   creatures requires TargetController::DamagedPlayer support. Deferred to PB-37.
         ],
-        completeness: Completeness::partial("Blocked on clause 1 only: 'Your opponents can't cast spells during combat' needs a phase-scoped GameRestriction (all 11 variants are turn/count-scoped). STALE: the goad clause's TargetController::DamagedPlayer blocker shipped in PB-D and PlayerTarget::DamagedPlayer resolves via ctx.damaged_player."),
+        completeness: Completeness::partial(
+            "Blocked on clause 1 only: 'Your opponents can't cast spells during combat' needs a \
+             phase-scoped GameRestriction (all 11 variants are turn/count-scoped). STALE: the \
+             goad clause's TargetController::DamagedPlayer blocker shipped in PB-D and \
+             PlayerTarget::DamagedPlayer resolves via ctx.damaged_player.",
+        ),
         ..Default::default()
     }
 }

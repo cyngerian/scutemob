@@ -6,9 +6,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("stroke-of-midnight"),
         name: "Stroke of Midnight".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            white: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Destroy target nonland permanent. Its controller creates a 1/1 white Human creature token.".to_string(),
+        oracle_text: "Destroy target nonland permanent. Its controller creates a 1/1 white Human \
+                      creature token."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             // "Its controller creates a 1/1 white Human creature token."
             // TODO: CreateToken does not have a player/controller field — tokens always go to
@@ -48,7 +54,10 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("CreateToken does not have a player/controller field — tokens always go to ctx.controller (the spell's caster). In..."),
+        completeness: Completeness::partial(
+            "CreateToken does not have a player/controller field — tokens always go to \
+             ctx.controller (the spell's caster). In...",
+        ),
         ..Default::default()
     }
 }

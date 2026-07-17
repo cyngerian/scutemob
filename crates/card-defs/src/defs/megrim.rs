@@ -10,9 +10,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("megrim"),
         name: "Megrim".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            black: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Whenever an opponent discards a card, this enchantment deals 2 damage to that player.".to_string(),
+        oracle_text: "Whenever an opponent discards a card, this enchantment deals 2 damage to \
+                      that player."
+            .to_string(),
         abilities: vec![
             // Whenever an opponent discards a card, deal 2 damage to that player.
             // Using LoseLife as approximation (damage vs life-loss semantic difference minor).
@@ -30,7 +36,13 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::known_wrong("'deals 2 damage to that player' is modeled as Effect::LoseLife; life loss is not damage (CR 119.3) — unpreventable, unredirectable, triggers no damage triggers, ignores lifelink. STALE: the old claim that TriggerCondition::WheneverOpponentDiscards does not exist — it exists and this def already uses it."),
+        completeness: Completeness::known_wrong(
+            "'deals 2 damage to that player' is modeled as Effect::LoseLife; life loss is not \
+             damage (CR 119.3) — unpreventable, unredirectable, triggers no damage triggers, \
+             ignores lifelink. STALE: the old claim that \
+             TriggerCondition::WheneverOpponentDiscards does not exist — it exists and this def \
+             already uses it.",
+        ),
         ..Default::default()
     }
 }

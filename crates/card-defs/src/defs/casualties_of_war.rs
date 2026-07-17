@@ -11,14 +11,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("casualties-of-war"),
         name: "Casualties of War".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, black: 2, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            black: 2,
+            green: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Choose one or more —\n\
-            • Destroy target artifact.\n\
-            • Destroy target creature.\n\
-            • Destroy target enchantment.\n\
-            • Destroy target land.\n\
-            • Destroy target planeswalker."
+        oracle_text: "Choose one or more —\n• Destroy target artifact.\n• Destroy target \
+                      creature.\n• Destroy target enchantment.\n• Destroy target land.\n• Destroy \
+                      target planeswalker."
             .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![]),

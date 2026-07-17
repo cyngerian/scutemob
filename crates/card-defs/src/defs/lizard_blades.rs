@@ -14,11 +14,18 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("lizard-blades"),
         name: "Lizard Blades".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, red: 1, ..Default::default() }),
-        types: types_sub(&[CardType::Artifact, CardType::Creature], &["Equipment", "Lizard"]),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            red: 1,
+            ..Default::default()
+        }),
+        types: types_sub(
+            &[CardType::Artifact, CardType::Creature],
+            &["Equipment", "Lizard"],
+        ),
         oracle_text: "Double strike\nReconfigure {2} ({2}: Attach to target creature you control; \
-or unattach from a creature. Reconfigure only as a sorcery. While attached, this isn't a creature.)\n\
-Equipped creature gets +1/+1 and has double strike."
+                      or unattach from a creature. Reconfigure only as a sorcery. While attached, \
+                      this isn't a creature.)\nEquipped creature gets +1/+1 and has double strike."
             .to_string(),
         power: Some(1),
         toughness: Some(1),
@@ -27,7 +34,12 @@ Equipped creature gets +1/+1 and has double strike."
             AbilityDefinition::Keyword(KeywordAbility::DoubleStrike),
             // CR 702.151a: Reconfigure {2} — generates attach + unattach activated abilities.
             AbilityDefinition::Keyword(KeywordAbility::Reconfigure),
-            AbilityDefinition::Reconfigure { cost: ManaCost { generic: 2, ..Default::default() } },
+            AbilityDefinition::Reconfigure {
+                cost: ManaCost {
+                    generic: 2,
+                    ..Default::default()
+                },
+            },
             // CR 613.4c: Equipped creature gets +1 power (layer 7c).
             AbilityDefinition::Static {
                 continuous_effect: ContinuousEffectDef {
@@ -71,6 +83,6 @@ Equipped creature gets +1/+1 and has double strike."
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("territorial-scythecat"),
         name: "Territorial Scythecat".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Cat"]),
-        oracle_text: "Trample\nLandfall — Whenever a land you control enters, put a +1/+1 counter on Territorial Scythecat.".to_string(),
+        oracle_text: "Trample\nLandfall — Whenever a land you control enters, put a +1/+1 counter \
+                      on Territorial Scythecat."
+            .to_string(),
         power: Some(2),
         toughness: Some(1),
         abilities: vec![

@@ -13,9 +13,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("puresteel-paladin"),
         name: "Puresteel Paladin".to_string(),
-        mana_cost: Some(ManaCost { white: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            white: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Knight"]),
-        oracle_text: "Whenever an Equipment you control enters, you may draw a card.\nMetalcraft — Equipment you control have equip {0} as long as you control three or more artifacts.".to_string(),
+        oracle_text: "Whenever an Equipment you control enters, you may draw a card.\nMetalcraft \
+                      — Equipment you control have equip {0} as long as you control three or more \
+                      artifacts."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -42,7 +48,13 @@ pub fn card() -> CardDefinition {
             },
             // TODO: Metalcraft equip cost reduction not expressible.
         ],
-        completeness: Completeness::partial("Blocked on Metalcraft: 'Equipment you control have equip {0} as long as you control three or more artifacts' — no condition-gated grant of an equip cost to other permanents. Also: the ETB trigger's 'you may draw' is wired as an unconditional draw (Effect::Choose is non-interactive). The Equipment-subtype filter is implemented and is not a blocker."),
+        completeness: Completeness::partial(
+            "Blocked on Metalcraft: 'Equipment you control have equip {0} as long as you control \
+             three or more artifacts' — no condition-gated grant of an equip cost to other \
+             permanents. Also: the ETB trigger's 'you may draw' is wired as an unconditional draw \
+             (Effect::Choose is non-interactive). The Equipment-subtype filter is implemented and \
+             is not a blocker.",
+        ),
         ..Default::default()
     }
 }

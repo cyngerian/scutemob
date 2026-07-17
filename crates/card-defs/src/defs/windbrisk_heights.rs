@@ -11,7 +11,12 @@ pub fn card() -> CardDefinition {
         name: "Windbrisk Heights".to_string(),
         mana_cost: None,
         types: types_sub(&[CardType::Land], &["Plains"]),
-        oracle_text: "Hideaway 4 (When this land enters, look at the top four cards of your library, exile one face down, then put the rest on the bottom in a random order.)\nThis land enters tapped.\n{T}: Add {W}.\n{W}, {T}: You may play the exiled card without paying its mana cost if you attacked with three or more creatures this turn.".to_string(),
+        oracle_text: "Hideaway 4 (When this land enters, look at the top four cards of your \
+                      library, exile one face down, then put the rest on the bottom in a random \
+                      order.)\nThis land enters tapped.\n{T}: Add {W}.\n{W}, {T}: You may play \
+                      the exiled card without paying its mana cost if you attacked with three or \
+                      more creatures this turn."
+            .to_string(),
         abilities: vec![
             // CR 702.75: Hideaway 4 — ETB trigger wired via KeywordAbility::Hideaway(4).
             AbilityDefinition::Keyword(KeywordAbility::Hideaway(4)),
@@ -35,13 +40,16 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {W}, {T}: Play the exiled card without paying its mana cost.
             // Condition::Always — the real attack-count condition is deferred.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { white: 1, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        white: 1,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                 ]),
                 effect: Effect::PlayExiledCard,
@@ -49,7 +57,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

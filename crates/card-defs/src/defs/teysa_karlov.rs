@@ -8,13 +8,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("teysa-karlov"),
         name: "Teysa Karlov".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, white: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            white: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Human", "Advisor"],
         ),
-        oracle_text: "If a creature dying causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time.\nCreature tokens you control have vigilance and lifelink.".to_string(),
+        oracle_text: "If a creature dying causes a triggered ability of a permanent you control \
+                      to trigger, that ability triggers an additional time.\nCreature tokens you \
+                      control have vigilance and lifelink."
+            .to_string(),
         power: Some(2),
         toughness: Some(4),
         abilities: vec![
@@ -28,7 +36,10 @@ pub fn card() -> CardDefinition {
             // Requires a token-only EffectFilter (EffectFilter::TokenCreatures) for
             // the static ability grant. Not yet expressible in the DSL.
         ],
-        completeness: Completeness::partial("'Creature tokens you control have vigilance and lifelink.' Requires a token-only EffectFilter..."),
+        completeness: Completeness::partial(
+            "'Creature tokens you control have vigilance and lifelink.' Requires a token-only \
+             EffectFilter...",
+        ),
         ..Default::default()
     }
 }

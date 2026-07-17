@@ -9,13 +9,22 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("zurgo-stormrender"),
         name: "Zurgo Stormrender".to_string(),
-        mana_cost: Some(ManaCost { red: 1, white: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            red: 1,
+            white: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Orc", "Warrior"],
         ),
-        oracle_text: "Mobilize 1 (Whenever this creature attacks, create a tapped and attacking 1/1 red Warrior creature token. Sacrifice it at the beginning of the next end step.)\nWhenever a creature token you control leaves the battlefield, draw a card if it was attacking. Otherwise, each opponent loses 1 life.".to_string(),
+        oracle_text: "Mobilize 1 (Whenever this creature attacks, create a tapped and attacking \
+                      1/1 red Warrior creature token. Sacrifice it at the beginning of the next \
+                      end step.)\nWhenever a creature token you control leaves the battlefield, \
+                      draw a card if it was attacking. Otherwise, each opponent loses 1 life."
+            .to_string(),
         power: Some(3),
         toughness: Some(3),
         abilities: vec![
@@ -51,7 +60,9 @@ pub fn card() -> CardDefinition {
             },
             // TODO: "Whenever a creature token you control leaves" trigger not in DSL.
         ],
-        completeness: Completeness::partial("'Whenever a creature token you control leaves' trigger not in DSL"),
+        completeness: Completeness::partial(
+            "'Whenever a creature token you control leaves' trigger not in DSL",
+        ),
         ..Default::default()
     }
 }

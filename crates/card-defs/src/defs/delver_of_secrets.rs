@@ -12,9 +12,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("delver-of-secrets-insectile-aberration"),
         name: "Delver of Secrets".to_string(),
-        mana_cost: Some(ManaCost { blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            blue: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Wizard"]),
-        oracle_text: "At the beginning of your upkeep, look at the top card of your library. You may reveal that card. If an instant or sorcery card is revealed this way, transform Delver of Secrets.".to_string(),
+        oracle_text: "At the beginning of your upkeep, look at the top card of your library. You \
+                      may reveal that card. If an instant or sorcery card is revealed this way, \
+                      transform Delver of Secrets."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
@@ -29,9 +35,7 @@ pub fn card() -> CardDefinition {
             oracle_text: "Flying".to_string(),
             power: Some(3),
             toughness: Some(2),
-            abilities: vec![
-                AbilityDefinition::Keyword(KeywordAbility::Flying),
-            ],
+            abilities: vec![AbilityDefinition::Keyword(KeywordAbility::Flying)],
             color_indicator: Some(vec![Color::Blue]),
         }),
         spell_cost_modifiers: vec![],
@@ -44,6 +48,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

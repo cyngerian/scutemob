@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("flare-of-denial"),
         name: "Flare of Denial".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, blue: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            blue: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "You may sacrifice a nontoken blue creature rather than pay this spell's mana cost.\nCounter target spell.".to_string(),
+        oracle_text: "You may sacrifice a nontoken blue creature rather than pay this spell's \
+                      mana cost.\nCounter target spell."
+            .to_string(),
         abilities: vec![
             // TODO: Alt cost — "sacrifice a nontoken blue creature" as alternative to mana cost.
             // Requires pitch-sacrifice alt cost (color-filtered nontoken creature). Not in DSL.
@@ -23,7 +29,10 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::partial("Alt cost — 'sacrifice a nontoken blue creature' as alternative to mana cost. Requires pitch-sacrifice alt cost..."),
+        completeness: Completeness::partial(
+            "Alt cost — 'sacrifice a nontoken blue creature' as alternative to mana cost. \
+             Requires pitch-sacrifice alt cost...",
+        ),
         ..Default::default()
     }
 }

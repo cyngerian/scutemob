@@ -12,15 +12,23 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("last-ditch-effort"),
         name: "Last-Ditch Effort".to_string(),
-        mana_cost: Some(ManaCost { red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            red: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Sacrifice any number of creatures. Last-Ditch Effort deals that much damage to any target.".to_string(),
+        oracle_text: "Sacrifice any number of creatures. Last-Ditch Effort deals that much damage \
+                      to any target."
+            .to_string(),
         abilities: vec![
             // TODO: No Cost::SacrificeAnyNumber variant in DSL.
             //   Amount of damage = number of creatures sacrificed (dynamic variable).
             //   Cannot be expressed without SacrificeAnyNumber cost + EffectAmount::SacrificedCount.
         ],
-        completeness: Completeness::partial("'Sacrifice any number of creatures' — no Cost::SacrificeAnyNumber or Effect::SacrificeAnyNumberFor { filter: creature }..."),
+        completeness: Completeness::partial(
+            "'Sacrifice any number of creatures' — no Cost::SacrificeAnyNumber or \
+             Effect::SacrificeAnyNumberFor { filter: creature }...",
+        ),
         ..Default::default()
     }
 }

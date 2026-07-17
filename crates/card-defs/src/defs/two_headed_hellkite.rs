@@ -7,9 +7,18 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("two-headed-hellkite"),
         name: "Two-Headed Hellkite".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, white: 1, blue: 1, black: 1, red: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            white: 1,
+            blue: 1,
+            black: 1,
+            red: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Dragon"]),
-        oracle_text: "Flying, menace, haste\nWhenever this creature attacks, draw two cards.".to_string(),
+        oracle_text: "Flying, menace, haste\nWhenever this creature attacks, draw two cards."
+            .to_string(),
         power: Some(5),
         toughness: Some(5),
         abilities: vec![

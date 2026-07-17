@@ -7,26 +7,31 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("raffines-informant"),
         name: "Raffine's Informant".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            white: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Wizard"]),
-        oracle_text: "When Raffine's Informant enters the battlefield, it connives. (Draw a card, then discard a card. If you discarded a nonland card, put a +1/+1 counter on this creature.)".to_string(),
+        oracle_text: "When Raffine's Informant enters the battlefield, it connives. (Draw a card, \
+                      then discard a card. If you discarded a nonland card, put a +1/+1 counter \
+                      on this creature.)"
+            .to_string(),
         power: Some(2),
         toughness: Some(1),
-        abilities: vec![
-            AbilityDefinition::Triggered {
-                once_per_turn: false,
-                trigger_condition: TriggerCondition::WhenEntersBattlefield,
-                effect: Effect::Connive {
-                    target: EffectTarget::Source,
-                    count: EffectAmount::Fixed(1),
-                },
-                intervening_if: None,
-                targets: vec![],
-
-                modes: None,
-                trigger_zone: None,
+        abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
+            trigger_condition: TriggerCondition::WhenEntersBattlefield,
+            effect: Effect::Connive {
+                target: EffectTarget::Source,
+                count: EffectAmount::Fixed(1),
             },
-        ],
+            intervening_if: None,
+            targets: vec![],
+
+            modes: None,
+            trigger_zone: None,
+        }],
         color_indicator: None,
         back_face: None,
         spell_cost_modifiers: vec![],
@@ -39,6 +44,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

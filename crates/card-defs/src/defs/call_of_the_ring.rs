@@ -8,9 +8,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("call-of-the-ring"),
         name: "Call of the Ring".to_string(),
-        mana_cost: Some(ManaCost { black: 1, generic: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 1,
+            generic: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "At the beginning of your upkeep, the Ring tempts you.\nWhenever you choose a creature as your Ring-bearer, you may pay 2 life. If you do, draw a card.".to_string(),
+        oracle_text: "At the beginning of your upkeep, the Ring tempts you.\nWhenever you choose \
+                      a creature as your Ring-bearer, you may pay 2 life. If you do, draw a card."
+            .to_string(),
         abilities: vec![
             // CR 701.54a: At the beginning of your upkeep, the Ring tempts you.
             AbilityDefinition::Triggered {
@@ -31,7 +37,10 @@ pub fn card() -> CardDefinition {
             // temptation, not on choosing a Ring-bearer). Genuine remaining gap, out of
             // PB-AC2 scope.
         ],
-        completeness: Completeness::partial("'Whenever you choose a creature as your Ring-bearer, you may pay 2 life. If you do, draw a card.' PB-AC2's..."),
+        completeness: Completeness::partial(
+            "'Whenever you choose a creature as your Ring-bearer, you may pay 2 life. If you do, \
+             draw a card.' PB-AC2's...",
+        ),
         ..Default::default()
     }
 }

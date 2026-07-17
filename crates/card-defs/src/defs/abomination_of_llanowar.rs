@@ -6,14 +6,23 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("abomination-of-llanowar"),
         name: "Abomination of Llanowar".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Elf", "Horror"],
         ),
-        oracle_text: "Vigilance; menace (This creature can't be blocked except by two or more creatures.)\nAbomination of Llanowar's power and toughness are each equal to the number of Elves you control plus the number of Elf cards in your graveyard.".to_string(),
-        power: None,   // */* CDA — P/T set dynamically by Layer 7a
+        oracle_text: "Vigilance; menace (This creature can't be blocked except by two or more \
+                      creatures.)\nAbomination of Llanowar's power and toughness are each equal \
+                      to the number of Elves you control plus the number of Elf cards in your \
+                      graveyard."
+            .to_string(),
+        power: None, // */* CDA — P/T set dynamically by Layer 7a
         toughness: None,
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Vigilance),
@@ -30,7 +39,9 @@ pub fn card() -> CardDefinition {
                         controller: PlayerTarget::Controller,
                     }),
                     Box::new(EffectAmount::CardCount {
-                        zone: ZoneTarget::Graveyard { owner: PlayerTarget::Controller },
+                        zone: ZoneTarget::Graveyard {
+                            owner: PlayerTarget::Controller,
+                        },
                         player: PlayerTarget::Controller,
                         filter: Some(TargetFilter {
                             has_subtype: Some(SubType("Elf".to_string())),
@@ -48,7 +59,9 @@ pub fn card() -> CardDefinition {
                         controller: PlayerTarget::Controller,
                     }),
                     Box::new(EffectAmount::CardCount {
-                        zone: ZoneTarget::Graveyard { owner: PlayerTarget::Controller },
+                        zone: ZoneTarget::Graveyard {
+                            owner: PlayerTarget::Controller,
+                        },
                         player: PlayerTarget::Controller,
                         filter: Some(TargetFilter {
                             has_subtype: Some(SubType("Elf".to_string())),

@@ -12,7 +12,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("spirit-of-the-labyrinth"),
         name: "Spirit of the Labyrinth".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            white: 1,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Enchantment, CardType::Creature], &["Spirit"]),
         oracle_text: "Each player can't draw more than one card each turn.".to_string(),
         power: Some(3),
@@ -22,7 +26,10 @@ pub fn card() -> CardDefinition {
             //   DSL gap: no LayerModification or GameRestriction to cap draws per turn.
             //   Requires new engine primitive. Omitted per W5 policy.
         ],
-        completeness: Completeness::partial("'Each player can't draw more than one card each turn' — a static restriction on draw count per turn. No..."),
+        completeness: Completeness::partial(
+            "'Each player can't draw more than one card each turn' — a static restriction on draw \
+             count per turn. No...",
+        ),
         ..Default::default()
     }
 }

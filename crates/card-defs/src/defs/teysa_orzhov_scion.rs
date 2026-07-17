@@ -11,9 +11,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("teysa-orzhov-scion"),
         name: "Teysa, Orzhov Scion".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, white: 1, black: 1, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Human", "Advisor"]),
-        oracle_text: "Sacrifice three white creatures: Exile target creature.\nWhenever another black creature you control dies, create a 1/1 white Spirit creature token with flying.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            white: 1,
+            black: 1,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Creature],
+            &["Human", "Advisor"],
+        ),
+        oracle_text: "Sacrifice three white creatures: Exile target creature.\nWhenever another \
+                      black creature you control dies, create a 1/1 white Spirit creature token \
+                      with flying."
+            .to_string(),
         power: Some(2),
         toughness: Some(3),
         abilities: vec![
@@ -57,7 +69,10 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("Sacrifice ability — no DSL Cost variant for 'sacrifice N permanents of a given type' (only Cost::Sacrifice sacrifices..."),
+        completeness: Completeness::partial(
+            "Sacrifice ability — no DSL Cost variant for 'sacrifice N permanents of a given type' \
+             (only Cost::Sacrifice sacrifices...",
+        ),
         ..Default::default()
     }
 }

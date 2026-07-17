@@ -9,9 +9,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("dreamtide-whale"),
         name: "Dreamtide Whale".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            blue: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Whale"]),
-        oracle_text: "Vanishing 2 (This creature enters with two time counters on it. At the beginning of your upkeep, remove a time counter from it. When the last is removed, sacrifice it.)\nWhenever a player casts their second spell each turn, proliferate.".to_string(),
+        oracle_text: "Vanishing 2 (This creature enters with two time counters on it. At the \
+                      beginning of your upkeep, remove a time counter from it. When the last is \
+                      removed, sacrifice it.)\nWhenever a player casts their second spell each \
+                      turn, proliferate."
+            .to_string(),
         power: Some(7),
         toughness: Some(5),
         abilities: vec![
@@ -20,7 +28,10 @@ pub fn card() -> CardDefinition {
             // WheneverPlayerCastsNthSpellThisTurn. Proliferate effect works but
             // trigger condition is blocked.
         ],
-        completeness: Completeness::partial("'second spell each turn' trigger — no TriggerCondition for WheneverPlayerCastsNthSpellThisTurn. Proliferate effect..."),
+        completeness: Completeness::partial(
+            "'second spell each turn' trigger — no TriggerCondition for \
+             WheneverPlayerCastsNthSpellThisTurn. Proliferate effect...",
+        ),
         ..Default::default()
     }
 }

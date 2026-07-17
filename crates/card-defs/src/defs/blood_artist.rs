@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("blood-artist"),
         name: "Blood Artist".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Vampire"]),
-        oracle_text: "Whenever Blood Artist or another creature dies, target player loses 1 life and you gain 1 life.".to_string(),
+        oracle_text: "Whenever Blood Artist or another creature dies, target player loses 1 life \
+                      and you gain 1 life."
+            .to_string(),
         power: Some(0),
         toughness: Some(1),
         abilities: vec![
@@ -23,7 +29,9 @@ pub fn card() -> CardDefinition {
                     nontoken_only: false,
                     filter: None,
                 },
-                effect: Effect::DrainLife { amount: EffectAmount::Fixed(1) },
+                effect: Effect::DrainLife {
+                    amount: EffectAmount::Fixed(1),
+                },
                 intervening_if: None,
                 targets: vec![],
                 modes: None,

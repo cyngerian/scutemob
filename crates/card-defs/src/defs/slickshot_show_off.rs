@@ -13,9 +13,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("slickshot-show-off"),
         name: "Slickshot Show-Off".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Bird", "Wizard"]),
-        oracle_text: "Flying, haste\nWhenever you cast a noncreature spell, this creature gets +2/+0 until end of turn.\nPlot {1}{R} (You may pay {1}{R} and exile this card from your hand. Cast it as a sorcery on a later turn without paying its mana cost. Plot only as a sorcery.)".to_string(),
+        oracle_text: "Flying, haste\nWhenever you cast a noncreature spell, this creature gets \
+                      +2/+0 until end of turn.\nPlot {1}{R} (You may pay {1}{R} and exile this \
+                      card from your hand. Cast it as a sorcery on a later turn without paying \
+                      its mana cost. Plot only as a sorcery.)"
+            .to_string(),
         power: Some(1),
         toughness: Some(2),
         abilities: vec![
@@ -29,7 +37,7 @@ pub fn card() -> CardDefinition {
                     spell_type_filter: None,
                     noncreature_only: true,
                     chosen_subtype_filter: false,
-                spell_subtype_filter: None,
+                    spell_subtype_filter: None,
                 },
                 effect: Effect::ApplyContinuousEffect {
                     effect_def: Box::new(ContinuousEffectDef {
@@ -49,7 +57,11 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Plot),
             AbilityDefinition::AltCastAbility {
                 kind: AltCostKind::Plot,
-                cost: ManaCost { generic: 1, red: 1, ..Default::default() },
+                cost: ManaCost {
+                    generic: 1,
+                    red: 1,
+                    ..Default::default()
+                },
                 details: None,
             },
         ],
@@ -65,6 +77,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

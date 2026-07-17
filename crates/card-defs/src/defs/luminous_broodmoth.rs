@@ -8,9 +8,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("luminous-broodmoth"),
         name: "Luminous Broodmoth".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, white: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            white: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Insect"]),
-        oracle_text: "Flying\nWhenever a creature you control without flying dies, return it to the battlefield under its owner's control with a flying counter on it.".to_string(),
+        oracle_text: "Flying\nWhenever a creature you control without flying dies, return it to \
+                      the battlefield under its owner's control with a flying counter on it."
+            .to_string(),
         power: Some(3),
         toughness: Some(4),
         abilities: vec![
@@ -19,7 +25,12 @@ pub fn card() -> CardDefinition {
             // WheneverCreatureDies with controller filter + keyword exclusion filter +
             // return from GY + flying counter. Multiple DSL gaps.
         ],
-        completeness: Completeness::partial("Blocked: TargetFilter has no keyword-exclusion field, so 'creature you control without flying' is inexpressible; and there is no effect to return the triggering dead creature from the graveyard with a flying counter. (The WheneverCreatureDies controller filter DOES exist — that part of the old note was stale.)"),
+        completeness: Completeness::partial(
+            "Blocked: TargetFilter has no keyword-exclusion field, so 'creature you control \
+             without flying' is inexpressible; and there is no effect to return the triggering \
+             dead creature from the graveyard with a flying counter. (The WheneverCreatureDies \
+             controller filter DOES exist — that part of the old note was stale.)",
+        ),
         ..Default::default()
     }
 }

@@ -13,7 +13,9 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "({U/P} can be paid with either {U} or 2 life.)\nDraw two cards, then proliferate.".to_string(),
+        oracle_text: "({U/P} can be paid with either {U} or 2 life.)\nDraw two cards, then \
+                      proliferate."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![
                 Effect::DrawCards {

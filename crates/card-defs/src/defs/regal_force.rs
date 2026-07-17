@@ -6,9 +6,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("regal-force"),
         name: "Regal Force".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, green: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            green: 3,
+            ..Default::default()
+        }),
         types: creature_types(&["Elemental"]),
-        oracle_text: "When this creature enters, draw a card for each green creature you control.".to_string(),
+        oracle_text: "When this creature enters, draw a card for each green creature you control."
+            .to_string(),
         power: Some(5),
         toughness: Some(5),
         abilities: vec![
@@ -35,7 +40,11 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("needs-rewiring: add `colors: Some(OrdSet from [Color::Green])` to the PermanentCount TargetFilter. Capability shipped (TargetFilter.colors, matches_filter effects/mod.rs:7962). Until rewired the def over-draws — treat as known_wrong."),
+        completeness: Completeness::partial(
+            "needs-rewiring: add `colors: Some(OrdSet from [Color::Green])` to the PermanentCount \
+             TargetFilter. Capability shipped (TargetFilter.colors, matches_filter \
+             effects/mod.rs:7962). Until rewired the def over-draws — treat as known_wrong.",
+        ),
         ..Default::default()
     }
 }

@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("nyxbloom-ancient"),
         name: "Nyxbloom Ancient".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, green: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            green: 3,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Enchantment, CardType::Creature], &["Elemental"]),
-        oracle_text: "Trample\nIf you tap a permanent for mana, it produces three times as much of that mana instead.".to_string(),
+        oracle_text: "Trample\nIf you tap a permanent for mana, it produces three times as much \
+                      of that mana instead."
+            .to_string(),
         power: Some(5),
         toughness: Some(5),
         abilities: vec![

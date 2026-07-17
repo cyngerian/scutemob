@@ -11,14 +11,19 @@ pub fn card() -> CardDefinition {
         name: "Cavern of Souls".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "As this land enters, choose a creature type.\n{T}: Add {C}.\n{T}: Add one mana of any color. Spend this mana only to cast a creature spell of the chosen type, and that spell can't be countered.".to_string(),
+        oracle_text: "As this land enters, choose a creature type.\n{T}: Add {C}.\n{T}: Add one \
+                      mana of any color. Spend this mana only to cast a creature spell of the \
+                      chosen type, and that spell can't be countered."
+            .to_string(),
         abilities: vec![
             // "As this enters, choose a creature type" — self-replacement effect (CR 614.1c)
             AbilityDefinition::Replacement {
                 trigger: ReplacementTrigger::WouldEnterBattlefield {
                     filter: ObjectFilter::Any,
                 },
-                modification: ReplacementModification::ChooseCreatureType(SubType("Human".to_string())),
+                modification: ReplacementModification::ChooseCreatureType(SubType(
+                    "Human".to_string(),
+                )),
                 is_self: true,
                 unless_condition: None,
             },
@@ -33,7 +38,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {T}: Add one mana of any color. Spend this mana only to cast a creature
             // spell of the chosen type.
@@ -47,13 +52,16 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // TODO: "and that spell can't be countered" — uncounterability rider on the
             // mana restriction is not yet expressible. Requires linking mana source to
             // spell uncounterability at resolution time. Deferred to future primitive.
         ],
-        completeness: Completeness::partial("'and that spell can't be countered' — uncounterability rider on the mana restriction is not yet expressible. Requires..."),
+        completeness: Completeness::partial(
+            "'and that spell can't be countered' — uncounterability rider on the mana restriction \
+             is not yet expressible. Requires...",
+        ),
         ..Default::default()
     }
 }

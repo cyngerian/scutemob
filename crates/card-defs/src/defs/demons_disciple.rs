@@ -6,9 +6,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("demons-disciple"),
         name: "Demon's Disciple".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Cleric"]),
-        oracle_text: "When this creature enters, each player sacrifices a creature or planeswalker of their choice.".to_string(),
+        oracle_text: "When this creature enters, each player sacrifices a creature or \
+                      planeswalker of their choice."
+            .to_string(),
         power: Some(3),
         toughness: Some(1),
         abilities: vec![

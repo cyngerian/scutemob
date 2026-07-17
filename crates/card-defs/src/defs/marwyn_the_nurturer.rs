@@ -7,9 +7,19 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("marwyn-the-nurturer"),
         name: "Marwyn, the Nurturer".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 1, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Elf", "Druid"]),
-        oracle_text: "Whenever another Elf you control enters, put a +1/+1 counter on Marwyn, the Nurturer.\n{T}: Add an amount of {G} equal to Marwyn's power.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 1,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Creature],
+            &["Elf", "Druid"],
+        ),
+        oracle_text: "Whenever another Elf you control enters, put a +1/+1 counter on Marwyn, the \
+                      Nurturer.\n{T}: Add an amount of {G} equal to Marwyn's power."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
@@ -47,7 +57,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

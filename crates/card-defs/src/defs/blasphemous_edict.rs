@@ -8,9 +8,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("blasphemous-edict"),
         name: "Blasphemous Edict".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            black: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "This spell costs {B}{B} less to cast if there are thirteen or more creatures on the battlefield.\nEach player sacrifices a creature.".to_string(),
+        oracle_text: "This spell costs {B}{B} less to cast if there are thirteen or more \
+                      creatures on the battlefield.\nEach player sacrifices a creature."
+            .to_string(),
         abilities: vec![
             // TODO: Conditional cost reduction "{B}{B} less if 13+ creatures on the battlefield"
             // is not expressible in the current DSL. Blocked on a
@@ -31,7 +37,10 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::partial("Conditional cost reduction '{B}{B} less if 13+ creatures on the battlefield' is not expressible in the current DSL...."),
+        completeness: Completeness::partial(
+            "Conditional cost reduction '{B}{B} less if 13+ creatures on the battlefield' is not \
+             expressible in the current DSL....",
+        ),
         ..Default::default()
     }
 }

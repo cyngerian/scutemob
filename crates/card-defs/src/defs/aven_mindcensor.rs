@@ -8,9 +8,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("aven-mindcensor"),
         name: "Aven Mindcensor".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            white: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Bird", "Wizard"]),
-        oracle_text: "Flash\nFlying\nIf an opponent would search a library, that player searches the top four cards of that library instead.".to_string(),
+        oracle_text: "Flash\nFlying\nIf an opponent would search a library, that player searches \
+                      the top four cards of that library instead."
+            .to_string(),
         power: Some(2),
         toughness: Some(1),
         abilities: vec![

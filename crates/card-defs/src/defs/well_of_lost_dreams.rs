@@ -12,15 +12,25 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("well-of-lost-dreams"),
         name: "Well of Lost Dreams".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "Whenever you gain life, you may pay {X}, where X is less than or equal to the amount of life you gained. If you do, draw X cards.".to_string(),
+        oracle_text: "Whenever you gain life, you may pay {X}, where X is less than or equal to \
+                      the amount of life you gained. If you do, draw X cards."
+            .to_string(),
         abilities: vec![
             // TODO: TriggerCondition::WhenYouGainLife not in DSL.
             //   Also requires EffectAmount::LifeGainedThisEvent to cap the X cost,
             //   and a Cost::PayUpToX variant. Multiple DSL gaps. Omitted per W5 policy.
         ],
-        completeness: Completeness::partial("Blocked on (a) no EffectAmount carries the amount of life gained by the triggering event, (b) no Cost::PayUpToX(cap) variant, (c) 'you may pay' has no interactive expression. The WheneverYouGainLife trigger DOES exist and is fully wired — that half of the old note was false."),
+        completeness: Completeness::partial(
+            "Blocked on (a) no EffectAmount carries the amount of life gained by the triggering \
+             event, (b) no Cost::PayUpToX(cap) variant, (c) 'you may pay' has no interactive \
+             expression. The WheneverYouGainLife trigger DOES exist and is fully wired — that \
+             half of the old note was false.",
+        ),
         ..Default::default()
     }
 }

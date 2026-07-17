@@ -9,9 +9,22 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("teferi-temporal-archmage"),
         name: "Teferi, Temporal Archmage".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, blue: 2, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Planeswalker], &["Teferi"]),
-        oracle_text: "+1: Look at the top two cards of your library. Put one of them into your hand and the other on the bottom of your library.\n\u{2212}1: Untap up to four target permanents.\n\u{2212}10: You get an emblem with \"You may activate loyalty abilities of planeswalkers you control any time you could cast an instant.\"\nTeferi, Temporal Archmage can be your commander.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            blue: 2,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Planeswalker],
+            &["Teferi"],
+        ),
+        oracle_text: "+1: Look at the top two cards of your library. Put one of them into your \
+                      hand and the other on the bottom of your library.\n\u{2212}1: Untap up to \
+                      four target permanents.\n\u{2212}10: You get an emblem with \"You may \
+                      activate loyalty abilities of planeswalkers you control any time you could \
+                      cast an instant.\"\nTeferi, Temporal Archmage can be your commander."
+            .to_string(),
         starting_loyalty: Some(5),
         abilities: vec![
             // +1: Look at top 2, one to hand, one to bottom.
@@ -23,7 +36,9 @@ pub fn card() -> CardDefinition {
                     player: PlayerTarget::Controller,
                     count: EffectAmount::Fixed(2),
                     filter: TargetFilter::default(),
-                    matched_dest: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                    matched_dest: ZoneTarget::Hand {
+                        owner: PlayerTarget::Controller,
+                    },
                     unmatched_dest: ZoneTarget::Library {
                         owner: PlayerTarget::Controller,
                         position: LibraryPosition::Bottom,
@@ -35,10 +50,18 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::LoyaltyAbility {
                 cost: LoyaltyCost::Minus(1),
                 effect: Effect::Sequence(vec![
-                    Effect::UntapPermanent { target: EffectTarget::DeclaredTarget { index: 0 } },
-                    Effect::UntapPermanent { target: EffectTarget::DeclaredTarget { index: 1 } },
-                    Effect::UntapPermanent { target: EffectTarget::DeclaredTarget { index: 2 } },
-                    Effect::UntapPermanent { target: EffectTarget::DeclaredTarget { index: 3 } },
+                    Effect::UntapPermanent {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                    },
+                    Effect::UntapPermanent {
+                        target: EffectTarget::DeclaredTarget { index: 1 },
+                    },
+                    Effect::UntapPermanent {
+                        target: EffectTarget::DeclaredTarget { index: 2 },
+                    },
+                    Effect::UntapPermanent {
+                        target: EffectTarget::DeclaredTarget { index: 3 },
+                    },
                 ]),
                 targets: vec![TargetRequirement::UpToN {
                     count: 4,
@@ -54,7 +77,12 @@ pub fn card() -> CardDefinition {
             },
             // "Can be your commander" — inherent, no ability definition needed.
         ],
-        completeness: Completeness::known_wrong("known_wrong — +1's RevealAndRoute uses an all-matching default filter, so BOTH cards go to hand instead of one to hand / one to bottom (and 'look' is modeled as a public reveal); −10 is Effect::Nothing — the instant-speed-loyalty emblem has no expressible static."),
+        completeness: Completeness::known_wrong(
+            "known_wrong — +1's RevealAndRoute uses an all-matching default filter, so BOTH cards \
+             go to hand instead of one to hand / one to bottom (and 'look' is modeled as a public \
+             reveal); −10 is Effect::Nothing — the instant-speed-loyalty emblem has no \
+             expressible static.",
+        ),
         ..Default::default()
     }
 }

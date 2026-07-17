@@ -8,9 +8,19 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("laez-el-vlaakiths-champion"),
         name: "Lae'zel, Vlaakith's Champion".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, white: 1, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Gith", "Warrior"]),
-        oracle_text: "Choose a Background.\nIf you would put one or more counters on a creature or planeswalker you control or on yourself, put that many plus one instead.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            white: 1,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Creature],
+            &["Gith", "Warrior"],
+        ),
+        oracle_text: "Choose a Background.\nIf you would put one or more counters on a creature \
+                      or planeswalker you control or on yourself, put that many plus one instead."
+            .to_string(),
         power: Some(3),
         toughness: Some(3),
         abilities: vec![

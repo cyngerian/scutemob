@@ -16,9 +16,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("raiders-wake"),
         name: "Raiders' Wake".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            black: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Whenever an opponent discards a card, that player loses 2 life.\nRaid — At the beginning of your end step, if you attacked this turn, target opponent discards a card.".to_string(),
+        oracle_text: "Whenever an opponent discards a card, that player loses 2 life.\nRaid — At \
+                      the beginning of your end step, if you attacked this turn, target opponent \
+                      discards a card."
+            .to_string(),
         abilities: vec![
             // Whenever an opponent discards a card, that player loses 2 life.
             AbilityDefinition::Triggered {
@@ -37,7 +44,10 @@ pub fn card() -> CardDefinition {
             // ENGINE-BLOCKED: see file header — Raid end-step discard needs
             // TargetRequirement::TargetOpponent, which does not exist.
         ],
-        completeness: Completeness::partial("the Raid half needs 'target OPPONENT discards a card'. PB-AC6 supplies the intervening-if..."),
+        completeness: Completeness::partial(
+            "the Raid half needs 'target OPPONENT discards a card'. PB-AC6 supplies the \
+             intervening-if...",
+        ),
         ..Default::default()
     }
 }

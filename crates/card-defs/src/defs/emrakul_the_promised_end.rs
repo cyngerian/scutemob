@@ -17,12 +17,12 @@ pub fn card() -> CardDefinition {
             generic: 13,
             ..Default::default()
         }),
-        types: full_types(
-            &[SuperType::Legendary],
-            &[CardType::Creature],
-            &["Eldrazi"],
-        ),
-        oracle_text: "This spell costs {1} less to cast for each card type among cards in your graveyard.\nWhen you cast this spell, you gain control of target opponent during that player's next turn. After that turn, that player takes an extra turn.\nFlying, trample, protection from instants".to_string(),
+        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Eldrazi"]),
+        oracle_text: "This spell costs {1} less to cast for each card type among cards in your \
+                      graveyard.\nWhen you cast this spell, you gain control of target opponent \
+                      during that player's next turn. After that turn, that player takes an extra \
+                      turn.\nFlying, trample, protection from instants"
+            .to_string(),
         power: Some(13),
         toughness: Some(13),
         abilities: vec![
@@ -37,7 +37,14 @@ pub fn card() -> CardDefinition {
             // be sequenced correctly without the controlled-turn infrastructure.
         ],
         self_cost_reduction: Some(SelfCostReduction::CardTypesInGraveyard),
-        completeness: Completeness::partial("'When you cast this spell, you gain control of target opponent during that player's next turn. After that turn, that player takes an extra turn.' — blocked on turn-control infrastructure (M11+); Effect::ExtraTurn exists but cannot be sequenced after a controlled turn. Protection from instants IS implemented (ProtectionQuality::FromCardType(Instant)); cost reduction IS implemented (self_cost_reduction)."),
+        completeness: Completeness::partial(
+            "'When you cast this spell, you gain control of target opponent during that player's \
+             next turn. After that turn, that player takes an extra turn.' — blocked on \
+             turn-control infrastructure (M11+); Effect::ExtraTurn exists but cannot be sequenced \
+             after a controlled turn. Protection from instants IS implemented \
+             (ProtectionQuality::FromCardType(Instant)); cost reduction IS implemented \
+             (self_cost_reduction).",
+        ),
         ..Default::default()
     }
 }

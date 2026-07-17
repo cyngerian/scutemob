@@ -7,13 +7,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("mina-and-denn-wildborn"),
         name: "Mina and Denn, Wildborn".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Elf", "Ally"],
         ),
-        oracle_text: "You may play an additional land on each of your turns.\n{R}{G}, Return a land you control to its owner's hand: Target creature gains trample until end of turn.".to_string(),
+        oracle_text: "You may play an additional land on each of your turns.\n{R}{G}, Return a \
+                      land you control to its owner's hand: Target creature gains trample until \
+                      end of turn."
+            .to_string(),
         power: Some(4),
         toughness: Some(4),
         abilities: vec![
@@ -23,7 +31,14 @@ pub fn card() -> CardDefinition {
             // target creature gains trample until end of turn.
             // DSL gap: no return-land cost; no targeted grant-keyword until-end-of-turn effect on activated abilities.
         ],
-        completeness: Completeness::partial("Blocked on Cost::ReturnPermanentToHand (with a lands-you-control filter) — absent from the 13-variant Cost enum. STALE: the 'no targeted grant-keyword until-end-of-turn effect on activated abilities' claim — Activated has targets: Vec<TargetRequirement> and ApplyContinuousEffect/AddKeyword/DeclaredTarget/UntilEndOfTurn all exist. Additional land play is implemented."),
+        completeness: Completeness::partial(
+            "Blocked on Cost::ReturnPermanentToHand (with a lands-you-control filter) — absent \
+             from the 13-variant Cost enum. STALE: the 'no targeted grant-keyword \
+             until-end-of-turn effect on activated abilities' claim — Activated has targets: \
+             Vec<TargetRequirement> and \
+             ApplyContinuousEffect/AddKeyword/DeclaredTarget/UntilEndOfTurn all exist. Additional \
+             land play is implemented.",
+        ),
         ..Default::default()
     }
 }

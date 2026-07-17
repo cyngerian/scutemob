@@ -20,15 +20,24 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("faeburrow-elder"),
         name: "Faeburrow Elder".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, green: 1, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            green: 1,
+            white: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Treefolk", "Druid"]),
-        oracle_text: "Vigilance\nThis creature gets +1/+1 for each color among permanents you control.\n{T}: For each color among permanents you control, add one mana of that color.".to_string(),
+        oracle_text: "Vigilance\nThis creature gets +1/+1 for each color among permanents you \
+                      control.\n{T}: For each color among permanents you control, add one mana of \
+                      that color."
+            .to_string(),
         power: Some(0),
         toughness: Some(0),
-        abilities: vec![
-            AbilityDefinition::Keyword(KeywordAbility::Vigilance),
-        ],
-        completeness: Completeness::partial("DSL gap — 'gets +1/+1 for each color among permanents you control' is a static continuous effect whose value depends on..."),
+        abilities: vec![AbilityDefinition::Keyword(KeywordAbility::Vigilance)],
+        completeness: Completeness::partial(
+            "DSL gap — 'gets +1/+1 for each color among permanents you control' is a static \
+             continuous effect whose value depends on...",
+        ),
         ..Default::default()
     }
 }

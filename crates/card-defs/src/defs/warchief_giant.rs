@@ -7,9 +7,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("warchief-giant"),
         name: "Warchief Giant".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, red: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            red: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Giant", "Warrior"]),
-        oracle_text: "Haste\nMyriad (Whenever this creature attacks, for each opponent other than the defending player, you may create a token that's a copy of this creature that's tapped and attacking that player. If one or more tokens are created this way, exile the tokens at end of combat.)".to_string(),
+        oracle_text: "Haste\nMyriad (Whenever this creature attacks, for each opponent other than \
+                      the defending player, you may create a token that's a copy of this creature \
+                      that's tapped and attacking that player. If one or more tokens are created \
+                      this way, exile the tokens at end of combat.)"
+            .to_string(),
         power: Some(5),
         toughness: Some(3),
         abilities: vec![
@@ -28,6 +36,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

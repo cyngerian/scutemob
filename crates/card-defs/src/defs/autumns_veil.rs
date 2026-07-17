@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("autumns-veil"),
         name: "Autumn's Veil".to_string(),
-        mana_cost: Some(ManaCost { green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Spells you control can't be countered by blue or black spells this turn, and creatures you control can't be the targets of blue or black spells this turn.".to_string(),
+        oracle_text: "Spells you control can't be countered by blue or black spells this turn, \
+                      and creatures you control can't be the targets of blue or black spells this \
+                      turn."
+            .to_string(),
         abilities: vec![
             // TODO: Color-scoped counter protection + hexproof from color sources.
             // Neither "can't be countered by [color] spells" nor "can't be targeted
@@ -21,7 +27,10 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::partial("Color-scoped counter protection + hexproof from color sources. Neither 'can't be countered by [color] spells' nor..."),
+        completeness: Completeness::partial(
+            "Color-scoped counter protection + hexproof from color sources. Neither 'can't be \
+             countered by [color] spells' nor...",
+        ),
         ..Default::default()
     }
 }

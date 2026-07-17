@@ -6,7 +6,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("ravenous-chupacabra"),
         name: "Ravenous Chupacabra".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            black: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Beast", "Horror"]),
         oracle_text: "When this creature enters, destroy target creature an opponent controls."
             .to_string(),

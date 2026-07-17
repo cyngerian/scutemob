@@ -9,9 +9,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("ominous-seas"),
         name: "Ominous Seas".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            blue: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Whenever you draw a card, put a foreshadow counter on Ominous Seas.\nRemove eight foreshadow counters from Ominous Seas: Create an 8/8 blue Kraken creature token.\nCycling {2}".to_string(),
+        oracle_text: "Whenever you draw a card, put a foreshadow counter on Ominous Seas.\nRemove \
+                      eight foreshadow counters from Ominous Seas: Create an 8/8 blue Kraken \
+                      creature token.\nCycling {2}"
+            .to_string(),
         abilities: vec![
             // Whenever you draw a card, put a foreshadow counter on this.
             AbilityDefinition::Triggered {
@@ -57,12 +64,15 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // Cycling {2}
             AbilityDefinition::Keyword(KeywordAbility::Cycling),
             AbilityDefinition::Cycling {
-                cost: ManaCost { generic: 2, ..Default::default() },
+                cost: ManaCost {
+                    generic: 2,
+                    ..Default::default()
+                },
             },
         ],
         ..Default::default()

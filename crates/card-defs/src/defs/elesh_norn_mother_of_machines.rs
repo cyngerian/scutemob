@@ -24,7 +24,11 @@ pub fn card() -> CardDefinition {
             &[CardType::Creature],
             &["Phyrexian", "Praetor"],
         ),
-        oracle_text: "Vigilance\nIf a permanent entering causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time.\nPermanents entering don't cause abilities of permanents your opponents control to trigger.".to_string(),
+        oracle_text: "Vigilance\nIf a permanent entering causes a triggered ability of a \
+                      permanent you control to trigger, that ability triggers an additional \
+                      time.\nPermanents entering don't cause abilities of permanents your \
+                      opponents control to trigger."
+            .to_string(),
         power: Some(4),
         toughness: Some(7),
         abilities: vec![
@@ -36,7 +40,10 @@ pub fn card() -> CardDefinition {
                 additional_triggers: 1,
             },
         ],
-        completeness: Completeness::partial("DSL gap — 'Permanents entering don't cause abilities of permanents your opponents control to trigger.'..."),
+        completeness: Completeness::partial(
+            "DSL gap — 'Permanents entering don't cause abilities of permanents your opponents \
+             control to trigger.'...",
+        ),
         ..Default::default()
     }
 }

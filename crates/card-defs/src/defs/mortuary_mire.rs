@@ -7,7 +7,9 @@ pub fn card() -> CardDefinition {
         name: "Mortuary Mire".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "This land enters tapped.\nWhen this land enters, you may put target creature card from your graveyard on top of your library.\n{T}: Add {B}.".to_string(),
+        oracle_text: "This land enters tapped.\nWhen this land enters, you may put target \
+                      creature card from your graveyard on top of your library.\n{T}: Add {B}."
+            .to_string(),
         abilities: vec![
             // CR 614.1c: self-replacement — this land enters tapped.
             AbilityDefinition::Replacement {
@@ -25,7 +27,10 @@ pub fn card() -> CardDefinition {
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },
-                    to: ZoneTarget::Library { owner: PlayerTarget::Controller, position: LibraryPosition::Top },
+                    to: ZoneTarget::Library {
+                        owner: PlayerTarget::Controller,
+                        position: LibraryPosition::Top,
+                    },
                     controller_override: None,
                 },
                 intervening_if: None,
@@ -40,15 +45,24 @@ pub fn card() -> CardDefinition {
             // {T}: Add {B}.
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
-                effect: Effect::AddMana { player: PlayerTarget::Controller, mana: mana_pool(0, 0, 1, 0, 0, 0) },
+                effect: Effect::AddMana {
+                    player: PlayerTarget::Controller,
+                    mana: mana_pool(0, 0, 1, 0, 0, 0),
+                },
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::known_wrong("'you may put target creature card from your graveyard on top of your library' is authored as a MANDATORY trigger — it fires and moves the card whenever any legal target exists, so the controller can never decline. There is no `optional`/`may` field on AbilityDefinition::Triggered and Effect::Choose is non-interactive (effects/mod.rs:3190 always executes choices.first())."),
+        completeness: Completeness::known_wrong(
+            "'you may put target creature card from your graveyard on top of your library' is \
+             authored as a MANDATORY trigger — it fires and moves the card whenever any legal \
+             target exists, so the controller can never decline. There is no `optional`/`may` \
+             field on AbilityDefinition::Triggered and Effect::Choose is non-interactive \
+             (effects/mod.rs:3190 always executes choices.first()).",
+        ),
         ..Default::default()
     }
 }

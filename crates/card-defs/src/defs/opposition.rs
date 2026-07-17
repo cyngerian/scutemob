@@ -10,14 +10,23 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("opposition"),
         name: "Opposition".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, blue: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            blue: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Tap an untapped creature you control: Tap target artifact, creature, or land.".to_string(),
+        oracle_text: "Tap an untapped creature you control: Tap target artifact, creature, or \
+                      land."
+            .to_string(),
         abilities: vec![
             // TODO: Tap an untapped creature you control: Tap target artifact, creature, or land.
             //   (Cost enum lacks TapAnotherCreature variant)
         ],
-        completeness: Completeness::partial("Tap an untapped creature you control: Tap target artifact, creature, or land. (Cost enum lacks TapAnotherCreature..."),
+        completeness: Completeness::partial(
+            "Tap an untapped creature you control: Tap target artifact, creature, or land. (Cost \
+             enum lacks TapAnotherCreature...",
+        ),
         ..Default::default()
     }
 }

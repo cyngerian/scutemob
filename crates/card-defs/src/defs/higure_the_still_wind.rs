@@ -9,15 +9,33 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("higure-the-still-wind"),
         name: "Higure, the Still Wind".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, blue: 2, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Human", "Ninja"]),
-        oracle_text: "Ninjutsu {2}{U}{U} ({2}{U}{U}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)\nWhenever Higure, the Still Wind deals combat damage to a player, you may search your library for a Ninja card, reveal it, put it into your hand, then shuffle.\n{2}: Target Ninja creature can't be blocked this turn.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            blue: 2,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Creature],
+            &["Human", "Ninja"],
+        ),
+        oracle_text: "Ninjutsu {2}{U}{U} ({2}{U}{U}, Return an unblocked attacker you control to \
+                      hand: Put this card onto the battlefield from your hand tapped and \
+                      attacking.)\nWhenever Higure, the Still Wind deals combat damage to a \
+                      player, you may search your library for a Ninja card, reveal it, put it \
+                      into your hand, then shuffle.\n{2}: Target Ninja creature can't be blocked \
+                      this turn."
+            .to_string(),
         power: Some(3),
         toughness: Some(4),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Ninjutsu),
             AbilityDefinition::Ninjutsu {
-                cost: ManaCost { generic: 2, blue: 2, ..Default::default() },
+                cost: ManaCost {
+                    generic: 2,
+                    blue: 2,
+                    ..Default::default()
+                },
             },
             // Combat damage trigger: search for a Ninja card.
             AbilityDefinition::Triggered {
@@ -28,7 +46,9 @@ pub fn card() -> CardDefinition {
                         has_subtype: Some(SubType("Ninja".to_string())),
                         ..Default::default()
                     },
-                    destination: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                    destination: ZoneTarget::Hand {
+                        owner: PlayerTarget::Controller,
+                    },
                     reveal: true,
                     player: PlayerTarget::Controller,
                     also_search_graveyard: false,
@@ -41,7 +61,10 @@ pub fn card() -> CardDefinition {
             },
             // {2}: Target Ninja creature can't be blocked this turn.
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { generic: 2, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    generic: 2,
+                    ..Default::default()
+                }),
                 effect: Effect::ApplyContinuousEffect {
                     effect_def: Box::new(ContinuousEffectDef {
                         layer: EffectLayer::Ability,

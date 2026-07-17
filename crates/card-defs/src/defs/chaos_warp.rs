@@ -14,7 +14,10 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: types(&[CardType::Instant]),
-        oracle_text: "The owner of target permanent shuffles it into their library, then reveals the top card of their library. If it's a permanent card, they put it onto the battlefield.".to_string(),
+        oracle_text: "The owner of target permanent shuffles it into their library, then reveals \
+                      the top card of their library. If it's a permanent card, they put it onto \
+                      the battlefield."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![
                 // Step 1: Move the target permanent into its owner's library.

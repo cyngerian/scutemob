@@ -8,9 +8,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("forerunner-of-the-legion"),
         name: "Forerunner of the Legion".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            white: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Vampire", "Knight"]),
-        oracle_text: "When this creature enters, you may search your library for a Vampire card, reveal it, then shuffle and put that card on top.\nWhenever another Vampire you control enters, target creature gets +1/+1 until end of turn.".to_string(),
+        oracle_text: "When this creature enters, you may search your library for a Vampire card, \
+                      reveal it, then shuffle and put that card on top.\nWhenever another Vampire \
+                      you control enters, target creature gets +1/+1 until end of turn."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![

@@ -7,14 +7,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("chromatic-lantern"),
         name: "Chromatic Lantern".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "Lands you control have \"{T}: Add one mana of any color.\"\n{T}: Add one mana of any color.".to_string(),
+        oracle_text: "Lands you control have \"{T}: Add one mana of any color.\"\n{T}: Add one \
+                      mana of any color."
+            .to_string(),
         abilities: vec![
             // Self tap-for-any-color activated mana ability.
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
-                effect: Effect::AddManaAnyColor { player: PlayerTarget::Controller },
+                effect: Effect::AddManaAnyColor {
+                    player: PlayerTarget::Controller,
+                },
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,

@@ -8,9 +8,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("elvish-harbinger"),
         name: "Elvish Harbinger".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Elf", "Druid"]),
-        oracle_text: "When this creature enters, you may search your library for an Elf card, reveal it, then shuffle and put that card on top.\n{T}: Add one mana of any color.".to_string(),
+        oracle_text: "When this creature enters, you may search your library for an Elf card, \
+                      reveal it, then shuffle and put that card on top.\n{T}: Add one mana of any \
+                      color."
+            .to_string(),
         power: Some(1),
         toughness: Some(2),
         abilities: vec![
@@ -41,12 +48,14 @@ pub fn card() -> CardDefinition {
             // {T}: Add one mana of any color.
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
-                effect: Effect::AddManaAnyColor { player: PlayerTarget::Controller },
+                effect: Effect::AddManaAnyColor {
+                    player: PlayerTarget::Controller,
+                },
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

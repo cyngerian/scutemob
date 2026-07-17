@@ -12,13 +12,23 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("teferi-temporal-pilgrim"),
         name: "Teferi, Temporal Pilgrim".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, blue: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            blue: 2,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Planeswalker],
             &["Teferi"],
         ),
-        oracle_text: "Whenever you draw a card, put a loyalty counter on Teferi, Temporal Pilgrim.\n0: Draw a card.\n\u{2212}2: Create a 2/2 blue Spirit creature token with vigilance and \"Whenever you draw a card, put a +1/+1 counter on this creature.\"\n\u{2212}12: Target opponent chooses a permanent they control and returns it to its owner's hand. Then they shuffle each nonland permanent they control into its owner's library.".to_string(),
+        oracle_text: "Whenever you draw a card, put a loyalty counter on Teferi, Temporal \
+                      Pilgrim.\n0: Draw a card.\n\u{2212}2: Create a 2/2 blue Spirit creature \
+                      token with vigilance and \"Whenever you draw a card, put a +1/+1 counter on \
+                      this creature.\"\n\u{2212}12: Target opponent chooses a permanent they \
+                      control and returns it to its owner's hand. Then they shuffle each nonland \
+                      permanent they control into its owner's library."
+            .to_string(),
         starting_loyalty: Some(4),
         abilities: vec![
             // Whenever you draw a card, put a loyalty counter on Teferi.
@@ -73,7 +83,10 @@ pub fn card() -> CardDefinition {
             },
             // −12: Complex bounce + shuffle — too complex for DSL.
         ],
-        completeness: Completeness::partial("Token with 'whenever you draw a card, put +1/+1 counter' — token triggered abilities not expressible in TokenSpec"),
+        completeness: Completeness::partial(
+            "Token with 'whenever you draw a card, put +1/+1 counter' — token triggered abilities \
+             not expressible in TokenSpec",
+        ),
         ..Default::default()
     }
 }

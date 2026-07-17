@@ -9,9 +9,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("freyalise-llanowars-fury"),
         name: "Freyalise, Llanowar's Fury".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, green: 2, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Planeswalker], &["Freyalise"]),
-        oracle_text: "+2: Create a 1/1 green Elf Druid creature token with \"{T}: Add {G}.\"\n\u{2212}2: Destroy target artifact or enchantment.\n\u{2212}6: Draw a card for each green creature you control.\nFreyalise, Llanowar's Fury can be your commander.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            green: 2,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Planeswalker],
+            &["Freyalise"],
+        ),
+        oracle_text: "+2: Create a 1/1 green Elf Druid creature token with \"{T}: Add \
+                      {G}.\"\n\u{2212}2: Destroy target artifact or enchantment.\n\u{2212}6: Draw \
+                      a card for each green creature you control.\nFreyalise, Llanowar's Fury can \
+                      be your commander."
+            .to_string(),
         starting_loyalty: Some(3),
         abilities: vec![
             // +2: Create a 1/1 green Elf Druid token with "{T}: Add {G}."
@@ -21,7 +33,9 @@ pub fn card() -> CardDefinition {
                     spec: TokenSpec {
                         name: "Elf Druid".to_string(),
                         card_types: [CardType::Creature].into_iter().collect(),
-                        subtypes: [SubType("Elf".to_string()), SubType("Druid".to_string())].into_iter().collect(),
+                        subtypes: [SubType("Elf".to_string()), SubType("Druid".to_string())]
+                            .into_iter()
+                            .collect(),
                         colors: [Color::Green].into_iter().collect(),
                         power: 1,
                         toughness: 1,

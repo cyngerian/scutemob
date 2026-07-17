@@ -6,15 +6,27 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("nezumi-prowler"),
         name: "Nezumi Prowler".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Artifact, CardType::Creature], &["Rat", "Ninja"]),
-        oracle_text: "Ninjutsu {1}{B} ({1}{B}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)\nWhen this creature enters, target creature you control gains deathtouch and lifelink until end of turn.".to_string(),
+        oracle_text: "Ninjutsu {1}{B} ({1}{B}, Return an unblocked attacker you control to hand: \
+                      Put this card onto the battlefield from your hand tapped and \
+                      attacking.)\nWhen this creature enters, target creature you control gains \
+                      deathtouch and lifelink until end of turn."
+            .to_string(),
         power: Some(3),
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Ninjutsu),
             AbilityDefinition::Ninjutsu {
-                cost: ManaCost { generic: 1, black: 1, ..Default::default() },
+                cost: ManaCost {
+                    generic: 1,
+                    black: 1,
+                    ..Default::default()
+                },
             },
             // CR 603.1: When this creature enters, target creature you control gains
             // deathtouch and lifelink until end of turn.

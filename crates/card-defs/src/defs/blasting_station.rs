@@ -10,9 +10,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("blasting-station"),
         name: "Blasting Station".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "{T}, Sacrifice a creature: This artifact deals 1 damage to any target.\nWhenever a creature enters, you may untap this artifact.".to_string(),
+        oracle_text: "{T}, Sacrifice a creature: This artifact deals 1 damage to any \
+                      target.\nWhenever a creature enters, you may untap this artifact."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
@@ -30,7 +35,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // CR 603.2: "Whenever a creature enters, you may untap Blasting Station."
             // Note: "you may" optional not in DSL — always untaps (bot always opts in).
@@ -49,7 +54,12 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::known_wrong("'Whenever a creature enters, you MAY untap this artifact' is authored as a mandatory untap — the engine has no interactive optional trigger (Effect::Choose always takes choices.first(), effects/mod.rs:3190). Both the trigger and Effect::UntapPermanent{Source} exist and are wired; only the optionality is wrong."),
+        completeness: Completeness::known_wrong(
+            "'Whenever a creature enters, you MAY untap this artifact' is authored as a mandatory \
+             untap — the engine has no interactive optional trigger (Effect::Choose always takes \
+             choices.first(), effects/mod.rs:3190). Both the trigger and \
+             Effect::UntapPermanent{Source} exist and are wired; only the optionality is wrong.",
+        ),
         ..Default::default()
     }
 }

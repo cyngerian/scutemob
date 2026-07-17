@@ -11,37 +11,51 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("perilous-forays"),
         name: "Perilous Forays".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            green: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "{1}, Sacrifice a creature: Search your library for a land card with a basic land type, put it onto the battlefield tapped, then shuffle.".to_string(),
-        abilities: vec![
-            AbilityDefinition::Activated {
-                cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
-                    Cost::Sacrifice(TargetFilter {
-                        has_card_type: Some(CardType::Creature),
-                        ..Default::default()
-                    }),
-                ]),
-                effect: Effect::Sequence(vec![
-                    Effect::SearchLibrary {
-                        player: PlayerTarget::Controller,
-                        filter: basic_land_filter(),
-                        reveal: false,
-                        destination: ZoneTarget::Battlefield { tapped: true },
-                        shuffle_before_placing: false,
-                        also_search_graveyard: false,
-                    },
-                    Effect::Shuffle { player: PlayerTarget::Controller },
-                ]),
-                targets: vec![],
-                timing_restriction: None,
-                activation_condition: None,
-                activation_zone: None,
+        oracle_text: "{1}, Sacrifice a creature: Search your library for a land card with a basic \
+                      land type, put it onto the battlefield tapped, then shuffle."
+            .to_string(),
+        abilities: vec![AbilityDefinition::Activated {
+            cost: Cost::Sequence(vec![
+                Cost::Mana(ManaCost {
+                    generic: 1,
+                    ..Default::default()
+                }),
+                Cost::Sacrifice(TargetFilter {
+                    has_card_type: Some(CardType::Creature),
+                    ..Default::default()
+                }),
+            ]),
+            effect: Effect::Sequence(vec![
+                Effect::SearchLibrary {
+                    player: PlayerTarget::Controller,
+                    filter: basic_land_filter(),
+                    reveal: false,
+                    destination: ZoneTarget::Battlefield { tapped: true },
+                    shuffle_before_placing: false,
+                    also_search_graveyard: false,
+                },
+                Effect::Shuffle {
+                    player: PlayerTarget::Controller,
+                },
+            ]),
+            targets: vec![],
+            timing_restriction: None,
+            activation_condition: None,
+            activation_zone: None,
             once_per_turn: false,
-            },
-        ],
-        completeness: Completeness::known_wrong("Uses basic_land_filter() (Basic supertype) instead of has_subtypes: [Plains, Island, Swamp, Mountain, Forest]; nonbasic duals with basic land types are not findable. Rewiring is unblocked — has_subtypes is honored by matches_filter on the SearchLibrary path."),
+        }],
+        completeness: Completeness::known_wrong(
+            "Uses basic_land_filter() (Basic supertype) instead of has_subtypes: [Plains, Island, \
+             Swamp, Mountain, Forest]; nonbasic duals with basic land types are not findable. \
+             Rewiring is unblocked — has_subtypes is honored by matches_filter on the \
+             SearchLibrary path.",
+        ),
         ..Default::default()
     }
 }

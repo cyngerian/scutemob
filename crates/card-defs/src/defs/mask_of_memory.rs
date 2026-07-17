@@ -8,9 +8,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("mask-of-memory"),
         name: "Mask of Memory".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
         types: full_types(&[], &[CardType::Artifact], &["Equipment"]),
-        oracle_text: "Whenever equipped creature deals combat damage to a player, you may draw two cards. If you do, discard a card.\nEquip {1}".to_string(),
+        oracle_text: "Whenever equipped creature deals combat damage to a player, you may draw \
+                      two cards. If you do, discard a card.\nEquip {1}"
+            .to_string(),
         abilities: vec![
             // CR 510.3a: "Whenever equipped creature deals combat damage to a player,
             // draw two cards, then discard a card." (approximation — "may" draw 2 not in DSL)
@@ -35,7 +40,9 @@ pub fn card() -> CardDefinition {
             },
             AbilityDefinition::Keyword(KeywordAbility::Equip),
         ],
-        completeness: Completeness::known_wrong("'you may draw two cards, then discard' implemented as a mandatory draw"),
+        completeness: Completeness::known_wrong(
+            "'you may draw two cards, then discard' implemented as a mandatory draw",
+        ),
         ..Default::default()
     }
 }

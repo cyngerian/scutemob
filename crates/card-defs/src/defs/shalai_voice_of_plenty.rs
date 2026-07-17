@@ -8,13 +8,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("shalai-voice-of-plenty"),
         name: "Shalai, Voice of Plenty".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, white: 1, ..Default::default() }),
-        types: full_types(
-            &[SuperType::Legendary],
-            &[CardType::Creature],
-            &["Angel"],
-        ),
-        oracle_text: "Flying\nYou, planeswalkers you control, and other creatures you control have hexproof.\n{4}{G}{G}: Put a +1/+1 counter on each creature you control.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            white: 1,
+            ..Default::default()
+        }),
+        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Angel"]),
+        oracle_text: "Flying\nYou, planeswalkers you control, and other creatures you control \
+                      have hexproof.\n{4}{G}{G}: Put a +1/+1 counter on each creature you control."
+            .to_string(),
         power: Some(3),
         toughness: Some(4),
         abilities: vec![
@@ -33,7 +35,11 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — "planeswalkers you control have hexproof" (planeswalker filter).
             // {4}{G}{G}: Put a +1/+1 counter on each creature you control.
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { generic: 4, green: 2, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    generic: 4,
+                    green: 2,
+                    ..Default::default()
+                }),
                 effect: Effect::ForEach {
                     over: ForEachTarget::EachCreatureYouControl,
                     effect: Box::new(Effect::AddCounter {
@@ -46,10 +52,16 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("two clauses of the hexproof static are unimplemented. (1) 'You have hexproof' — no player-scoped LayerModification (Effect::GrantPlayerProtection is a one-shot, not a static). (2) 'planeswalkers you control have hexproof' — no EffectFilter scoping to planeswalkers you control. 'Other creatures you control have hexproof' and the {4}{G}{G} counter ability are implemented."),
+        completeness: Completeness::partial(
+            "two clauses of the hexproof static are unimplemented. (1) 'You have hexproof' — no \
+             player-scoped LayerModification (Effect::GrantPlayerProtection is a one-shot, not a \
+             static). (2) 'planeswalkers you control have hexproof' — no EffectFilter scoping to \
+             planeswalkers you control. 'Other creatures you control have hexproof' and the \
+             {4}{G}{G} counter ability are implemented.",
+        ),
         ..Default::default()
     }
 }

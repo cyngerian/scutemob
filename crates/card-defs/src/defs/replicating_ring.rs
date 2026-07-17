@@ -11,22 +11,36 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("replicating-ring"),
         name: "Replicating Ring".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            ..Default::default()
+        }),
         types: supertypes(&[SuperType::Snow], &[CardType::Artifact]),
-        oracle_text: "{T}: Add one mana of any color.\nAt the beginning of your upkeep, put a night counter on Replicating Ring. Then if it has eight or more night counters on it, remove all of them and create eight colorless snow artifact tokens named Replicated Ring with \"{T}: Add one mana of any color.\"".to_string(),
+        oracle_text: "{T}: Add one mana of any color.\nAt the beginning of your upkeep, put a \
+                      night counter on Replicating Ring. Then if it has eight or more night \
+                      counters on it, remove all of them and create eight colorless snow artifact \
+                      tokens named Replicated Ring with \"{T}: Add one mana of any color.\""
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
-                effect: Effect::AddManaAnyColor { player: PlayerTarget::Controller },
+                effect: Effect::AddManaAnyColor {
+                    player: PlayerTarget::Controller,
+                },
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // TODO: upkeep night counter trigger + 8-counter token creation
         ],
-        completeness: Completeness::partial("needs-rewiring: TokenSpec.mana_abilities (card_definition.rs:3701) makes the Replicated Ring token expressible; upkeep trigger + CounterType::Custom + Condition::SourceHasCounters + Effect::RemoveCounter all exist. Verify the >=8 threshold form of SourceHasCounters before authoring."),
+        completeness: Completeness::partial(
+            "needs-rewiring: TokenSpec.mana_abilities (card_definition.rs:3701) makes the \
+             Replicated Ring token expressible; upkeep trigger + CounterType::Custom + \
+             Condition::SourceHasCounters + Effect::RemoveCounter all exist. Verify the >=8 \
+             threshold form of SourceHasCounters before authoring.",
+        ),
         ..Default::default()
     }
 }

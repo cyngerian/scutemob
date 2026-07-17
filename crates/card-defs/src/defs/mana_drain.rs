@@ -7,9 +7,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("mana-drain"),
         name: "Mana Drain".to_string(),
-        mana_cost: Some(ManaCost { blue: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            blue: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Counter target spell. At the beginning of your next main phase, add an amount of {C} equal to that spell's mana value.".to_string(),
+        oracle_text: "Counter target spell. At the beginning of your next main phase, add an \
+                      amount of {C} equal to that spell's mana value."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             // Counter the spell. TODO: delayed trigger adding {C} equal to mana value
             // at next main phase — requires delayed triggers + mana-value tracking.
@@ -21,7 +26,10 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("delayed trigger adding {C} equal to mana value at next main phase — requires delayed triggers + mana-value tracking"),
+        completeness: Completeness::partial(
+            "delayed trigger adding {C} equal to mana value at next main phase — requires delayed \
+             triggers + mana-value tracking",
+        ),
         ..Default::default()
     }
 }

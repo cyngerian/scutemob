@@ -8,13 +8,18 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("teneb-the-harvester"),
         name: "Teneb, the Harvester".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, white: 1, black: 1, green: 1, ..Default::default() }),
-        types: full_types(
-            &[SuperType::Legendary],
-            &[CardType::Creature],
-            &["Dragon"],
-        ),
-        oracle_text: "Flying\nWhenever Teneb deals combat damage to a player, you may pay {2}{B}. If you do, put target creature card from a graveyard onto the battlefield under your control.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            white: 1,
+            black: 1,
+            green: 1,
+            ..Default::default()
+        }),
+        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Dragon"]),
+        oracle_text: "Flying\nWhenever Teneb deals combat damage to a player, you may pay {2}{B}. \
+                      If you do, put target creature card from a graveyard onto the battlefield \
+                      under your control."
+            .to_string(),
         power: Some(6),
         toughness: Some(6),
         abilities: vec![

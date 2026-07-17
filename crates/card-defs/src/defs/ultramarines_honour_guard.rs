@@ -6,16 +6,28 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("ultramarines-honour-guard"),
         name: "Ultramarines Honour Guard".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            white: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Astartes", "Warrior"]),
-        oracle_text: "Squad {2} (As an additional cost to cast this spell, you may pay {2} any number of times. When this creature enters, create that many tokens that are copies of it.)\nOther creatures you control get +1/+1.".to_string(),
+        oracle_text: "Squad {2} (As an additional cost to cast this spell, you may pay {2} any \
+                      number of times. When this creature enters, create that many tokens that \
+                      are copies of it.)\nOther creatures you control get +1/+1."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
             // CR 702.157a: Squad — presence marker; actual cost carried by AbilityDefinition::Squad.
             AbilityDefinition::Keyword(KeywordAbility::Squad),
             // CR 702.157a: Squad {2} — additional cost paid N times; ETB trigger creates N token copies.
-            AbilityDefinition::Squad { cost: ManaCost { generic: 2, ..Default::default() } },
+            AbilityDefinition::Squad {
+                cost: ManaCost {
+                    generic: 2,
+                    ..Default::default()
+                },
+            },
             // CR 613.1c / Layer 7c: "Other creatures you control get +1/+1."
             AbilityDefinition::Static {
                 continuous_effect: ContinuousEffectDef {
@@ -39,6 +51,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

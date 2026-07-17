@@ -11,9 +11,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("guardian-project"),
         name: "Guardian Project".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Whenever a nontoken creature you control enters, if it doesn't have the same name as another creature you control or a creature card in your graveyard, draw a card.".to_string(),
+        oracle_text: "Whenever a nontoken creature you control enters, if it doesn't have the \
+                      same name as another creature you control or a creature card in your \
+                      graveyard, draw a card."
+            .to_string(),
         abilities: vec![
             // TODO: Should be nontoken only + name-uniqueness intervening-if.
             AbilityDefinition::Triggered {
@@ -36,7 +43,13 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::known_wrong("draws on EVERY creature-you-control ETB. Missing (a) the nontoken restriction and (b) the 'doesn't share a name with another creature you control or a creature card in your graveyard' intervening-if — no name-uniqueness Condition exists. Overdraws vs. the real card. (TargetFilter.is_nontoken exists but is ignored by matches_filter — confirm the ETB trigger path checks it.)"),
+        completeness: Completeness::known_wrong(
+            "draws on EVERY creature-you-control ETB. Missing (a) the nontoken restriction and \
+             (b) the 'doesn't share a name with another creature you control or a creature card \
+             in your graveyard' intervening-if — no name-uniqueness Condition exists. Overdraws \
+             vs. the real card. (TargetFilter.is_nontoken exists but is ignored by matches_filter \
+             — confirm the ETB trigger path checks it.)",
+        ),
         ..Default::default()
     }
 }

@@ -12,9 +12,22 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("ghave-guru-of-spores"),
         name: "Ghave, Guru of Spores".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, white: 1, black: 1, green: 1, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Fungus", "Shaman"]),
-        oracle_text: "Ghave enters with five +1/+1 counters on it.\n{1}, Remove a +1/+1 counter from a creature you control: Create a 1/1 green Saproling creature token.\n{1}, Sacrifice a creature: Put a +1/+1 counter on target creature.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            white: 1,
+            black: 1,
+            green: 1,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Creature],
+            &["Fungus", "Shaman"],
+        ),
+        oracle_text: "Ghave enters with five +1/+1 counters on it.\n{1}, Remove a +1/+1 counter \
+                      from a creature you control: Create a 1/1 green Saproling creature \
+                      token.\n{1}, Sacrifice a creature: Put a +1/+1 counter on target creature."
+            .to_string(),
         power: Some(0),
         toughness: Some(0),
         abilities: vec![
@@ -38,8 +51,14 @@ pub fn card() -> CardDefinition {
             // the source permanent (Ghave). "From another creature" deferred to PB-37.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
-                    Cost::RemoveCounter { counter: CounterType::PlusOnePlusOne, count: 1 },
+                    Cost::Mana(ManaCost {
+                        generic: 1,
+                        ..Default::default()
+                    }),
+                    Cost::RemoveCounter {
+                        counter: CounterType::PlusOnePlusOne,
+                        count: 1,
+                    },
                 ]),
                 effect: Effect::CreateToken {
                     spec: TokenSpec {
@@ -64,12 +83,15 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // CR 602.2: {1}, Sacrifice a creature: Put a +1/+1 counter on target creature.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 1,
+                        ..Default::default()
+                    }),
                     Cost::Sacrifice(TargetFilter {
                         has_card_type: Some(CardType::Creature),
                         ..Default::default()
@@ -84,7 +106,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![TargetRequirement::TargetCreature],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

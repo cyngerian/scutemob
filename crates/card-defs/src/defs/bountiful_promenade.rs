@@ -7,9 +7,9 @@ pub fn card() -> CardDefinition {
         name: "Bountiful Promenade".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text:
-            "This land enters tapped unless you have two or more opponents.\n{T}: Add {G} or {W}."
-                .to_string(),
+        oracle_text: "This land enters tapped unless you have two or more opponents.\n{T}: Add \
+                      {G} or {W}."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Replacement {
                 trigger: ReplacementTrigger::WouldEnterBattlefield {

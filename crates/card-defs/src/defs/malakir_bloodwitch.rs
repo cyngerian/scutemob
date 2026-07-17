@@ -9,9 +9,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("malakir-bloodwitch"),
         name: "Malakir Bloodwitch".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            black: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Vampire", "Shaman"]),
-        oracle_text: "Flying, protection from white\nWhen this creature enters, each opponent loses life equal to the number of Vampires you control. You gain life equal to the life lost this way.".to_string(),
+        oracle_text: "Flying, protection from white\nWhen this creature enters, each opponent \
+                      loses life equal to the number of Vampires you control. You gain life equal \
+                      to the life lost this way."
+            .to_string(),
         power: Some(4),
         toughness: Some(4),
         abilities: vec![

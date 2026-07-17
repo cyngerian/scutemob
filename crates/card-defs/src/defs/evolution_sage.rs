@@ -6,9 +6,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("evolution-sage"),
         name: "Evolution Sage".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Elf", "Druid"]),
-        oracle_text: "Landfall — Whenever a land you control enters, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)".to_string(),
+        oracle_text: "Landfall — Whenever a land you control enters, proliferate. (Choose any \
+                      number of permanents and/or players, then give each another counter of each \
+                      kind already there.)"
+            .to_string(),
         power: Some(3),
         toughness: Some(2),
         abilities: vec![

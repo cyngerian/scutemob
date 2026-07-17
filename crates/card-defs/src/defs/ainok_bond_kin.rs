@@ -6,15 +6,26 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("ainok-bond-kin"),
         name: "Ainok Bond-Kin".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            white: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Dog", "Soldier"]),
-        oracle_text: "Outlast {1}{W} ({1}{W}, {T}: Put a +1/+1 counter on this creature. Outlast only as a sorcery.)\nEach creature you control with a +1/+1 counter on it has first strike.".to_string(),
+        oracle_text: "Outlast {1}{W} ({1}{W}, {T}: Put a +1/+1 counter on this creature. Outlast \
+                      only as a sorcery.)\nEach creature you control with a +1/+1 counter on it \
+                      has first strike."
+            .to_string(),
         power: Some(2),
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Outlast),
             AbilityDefinition::Outlast {
-                cost: ManaCost { generic: 1, white: 1, ..Default::default() },
+                cost: ManaCost {
+                    generic: 1,
+                    white: 1,
+                    ..Default::default()
+                },
             },
             // TODO: Layer 6 static grant — "Each creature you control with a +1/+1 counter
             // on it has first strike." Requires a ContinuousEffectDef with a
@@ -33,6 +44,10 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::partial("'Each creature you control with a +1/+1 counter on it has first strike' omitted: EffectFilter (ContinuousEffectDef.filter) carries no TargetFilter, so has_counter_type cannot scope a static keyword grant. Outlast is complete."),
+        completeness: Completeness::partial(
+            "'Each creature you control with a +1/+1 counter on it has first strike' omitted: \
+             EffectFilter (ContinuousEffectDef.filter) carries no TargetFilter, so \
+             has_counter_type cannot scope a static keyword grant. Outlast is complete.",
+        ),
     }
 }

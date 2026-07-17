@@ -7,9 +7,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("carrion-feeder"),
         name: "Carrion Feeder".to_string(),
-        mana_cost: Some(ManaCost { black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Zombie"]),
-        oracle_text: "Carrion Feeder can't block.\nSacrifice a creature: Put a +1/+1 counter on Carrion Feeder.".to_string(),
+        oracle_text: "Carrion Feeder can't block.\nSacrifice a creature: Put a +1/+1 counter on \
+                      Carrion Feeder."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
@@ -29,7 +34,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

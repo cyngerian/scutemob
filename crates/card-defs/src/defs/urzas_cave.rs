@@ -10,7 +10,9 @@ pub fn card() -> CardDefinition {
         name: "Urza's Cave".to_string(),
         mana_cost: None,
         types: types_sub(&[CardType::Land], &["Urza's Cave"]),
-        oracle_text: "{T}: Add {C}.\n{3}, {T}, Sacrifice this land: Search your library for a land card, put it onto the battlefield tapped, then shuffle.".to_string(),
+        oracle_text: "{T}: Add {C}.\n{3}, {T}, Sacrifice this land: Search your library for a \
+                      land card, put it onto the battlefield tapped, then shuffle."
+            .to_string(),
         abilities: vec![
             // {T}: Add {C}.
             AbilityDefinition::Activated {
@@ -29,7 +31,10 @@ pub fn card() -> CardDefinition {
             // put it onto the battlefield tapped, then shuffle.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 3, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 3,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                     Cost::SacrificeSelf,
                 ]),
@@ -45,7 +50,9 @@ pub fn card() -> CardDefinition {
                         shuffle_before_placing: false,
                         also_search_graveyard: false,
                     },
-                    Effect::Shuffle { player: PlayerTarget::Controller },
+                    Effect::Shuffle {
+                        player: PlayerTarget::Controller,
+                    },
                 ]),
                 timing_restriction: None,
                 targets: vec![],

@@ -15,9 +15,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("darksteel-mutation"),
         name: "Darksteel Mutation".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            white: 1,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Enchantment], &["Aura"]),
-        oracle_text: "Enchant creature\nEnchanted creature is an Insect artifact creature with base power and toughness 0/1 and has indestructible, and it loses all other abilities, card types, and creature types.".to_string(),
+        oracle_text: "Enchant creature\nEnchanted creature is an Insect artifact creature with \
+                      base power and toughness 0/1 and has indestructible, and it loses all other \
+                      abilities, card types, and creature types."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Enchant(EnchantTarget::Creature)),
             // Loses all OTHER abilities (Layer 6, CR 613.1f) — listed FIRST so it gets
@@ -48,7 +55,9 @@ pub fn card() -> CardDefinition {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::TypeChange,
                     modification: LayerModification::SetCardTypes(
-                        [CardType::Artifact, CardType::Creature].into_iter().collect(),
+                        [CardType::Artifact, CardType::Creature]
+                            .into_iter()
+                            .collect(),
                     ),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
@@ -71,7 +80,10 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Static {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::PtSet,
-                    modification: LayerModification::SetPowerToughness { power: 0, toughness: 1 },
+                    modification: LayerModification::SetPowerToughness {
+                        power: 0,
+                        toughness: 1,
+                    },
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
                     condition: None,

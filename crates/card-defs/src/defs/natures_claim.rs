@@ -5,9 +5,13 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("natures-claim"),
         name: "Nature's Claim".to_string(),
-        mana_cost: Some(ManaCost { green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Destroy target artifact or enchantment. Its controller gains 4 life.".to_string(),
+        oracle_text: "Destroy target artifact or enchantment. Its controller gains 4 life."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             // Destroy the artifact or enchantment, then its controller gains 4 life.
             // Using ControllerOf(DeclaredTarget{0}) to correctly give life to the
@@ -18,7 +22,9 @@ pub fn card() -> CardDefinition {
                     cant_be_regenerated: false,
                 },
                 Effect::GainLife {
-                    player: PlayerTarget::ControllerOf(Box::new(EffectTarget::DeclaredTarget { index: 0 })),
+                    player: PlayerTarget::ControllerOf(Box::new(EffectTarget::DeclaredTarget {
+                        index: 0,
+                    })),
                     amount: EffectAmount::Fixed(4),
                 },
             ]),

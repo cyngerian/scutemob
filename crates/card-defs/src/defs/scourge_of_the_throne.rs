@@ -10,9 +10,18 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("scourge-of-the-throne"),
         name: "Scourge of the Throne".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, red: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            red: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Dragon"]),
-        oracle_text: "Flying\nDethrone (Whenever this creature attacks the player with the most life or tied for most life, put a +1/+1 counter on it.)\nWhenever Scourge of the Throne attacks for the first time each turn, if it's attacking the player with the most life or tied for most life, untap all attacking creatures. After this phase, there is an additional combat phase.".to_string(),
+        oracle_text: "Flying\nDethrone (Whenever this creature attacks the player with the most \
+                      life or tied for most life, put a +1/+1 counter on it.)\nWhenever Scourge \
+                      of the Throne attacks for the first time each turn, if it's attacking the \
+                      player with the most life or tied for most life, untap all attacking \
+                      creatures. After this phase, there is an additional combat phase."
+            .to_string(),
         power: Some(5),
         toughness: Some(5),
         abilities: vec![
@@ -21,7 +30,15 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — "first time each turn" attack trigger with most-life condition
             // + untap all attacking creatures + additional combat phase.
         ],
-        completeness: Completeness::partial("attack trigger unimplemented. Blocked ONLY on the most-life condition — no TriggerCondition::WhenAttacks player filter, no InterveningIf/Condition for 'attacking the player with most life or tied' (TriggerEvent::SelfAttacksPlayerWithMostLife exists but is reachable only via the Dethrone keyword path). The rest is expressible today: once_per_turn field, Effect::UntapAll{is_attacking}, Effect::AdditionalCombatPhase. Flying + Dethrone are correct."),
+        completeness: Completeness::partial(
+            "attack trigger unimplemented. Blocked ONLY on the most-life condition — no \
+             TriggerCondition::WhenAttacks player filter, no InterveningIf/Condition for \
+             'attacking the player with most life or tied' \
+             (TriggerEvent::SelfAttacksPlayerWithMostLife exists but is reachable only via the \
+             Dethrone keyword path). The rest is expressible today: once_per_turn field, \
+             Effect::UntapAll{is_attacking}, Effect::AdditionalCombatPhase. Flying + Dethrone are \
+             correct.",
+        ),
         ..Default::default()
     }
 }

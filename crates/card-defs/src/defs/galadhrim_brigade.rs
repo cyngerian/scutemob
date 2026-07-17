@@ -7,9 +7,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("galadhrim-brigade"),
         name: "Galadhrim Brigade".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Elf", "Soldier"]),
-        oracle_text: "Squad {1}{G} (As an additional cost to cast this spell, you may pay {1}{G} any number of times. When this creature enters, create that many tokens that are copies of it.)\nOther Elves you control get +1/+1.".to_string(),
+        oracle_text: "Squad {1}{G} (As an additional cost to cast this spell, you may pay {1}{G} \
+                      any number of times. When this creature enters, create that many tokens \
+                      that are copies of it.)\nOther Elves you control get +1/+1."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -19,7 +26,9 @@ pub fn card() -> CardDefinition {
                 continuous_effect: ContinuousEffectDef {
                     layer: crate::state::EffectLayer::PtModify,
                     modification: crate::state::LayerModification::ModifyBoth(1),
-                    filter: crate::state::EffectFilter::OtherCreaturesYouControlWithSubtype(SubType("Elf".to_string())),
+                    filter: crate::state::EffectFilter::OtherCreaturesYouControlWithSubtype(
+                        SubType("Elf".to_string()),
+                    ),
                     duration: crate::state::EffectDuration::WhileSourceOnBattlefield,
                     condition: None,
                 },

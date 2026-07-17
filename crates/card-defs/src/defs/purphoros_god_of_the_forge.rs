@@ -12,13 +12,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("purphoros-god-of-the-forge"),
         name: "Purphoros, God of the Forge".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            red: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Enchantment, CardType::Creature],
             &["God"],
         ),
-        oracle_text: "Indestructible\nAs long as your devotion to red is less than five, Purphoros isn't a creature.\nWhenever another creature you control enters, Purphoros deals 2 damage to each opponent.\n{2}{R}: Creatures you control get +1/+0 until end of turn.".to_string(),
+        oracle_text: "Indestructible\nAs long as your devotion to red is less than five, \
+                      Purphoros isn't a creature.\nWhenever another creature you control enters, \
+                      Purphoros deals 2 damage to each opponent.\n{2}{R}: Creatures you control \
+                      get +1/+0 until end of turn."
+            .to_string(),
         power: Some(6),
         toughness: Some(5),
         abilities: vec![
@@ -64,7 +72,11 @@ pub fn card() -> CardDefinition {
             },
             // CR 613.4c: "{2}{R}: Creatures you control get +1/+0 until end of turn."
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { generic: 2, red: 1, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    generic: 2,
+                    red: 1,
+                    ..Default::default()
+                }),
                 effect: Effect::ApplyContinuousEffect {
                     effect_def: Box::new(ContinuousEffectDef {
                         layer: EffectLayer::PtModify,
@@ -78,7 +90,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

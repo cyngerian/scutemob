@@ -22,7 +22,10 @@ pub fn card() -> CardDefinition {
             &[CardType::Creature],
             &["Human", "Noble"],
         ),
-        oracle_text: "Double strike\nÉomer enters with a +1/+1 counter on it for each other Human you control.\nWhen Éomer enters, target player becomes the monarch. Éomer deals damage equal to its power to any target.".to_string(),
+        oracle_text: "Double strike\nÉomer enters with a +1/+1 counter on it for each other Human \
+                      you control.\nWhen Éomer enters, target player becomes the monarch. Éomer \
+                      deals damage equal to its power to any target."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -59,7 +62,14 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("Rewire: add a replacement — ReplacementModification::EntersWithCounters { counter: CounterType::PlusOnePlusOne, count: Box::new(EffectAmount::PermanentCount { filter: TargetFilter { has_card_type: Creature, has_subtype: Human, controller: You, exclude_self: true, ..default }, controller: PlayerTarget::Controller }) }. Note that 'enters with' is a replacement (CR 614.1c), NOT the ETB trigger the old note assumed. Expected to reach Complete."),
+        completeness: Completeness::partial(
+            "Rewire: add a replacement — ReplacementModification::EntersWithCounters { counter: \
+             CounterType::PlusOnePlusOne, count: Box::new(EffectAmount::PermanentCount { filter: \
+             TargetFilter { has_card_type: Creature, has_subtype: Human, controller: You, \
+             exclude_self: true, ..default }, controller: PlayerTarget::Controller }) }. Note \
+             that 'enters with' is a replacement (CR 614.1c), NOT the ETB trigger the old note \
+             assumed. Expected to reach Complete.",
+        ),
         ..Default::default()
     }
 }

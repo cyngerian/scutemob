@@ -6,9 +6,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("lotus-cobra"),
         name: "Lotus Cobra".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Snake"]),
-        oracle_text: "Landfall — Whenever a land you control enters, add one mana of any color.".to_string(),
+        oracle_text: "Landfall — Whenever a land you control enters, add one mana of any color."
+            .to_string(),
         power: Some(2),
         toughness: Some(1),
         abilities: vec![
@@ -23,7 +28,9 @@ pub fn card() -> CardDefinition {
                     }),
                     exclude_self: false,
                 },
-                effect: Effect::AddManaAnyColor { player: PlayerTarget::Controller },
+                effect: Effect::AddManaAnyColor {
+                    player: PlayerTarget::Controller,
+                },
                 intervening_if: None,
                 targets: vec![],
                 modes: None,

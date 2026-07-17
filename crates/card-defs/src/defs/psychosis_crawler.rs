@@ -8,13 +8,18 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("psychosis-crawler"),
         name: "Psychosis Crawler".to_string(),
-        mana_cost: Some(ManaCost { generic: 5, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 5,
+            ..Default::default()
+        }),
         types: full_types(
             &[],
             &[CardType::Artifact, CardType::Creature],
             &["Phyrexian", "Horror"],
         ),
-        oracle_text: "Psychosis Crawler's power and toughness are each equal to the number of cards in your hand.\nWhenever you draw a card, each opponent loses 1 life.".to_string(),
+        oracle_text: "Psychosis Crawler's power and toughness are each equal to the number of \
+                      cards in your hand.\nWhenever you draw a card, each opponent loses 1 life."
+            .to_string(),
         // */* CDA creature — use None for power/toughness
         power: None,
         toughness: None,
@@ -22,12 +27,16 @@ pub fn card() -> CardDefinition {
             // CR 604.3, 613.4a: CDA — P/T each equal to the number of cards in your hand.
             AbilityDefinition::CdaPowerToughness {
                 power: EffectAmount::CardCount {
-                    zone: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                    zone: ZoneTarget::Hand {
+                        owner: PlayerTarget::Controller,
+                    },
                     player: PlayerTarget::Controller,
                     filter: None,
                 },
                 toughness: EffectAmount::CardCount {
-                    zone: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                    zone: ZoneTarget::Hand {
+                        owner: PlayerTarget::Controller,
+                    },
                     player: PlayerTarget::Controller,
                     filter: None,
                 },

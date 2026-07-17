@@ -8,7 +8,8 @@ pub fn card() -> CardDefinition {
         name: "Wasteland".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}: Add {C}.\n{T}, Sacrifice this land: Destroy target nonbasic land.".to_string(),
+        oracle_text: "{T}: Add {C}.\n{T}, Sacrifice this land: Destroy target nonbasic land."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
@@ -20,7 +21,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {T}, Sacrifice this land: Destroy target nonbasic land.
             AbilityDefinition::Activated {
@@ -35,10 +36,16 @@ pub fn card() -> CardDefinition {
                 targets: vec![TargetRequirement::TargetLand],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("Blocker shipped. Rewire targets to TargetRequirement::TargetPermanentWithFilter(TargetFilter { has_card_type: Some(CardType::Land), nonbasic: true, ..Default::default() }) — TargetFilter.nonbasic exists (card_definition.rs:2829, CR 205.4a). Until then the def can destroy basic lands (wrong game state)."),
+        completeness: Completeness::partial(
+            "Blocker shipped. Rewire targets to \
+             TargetRequirement::TargetPermanentWithFilter(TargetFilter { has_card_type: \
+             Some(CardType::Land), nonbasic: true, ..Default::default() }) — \
+             TargetFilter.nonbasic exists (card_definition.rs:2829, CR 205.4a). Until then the \
+             def can destroy basic lands (wrong game state).",
+        ),
         ..Default::default()
     }
 }

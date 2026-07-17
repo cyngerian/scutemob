@@ -7,9 +7,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("bastion-of-remembrance"),
         name: "Bastion of Remembrance".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            black: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "When this enchantment enters, create a 1/1 white Human Soldier creature token.\nWhenever a creature you control dies, each opponent loses 1 life and you gain 1 life.".to_string(),
+        oracle_text: "When this enchantment enters, create a 1/1 white Human Soldier creature \
+                      token.\nWhenever a creature you control dies, each opponent loses 1 life \
+                      and you gain 1 life."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Triggered {
                 once_per_turn: false,
@@ -18,7 +25,9 @@ pub fn card() -> CardDefinition {
                     spec: TokenSpec {
                         name: "Human Soldier".to_string(),
                         card_types: [CardType::Creature].into_iter().collect(),
-                        subtypes: [SubType("Human".to_string()), SubType("Soldier".to_string())].into_iter().collect(),
+                        subtypes: [SubType("Human".to_string()), SubType("Soldier".to_string())]
+                            .into_iter()
+                            .collect(),
                         colors: [Color::White].into_iter().collect(),
                         power: 1,
                         toughness: 1,
@@ -43,8 +52,12 @@ pub fn card() -> CardDefinition {
             // PB-23: controller_you filter applied via DeathTriggerFilter.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You), exclude_self: false, nontoken_only: false, filter: None,
-},
+                trigger_condition: TriggerCondition::WheneverCreatureDies {
+                    controller: Some(TargetController::You),
+                    exclude_self: false,
+                    nontoken_only: false,
+                    filter: None,
+                },
                 effect: Effect::Sequence(vec![
                     Effect::ForEach {
                         over: ForEachTarget::EachOpponent,

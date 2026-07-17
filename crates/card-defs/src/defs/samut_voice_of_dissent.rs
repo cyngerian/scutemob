@@ -9,9 +9,20 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("samut-voice-of-dissent"),
         name: "Samut, Voice of Dissent".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, red: 1, green: 1, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Human", "Warrior"]),
-        oracle_text: "Flash\nDouble strike, vigilance, haste\nOther creatures you control have haste.\n{W}, {T}: Untap another target creature.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            red: 1,
+            green: 1,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Creature],
+            &["Human", "Warrior"],
+        ),
+        oracle_text: "Flash\nDouble strike, vigilance, haste\nOther creatures you control have \
+                      haste.\n{W}, {T}: Untap another target creature."
+            .to_string(),
         power: Some(3),
         toughness: Some(4),
         abilities: vec![
@@ -33,7 +44,10 @@ pub fn card() -> CardDefinition {
             // PB-XS: CR 109.1 / 601.2c — "another target creature" excludes Samut herself.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { white: 1, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        white: 1,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                 ]),
                 effect: Effect::UntapPermanent {
@@ -46,7 +60,7 @@ pub fn card() -> CardDefinition {
                 })],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

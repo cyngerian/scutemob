@@ -8,9 +8,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("ophidian-eye"),
         name: "Ophidian Eye".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            blue: 1,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Enchantment], &["Aura"]),
-        oracle_text: "Flash\nEnchant creature\nWhenever enchanted creature deals damage to an opponent, you may draw a card.".to_string(),
+        oracle_text: "Flash\nEnchant creature\nWhenever enchanted creature deals damage to an \
+                      opponent, you may draw a card."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flash),
             AbilityDefinition::Keyword(KeywordAbility::Enchant(EnchantTarget::Creature)),
@@ -37,7 +43,14 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("Two deviations: (1) oracle says 'an opponent' but WhenEnchantedCreatureDealsDamageToPlayer fires on damage to ANY player, including yourself (matters in multiplayer/redirection); (2) oracle says 'you MAY draw a card' but the draw is unconditional — no optional-trigger expression exists in the DSL (Effect::Choose is non-interactive, effects/mod.rs:3190). Also the noncombat damage path (combat_only: false) is not yet dispatched from GameEvent::DamageDealt (PB-37)."),
+        completeness: Completeness::partial(
+            "Two deviations: (1) oracle says 'an opponent' but \
+             WhenEnchantedCreatureDealsDamageToPlayer fires on damage to ANY player, including \
+             yourself (matters in multiplayer/redirection); (2) oracle says 'you MAY draw a card' \
+             but the draw is unconditional — no optional-trigger expression exists in the DSL \
+             (Effect::Choose is non-interactive, effects/mod.rs:3190). Also the noncombat damage \
+             path (combat_only: false) is not yet dispatched from GameEvent::DamageDealt (PB-37).",
+        ),
         ..Default::default()
     }
 }

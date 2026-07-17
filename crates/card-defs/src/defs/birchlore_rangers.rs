@@ -12,18 +12,23 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("birchlore-rangers"),
         name: "Birchlore Rangers".to_string(),
-        mana_cost: Some(ManaCost { green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            green: 1,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Creature], &["Elf", "Ranger"]),
-        oracle_text:
-            "Tap two untapped Elves you control: Add one mana of any color.\n\
-             Morph {0}"
-                .to_string(),
+        oracle_text: "Tap two untapped Elves you control: Add one mana of any color.\nMorph {0}"
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
             // Tap-two-Elves mana ability is a DSL gap — omitted (no multi-tap-creature cost primitive).
             AbilityDefinition::Keyword(KeywordAbility::Morph),
-            AbilityDefinition::Morph { cost: ManaCost { ..Default::default() } },
+            AbilityDefinition::Morph {
+                cost: ManaCost {
+                    ..Default::default()
+                },
+            },
         ],
         color_indicator: None,
         back_face: None,
@@ -37,6 +42,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

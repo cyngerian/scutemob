@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("snuff-out"),
         name: "Snuff Out".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            black: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "If you control a Swamp, you may pay 4 life rather than pay this spell's mana cost.\nDestroy target nonblack creature. It can't be regenerated.".to_string(),
+        oracle_text: "If you control a Swamp, you may pay 4 life rather than pay this spell's \
+                      mana cost.\nDestroy target nonblack creature. It can't be regenerated."
+            .to_string(),
         abilities: vec![
             // TODO: Land-conditional life-payment alt cost not in DSL.
             AbilityDefinition::Spell {

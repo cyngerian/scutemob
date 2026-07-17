@@ -9,9 +9,19 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("sword-of-the-animist"),
         name: "Sword of the Animist".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Artifact], &["Equipment"]),
-        oracle_text: "Equipped creature gets +1/+1.\nWhenever equipped creature attacks, you may search your library for a basic land card, put it onto the battlefield tapped, then shuffle.\nEquip {2}".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Artifact],
+            &["Equipment"],
+        ),
+        oracle_text: "Equipped creature gets +1/+1.\nWhenever equipped creature attacks, you may \
+                      search your library for a basic land card, put it onto the battlefield \
+                      tapped, then shuffle.\nEquip {2}"
+            .to_string(),
         abilities: vec![
             // Equipped creature gets +1/+1 (layer 7c).
             AbilityDefinition::Static {
@@ -37,7 +47,10 @@ pub fn card() -> CardDefinition {
             // Equip {2}
             AbilityDefinition::Keyword(KeywordAbility::Equip),
         ],
-        completeness: Completeness::partial("DSL gap — 'Whenever equipped creature attacks' trigger condition (WhenEquippedCreatureAttacks) does not exist...."),
+        completeness: Completeness::partial(
+            "DSL gap — 'Whenever equipped creature attacks' trigger condition \
+             (WhenEquippedCreatureAttacks) does not exist....",
+        ),
         ..Default::default()
     }
 }

@@ -42,7 +42,12 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("CR 605.1a/605.3b: the '{T}: Add {C}' ability IS a correctly registered mana ability, but '{T}, Sacrifice a creature: Add {B}{B}' is registered as a stack-using activated ability. The MANA is correct (probed: +2 black, creature sacrificed). Same Cost::Sacrifice(filter) / no-ObjectId-channel blocker as Ashnod's Altar."),
+        completeness: Completeness::partial(
+            "CR 605.1a/605.3b: the '{T}: Add {C}' ability IS a correctly registered mana ability, \
+             but '{T}, Sacrifice a creature: Add {B}{B}' is registered as a stack-using activated \
+             ability. The MANA is correct (probed: +2 black, creature sacrificed). Same \
+             Cost::Sacrifice(filter) / no-ObjectId-channel blocker as Ashnod's Altar.",
+        ),
         ..Default::default()
     }
 }

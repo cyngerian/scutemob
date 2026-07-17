@@ -9,13 +9,22 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("carmen-cruel-skymarcher"),
         name: "Carmen, Cruel Skymarcher".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, white: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            white: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Vampire", "Soldier"],
         ),
-        oracle_text: "Flying\nWhenever a player sacrifices a permanent, put a +1/+1 counter on Carmen, Cruel Skymarcher and you gain 1 life.\nWhenever Carmen attacks, return up to one target permanent card with mana value less than or equal to Carmen's power from your graveyard to the battlefield.".to_string(),
+        oracle_text: "Flying\nWhenever a player sacrifices a permanent, put a +1/+1 counter on \
+                      Carmen, Cruel Skymarcher and you gain 1 life.\nWhenever Carmen attacks, \
+                      return up to one target permanent card with mana value less than or equal \
+                      to Carmen's power from your graveyard to the battlefield."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -47,7 +56,9 @@ pub fn card() -> CardDefinition {
             },
             // TODO: Attack trigger returning GY permanent with power-based MV filter not expressible.
         ],
-        completeness: Completeness::partial("Attack trigger returning GY permanent with power-based MV filter not expressible"),
+        completeness: Completeness::partial(
+            "Attack trigger returning GY permanent with power-based MV filter not expressible",
+        ),
         ..Default::default()
     }
 }

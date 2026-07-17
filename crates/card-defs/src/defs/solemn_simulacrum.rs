@@ -6,11 +6,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("solemn-simulacrum"),
         name: "Solemn Simulacrum".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Artifact, CardType::Creature], &["Golem"]),
         power: Some(2),
         toughness: Some(2),
-        oracle_text: "When Solemn Simulacrum enters the battlefield, you may search your library for a basic land card, put that card onto the battlefield tapped, then shuffle.\nWhen Solemn Simulacrum dies, you may draw a card.".to_string(),
+        oracle_text: "When Solemn Simulacrum enters the battlefield, you may search your library \
+                      for a basic land card, put that card onto the battlefield tapped, then \
+                      shuffle.\nWhen Solemn Simulacrum dies, you may draw a card."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Triggered {
                 once_per_turn: false,
@@ -22,9 +28,11 @@ pub fn card() -> CardDefinition {
                         reveal: false,
                         destination: ZoneTarget::Battlefield { tapped: true },
                         shuffle_before_placing: false,
-                    also_search_graveyard: false,
+                        also_search_graveyard: false,
                     },
-                    Effect::Shuffle { player: PlayerTarget::Controller },
+                    Effect::Shuffle {
+                        player: PlayerTarget::Controller,
+                    },
                 ]),
                 intervening_if: None,
                 targets: vec![],
@@ -58,6 +66,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

@@ -14,9 +14,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("siege-gang-lieutenant"),
         name: "Siege-Gang Lieutenant".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Goblin"]),
-        oracle_text: "Lieutenant \u{2014} At the beginning of combat on your turn, if you control your commander, create two 1/1 red Goblin creature tokens. Those tokens gain haste until end of turn.\n{2}, Sacrifice a Goblin: This creature deals 1 damage to any target.".to_string(),
+        oracle_text: "Lieutenant \u{2014} At the beginning of combat on your turn, if you control \
+                      your commander, create two 1/1 red Goblin creature tokens. Those tokens \
+                      gain haste until end of turn.\n{2}, Sacrifice a Goblin: This creature deals \
+                      1 damage to any target."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -28,7 +36,10 @@ pub fn card() -> CardDefinition {
             // {2}, Sacrifice a Goblin: This creature deals 1 damage to any target.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 2, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 2,
+                        ..Default::default()
+                    }),
                     Cost::Sacrifice(TargetFilter {
                         has_subtype: Some(SubType("Goblin".to_string())),
                         has_card_type: Some(CardType::Creature),
@@ -43,10 +54,13 @@ pub fn card() -> CardDefinition {
                 targets: vec![TargetRequirement::TargetAny],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("Lieutenant — 'At the beginning of combat on your turn, if you control your commander, create two 1/1 red Goblin..."),
+        completeness: Completeness::partial(
+            "Lieutenant — 'At the beginning of combat on your turn, if you control your \
+             commander, create two 1/1 red Goblin...",
+        ),
         ..Default::default()
     }
 }

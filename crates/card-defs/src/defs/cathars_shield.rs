@@ -7,9 +7,13 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("cathars-shield"),
         name: "Cathar's Shield".to_string(),
-        mana_cost: Some(ManaCost { ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Artifact], &["Equipment"]),
-        oracle_text: "Equipped creature gets +0/+3 and has vigilance.\nEquip {3} ({3}: Attach to target creature you control. Equip only as a sorcery.)".to_string(),
+        oracle_text: "Equipped creature gets +0/+3 and has vigilance.\nEquip {3} ({3}: Attach to \
+                      target creature you control. Equip only as a sorcery.)"
+            .to_string(),
         abilities: vec![
             // Static: equipped creature gets +0/+3
             AbilityDefinition::Static {
@@ -35,7 +39,10 @@ pub fn card() -> CardDefinition {
             },
             // Equip {3}
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { generic: 3, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    generic: 3,
+                    ..Default::default()
+                }),
                 effect: Effect::AttachEquipment {
                     equipment: EffectTarget::Source,
                     target: EffectTarget::DeclaredTarget { index: 0 },
@@ -44,7 +51,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

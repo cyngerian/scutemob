@@ -9,9 +9,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("exuberant-fuseling"),
         name: "Exuberant Fuseling".to_string(),
-        mana_cost: Some(ManaCost { red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Phyrexian", "Goblin", "Warrior"]),
-        oracle_text: "Trample\nThis creature gets +1/+0 for each oil counter on it.\nWhen this creature enters and whenever another creature or artifact you control is put into a graveyard from the battlefield, put an oil counter on this creature.".to_string(),
+        oracle_text: "Trample\nThis creature gets +1/+0 for each oil counter on it.\nWhen this \
+                      creature enters and whenever another creature or artifact you control is \
+                      put into a graveyard from the battlefield, put an oil counter on this \
+                      creature."
+            .to_string(),
         power: Some(0),
         toughness: Some(1),
         abilities: vec![
@@ -29,7 +36,6 @@ pub fn card() -> CardDefinition {
                 }),
                 toughness: None,
             },
-
             // ETB: put an oil counter on this creature.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
@@ -53,7 +59,10 @@ pub fn card() -> CardDefinition {
             // Blocked by: WheneverCreatureOrArtifactDies trigger condition (multi-blocker).
             // Out of PB-CC-C scope per memory/primitives/pb-retriage-CC.md.
         ],
-        completeness: Completeness::partial("'whenever another creature or artifact you control is put into a graveyard from the battlefield, put an oil counter on..."),
+        completeness: Completeness::partial(
+            "'whenever another creature or artifact you control is put into a graveyard from the \
+             battlefield, put an oil counter on...",
+        ),
         ..Default::default()
     }
 }

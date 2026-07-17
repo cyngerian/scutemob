@@ -9,13 +9,11 @@ pub fn card() -> CardDefinition {
         name: "Flooded Strand".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}, Pay 1 life, Sacrifice this land: Search your library for a Plains or Island card, put it onto the battlefield, then shuffle.".to_string(),
+        oracle_text: "{T}, Pay 1 life, Sacrifice this land: Search your library for a Plains or \
+                      Island card, put it onto the battlefield, then shuffle."
+            .to_string(),
         abilities: vec![AbilityDefinition::Activated {
-            cost: Cost::Sequence(vec![
-                Cost::Tap,
-                Cost::PayLife(1),
-                Cost::SacrificeSelf,
-            ]),
+            cost: Cost::Sequence(vec![Cost::Tap, Cost::PayLife(1), Cost::SacrificeSelf]),
             effect: Effect::Sequence(vec![
                 Effect::SearchLibrary {
                     player: PlayerTarget::Controller,
@@ -32,7 +30,9 @@ pub fn card() -> CardDefinition {
                     shuffle_before_placing: false,
                     also_search_graveyard: false,
                 },
-                Effect::Shuffle { player: PlayerTarget::Controller },
+                Effect::Shuffle {
+                    player: PlayerTarget::Controller,
+                },
             ]),
             timing_restriction: None,
             targets: vec![],

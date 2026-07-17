@@ -10,9 +10,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("smoke-shroud"),
         name: "Smoke Shroud".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            blue: 1,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Enchantment], &["Aura"]),
-        oracle_text: "Enchant creature\nEnchanted creature gets +1/+1 and has flying.\nWhen a Ninja you control enters, you may return this card from your graveyard to the battlefield attached to that creature.".to_string(),
+        oracle_text: "Enchant creature\nEnchanted creature gets +1/+1 and has flying.\nWhen a \
+                      Ninja you control enters, you may return this card from your graveyard to \
+                      the battlefield attached to that creature."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Enchant(EnchantTarget::Creature)),
             // CR 613.4c: Enchanted creature gets +1/+1 (layer 7c).
@@ -49,7 +56,11 @@ pub fn card() -> CardDefinition {
             // DSL gap: triggered from graveyard zone with subtype filter, return-to-battlefield
             // attached mechanic. Deferred.
         ],
-        completeness: Completeness::partial("Graveyard-return trigger blocked on: no effect returning a card from graveyard to battlefield attached to the triggering creature, and no working 'you may' optionality. (Subtype-filtered ETB triggers and trigger_zone are both shipped.)"),
+        completeness: Completeness::partial(
+            "Graveyard-return trigger blocked on: no effect returning a card from graveyard to \
+             battlefield attached to the triggering creature, and no working 'you may' \
+             optionality. (Subtype-filtered ETB triggers and trigger_zone are both shipped.)",
+        ),
         ..Default::default()
     }
 }

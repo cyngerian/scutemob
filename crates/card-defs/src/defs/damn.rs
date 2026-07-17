@@ -8,15 +8,25 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("damn"),
         name: "Damn".to_string(),
-        mana_cost: Some(ManaCost { black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Destroy target creature. A creature destroyed this way can't be regenerated.\nOverload {2}{W}{W} (You may cast this spell for its overload cost. If you do, change \"target\" in its text to \"each.\")".to_string(),
+        oracle_text: "Destroy target creature. A creature destroyed this way can't be \
+                      regenerated.\nOverload {2}{W}{W} (You may cast this spell for its overload \
+                      cost. If you do, change \"target\" in its text to \"each.\")"
+            .to_string(),
         abilities: vec![
             // CR 702.96a: Overload keyword marker.
             AbilityDefinition::Keyword(KeywordAbility::Overload),
             // CR 702.96a: Overload alternative cost {2}{W}{W}.
             AbilityDefinition::Overload {
-                cost: ManaCost { generic: 2, white: 2, ..Default::default() },
+                cost: ManaCost {
+                    generic: 2,
+                    white: 2,
+                    ..Default::default()
+                },
             },
             // CR 702.96b: Spell effect — branches on WasOverloaded.
             // Normal: destroy the declared target creature (can't be regenerated).

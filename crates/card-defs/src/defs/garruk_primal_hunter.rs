@@ -8,13 +8,20 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("garruk-primal-hunter"),
         name: "Garruk, Primal Hunter".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 3,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Planeswalker],
             &["Garruk"],
         ),
-        oracle_text: "+1: Create a 3/3 green Beast creature token.\n\u{2212}3: Draw cards equal to the greatest power among creatures you control.\n\u{2212}6: Create a 6/6 green Wurm creature token for each land you control.".to_string(),
+        oracle_text: "+1: Create a 3/3 green Beast creature token.\n\u{2212}3: Draw cards equal \
+                      to the greatest power among creatures you control.\n\u{2212}6: Create a 6/6 \
+                      green Wurm creature token for each land you control."
+            .to_string(),
         starting_loyalty: Some(3),
         abilities: vec![
             // +1: Create 3/3 Beast
@@ -77,7 +84,13 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
-        completeness: Completeness::known_wrong("-3 hardcodes DrawCards Fixed(3) and -6 hardcodes 5 Wurm tokens; both deviate from oracle. -6 is rewirable now via TokenSpec.count = EffectAmount::PermanentCount{filter: has_card_type Land, controller: Controller}. -3 remains blocked: EffectAmount has no 'greatest power among creatures you control' variant."),
+        completeness: Completeness::known_wrong(
+            "-3 hardcodes DrawCards Fixed(3) and -6 hardcodes 5 Wurm tokens; both deviate from \
+             oracle. -6 is rewirable now via TokenSpec.count = \
+             EffectAmount::PermanentCount{filter: has_card_type Land, controller: Controller}. -3 \
+             remains blocked: EffectAmount has no 'greatest power among creatures you control' \
+             variant.",
+        ),
         ..Default::default()
     }
 }

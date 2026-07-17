@@ -6,7 +6,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("rewind"),
         name: "Rewind".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, blue: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            blue: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
         oracle_text: "Counter target spell. Untap up to four lands.".to_string(),
         abilities: vec![AbilityDefinition::Spell {
@@ -20,7 +24,12 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("needs-rewiring: TargetRequirement::UpToN (card_definition.rs:2798) supplies the 'up to four' choice the old note called missing. Remaining question is how UpToN target slots map to EffectTarget::DeclaredTarget indices for the untap Sequence — trace that before authoring."),
+        completeness: Completeness::partial(
+            "needs-rewiring: TargetRequirement::UpToN (card_definition.rs:2798) supplies the 'up \
+             to four' choice the old note called missing. Remaining question is how UpToN target \
+             slots map to EffectTarget::DeclaredTarget indices for the untap Sequence — trace \
+             that before authoring.",
+        ),
         ..Default::default()
     }
 }

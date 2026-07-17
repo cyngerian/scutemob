@@ -24,9 +24,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("venerated-rotpriest"),
         name: "Venerated Rotpriest".to_string(),
-        mana_cost: Some(ManaCost { green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Phyrexian", "Druid"]),
-        oracle_text: "Toxic 1 (Players dealt combat damage by this creature also get a poison counter.)\nWhenever a creature you control becomes the target of a spell, target opponent gets a poison counter.".to_string(),
+        oracle_text: "Toxic 1 (Players dealt combat damage by this creature also get a poison \
+                      counter.)\nWhenever a creature you control becomes the target of a spell, \
+                      target opponent gets a poison counter."
+            .to_string(),
         power: Some(1),
         toughness: Some(2),
         abilities: vec![
@@ -36,7 +42,10 @@ pub fn card() -> CardDefinition {
             // counter" effect has no DSL representation (no player-targeting poison-counter
             // Effect variant exists). Omitted rather than approximated.
         ],
-        completeness: Completeness::partial("the trigger's EFFECT is still not expressible. Oracle text is 'target opponent gets a poison counter' — this requires..."),
+        completeness: Completeness::partial(
+            "the trigger's EFFECT is still not expressible. Oracle text is 'target opponent gets \
+             a poison counter' — this requires...",
+        ),
         ..Default::default()
     }
 }

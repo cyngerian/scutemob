@@ -13,9 +13,18 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("magmatic-hellkite"),
         name: "Magmatic Hellkite".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Dragon"]),
-        oracle_text: "Flying\nWhen this creature enters, destroy target nonbasic land an opponent controls. Its controller searches their library for a basic land card, puts it onto the battlefield tapped with a stun counter on it, then shuffles. (If a permanent with a stun counter would become untapped, remove one from it instead.)".to_string(),
+        oracle_text: "Flying\nWhen this creature enters, destroy target nonbasic land an opponent \
+                      controls. Its controller searches their library for a basic land card, puts \
+                      it onto the battlefield tapped with a stun counter on it, then shuffles. \
+                      (If a permanent with a stun counter would become untapped, remove one from \
+                      it instead.)"
+            .to_string(),
         power: Some(4),
         toughness: Some(5),
         abilities: vec![
@@ -23,7 +32,13 @@ pub fn card() -> CardDefinition {
             // TODO: ETB — destroy target nonbasic land an opponent controls, then its controller
             // searches for a basic land and puts it into play tapped with a stun counter
         ],
-        completeness: Completeness::partial("Blocked on PlayerTarget::ControllerOf resolution: 'its controller searches their library' would route the search to the Hellkite's controller (effects/mod.rs:3609/3661 resolve ControllerOf/OwnerOf to ctx.controller). NOTE: the old claims about nonbasic-land filters and Stun counters are STALE — TargetFilter.nonbasic and CounterType::Stun both exist."),
+        completeness: Completeness::partial(
+            "Blocked on PlayerTarget::ControllerOf resolution: 'its controller searches their \
+             library' would route the search to the Hellkite's controller \
+             (effects/mod.rs:3609/3661 resolve ControllerOf/OwnerOf to ctx.controller). NOTE: the \
+             old claims about nonbasic-land filters and Stun counters are STALE — \
+             TargetFilter.nonbasic and CounterType::Stun both exist.",
+        ),
         ..Default::default()
     }
 }

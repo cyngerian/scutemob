@@ -9,9 +9,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("squee-goblin-nabob"),
         name: "Squee, Goblin Nabob".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 1,
+            ..Default::default()
+        }),
         types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Goblin"]),
-        oracle_text: "At the beginning of your upkeep, you may return this card from your graveyard to your hand.".to_string(),
+        oracle_text: "At the beginning of your upkeep, you may return this card from your \
+                      graveyard to your hand."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
@@ -23,7 +29,9 @@ pub fn card() -> CardDefinition {
                 trigger_condition: TriggerCondition::AtBeginningOfYourUpkeep,
                 effect: Effect::MoveZone {
                     target: EffectTarget::Source,
-                    to: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                    to: ZoneTarget::Hand {
+                        owner: PlayerTarget::Controller,
+                    },
                     controller_override: None,
                 },
                 intervening_if: None,
@@ -32,7 +40,12 @@ pub fn card() -> CardDefinition {
                 trigger_zone: Some(TriggerZone::Graveyard),
             },
         ],
-        completeness: Completeness::known_wrong("'you may return' is modeled as an unconditional return — AbilityDefinition::Triggered has no optional/may field and Effect::Choose always takes option 0 (effects/mod.rs:3190). Controller is forced to return Squee each upkeep."),
+        completeness: Completeness::known_wrong(
+            "'you may return' is modeled as an unconditional return — \
+             AbilityDefinition::Triggered has no optional/may field and Effect::Choose always \
+             takes option 0 (effects/mod.rs:3190). Controller is forced to return Squee each \
+             upkeep.",
+        ),
         ..Default::default()
     }
 }

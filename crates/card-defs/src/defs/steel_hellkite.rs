@@ -13,20 +13,25 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("steel-hellkite"),
         name: "Steel Hellkite".to_string(),
-        mana_cost: Some(ManaCost { generic: 6, ..Default::default() }),
-        types: full_types(
-            &[],
-            &[CardType::Artifact, CardType::Creature],
-            &["Dragon"],
-        ),
-        oracle_text: "Flying\n{2}: This creature gets +1/+0 until end of turn.\n{X}: Destroy each nonland permanent with mana value X whose controller was dealt combat damage by this creature this turn. Activate only once each turn.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 6,
+            ..Default::default()
+        }),
+        types: full_types(&[], &[CardType::Artifact, CardType::Creature], &["Dragon"]),
+        oracle_text: "Flying\n{2}: This creature gets +1/+0 until end of turn.\n{X}: Destroy each \
+                      nonland permanent with mana value X whose controller was dealt combat \
+                      damage by this creature this turn. Activate only once each turn."
+            .to_string(),
         power: Some(5),
         toughness: Some(5),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             // {2}: This creature gets +1/+0 until end of turn.
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { generic: 2, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    generic: 2,
+                    ..Default::default()
+                }),
                 effect: Effect::ApplyContinuousEffect {
                     effect_def: Box::new(ContinuousEffectDef {
                         layer: crate::state::EffectLayer::PtModify,
@@ -49,7 +54,10 @@ pub fn card() -> CardDefinition {
             //        mana-value-equals-X predicate. Deferred.
             // TODO: "controllers dealt combat damage by this creature this turn" tracking. Deferred.
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { x_count: 1, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    x_count: 1,
+                    ..Default::default()
+                }),
                 effect: Effect::Nothing,
                 timing_restriction: None,
                 targets: vec![],
@@ -58,7 +66,10 @@ pub fn card() -> CardDefinition {
                 once_per_turn: true,
             },
         ],
-        completeness: Completeness::partial("{X} ability main effect — needs 'mana value equals X' filter in DestroyAll and 'controllers dealt combat damage by this..."),
+        completeness: Completeness::partial(
+            "{X} ability main effect — needs 'mana value equals X' filter in DestroyAll and \
+             'controllers dealt combat damage by this...",
+        ),
         ..Default::default()
     }
 }

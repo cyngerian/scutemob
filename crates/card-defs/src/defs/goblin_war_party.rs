@@ -9,13 +9,24 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("goblin-war-party"),
         name: "Goblin War Party".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            red: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Choose one \u{2014}\n\u{2022} Create three 1/1 red Goblin creature tokens.\n\u{2022} Creatures you control get +1/+1 and gain haste until end of turn.\nEntwine {2}{R} (Choose both if you pay the entwine cost.)".to_string(),
+        oracle_text: "Choose one \u{2014}\n\u{2022} Create three 1/1 red Goblin creature \
+                      tokens.\n\u{2022} Creatures you control get +1/+1 and gain haste until end \
+                      of turn.\nEntwine {2}{R} (Choose both if you pay the entwine cost.)"
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Entwine),
             AbilityDefinition::Entwine {
-                cost: ManaCost { generic: 2, red: 1, ..Default::default() },
+                cost: ManaCost {
+                    generic: 2,
+                    red: 1,
+                    ..Default::default()
+                },
             },
             AbilityDefinition::Spell {
                 effect: Effect::Sequence(vec![]),
@@ -61,7 +72,9 @@ pub fn card() -> CardDefinition {
                             Effect::ApplyContinuousEffect {
                                 effect_def: Box::new(ContinuousEffectDef {
                                     layer: EffectLayer::Ability,
-                                    modification: LayerModification::AddKeyword(KeywordAbility::Haste),
+                                    modification: LayerModification::AddKeyword(
+                                        KeywordAbility::Haste,
+                                    ),
                                     filter: EffectFilter::CreaturesYouControl,
                                     duration: EffectDuration::UntilEndOfTurn,
                                     condition: None,

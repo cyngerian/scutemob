@@ -12,15 +12,26 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("faithless-looting"),
         name: "Faithless Looting".to_string(),
-        mana_cost: Some(ManaCost { red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            red: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Draw two cards, then discard two cards.\nFlashback {2}{R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)".to_string(),
+        oracle_text: "Draw two cards, then discard two cards.\nFlashback {2}{R} (You may cast \
+                      this card from your graveyard for its flashback cost. Then exile it.)"
+            .to_string(),
         abilities: vec![
             // CR 702.34a: Flashback marker — enables casting from graveyard in casting.rs.
             AbilityDefinition::Keyword(KeywordAbility::Flashback),
             // CR 702.34a: The flashback cost itself ({2}{R}).
-            AbilityDefinition::AltCastAbility { kind: AltCostKind::Flashback, details: None,
-                cost: ManaCost { generic: 2, red: 1, ..Default::default() },
+            AbilityDefinition::AltCastAbility {
+                kind: AltCostKind::Flashback,
+                details: None,
+                cost: ManaCost {
+                    generic: 2,
+                    red: 1,
+                    ..Default::default()
+                },
             },
             // The spell effect: draw 2 cards, then discard 2 cards.
             AbilityDefinition::Spell {

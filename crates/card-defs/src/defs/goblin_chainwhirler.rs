@@ -8,9 +8,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("goblin-chainwhirler"),
         name: "Goblin Chainwhirler".to_string(),
-        mana_cost: Some(ManaCost { red: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            red: 3,
+            ..Default::default()
+        }),
         types: creature_types(&["Goblin", "Warrior"]),
-        oracle_text: "First strike\nWhen this creature enters, it deals 1 damage to each opponent and each creature and planeswalker they control.".to_string(),
+        oracle_text: "First strike\nWhen this creature enters, it deals 1 damage to each opponent \
+                      and each creature and planeswalker they control."
+            .to_string(),
         power: Some(3),
         toughness: Some(3),
         abilities: vec![

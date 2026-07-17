@@ -9,9 +9,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("voice-of-many"),
         name: "Voice of Many".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Elf", "Druid"]),
-        oracle_text: "When this creature enters, draw a card for each opponent who controls fewer creatures than you.".to_string(),
+        oracle_text: "When this creature enters, draw a card for each opponent who controls fewer \
+                      creatures than you."
+            .to_string(),
         power: Some(3),
         toughness: Some(3),
         abilities: vec![
@@ -30,7 +36,11 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::known_wrong("'draw a card for each opponent who controls fewer creatures than you' is approximated as an unconditional draw of 1. No EffectAmount counts opponents matching a comparison predicate."),
+        completeness: Completeness::known_wrong(
+            "'draw a card for each opponent who controls fewer creatures than you' is \
+             approximated as an unconditional draw of 1. No EffectAmount counts opponents \
+             matching a comparison predicate.",
+        ),
         ..Default::default()
     }
 }

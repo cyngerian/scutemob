@@ -9,9 +9,18 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("oath-of-teferi"),
         name: "Oath of Teferi".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, white: 1, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            white: 1,
+            blue: 1,
+            ..Default::default()
+        }),
         types: full_types(&[SuperType::Legendary], &[CardType::Enchantment], &[]),
-        oracle_text: "When Oath of Teferi enters, exile another target permanent you control. Return it to the battlefield under its owner's control at the beginning of the next end step.\nYou may activate loyalty abilities of planeswalkers you control twice each turn rather than only once.".to_string(),
+        oracle_text: "When Oath of Teferi enters, exile another target permanent you control. \
+                      Return it to the battlefield under its owner's control at the beginning of \
+                      the next end step.\nYou may activate loyalty abilities of planeswalkers you \
+                      control twice each turn rather than only once."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Triggered {
                 once_per_turn: false,
@@ -35,7 +44,9 @@ pub fn card() -> CardDefinition {
             },
             // TODO: "activate loyalty abilities twice per turn" — no Permission for this.
         ],
-        completeness: Completeness::partial("'activate loyalty abilities twice per turn' — no Permission for this"),
+        completeness: Completeness::partial(
+            "'activate loyalty abilities twice per turn' — no Permission for this",
+        ),
         ..Default::default()
     }
 }

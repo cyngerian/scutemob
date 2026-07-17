@@ -8,13 +8,20 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("sarkhan-fireblood"),
         name: "Sarkhan, Fireblood".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, red: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            red: 2,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Planeswalker],
             &["Sarkhan"],
         ),
-        oracle_text: "+1: You may discard a card. If you do, draw a card.\n+1: Add two mana in any combination of colors. Spend this mana only to cast Dragon spells.\n\u{2212}7: Create four 5/5 red Dragon creature tokens with flying.".to_string(),
+        oracle_text: "+1: You may discard a card. If you do, draw a card.\n+1: Add two mana in \
+                      any combination of colors. Spend this mana only to cast Dragon \
+                      spells.\n\u{2212}7: Create four 5/5 red Dragon creature tokens with flying."
+            .to_string(),
         starting_loyalty: Some(3),
         abilities: vec![
             // +1: Rummage (may discard, then draw)
@@ -59,7 +66,13 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
-        completeness: Completeness::known_wrong("the +1 mana ability adds two unrestricted red mana; oracle is 'two mana in any combination of colors, spend only on Dragon spells' — the Dragon restriction is expressible (Effect::AddManaRestricted + ManaRestriction::SubtypeOnly) and should be wired; free-color choice is M10-deferred. The +1 rummage is Effect::Nothing because 'you may' has no interactive expression (Effect::Choose executes choices.first())."),
+        completeness: Completeness::known_wrong(
+            "the +1 mana ability adds two unrestricted red mana; oracle is 'two mana in any \
+             combination of colors, spend only on Dragon spells' — the Dragon restriction is \
+             expressible (Effect::AddManaRestricted + ManaRestriction::SubtypeOnly) and should be \
+             wired; free-color choice is M10-deferred. The +1 rummage is Effect::Nothing because \
+             'you may' has no interactive expression (Effect::Choose executes choices.first()).",
+        ),
         ..Default::default()
     }
 }

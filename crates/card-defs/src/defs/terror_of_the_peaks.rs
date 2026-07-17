@@ -8,9 +8,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("terror-of-the-peaks"),
         name: "Terror of the Peaks".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, red: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            red: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Dragon"]),
-        oracle_text: "Flying\nSpells your opponents cast that target this creature cost an additional 3 life to cast.\nWhenever another creature you control enters, this creature deals damage equal to that creature's power to any target.".to_string(),
+        oracle_text: "Flying\nSpells your opponents cast that target this creature cost an \
+                      additional 3 life to cast.\nWhenever another creature you control enters, \
+                      this creature deals damage equal to that creature's power to any target."
+            .to_string(),
         power: Some(5),
         toughness: Some(4),
         abilities: vec![
@@ -21,7 +28,13 @@ pub fn card() -> CardDefinition {
             // equal to that creature's power to any target.
             // DSL gap: no "entering creature's power" dynamic damage amount; requires targeted_trigger.
         ],
-        completeness: Completeness::partial("DSL gap — 'spells your opponents cast that target this creature cost an additional 3 life' has no expressible static (no targeting-keyed additional-life-cost). The ETB damage trigger IS authorable now via WheneverPermanentEntersBattlefield{creature/You, exclude_self: true} + DealDamage{PowerOf(TriggeringCreature)} + TargetAny (see warstorm_surge.rs)."),
+        completeness: Completeness::partial(
+            "DSL gap — 'spells your opponents cast that target this creature cost an additional 3 \
+             life' has no expressible static (no targeting-keyed additional-life-cost). The ETB \
+             damage trigger IS authorable now via \
+             WheneverPermanentEntersBattlefield{creature/You, exclude_self: true} + \
+             DealDamage{PowerOf(TriggeringCreature)} + TargetAny (see warstorm_surge.rs).",
+        ),
         ..Default::default()
     }
 }

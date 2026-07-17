@@ -6,9 +6,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("tyrranax-rex"),
         name: "Tyrranax Rex".to_string(),
-        mana_cost: Some(ManaCost { green: 4, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            green: 4,
+            ..Default::default()
+        }),
         types: creature_types(&["Phyrexian", "Dinosaur"]),
-        oracle_text: "Trample, ward {4}\nRavenous (This creature enters with X +1/+1 counters on it. If X is 5 or more, draw a card when it enters.)".to_string(),
+        oracle_text: "Trample, ward {4}\nRavenous (This creature enters with X +1/+1 counters on \
+                      it. If X is 5 or more, draw a card when it enters.)"
+            .to_string(),
         power: Some(8),
         toughness: Some(8),
         abilities: vec![
@@ -33,6 +38,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

@@ -14,12 +14,17 @@ pub fn card() -> CardDefinition {
         name: "Diamond Valley".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}, Sacrifice a creature: You gain life equal to the sacrificed creature's toughness.".to_string(),
+        oracle_text: "{T}, Sacrifice a creature: You gain life equal to the sacrificed creature's \
+                      toughness."
+            .to_string(),
         abilities: vec![
             // TODO: {T}, Sacrifice a creature: Gain life = sacrificed creature's toughness.
             // Requires EffectAmount::SacrificedCreatureToughness which does not exist in the DSL.
         ],
-        completeness: Completeness::partial("'gain life equal to the sacrificed creature's toughness' requires EffectAmount::SacrificedCreatureToughness (dynamic..."),
+        completeness: Completeness::partial(
+            "'gain life equal to the sacrificed creature's toughness' requires \
+             EffectAmount::SacrificedCreatureToughness (dynamic...",
+        ),
         ..Default::default()
     }
 }

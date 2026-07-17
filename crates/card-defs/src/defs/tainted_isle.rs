@@ -7,7 +7,8 @@ pub fn card() -> CardDefinition {
         name: "Tainted Isle".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}: Add {C}.\n{T}: Add {U} or {B}. Activate only if you control a Swamp.".to_string(),
+        oracle_text: "{T}: Add {C}.\n{T}: Add {U} or {B}. Activate only if you control a Swamp."
+            .to_string(),
         abilities: vec![
             // {T}: Add {C}.
             AbilityDefinition::Activated {
@@ -20,7 +21,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {T}: Add {U} or {B}. Activate only if you control a Swamp.
             AbilityDefinition::Activated {
@@ -31,9 +32,11 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
-                activation_condition: Some(Condition::ControlLandWithSubtypes(vec![SubType("Swamp".to_string())])),
+                activation_condition: Some(Condition::ControlLandWithSubtypes(vec![SubType(
+                    "Swamp".to_string(),
+                )])),
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
@@ -43,9 +46,11 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![],
-                activation_condition: Some(Condition::ControlLandWithSubtypes(vec![SubType("Swamp".to_string())])),
+                activation_condition: Some(Condition::ControlLandWithSubtypes(vec![SubType(
+                    "Swamp".to_string(),
+                )])),
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

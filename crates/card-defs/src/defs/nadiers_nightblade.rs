@@ -11,13 +11,22 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("nadiers-nightblade"),
         name: "Nadier's Nightblade".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Elf", "Warrior"]),
-        oracle_text: "Whenever a token you control leaves the battlefield, each opponent loses 1 life and you gain 1 life.".to_string(),
+        oracle_text: "Whenever a token you control leaves the battlefield, each opponent loses 1 \
+                      life and you gain 1 life."
+            .to_string(),
         power: Some(1),
         toughness: Some(3),
         abilities: vec![],
-        completeness: Completeness::inert("'Whenever a token you control leaves the battlefield' — no trigger condition for token-specific zone changes. Using..."),
+        completeness: Completeness::inert(
+            "'Whenever a token you control leaves the battlefield' — no trigger condition for \
+             token-specific zone changes. Using...",
+        ),
         ..Default::default()
     }
 }

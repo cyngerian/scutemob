@@ -45,24 +45,32 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("overlord-of-the-hauntwoods"),
         name: "Overlord of the Hauntwoods".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            green: 2,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Enchantment, CardType::Creature],
             &["Avatar", "Horror"],
         ),
-        oracle_text: "Impending 4—{1}{G}{G} (If you cast this spell for its impending cost, \
-it enters with four time counters and isn't a creature until the last is removed. At the \
-beginning of your end step, remove a time counter from it.)\n\
-Whenever this permanent enters or attacks, create a tapped colorless land token named \
-Everywhere that is every basic land type."
+        oracle_text: "Impending 4—{1}{G}{G} (If you cast this spell for its impending cost, it \
+                      enters with four time counters and isn't a creature until the last is \
+                      removed. At the beginning of your end step, remove a time counter from \
+                      it.)\nWhenever this permanent enters or attacks, create a tapped colorless \
+                      land token named Everywhere that is every basic land type."
             .to_string(),
         abilities: vec![
             // CR 702.176: Impending keyword for presence-checking.
             AbilityDefinition::Keyword(KeywordAbility::Impending),
             // CR 702.176: Full Impending definition — impending 4—{1}{G}{G}.
             AbilityDefinition::Impending {
-                cost: ManaCost { generic: 1, green: 2, ..Default::default() },
+                cost: ManaCost {
+                    generic: 1,
+                    green: 2,
+                    ..Default::default()
+                },
                 count: 4,
             },
             // "Whenever this permanent enters" — ETB trigger.
@@ -72,7 +80,9 @@ Everywhere that is every basic land type."
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
-                effect: Effect::CreateToken { spec: everywhere_token_spec() },
+                effect: Effect::CreateToken {
+                    spec: everywhere_token_spec(),
+                },
                 intervening_if: None,
                 targets: vec![],
 
@@ -83,7 +93,9 @@ Everywhere that is every basic land type."
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenAttacks,
-                effect: Effect::CreateToken { spec: everywhere_token_spec() },
+                effect: Effect::CreateToken {
+                    spec: everywhere_token_spec(),
+                },
                 intervening_if: None,
                 targets: vec![],
 
@@ -105,6 +117,6 @@ Everywhere that is every basic land type."
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

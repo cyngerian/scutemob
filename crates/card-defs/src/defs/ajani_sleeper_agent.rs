@@ -26,7 +26,15 @@ pub fn card() -> CardDefinition {
             &[CardType::Planeswalker],
             &["Ajani"],
         ),
-        oracle_text: "Compleated ({G/W/P} can be paid with {G}, {W}, or 2 life. If life was paid, this planeswalker enters with two fewer loyalty counters.)\n+1: Reveal the top card of your library. If it's a creature or planeswalker card, put it into your hand. Otherwise, you may put it on the bottom of your library.\n\u{2212}3: Distribute three +1/+1 counters among up to three target creatures. They gain vigilance until end of turn.\n\u{2212}6: You get an emblem with \"Whenever you cast a creature or planeswalker spell, target opponent gets two poison counters.\"".to_string(),
+        oracle_text: "Compleated ({G/W/P} can be paid with {G}, {W}, or 2 life. If life was paid, \
+                      this planeswalker enters with two fewer loyalty counters.)\n+1: Reveal the \
+                      top card of your library. If it's a creature or planeswalker card, put it \
+                      into your hand. Otherwise, you may put it on the bottom of your \
+                      library.\n\u{2212}3: Distribute three +1/+1 counters among up to three \
+                      target creatures. They gain vigilance until end of turn.\n\u{2212}6: You \
+                      get an emblem with \"Whenever you cast a creature or planeswalker spell, \
+                      target opponent gets two poison counters.\""
+            .to_string(),
         abilities: vec![
             // TODO: Compleated keyword — 2 fewer loyalty if Phyrexian life was paid.
             AbilityDefinition::LoyaltyAbility {
@@ -57,27 +65,27 @@ pub fn card() -> CardDefinition {
                 // opponents may be chosen). TargetRequirement has no Opponent variant;
                 // TargetPlayer allows targeting oneself. Known DSL gap — MEDIUM severity.
                 effect: Effect::CreateEmblem {
-                    triggered_abilities: vec![
-                        TriggeredAbilityDef {
-                            counter_filter: None,
-                            counter_on_self: false,
-                            once_per_turn: false,
-                            trigger_on: TriggerEvent::AnySpellCast,
-                            intervening_if: None,
-                            description: "Whenever you cast a creature or planeswalker spell, target opponent gets two poison counters.".to_string(),
-                            effect: Some(Effect::AddCounter {
-                                target: EffectTarget::DeclaredTarget { index: 0 },
-                                counter: CounterType::Poison,
-                                count: 2,
-                            }),
-                            etb_filter: None,
-                            death_filter: None,
-                combat_damage_filter: None,
+                    triggered_abilities: vec![TriggeredAbilityDef {
+                        counter_filter: None,
+                        counter_on_self: false,
+                        once_per_turn: false,
+                        trigger_on: TriggerEvent::AnySpellCast,
+                        intervening_if: None,
+                        description: "Whenever you cast a creature or planeswalker spell, target \
+                                      opponent gets two poison counters."
+                            .to_string(),
+                        effect: Some(Effect::AddCounter {
+                            target: EffectTarget::DeclaredTarget { index: 0 },
+                            counter: CounterType::Poison,
+                            count: 2,
+                        }),
+                        etb_filter: None,
+                        death_filter: None,
+                        combat_damage_filter: None,
                         triggering_creature_filter: None,
-                            // TODO: Should be TargetOpponent; TargetPlayer is an approximation.
-                            targets: vec![TargetRequirement::TargetPlayer],
-                        },
-                    ],
+                        // TODO: Should be TargetOpponent; TargetPlayer is an approximation.
+                        targets: vec![TargetRequirement::TargetPlayer],
+                    }],
                     static_effects: vec![],
                     play_from_graveyard: None,
                 },
@@ -90,7 +98,14 @@ pub fn card() -> CardDefinition {
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
         cant_be_countered: false,
-        completeness: Completeness::known_wrong("the +1 and -3 loyalty abilities are activatable no-ops (Effect::Sequence(vec![])) — activating them gains loyalty and does nothing. The -6 emblem lacks the creature/planeswalker spell filter (TriggeredAbilityDef has no spell_type_filter), fires on AnySpellCast rather than the controller's casts, and targets any player rather than an opponent. Compleated (2 fewer loyalty if Phyrexian life was paid) is also unimplemented."),
+        completeness: Completeness::known_wrong(
+            "the +1 and -3 loyalty abilities are activatable no-ops (Effect::Sequence(vec![])) — \
+             activating them gains loyalty and does nothing. The -6 emblem lacks the \
+             creature/planeswalker spell filter (TriggeredAbilityDef has no spell_type_filter), \
+             fires on AnySpellCast rather than the controller's casts, and targets any player \
+             rather than an opponent. Compleated (2 fewer loyalty if Phyrexian life was paid) is \
+             also unimplemented.",
+        ),
         ..Default::default()
     }
 }

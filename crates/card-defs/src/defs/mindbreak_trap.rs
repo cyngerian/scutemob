@@ -8,9 +8,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("mindbreak-trap"),
         name: "Mindbreak Trap".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, blue: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            blue: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "If an opponent cast three or more spells this turn, you may pay {0} rather than pay this spell's mana cost.\nExile any number of target spells.".to_string(),
+        oracle_text: "If an opponent cast three or more spells this turn, you may pay {0} rather \
+                      than pay this spell's mana cost.\nExile any number of target spells."
+            .to_string(),
         abilities: vec![
             // ENGINE-BLOCKED: (1) Trap alternative cost — no AltCostKind::Trap, so the
             // "if an opponent cast three or more spells this turn, you may pay {0}" alt-cost
@@ -23,7 +29,10 @@ pub fn card() -> CardDefinition {
             // one target, so a hardcast Mindbreak Trap could not exile the multi-spell storm
             // turn it exists to answer, nor choose zero targets. Omitted, not approximated.
         ],
-        completeness: Completeness::partial("(1) Trap alternative cost — no AltCostKind::Trap, so the 'if an opponent cast three or more spells this turn, you may..."),
+        completeness: Completeness::partial(
+            "(1) Trap alternative cost — no AltCostKind::Trap, so the 'if an opponent cast three \
+             or more spells this turn, you may...",
+        ),
         ..Default::default()
     }
 }

@@ -5,9 +5,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("topan-freeblade"),
         name: "Topan Freeblade".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            white: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Soldier"]),
-        oracle_text: "Vigilance\nRenown 1 (When this creature deals combat damage to a player, if it isn't renowned, put a +1/+1 counter on it and it becomes renowned.)".to_string(),
+        oracle_text: "Vigilance\nRenown 1 (When this creature deals combat damage to a player, if \
+                      it isn't renowned, put a +1/+1 counter on it and it becomes renowned.)"
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -26,6 +32,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

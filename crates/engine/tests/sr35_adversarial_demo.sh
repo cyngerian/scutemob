@@ -1,0 +1,204 @@
+#!/usr/bin/env bash
+# SR-35 adversarial demonstration.
+#
+# `tools/check-defs-fmt.sh` is only worth anything if it actually reddens when a
+# card def is misformatted — and, per the SR track rule, each attack below first
+# asserts the perturbation really changed the file. An attack that changed nothing
+# proves nothing; that has been the recurring failure mode on this track.
+#
+# What is demonstrated:
+#
+#   A. THE SR-35 finding — misformat a real def; `cargo fmt --all -- --check`
+#      stays GREEN (it checks none of the 1,748 defs) while the new gate goes RED.
+#
+#   B. THE reason the naive fix is not enough — a def whose `oracle_text` is one
+#      long line is INVISIBLE to rustfmt even when rustfmt is pointed straight at
+#      it: the long string does not fit in `max_width`, rustfmt falls back to the
+#      original source for the enclosing expression (the whole `CardDefinition`
+#      literal, i.e. the whole file), and exits 0. Without `format_strings=true`
+#      the gate passes a file with a blatant misindentation. With it, red.
+#
+#      This is not hypothetical: 1,380 of the 1,748 defs were in exactly that
+#      state before this task reformatted them. The corpus is clean now, so the
+#      attack authors a NEW def in the shape an author would write one — which is
+#      precisely the regression the flag exists to stop as the corpus grows.
+#
+#   C. The skip named in the SR-35 brief — rustfmt formats a line, the result
+#      still exceeds `max_width`, and rustfmt silently keeps the file's original
+#      text and exits 0. Without `error_on_line_overflow=true` the gate passes it.
+#      With it, red.
+#
+#   D. The gate refuses to pass vacuously when it finds no defs to check.
+#
+# Run from the workspace root:  bash crates/engine/tests/sr35_adversarial_demo.sh
+# Attack A mutates tracked source and restores it with `git checkout`, so commit first.
+set -u
+
+CARGO="$HOME/.cargo/bin/cargo"
+GATE=tools/check-defs-fmt.sh
+VICTIM=crates/card-defs/src/defs/abrade.rs
+FIXTURE=crates/card-defs/src/defs/zz_sr35_fixture.rs
+fails=0
+
+cleanup() { git checkout -- "$VICTIM" 2>/dev/null; rm -f "$FIXTURE"; }
+trap cleanup EXIT
+
+ok()   { echo "  PASS: $1"; }
+bad()  { echo "  FAIL: $1"; fails=$((fails + 1)); }
+
+# Run rustfmt --check over one file with an explicit config set; echo green|red.
+probe() { # <file> <config-args...>
+  local f="$1"; shift
+  if rustfmt --edition 2021 --color=never --check "$@" "$f" >/dev/null 2>&1; then
+    echo green
+  else
+    echo red
+  fi
+}
+
+assert_changed() { # <file> <before-md5> — the SR track rule
+  local now
+  now=$(md5sum "$1" | cut -d' ' -f1)
+  if [ "$now" = "$2" ]; then
+    bad "perturbation did not change $1 — the attack never happened"
+    return 1
+  fi
+  return 0
+}
+
+echo "=============================================================="
+echo "A. cargo fmt is blind to the defs; the new gate is not"
+echo "=============================================================="
+before=$(md5sum "$VICTIM" | cut -d' ' -f1)
+# Over-indent the card_id line: valid Rust, unambiguously misformatted.
+perl -0pi -e 's/\n        card_id:/\n                card_id:/' "$VICTIM"
+if assert_changed "$VICTIM" "$before"; then
+  if "$CARGO" fmt --all -- --check >/dev/null 2>&1; then
+    ok "cargo fmt --all -- --check is GREEN on a misformatted def (the SR-35 bug)"
+  else
+    bad "cargo fmt caught it — the premise of this task no longer holds"
+  fi
+  if ./$GATE >/dev/null 2>&1; then
+    bad "the new gate is GREEN on a misformatted def — it is vacuous"
+  else
+    ok "the new gate is RED on the same def"
+  fi
+fi
+git checkout -- "$VICTIM"
+
+echo
+echo "=============================================================="
+echo "B. a long one-line oracle_text makes rustfmt blind (format_strings)"
+echo "=============================================================="
+# A def in the shape an author writes one: oracle_text as a single long line,
+# plus a blatant misindentation on card_id.
+cat > "$FIXTURE" <<'FIXTURE_EOF'
+// SR-35 demo fixture.
+use crate::cards::helpers::*;
+
+pub fn card() -> CardDefinition {
+    CardDefinition {
+                card_id: cid("zz-sr35-fixture"),
+        name: "ZZ SR35 Fixture".to_string(),
+        types: types(&[CardType::Instant]),
+        oracle_text: "Whenever a creature you control deals combat damage to a player, draw a card. Then if creatures you control have total toughness 20 or greater, untap each creature you control.".to_string(),
+        ..Default::default()
+    }
+}
+FIXTURE_EOF
+
+if [ ! -s "$FIXTURE" ]; then
+  bad "fixture was not written — the attack never happened"
+else
+  naive=$(probe "$FIXTURE")
+  ok_flag=$(probe "$FIXTURE" --config format_strings=true)
+  if [ "$naive" = "green" ]; then
+    ok "WITHOUT format_strings: rustfmt is GREEN on a misindented def (silently unformatted)"
+  else
+    bad "WITHOUT format_strings: expected green (blind), got $naive"
+  fi
+  if [ "$ok_flag" = "red" ]; then
+    ok "WITH format_strings=true: RED — the misindentation is caught"
+  else
+    bad "WITH format_strings=true: expected red, got $ok_flag"
+  fi
+  # And the gate as shipped must catch it.
+  if ./$GATE >/dev/null 2>&1; then
+    bad "the shipped gate is GREEN on the fixture"
+  else
+    ok "the shipped gate is RED on the fixture"
+  fi
+fi
+rm -f "$FIXTURE"
+
+echo
+echo "=============================================================="
+echo "C. the max_width skip named in the brief (error_on_line_overflow)"
+echo "=============================================================="
+# A line rustfmt formats but cannot fit in 100 columns. rustfmt keeps the file's
+# original text and exits 0 unless error_on_line_overflow is on.
+cat > "$FIXTURE" <<'FIXTURE_EOF'
+// SR-35 demo fixture.
+use crate::cards::helpers::*;
+
+pub fn card() -> CardDefinition {
+    CardDefinition {
+        card_id: cid("zz-sr35-fixture"),
+        name: "ZZ SR35 Fixture".to_string(),
+        mana_cost: Some(ManaCost { generic: 2, white: 1, black: 1, green: 1, ..Default::default() }),
+        types: types(&[CardType::Instant]),
+        ..Default::default()
+    }
+}
+FIXTURE_EOF
+
+if [ ! -s "$FIXTURE" ]; then
+  bad "fixture was not written — the attack never happened"
+else
+  # Confirm the offending line really is over 100 columns.
+  width=$(awk '{ if (length > m) m = length } END { print m }' "$FIXTURE")
+  if [ "$width" -le 100 ]; then
+    bad "fixture's longest line is $width cols — it does not exercise the skip"
+  else
+    ok "fixture has a ${width}-column line (max_width is 100)"
+  fi
+  naive=$(probe "$FIXTURE" --config format_strings=true)
+  ok_flag=$(probe "$FIXTURE" --config format_strings=true --config error_on_line_overflow=true)
+  if [ "$naive" = "green" ]; then
+    ok "WITHOUT error_on_line_overflow: rustfmt is GREEN and leaves the file unformatted"
+  else
+    bad "WITHOUT error_on_line_overflow: expected green (silent skip), got $naive"
+  fi
+  if [ "$ok_flag" = "red" ]; then
+    ok "WITH error_on_line_overflow=true: RED — the skip is a failure, not silence"
+  else
+    bad "WITH error_on_line_overflow=true: expected red, got $ok_flag"
+  fi
+fi
+rm -f "$FIXTURE"
+
+echo
+echo "=============================================================="
+echo "D. the gate will not pass vacuously with nothing to check"
+echo "=============================================================="
+tmp=$(mktemp -d)
+mkdir -p "$tmp/crates/card-defs/src/defs" "$tmp/tools"
+cp "$GATE" "$tmp/tools/"
+( cd "$tmp" && ./tools/check-defs-fmt.sh >/dev/null 2>&1 )
+rc=$?
+if [ "$rc" -eq 2 ]; then
+  ok "empty corpus exits 2 rather than reporting success"
+else
+  bad "empty corpus exited $rc — expected 2"
+fi
+rm -rf "$tmp"
+
+echo
+echo "=============================================================="
+if [ "$fails" -eq 0 ]; then
+  echo "ALL ATTACKS BEHAVED AS EXPECTED"
+else
+  echo "$fails CHECK(S) FAILED"
+fi
+echo "=============================================================="
+exit "$fails"

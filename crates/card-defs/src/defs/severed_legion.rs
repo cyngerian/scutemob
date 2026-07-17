@@ -5,14 +5,18 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("severed-legion"),
         name: "Severed Legion".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Zombie"]),
-        oracle_text: "Fear (This creature can't be blocked except by artifact creatures and/or black creatures.)".to_string(),
+        oracle_text: "Fear (This creature can't be blocked except by artifact creatures and/or \
+                      black creatures.)"
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
-        abilities: vec![
-            AbilityDefinition::Keyword(KeywordAbility::Fear),
-        ],
+        abilities: vec![AbilityDefinition::Keyword(KeywordAbility::Fear)],
         color_indicator: None,
         back_face: None,
         spell_cost_modifiers: vec![],
@@ -25,6 +29,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

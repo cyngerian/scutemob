@@ -9,13 +9,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("myrel-shield-of-argive"),
         name: "Myrel, Shield of Argive".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            white: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Human", "Soldier"],
         ),
-        oracle_text: "During your turn, your opponents can't cast spells or activate abilities of artifacts, creatures, or enchantments.\nWhenever Myrel attacks, create X 1/1 colorless Soldier artifact creature tokens, where X is the number of Soldiers you control.".to_string(),
+        oracle_text: "During your turn, your opponents can't cast spells or activate abilities of \
+                      artifacts, creatures, or enchantments.\nWhenever Myrel attacks, create X \
+                      1/1 colorless Soldier artifact creature tokens, where X is the number of \
+                      Soldiers you control."
+            .to_string(),
         power: Some(3),
         toughness: Some(4),
         abilities: vec![
@@ -29,7 +37,9 @@ pub fn card() -> CardDefinition {
                 effect: Effect::CreateToken {
                     spec: TokenSpec {
                         name: "Soldier".to_string(),
-                        card_types: [CardType::Artifact, CardType::Creature].into_iter().collect(),
+                        card_types: [CardType::Artifact, CardType::Creature]
+                            .into_iter()
+                            .collect(),
                         subtypes: [SubType("Soldier".to_string())].into_iter().collect(),
                         colors: imbl::OrdSet::new(),
                         power: 1,
@@ -52,7 +62,15 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("needs-rewiring (no engine work required). Replace count: EffectAmount::Fixed(2) with EffectAmount::PermanentCount { filter: TargetFilter { has_subtype: Some(SubType(\"Soldier\")), controller: TargetController::You, ..Default::default() }, controller: PlayerTarget::Controller }, and add the stax half via GameRestriction::OpponentsCantCastOrActivateDuringYourTurn (stubs.rs:569 — its doc names Myrel; enforced at casting.rs:6571 / mana.rs:95). Until rewired this def is known_wrong: it creates exactly 2 Soldiers in every game."),
+        completeness: Completeness::partial(
+            "needs-rewiring (no engine work required). Replace count: EffectAmount::Fixed(2) with \
+             EffectAmount::PermanentCount { filter: TargetFilter { has_subtype: \
+             Some(SubType(\"Soldier\")), controller: TargetController::You, ..Default::default() \
+             }, controller: PlayerTarget::Controller }, and add the stax half via \
+             GameRestriction::OpponentsCantCastOrActivateDuringYourTurn (stubs.rs:569 — its doc \
+             names Myrel; enforced at casting.rs:6571 / mana.rs:95). Until rewired this def is \
+             known_wrong: it creates exactly 2 Soldiers in every game.",
+        ),
         ..Default::default()
     }
 }

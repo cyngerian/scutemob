@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("idol-of-oblivion"),
         name: "Idol of Oblivion".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "{T}: Draw a card. Activate only if you created a token this turn.\n{8}, {T}, Sacrifice Idol of Oblivion: Create a 10/10 colorless Eldrazi creature token.".to_string(),
+        oracle_text: "{T}: Draw a card. Activate only if you created a token this turn.\n{8}, \
+                      {T}, Sacrifice Idol of Oblivion: Create a 10/10 colorless Eldrazi creature \
+                      token."
+            .to_string(),
         abilities: vec![
             // {T}: Draw a card. Activate only if you created a token this turn.
             // CR 111.10: PB-AC6 added Condition::CreatedATokenThisTurn.
@@ -23,12 +29,15 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: Some(Condition::CreatedATokenThisTurn),
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {8}, {T}, Sacrifice: Create 10/10 Eldrazi token.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 8, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 8,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                     Cost::SacrificeSelf,
                 ]),
@@ -55,7 +64,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

@@ -7,9 +7,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("white-suns-twilight"),
         name: "White Sun's Twilight".to_string(),
-        mana_cost: Some(ManaCost { white: 2, x_count: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            white: 2,
+            x_count: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "You gain X life. Create X 1/1 colorless Phyrexian Mite artifact creature tokens with toxic 1 and \"This token can't block.\" If X is 5 or more, destroy all other creatures. (Players dealt combat damage by a creature with toxic 1 also get a poison counter.)".to_string(),
+        oracle_text: "You gain X life. Create X 1/1 colorless Phyrexian Mite artifact creature \
+                      tokens with toxic 1 and \"This token can't block.\" If X is 5 or more, \
+                      destroy all other creatures. (Players dealt combat damage by a creature \
+                      with toxic 1 also get a poison counter.)"
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![
                 // CR 107.3m: Gain X life.
@@ -24,8 +32,15 @@ pub fn card() -> CardDefinition {
                     effect: Box::new(Effect::CreateToken {
                         spec: TokenSpec {
                             name: "Phyrexian Mite".to_string(),
-                            card_types: [CardType::Artifact, CardType::Creature].into_iter().collect(),
-                            subtypes: [SubType("Phyrexian".to_string()), SubType("Mite".to_string())].into_iter().collect(),
+                            card_types: [CardType::Artifact, CardType::Creature]
+                                .into_iter()
+                                .collect(),
+                            subtypes: [
+                                SubType("Phyrexian".to_string()),
+                                SubType("Mite".to_string()),
+                            ]
+                            .into_iter()
+                            .collect(),
                             colors: imbl::OrdSet::new(),
                             supertypes: imbl::OrdSet::new(),
                             power: 1,

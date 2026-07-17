@@ -5,7 +5,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("harmonize"),
         name: "Harmonize".to_string(),
-        mana_cost: Some(ManaCost { green: 2, generic: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            green: 2,
+            generic: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
         oracle_text: "Draw three cards.".to_string(),
         abilities: vec![AbilityDefinition::Spell {

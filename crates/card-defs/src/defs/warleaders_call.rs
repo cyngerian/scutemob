@@ -7,9 +7,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("warleaders-call"),
         name: "Warleader's Call".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, red: 1, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            red: 1,
+            white: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Creatures you control get +1/+1.\nWhenever a creature you control enters, this enchantment deals 1 damage to each opponent.".to_string(),
+        oracle_text: "Creatures you control get +1/+1.\nWhenever a creature you control enters, \
+                      this enchantment deals 1 damage to each opponent."
+            .to_string(),
         abilities: vec![
             // Static: creatures you control get +1/+1 (Layer 7c).
             AbilityDefinition::Static {

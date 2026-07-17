@@ -6,9 +6,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("mayhem-devil"),
         name: "Mayhem Devil".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 1, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 1,
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Devil"]),
-        oracle_text: "Whenever a player sacrifices a permanent, Mayhem Devil deals 1 damage to any target.".to_string(),
+        oracle_text: "Whenever a player sacrifices a permanent, Mayhem Devil deals 1 damage to \
+                      any target."
+            .to_string(),
         power: Some(3),
         toughness: Some(3),
         abilities: vec![
@@ -35,7 +42,11 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::known_wrong("'deals 1 damage to any target' is modeled as ForEach EachOpponent, dealing 1 damage to every opponent (3x in a 4-player game) instead of to one chosen target. Needs a targeted triggered ability (TargetRequirement::TargetAny) rather than a ForEach."),
+        completeness: Completeness::known_wrong(
+            "'deals 1 damage to any target' is modeled as ForEach EachOpponent, dealing 1 damage \
+             to every opponent (3x in a 4-player game) instead of to one chosen target. Needs a \
+             targeted triggered ability (TargetRequirement::TargetAny) rather than a ForEach.",
+        ),
         ..Default::default()
     }
 }

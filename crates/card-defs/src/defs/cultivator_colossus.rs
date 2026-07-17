@@ -12,9 +12,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("cultivator-colossus"),
         name: "Cultivator Colossus".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, green: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            green: 3,
+            ..Default::default()
+        }),
         types: creature_types(&["Plant", "Beast"]),
-        oracle_text: "Trample\nCultivator Colossus's power and toughness are each equal to the number of lands you control.\nWhen this creature enters, you may put a land card from your hand onto the battlefield tapped. If you do, draw a card and repeat this process.".to_string(),
+        oracle_text: "Trample\nCultivator Colossus's power and toughness are each equal to the \
+                      number of lands you control.\nWhen this creature enters, you may put a land \
+                      card from your hand onto the battlefield tapped. If you do, draw a card and \
+                      repeat this process."
+            .to_string(),
         power: None,
         toughness: None,
         abilities: vec![
@@ -22,16 +30,24 @@ pub fn card() -> CardDefinition {
             // CR 604.3, 613.4a: CDA — P/T each equal to the number of lands you control.
             AbilityDefinition::CdaPowerToughness {
                 power: EffectAmount::PermanentCount {
-                    filter: TargetFilter { has_card_type: Some(CardType::Land), ..Default::default() },
+                    filter: TargetFilter {
+                        has_card_type: Some(CardType::Land),
+                        ..Default::default()
+                    },
                     controller: PlayerTarget::Controller,
                 },
                 toughness: EffectAmount::PermanentCount {
-                    filter: TargetFilter { has_card_type: Some(CardType::Land), ..Default::default() },
+                    filter: TargetFilter {
+                        has_card_type: Some(CardType::Land),
+                        ..Default::default()
+                    },
                     controller: PlayerTarget::Controller,
                 },
             },
         ],
-        completeness: Completeness::partial("ETB land-play loop (put land, draw, repeat) — too complex for current DSL; deferred"),
+        completeness: Completeness::partial(
+            "ETB land-play loop (put land, draw, repeat) — too complex for current DSL; deferred",
+        ),
         ..Default::default()
     }
 }

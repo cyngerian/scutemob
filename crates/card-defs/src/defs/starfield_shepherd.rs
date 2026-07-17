@@ -15,9 +15,18 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("starfield-shepherd"),
         name: "Starfield Shepherd".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, white: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            white: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Angel"]),
-        oracle_text: "Flying\nWhen this creature enters, search your library for a basic Plains card or a creature card with mana value 1 or less, reveal it, put it into your hand, then shuffle.\nWarp {1}{W} (You may cast this card from your hand for its warp cost. Exile this creature at the beginning of the next end step, then you may cast it from exile on a later turn.)".to_string(),
+        oracle_text: "Flying\nWhen this creature enters, search your library for a basic Plains \
+                      card or a creature card with mana value 1 or less, reveal it, put it into \
+                      your hand, then shuffle.\nWarp {1}{W} (You may cast this card from your \
+                      hand for its warp cost. Exile this creature at the beginning of the next \
+                      end step, then you may cast it from exile on a later turn.)"
+            .to_string(),
         power: Some(3),
         toughness: Some(2),
         abilities: vec![
@@ -27,7 +36,11 @@ pub fn card() -> CardDefinition {
             // graveyard-cast permission is granted in the oracle text).
             AbilityDefinition::AltCastAbility {
                 kind: AltCostKind::Warp,
-                cost: ManaCost { generic: 1, white: 1, ..Default::default() },
+                cost: ManaCost {
+                    generic: 1,
+                    white: 1,
+                    ..Default::default()
+                },
                 details: Some(AltCastDetails::Warp {
                     costs: vec![],
                     from_graveyard: false,
@@ -38,7 +51,11 @@ pub fn card() -> CardDefinition {
             // with max_mana_value ≤ 1. Two-filter OR semantics and mana value ceiling both
             // missing from TargetFilter. DSL gap (separate primitive from PB-AC5's Warp).
         ],
-        completeness: Completeness::partial("Sole blocker: disjunctive/cross-group OR in TargetFilter. Each half is individually expressible today (basic + has_subtype(Plains); has_card_type(Creature) + max_cmc(1)) — the 'A or B' composition is not. Warp (PB-AC5) and Flying are wired."),
+        completeness: Completeness::partial(
+            "Sole blocker: disjunctive/cross-group OR in TargetFilter. Each half is individually \
+             expressible today (basic + has_subtype(Plains); has_card_type(Creature) + \
+             max_cmc(1)) — the 'A or B' composition is not. Warp (PB-AC5) and Flying are wired.",
+        ),
         ..Default::default()
     }
 }

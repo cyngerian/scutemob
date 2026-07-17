@@ -14,9 +14,18 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("song-of-freyalise"),
         name: "Song of Freyalise".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Enchantment], &["Saga"]),
-        oracle_text: "(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)\nI, II — Until your next turn, creatures you control gain \"{T}: Add one mana of any color.\"\nIII — Put a +1/+1 counter on each creature you control. Those creatures gain vigilance, trample, and indestructible until end of turn.".to_string(),
+        oracle_text: "(As this Saga enters and after your draw step, add a lore counter. \
+                      Sacrifice after III.)\nI, II — Until your next turn, creatures you control \
+                      gain \"{T}: Add one mana of any color.\"\nIII — Put a +1/+1 counter on each \
+                      creature you control. Those creatures gain vigilance, trample, and \
+                      indestructible until end of turn."
+            .to_string(),
         abilities: vec![
             // TODO: Saga chapter I/II — grant `{T}: Add one mana of any color` to creatures you
             //   control until your next turn. Effect primitives (AddManaAbility, UntilYourNextTurn)
@@ -24,7 +33,12 @@ pub fn card() -> CardDefinition {
             // TODO: Saga chapter III — +1/+1 counters on all creatures you control plus vigilance,
             //   trample, indestructible until EOT. Blocked on Saga chapter framework.
         ],
-        completeness: Completeness::partial("Blocked only on confirming SagaChapter supports a shared 'I, II' chapter entry; all other primitives (SagaChapter, LayerModification::AddManaAbility, EffectDuration::UntilYourNextTurn, AddCounter, keyword grants) exist. Ready to author."),
+        completeness: Completeness::partial(
+            "Blocked only on confirming SagaChapter supports a shared 'I, II' chapter entry; all \
+             other primitives (SagaChapter, LayerModification::AddManaAbility, \
+             EffectDuration::UntilYourNextTurn, AddCounter, keyword grants) exist. Ready to \
+             author.",
+        ),
         ..Default::default()
     }
 }

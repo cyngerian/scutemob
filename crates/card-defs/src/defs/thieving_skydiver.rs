@@ -13,7 +13,11 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: creature_types(&["Merfolk", "Rogue"]),
-        oracle_text: "Kicker {X}. X can't be 0. (You may pay an additional {X} as you cast this spell.)\nFlying\nWhen this creature enters, if it was kicked, gain control of target artifact with mana value X or less. If that artifact is an Equipment, attach it to this creature.".to_string(),
+        oracle_text: "Kicker {X}. X can't be 0. (You may pay an additional {X} as you cast this \
+                      spell.)\nFlying\nWhen this creature enters, if it was kicked, gain control \
+                      of target artifact with mana value X or less. If that artifact is an \
+                      Equipment, attach it to this creature."
+            .to_string(),
         power: Some(2),
         toughness: Some(1),
         abilities: vec![
@@ -36,7 +40,10 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::known_wrong("'with mana value X or less' filter is omitted, and the Equipment attach clause is not modeled"),
+        completeness: Completeness::known_wrong(
+            "'with mana value X or less' filter is omitted, and the Equipment attach clause is \
+             not modeled",
+        ),
         ..Default::default()
     }
 }

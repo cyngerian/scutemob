@@ -24,7 +24,10 @@ pub fn card() -> CardDefinition {
             &[CardType::Creature],
             &["Dragon", "Avatar"],
         ),
-        oracle_text: "Flying\n{2}: Search your library for a Dragon permanent card and put it into your graveyard. If you do, Scion of the Ur-Dragon becomes a copy of that card until end of turn. Then shuffle.".to_string(),
+        oracle_text: "Flying\n{2}: Search your library for a Dragon permanent card and put it \
+                      into your graveyard. If you do, Scion of the Ur-Dragon becomes a copy of \
+                      that card until end of turn. Then shuffle."
+            .to_string(),
         power: Some(4),
         toughness: Some(4),
         abilities: vec![
@@ -47,7 +50,7 @@ pub fn card() -> CardDefinition {
                             owner: PlayerTarget::Controller,
                         },
                         shuffle_before_placing: false,
-                    also_search_graveyard: false,
+                        also_search_graveyard: false,
                     },
                     Effect::Shuffle {
                         player: PlayerTarget::Controller,
@@ -57,10 +60,13 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("'becomes a copy of that card until end of turn' — needs EffectTarget::LastSearchResult to reference the card found by..."),
+        completeness: Completeness::partial(
+            "'becomes a copy of that card until end of turn' — needs \
+             EffectTarget::LastSearchResult to reference the card found by...",
+        ),
         ..Default::default()
     }
 }

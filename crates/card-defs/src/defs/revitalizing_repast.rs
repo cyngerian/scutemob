@@ -21,7 +21,9 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Put a +1/+1 counter on target creature. It gains indestructible until end of turn.".to_string(),
+        oracle_text: "Put a +1/+1 counter on target creature. It gains indestructible until end \
+                      of turn."
+            .to_string(),
         abilities: vec![
             // CR 702.12a + CR 611.3a: +1/+1 counter + indestructible until EOT on target creature.
             AbilityDefinition::Spell {
@@ -77,9 +79,9 @@ pub fn card() -> CardDefinition {
                     },
                     timing_restriction: None,
                     targets: vec![],
-                activation_condition: None,
-                activation_zone: None,
-            once_per_turn: false,
+                    activation_condition: None,
+                    activation_zone: None,
+                    once_per_turn: false,
                 },
             ],
             color_indicator: None,
@@ -94,6 +96,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

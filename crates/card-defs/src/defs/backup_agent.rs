@@ -6,9 +6,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("backup-agent"),
         name: "Backup Agent".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            white: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Soldier"]),
-        oracle_text: "Backup 1 (When this creature enters the battlefield, put a +1/+1 counter on target creature. If that creature is another creature, it gains the following abilities until end of turn.)\nLifelink".to_string(),
+        oracle_text: "Backup 1 (When this creature enters the battlefield, put a +1/+1 counter on \
+                      target creature. If that creature is another creature, it gains the \
+                      following abilities until end of turn.)\nLifelink"
+            .to_string(),
         power: Some(2),
         toughness: Some(3),
         abilities: vec![
@@ -31,6 +38,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

@@ -7,7 +7,12 @@ pub fn card() -> CardDefinition {
         name: "The World Tree".to_string(),
         mana_cost: None,
         types: supertypes(&[SuperType::Legendary], &[CardType::Land]),
-        oracle_text: "This land enters tapped.\n{T}: Add {G}.\nAs long as you control six or more lands, lands you control have \"{T}: Add one mana of any color.\"\n{W}{W}{U}{U}{B}{B}{R}{R}{G}{G}, {T}, Sacrifice this land: Search your library for any number of God cards, put them onto the battlefield, then shuffle.".to_string(),
+        oracle_text: "This land enters tapped.\n{T}: Add {G}.\nAs long as you control six or more \
+                      lands, lands you control have \"{T}: Add one mana of any \
+                      color.\"\n{W}{W}{U}{U}{B}{B}{R}{R}{G}{G}, {T}, Sacrifice this land: Search \
+                      your library for any number of God cards, put them onto the battlefield, \
+                      then shuffle."
+            .to_string(),
         abilities: vec![
             // CR 614.1c: self-replacement — this land enters tapped.
             AbilityDefinition::Replacement {
@@ -28,14 +33,20 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // TODO: Static — As long as you control six or more lands, lands you control have
             // "{T}: Add one mana of any color." DSL gap: count_threshold + grant-ability-to-permanents.
             // TODO: Activated — {W}{W}{U}{U}{B}{B}{R}{R}{G}{G}, {T}, Sacrifice: search library for
             // any number of God cards. DSL gap: multi-card search with type filter.
         ],
-        completeness: Completeness::partial("Blocked only on multi-card search: Effect::SearchLibrary has no count field (card_definition.rs:1648), so 'search for any number of God cards' is inexpressible. The six-lands static grant is NOT blocked — LayerModification::AddManaAbility (wired at layers.rs:1193) + EffectFilter::LandsYouControl + ContinuousEffectDef.condition = YouControlNOrMoreWithFilter{count:6} expresses it; rewire that clause."),
+        completeness: Completeness::partial(
+            "Blocked only on multi-card search: Effect::SearchLibrary has no count field \
+             (card_definition.rs:1648), so 'search for any number of God cards' is inexpressible. \
+             The six-lands static grant is NOT blocked — LayerModification::AddManaAbility (wired \
+             at layers.rs:1193) + EffectFilter::LandsYouControl + ContinuousEffectDef.condition = \
+             YouControlNOrMoreWithFilter{count:6} expresses it; rewire that clause.",
+        ),
         ..Default::default()
     }
 }

@@ -8,9 +8,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("springbloom-druid"),
         name: "Springbloom Druid".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Elf", "Druid"]),
-        oracle_text: "When this creature enters, you may sacrifice a land. If you do, search your library for up to two basic land cards, put them onto the battlefield tapped, then shuffle.".to_string(),
+        oracle_text: "When this creature enters, you may sacrifice a land. If you do, search your \
+                      library for up to two basic land cards, put them onto the battlefield \
+                      tapped, then shuffle."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
@@ -44,7 +51,9 @@ pub fn card() -> CardDefinition {
                             shuffle_before_placing: false,
                             also_search_graveyard: false,
                         },
-                        Effect::Shuffle { player: PlayerTarget::Controller },
+                        Effect::Shuffle {
+                            player: PlayerTarget::Controller,
+                        },
                     ])),
                 },
                 intervening_if: None,

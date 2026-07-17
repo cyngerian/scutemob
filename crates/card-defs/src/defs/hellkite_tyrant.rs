@@ -8,9 +8,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("hellkite-tyrant"),
         name: "Hellkite Tyrant".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, red: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            red: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Dragon"]),
-        oracle_text: "Flying, trample\nWhenever this creature deals combat damage to a player, gain control of all artifacts that player controls.\nAt the beginning of your upkeep, if you control twenty or more artifacts, you win the game.".to_string(),
+        oracle_text: "Flying, trample\nWhenever this creature deals combat damage to a player, \
+                      gain control of all artifacts that player controls.\nAt the beginning of \
+                      your upkeep, if you control twenty or more artifacts, you win the game."
+            .to_string(),
         power: Some(6),
         toughness: Some(5),
         abilities: vec![
@@ -38,7 +45,10 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("ENGINE-BLOCKED — 'Whenever this creature deals combat damage to a player, gain control of all artifacts that player..."),
+        completeness: Completeness::partial(
+            "ENGINE-BLOCKED — 'Whenever this creature deals combat damage to a player, gain \
+             control of all artifacts that player...",
+        ),
         ..Default::default()
     }
 }

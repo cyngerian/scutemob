@@ -10,13 +10,22 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("drana-and-linvala"),
         name: "Drana and Linvala".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, white: 2, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            white: 2,
+            black: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Vampire", "Angel"],
         ),
-        oracle_text: "Flying, vigilance\nActivated abilities of creatures your opponents control can't be activated.\nDrana and Linvala has all activated abilities of all creatures your opponents control. You may spend mana as though it were mana of any color to activate those abilities.".to_string(),
+        oracle_text: "Flying, vigilance\nActivated abilities of creatures your opponents control \
+                      can't be activated.\nDrana and Linvala has all activated abilities of all \
+                      creatures your opponents control. You may spend mana as though it were mana \
+                      of any color to activate those abilities."
+            .to_string(),
         power: Some(3),
         toughness: Some(4),
         abilities: vec![
@@ -27,7 +36,10 @@ pub fn card() -> CardDefinition {
             // TODO: Static — this has all activated abilities of opponents' creatures.
             // DSL gap: no ability-copying LayerModification in DSL. Deferred.
         ],
-        completeness: Completeness::partial("Both static abilities (ability suppression + ability copying from opponents' creatures) are not expressible in the DSL...."),
+        completeness: Completeness::partial(
+            "Both static abilities (ability suppression + ability copying from opponents' \
+             creatures) are not expressible in the DSL....",
+        ),
         ..Default::default()
     }
 }

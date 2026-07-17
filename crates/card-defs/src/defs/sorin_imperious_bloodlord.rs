@@ -24,13 +24,22 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("sorin-imperious-bloodlord"),
         name: "Sorin, Imperious Bloodlord".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            black: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Planeswalker],
             &["Sorin"],
         ),
-        oracle_text: "+1: Target creature you control gains deathtouch and lifelink until end of turn. If it's a Vampire, put a +1/+1 counter on it.\n+1: You may sacrifice a Vampire. When you do, Sorin deals 3 damage to any target and you gain 3 life.\n\u{2212}3: You may put a Vampire creature card from your hand onto the battlefield.".to_string(),
+        oracle_text: "+1: Target creature you control gains deathtouch and lifelink until end of \
+                      turn. If it's a Vampire, put a +1/+1 counter on it.\n+1: You may sacrifice \
+                      a Vampire. When you do, Sorin deals 3 damage to any target and you gain 3 \
+                      life.\n\u{2212}3: You may put a Vampire creature card from your hand onto \
+                      the battlefield."
+            .to_string(),
         starting_loyalty: Some(4),
         abilities: vec![
             // +1: Target creature you control gains deathtouch and lifelink until end of turn.
@@ -76,7 +85,10 @@ pub fn card() -> CardDefinition {
             // TODO: Interactive hand selection by creature subtype ("Vampire creature card from
             // your hand") is not expressible in the DSL. Omitted per W5 policy.
         ],
-        completeness: Completeness::partial("'If it's a Vampire, put a +1/+1 counter on it' — requires Condition::TargetHasSubtype(SubType('Vampire')) which is not..."),
+        completeness: Completeness::partial(
+            "'If it's a Vampire, put a +1/+1 counter on it' — requires \
+             Condition::TargetHasSubtype(SubType('Vampire')) which is not...",
+        ),
         ..Default::default()
     }
 }

@@ -10,7 +10,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("dragonspeaker-shaman"),
         name: "Dragonspeaker Shaman".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, red: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            red: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Barbarian", "Shaman"]),
         oracle_text: "Dragon spells you cast cost {2} less to cast.".to_string(),
         power: Some(2),

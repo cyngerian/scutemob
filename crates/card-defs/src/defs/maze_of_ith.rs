@@ -11,7 +11,9 @@ pub fn card() -> CardDefinition {
         name: "Maze of Ith".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}: Untap target attacking creature. Prevent all combat damage that would be dealt to and dealt by that creature this turn.".to_string(),
+        oracle_text: "{T}: Untap target attacking creature. Prevent all combat damage that would \
+                      be dealt to and dealt by that creature this turn."
+            .to_string(),
         abilities: vec![
             // CR 615.1: {T}: Untap target creature. Prevent all combat damage dealt to and by
             // that creature this turn. (Approximation: "attacking creature" → TargetCreature)
@@ -31,10 +33,13 @@ pub fn card() -> CardDefinition {
                 targets: vec![TargetRequirement::TargetCreature],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::known_wrong("targets any creature; the printed 'attacking creature' restriction is not enforced — TargetFilter::is_attacking now exists (PB-XA2) and should be used"),
+        completeness: Completeness::known_wrong(
+            "targets any creature; the printed 'attacking creature' restriction is not enforced — \
+             TargetFilter::is_attacking now exists (PB-XA2) and should be used",
+        ),
         ..Default::default()
     }
 }

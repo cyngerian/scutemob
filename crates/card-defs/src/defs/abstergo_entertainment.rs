@@ -7,7 +7,11 @@ pub fn card() -> CardDefinition {
         name: "Abstergo Entertainment".to_string(),
         mana_cost: None,
         types: supertypes(&[SuperType::Legendary], &[CardType::Land]),
-        oracle_text: "{T}: Add {C}.\n{1}, {T}: Add one mana of any color.\n{3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card from your graveyard to your hand, then exile all graveyards. (Artifacts, legendaries, and Sagas are historic.)".to_string(),
+        oracle_text: "{T}: Add {C}.\n{1}, {T}: Add one mana of any color.\n{3}, {T}, Exile \
+                      Abstergo Entertainment: Return up to one target historic card from your \
+                      graveyard to your hand, then exile all graveyards. (Artifacts, legendaries, \
+                      and Sagas are historic.)"
+            .to_string(),
         abilities: vec![
             // {T}: Add {C}.
             AbilityDefinition::Activated {
@@ -20,12 +24,15 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {1}, {T}: Add one mana of any color.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 1,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                 ]),
                 effect: Effect::AddManaAnyColor {
@@ -35,14 +42,19 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // TODO: {3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card
             // from your graveyard to your hand, then exile all graveyards.
             // DSL gaps: return_from_graveyard with historic filter; exile-self cost;
             // exile all graveyards effect not expressible.
         ],
-        completeness: Completeness::partial("Third ability omitted: TargetFilter has no 'historic' predicate (SpellCostFilter::Historic is cost-modifier-only), and 'exile all graveyards' is not expressible (Effect::ExileAll scans the battlefield only). The exile-self cost is available (Cost::ExileSelf)."),
+        completeness: Completeness::partial(
+            "Third ability omitted: TargetFilter has no 'historic' predicate \
+             (SpellCostFilter::Historic is cost-modifier-only), and 'exile all graveyards' is not \
+             expressible (Effect::ExileAll scans the battlefield only). The exile-self cost is \
+             available (Cost::ExileSelf).",
+        ),
         ..Default::default()
     }
 }

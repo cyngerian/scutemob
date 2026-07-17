@@ -13,13 +13,20 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("hermes-overseer-of-elpis"),
         name: "Hermes, Overseer of Elpis".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            blue: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Elder", "Wizard"],
         ),
-        oracle_text: "Whenever you cast a noncreature spell, create a 1/1 blue Bird creature token with flying and vigilance.\nWhenever you attack with one or more Birds, scry 2.".to_string(),
+        oracle_text: "Whenever you cast a noncreature spell, create a 1/1 blue Bird creature \
+                      token with flying and vigilance.\nWhenever you attack with one or more \
+                      Birds, scry 2."
+            .to_string(),
         power: Some(2),
         toughness: Some(4),
         abilities: vec![
@@ -32,7 +39,7 @@ pub fn card() -> CardDefinition {
                     spell_type_filter: None,
                     noncreature_only: true,
                     chosen_subtype_filter: false,
-                spell_subtype_filter: None,
+                    spell_subtype_filter: None,
                 },
                 effect: Effect::CreateToken {
                     spec: TokenSpec {
@@ -44,7 +51,9 @@ pub fn card() -> CardDefinition {
                         toughness: 1,
                         count: EffectAmount::Fixed(1),
                         supertypes: imbl::OrdSet::new(),
-                        keywords: [KeywordAbility::Flying, KeywordAbility::Vigilance].into_iter().collect(),
+                        keywords: [KeywordAbility::Flying, KeywordAbility::Vigilance]
+                            .into_iter()
+                            .collect(),
                         tapped: false,
                         enters_attacking: false,
                         mana_color: None,
@@ -63,7 +72,10 @@ pub fn card() -> CardDefinition {
             // WheneverCreatureYouControlAttacks fires per-creature (not per-combat),
             // and WheneverYouAttack has no subtype filter. Omitted per W5 policy.
         ],
-        completeness: Completeness::partial("(second ability): 'Whenever you attack with one or more Birds' requires a once-per-combat attack trigger gated on..."),
+        completeness: Completeness::partial(
+            "(second ability): 'Whenever you attack with one or more Birds' requires a \
+             once-per-combat attack trigger gated on...",
+        ),
         ..Default::default()
     }
 }

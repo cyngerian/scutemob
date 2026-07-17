@@ -10,9 +10,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("the-soul-stone"),
         name: "The Soul Stone".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Artifact], &["Infinity Stone"]),
-        oracle_text: "Indestructible\n{T}: Add {B}.\n{6}{B}, {T}, Exile a creature you control: Harness The Soul Stone. (Once harnessed, its ∞ ability is active.)\n∞ — At the beginning of your upkeep, return target creature card from your graveyard to the battlefield.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 1,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Artifact],
+            &["Infinity Stone"],
+        ),
+        oracle_text: "Indestructible\n{T}: Add {B}.\n{6}{B}, {T}, Exile a creature you control: \
+                      Harness The Soul Stone. (Once harnessed, its ∞ ability is active.)\n∞ — At \
+                      the beginning of your upkeep, return target creature card from your \
+                      graveyard to the battlefield."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Indestructible),
             AbilityDefinition::Activated {
@@ -25,10 +37,13 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("'Harness The Soul Stone' is a custom Infinity Stone mechanic (digital-only?). The ∞ ability (at beginning of upkeep..."),
+        completeness: Completeness::partial(
+            "'Harness The Soul Stone' is a custom Infinity Stone mechanic (digital-only?). The ∞ \
+             ability (at beginning of upkeep...",
+        ),
         ..Default::default()
     }
 }

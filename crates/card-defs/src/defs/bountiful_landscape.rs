@@ -11,7 +11,10 @@ pub fn card() -> CardDefinition {
         name: "Bountiful Landscape".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}: Add {C}.\n{T}, Sacrifice this land: Search your library for a basic Forest, Island, or Mountain card, put it onto the battlefield tapped, then shuffle.\nCycling {G}{U}{R} ({G}{U}{R}, Discard this card: Draw a card.)".to_string(),
+        oracle_text: "{T}: Add {C}.\n{T}, Sacrifice this land: Search your library for a basic \
+                      Forest, Island, or Mountain card, put it onto the battlefield tapped, then \
+                      shuffle.\nCycling {G}{U}{R} ({G}{U}{R}, Discard this card: Draw a card.)"
+            .to_string(),
         abilities: vec![
             // {T}: Add {C}.
             AbilityDefinition::Activated {
@@ -49,7 +52,9 @@ pub fn card() -> CardDefinition {
                         shuffle_before_placing: false,
                         also_search_graveyard: false,
                     },
-                    Effect::Shuffle { player: PlayerTarget::Controller },
+                    Effect::Shuffle {
+                        player: PlayerTarget::Controller,
+                    },
                 ]),
                 timing_restriction: None,
                 targets: vec![],
@@ -60,7 +65,12 @@ pub fn card() -> CardDefinition {
             // Cycling {G}{U}{R}
             AbilityDefinition::Keyword(KeywordAbility::Cycling),
             AbilityDefinition::Cycling {
-                cost: ManaCost { green: 1, blue: 1, red: 1, ..Default::default() },
+                cost: ManaCost {
+                    green: 1,
+                    blue: 1,
+                    red: 1,
+                    ..Default::default()
+                },
             },
         ],
         ..Default::default()

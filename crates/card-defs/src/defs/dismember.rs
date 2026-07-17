@@ -9,11 +9,16 @@ pub fn card() -> CardDefinition {
         name: "Dismember".to_string(),
         mana_cost: Some(ManaCost {
             generic: 1,
-            phyrexian: vec![PhyrexianMana::Single(ManaColor::Black), PhyrexianMana::Single(ManaColor::Black)],
+            phyrexian: vec![
+                PhyrexianMana::Single(ManaColor::Black),
+                PhyrexianMana::Single(ManaColor::Black),
+            ],
             ..Default::default()
         }),
         types: types(&[CardType::Instant]),
-        oracle_text: "({B/P} can be paid with either {B} or 2 life.)\nTarget creature gets -5/-5 until end of turn.".to_string(),
+        oracle_text: "({B/P} can be paid with either {B} or 2 life.)\nTarget creature gets -5/-5 \
+                      until end of turn."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::ApplyContinuousEffect {
                 effect_def: Box::new(ContinuousEffectDef {

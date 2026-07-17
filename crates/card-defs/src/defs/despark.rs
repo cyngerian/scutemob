@@ -6,7 +6,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("despark"),
         name: "Despark".to_string(),
-        mana_cost: Some(ManaCost { white: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            white: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
         oracle_text: "Exile target permanent with mana value 4 or greater.".to_string(),
         abilities: vec![AbilityDefinition::Spell {

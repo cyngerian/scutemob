@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("keeper-of-fables"),
         name: "Keeper of Fables".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            green: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Cat"]),
-        oracle_text: "Whenever one or more non-Human creatures you control deal combat damage to a player, draw a card.".to_string(),
+        oracle_text: "Whenever one or more non-Human creatures you control deal combat damage to \
+                      a player, draw a card."
+            .to_string(),
         power: Some(4),
         toughness: Some(5),
         abilities: vec![
@@ -18,7 +24,10 @@ pub fn card() -> CardDefinition {
             // type-filtered (non-Human) creature-you-control condition. No such trigger
             // condition exists in the DSL.
         ],
-        completeness: Completeness::partial("Stale — remove marker after authoring. Trigger + non-Human filter both exist (card_definition.rs:3245, dispatch abilities.rs:4959)."),
+        completeness: Completeness::partial(
+            "Stale — remove marker after authoring. Trigger + non-Human filter both exist \
+             (card_definition.rs:3245, dispatch abilities.rs:4959).",
+        ),
         ..Default::default()
     }
 }

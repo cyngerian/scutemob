@@ -11,9 +11,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("ulvenwald-hydra"),
         name: "Ulvenwald Hydra".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            green: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Hydra"]),
-        oracle_text: "Reach\nUlvenwald Hydra's power and toughness are each equal to the number of lands you control.\nWhen this creature enters, you may search your library for a land card, put it onto the battlefield tapped, then shuffle.".to_string(),
+        oracle_text: "Reach\nUlvenwald Hydra's power and toughness are each equal to the number \
+                      of lands you control.\nWhen this creature enters, you may search your \
+                      library for a land card, put it onto the battlefield tapped, then shuffle."
+            .to_string(),
         // */* CDA — engine handles via characteristic-defining ability
         power: None,
         toughness: None,
@@ -52,7 +59,9 @@ pub fn card() -> CardDefinition {
                         shuffle_before_placing: false,
                         also_search_graveyard: false,
                     },
-                    Effect::Shuffle { player: PlayerTarget::Controller },
+                    Effect::Shuffle {
+                        player: PlayerTarget::Controller,
+                    },
                 ]),
                 intervening_if: None,
                 targets: vec![],
@@ -60,7 +69,9 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::known_wrong("'may search' is modeled as an unconditional search — the controller cannot decline"),
+        completeness: Completeness::known_wrong(
+            "'may search' is modeled as an unconditional search — the controller cannot decline",
+        ),
         ..Default::default()
     }
 }

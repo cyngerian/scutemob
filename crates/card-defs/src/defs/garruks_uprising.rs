@@ -9,9 +9,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("garruks-uprising"),
         name: "Garruk's Uprising".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "When this enchantment enters, if you control a creature with power 4 or greater, draw a card.\nCreatures you control have trample.\nWhenever a creature you control with power 4 or greater enters, draw a card.".to_string(),
+        oracle_text: "When this enchantment enters, if you control a creature with power 4 or \
+                      greater, draw a card.\nCreatures you control have trample.\nWhenever a \
+                      creature you control with power 4 or greater enters, draw a card."
+            .to_string(),
         abilities: vec![
             // TODO: "If you control creature with power 4+" intervening-if on ETB.
             AbilityDefinition::Triggered {
@@ -57,7 +64,14 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("ETB 'if you control a creature with power 4 or greater' is modeled as an unconditional draw. InterveningIf has no board-state variant (only ControllerLifeAtLeast / SourceHadNoCounterOfType), so CR 603.4's trigger-time check is inexpressible. Effect::Conditional + Condition::YouControlNOrMoreWithFilter would fix the resolution-time half; the trigger-time half remains blocked. Other two clauses (trample static, power-4+ ETB draw trigger) are correct."),
+        completeness: Completeness::partial(
+            "ETB 'if you control a creature with power 4 or greater' is modeled as an \
+             unconditional draw. InterveningIf has no board-state variant (only \
+             ControllerLifeAtLeast / SourceHadNoCounterOfType), so CR 603.4's trigger-time check \
+             is inexpressible. Effect::Conditional + Condition::YouControlNOrMoreWithFilter would \
+             fix the resolution-time half; the trigger-time half remains blocked. Other two \
+             clauses (trample static, power-4+ ETB draw trigger) are correct.",
+        ),
         ..Default::default()
     }
 }

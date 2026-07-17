@@ -10,9 +10,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("by-invitation-only"),
         name: "By Invitation Only".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, white: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            white: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Choose a number between 0 and 13. Each player sacrifices that many creatures of their choice.".to_string(),
+        oracle_text: "Choose a number between 0 and 13. Each player sacrifices that many \
+                      creatures of their choice."
+            .to_string(),
         abilities: vec![
             // TODO: Interactive number choice (0-13) deferred to M10.
             // TODO: Creature filter applicable but count approximation (always 1) still wrong.
@@ -27,7 +33,12 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::partial("'Choose a number between 0 and 13' — interactive numeric choice is not expressible (no EffectAmount/Effect variant takes player input); count is hardcoded to 1. The creature filter IS now expressible via SacrificePermanents.filter (PB-SFT) and should be wired."),
+        completeness: Completeness::partial(
+            "'Choose a number between 0 and 13' — interactive numeric choice is not expressible \
+             (no EffectAmount/Effect variant takes player input); count is hardcoded to 1. The \
+             creature filter IS now expressible via SacrificePermanents.filter (PB-SFT) and \
+             should be wired.",
+        ),
         ..Default::default()
     }
 }

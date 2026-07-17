@@ -9,9 +9,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("ox-of-agonas"),
         name: "Ox of Agonas".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, red: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            red: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Ox"]),
-        oracle_text: "When Ox of Agonas enters the battlefield, discard your hand, then draw three cards.\nEscape — {R}{R}, Exile eight other cards from your graveyard. (You may cast this card from your graveyard for its escape cost.)".to_string(),
+        oracle_text: "When Ox of Agonas enters the battlefield, discard your hand, then draw \
+                      three cards.\nEscape — {R}{R}, Exile eight other cards from your graveyard. \
+                      (You may cast this card from your graveyard for its escape cost.)"
+            .to_string(),
         power: Some(4),
         toughness: Some(2),
         abilities: vec![
@@ -20,7 +27,10 @@ pub fn card() -> CardDefinition {
             // CR 702.138a: Escape cost ({R}{R}) and exile count (8).
             AbilityDefinition::AltCastAbility {
                 kind: AltCostKind::Escape,
-                cost: ManaCost { red: 2, ..Default::default() },
+                cost: ManaCost {
+                    red: 2,
+                    ..Default::default()
+                },
                 details: Some(AltCastDetails::Escape { exile_count: 8 }),
             },
             // ETB: discard hand then draw 3.
@@ -56,6 +66,10 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::known_wrong("ETB uses DiscardCards Fixed(7) instead of EffectAmount::HandSize, so a hand of 8+ is under-discarded; AND the oracle clause 'This creature escapes with a +1/+1 counter on it' is entirely unimplemented and the stored oracle_text is stale"),
+        completeness: Completeness::known_wrong(
+            "ETB uses DiscardCards Fixed(7) instead of EffectAmount::HandSize, so a hand of 8+ is \
+             under-discarded; AND the oracle clause 'This creature escapes with a +1/+1 counter \
+             on it' is entirely unimplemented and the stored oracle_text is stale",
+        ),
     }
 }

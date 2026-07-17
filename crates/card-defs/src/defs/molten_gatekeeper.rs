@@ -7,9 +7,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("molten-gatekeeper"),
         name: "Molten Gatekeeper".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 1,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Artifact, CardType::Creature], &["Golem"]),
-        oracle_text: "Whenever another creature you control enters, this creature deals 1 damage to each opponent.\nUnearth {R} ({R}: Return this card from your graveyard to the battlefield. It gains haste. Exile it at the beginning of the next end step or if it would leave the battlefield. Unearth only as a sorcery.)".to_string(),
+        oracle_text: "Whenever another creature you control enters, this creature deals 1 damage \
+                      to each opponent.\nUnearth {R} ({R}: Return this card from your graveyard \
+                      to the battlefield. It gains haste. Exile it at the beginning of the next \
+                      end step or if it would leave the battlefield. Unearth only as a sorcery.)"
+            .to_string(),
         power: Some(2),
         toughness: Some(3),
         abilities: vec![
@@ -39,7 +47,10 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Unearth),
             AbilityDefinition::AltCastAbility {
                 kind: AltCostKind::Unearth,
-                cost: ManaCost { red: 1, ..Default::default() },
+                cost: ManaCost {
+                    red: 1,
+                    ..Default::default()
+                },
                 details: None,
             },
         ],

@@ -22,9 +22,19 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Creature spells you control can't be countered.\nNontoken creatures you control have riot. (They enter with your choice of a +1/+1 counter or haste.)".to_string(),
+        oracle_text: "Creature spells you control can't be countered.\nNontoken creatures you \
+                      control have riot. (They enter with your choice of a +1/+1 counter or \
+                      haste.)"
+            .to_string(),
         abilities: vec![],
-        completeness: Completeness::inert("Blocked on two things: (1) 'Creature spells you control can't be countered' — cant_be_countered is a self-only field on AbilityDefinition::Spell; no continuous effect confers uncounterability on other players' or your other spells on the stack. (2) 'Nontoken creatures you control have riot' — KeywordAbility::Riot exists and filtered blanket AddKeywords grants exist (PB-6), but EffectFilter has no nontoken variant, so the grant would wrongly include tokens."),
+        completeness: Completeness::inert(
+            "Blocked on two things: (1) 'Creature spells you control can't be countered' — \
+             cant_be_countered is a self-only field on AbilityDefinition::Spell; no continuous \
+             effect confers uncounterability on other players' or your other spells on the stack. \
+             (2) 'Nontoken creatures you control have riot' — KeywordAbility::Riot exists and \
+             filtered blanket AddKeywords grants exist (PB-6), but EffectFilter has no nontoken \
+             variant, so the grant would wrongly include tokens.",
+        ),
         ..Default::default()
     }
 }

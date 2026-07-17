@@ -8,13 +8,19 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("mikaeus-the-unhallowed"),
         name: "Mikaeus, the Unhallowed".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, black: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            black: 3,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Zombie", "Cleric"],
         ),
-        oracle_text: "Intimidate\nWhenever a Human deals damage to you, destroy it.\nOther non-Human creatures you control get +1/+1 and have undying.".to_string(),
+        oracle_text: "Intimidate\nWhenever a Human deals damage to you, destroy it.\nOther \
+                      non-Human creatures you control get +1/+1 and have undying."
+            .to_string(),
         power: Some(5),
         toughness: Some(5),
         abilities: vec![
@@ -26,9 +32,9 @@ pub fn card() -> CardDefinition {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::PtModify,
                     modification: LayerModification::ModifyBoth(1),
-                    filter: EffectFilter::OtherCreaturesYouControlExcludingSubtype(
-                        SubType("Human".to_string()),
-                    ),
+                    filter: EffectFilter::OtherCreaturesYouControlExcludingSubtype(SubType(
+                        "Human".to_string(),
+                    )),
                     duration: EffectDuration::WhileSourceOnBattlefield,
                     condition: None,
                 },
@@ -38,15 +44,18 @@ pub fn card() -> CardDefinition {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::Ability,
                     modification: LayerModification::AddKeyword(KeywordAbility::Undying),
-                    filter: EffectFilter::OtherCreaturesYouControlExcludingSubtype(
-                        SubType("Human".to_string()),
-                    ),
+                    filter: EffectFilter::OtherCreaturesYouControlExcludingSubtype(SubType(
+                        "Human".to_string(),
+                    )),
                     duration: EffectDuration::WhileSourceOnBattlefield,
                     condition: None,
                 },
             },
         ],
-        completeness: Completeness::partial("'Whenever a Human deals damage to you, destroy it.' Blocked: trigger on damage-by-subtype not in DSL. CR 613.4c (Layer..."),
+        completeness: Completeness::partial(
+            "'Whenever a Human deals damage to you, destroy it.' Blocked: trigger on \
+             damage-by-subtype not in DSL. CR 613.4c (Layer...",
+        ),
         ..Default::default()
     }
 }

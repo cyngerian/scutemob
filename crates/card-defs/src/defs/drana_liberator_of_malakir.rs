@@ -8,13 +8,20 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("drana-liberator-of-malakir"),
         name: "Drana, Liberator of Malakir".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 2,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Vampire", "Ally"],
         ),
-        oracle_text: "Flying, first strike\nWhenever Drana, Liberator of Malakir deals combat damage to a player, put a +1/+1 counter on each attacking creature you control.".to_string(),
+        oracle_text: "Flying, first strike\nWhenever Drana, Liberator of Malakir deals combat \
+                      damage to a player, put a +1/+1 counter on each attacking creature you \
+                      control."
+            .to_string(),
         power: Some(2),
         toughness: Some(3),
         abilities: vec![

@@ -15,7 +15,11 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: creature_types(&["Goblin"]),
-        oracle_text: "Haste (This creature can attack and {T} as soon as it comes under your control.)\nWhen this creature enters, reveal the top four cards of your library. Put all Goblin cards revealed this way into your hand and the rest on the bottom of your library in any order.".to_string(),
+        oracle_text: "Haste (This creature can attack and {T} as soon as it comes under your \
+                      control.)\nWhen this creature enters, reveal the top four cards of your \
+                      library. Put all Goblin cards revealed this way into your hand and the rest \
+                      on the bottom of your library in any order."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![

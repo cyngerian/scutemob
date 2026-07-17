@@ -9,13 +9,22 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("ziatora-the-incinerator"),
         name: "Ziatora, the Incinerator".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, black: 1, red: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            black: 1,
+            red: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Demon", "Dragon"],
         ),
-        oracle_text: "Flying\nAt the beginning of your end step, you may sacrifice another creature. When you do, Ziatora deals damage equal to that creature's power to any target and you create three Treasure tokens.".to_string(),
+        oracle_text: "Flying\nAt the beginning of your end step, you may sacrifice another \
+                      creature. When you do, Ziatora deals damage equal to that creature's power \
+                      to any target and you create three Treasure tokens."
+            .to_string(),
         power: Some(6),
         toughness: Some(6),
         abilities: vec![
@@ -30,7 +39,15 @@ pub fn card() -> CardDefinition {
             // 3. Damage amount = sacrificed creature's power (dynamic LKI value) not
             //    expressible — no EffectAmount::SacrificedCreaturePower variant.
         ],
-        completeness: Completeness::partial("Blocked on (1) optional sacrifice inside a triggered ability — Triggered has no `may`/optional field, Cost::Sacrifice is activation-cost-only, and Effect::Choose is non-interactive (always executes choices.first(), so it would force the sacrifice); (2) reflexive 'when you do' triggered ability. NOT blocked on the damage amount — EffectAmount::PowerOfSacrificedCreature shipped in PB-P (card_definition.rs:2611), but ctx.sacrificed_creature_powers is only populated on the activated-ability-cost and spell-additional-cost paths, so it would need threading to the trigger path too."),
+        completeness: Completeness::partial(
+            "Blocked on (1) optional sacrifice inside a triggered ability — Triggered has no \
+             `may`/optional field, Cost::Sacrifice is activation-cost-only, and Effect::Choose is \
+             non-interactive (always executes choices.first(), so it would force the sacrifice); \
+             (2) reflexive 'when you do' triggered ability. NOT blocked on the damage amount — \
+             EffectAmount::PowerOfSacrificedCreature shipped in PB-P (card_definition.rs:2611), \
+             but ctx.sacrificed_creature_powers is only populated on the activated-ability-cost \
+             and spell-additional-cost paths, so it would need threading to the trigger path too.",
+        ),
         ..Default::default()
     }
 }

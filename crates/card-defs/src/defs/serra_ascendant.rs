@@ -12,9 +12,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("serra-ascendant"),
         name: "Serra Ascendant".to_string(),
-        mana_cost: Some(ManaCost { white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            white: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Monk"]),
-        oracle_text: "Lifelink (Damage dealt by this creature also causes you to gain that much life.)\nAs long as you have 30 or more life, this creature gets +5/+5 and has flying.".to_string(),
+        oracle_text: "Lifelink (Damage dealt by this creature also causes you to gain that much \
+                      life.)\nAs long as you have 30 or more life, this creature gets +5/+5 and \
+                      has flying."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![

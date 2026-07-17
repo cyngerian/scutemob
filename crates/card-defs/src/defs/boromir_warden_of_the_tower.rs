@@ -19,19 +19,32 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("boromir-warden-of-the-tower"),
         name: "Boromir, Warden of the Tower".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            white: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Human", "Soldier"],
         ),
-        oracle_text: "Vigilance\nWhenever an opponent casts a spell, if no mana was spent to cast it, counter that spell.\nSacrifice Boromir: Creatures you control gain indestructible until end of turn. The Ring tempts you.".to_string(),
+        oracle_text: "Vigilance\nWhenever an opponent casts a spell, if no mana was spent to cast \
+                      it, counter that spell.\nSacrifice Boromir: Creatures you control gain \
+                      indestructible until end of turn. The Ring tempts you."
+            .to_string(),
         power: Some(3),
         toughness: Some(3),
-        abilities: vec![
-            AbilityDefinition::Keyword(KeywordAbility::Vigilance),
-        ],
-        completeness: Completeness::partial("Blocked on an intervening-if testing 'no mana was spent to cast it' — no Condition/InterveningIf variant tracks mana spent on a spell. WheneverOpponentCastsSpell DOES exist. The 'Sacrifice: creatures you control gain indestructible, The Ring tempts you' ability is fully expressible now (Cost::SacrificeSelf + EffectFilter::CreaturesYouControl AddKeyword(Indestructible) UntilEndOfTurn + Effect::TheRingTemptsYou — see heroic_intervention.rs) and should be authored."),
+        abilities: vec![AbilityDefinition::Keyword(KeywordAbility::Vigilance)],
+        completeness: Completeness::partial(
+            "Blocked on an intervening-if testing 'no mana was spent to cast it' — no \
+             Condition/InterveningIf variant tracks mana spent on a spell. \
+             WheneverOpponentCastsSpell DOES exist. The 'Sacrifice: creatures you control gain \
+             indestructible, The Ring tempts you' ability is fully expressible now \
+             (Cost::SacrificeSelf + EffectFilter::CreaturesYouControl AddKeyword(Indestructible) \
+             UntilEndOfTurn + Effect::TheRingTemptsYou — see heroic_intervention.rs) and should \
+             be authored.",
+        ),
         ..Default::default()
     }
 }

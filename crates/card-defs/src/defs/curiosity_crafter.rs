@@ -13,9 +13,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("curiosity-crafter"),
         name: "Curiosity Crafter".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            blue: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Bird", "Wizard"]),
-        oracle_text: "Flying\nYou have no maximum hand size.\nWhenever a creature token you control deals combat damage to a player, draw a card.".to_string(),
+        oracle_text: "Flying\nYou have no maximum hand size.\nWhenever a creature token you \
+                      control deals combat damage to a player, draw a card."
+            .to_string(),
         power: Some(3),
         toughness: Some(3),
         abilities: vec![
@@ -23,12 +29,13 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::NoMaxHandSize),
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer {
-                    filter: Some(TargetFilter {
-                        is_token: true,
-                        ..Default::default()
-                    }),
-                },
+                trigger_condition:
+                    TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer {
+                        filter: Some(TargetFilter {
+                            is_token: true,
+                            ..Default::default()
+                        }),
+                    },
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,
                     count: EffectAmount::Fixed(1),

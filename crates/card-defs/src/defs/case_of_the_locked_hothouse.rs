@@ -9,9 +9,18 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("case-of-the-locked-hothouse"),
         name: "Case of the Locked Hothouse".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            green: 1,
+            ..Default::default()
+        }),
         types: full_types(&[], &[CardType::Enchantment], &["Case"]),
-        oracle_text: "You may play an additional land on each of your turns.\nTo solve \u{2014} You control seven or more lands. (If unsolved, solve at the beginning of your end step.)\nSolved \u{2014} You may look at the top card of your library any time, and you may play lands and cast creature and enchantment spells from the top of your library.".to_string(),
+        oracle_text: "You may play an additional land on each of your turns.\nTo solve \u{2014} \
+                      You control seven or more lands. (If unsolved, solve at the beginning of \
+                      your end step.)\nSolved \u{2014} You may look at the top card of your \
+                      library any time, and you may play lands and cast creature and enchantment \
+                      spells from the top of your library."
+            .to_string(),
         abilities: vec![
             // CR 305.2: Additional land play (always active, both solved and unsolved).
             AbilityDefinition::AdditionalLandPlays { count: 1 },

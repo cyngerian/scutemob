@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("huddle-up"),
         name: "Huddle Up".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            blue: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Assist (Another player may pay up to {2} of this spell's cost.)\nTwo target players each draw a card.".to_string(),
+        oracle_text: "Assist (Another player may pay up to {2} of this spell's cost.)\nTwo target \
+                      players each draw a card."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Assist),
             AbilityDefinition::Spell {

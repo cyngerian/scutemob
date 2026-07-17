@@ -7,9 +7,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("champion-of-lambholt"),
         name: "Champion of Lambholt".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            green: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Warrior"]),
-        oracle_text: "Creatures with power less than Champion of Lambholt's power can't block creatures you control.\nWhenever another creature you control enters, put a +1/+1 counter on Champion of Lambholt.".to_string(),
+        oracle_text: "Creatures with power less than Champion of Lambholt's power can't block \
+                      creatures you control.\nWhenever another creature you control enters, put a \
+                      +1/+1 counter on Champion of Lambholt."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
@@ -36,7 +43,10 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("DSL gap — 'Creatures with power less than ~'s power can't block creatures you control.' Dynamic blocking restriction..."),
+        completeness: Completeness::partial(
+            "DSL gap — 'Creatures with power less than ~'s power can't block creatures you \
+             control.' Dynamic blocking restriction...",
+        ),
         ..Default::default()
     }
 }

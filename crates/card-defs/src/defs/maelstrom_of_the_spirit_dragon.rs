@@ -9,7 +9,11 @@ pub fn card() -> CardDefinition {
         name: "Maelstrom of the Spirit Dragon".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}: Add {C}.\n{T}: Add one mana of any color. Spend this mana only to cast a Dragon spell or an Omen spell.\n{4}, {T}, Sacrifice this land: Search your library for a Dragon card, reveal it, put it into your hand, then shuffle.".to_string(),
+        oracle_text: "{T}: Add {C}.\n{T}: Add one mana of any color. Spend this mana only to cast \
+                      a Dragon spell or an Omen spell.\n{4}, {T}, Sacrifice this land: Search \
+                      your library for a Dragon card, reveal it, put it into your hand, then \
+                      shuffle."
+            .to_string(),
         abilities: vec![
             // {T}: Add {C}.
             AbilityDefinition::Activated {
@@ -64,7 +68,7 @@ pub fn card() -> CardDefinition {
                             owner: PlayerTarget::Controller,
                         },
                         shuffle_before_placing: false,
-                    also_search_graveyard: false,
+                        also_search_graveyard: false,
                     },
                     Effect::Shuffle {
                         player: PlayerTarget::Controller,
@@ -77,7 +81,14 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
         ],
-        completeness: Completeness::known_wrong("CR 106.1b: '{T}: Add one mana of any color. Spend this mana only to cast a Dragon spell or an Omen spell' adds one COLORLESS mana. The RESTRICTION is honoured (probed: pool.restricted = [Colorless x1 (SubtypeOrSubtype(Dragon, Omen))]) but colorless is not a color. Also CR 605.1a/605.3b: Effect::AddManaAnyColorRestricted has no try_as_tap_mana_ability arm, so despite a bare Cost::Tap this ability is a stack-using activated ability. The '{T}: Add {C}' ability is correct."),
+        completeness: Completeness::known_wrong(
+            "CR 106.1b: '{T}: Add one mana of any color. Spend this mana only to cast a Dragon \
+             spell or an Omen spell' adds one COLORLESS mana. The RESTRICTION is honoured \
+             (probed: pool.restricted = [Colorless x1 (SubtypeOrSubtype(Dragon, Omen))]) but \
+             colorless is not a color. Also CR 605.1a/605.3b: Effect::AddManaAnyColorRestricted \
+             has no try_as_tap_mana_ability arm, so despite a bare Cost::Tap this ability is a \
+             stack-using activated ability. The '{T}: Add {C}' ability is correct.",
+        ),
         ..Default::default()
     }
 }

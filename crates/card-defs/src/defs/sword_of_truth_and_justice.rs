@@ -9,9 +9,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("sword-of-truth-and-justice"),
         name: "Sword of Truth and Justice".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Artifact], &["Equipment"]),
-        oracle_text: "Equipped creature gets +2/+2 and has protection from white and from blue.\nWhenever equipped creature deals combat damage to a player, put a +1/+1 counter on a creature you control, then proliferate.\nEquip {2}".to_string(),
+        oracle_text: "Equipped creature gets +2/+2 and has protection from white and from \
+                      blue.\nWhenever equipped creature deals combat damage to a player, put a \
+                      +1/+1 counter on a creature you control, then proliferate.\nEquip {2}"
+            .to_string(),
         abilities: vec![
             // Layer 7c: equipped creature gets +2/+2.
             AbilityDefinition::Static {
@@ -27,7 +33,9 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Static {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::Ability,
-                    modification: LayerModification::AddKeyword(KeywordAbility::ProtectionFrom(ProtectionQuality::FromColor(Color::White))),
+                    modification: LayerModification::AddKeyword(KeywordAbility::ProtectionFrom(
+                        ProtectionQuality::FromColor(Color::White),
+                    )),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
                     condition: None,
@@ -37,7 +45,9 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Static {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::Ability,
-                    modification: LayerModification::AddKeyword(KeywordAbility::ProtectionFrom(ProtectionQuality::FromColor(Color::Blue))),
+                    modification: LayerModification::AddKeyword(KeywordAbility::ProtectionFrom(
+                        ProtectionQuality::FromColor(Color::Blue),
+                    )),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
                     condition: None,

@@ -8,13 +8,22 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("brallin-skyshark-rider"),
         name: "Brallin, Skyshark Rider".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            red: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Human", "Shaman"],
         ),
-        oracle_text: "Partner with Shabraz, the Skyshark (When this creature enters, target player may put Shabraz into their hand from their library, then shuffle.)\nWhenever you discard a card, put a +1/+1 counter on Brallin and it deals 1 damage to each opponent.\n{R}: Target Shark gains trample until end of turn.".to_string(),
+        oracle_text: "Partner with Shabraz, the Skyshark (When this creature enters, target \
+                      player may put Shabraz into their hand from their library, then \
+                      shuffle.)\nWhenever you discard a card, put a +1/+1 counter on Brallin and \
+                      it deals 1 damage to each opponent.\n{R}: Target Shark gains trample until \
+                      end of turn."
+            .to_string(),
         power: Some(3),
         toughness: Some(3),
         abilities: vec![
@@ -47,7 +56,10 @@ pub fn card() -> CardDefinition {
             },
             // CR 602.2: "{R}: Target Shark gains trample until end of turn."
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { red: 1, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    red: 1,
+                    ..Default::default()
+                }),
                 effect: Effect::ApplyContinuousEffect {
                     effect_def: Box::new(ContinuousEffectDef {
                         layer: EffectLayer::Ability,

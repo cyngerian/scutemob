@@ -28,7 +28,10 @@ pub fn card() -> CardDefinition {
                 &[CardType::Creature],
                 &["Eldrazi", "Ooze"],
             ),
-            oracle_text: "Trample, haste\nWhenever Hanweir, the Writhing Township attacks, create two 3/2 colorless Eldrazi Horror creature tokens that are tapped and attacking.".to_string(),
+            oracle_text: "Trample, haste\nWhenever Hanweir, the Writhing Township attacks, create \
+                          two 3/2 colorless Eldrazi Horror creature tokens that are tapped and \
+                          attacking."
+                .to_string(),
             abilities: vec![
                 AbilityDefinition::Keyword(KeywordAbility::Trample),
                 AbilityDefinition::Keyword(KeywordAbility::Haste),

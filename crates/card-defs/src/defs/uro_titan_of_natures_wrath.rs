@@ -9,13 +9,22 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("uro-titan-of-natures-wrath"),
         name: "Uro, Titan of Nature's Wrath".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, green: 1, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            green: 1,
+            blue: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Elder", "Giant"],
         ),
-        oracle_text: "When Uro enters, sacrifice it unless it escaped.\nWhenever Uro enters or attacks, you gain 3 life and draw a card, then you may put a land card from your hand onto the battlefield.\nEscape\u{2014}{G}{G}{U}{U}, Exile five other cards from your graveyard.".to_string(),
+        oracle_text: "When Uro enters, sacrifice it unless it escaped.\nWhenever Uro enters or \
+                      attacks, you gain 3 life and draw a card, then you may put a land card from \
+                      your hand onto the battlefield.\nEscape\u{2014}{G}{G}{U}{U}, Exile five \
+                      other cards from your graveyard."
+            .to_string(),
         power: Some(6),
         toughness: Some(6),
         abilities: vec![
@@ -27,11 +36,18 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Escape),
             AbilityDefinition::AltCastAbility {
                 kind: AltCostKind::Escape,
-                cost: ManaCost { green: 2, blue: 2, ..Default::default() },
+                cost: ManaCost {
+                    green: 2,
+                    blue: 2,
+                    ..Default::default()
+                },
                 details: None,
             },
         ],
-        completeness: Completeness::partial("'Sacrifice unless it escaped' ETB — needs cast_alt_cost check. Missing sacrifice means hardcast Uro stays as 6/6..."),
+        completeness: Completeness::partial(
+            "'Sacrifice unless it escaped' ETB — needs cast_alt_cost check. Missing sacrifice \
+             means hardcast Uro stays as 6/6...",
+        ),
         ..Default::default()
     }
 }

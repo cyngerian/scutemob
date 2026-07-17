@@ -8,9 +8,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("incarnation-technique"),
         name: "Incarnation Technique".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            black: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Demonstrate (When you cast this spell, you may copy it. If you do, choose an opponent to also copy it.)\nMill five cards, then return a creature card from your graveyard to the battlefield.".to_string(),
+        oracle_text: "Demonstrate (When you cast this spell, you may copy it. If you do, choose \
+                      an opponent to also copy it.)\nMill five cards, then return a creature card \
+                      from your graveyard to the battlefield."
+            .to_string(),
         abilities: vec![
             // TODO: Demonstrate is a keyword that triggers when the spell is cast and lets
             // you copy it (with an opponent also getting a copy). No DSL support for Demonstrate.
@@ -20,7 +27,10 @@ pub fn card() -> CardDefinition {
             // Empty per W5 policy — wrong implementation would miss demonstrate trigger and
             // the non-targeted graveyard choice.
         ],
-        completeness: Completeness::partial("Demonstrate is a keyword that triggers when the spell is cast and lets you copy it (with an opponent also getting a..."),
+        completeness: Completeness::partial(
+            "Demonstrate is a keyword that triggers when the spell is cast and lets you copy it \
+             (with an opponent also getting a...",
+        ),
         ..Default::default()
     }
 }

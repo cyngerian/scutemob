@@ -12,13 +12,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("archetype-of-endurance"),
         name: "Archetype of Endurance".to_string(),
-        mana_cost: Some(ManaCost { generic: 6, green: 2, ..Default::default() }),
-        types: full_types(
-            &[],
-            &[CardType::Enchantment, CardType::Creature],
-            &["Boar"],
-        ),
-        oracle_text: "Creatures you control have hexproof.\nCreatures your opponents control lose hexproof and can't have or gain hexproof.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 6,
+            green: 2,
+            ..Default::default()
+        }),
+        types: full_types(&[], &[CardType::Enchantment, CardType::Creature], &["Boar"]),
+        oracle_text: "Creatures you control have hexproof.\nCreatures your opponents control lose \
+                      hexproof and can't have or gain hexproof."
+            .to_string(),
         power: Some(6),
         toughness: Some(5),
         abilities: vec![

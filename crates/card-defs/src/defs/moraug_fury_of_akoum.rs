@@ -9,13 +9,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("moraug-fury-of-akoum"),
         name: "Moraug, Fury of Akoum".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, red: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            red: 2,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Minotaur", "Warrior"],
         ),
-        oracle_text: "Each creature you control gets +1/+0 for each time it has attacked this turn.\nLandfall — Whenever a land you control enters, if it's your main phase, there's an additional combat phase after this phase. At the beginning of that combat, untap all creatures you control.".to_string(),
+        oracle_text: "Each creature you control gets +1/+0 for each time it has attacked this \
+                      turn.\nLandfall — Whenever a land you control enters, if it's your main \
+                      phase, there's an additional combat phase after this phase. At the \
+                      beginning of that combat, untap all creatures you control."
+            .to_string(),
         power: Some(6),
         toughness: Some(6),
         abilities: vec![
@@ -35,7 +43,10 @@ pub fn card() -> CardDefinition {
             // (e.g. combat tricks/instants cast between Landfall and the new combat would see
             // stale tap state) — stays fully blocked.
         ],
-        completeness: Completeness::partial("dynamic +1/+0 per attack count per creature this turn. Needs per-creature attack tracking + dynamic LayerModification..."),
+        completeness: Completeness::partial(
+            "dynamic +1/+0 per attack count per creature this turn. Needs per-creature attack \
+             tracking + dynamic LayerModification...",
+        ),
         ..Default::default()
     }
 }

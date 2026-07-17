@@ -6,15 +6,27 @@ pub fn card() -> CardDefinition {
         card_id: cid("path-of-peril"),
         name: "Path of Peril".to_string(),
         // MCP oracle: {1}{B}{B} (user prompt had {1}{W}{B}; oracle text is authoritative)
-        mana_cost: Some(ManaCost { generic: 1, black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Cleave {4}{W}{B} (You may cast this spell for its cleave cost. If you do, remove the words in square brackets.)\nDestroy all creatures [with mana value 2 or less].".to_string(),
+        oracle_text: "Cleave {4}{W}{B} (You may cast this spell for its cleave cost. If you do, \
+                      remove the words in square brackets.)\nDestroy all creatures [with mana \
+                      value 2 or less]."
+            .to_string(),
         abilities: vec![
             // CR 702.148a: Cleave keyword marker for presence-checking
             AbilityDefinition::Keyword(KeywordAbility::Cleave),
             // CR 702.148a: Cleave alternative cost declaration
             AbilityDefinition::Cleave {
-                cost: ManaCost { generic: 4, white: 1, black: 1, ..Default::default() },
+                cost: ManaCost {
+                    generic: 4,
+                    white: 1,
+                    black: 1,
+                    ..Default::default()
+                },
             },
             // Spell effect: branch on WasCleaved (CR 702.148)
             AbilityDefinition::Spell {

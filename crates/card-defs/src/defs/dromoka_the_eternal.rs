@@ -7,12 +7,13 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("dromoka-the-eternal"),
         name: "Dromoka, the Eternal".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, green: 1, white: 1, ..Default::default() }),
-        types: full_types(
-            &[SuperType::Legendary],
-            &[CardType::Creature],
-            &["Dragon"],
-        ),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            green: 1,
+            white: 1,
+            ..Default::default()
+        }),
+        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Dragon"]),
         oracle_text: "Flying\nWhenever a Dragon you control attacks, bolster 2.".to_string(),
         power: Some(5),
         toughness: Some(5),

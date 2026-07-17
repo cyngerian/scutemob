@@ -10,14 +10,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("springleaf-drum"),
         name: "Springleaf Drum".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "{T}, Tap an untapped creature you control: Add one mana of any color.".to_string(),
+        oracle_text: "{T}, Tap an untapped creature you control: Add one mana of any color."
+            .to_string(),
         abilities: vec![
             // TODO: {T}, Tap an untapped creature you control: Add one mana of any color.
             //   (Cost enum lacks TapAnotherUntappedCreature variant)
         ],
-        completeness: Completeness::partial("{T}, Tap an untapped creature you control: Add one mana of any color. (Cost enum lacks TapAnotherUntappedCreature..."),
+        completeness: Completeness::partial(
+            "{T}, Tap an untapped creature you control: Add one mana of any color. (Cost enum \
+             lacks TapAnotherUntappedCreature...",
+        ),
         ..Default::default()
     }
 }

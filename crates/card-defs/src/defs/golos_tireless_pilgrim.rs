@@ -11,9 +11,20 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("golos-tireless-pilgrim"),
         name: "Golos, Tireless Pilgrim".to_string(),
-        mana_cost: Some(ManaCost { generic: 5, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Artifact, CardType::Creature], &["Scout"]),
-        oracle_text: "When Golos enters, you may search your library for a land card, put that card onto the battlefield tapped, then shuffle.\n{2}{W}{U}{B}{R}{G}: Exile the top three cards of your library. You may play them this turn without paying their mana costs.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 5,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Artifact, CardType::Creature],
+            &["Scout"],
+        ),
+        oracle_text: "When Golos enters, you may search your library for a land card, put that \
+                      card onto the battlefield tapped, then shuffle.\n{2}{W}{U}{B}{R}{G}: Exile \
+                      the top three cards of your library. You may play them this turn without \
+                      paying their mana costs."
+            .to_string(),
         power: Some(3),
         toughness: Some(5),
         abilities: vec![
@@ -40,7 +51,10 @@ pub fn card() -> CardDefinition {
             // TODO: {2}{W}{U}{B}{R}{G}: Exile top 3 cards, you may play them this turn without paying mana costs
             //   (no Effect::ExileTopCards + free-play-until-end-of-turn combination in DSL)
         ],
-        completeness: Completeness::partial("{2}{W}{U}{B}{R}{G}: Exile top 3 cards, you may play them this turn without paying mana costs (no Effect::ExileTopCards..."),
+        completeness: Completeness::partial(
+            "{2}{W}{U}{B}{R}{G}: Exile top 3 cards, you may play them this turn without paying \
+             mana costs (no Effect::ExileTopCards...",
+        ),
         ..Default::default()
     }
 }

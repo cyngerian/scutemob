@@ -8,9 +8,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("invigorate"),
         name: "Invigorate".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "If you control a Forest, rather than pay this spell's mana cost, you may have an opponent gain 3 life.\nTarget creature gets +4/+4 until end of turn.".to_string(),
+        oracle_text: "If you control a Forest, rather than pay this spell's mana cost, you may \
+                      have an opponent gain 3 life.\nTarget creature gets +4/+4 until end of turn."
+            .to_string(),
         abilities: vec![
             // TODO: DSL gap — alternative cost "opponent gains 3 life" not in AltCostKind.
             AbilityDefinition::Spell {
@@ -28,7 +34,9 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::partial("DSL gap — alternative cost 'opponent gains 3 life' not in AltCostKind"),
+        completeness: Completeness::partial(
+            "DSL gap — alternative cost 'opponent gains 3 life' not in AltCostKind",
+        ),
         ..Default::default()
     }
 }

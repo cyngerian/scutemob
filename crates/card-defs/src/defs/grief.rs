@@ -14,7 +14,10 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: creature_types(&["Elemental", "Incarnation"]),
-        oracle_text: "Menace\nWhen this creature enters, target opponent reveals their hand. You choose a nonland card from it. That player discards that card.\nEvoke—Exile a black card from your hand.".to_string(),
+        oracle_text: "Menace\nWhen this creature enters, target opponent reveals their hand. You \
+                      choose a nonland card from it. That player discards that card.\nEvoke—Exile \
+                      a black card from your hand."
+            .to_string(),
         power: Some(3),
         toughness: Some(2),
         abilities: vec![
@@ -24,7 +27,9 @@ pub fn card() -> CardDefinition {
             // chosen nonland card — targeted discard with card-type filter (non-land) not
             // in DSL (targeted_trigger gap).
         ],
-        completeness: Completeness::partial("ETB targeted discard (choose nonland from opponent's revealed hand) not in DSL"),
+        completeness: Completeness::partial(
+            "ETB targeted discard (choose nonland from opponent's revealed hand) not in DSL",
+        ),
         ..Default::default()
     }
 }

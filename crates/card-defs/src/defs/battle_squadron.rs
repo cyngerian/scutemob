@@ -6,21 +6,33 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("battle-squadron"),
         name: "Battle Squadron".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, red: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            red: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Goblin"]),
-        oracle_text: "Flying\nBattle Squadron's power and toughness are each equal to the number of creatures you control.".to_string(),
-        power: None,   // */* CDA — engine SBA skips None toughness; actual P/T set by layer
+        oracle_text: "Flying\nBattle Squadron's power and toughness are each equal to the number \
+                      of creatures you control."
+            .to_string(),
+        power: None, // */* CDA — engine SBA skips None toughness; actual P/T set by layer
         toughness: None,
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             // CR 604.3, 613.4a: CDA — P/T each equal to the number of creatures you control.
             AbilityDefinition::CdaPowerToughness {
                 power: EffectAmount::PermanentCount {
-                    filter: TargetFilter { has_card_type: Some(CardType::Creature), ..Default::default() },
+                    filter: TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        ..Default::default()
+                    },
                     controller: PlayerTarget::Controller,
                 },
                 toughness: EffectAmount::PermanentCount {
-                    filter: TargetFilter { has_card_type: Some(CardType::Creature), ..Default::default() },
+                    filter: TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        ..Default::default()
+                    },
                     controller: PlayerTarget::Controller,
                 },
             },

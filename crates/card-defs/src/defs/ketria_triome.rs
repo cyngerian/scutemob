@@ -7,7 +7,9 @@ pub fn card() -> CardDefinition {
         name: "Ketria Triome".to_string(),
         mana_cost: None,
         types: types_sub(&[CardType::Land], &["Forest", "Island", "Mountain"]),
-        oracle_text: "({T}: Add {G}, {U}, or {R}.)\nThis land enters tapped.\nCycling {3} ({3}, Discard this card: Draw a card.)".to_string(),
+        oracle_text: "({T}: Add {G}, {U}, or {R}.)\nThis land enters tapped.\nCycling {3} ({3}, \
+                      Discard this card: Draw a card.)"
+            .to_string(),
         abilities: vec![
             // SR-33 (CR 305.6 / 605.1a): the printed mana ability, modelled
             // explicitly — one activated ability per colour, as `forest.rs`
@@ -66,7 +68,10 @@ pub fn card() -> CardDefinition {
             // CR 702.29: Cycling {3}.
             AbilityDefinition::Keyword(KeywordAbility::Cycling),
             AbilityDefinition::Cycling {
-                cost: ManaCost { generic: 3, ..Default::default() },
+                cost: ManaCost {
+                    generic: 3,
+                    ..Default::default()
+                },
             },
         ],
         ..Default::default()

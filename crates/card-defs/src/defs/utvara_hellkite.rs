@@ -8,9 +8,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("utvara-hellkite"),
         name: "Utvara Hellkite".to_string(),
-        mana_cost: Some(ManaCost { generic: 6, red: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 6,
+            red: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Dragon"]),
-        oracle_text: "Flying\nWhenever a Dragon you control attacks, create a 6/6 red Dragon creature token with flying.".to_string(),
+        oracle_text: "Flying\nWhenever a Dragon you control attacks, create a 6/6 red Dragon \
+                      creature token with flying."
+            .to_string(),
         power: Some(6),
         toughness: Some(6),
         abilities: vec![

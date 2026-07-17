@@ -12,9 +12,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("sword-of-body-and-mind"),
         name: "Sword of Body and Mind".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Artifact], &["Equipment"]),
-        oracle_text: "Equipped creature gets +2/+2 and has protection from green and from blue.\nWhenever equipped creature deals combat damage to a player, you create a 2/2 green Wolf creature token and that player mills ten cards.\nEquip {2}".to_string(),
+        oracle_text: "Equipped creature gets +2/+2 and has protection from green and from \
+                      blue.\nWhenever equipped creature deals combat damage to a player, you \
+                      create a 2/2 green Wolf creature token and that player mills ten \
+                      cards.\nEquip {2}"
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Static {
                 continuous_effect: ContinuousEffectDef {
@@ -87,7 +94,12 @@ pub fn card() -> CardDefinition {
             },
             AbilityDefinition::Keyword(KeywordAbility::Equip),
         ],
-        completeness: Completeness::partial("Equip {2} unimplemented — bare Keyword(Equip) marker with no AbilityDefinition::Activated { cost: Mana({2}), effect: AttachEquipment } (see keyword_registry.rs:89). Protection from green/blue and the combat-damage trigger ARE implemented."),
+        completeness: Completeness::partial(
+            "Equip {2} unimplemented — bare Keyword(Equip) marker with no \
+             AbilityDefinition::Activated { cost: Mana({2}), effect: AttachEquipment } (see \
+             keyword_registry.rs:89). Protection from green/blue and the combat-damage trigger \
+             ARE implemented.",
+        ),
         ..Default::default()
     }
 }

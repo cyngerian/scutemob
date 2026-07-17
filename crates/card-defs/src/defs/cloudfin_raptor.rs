@@ -6,9 +6,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("cloudfin-raptor"),
         name: "Cloudfin Raptor".to_string(),
-        mana_cost: Some(ManaCost { blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            blue: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Bird", "Mutant"]),
-        oracle_text: "Flying\nEvolve (Whenever a creature with greater power and/or toughness enters the battlefield under your control, put a +1/+1 counter on this creature.)".to_string(),
+        oracle_text: "Flying\nEvolve (Whenever a creature with greater power and/or toughness \
+                      enters the battlefield under your control, put a +1/+1 counter on this \
+                      creature.)"
+            .to_string(),
         power: Some(0),
         toughness: Some(1),
         abilities: vec![
@@ -27,6 +33,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

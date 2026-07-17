@@ -8,7 +8,10 @@ pub fn card() -> CardDefinition {
         name: "Sokenzan, Crucible of Defiance".to_string(),
         mana_cost: None,
         types: supertypes(&[SuperType::Legendary], &[CardType::Land]),
-        oracle_text: "{T}: Add {R}.\nChannel — {3}{R}, Discard this card: Create two 1/1 colorless Spirit creature tokens. They gain haste until end of turn. This ability costs {1} less to activate for each legendary creature you control.".to_string(),
+        oracle_text: "{T}: Add {R}.\nChannel — {3}{R}, Discard this card: Create two 1/1 \
+                      colorless Spirit creature tokens. They gain haste until end of turn. This \
+                      ability costs {1} less to activate for each legendary creature you control."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
@@ -20,7 +23,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // Channel — {3}{R}, Discard this card: Create two 1/1 colorless Spirit tokens
             // with haste. Haste is baked into the token spec (permanent keyword, not temporary
@@ -33,7 +36,11 @@ pub fn card() -> CardDefinition {
             // CreateToken does not support post-creation continuous effects. Acceptable approximation.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 3, red: 1, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 3,
+                        red: 1,
+                        ..Default::default()
+                    }),
                     Cost::DiscardSelf,
                 ]),
                 effect: Effect::CreateToken {
@@ -59,7 +66,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         // CR 602.2b + 601.2f: Channel ability (index 0) costs {1} less per legendary creature.
@@ -75,7 +82,10 @@ pub fn card() -> CardDefinition {
                 controller: PlayerTarget::Controller,
             },
         )],
-        completeness: Completeness::partial("Strictly, haste should be a temporary UntilEndOfTurn effect, not a permanent keyword on the token. This matters if an..."),
+        completeness: Completeness::partial(
+            "Strictly, haste should be a temporary UntilEndOfTurn effect, not a permanent keyword \
+             on the token. This matters if an...",
+        ),
         ..Default::default()
     }
 }

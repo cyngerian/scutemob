@@ -15,13 +15,16 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: creature_types(&["Goblin", "Berserker"]),
-        oracle_text: "Double strike\nWhenever this creature deals damage to an opponent, you may put a Goblin creature card from your hand onto the battlefield.".to_string(),
+        oracle_text: "Double strike\nWhenever this creature deals damage to an opponent, you may \
+                      put a Goblin creature card from your hand onto the battlefield."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
-        abilities: vec![
-            AbilityDefinition::Keyword(KeywordAbility::DoubleStrike),
-        ],
-        completeness: Completeness::partial("DSL gap — triggered ability 'Whenever this creature deals damage to an opponent, you may put a Goblin creature card..."),
+        abilities: vec![AbilityDefinition::Keyword(KeywordAbility::DoubleStrike)],
+        completeness: Completeness::partial(
+            "DSL gap — triggered ability 'Whenever this creature deals damage to an opponent, you \
+             may put a Goblin creature card...",
+        ),
         ..Default::default()
     }
 }

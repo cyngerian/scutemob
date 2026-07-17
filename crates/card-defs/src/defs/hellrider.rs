@@ -8,9 +8,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("hellrider"),
         name: "Hellrider".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Devil"]),
-        oracle_text: "Haste\nWhenever a creature you control attacks, Hellrider deals 1 damage to the player or planeswalker it's attacking.".to_string(),
+        oracle_text: "Haste\nWhenever a creature you control attacks, Hellrider deals 1 damage to \
+                      the player or planeswalker it's attacking."
+            .to_string(),
         power: Some(3),
         toughness: Some(3),
         abilities: vec![
@@ -26,7 +32,10 @@ pub fn card() -> CardDefinition {
             // W5 policy until AttackTargetOf(EffectTarget::TriggeringCreature) or equivalent
             // is added to PlayerTarget.
         ],
-        completeness: Completeness::partial("DSL gap — the damage target is 'the player or planeswalker IT'S attacking' (the combat attack assignment of the..."),
+        completeness: Completeness::partial(
+            "DSL gap — the damage target is 'the player or planeswalker IT'S attacking' (the \
+             combat attack assignment of the...",
+        ),
         ..Default::default()
     }
 }

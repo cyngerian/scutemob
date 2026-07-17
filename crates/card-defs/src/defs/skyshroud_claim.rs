@@ -10,9 +10,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("skyshroud-claim"),
         name: "Skyshroud Claim".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Search your library for up to two Forest cards, put them onto the battlefield, then shuffle.".to_string(),
+        oracle_text: "Search your library for up to two Forest cards, put them onto the \
+                      battlefield, then shuffle."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![
                 // First Forest card — any Forest subtype (basic: false),
@@ -42,7 +48,9 @@ pub fn card() -> CardDefinition {
                     shuffle_before_placing: false,
                     also_search_graveyard: false,
                 },
-                Effect::Shuffle { player: PlayerTarget::Controller },
+                Effect::Shuffle {
+                    player: PlayerTarget::Controller,
+                },
             ]),
             targets: vec![],
             modes: None,

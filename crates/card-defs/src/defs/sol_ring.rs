@@ -5,7 +5,10 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("sol-ring"),
         name: "Sol Ring".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
         oracle_text: "{T}: Add {C}{C}.".to_string(),
         abilities: vec![AbilityDefinition::Activated {
@@ -16,10 +19,10 @@ pub fn card() -> CardDefinition {
             },
             timing_restriction: None,
             targets: vec![],
-                activation_condition: None,
-                activation_zone: None,
-        once_per_turn: false,
-}],
+            activation_condition: None,
+            activation_zone: None,
+            once_per_turn: false,
+        }],
         ..Default::default()
     }
 }

@@ -10,7 +10,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("throatseeker"),
         name: "Throatseeker".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Vampire", "Ninja"]),
         oracle_text: "Unblocked attacking Ninjas you control have lifelink.".to_string(),
         power: Some(3),
@@ -20,7 +24,13 @@ pub fn card() -> CardDefinition {
             // requiring creature-type filter (Ninja) and combat-state filter (unblocked attacker).
             // DSL gap: no such filter combination exists in ContinuousEffectDef.
         ],
-        completeness: Completeness::partial("Blocked on an 'unblocked attacking' combat-state EffectFilter. EffectFilter::AttackingCreaturesYouControlWithSubtype covers 'attacking Ninjas you control' but there is no unblocked-attacker variant, and blocked status is a runtime CombatState property not visible to matches_filter. The creature-type half of the filter is NOT a gap."),
+        completeness: Completeness::partial(
+            "Blocked on an 'unblocked attacking' combat-state EffectFilter. \
+             EffectFilter::AttackingCreaturesYouControlWithSubtype covers 'attacking Ninjas you \
+             control' but there is no unblocked-attacker variant, and blocked status is a runtime \
+             CombatState property not visible to matches_filter. The creature-type half of the \
+             filter is NOT a gap.",
+        ),
         ..Default::default()
     }
 }

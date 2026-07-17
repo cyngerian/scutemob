@@ -14,7 +14,10 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: creature_types(&["Ouphe"]),
-        oracle_text: "When this creature enters, you gain 2 life.\nPersist (When this creature dies, if it had no -1/-1 counters on it, return it to the battlefield under its owner's control with a -1/-1 counter on it.)".to_string(),
+        oracle_text: "When this creature enters, you gain 2 life.\nPersist (When this creature \
+                      dies, if it had no -1/-1 counters on it, return it to the battlefield under \
+                      its owner's control with a -1/-1 counter on it.)"
+            .to_string(),
         power: Some(3),
         toughness: Some(2),
         abilities: vec![
@@ -45,6 +48,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

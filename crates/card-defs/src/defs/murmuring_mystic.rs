@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("murmuring-mystic"),
         name: "Murmuring Mystic".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            blue: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Wizard"]),
-        oracle_text: "Whenever you cast an instant or sorcery spell, create a 1/1 blue Bird Illusion creature token with flying.".to_string(),
+        oracle_text: "Whenever you cast an instant or sorcery spell, create a 1/1 blue Bird \
+                      Illusion creature token with flying."
+            .to_string(),
         power: Some(1),
         toughness: Some(5),
         abilities: vec![
@@ -21,13 +27,15 @@ pub fn card() -> CardDefinition {
                     spell_type_filter: Some(vec![CardType::Instant, CardType::Sorcery]),
                     noncreature_only: false,
                     chosen_subtype_filter: false,
-                spell_subtype_filter: None,
+                    spell_subtype_filter: None,
                 },
                 effect: Effect::CreateToken {
                     spec: TokenSpec {
                         name: "Bird Illusion".to_string(),
                         card_types: [CardType::Creature].into_iter().collect(),
-                        subtypes: [SubType("Bird".to_string()), SubType("Illusion".to_string())].into_iter().collect(),
+                        subtypes: [SubType("Bird".to_string()), SubType("Illusion".to_string())]
+                            .into_iter()
+                            .collect(),
                         colors: [Color::Blue].into_iter().collect(),
                         power: 1,
                         toughness: 1,

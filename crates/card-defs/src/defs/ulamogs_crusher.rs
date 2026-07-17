@@ -9,9 +9,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("ulamogs-crusher"),
         name: "Ulamog's Crusher".to_string(),
-        mana_cost: Some(ManaCost { generic: 8, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 8,
+            ..Default::default()
+        }),
         types: creature_types(&["Eldrazi"]),
-        oracle_text: "Annihilator 2 (Whenever this creature attacks, defending player sacrifices two permanents.)\nThis creature attacks each combat if able.".to_string(),
+        oracle_text: "Annihilator 2 (Whenever this creature attacks, defending player sacrifices \
+                      two permanents.)\nThis creature attacks each combat if able."
+            .to_string(),
         power: Some(8),
         toughness: Some(8),
         abilities: vec![
@@ -31,6 +36,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

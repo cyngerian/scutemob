@@ -9,7 +9,9 @@ pub fn card() -> CardDefinition {
         name: "War Room".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}: Add {C}.\n{3}, {T}, Pay life equal to the number of colors in your commanders' color identity: Draw a card.".to_string(),
+        oracle_text: "{T}: Add {C}.\n{3}, {T}, Pay life equal to the number of colors in your \
+                      commanders' color identity: Draw a card."
+            .to_string(),
         abilities: vec![
             // {T}: Add {C}
             AbilityDefinition::Activated {
@@ -22,10 +24,13 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("{3}, {T}, Pay life equal to # colors in commander color identity: Draw a card — life payment scaled to commander color..."),
+        completeness: Completeness::partial(
+            "{3}, {T}, Pay life equal to # colors in commander color identity: Draw a card — life \
+             payment scaled to commander color...",
+        ),
         ..Default::default()
     }
 }

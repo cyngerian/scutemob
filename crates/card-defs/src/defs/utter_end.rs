@@ -6,7 +6,12 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("utter-end"),
         name: "Utter End".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, white: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            white: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
         oracle_text: "Exile target nonland permanent.".to_string(),
         abilities: vec![AbilityDefinition::Spell {

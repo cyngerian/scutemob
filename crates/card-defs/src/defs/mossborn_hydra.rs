@@ -8,9 +8,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("mossborn-hydra"),
         name: "Mossborn Hydra".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Elemental", "Hydra"]),
-        oracle_text: "Trample (This creature can deal excess combat damage to the player or planeswalker it's attacking.)\nThis creature enters with a +1/+1 counter on it.\nLandfall — Whenever a land you control enters, double the number of +1/+1 counters on this creature.".to_string(),
+        oracle_text: "Trample (This creature can deal excess combat damage to the player or \
+                      planeswalker it's attacking.)\nThis creature enters with a +1/+1 counter on \
+                      it.\nLandfall — Whenever a land you control enters, double the number of \
+                      +1/+1 counters on this creature."
+            .to_string(),
         power: Some(0),
         toughness: Some(0),
         abilities: vec![

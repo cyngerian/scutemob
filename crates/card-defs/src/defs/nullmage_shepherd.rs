@@ -6,11 +6,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("nullmage-shepherd"),
         name: "Nullmage Shepherd".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Elf", "Shaman"]),
-        oracle_text:
-            "Tap four untapped creatures you control: Destroy target artifact or enchantment."
-                .to_string(),
+        oracle_text: "Tap four untapped creatures you control: Destroy target artifact or \
+                      enchantment."
+            .to_string(),
         power: Some(2),
         toughness: Some(4),
         // TODO: The activated ability cost requires tapping N other permanents you control
@@ -23,7 +27,10 @@ pub fn card() -> CardDefinition {
         //       ...
         //   }
         abilities: vec![],
-        completeness: Completeness::inert("The activated ability cost requires tapping N other permanents you control (Cost::TapCreatures(4) or similar). No such..."),
+        completeness: Completeness::inert(
+            "The activated ability cost requires tapping N other permanents you control \
+             (Cost::TapCreatures(4) or similar). No such...",
+        ),
         ..Default::default()
     }
 }

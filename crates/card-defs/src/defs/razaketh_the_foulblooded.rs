@@ -8,17 +8,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("razaketh-the-foulblooded"),
         name: "Razaketh, the Foulblooded".to_string(),
-        mana_cost: Some(ManaCost { generic: 5, black: 3, ..Default::default() }),
-        types: full_types(
-            &[SuperType::Legendary],
-            &[CardType::Creature],
-            &["Demon"],
-        ),
-        oracle_text:
-            "Flying, trample\n\
-             Pay 2 life, Sacrifice another creature: Search your library for a card, \
-             put that card into your hand, then shuffle."
-                .to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 5,
+            black: 3,
+            ..Default::default()
+        }),
+        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Demon"]),
+        oracle_text: "Flying, trample\nPay 2 life, Sacrifice another creature: Search your \
+                      library for a card, put that card into your hand, then shuffle."
+            .to_string(),
         power: Some(8),
         toughness: Some(8),
         abilities: vec![
@@ -38,11 +36,15 @@ pub fn card() -> CardDefinition {
                         player: PlayerTarget::Controller,
                         filter: TargetFilter::default(),
                         reveal: false,
-                        destination: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                        destination: ZoneTarget::Hand {
+                            owner: PlayerTarget::Controller,
+                        },
                         shuffle_before_placing: false,
                         also_search_graveyard: false,
                     },
-                    Effect::Shuffle { player: PlayerTarget::Controller },
+                    Effect::Shuffle {
+                        player: PlayerTarget::Controller,
+                    },
                 ]),
                 timing_restriction: None,
                 targets: vec![],

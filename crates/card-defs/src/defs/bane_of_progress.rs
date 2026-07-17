@@ -7,11 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("bane-of-progress"),
         name: "Bane of Progress".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            green: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Elemental"]),
-        oracle_text:
-            "When Bane of Progress enters, destroy all artifacts and enchantments. Put a +1/+1 counter on this creature for each permanent destroyed this way."
-                .to_string(),
+        oracle_text: "When Bane of Progress enters, destroy all artifacts and enchantments. Put a \
+                      +1/+1 counter on this creature for each permanent destroyed this way."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![AbilityDefinition::Triggered {

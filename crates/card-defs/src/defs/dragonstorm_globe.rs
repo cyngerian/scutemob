@@ -18,9 +18,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("dragonstorm-globe"),
         name: "Dragonstorm Globe".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "Each Dragon you control enters with an additional +1/+1 counter on it.\n{T}: Add one mana of any color.".to_string(),
+        oracle_text: "Each Dragon you control enters with an additional +1/+1 counter on \
+                      it.\n{T}: Add one mana of any color."
+            .to_string(),
         abilities: vec![
             // CR 614.1c / CR 613.1d — replacement effect: "Each Dragon you control enters
             // with an additional +1/+1 counter on it."
@@ -45,7 +50,9 @@ pub fn card() -> CardDefinition {
             },
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
-                effect: Effect::AddManaAnyColor { player: PlayerTarget::Controller },
+                effect: Effect::AddManaAnyColor {
+                    player: PlayerTarget::Controller,
+                },
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,

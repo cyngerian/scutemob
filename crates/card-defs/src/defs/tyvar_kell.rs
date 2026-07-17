@@ -30,7 +30,12 @@ pub fn card() -> CardDefinition {
             &[CardType::Planeswalker],
             &["Tyvar"],
         ),
-        oracle_text: "Elves you control have \"{T}: Add {B}.\"\n+1: Put a +1/+1 counter on up to one target Elf. Untap it. It gains deathtouch until end of turn.\n0: Create a 1/1 green Elf Warrior creature token.\n\u{2212}6: You get an emblem with \"Whenever you cast an Elf spell, it gains haste until end of turn and you draw two cards.\"".to_string(),
+        oracle_text: "Elves you control have \"{T}: Add {B}.\"\n+1: Put a +1/+1 counter on up to \
+                      one target Elf. Untap it. It gains deathtouch until end of turn.\n0: Create \
+                      a 1/1 green Elf Warrior creature token.\n\u{2212}6: You get an emblem with \
+                      \"Whenever you cast an Elf spell, it gains haste until end of turn and you \
+                      draw two cards.\""
+            .to_string(),
         abilities: vec![
             // ENGINE-BLOCKED: "Elves you control have '{T}: Add {B}.'" — granting mana
             // abilities via a continuous effect is not in DSL.
@@ -45,7 +50,9 @@ pub fn card() -> CardDefinition {
                         counter: CounterType::PlusOnePlusOne,
                         count: 1,
                     },
-                    Effect::UntapPermanent { target: EffectTarget::DeclaredTarget { index: 0 } },
+                    Effect::UntapPermanent {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                    },
                     Effect::ApplyContinuousEffect {
                         effect_def: Box::new(ContinuousEffectDef {
                             layer: EffectLayer::Ability,
@@ -74,12 +81,9 @@ pub fn card() -> CardDefinition {
                         toughness: 1,
                         colors: [Color::Green].into_iter().collect(),
                         card_types: [CardType::Creature].into_iter().collect(),
-                        subtypes: [
-                            SubType("Elf".to_string()),
-                            SubType("Warrior".to_string()),
-                        ]
-                        .into_iter()
-                        .collect(),
+                        subtypes: [SubType("Elf".to_string()), SubType("Warrior".to_string())]
+                            .into_iter()
+                            .collect(),
                         count: EffectAmount::Fixed(1),
                         ..Default::default()
                     },
@@ -98,7 +102,14 @@ pub fn card() -> CardDefinition {
             },
         ],
         starting_loyalty: Some(3),
-        completeness: Completeness::partial("-6 emblem only. Its 'Whenever you cast an Elf spell, IT gains haste until end of turn' grants a keyword to the spell object on the stack — no LayerModification/EffectFilter reaches stack objects. (The static 'Elves you control have \"{T}: Add {B}\"' is now expressible via LayerModification::AddManaAbility (PB-S) + EffectFilter::CreaturesYouControlWithSubtype, and the emblem's subtype trigger via WheneverYouCastSpell.spell_subtype_filter — both should be wired.)"),
+        completeness: Completeness::partial(
+            "-6 emblem only. Its 'Whenever you cast an Elf spell, IT gains haste until end of \
+             turn' grants a keyword to the spell object on the stack — no \
+             LayerModification/EffectFilter reaches stack objects. (The static 'Elves you control \
+             have \"{T}: Add {B}\"' is now expressible via LayerModification::AddManaAbility \
+             (PB-S) + EffectFilter::CreaturesYouControlWithSubtype, and the emblem's subtype \
+             trigger via WheneverYouCastSpell.spell_subtype_filter — both should be wired.)",
+        ),
         ..Default::default()
     }
 }

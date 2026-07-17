@@ -8,9 +8,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("bear-umbra"),
         name: "Bear Umbra".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 2,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Enchantment], &["Aura"]),
-        oracle_text: "Enchant creature\nEnchanted creature gets +2/+2 and has \"Whenever this creature attacks, untap all lands you control.\"\nUmbra armor (If enchanted creature would be destroyed, instead remove all damage from it and destroy this Aura.)".to_string(),
+        oracle_text: "Enchant creature\nEnchanted creature gets +2/+2 and has \"Whenever this \
+                      creature attacks, untap all lands you control.\"\nUmbra armor (If enchanted \
+                      creature would be destroyed, instead remove all damage from it and destroy \
+                      this Aura.)"
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Enchant(EnchantTarget::Creature)),
             // Enchanted creature gets +2/+2 (layer 7c).
@@ -43,7 +51,10 @@ pub fn card() -> CardDefinition {
             // controller: You, .. } }`.
             AbilityDefinition::Keyword(KeywordAbility::UmbraArmor),
         ],
-        completeness: Completeness::partial("'Whenever this creature attacks, untap all lands you control' is a triggered ability GRANTED to the enchanted creature..."),
+        completeness: Completeness::partial(
+            "'Whenever this creature attacks, untap all lands you control' is a triggered ability \
+             GRANTED to the enchanted creature...",
+        ),
         ..Default::default()
     }
 }

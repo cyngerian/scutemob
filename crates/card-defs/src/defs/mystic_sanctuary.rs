@@ -9,7 +9,10 @@ pub fn card() -> CardDefinition {
         name: "Mystic Sanctuary".to_string(),
         mana_cost: None,
         types: types_sub(&[CardType::Land], &["Island"]),
-        oracle_text: "({T}: Add {U}.)\nThis land enters tapped unless you control three or more other Islands.\nWhen this land enters untapped, you may put target instant or sorcery card from your graveyard on top of your library.".to_string(),
+        oracle_text: "({T}: Add {U}.)\nThis land enters tapped unless you control three or more \
+                      other Islands.\nWhen this land enters untapped, you may put target instant \
+                      or sorcery card from your graveyard on top of your library."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Replacement {
                 trigger: ReplacementTrigger::WouldEnterBattlefield {
@@ -32,11 +35,19 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // TODO: Triggered — When this land enters untapped, you may put target instant or sorcery card from your graveyard on top of your library.
         ],
-        completeness: Completeness::partial("Sole blocker: 'you may' has no correct expression — AbilityDefinition::Triggered has no optional/may field and Effect::Choose is non-interactive (effects/mod.rs:3190 always runs choices.first()). Everything else is available: WhenEntersBattlefield + TargetCardInYourGraveyard(instant-or-sorcery) + MoveZone to LibraryPosition::Top, with the 'enters untapped' gate via Effect::Conditional { condition: Condition::SourceIsUntapped }; see mortuary_mire.rs for the analogous wiring. Same 'you may' blocker as mortuary_mire."),
+        completeness: Completeness::partial(
+            "Sole blocker: 'you may' has no correct expression — AbilityDefinition::Triggered has \
+             no optional/may field and Effect::Choose is non-interactive (effects/mod.rs:3190 \
+             always runs choices.first()). Everything else is available: WhenEntersBattlefield + \
+             TargetCardInYourGraveyard(instant-or-sorcery) + MoveZone to LibraryPosition::Top, \
+             with the 'enters untapped' gate via Effect::Conditional { condition: \
+             Condition::SourceIsUntapped }; see mortuary_mire.rs for the analogous wiring. Same \
+             'you may' blocker as mortuary_mire.",
+        ),
         ..Default::default()
     }
 }

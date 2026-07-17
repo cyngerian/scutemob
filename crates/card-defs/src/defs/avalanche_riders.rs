@@ -6,13 +6,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("avalanche-riders"),
         name: "Avalanche Riders".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Nomad"]),
-        oracle_text:
-            "Haste\nEcho {3}{R} (At the beginning of your upkeep, if this came under your \
-             control since the beginning of your last upkeep, sacrifice it unless you pay its \
-             echo cost.)\nWhen this creature enters, destroy target land."
-                .to_string(),
+        oracle_text: "Haste\nEcho {3}{R} (At the beginning of your upkeep, if this came under \
+                      your control since the beginning of your last upkeep, sacrifice it unless \
+                      you pay its echo cost.)\nWhen this creature enters, destroy target land."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -23,7 +26,11 @@ pub fn card() -> CardDefinition {
                 ..Default::default()
             })),
             AbilityDefinition::Echo {
-                cost: ManaCost { generic: 3, red: 1, ..Default::default() },
+                cost: ManaCost {
+                    generic: 3,
+                    red: 1,
+                    ..Default::default()
+                },
             },
             AbilityDefinition::Triggered {
                 once_per_turn: false,
@@ -51,6 +58,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

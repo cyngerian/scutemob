@@ -17,9 +17,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("combat-celebrant"),
         name: "Combat Celebrant".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 1,
+            ..Default::default()
+        }),
         types: full_types(&[], &[CardType::Creature], &["Human", "Warrior"]),
-        oracle_text: "If this creature hasn't been exerted this turn, you may exert it as it attacks. When you do, untap all other creatures you control and after this phase, there is an additional combat phase. (An exerted creature won't untap during your next untap step.)".to_string(),
+        oracle_text: "If this creature hasn't been exerted this turn, you may exert it as it \
+                      attacks. When you do, untap all other creatures you control and after this \
+                      phase, there is an additional combat phase. (An exerted creature won't \
+                      untap during your next untap step.)"
+            .to_string(),
         power: Some(4),
         toughness: Some(1),
         abilities: vec![
@@ -37,7 +45,9 @@ pub fn card() -> CardDefinition {
                         }),
                     },
                     // After this phase, there is an additional combat phase.
-                    Effect::AdditionalCombatPhase { followed_by_main: false },
+                    Effect::AdditionalCombatPhase {
+                        followed_by_main: false,
+                    },
                 ]),
                 targets: vec![],
 

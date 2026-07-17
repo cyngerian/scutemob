@@ -10,7 +10,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("exquisite-blood"),
         name: "Exquisite Blood".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            black: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
         oracle_text: "Whenever an opponent loses life, you gain that much life.".to_string(),
         abilities: vec![
@@ -18,7 +22,10 @@ pub fn card() -> CardDefinition {
             // Also needs EffectAmount::TriggeringAmount for "that much life".
             // W5: omitted to avoid wrong game state.
         ],
-        completeness: Completeness::partial("TriggerCondition::WheneverOpponentLosesLife does not exist in the DSL. Also needs EffectAmount::TriggeringAmount for..."),
+        completeness: Completeness::partial(
+            "TriggerCondition::WheneverOpponentLosesLife does not exist in the DSL. Also needs \
+             EffectAmount::TriggeringAmount for...",
+        ),
         ..Default::default()
     }
 }

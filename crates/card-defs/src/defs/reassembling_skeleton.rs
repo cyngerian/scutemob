@@ -10,16 +10,26 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("reassembling-skeleton"),
         name: "Reassembling Skeleton".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Skeleton", "Warrior"]),
-        oracle_text: "{1}{B}: Return Reassembling Skeleton from your graveyard to the battlefield tapped.".to_string(),
+        oracle_text: "{1}{B}: Return Reassembling Skeleton from your graveyard to the battlefield \
+                      tapped."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
             // CR 602.2 / PB-35: "{1}{B}: Return this card from your graveyard to the
             // battlefield tapped." — activated from the graveyard zone.
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { generic: 1, black: 1, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    generic: 1,
+                    black: 1,
+                    ..Default::default()
+                }),
                 effect: Effect::MoveZone {
                     target: EffectTarget::Source,
                     to: ZoneTarget::Battlefield { tapped: true },
@@ -29,7 +39,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: Some(ActivationZone::Graveyard),
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

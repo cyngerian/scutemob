@@ -7,14 +7,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("pact-of-negation"),
         name: "Pact of Negation".to_string(),
-        mana_cost: Some(ManaCost { ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Counter target spell.\nAt the beginning of your next upkeep, pay {3}{U}{U}. If you don't, you lose the game.".to_string(),
+        oracle_text: "Counter target spell.\nAt the beginning of your next upkeep, pay {3}{U}{U}. \
+                      If you don't, you lose the game."
+            .to_string(),
         // TODO: Counter target spell + delayed upkeep trigger "pay {3}{U}{U} or lose the game."
         // {0}-cost unconditional counter without the upkeep payment is game-breaking (KI-2).
         // Stripped per W6 policy until delayed triggers are in DSL.
         abilities: vec![],
-        completeness: Completeness::inert("Counter target spell + delayed upkeep trigger 'pay {3}{U}{U} or lose the game.' {0}-cost unconditional counter without..."),
+        completeness: Completeness::inert(
+            "Counter target spell + delayed upkeep trigger 'pay {3}{U}{U} or lose the game.' \
+             {0}-cost unconditional counter without...",
+        ),
         ..Default::default()
     }
 }

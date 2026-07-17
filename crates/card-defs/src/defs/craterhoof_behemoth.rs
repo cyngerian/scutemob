@@ -10,16 +10,25 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("craterhoof-behemoth"),
         name: "Craterhoof Behemoth".to_string(),
-        mana_cost: Some(ManaCost { generic: 5, green: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 5,
+            green: 3,
+            ..Default::default()
+        }),
         types: creature_types(&["Beast"]),
-        oracle_text: "Haste\nWhen this creature enters, creatures you control gain trample and get +X/+X until end of turn, where X is the number of creatures you control.".to_string(),
+        oracle_text: "Haste\nWhen this creature enters, creatures you control gain trample and \
+                      get +X/+X until end of turn, where X is the number of creatures you control."
+            .to_string(),
         power: Some(5),
         toughness: Some(5),
-        abilities: vec![
-            AbilityDefinition::Keyword(KeywordAbility::Haste),
-        ],
+        abilities: vec![AbilityDefinition::Keyword(KeywordAbility::Haste)],
         // TODO: ETB trigger — mass trample grant + dynamic +X/+X (needs LayerModification with EffectAmount)
-        completeness: Completeness::partial("ETB trigger unimplemented. Primitives now exist (ModifyBothDynamic + PermanentCount, substituted/locked at resolution per effects/mod.rs:3008; EffectFilter::CreaturesYouControl; AddKeywords(Trample)) — author the WhenEntersBattlefield trigger."),
+        completeness: Completeness::partial(
+            "ETB trigger unimplemented. Primitives now exist (ModifyBothDynamic + PermanentCount, \
+             substituted/locked at resolution per effects/mod.rs:3008; \
+             EffectFilter::CreaturesYouControl; AddKeywords(Trample)) — author the \
+             WhenEntersBattlefield trigger.",
+        ),
         ..Default::default()
     }
 }

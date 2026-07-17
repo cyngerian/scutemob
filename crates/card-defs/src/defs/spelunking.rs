@@ -9,9 +9,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("spelunking"),
         name: "Spelunking".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "When this enchantment enters, draw a card, then you may put a land card from your hand onto the battlefield. If you put a Cave onto the battlefield this way, you gain 4 life.\nLands you control enter untapped.".to_string(),
+        oracle_text: "When this enchantment enters, draw a card, then you may put a land card \
+                      from your hand onto the battlefield. If you put a Cave onto the battlefield \
+                      this way, you gain 4 life.\nLands you control enter untapped."
+            .to_string(),
         abilities: vec![
             // CR 603.3: ETB trigger — draw a card, then put a land from hand onto battlefield.
             AbilityDefinition::Triggered {
@@ -37,7 +44,13 @@ pub fn card() -> CardDefinition {
             // for lands. Requires a replacement effect that modifies land ETB to remove the
             // tapped condition. This is a global ETB replacement and is deferred (PB-D territory).
         ],
-        completeness: Completeness::partial("Three gaps: (1) 'if you put a Cave this way, gain 4 life' needs effect-result tracking; (2) 'Lands you control enter untapped' needs an EntersUntapped/ETB-tapped-counter replacement; (3) KNOWN WRONG — 'you may put a land' is currently unconditional (Effect::Choose/'may' has no correct expression today)."),
+        completeness: Completeness::partial(
+            "Three gaps: (1) 'if you put a Cave this way, gain 4 life' needs effect-result \
+             tracking; (2) 'Lands you control enter untapped' needs an \
+             EntersUntapped/ETB-tapped-counter replacement; (3) KNOWN WRONG — 'you may put a \
+             land' is currently unconditional (Effect::Choose/'may' has no correct expression \
+             today).",
+        ),
         ..Default::default()
     }
 }

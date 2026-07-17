@@ -8,15 +8,24 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("curse-of-opulence"),
         name: "Curse of Opulence".to_string(),
-        mana_cost: Some(ManaCost { red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            red: 1,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Enchantment], &["Aura", "Curse"]),
-        oracle_text: "Enchant player\nWhenever enchanted player is attacked, create a Gold token. Each opponent attacking that player does the same.".to_string(),
+        oracle_text: "Enchant player\nWhenever enchanted player is attacked, create a Gold token. \
+                      Each opponent attacking that player does the same."
+            .to_string(),
         abilities: vec![
             // TODO: "Enchant player" not in EnchantTarget enum.
             // TODO: "Whenever enchanted player is attacked" trigger not in DSL.
             // TODO: Gold token spec not a helper function.
         ],
-        completeness: Completeness::partial("Blocked on player attachment: EnchantTarget::Player exists on the enum but sba.rs:995 rejects it (Auras cannot attach to players yet). Also needs a 'whenever enchanted player is attacked' TriggerCondition and a Gold token spec helper."),
+        completeness: Completeness::partial(
+            "Blocked on player attachment: EnchantTarget::Player exists on the enum but \
+             sba.rs:995 rejects it (Auras cannot attach to players yet). Also needs a 'whenever \
+             enchanted player is attacked' TriggerCondition and a Gold token spec helper.",
+        ),
         ..Default::default()
     }
 }

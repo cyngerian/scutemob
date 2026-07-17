@@ -11,9 +11,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("honor-worn-shaku"),
         name: "Honor-Worn Shaku".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "{T}: Add {C}.\nTap an untapped legendary permanent you control: Untap this artifact.".to_string(),
+        oracle_text: "{T}: Add {C}.\nTap an untapped legendary permanent you control: Untap this \
+                      artifact."
+            .to_string(),
         abilities: vec![
             // {T}: Add {C}.
             AbilityDefinition::Activated {
@@ -26,12 +31,15 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // TODO: Tap an untapped legendary permanent you control: Untap this artifact.
             //   (Cost enum lacks TapAnotherPermanentWithSupertype(SuperType::Legendary) variant)
         ],
-        completeness: Completeness::partial("Tap an untapped legendary permanent you control: Untap this artifact. (Cost enum lacks..."),
+        completeness: Completeness::partial(
+            "Tap an untapped legendary permanent you control: Untap this artifact. (Cost enum \
+             lacks...",
+        ),
         ..Default::default()
     }
 }

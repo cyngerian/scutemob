@@ -8,13 +8,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("greensleeves-maro-sorcerer"),
         name: "Greensleeves, Maro-Sorcerer".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            green: 2,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Elemental", "Sorcerer"],
         ),
-        oracle_text: "Protection from planeswalkers and from Wizards\nGreensleeves, Maro-Sorcerer's power and toughness are each equal to the number of lands you control.\nLandfall \u{2014} Whenever a land you control enters, create a 3/3 green Badger creature token.".to_string(),
+        oracle_text: "Protection from planeswalkers and from Wizards\nGreensleeves, \
+                      Maro-Sorcerer's power and toughness are each equal to the number of lands \
+                      you control.\nLandfall \u{2014} Whenever a land you control enters, create \
+                      a 3/3 green Badger creature token."
+            .to_string(),
         power: None,
         toughness: None,
         abilities: vec![
@@ -31,11 +39,17 @@ pub fn card() -> CardDefinition {
             // CR 604.3, 613.4a: CDA — P/T each equal to the number of lands you control.
             AbilityDefinition::CdaPowerToughness {
                 power: EffectAmount::PermanentCount {
-                    filter: TargetFilter { has_card_type: Some(CardType::Land), ..Default::default() },
+                    filter: TargetFilter {
+                        has_card_type: Some(CardType::Land),
+                        ..Default::default()
+                    },
                     controller: PlayerTarget::Controller,
                 },
                 toughness: EffectAmount::PermanentCount {
-                    filter: TargetFilter { has_card_type: Some(CardType::Land), ..Default::default() },
+                    filter: TargetFilter {
+                        has_card_type: Some(CardType::Land),
+                        ..Default::default()
+                    },
                     controller: PlayerTarget::Controller,
                 },
             },

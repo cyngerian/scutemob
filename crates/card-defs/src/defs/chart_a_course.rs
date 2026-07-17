@@ -10,9 +10,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("chart-a-course"),
         name: "Chart a Course".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            blue: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Draw two cards. Then discard a card unless you attacked this turn.".to_string(),
+        oracle_text: "Draw two cards. Then discard a card unless you attacked this turn."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![
                 Effect::DrawCards {

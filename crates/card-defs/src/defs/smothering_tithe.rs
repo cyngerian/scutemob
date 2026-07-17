@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("smothering-tithe"),
         name: "Smothering Tithe".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            white: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Whenever an opponent draws a card, that player may pay {2}. If the player doesn't, you create a Treasure token.".to_string(),
+        oracle_text: "Whenever an opponent draws a card, that player may pay {2}. If the player \
+                      doesn't, you create a Treasure token."
+            .to_string(),
         abilities: vec![
             // Opponent-draw filter applied.
             // TODO: "that player may pay {2}, if they don't" — MayPayOrElse still a gap.
@@ -18,7 +24,9 @@ pub fn card() -> CardDefinition {
                 trigger_condition: TriggerCondition::WheneverPlayerDrawsCard {
                     player_filter: Some(TargetController::Opponent),
                 },
-                effect: Effect::CreateToken { spec: treasure_token_spec(1) },
+                effect: Effect::CreateToken {
+                    spec: treasure_token_spec(1),
+                },
                 intervening_if: None,
                 targets: vec![],
 
@@ -26,7 +34,11 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::known_wrong("opponent's 'may pay {2}' is not expressible (MayPayOrElse cannot make an opponent the payer and always declines, effects/mod.rs:3196); def creates the Treasure unconditionally on every opponent draw"),
+        completeness: Completeness::known_wrong(
+            "opponent's 'may pay {2}' is not expressible (MayPayOrElse cannot make an opponent \
+             the payer and always declines, effects/mod.rs:3196); def creates the Treasure \
+             unconditionally on every opponent draw",
+        ),
         ..Default::default()
     }
 }

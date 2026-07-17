@@ -12,9 +12,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("frontier-siege"),
         name: "Frontier Siege".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "As this enchantment enters, choose Khans or Dragons.\n• Khans — At the beginning of each of your main phases, add {G}{G}.\n• Dragons — Whenever a creature you control with flying enters, you may have it fight target creature you don't control.".to_string(),
+        oracle_text: "As this enchantment enters, choose Khans or Dragons.\n• Khans — At the \
+                      beginning of each of your main phases, add {G}{G}.\n• Dragons — Whenever a \
+                      creature you control with flying enters, you may have it fight target \
+                      creature you don't control."
+            .to_string(),
         abilities: vec![
             // TODO: modal ETB choice mechanic not in DSL (blocking gap — not Fight/Bite).
             // Khans mode: mana add at beginning of each main phase (not a standard trigger condition).
@@ -22,7 +30,14 @@ pub fn card() -> CardDefinition {
             //   Effect::Fight is now available (PB-21), but the modal ETB choice and the
             //   "whenever creature with flying ETB" conditional trigger pattern remain blocking gaps.
         ],
-        completeness: Completeness::partial("As-enters mode choice ('choose Khans or Dragons') is the sole blocker — ReplacementModification has ChooseCreatureType/ChooseColor but no mode-selection variant, and no Condition reads a chosen mode. Both modes' bodies are otherwise expressible today (Khans: AtBeginningOfFirstMainPhase + AtBeginningOfPostcombatMain + AddMana; Dragons: WheneverCreatureEntersBattlefield{filter: has_keywords=[Flying], controller=You} + Effect::Fight)."),
+        completeness: Completeness::partial(
+            "As-enters mode choice ('choose Khans or Dragons') is the sole blocker — \
+             ReplacementModification has ChooseCreatureType/ChooseColor but no mode-selection \
+             variant, and no Condition reads a chosen mode. Both modes' bodies are otherwise \
+             expressible today (Khans: AtBeginningOfFirstMainPhase + AtBeginningOfPostcombatMain \
+             + AddMana; Dragons: WheneverCreatureEntersBattlefield{filter: has_keywords=[Flying], \
+             controller=You} + Effect::Fight).",
+        ),
         ..Default::default()
     }
 }

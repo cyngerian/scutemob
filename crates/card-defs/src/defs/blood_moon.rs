@@ -8,7 +8,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("blood-moon"),
         name: "Blood Moon".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
         oracle_text: "Nonbasic lands are Mountains.".to_string(),
         abilities: vec![

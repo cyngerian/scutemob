@@ -9,13 +9,23 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("sorin-lord-of-innistrad"),
         name: "Sorin, Lord of Innistrad".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, white: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            white: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Planeswalker],
             &["Sorin"],
         ),
-        oracle_text: "+1: Create a 1/1 black Vampire creature token with lifelink.\n\u{2212}2: You get an emblem with \"Creatures you control get +1/+0.\"\n\u{2212}6: Destroy up to three target creatures and/or other planeswalkers. Return each card put into a graveyard this way to the battlefield under your control.".to_string(),
+        oracle_text: "+1: Create a 1/1 black Vampire creature token with lifelink.\n\u{2212}2: \
+                      You get an emblem with \"Creatures you control get +1/+0.\"\n\u{2212}6: \
+                      Destroy up to three target creatures and/or other planeswalkers. Return \
+                      each card put into a graveyard this way to the battlefield under your \
+                      control."
+            .to_string(),
         starting_loyalty: Some(3),
         abilities: vec![
             // +1: Create a 1/1 black Vampire token with lifelink.
@@ -75,7 +85,12 @@ pub fn card() -> CardDefinition {
                 }],
             },
         ],
-        completeness: Completeness::partial("Ready to author: -2 emblem is expressible via Effect::CreateEmblem { static_effects: [ContinuousEffectDef { layer: PtModify, modification: ModifyPower(1), filter: CreaturesYouControl, duration: Indefinite }] } — see kaito_bane_of_nightmares.rs. Current Effect::Nothing is an activatable no-op."),
+        completeness: Completeness::partial(
+            "Ready to author: -2 emblem is expressible via Effect::CreateEmblem { static_effects: \
+             [ContinuousEffectDef { layer: PtModify, modification: ModifyPower(1), filter: \
+             CreaturesYouControl, duration: Indefinite }] } — see kaito_bane_of_nightmares.rs. \
+             Current Effect::Nothing is an activatable no-op.",
+        ),
         ..Default::default()
     }
 }

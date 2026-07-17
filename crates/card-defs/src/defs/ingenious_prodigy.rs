@@ -22,9 +22,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("ingenious-prodigy"),
         name: "Ingenious Prodigy".to_string(),
-        mana_cost: Some(ManaCost { blue: 1, x_count: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            blue: 1,
+            x_count: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Wizard"]),
-        oracle_text: "Skulk\nThis creature enters with X +1/+1 counters on it.\nAt the beginning of your upkeep, if this creature has one or more +1/+1 counters on it, you may remove a +1/+1 counter from it. If you do, draw a card.".to_string(),
+        oracle_text: "Skulk\nThis creature enters with X +1/+1 counters on it.\nAt the beginning \
+                      of your upkeep, if this creature has one or more +1/+1 counters on it, you \
+                      may remove a +1/+1 counter from it. If you do, draw a card."
+            .to_string(),
         power: Some(0),
         toughness: Some(1),
         abilities: vec![
@@ -73,7 +80,9 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::known_wrong("upkeep ability removes a +1/+1 counter unconditionally; oracle says 'you MAY remove'"),
+        completeness: Completeness::known_wrong(
+            "upkeep ability removes a +1/+1 counter unconditionally; oracle says 'you MAY remove'",
+        ),
         ..Default::default()
     }
 }

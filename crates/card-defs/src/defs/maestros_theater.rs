@@ -15,46 +15,54 @@ pub fn card() -> CardDefinition {
         name: "Maestros Theater".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "When this land enters, sacrifice it. When you do, search your library for a basic Island, Swamp, or Mountain card, put it onto the battlefield tapped, then shuffle and you gain 1 life.".to_string(),
-        abilities: vec![
-            AbilityDefinition::Triggered {
-                once_per_turn: false,
-                trigger_condition: TriggerCondition::WhenEntersBattlefield,
-                effect: Effect::Sequence(vec![
-                    // TODO: Sacrifice self from triggered ability — reflexive trigger pattern
-                    // ("When you do, search...") not yet expressible. Currently skips sacrifice.
-                    // Effect should be: sacrifice this permanent, then on success trigger the search.
-                    // Search for basic Island, Swamp, or Mountain.
-                    Effect::SearchLibrary {
-                        player: PlayerTarget::Controller,
-                        filter: TargetFilter {
-                            basic: true,
-                            has_card_type: Some(CardType::Land),
-                            has_subtypes: vec![
-                                SubType("Island".to_string()),
-                                SubType("Swamp".to_string()),
-                                SubType("Mountain".to_string()),
-                            ],
-                            ..Default::default()
-                        },
-                        reveal: false,
-                        destination: ZoneTarget::Battlefield { tapped: true },
-                        shuffle_before_placing: false,
-                        also_search_graveyard: false,
+        oracle_text: "When this land enters, sacrifice it. When you do, search your library for a \
+                      basic Island, Swamp, or Mountain card, put it onto the battlefield tapped, \
+                      then shuffle and you gain 1 life."
+            .to_string(),
+        abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
+            trigger_condition: TriggerCondition::WhenEntersBattlefield,
+            effect: Effect::Sequence(vec![
+                // TODO: Sacrifice self from triggered ability — reflexive trigger pattern
+                // ("When you do, search...") not yet expressible. Currently skips sacrifice.
+                // Effect should be: sacrifice this permanent, then on success trigger the search.
+                // Search for basic Island, Swamp, or Mountain.
+                Effect::SearchLibrary {
+                    player: PlayerTarget::Controller,
+                    filter: TargetFilter {
+                        basic: true,
+                        has_card_type: Some(CardType::Land),
+                        has_subtypes: vec![
+                            SubType("Island".to_string()),
+                            SubType("Swamp".to_string()),
+                            SubType("Mountain".to_string()),
+                        ],
+                        ..Default::default()
                     },
-                    Effect::Shuffle { player: PlayerTarget::Controller },
-                    Effect::GainLife {
-                        player: PlayerTarget::Controller,
-                        amount: EffectAmount::Fixed(1),
-                    },
-                ]),
-                intervening_if: None,
-                targets: vec![],
-                modes: None,
-                trigger_zone: None,
-            },
-        ],
-        completeness: Completeness::partial("Rewire: sacrifice the source via Effect::SacrificePermanents as the first step of the ETB Sequence — currently the sacrifice is silently skipped and the land stays on the battlefield (wrong game state). Residual deviation: the reflexive 'when you do' clause resolves inline rather than as a separate trigger."),
+                    reveal: false,
+                    destination: ZoneTarget::Battlefield { tapped: true },
+                    shuffle_before_placing: false,
+                    also_search_graveyard: false,
+                },
+                Effect::Shuffle {
+                    player: PlayerTarget::Controller,
+                },
+                Effect::GainLife {
+                    player: PlayerTarget::Controller,
+                    amount: EffectAmount::Fixed(1),
+                },
+            ]),
+            intervening_if: None,
+            targets: vec![],
+            modes: None,
+            trigger_zone: None,
+        }],
+        completeness: Completeness::partial(
+            "Rewire: sacrifice the source via Effect::SacrificePermanents as the first step of \
+             the ETB Sequence — currently the sacrifice is silently skipped and the land stays on \
+             the battlefield (wrong game state). Residual deviation: the reflexive 'when you do' \
+             clause resolves inline rather than as a separate trigger.",
+        ),
         ..Default::default()
     }
 }

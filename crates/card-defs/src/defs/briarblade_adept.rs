@@ -5,9 +5,18 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("briarblade-adept"),
         name: "Briarblade Adept".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Elf", "Assassin"]),
-        oracle_text: "Whenever this creature attacks, target creature an opponent controls gets -1/-1 until end of turn.\nEncore {3}{B} ({3}{B}, Exile this card from your graveyard: For each opponent, create a token copy that attacks that opponent this turn if able. They gain haste. Sacrifice them at the beginning of the next end step. Activate only as a sorcery.)".to_string(),
+        oracle_text: "Whenever this creature attacks, target creature an opponent controls gets \
+                      -1/-1 until end of turn.\nEncore {3}{B} ({3}{B}, Exile this card from your \
+                      graveyard: For each opponent, create a token copy that attacks that \
+                      opponent this turn if able. They gain haste. Sacrifice them at the \
+                      beginning of the next end step. Activate only as a sorcery.)"
+            .to_string(),
         abilities: vec![
             // Whenever this creature attacks, target creature an opponent controls gets -1/-1 until EOT.
             AbilityDefinition::Triggered {
@@ -34,7 +43,11 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Encore),
             AbilityDefinition::AltCastAbility {
                 kind: AltCostKind::Encore,
-                cost: ManaCost { generic: 3, black: 1, ..Default::default() },
+                cost: ManaCost {
+                    generic: 3,
+                    black: 1,
+                    ..Default::default()
+                },
                 details: None,
             },
         ],
@@ -52,6 +65,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

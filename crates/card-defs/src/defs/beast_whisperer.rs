@@ -6,7 +6,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("beast-whisperer"),
         name: "Beast Whisperer".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Elf", "Druid"]),
         oracle_text: "Whenever you cast a creature spell, draw a card.".to_string(),
         power: Some(2),
@@ -20,7 +24,7 @@ pub fn card() -> CardDefinition {
                     spell_type_filter: Some(vec![CardType::Creature]),
                     noncreature_only: false,
                     chosen_subtype_filter: false,
-                spell_subtype_filter: None,
+                    spell_subtype_filter: None,
                 },
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,

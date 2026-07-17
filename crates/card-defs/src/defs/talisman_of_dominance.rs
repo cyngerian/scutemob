@@ -7,9 +7,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("talisman-of-dominance"),
         name: "Talisman of Dominance".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "{T}: Add {C}.\n{T}: Add {U} or {B}. Talisman of Dominance deals 1 damage to you.".to_string(),
+        oracle_text: "{T}: Add {C}.\n{T}: Add {U} or {B}. Talisman of Dominance deals 1 damage to \
+                      you."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
@@ -21,31 +26,43 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
                 effect: Effect::Sequence(vec![
-                    Effect::AddMana { player: PlayerTarget::Controller, mana: mana_pool(0, 1, 0, 0, 0, 0) },
-                    Effect::DealDamage { target: EffectTarget::Controller, amount: EffectAmount::Fixed(1) },
+                    Effect::AddMana {
+                        player: PlayerTarget::Controller,
+                        mana: mana_pool(0, 1, 0, 0, 0, 0),
+                    },
+                    Effect::DealDamage {
+                        target: EffectTarget::Controller,
+                        amount: EffectAmount::Fixed(1),
+                    },
                 ]),
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
                 effect: Effect::Sequence(vec![
-                    Effect::AddMana { player: PlayerTarget::Controller, mana: mana_pool(0, 0, 1, 0, 0, 0) },
-                    Effect::DealDamage { target: EffectTarget::Controller, amount: EffectAmount::Fixed(1) },
+                    Effect::AddMana {
+                        player: PlayerTarget::Controller,
+                        mana: mana_pool(0, 0, 1, 0, 0, 0),
+                    },
+                    Effect::DealDamage {
+                        target: EffectTarget::Controller,
+                        amount: EffectAmount::Fixed(1),
+                    },
                 ]),
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

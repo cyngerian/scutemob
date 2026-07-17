@@ -8,9 +8,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("sublime-exhalation"),
         name: "Sublime Exhalation".to_string(),
-        mana_cost: Some(ManaCost { generic: 6, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 6,
+            white: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Undaunted (This spell costs {1} less to cast for each of your opponents.)\nDestroy all creatures.".to_string(),
+        oracle_text: "Undaunted (This spell costs {1} less to cast for each of your \
+                      opponents.)\nDestroy all creatures."
+            .to_string(),
         abilities: vec![
             // CR 702.125a: Undaunted keyword marker.
             AbilityDefinition::Keyword(KeywordAbility::Undaunted),

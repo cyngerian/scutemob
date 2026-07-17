@@ -11,9 +11,19 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("necropanther"),
         name: "Necropanther".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, white: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            white: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Cat", "Nightmare"]),
-        oracle_text: "Mutate {2}{W/B}{W/B} (If you cast this spell for its mutate cost, put it over or under target non-Human creature you own. They mutate into the creature on top plus all abilities from under it.)\nWhenever this creature mutates, return target creature card with mana value 3 or less from your graveyard to the battlefield.".to_string(),
+        oracle_text: "Mutate {2}{W/B}{W/B} (If you cast this spell for its mutate cost, put it \
+                      over or under target non-Human creature you own. They mutate into the \
+                      creature on top plus all abilities from under it.)\nWhenever this creature \
+                      mutates, return target creature card with mana value 3 or less from your \
+                      graveyard to the battlefield."
+            .to_string(),
         power: Some(3),
         toughness: Some(3),
         abilities: vec![

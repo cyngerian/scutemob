@@ -8,9 +8,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("grand-warlord-radha"),
         name: "Grand Warlord Radha".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 1, green: 1, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Elf", "Warrior"]),
-        oracle_text: "Haste\nWhenever one or more creatures you control attack, add that much mana in any combination of {R} and/or {G}. Until end of turn, you don't lose this mana as steps and phases end.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 1,
+            green: 1,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Creature],
+            &["Elf", "Warrior"],
+        ),
+        oracle_text: "Haste\nWhenever one or more creatures you control attack, add that much \
+                      mana in any combination of {R} and/or {G}. Until end of turn, you don't \
+                      lose this mana as steps and phases end."
+            .to_string(),
         power: Some(3),
         toughness: Some(4),
         abilities: vec![
@@ -21,7 +33,15 @@ pub fn card() -> CardDefinition {
             // (dynamic count), and mana persists through phase changes (special mana
             // restriction), neither of which is expressible in the current DSL.
         ],
-        completeness: Completeness::partial("Blocked on the mana clauses only. Real gaps: (a) 'add that much mana in any combination of {R} and/or {G}' — AddManaChoice/AddManaOfAnyColorAmount produce N mana of ONE color; no split-across-colors variant; (b) 'you don't lose this mana as steps and phases end' — ManaRestriction's variants are spend-restrictions only, with no exemption from CR 500.4 mana emptying. NOT blocked: the trigger is TriggerCondition::WheneverYouAttack (fires once per combat, CR 508.1), and the count is EffectAmount::AttackingCreatureCount. Haste is correct."),
+        completeness: Completeness::partial(
+            "Blocked on the mana clauses only. Real gaps: (a) 'add that much mana in any \
+             combination of {R} and/or {G}' — AddManaChoice/AddManaOfAnyColorAmount produce N \
+             mana of ONE color; no split-across-colors variant; (b) 'you don't lose this mana as \
+             steps and phases end' — ManaRestriction's variants are spend-restrictions only, with \
+             no exemption from CR 500.4 mana emptying. NOT blocked: the trigger is \
+             TriggerCondition::WheneverYouAttack (fires once per combat, CR 508.1), and the count \
+             is EffectAmount::AttackingCreatureCount. Haste is correct.",
+        ),
         ..Default::default()
     }
 }

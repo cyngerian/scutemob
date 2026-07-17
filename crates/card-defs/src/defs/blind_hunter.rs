@@ -7,10 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("blind-hunter"),
         name: "Blind Hunter".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, white: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            white: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Bat"]),
         oracle_text: "Flying, Haunt\nWhen Blind Hunter enters the battlefield or the haunted \
-creature dies, each opponent loses 2 life and you gain 2 life."
+                      creature dies, each opponent loses 2 life and you gain 2 life."
             .to_string(),
         power: Some(2),
         toughness: Some(2),
@@ -22,7 +27,9 @@ creature dies, each opponent loses 2 life and you gain 2 life."
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
-                effect: Effect::DrainLife { amount: EffectAmount::Fixed(2) },
+                effect: Effect::DrainLife {
+                    amount: EffectAmount::Fixed(2),
+                },
                 intervening_if: None,
                 targets: vec![],
 
@@ -33,7 +40,9 @@ creature dies, each opponent loses 2 life and you gain 2 life."
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::HauntedCreatureDies,
-                effect: Effect::DrainLife { amount: EffectAmount::Fixed(2) },
+                effect: Effect::DrainLife {
+                    amount: EffectAmount::Fixed(2),
+                },
                 intervening_if: None,
                 targets: vec![],
 
@@ -53,6 +62,6 @@ creature dies, each opponent loses 2 life and you gain 2 life."
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

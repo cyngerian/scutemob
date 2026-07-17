@@ -10,9 +10,19 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("otharri-suns-glory"),
         name: "Otharri, Suns' Glory".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, red: 1, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            red: 1,
+            white: 1,
+            ..Default::default()
+        }),
         types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Phoenix"]),
-        oracle_text: "Flying, lifelink, haste\nWhenever Otharri attacks, you get an experience counter. Then create a 2/2 red Rebel creature token that's tapped and attacking for each experience counter you have.\n{2}{R}{W}, Tap an untapped Rebel you control: Return this card from your graveyard to the battlefield tapped.".to_string(),
+        oracle_text: "Flying, lifelink, haste\nWhenever Otharri attacks, you get an experience \
+                      counter. Then create a 2/2 red Rebel creature token that's tapped and \
+                      attacking for each experience counter you have.\n{2}{R}{W}, Tap an untapped \
+                      Rebel you control: Return this card from your graveyard to the battlefield \
+                      tapped."
+            .to_string(),
         power: Some(3),
         toughness: Some(3),
         abilities: vec![
@@ -30,7 +40,15 @@ pub fn card() -> CardDefinition {
             // Tap-a-Rebel cost not expressible (Cost::TapPermanentWithSubtype not in DSL).
             // Also no ReturnFromGraveyardToBattlefield effect with tapped modifier.
         ],
-        completeness: Completeness::partial("Blocked on experience counters: PlayerState tracks poison counters only (effects/mod.rs:3528-3533) — CounterType::Experience exists in the type system with no backing field. (EffectAmount::PlayerCounterCount DOES exist and would serve the token loop once the field lands; TokenSpec already supports tapped + enters_attacking + EffectAmount count.) Second ability additionally blocked on a Cost variant for tapping another untapped permanent by subtype (same gap as Opposition)."),
+        completeness: Completeness::partial(
+            "Blocked on experience counters: PlayerState tracks poison counters only \
+             (effects/mod.rs:3528-3533) — CounterType::Experience exists in the type system with \
+             no backing field. (EffectAmount::PlayerCounterCount DOES exist and would serve the \
+             token loop once the field lands; TokenSpec already supports tapped + \
+             enters_attacking + EffectAmount count.) Second ability additionally blocked on a \
+             Cost variant for tapping another untapped permanent by subtype (same gap as \
+             Opposition).",
+        ),
         ..Default::default()
     }
 }

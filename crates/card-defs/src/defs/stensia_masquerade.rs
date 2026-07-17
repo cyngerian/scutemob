@@ -10,9 +10,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("stensia-masquerade"),
         name: "Stensia Masquerade".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Attacking creatures you control have first strike.\nWhenever a Vampire you control deals combat damage to a player, put a +1/+1 counter on it.\nMadness {2}{R}".to_string(),
+        oracle_text: "Attacking creatures you control have first strike.\nWhenever a Vampire you \
+                      control deals combat damage to a player, put a +1/+1 counter on \
+                      it.\nMadness {2}{R}"
+            .to_string(),
         abilities: vec![
             // CR 613.1f / CR 611.3a: "Attacking creatures you control have first strike."
             AbilityDefinition::Static {
@@ -28,12 +35,13 @@ pub fn card() -> CardDefinition {
             // put a +1/+1 counter on it." — per-creature trigger with Vampire filter.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer {
-                    filter: Some(TargetFilter {
-                        has_subtype: Some(SubType("Vampire".to_string())),
-                        ..Default::default()
-                    }),
-                },
+                trigger_condition:
+                    TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer {
+                        filter: Some(TargetFilter {
+                            has_subtype: Some(SubType("Vampire".to_string())),
+                            ..Default::default()
+                        }),
+                    },
                 effect: Effect::AddCounter {
                     target: EffectTarget::TriggeringCreature,
                     counter: CounterType::PlusOnePlusOne,
@@ -46,7 +54,11 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("Ready to author: AbilityDefinition::Madness { cost } exists (card_definition.rs:508). Add the Madness cost ability + Keyword(Madness) marker; the other two clauses are already complete."),
+        completeness: Completeness::partial(
+            "Ready to author: AbilityDefinition::Madness { cost } exists \
+             (card_definition.rs:508). Add the Madness cost ability + Keyword(Madness) marker; \
+             the other two clauses are already complete.",
+        ),
         ..Default::default()
     }
 }

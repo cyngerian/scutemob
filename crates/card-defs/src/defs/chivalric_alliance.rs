@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("chivalric-alliance"),
         name: "Chivalric Alliance".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            white: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Whenever you attack with two or more creatures, draw a card.\n{2}, Discard a card: Create a 2/2 white and blue Knight creature token with vigilance.".to_string(),
+        oracle_text: "Whenever you attack with two or more creatures, draw a card.\n{2}, Discard \
+                      a card: Create a 2/2 white and blue Knight creature token with vigilance."
+            .to_string(),
         abilities: vec![
             // Whenever you attack, draw a card.
             // TODO: "with two or more creatures" condition not in DSL.
@@ -29,7 +35,10 @@ pub fn card() -> CardDefinition {
             // {2}, Discard: Create Knight token
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 2, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 2,
+                        ..Default::default()
+                    }),
                     Cost::DiscardCard,
                 ]),
                 effect: Effect::CreateToken {
@@ -55,7 +64,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         completeness: Completeness::partial("'with two or more creatures' condition not in DSL"),

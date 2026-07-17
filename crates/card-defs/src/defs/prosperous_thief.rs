@@ -8,27 +8,41 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("prosperous-thief"),
         name: "Prosperous Thief".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            blue: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Ninja"]),
-        oracle_text: "Ninjutsu {1}{U}\nWhenever one or more Ninja or Rogue creatures you control deal combat damage to a player, create a Treasure token.".to_string(),
+        oracle_text: "Ninjutsu {1}{U}\nWhenever one or more Ninja or Rogue creatures you control \
+                      deal combat damage to a player, create a Treasure token."
+            .to_string(),
         power: Some(3),
         toughness: Some(2),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Ninjutsu),
             AbilityDefinition::Ninjutsu {
-                cost: ManaCost { generic: 1, blue: 1, ..Default::default() },
+                cost: ManaCost {
+                    generic: 1,
+                    blue: 1,
+                    ..Default::default()
+                },
             },
             // CR 510.3a / CR 603.2c: "Whenever one or more Ninja or Rogue creatures you control
             // deal combat damage to a player, create a Treasure token." — batch trigger with
             // Ninja OR Rogue subtype filter.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer {
-                    filter: Some(TargetFilter {
-                        has_subtypes: vec![SubType("Ninja".to_string()), SubType("Rogue".to_string())],
-                        ..Default::default()
-                    }),
-                },
+                trigger_condition:
+                    TriggerCondition::WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer {
+                        filter: Some(TargetFilter {
+                            has_subtypes: vec![
+                                SubType("Ninja".to_string()),
+                                SubType("Rogue".to_string()),
+                            ],
+                            ..Default::default()
+                        }),
+                    },
                 effect: Effect::CreateToken {
                     spec: treasure_token_spec(1),
                 },

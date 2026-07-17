@@ -15,9 +15,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("marionette-apprentice"),
         name: "Marionette Apprentice".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Artificer"]),
-        oracle_text: "Fabricate 1 (When this creature enters, put a +1/+1 counter on it or create a 1/1 colorless Servo artifact creature token.)\nWhenever another creature or artifact you control is put into a graveyard from the battlefield, each opponent loses 1 life.".to_string(),
+        oracle_text: "Fabricate 1 (When this creature enters, put a +1/+1 counter on it or create \
+                      a 1/1 colorless Servo artifact creature token.)\nWhenever another creature \
+                      or artifact you control is put into a graveyard from the battlefield, each \
+                      opponent loses 1 life."
+            .to_string(),
         power: Some(1),
         toughness: Some(2),
         abilities: vec![
@@ -28,7 +36,10 @@ pub fn card() -> CardDefinition {
             // absent from the DSL. WheneverCreatureDies covers only creatures; applying it
             // here would miss artifact deaths and produce incorrect game state.
         ],
-        completeness: Completeness::partial("'Whenever another creature or artifact you control dies' — there is no TriggerCondition covering both creatures AND..."),
+        completeness: Completeness::partial(
+            "'Whenever another creature or artifact you control dies' — there is no \
+             TriggerCondition covering both creatures AND...",
+        ),
         ..Default::default()
     }
 }

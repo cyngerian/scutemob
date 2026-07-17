@@ -5,14 +5,18 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("khenra-eternal"),
         name: "Khenra Eternal".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Zombie", "Jackal", "Warrior"]),
-        oracle_text: "Afflict 1 (Whenever this creature becomes blocked, defending player loses 1 life.)".to_string(),
+        oracle_text: "Afflict 1 (Whenever this creature becomes blocked, defending player loses 1 \
+                      life.)"
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
-        abilities: vec![
-            AbilityDefinition::Keyword(KeywordAbility::Afflict(1)),
-        ],
+        abilities: vec![AbilityDefinition::Keyword(KeywordAbility::Afflict(1))],
         color_indicator: None,
         back_face: None,
         spell_cost_modifiers: vec![],
@@ -25,6 +29,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

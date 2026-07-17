@@ -8,9 +8,18 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("elvish-dreadlord"),
         name: "Elvish Dreadlord".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            black: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Zombie", "Elf"]),
-        oracle_text: "Deathtouch\nWhen this creature dies, non-Elf creatures get -3/-3 until end of turn.\nEncore {5}{B}{B} ({5}{B}{B}, Exile this card from your graveyard: For each opponent, create a token copy that attacks that opponent this turn if able. They gain haste. Sacrifice them at the beginning of the next end step. Activate only as a sorcery.)".to_string(),
+        oracle_text: "Deathtouch\nWhen this creature dies, non-Elf creatures get -3/-3 until end \
+                      of turn.\nEncore {5}{B}{B} ({5}{B}{B}, Exile this card from your graveyard: \
+                      For each opponent, create a token copy that attacks that opponent this turn \
+                      if able. They gain haste. Sacrifice them at the beginning of the next end \
+                      step. Activate only as a sorcery.)"
+            .to_string(),
         power: Some(3),
         toughness: Some(3),
         abilities: vec![
@@ -20,7 +29,13 @@ pub fn card() -> CardDefinition {
             // WhenDies trigger targeting all non-Elf creatures (EffectTarget with subtype
             // exclusion filter) not in DSL.
         ],
-        completeness: Completeness::partial("Two rewires, both expressible: (1) WhenDies -> Effect::ApplyContinuousEffect { PtModify, ModifyBoth(-3), EffectFilter::AllCreaturesExcludingSubtype(Elf), UntilEndOfTurn } — precedent eyeblight_massacre.rs:16-22. (2) Add AbilityDefinition::AltCastAbility { kind: AltCostKind::Encore, cost: {5}{B}{B} } beside the existing Keyword(Encore) marker; the marker alone is inert."),
+        completeness: Completeness::partial(
+            "Two rewires, both expressible: (1) WhenDies -> Effect::ApplyContinuousEffect { \
+             PtModify, ModifyBoth(-3), EffectFilter::AllCreaturesExcludingSubtype(Elf), \
+             UntilEndOfTurn } — precedent eyeblight_massacre.rs:16-22. (2) Add \
+             AbilityDefinition::AltCastAbility { kind: AltCostKind::Encore, cost: {5}{B}{B} } \
+             beside the existing Keyword(Encore) marker; the marker alone is inert.",
+        ),
         ..Default::default()
     }
 }

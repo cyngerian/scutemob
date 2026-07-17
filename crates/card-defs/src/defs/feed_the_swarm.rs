@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("feed-the-swarm"),
         name: "Feed the Swarm".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Destroy target creature or enchantment an opponent controls. You lose life equal to that permanent's mana value.".to_string(),
+        oracle_text: "Destroy target creature or enchantment an opponent controls. You lose life \
+                      equal to that permanent's mana value."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             // CR 701.8: Destroy target creature or enchantment an opponent controls.
             // CR 119: Lose life equal to that permanent's mana value (EffectAmount::ManaValueOf).

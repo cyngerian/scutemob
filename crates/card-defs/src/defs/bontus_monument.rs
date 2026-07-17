@@ -7,9 +7,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("bontus-monument"),
         name: "Bontu's Monument".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            ..Default::default()
+        }),
         types: supertypes(&[SuperType::Legendary], &[CardType::Artifact]),
-        oracle_text: "Black creature spells you cast cost {1} less to cast.\nWhenever you cast a creature spell, each opponent loses 1 life and you gain 1 life.".to_string(),
+        oracle_text: "Black creature spells you cast cost {1} less to cast.\nWhenever you cast a \
+                      creature spell, each opponent loses 1 life and you gain 1 life."
+            .to_string(),
         // CR 601.2f: Black creature spells controller casts cost {1} less.
         // Uses ColorAndCreature(Black) — compound filter (must be both creature AND black).
         spell_cost_modifiers: vec![SpellCostModifier {
@@ -29,7 +34,7 @@ pub fn card() -> CardDefinition {
                     spell_type_filter: Some(vec![CardType::Creature]),
                     noncreature_only: false,
                     chosen_subtype_filter: false,
-                spell_subtype_filter: None,
+                    spell_subtype_filter: None,
                 },
                 effect: Effect::Sequence(vec![
                     Effect::ForEach {

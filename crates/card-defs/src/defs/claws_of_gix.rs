@@ -6,26 +6,29 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("claws-of-gix"),
         name: "Claws of Gix".to_string(),
-        mana_cost: Some(ManaCost { ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
         oracle_text: "{1}, Sacrifice a permanent: You gain 1 life.".to_string(),
-        abilities: vec![
-            AbilityDefinition::Activated {
-                cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
-                    Cost::Sacrifice(TargetFilter::default()),
-                ]),
-                effect: Effect::GainLife {
-                    player: PlayerTarget::Controller,
-                    amount: EffectAmount::Fixed(1),
-                },
-                timing_restriction: None,
-                targets: vec![],
-                activation_condition: None,
-                activation_zone: None,
-            once_per_turn: false,
+        abilities: vec![AbilityDefinition::Activated {
+            cost: Cost::Sequence(vec![
+                Cost::Mana(ManaCost {
+                    generic: 1,
+                    ..Default::default()
+                }),
+                Cost::Sacrifice(TargetFilter::default()),
+            ]),
+            effect: Effect::GainLife {
+                player: PlayerTarget::Controller,
+                amount: EffectAmount::Fixed(1),
             },
-        ],
+            timing_restriction: None,
+            targets: vec![],
+            activation_condition: None,
+            activation_zone: None,
+            once_per_turn: false,
+        }],
         ..Default::default()
     }
 }

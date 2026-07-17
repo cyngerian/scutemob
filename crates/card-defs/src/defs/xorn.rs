@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("xorn"),
         name: "Xorn".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Elemental"]),
-        oracle_text: "If you would create one or more Treasure tokens, instead create those tokens plus an additional Treasure token.".to_string(),
+        oracle_text: "If you would create one or more Treasure tokens, instead create those \
+                      tokens plus an additional Treasure token."
+            .to_string(),
         power: Some(3),
         toughness: Some(2),
         abilities: vec![
@@ -17,7 +23,10 @@ pub fn card() -> CardDefinition {
             //   not expressible in DSL. Would need ReplacementModification::AddExtraToken or
             //   similar variant. W5 policy: no implementation produces wrong game state.
         ],
-        completeness: Completeness::partial("Replacement effect for token creation quantity ('create one more Treasure') not expressible in DSL. Would need..."),
+        completeness: Completeness::partial(
+            "Replacement effect for token creation quantity ('create one more Treasure') not \
+             expressible in DSL. Would need...",
+        ),
         ..Default::default()
     }
 }

@@ -13,9 +13,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("force-of-despair"),
         name: "Force of Despair".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "If it's not your turn, you may exile a black card from your hand rather than pay this spell's mana cost.\nDestroy all creatures that entered this turn.".to_string(),
+        oracle_text: "If it's not your turn, you may exile a black card from your hand rather \
+                      than pay this spell's mana cost.\nDestroy all creatures that entered this \
+                      turn."
+            .to_string(),
         abilities: vec![
             // ENGINE-BLOCKED: "Destroy all creatures that entered this turn."
             // DSL gap: DestroyAll TargetFilter has no entered-this-turn predicate. The
@@ -23,7 +30,10 @@ pub fn card() -> CardDefinition {
             // implemented and ready to attach once the destroy-filter gap closes, but is
             // intentionally NOT added here alone — per W6 policy, no partial authoring.
         ],
-        completeness: Completeness::partial("'Destroy all creatures that entered this turn.' DSL gap: DestroyAll TargetFilter has no entered-this-turn predicate...."),
+        completeness: Completeness::partial(
+            "'Destroy all creatures that entered this turn.' DSL gap: DestroyAll TargetFilter has \
+             no entered-this-turn predicate....",
+        ),
         ..Default::default()
     }
 }

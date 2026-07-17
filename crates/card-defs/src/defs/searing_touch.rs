@@ -11,13 +11,22 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("searing-touch"),
         name: "Searing Touch".to_string(),
-        mana_cost: Some(ManaCost { red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            red: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Buyback {4} (You may pay an additional {4} as you cast this spell. If you do, put this card into your hand as it resolves.)\nSearing Touch deals 1 damage to any target.".to_string(),
+        oracle_text: "Buyback {4} (You may pay an additional {4} as you cast this spell. If you \
+                      do, put this card into your hand as it resolves.)\nSearing Touch deals 1 \
+                      damage to any target."
+            .to_string(),
         abilities: vec![
             // CR 702.27a: Buyback cost ({4}).
             AbilityDefinition::Buyback {
-                cost: ManaCost { generic: 4, ..Default::default() },
+                cost: ManaCost {
+                    generic: 4,
+                    ..Default::default()
+                },
             },
             // Spell effect: deal 1 damage to any target.
             AbilityDefinition::Spell {

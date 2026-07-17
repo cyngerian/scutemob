@@ -14,9 +14,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("path-to-exile"),
         name: "Path to Exile".to_string(),
-        mana_cost: Some(ManaCost { white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            white: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Exile target creature. Its controller may search their library for a basic land card, put that card onto the battlefield tapped, then shuffle.".to_string(),
+        oracle_text: "Exile target creature. Its controller may search their library for a basic \
+                      land card, put that card onto the battlefield tapped, then shuffle."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![
                 Effect::ExileObject {
@@ -27,12 +32,12 @@ pub fn card() -> CardDefinition {
                 // payment and always runs or_else, so this ALWAYS searches. The
                 // "may" is not expressible today; see the known_wrong marker below.
                 Effect::MayPayOrElse {
-                    cost: Cost::Mana(
-                        ManaCost { ..Default::default() }
-                    ),
-                    payer: PlayerTarget::ControllerOf(Box::new(
-                        EffectTarget::DeclaredTarget { index: 0 },
-                    )),
+                    cost: Cost::Mana(ManaCost {
+                        ..Default::default()
+                    }),
+                    payer: PlayerTarget::ControllerOf(Box::new(EffectTarget::DeclaredTarget {
+                        index: 0,
+                    })),
                     or_else: Box::new(Effect::Sequence(vec![
                         Effect::SearchLibrary {
                             player: PlayerTarget::ControllerOf(Box::new(
@@ -40,11 +45,9 @@ pub fn card() -> CardDefinition {
                             )),
                             filter: basic_land_filter(),
                             reveal: false,
-                            destination: ZoneTarget::Battlefield {
-                                tapped: true,
-                            },
+                            destination: ZoneTarget::Battlefield { tapped: true },
                             shuffle_before_placing: false,
-                    also_search_graveyard: false,
+                            also_search_graveyard: false,
                         },
                         Effect::Shuffle {
                             player: PlayerTarget::ControllerOf(Box::new(

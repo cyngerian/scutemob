@@ -8,9 +8,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("skrevls-hive"),
         name: "Skrelv's Hive".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            white: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "At the beginning of your upkeep, you lose 1 life and create a 1/1 colorless Phyrexian Mite artifact creature token with toxic 1 and \"This token can't block.\"\nCorrupted \u{2014} As long as an opponent has three or more poison counters, creatures you control with toxic have lifelink.".to_string(),
+        oracle_text: "At the beginning of your upkeep, you lose 1 life and create a 1/1 colorless \
+                      Phyrexian Mite artifact creature token with toxic 1 and \"This token can't \
+                      block.\"\nCorrupted \u{2014} As long as an opponent has three or more \
+                      poison counters, creatures you control with toxic have lifelink."
+            .to_string(),
         abilities: vec![
             // Upkeep trigger: lose 1 life and create a 1/1 colorless Phyrexian Mite artifact
             // creature token with toxic 1 and "can't block".
@@ -29,9 +37,12 @@ pub fn card() -> CardDefinition {
                             card_types: [CardType::Artifact, CardType::Creature]
                                 .into_iter()
                                 .collect(),
-                            subtypes: [SubType("Phyrexian".to_string()), SubType("Mite".to_string())]
-                                .into_iter()
-                                .collect(),
+                            subtypes: [
+                                SubType("Phyrexian".to_string()),
+                                SubType("Mite".to_string()),
+                            ]
+                            .into_iter()
+                            .collect(),
                             colors: imbl::OrdSet::new(),
                             supertypes: imbl::OrdSet::new(),
                             power: 1,
@@ -62,7 +73,10 @@ pub fn card() -> CardDefinition {
             // expressible — EffectFilter::CreaturesYouControl lacks a keyword filter.
             // Additionally, Corrupted keyword marker is not in KeywordAbility enum.
         ],
-        completeness: Completeness::partial("Corrupted — 'As long as an opponent has three or more poison counters, creatures you control with toxic have lifelink.'..."),
+        completeness: Completeness::partial(
+            "Corrupted — 'As long as an opponent has three or more poison counters, creatures you \
+             control with toxic have lifelink.'...",
+        ),
         ..Default::default()
     }
 }

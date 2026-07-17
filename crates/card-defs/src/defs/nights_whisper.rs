@@ -5,7 +5,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("nights-whisper"),
         name: "Night's Whisper".to_string(),
-        mana_cost: Some(ManaCost { black: 1, generic: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 1,
+            generic: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
         oracle_text: "You draw two cards and you lose 2 life.".to_string(),
         abilities: vec![AbilityDefinition::Spell {

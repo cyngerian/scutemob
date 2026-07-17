@@ -9,9 +9,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("doubling-season"),
         name: "Doubling Season".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead.\nIf an effect would put one or more counters on a permanent you control, it puts twice that many of those counters on that permanent instead.".to_string(),
+        oracle_text: "If an effect would create one or more tokens under your control, it creates \
+                      twice that many of those tokens instead.\nIf an effect would put one or \
+                      more counters on a permanent you control, it puts twice that many of those \
+                      counters on that permanent instead."
+            .to_string(),
         abilities: vec![
             // CR 111.1 / CR 614.1: Token-doubling replacement effect.
             // PlayerId(0) placeholder — bound to the controller at registration.

@@ -8,9 +8,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("glint-horn-buccaneer"),
         name: "Glint-Horn Buccaneer".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, red: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            red: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Minotaur", "Pirate"]),
-        oracle_text: "Haste\nWhenever you discard a card, this creature deals 1 damage to each opponent.\n{1}{R}, Discard a card: Draw a card. Activate only if this creature is attacking.".to_string(),
+        oracle_text: "Haste\nWhenever you discard a card, this creature deals 1 damage to each \
+                      opponent.\n{1}{R}, Discard a card: Draw a card. Activate only if this \
+                      creature is attacking."
+            .to_string(),
         power: Some(2),
         toughness: Some(4),
         abilities: vec![
@@ -35,7 +42,14 @@ pub fn card() -> CardDefinition {
             // TODO: "{1}{R}, Discard a card: Draw a card. Activate only if attacking."
             // Requires activation condition (is_attacking) + discard as cost.
         ],
-        completeness: Completeness::partial("Blocked on the activation condition only: '{1}{R}, Discard a card: Draw a card. Activate only if this creature is attacking' needs a Condition::SourceIsAttacking for activation_condition; Condition has no source-is-attacking predicate (YouAttackedThisTurn is not equivalent). Discard-as-cost is NOT blocked — Cost::Sequence(vec![Cost::Mana(..), Cost::DiscardCard]) expresses it. Haste and the discard trigger are correct."),
+        completeness: Completeness::partial(
+            "Blocked on the activation condition only: '{1}{R}, Discard a card: Draw a card. \
+             Activate only if this creature is attacking' needs a Condition::SourceIsAttacking \
+             for activation_condition; Condition has no source-is-attacking predicate \
+             (YouAttackedThisTurn is not equivalent). Discard-as-cost is NOT blocked — \
+             Cost::Sequence(vec![Cost::Mana(..), Cost::DiscardCard]) expresses it. Haste and the \
+             discard trigger are correct.",
+        ),
         ..Default::default()
     }
 }

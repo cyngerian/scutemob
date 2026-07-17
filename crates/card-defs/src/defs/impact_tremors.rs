@@ -6,9 +6,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("impact-tremors"),
         name: "Impact Tremors".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            red: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Whenever a creature you control enters, this enchantment deals 1 damage to each opponent.".to_string(),
+        oracle_text: "Whenever a creature you control enters, this enchantment deals 1 damage to \
+                      each opponent."
+            .to_string(),
         abilities: vec![AbilityDefinition::Triggered {
             once_per_turn: false,
             trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {

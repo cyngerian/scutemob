@@ -6,15 +6,25 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("elder-deep-fiend"),
         name: "Elder Deep-Fiend".to_string(),
-        mana_cost: Some(ManaCost { generic: 8, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 8,
+            ..Default::default()
+        }),
         types: creature_types(&["Eldrazi", "Octopus"]),
-        oracle_text: "Emerge {5}{U}{U} (You may cast this spell by sacrificing a creature and paying the emerge cost reduced by that creature's mana value.)\nFlash\nWhen you cast this spell, tap up to four target permanents.".to_string(),
+        oracle_text: "Emerge {5}{U}{U} (You may cast this spell by sacrificing a creature and \
+                      paying the emerge cost reduced by that creature's mana value.)\nFlash\nWhen \
+                      you cast this spell, tap up to four target permanents."
+            .to_string(),
         power: Some(5),
         toughness: Some(6),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Emerge),
             AbilityDefinition::Emerge {
-                cost: ManaCost { generic: 5, blue: 2, ..Default::default() },
+                cost: ManaCost {
+                    generic: 5,
+                    blue: 2,
+                    ..Default::default()
+                },
             },
             AbilityDefinition::Keyword(KeywordAbility::Flash),
             // When you cast this spell, tap up to four target permanents. (CR 601.2c)
@@ -22,10 +32,18 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenYouCastThisSpell,
                 effect: Effect::Sequence(vec![
-                    Effect::TapPermanent { target: EffectTarget::DeclaredTarget { index: 0 } },
-                    Effect::TapPermanent { target: EffectTarget::DeclaredTarget { index: 1 } },
-                    Effect::TapPermanent { target: EffectTarget::DeclaredTarget { index: 2 } },
-                    Effect::TapPermanent { target: EffectTarget::DeclaredTarget { index: 3 } },
+                    Effect::TapPermanent {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                    },
+                    Effect::TapPermanent {
+                        target: EffectTarget::DeclaredTarget { index: 1 },
+                    },
+                    Effect::TapPermanent {
+                        target: EffectTarget::DeclaredTarget { index: 2 },
+                    },
+                    Effect::TapPermanent {
+                        target: EffectTarget::DeclaredTarget { index: 3 },
+                    },
                 ]),
                 intervening_if: None,
                 targets: vec![TargetRequirement::UpToN {
@@ -48,6 +66,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

@@ -8,9 +8,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("ancient-gold-dragon"),
         name: "Ancient Gold Dragon".to_string(),
-        mana_cost: Some(ManaCost { generic: 5, white: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 5,
+            white: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Elder", "Dragon"]),
-        oracle_text: "Flying\nWhenever this creature deals combat damage to a player, roll a d20. You create a number of 1/1 blue Faerie Dragon creature tokens with flying equal to the result.".to_string(),
+        oracle_text: "Flying\nWhenever this creature deals combat damage to a player, roll a d20. \
+                      You create a number of 1/1 blue Faerie Dragon creature tokens with flying \
+                      equal to the result."
+            .to_string(),
         power: Some(7),
         toughness: Some(10),
         abilities: vec![
@@ -35,9 +42,12 @@ pub fn card() -> CardDefinition {
                                 colors: [Color::Blue].into_iter().collect(),
                                 supertypes: OrdSet::new(),
                                 card_types: [CardType::Creature].into_iter().collect(),
-                                subtypes: [SubType("Faerie".to_string()), SubType("Dragon".to_string())]
-                                    .into_iter()
-                                    .collect(),
+                                subtypes: [
+                                    SubType("Faerie".to_string()),
+                                    SubType("Dragon".to_string()),
+                                ]
+                                .into_iter()
+                                .collect(),
                                 keywords: [KeywordAbility::Flying].into_iter().collect(),
                                 count: EffectAmount::LastDiceRoll,
                                 tapped: false,

@@ -11,9 +11,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("retraced-image"),
         name: "Retraced Image".to_string(),
-        mana_cost: Some(ManaCost { blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            blue: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Reveal a card in your hand, then put that card onto the battlefield if it has the same name as a permanent.".to_string(),
+        oracle_text: "Reveal a card in your hand, then put that card onto the battlefield if it \
+                      has the same name as a permanent."
+            .to_string(),
         abilities: vec![
             // TODO: Reveal-from-hand + conditional-on-permanent-name-match + put-onto-battlefield.
             // Multiple DSL gaps: reveal from hand, name matching, conditional zone change.
@@ -24,7 +29,10 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::partial("Interactive — requires revealing a hand card and checking if any permanent on the battlefield shares its name. No..."),
+        completeness: Completeness::partial(
+            "Interactive — requires revealing a hand card and checking if any permanent on the \
+             battlefield shares its name. No...",
+        ),
         ..Default::default()
     }
 }

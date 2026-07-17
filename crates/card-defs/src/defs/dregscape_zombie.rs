@@ -8,9 +8,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("dregscape-zombie"),
         name: "Dregscape Zombie".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Zombie"]),
-        oracle_text: "Unearth {B} (Pay {B}: Return this card from your graveyard to the battlefield. It gains haste. Exile it at the beginning of the next end step or if it would leave the battlefield. Unearth only as a sorcery.)".to_string(),
+        oracle_text: "Unearth {B} (Pay {B}: Return this card from your graveyard to the \
+                      battlefield. It gains haste. Exile it at the beginning of the next end step \
+                      or if it would leave the battlefield. Unearth only as a sorcery.)"
+            .to_string(),
         power: Some(2),
         toughness: Some(1),
         abilities: vec![
@@ -19,7 +26,10 @@ pub fn card() -> CardDefinition {
             // CR 702.84a: Unearth cost ({B}).
             AbilityDefinition::AltCastAbility {
                 kind: AltCostKind::Unearth,
-                cost: ManaCost { black: 1, ..Default::default() },
+                cost: ManaCost {
+                    black: 1,
+                    ..Default::default()
+                },
                 details: None,
             },
         ],
@@ -35,6 +45,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

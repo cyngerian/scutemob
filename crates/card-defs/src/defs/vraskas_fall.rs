@@ -20,9 +20,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("vraskas-fall"),
         name: "Vraska's Fall".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            black: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Each opponent sacrifices a creature or planeswalker of their choice and gets a poison counter.".to_string(),
+        oracle_text: "Each opponent sacrifices a creature or planeswalker of their choice and \
+                      gets a poison counter."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![
                 // "Each opponent sacrifices a creature or planeswalker of their choice."
@@ -55,7 +61,10 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("SacrificePermanents filter is available (PB-SFT), but Effect::AddCounter to a Player target is a silent no-op (resolver..."),
+        completeness: Completeness::partial(
+            "SacrificePermanents filter is available (PB-SFT), but Effect::AddCounter to a Player \
+             target is a silent no-op (resolver...",
+        ),
         ..Default::default()
     }
 }

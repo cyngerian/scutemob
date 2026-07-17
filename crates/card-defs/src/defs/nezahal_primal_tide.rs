@@ -10,13 +10,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("nezahal-primal-tide"),
         name: "Nezahal, Primal Tide".to_string(),
-        mana_cost: Some(ManaCost { generic: 5, blue: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 5,
+            blue: 2,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Elder", "Dinosaur"],
         ),
-        oracle_text: "This spell can't be countered.\nYou have no maximum hand size.\nWhenever an opponent casts a noncreature spell, draw a card.\nDiscard three cards: Exile Nezahal. Return it to the battlefield tapped under its owner's control at the beginning of the next end step.".to_string(),
+        oracle_text: "This spell can't be countered.\nYou have no maximum hand size.\nWhenever an \
+                      opponent casts a noncreature spell, draw a card.\nDiscard three cards: \
+                      Exile Nezahal. Return it to the battlefield tapped under its owner's \
+                      control at the beginning of the next end step."
+            .to_string(),
         power: Some(7),
         toughness: Some(7),
         cant_be_countered: true,
@@ -61,10 +69,12 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::known_wrong("'discard three cards' approximated as three separate DiscardCard costs in a Sequence"),
+        completeness: Completeness::known_wrong(
+            "'discard three cards' approximated as three separate DiscardCard costs in a Sequence",
+        ),
         ..Default::default()
     }
 }

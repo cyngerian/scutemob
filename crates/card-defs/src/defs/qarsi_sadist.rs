@@ -6,14 +6,18 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("qarsi-sadist"),
         name: "Qarsi Sadist".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Creature], &["Human", "Cleric"]),
-        oracle_text: "Exploit (When this creature enters the battlefield, you may sacrifice a creature.)".to_string(),
+        oracle_text: "Exploit (When this creature enters the battlefield, you may sacrifice a \
+                      creature.)"
+            .to_string(),
         power: Some(1),
         toughness: Some(3),
-        abilities: vec![
-            AbilityDefinition::Keyword(KeywordAbility::Exploit),
-        ],
+        abilities: vec![AbilityDefinition::Keyword(KeywordAbility::Exploit)],
         color_indicator: None,
         back_face: None,
         spell_cost_modifiers: vec![],
@@ -26,6 +30,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

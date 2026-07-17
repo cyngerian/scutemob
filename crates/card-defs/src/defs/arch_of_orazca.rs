@@ -7,7 +7,10 @@ pub fn card() -> CardDefinition {
         name: "Arch of Orazca".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "Ascend (If you control ten or more permanents, you get the city's blessing for the rest of the game.)\n{T}: Add {C}.\n{5}, {T}: Draw a card. Activate only if you have the city's blessing.".to_string(),
+        oracle_text: "Ascend (If you control ten or more permanents, you get the city's blessing \
+                      for the rest of the game.)\n{T}: Add {C}.\n{5}, {T}: Draw a card. Activate \
+                      only if you have the city's blessing."
+            .to_string(),
         abilities: vec![
             // Ascend keyword — triggers city's blessing check
             AbilityDefinition::Keyword(KeywordAbility::Ascend),
@@ -22,7 +25,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {5}, {T}: Draw a card. Activate only if you have the city's blessing.
             // Note: Oracle says "activate only if" (activation restriction). Modeled as
@@ -30,7 +33,10 @@ pub fn card() -> CardDefinition {
             // restriction requires legal_actions filter (PB-18 stax framework).
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 5, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 5,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                 ]),
                 effect: Effect::Conditional {
@@ -45,10 +51,16 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::known_wrong("activation_condition shipped (PB-22 S1, enforced rules/abilities.rs:255 per CR 602.5b) and Condition::HasCitysBlessing exists. Rewire: third ability should carry activation_condition: Some(Condition::HasCitysBlessing) with a bare DrawCards effect, replacing the Conditional wrapper that currently lets the cost be paid for no effect."),
+        completeness: Completeness::known_wrong(
+            "activation_condition shipped (PB-22 S1, enforced rules/abilities.rs:255 per CR \
+             602.5b) and Condition::HasCitysBlessing exists. Rewire: third ability should carry \
+             activation_condition: Some(Condition::HasCitysBlessing) with a bare DrawCards \
+             effect, replacing the Conditional wrapper that currently lets the cost be paid for \
+             no effect.",
+        ),
         ..Default::default()
     }
 }

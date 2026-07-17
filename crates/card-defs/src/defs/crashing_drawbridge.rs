@@ -9,9 +9,13 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("crashing-drawbridge"),
         name: "Crashing Drawbridge".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Artifact, CardType::Creature], &["Wall"]),
-        oracle_text: "Defender\n{T}: Creatures you control gain haste until end of turn.".to_string(),
+        oracle_text: "Defender\n{T}: Creatures you control gain haste until end of turn."
+            .to_string(),
         power: Some(0),
         toughness: Some(4),
         abilities: vec![
@@ -31,7 +35,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

@@ -8,13 +8,20 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("yahenni-undying-partisan"),
         name: "Yahenni, Undying Partisan".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            black: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Aetherborn", "Vampire"],
         ),
-        oracle_text: "Haste\nWhenever a creature an opponent controls dies, put a +1/+1 counter on Yahenni.\nSacrifice another creature: Yahenni gains indestructible until end of turn.".to_string(),
+        oracle_text: "Haste\nWhenever a creature an opponent controls dies, put a +1/+1 counter \
+                      on Yahenni.\nSacrifice another creature: Yahenni gains indestructible until \
+                      end of turn."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -27,8 +34,8 @@ pub fn card() -> CardDefinition {
                     controller: Some(TargetController::Opponent),
                     exclude_self: false,
                     nontoken_only: false,
-                                filter: None,
-            },
+                    filter: None,
+                },
                 effect: Effect::AddCounter {
                     target: EffectTarget::Source,
                     counter: CounterType::PlusOnePlusOne,
@@ -58,7 +65,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

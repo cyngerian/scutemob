@@ -15,7 +15,11 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: types_sub(&[CardType::Artifact, CardType::Creature], &["Dragon"]),
-        oracle_text: "Domain — This spell costs {2} less to cast for each basic land type among lands you control.\nFlying\nEach creature you control has vigilance if it's white, hexproof if it's blue, lifelink if it's black, first strike if it's red, and trample if it's green.".to_string(),
+        oracle_text: "Domain — This spell costs {2} less to cast for each basic land type among \
+                      lands you control.\nFlying\nEach creature you control has vigilance if it's \
+                      white, hexproof if it's blue, lifelink if it's black, first strike if it's \
+                      red, and trample if it's green."
+            .to_string(),
         power: Some(4),
         toughness: Some(4),
         abilities: vec![
@@ -23,7 +27,12 @@ pub fn card() -> CardDefinition {
             // TODO: color-conditional keyword grant to creatures you control
         ],
         self_cost_reduction: Some(SelfCostReduction::BasicLandTypes { per: 2 }),
-        completeness: Completeness::partial("color-conditional keyword grant unimplemented but EXPRESSIBLE — five Static ContinuousEffectDefs at EffectLayer::Ability using EffectFilter::CreaturesYouControlWithColor (layers.rs:824). Needs authoring, no primitive work."),
+        completeness: Completeness::partial(
+            "color-conditional keyword grant unimplemented but EXPRESSIBLE — five Static \
+             ContinuousEffectDefs at EffectLayer::Ability using \
+             EffectFilter::CreaturesYouControlWithColor (layers.rs:824). Needs authoring, no \
+             primitive work.",
+        ),
         ..Default::default()
     }
 }

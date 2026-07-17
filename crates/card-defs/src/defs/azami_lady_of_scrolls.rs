@@ -10,8 +10,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("azami-lady-of-scrolls"),
         name: "Azami, Lady of Scrolls".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, blue: 3, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Human", "Wizard"]),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            blue: 3,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Creature],
+            &["Human", "Wizard"],
+        ),
         oracle_text: "Tap an untapped Wizard you control: Draw a card.".to_string(),
         power: Some(0),
         toughness: Some(2),
@@ -19,7 +27,10 @@ pub fn card() -> CardDefinition {
             // TODO: Tap an untapped Wizard you control: Draw a card.
             //   (Cost enum lacks TapAnotherCreatureWithSubtype variant)
         ],
-        completeness: Completeness::partial("Tap an untapped Wizard you control: Draw a card. (Cost enum lacks TapAnotherCreatureWithSubtype variant)"),
+        completeness: Completeness::partial(
+            "Tap an untapped Wizard you control: Draw a card. (Cost enum lacks \
+             TapAnotherCreatureWithSubtype variant)",
+        ),
         ..Default::default()
     }
 }

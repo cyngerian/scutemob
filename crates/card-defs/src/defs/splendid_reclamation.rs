@@ -6,9 +6,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("splendid-reclamation"),
         name: "Splendid Reclamation".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Return all land cards from your graveyard to the battlefield tapped.".to_string(),
+        oracle_text: "Return all land cards from your graveyard to the battlefield tapped."
+            .to_string(),
         abilities: vec![
             // CR 400.7, 603.6a: Return all land cards from the controller's graveyard
             // to the battlefield simultaneously, each entering tapped.

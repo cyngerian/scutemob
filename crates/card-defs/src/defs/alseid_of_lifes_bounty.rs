@@ -21,13 +21,16 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: types_sub(&[CardType::Enchantment, CardType::Creature], &["Nymph"]),
-        oracle_text: "Lifelink\n{1}, Sacrifice this creature: Target creature or enchantment you control gains protection from the color of your choice until end of turn.".to_string(),
+        oracle_text: "Lifelink\n{1}, Sacrifice this creature: Target creature or enchantment you \
+                      control gains protection from the color of your choice until end of turn."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
-        abilities: vec![
-            AbilityDefinition::Keyword(KeywordAbility::Lifelink),
-        ],
-        completeness: Completeness::partial("DSL gap — the activated ability requires 'protection from the color of your choice', which is a player-interactive..."),
+        abilities: vec![AbilityDefinition::Keyword(KeywordAbility::Lifelink)],
+        completeness: Completeness::partial(
+            "DSL gap — the activated ability requires 'protection from the color of your choice', \
+             which is a player-interactive...",
+        ),
         ..Default::default()
     }
 }

@@ -9,9 +9,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("monastery-mentor"),
         name: "Monastery Mentor".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            white: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Monk"]),
-        oracle_text: "Prowess (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.)\nWhenever you cast a noncreature spell, create a 1/1 white Monk creature token with prowess.".to_string(),
+        oracle_text: "Prowess (Whenever you cast a noncreature spell, this creature gets +1/+1 \
+                      until end of turn.)\nWhenever you cast a noncreature spell, create a 1/1 \
+                      white Monk creature token with prowess."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -24,7 +31,7 @@ pub fn card() -> CardDefinition {
                     spell_type_filter: None,
                     noncreature_only: true,
                     chosen_subtype_filter: false,
-                spell_subtype_filter: None,
+                    spell_subtype_filter: None,
                 },
                 effect: Effect::CreateToken {
                     spec: TokenSpec {

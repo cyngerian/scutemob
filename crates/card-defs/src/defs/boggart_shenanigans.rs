@@ -14,11 +14,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("boggart-shenanigans"),
         name: "Boggart Shenanigans".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 1,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Kindred, CardType::Enchantment], &["Goblin"]),
-        oracle_text: "Whenever another Goblin you control is put into a graveyard from the battlefield, you may have this enchantment deal 1 damage to target player or planeswalker.".to_string(),
+        oracle_text: "Whenever another Goblin you control is put into a graveyard from the \
+                      battlefield, you may have this enchantment deal 1 damage to target player \
+                      or planeswalker."
+            .to_string(),
         abilities: vec![],
-        completeness: Completeness::inert("DSL gap — The triggered ability requires filtering creature deaths by subtype (Goblin) AND controller (you) AND..."),
+        completeness: Completeness::inert(
+            "DSL gap — The triggered ability requires filtering creature deaths by subtype \
+             (Goblin) AND controller (you) AND...",
+        ),
         ..Default::default()
     }
 }

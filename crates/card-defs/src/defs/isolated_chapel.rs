@@ -8,9 +8,9 @@ pub fn card() -> CardDefinition {
         name: "Isolated Chapel".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text:
-            "This land enters tapped unless you control a Plains or a Swamp.\n{T}: Add {W} or {B}."
-                .to_string(),
+        oracle_text: "This land enters tapped unless you control a Plains or a Swamp.\n{T}: Add \
+                      {W} or {B}."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Replacement {
                 trigger: ReplacementTrigger::WouldEnterBattlefield {

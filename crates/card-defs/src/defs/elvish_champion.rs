@@ -6,9 +6,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("elvish-champion"),
         name: "Elvish Champion".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            green: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Elf"]),
-        oracle_text: "Other Elf creatures get +1/+1 and have forestwalk. (They can't be blocked as long as defending player controls a Forest.)".to_string(),
+        oracle_text: "Other Elf creatures get +1/+1 and have forestwalk. (They can't be blocked \
+                      as long as defending player controls a Forest.)"
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -17,9 +23,9 @@ pub fn card() -> CardDefinition {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::PtModify,
                     modification: LayerModification::ModifyBoth(1),
-                    filter: EffectFilter::OtherCreaturesYouControlWithSubtype(
-                        SubType("Elf".to_string()),
-                    ),
+                    filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType(
+                        "Elf".to_string(),
+                    )),
                     duration: EffectDuration::WhileSourceOnBattlefield,
                     condition: None,
                 },
@@ -31,9 +37,9 @@ pub fn card() -> CardDefinition {
                     modification: LayerModification::AddKeyword(KeywordAbility::Landwalk(
                         LandwalkType::BasicType(SubType("Forest".to_string())),
                     )),
-                    filter: EffectFilter::OtherCreaturesYouControlWithSubtype(
-                        SubType("Elf".to_string()),
-                    ),
+                    filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType(
+                        "Elf".to_string(),
+                    )),
                     duration: EffectDuration::WhileSourceOnBattlefield,
                     condition: None,
                 },

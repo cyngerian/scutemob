@@ -12,9 +12,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("elvish-reclaimer"),
         name: "Elvish Reclaimer".to_string(),
-        mana_cost: Some(ManaCost { green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Elf", "Warrior"]),
-        oracle_text: "This creature gets +2/+2 as long as there are three or more land cards in your graveyard.\n{2}, {T}, Sacrifice a land: Search your library for a land card, put it onto the battlefield tapped, then shuffle.".to_string(),
+        oracle_text: "This creature gets +2/+2 as long as there are three or more land cards in \
+                      your graveyard.\n{2}, {T}, Sacrifice a land: Search your library for a land \
+                      card, put it onto the battlefield tapped, then shuffle."
+            .to_string(),
         power: Some(1),
         toughness: Some(2),
         abilities: vec![
@@ -27,7 +33,10 @@ pub fn card() -> CardDefinition {
             // put it onto the battlefield tapped, then shuffle.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 2, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 2,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                     Cost::Sacrifice(TargetFilter {
                         has_card_type: Some(CardType::Land),
@@ -46,7 +55,9 @@ pub fn card() -> CardDefinition {
                         shuffle_before_placing: false,
                         also_search_graveyard: false,
                     },
-                    Effect::Shuffle { player: PlayerTarget::Controller },
+                    Effect::Shuffle {
+                        player: PlayerTarget::Controller,
+                    },
                 ]),
                 timing_restriction: None,
                 targets: vec![],
@@ -55,7 +66,10 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("'gets +2/+2 as long as there are three or more land cards in your graveyard' Needs Condition/EffectFilter checking..."),
+        completeness: Completeness::partial(
+            "'gets +2/+2 as long as there are three or more land cards in your graveyard' Needs \
+             Condition/EffectFilter checking...",
+        ),
         ..Default::default()
     }
 }

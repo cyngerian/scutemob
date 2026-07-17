@@ -8,18 +8,25 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("blight-mound"),
         name: "Blight Mound".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            black: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Attacking Pests you control get +1/+0 and have menace.\nWhenever a nontoken creature you control dies, create a 1/1 black and green Pest creature token with \"When this token dies, you gain 1 life.\"".to_string(),
+        oracle_text: "Attacking Pests you control get +1/+0 and have menace.\nWhenever a nontoken \
+                      creature you control dies, create a 1/1 black and green Pest creature token \
+                      with \"When this token dies, you gain 1 life.\""
+            .to_string(),
         abilities: vec![
             // CR 613.4c (Layer 7c): "Attacking Pests you control get +1/+0."
             AbilityDefinition::Static {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::PtModify,
                     modification: LayerModification::ModifyPower(1),
-                    filter: EffectFilter::AttackingCreaturesYouControlWithSubtype(
-                        SubType("Pest".to_string()),
-                    ),
+                    filter: EffectFilter::AttackingCreaturesYouControlWithSubtype(SubType(
+                        "Pest".to_string(),
+                    )),
                     duration: EffectDuration::WhileSourceOnBattlefield,
                     condition: None,
                 },
@@ -29,9 +36,9 @@ pub fn card() -> CardDefinition {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::Ability,
                     modification: LayerModification::AddKeyword(KeywordAbility::Menace),
-                    filter: EffectFilter::AttackingCreaturesYouControlWithSubtype(
-                        SubType("Pest".to_string()),
-                    ),
+                    filter: EffectFilter::AttackingCreaturesYouControlWithSubtype(SubType(
+                        "Pest".to_string(),
+                    )),
                     duration: EffectDuration::WhileSourceOnBattlefield,
                     condition: None,
                 },
@@ -46,8 +53,8 @@ pub fn card() -> CardDefinition {
                     controller: Some(TargetController::You),
                     exclude_self: false,
                     nontoken_only: true,
-                                filter: None,
-            },
+                    filter: None,
+                },
                 effect: Effect::CreateToken {
                     spec: TokenSpec {
                         name: "Pest".to_string(),

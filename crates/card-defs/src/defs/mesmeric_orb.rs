@@ -6,9 +6,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("mesmeric-orb"),
         name: "Mesmeric Orb".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "Whenever a permanent becomes untapped, that permanent's controller mills a card.".to_string(),
+        oracle_text: "Whenever a permanent becomes untapped, that permanent's controller mills a \
+                      card."
+            .to_string(),
         abilities: vec![
             // CR 502.3 / 603.2e: "Whenever a permanent becomes untapped, that permanent's
             // controller mills a card." Global trigger (filter: None = any permanent, any

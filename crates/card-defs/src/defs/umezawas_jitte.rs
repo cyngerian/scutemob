@@ -14,13 +14,20 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("umezawas-jitte"),
         name: "Umezawa's Jitte".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Artifact],
             &["Equipment"],
         ),
-        oracle_text: "Whenever equipped creature deals combat damage, put two charge counters on Umezawa's Jitte.\nRemove a charge counter from Umezawa's Jitte: Choose one —\n• Equipped creature gets +2/+2 until end of turn.\n• Target creature gets -1/-1 until end of turn.\n• You gain 2 life.\nEquip {2}".to_string(),
+        oracle_text: "Whenever equipped creature deals combat damage, put two charge counters on \
+                      Umezawa's Jitte.\nRemove a charge counter from Umezawa's Jitte: Choose one \
+                      —\n• Equipped creature gets +2/+2 until end of turn.\n• Target creature \
+                      gets -1/-1 until end of turn.\n• You gain 2 life.\nEquip {2}"
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Equip),
             // CR 510.3a: Whenever equipped creature deals combat damage, put two charge counters
@@ -48,9 +55,14 @@ pub fn card() -> CardDefinition {
             // Mode 2: You gain 2 life.
             // Bot fallback: mode 0 (+2/+2 to equipped creature).
             AbilityDefinition::Activated {
-                cost: Cost::RemoveCounter { counter: CounterType::Charge, count: 1 },
+                cost: Cost::RemoveCounter {
+                    counter: CounterType::Charge,
+                    count: 1,
+                },
                 effect: Effect::Choose {
-                    prompt: "Choose one — equipped creature gets +2/+2; or target creature gets -1/-1; or you gain 2 life".to_string(),
+                    prompt: "Choose one — equipped creature gets +2/+2; or target creature gets \
+                             -1/-1; or you gain 2 life"
+                        .to_string(),
                     choices: vec![
                         // Mode 0: Equipped creature gets +2/+2 until end of turn.
                         Effect::ApplyContinuousEffect {
@@ -86,10 +98,17 @@ pub fn card() -> CardDefinition {
                 ],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::known_wrong("(1) the modal activated ability uses Effect::Choose, which always executes mode 0 (effects/mod.rs:3190) — modes 1 and 2 are unreachable; it also unconditionally requires a creature target for all modes. Should use `modes: Some(ModeSelection)`. (2) the counters trigger fires only on combat damage to PLAYERS — oracle says 'deals combat damage' (any recipient); needs a WhenEquippedCreatureDealsCombatDamage variant."),
+        completeness: Completeness::known_wrong(
+            "(1) the modal activated ability uses Effect::Choose, which always executes mode 0 \
+             (effects/mod.rs:3190) — modes 1 and 2 are unreachable; it also unconditionally \
+             requires a creature target for all modes. Should use `modes: Some(ModeSelection)`. \
+             (2) the counters trigger fires only on combat damage to PLAYERS — oracle says 'deals \
+             combat damage' (any recipient); needs a WhenEquippedCreatureDealsCombatDamage \
+             variant.",
+        ),
         ..Default::default()
     }
 }

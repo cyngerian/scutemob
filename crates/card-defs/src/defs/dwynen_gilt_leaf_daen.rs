@@ -8,13 +8,19 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("dwynen-gilt-leaf-daen"),
         name: "Dwynen, Gilt-Leaf Daen".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 2,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Elf", "Warrior"],
         ),
-        oracle_text: "Reach\nOther Elf creatures you control get +1/+1.\nWhenever Dwynen attacks, you gain 1 life for each attacking Elf you control.".to_string(),
+        oracle_text: "Reach\nOther Elf creatures you control get +1/+1.\nWhenever Dwynen attacks, \
+                      you gain 1 life for each attacking Elf you control."
+            .to_string(),
         power: Some(3),
         toughness: Some(4),
         abilities: vec![
@@ -24,7 +30,9 @@ pub fn card() -> CardDefinition {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::PtModify,
                     modification: LayerModification::ModifyBoth(1),
-                    filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType("Elf".to_string())),
+                    filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType(
+                        "Elf".to_string(),
+                    )),
                     duration: EffectDuration::WhileSourceOnBattlefield,
                     condition: None,
                 },
@@ -32,7 +40,13 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — "Whenever Dwynen attacks, you gain 1 life for each attacking
             // Elf you control." Needs EffectAmount::AttackingCreatureCountWithSubtype.
         ],
-        completeness: Completeness::partial("Wire the attack trigger: TriggerCondition::WhenAttacks with Effect::GainLife { player: PlayerTarget::Controller, amount: EffectAmount::AttackingCreatureCount { controller: PlayerTarget::Controller, filter: Some(TargetFilter { has_subtype: Some(SubType(\"Elf\")), ..Default::default() }) } }. exclude_self must stay false — Dwynen counts herself."),
+        completeness: Completeness::partial(
+            "Wire the attack trigger: TriggerCondition::WhenAttacks with Effect::GainLife { \
+             player: PlayerTarget::Controller, amount: EffectAmount::AttackingCreatureCount { \
+             controller: PlayerTarget::Controller, filter: Some(TargetFilter { has_subtype: \
+             Some(SubType(\"Elf\")), ..Default::default() }) } }. exclude_self must stay false — \
+             Dwynen counts herself.",
+        ),
         ..Default::default()
     }
 }

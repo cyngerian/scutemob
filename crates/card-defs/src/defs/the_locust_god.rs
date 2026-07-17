@@ -11,13 +11,18 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("the-locust-god"),
         name: "The Locust God".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, blue: 1, red: 1, ..Default::default() }),
-        types: full_types(
-            &[SuperType::Legendary],
-            &[CardType::Creature],
-            &["God"],
-        ),
-        oracle_text: "Flying\nWhenever you draw a card, create a 1/1 blue and red Insect creature token with flying and haste.\n{2}{U}{R}: Draw a card, then discard a card.\nWhen The Locust God dies, return it to its owner's hand at the beginning of the next end step.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            blue: 1,
+            red: 1,
+            ..Default::default()
+        }),
+        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["God"]),
+        oracle_text: "Flying\nWhenever you draw a card, create a 1/1 blue and red Insect creature \
+                      token with flying and haste.\n{2}{U}{R}: Draw a card, then discard a \
+                      card.\nWhen The Locust God dies, return it to its owner's hand at the \
+                      beginning of the next end step."
+            .to_string(),
         power: Some(4),
         toughness: Some(4),
         abilities: vec![
@@ -36,7 +41,9 @@ pub fn card() -> CardDefinition {
                         toughness: 1,
                         count: EffectAmount::Fixed(1),
                         supertypes: imbl::OrdSet::new(),
-                        keywords: [KeywordAbility::Flying, KeywordAbility::Haste].into_iter().collect(),
+                        keywords: [KeywordAbility::Flying, KeywordAbility::Haste]
+                            .into_iter()
+                            .collect(),
                         tapped: false,
                         enters_attacking: false,
                         mana_color: None,
@@ -54,7 +61,12 @@ pub fn card() -> CardDefinition {
             // {2}{U}{R}: Draw a card, then discard a card.
             // TODO: "then discard" — forced discard after draw not expressible.
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { generic: 2, blue: 1, red: 1, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    generic: 2,
+                    blue: 1,
+                    red: 1,
+                    ..Default::default()
+                }),
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,
                     count: EffectAmount::Fixed(1),
@@ -63,7 +75,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // When The Locust God dies, return it to its owner's hand at the beginning
             // of the next end step. Sets return_to_hand_at_end_step flag on graveyard object.
@@ -78,7 +90,11 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("Rewire the {2}{U}{R} ability to Effect::Sequence([DrawCards{Controller,Fixed(1)}, DiscardCards{Controller,Fixed(1)}]) — Effect::DiscardCards exists (card_definition.rs:1361). No DSL gap remains; likely Complete after rewiring."),
+        completeness: Completeness::partial(
+            "Rewire the {2}{U}{R} ability to Effect::Sequence([DrawCards{Controller,Fixed(1)}, \
+             DiscardCards{Controller,Fixed(1)}]) — Effect::DiscardCards exists \
+             (card_definition.rs:1361). No DSL gap remains; likely Complete after rewiring.",
+        ),
         ..Default::default()
     }
 }

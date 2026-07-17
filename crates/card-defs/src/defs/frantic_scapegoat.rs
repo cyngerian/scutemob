@@ -5,16 +5,25 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("frantic-scapegoat"),
         name: "Frantic Scapegoat".to_string(),
-        mana_cost: Some(ManaCost { red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Goat"]),
-        oracle_text: "Haste\nWhen this creature enters, suspect it. (It has menace and can't block.)\nWhenever one or more other creatures you control enter, if this creature is suspected, you may suspect one of the other creatures. If you do, this creature is no longer suspected.".to_string(),
+        oracle_text: "Haste\nWhen this creature enters, suspect it. (It has menace and can't \
+                      block.)\nWhenever one or more other creatures you control enter, if this \
+                      creature is suspected, you may suspect one of the other creatures. If you \
+                      do, this creature is no longer suspected."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Haste),
             // CR 603.1: ETB trigger — suspect this creature (CR 701.60a).
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
-                effect: Effect::Suspect { target: EffectTarget::Source },
+                effect: Effect::Suspect {
+                    target: EffectTarget::Source,
+                },
                 intervening_if: None,
                 targets: vec![],
 
@@ -42,6 +51,12 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::partial("Blocked on the suspect-transfer trigger: no Condition::SourceIsSuspected for the 'if this creature is suspected' intervening-if (Designations::Suspected exists on GameObject, game_object.rs:21, but no Condition reads it), and 'you may suspect one of the other creatures' is optional with no optional-effect wrapper. Effect::Unsuspect DOES now exist (card_definition.rs:1764) — it is not a blocker."),
+        completeness: Completeness::partial(
+            "Blocked on the suspect-transfer trigger: no Condition::SourceIsSuspected for the 'if \
+             this creature is suspected' intervening-if (Designations::Suspected exists on \
+             GameObject, game_object.rs:21, but no Condition reads it), and 'you may suspect one \
+             of the other creatures' is optional with no optional-effect wrapper. \
+             Effect::Unsuspect DOES now exist (card_definition.rs:1764) — it is not a blocker.",
+        ),
     }
 }

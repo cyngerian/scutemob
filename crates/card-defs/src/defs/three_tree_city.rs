@@ -11,14 +11,19 @@ pub fn card() -> CardDefinition {
         name: "Three Tree City".to_string(),
         mana_cost: None,
         types: supertypes(&[SuperType::Legendary], &[CardType::Land]),
-        oracle_text: "As Three Tree City enters, choose a creature type.\n{T}: Add {C}.\n{2}, {T}: Choose a color. Add an amount of mana of that color equal to the number of creatures you control of the chosen type.".to_string(),
+        oracle_text: "As Three Tree City enters, choose a creature type.\n{T}: Add {C}.\n{2}, \
+                      {T}: Choose a color. Add an amount of mana of that color equal to the \
+                      number of creatures you control of the chosen type."
+            .to_string(),
         abilities: vec![
             // "As this enters, choose a creature type"
             AbilityDefinition::Replacement {
                 trigger: ReplacementTrigger::WouldEnterBattlefield {
                     filter: ObjectFilter::Any,
                 },
-                modification: ReplacementModification::ChooseCreatureType(SubType("Human".to_string())),
+                modification: ReplacementModification::ChooseCreatureType(SubType(
+                    "Human".to_string(),
+                )),
                 is_self: true,
                 unless_condition: None,
             },
@@ -40,7 +45,10 @@ pub fn card() -> CardDefinition {
             // Interactive color choice deferred to M10.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 2, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 2,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                 ]),
                 effect: Effect::AddManaOfAnyColorAmount {
@@ -56,7 +64,16 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
         ],
-        completeness: Completeness::known_wrong("CR 106.1b: '{2},{T}: Choose a color. Add an amount of mana of that color equal to the number of creatures you control of the chosen type' adds COLORLESS mana, not a chosen color — Effect::AddManaOfAnyColorAmount ignores the color choice entirely (effects/mod.rs: 'deterministic: adds N colorless'). The AMOUNT is correct (probed: 2 creatures of the chosen type -> 2 mana) and ChooseCreatureType is NOT a hardcoded stub (replacement.rs picks the controller's most common layer-resolved creature subtype; probed: chose Soldier, not the declared 'Human' default). Also CR 605.3b: uses the stack. The '{T}: Add {C}' ability is correct."),
+        completeness: Completeness::known_wrong(
+            "CR 106.1b: '{2},{T}: Choose a color. Add an amount of mana of that color equal to \
+             the number of creatures you control of the chosen type' adds COLORLESS mana, not a \
+             chosen color — Effect::AddManaOfAnyColorAmount ignores the color choice entirely \
+             (effects/mod.rs: 'deterministic: adds N colorless'). The AMOUNT is correct (probed: \
+             2 creatures of the chosen type -> 2 mana) and ChooseCreatureType is NOT a hardcoded \
+             stub (replacement.rs picks the controller's most common layer-resolved creature \
+             subtype; probed: chose Soldier, not the declared 'Human' default). Also CR 605.3b: \
+             uses the stack. The '{T}: Add {C}' ability is correct.",
+        ),
         ..Default::default()
     }
 }

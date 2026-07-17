@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("tireless-tracker"),
         name: "Tireless Tracker".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Human", "Scout"]),
-        oracle_text: "Landfall — Whenever a land you control enters, investigate.\nWhenever you sacrifice a Clue, put a +1/+1 counter on Tireless Tracker.".to_string(),
+        oracle_text: "Landfall — Whenever a land you control enters, investigate.\nWhenever you \
+                      sacrifice a Clue, put a +1/+1 counter on Tireless Tracker."
+            .to_string(),
         power: Some(3),
         toughness: Some(2),
         abilities: vec![
@@ -23,7 +29,9 @@ pub fn card() -> CardDefinition {
                     }),
                     exclude_self: false,
                 },
-                effect: Effect::Investigate { count: EffectAmount::Fixed(1) },
+                effect: Effect::Investigate {
+                    count: EffectAmount::Fixed(1),
+                },
                 intervening_if: None,
                 targets: vec![],
 

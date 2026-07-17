@@ -9,9 +9,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("springheart-nantuko"),
         name: "Springheart Nantuko".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, green: 1, ..Default::default() }),
-        types: types_sub(&[CardType::Enchantment, CardType::Creature], &["Insect", "Monk"]),
-        oracle_text: "Bestow {1}{G}\nEnchanted creature gets +1/+1.\nLandfall \u{2014} Whenever a land you control enters, you may pay {1}{G} if this permanent is attached to a creature you control. If you do, create a token that's a copy of that creature. If you didn't create a token this way, create a 1/1 green Insect creature token.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            green: 1,
+            ..Default::default()
+        }),
+        types: types_sub(
+            &[CardType::Enchantment, CardType::Creature],
+            &["Insect", "Monk"],
+        ),
+        oracle_text: "Bestow {1}{G}\nEnchanted creature gets +1/+1.\nLandfall \u{2014} Whenever a \
+                      land you control enters, you may pay {1}{G} if this permanent is attached \
+                      to a creature you control. If you do, create a token that's a copy of that \
+                      creature. If you didn't create a token this way, create a 1/1 green Insect \
+                      creature token."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
@@ -23,7 +35,13 @@ pub fn card() -> CardDefinition {
             //   3. Conditional copy-or-Insect-fallback branch within a single triggered effect
             //      (pay {1}{G} if attached → copy token, else 1/1 Insect fallback).
         ],
-        completeness: Completeness::partial("Bestow (AbilityDefinition::Bestow, card_definition.rs:461) and the aura static grant (EffectFilter::AttachedCreature) both EXIST. Sole remaining blocker: the Landfall trigger's optional pay with an 'if you didn't create a token this way' fallback — MayPayOrElse always declines and Choose always takes option 0, so 'you may' has no correct expression."),
+        completeness: Completeness::partial(
+            "Bestow (AbilityDefinition::Bestow, card_definition.rs:461) and the aura static grant \
+             (EffectFilter::AttachedCreature) both EXIST. Sole remaining blocker: the Landfall \
+             trigger's optional pay with an 'if you didn't create a token this way' fallback — \
+             MayPayOrElse always declines and Choose always takes option 0, so 'you may' has no \
+             correct expression.",
+        ),
         ..Default::default()
     }
 }

@@ -9,13 +9,24 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("caesar-legions-emperor"),
         name: "Caesar, Legion's Emperor".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, red: 1, white: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            red: 1,
+            white: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Human", "Soldier"],
         ),
-        oracle_text: "Whenever you attack, you may sacrifice another creature. When you do, choose two \u{2014}\n\u{2022} Create two 1/1 red and white Soldier creature tokens with haste that are tapped and attacking.\n\u{2022} You draw a card and you lose 1 life.\n\u{2022} Caesar deals damage equal to the number of creature tokens you control to target opponent.".to_string(),
+        oracle_text: "Whenever you attack, you may sacrifice another creature. When you do, \
+                      choose two \u{2014}\n\u{2022} Create two 1/1 red and white Soldier creature \
+                      tokens with haste that are tapped and attacking.\n\u{2022} You draw a card \
+                      and you lose 1 life.\n\u{2022} Caesar deals damage equal to the number of \
+                      creature tokens you control to target opponent."
+            .to_string(),
         power: Some(4),
         toughness: Some(4),
         abilities: vec![
@@ -51,7 +62,10 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("'may sacrifice + choose two modal' — complex reflexive trigger not expressible. Partial: create Soldiers on attack as..."),
+        completeness: Completeness::partial(
+            "'may sacrifice + choose two modal' — complex reflexive trigger not expressible. \
+             Partial: create Soldiers on attack as...",
+        ),
         ..Default::default()
     }
 }

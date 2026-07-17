@@ -20,9 +20,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("mana-vault"),
         name: "Mana Vault".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "This artifact doesn't untap during your untap step.\nAt the beginning of your upkeep, you may pay {4}. If you do, untap this artifact.\nAt the beginning of your draw step, if this artifact is tapped, it deals 1 damage to you.\n{T}: Add {C}{C}{C}.".to_string(),
+        oracle_text: "This artifact doesn't untap during your untap step.\nAt the beginning of \
+                      your upkeep, you may pay {4}. If you do, untap this artifact.\nAt the \
+                      beginning of your draw step, if this artifact is tapped, it deals 1 damage \
+                      to you.\n{T}: Add {C}{C}{C}."
+            .to_string(),
         abilities: vec![
             // CR 502.3: "This artifact doesn't untap during your untap step."
             AbilityDefinition::Keyword(KeywordAbility::DoesNotUntap),
@@ -32,9 +39,14 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::AtBeginningOfYourUpkeep,
                 effect: Effect::MayPayThenEffect {
-                    cost: Cost::Mana(ManaCost { generic: 4, ..Default::default() }),
+                    cost: Cost::Mana(ManaCost {
+                        generic: 4,
+                        ..Default::default()
+                    }),
                     payer: PlayerTarget::Controller,
-                    then: Box::new(Effect::UntapPermanent { target: EffectTarget::Source }),
+                    then: Box::new(Effect::UntapPermanent {
+                        target: EffectTarget::Source,
+                    }),
                 },
                 intervening_if: None,
                 targets: vec![],
@@ -42,7 +54,10 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("'At the beginning of your draw step, if this artifact is tapped, it deals 1 damage to you.' — there is no..."),
+        completeness: Completeness::partial(
+            "'At the beginning of your draw step, if this artifact is tapped, it deals 1 damage \
+             to you.' — there is no...",
+        ),
         ..Default::default()
     }
 }

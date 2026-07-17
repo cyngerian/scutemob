@@ -5,9 +5,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("grave-pact"),
         name: "Grave Pact".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 3,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Whenever a creature you control dies, each other player sacrifices a creature of their choice.".to_string(),
+        oracle_text: "Whenever a creature you control dies, each other player sacrifices a \
+                      creature of their choice."
+            .to_string(),
         abilities: vec![
             // CR 603.10a: "Whenever a creature you control dies, each other player
             // sacrifices a creature."

@@ -8,13 +8,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("old-gnawbone"),
         name: "Old Gnawbone".to_string(),
-        mana_cost: Some(ManaCost { generic: 5, green: 2, ..Default::default() }),
-        types: full_types(
-            &[SuperType::Legendary],
-            &[CardType::Creature],
-            &["Dragon"],
-        ),
-        oracle_text: "Flying\nWhenever a creature you control deals combat damage to a player, create that many Treasure tokens.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 5,
+            green: 2,
+            ..Default::default()
+        }),
+        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Dragon"]),
+        oracle_text: "Flying\nWhenever a creature you control deals combat damage to a player, \
+                      create that many Treasure tokens."
+            .to_string(),
         power: Some(7),
         toughness: Some(7),
         abilities: vec![
@@ -23,7 +25,10 @@ pub fn card() -> CardDefinition {
             // create that many Treasure tokens." — per-creature trigger with Repeat for variable count.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer { filter: None },
+                trigger_condition:
+                    TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer {
+                        filter: None,
+                    },
                 effect: Effect::Repeat {
                     effect: Box::new(Effect::CreateToken {
                         spec: treasure_token_spec(1),

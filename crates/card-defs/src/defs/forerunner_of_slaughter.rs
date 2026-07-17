@@ -5,16 +5,25 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("forerunner-of-slaughter"),
         name: "Forerunner of Slaughter".to_string(),
-        mana_cost: Some(ManaCost { black: 1, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 1,
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Eldrazi", "Drone"]),
-        oracle_text: "Devoid (This card has no color.)\n{1}: Target colorless creature gains haste until end of turn.".to_string(),
+        oracle_text: "Devoid (This card has no color.)\n{1}: Target colorless creature gains \
+                      haste until end of turn."
+            .to_string(),
         power: Some(3),
         toughness: Some(2),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Devoid),
             // {1}: Target colorless creature gains haste until end of turn.
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    generic: 1,
+                    ..Default::default()
+                }),
                 effect: Effect::ApplyContinuousEffect {
                     effect_def: Box::new(ContinuousEffectDef {
                         layer: crate::state::EffectLayer::Ability,
@@ -29,15 +38,21 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
                     exclude_colors: Some(
-                        [Color::White, Color::Blue, Color::Black, Color::Red, Color::Green]
-                            .into_iter()
-                            .collect(),
+                        [
+                            Color::White,
+                            Color::Blue,
+                            Color::Black,
+                            Color::Red,
+                            Color::Green,
+                        ]
+                        .into_iter()
+                        .collect(),
                     ),
                     ..Default::default()
                 })],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         color_indicator: None,
@@ -52,6 +67,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

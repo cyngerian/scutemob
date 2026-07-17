@@ -7,13 +7,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("gemstone-array"),
         name: "Gemstone Array".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "{2}: Put a charge counter on this artifact.\nRemove a charge counter from this artifact: Add one mana of any color.".to_string(),
+        oracle_text: "{2}: Put a charge counter on this artifact.\nRemove a charge counter from \
+                      this artifact: Add one mana of any color."
+            .to_string(),
         abilities: vec![
             // {2}: Put a charge counter on this artifact.
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { generic: 2, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    generic: 2,
+                    ..Default::default()
+                }),
                 effect: Effect::AddCounter {
                     target: EffectTarget::Source,
                     counter: CounterType::Charge,
@@ -29,8 +37,13 @@ pub fn card() -> CardDefinition {
             // Note: Technically a mana ability (CR 605.1) but implemented as regular
             // activated ability for this batch. Mana-ability classification deferred to PB-37.
             AbilityDefinition::Activated {
-                cost: Cost::RemoveCounter { counter: CounterType::Charge, count: 1 },
-                effect: Effect::AddManaAnyColor { player: PlayerTarget::Controller },
+                cost: Cost::RemoveCounter {
+                    counter: CounterType::Charge,
+                    count: 1,
+                },
+                effect: Effect::AddManaAnyColor {
+                    player: PlayerTarget::Controller,
+                },
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
@@ -38,7 +51,13 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
         ],
-        completeness: Completeness::known_wrong("CR 106.1b: 'Remove a charge counter: Add one mana of any color' adds one COLORLESS mana (probed with 5 charge counters: +1 colorless). Same Cost::RemoveCounter lowering blocker and same unexercised requires_tap: false path as Druids' Repository. The '{2}: Put a charge counter' ability is correct. The color bug is the reason for known_wrong rather than partial."),
+        completeness: Completeness::known_wrong(
+            "CR 106.1b: 'Remove a charge counter: Add one mana of any color' adds one COLORLESS \
+             mana (probed with 5 charge counters: +1 colorless). Same Cost::RemoveCounter \
+             lowering blocker and same unexercised requires_tap: false path as Druids' \
+             Repository. The '{2}: Put a charge counter' ability is correct. The color bug is the \
+             reason for known_wrong rather than partial.",
+        ),
         ..Default::default()
     }
 }

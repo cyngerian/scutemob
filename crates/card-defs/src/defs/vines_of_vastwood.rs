@@ -8,9 +8,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("vines-of-vastwood"),
         name: "Vines of Vastwood".to_string(),
-        mana_cost: Some(ManaCost { green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Kicker {G} (You may pay an additional {G} as you cast this spell.)\nTarget creature can't be the target of spells or abilities your opponents control this turn. If this spell was kicked, that creature gets +4/+4 until end of turn.".to_string(),
+        oracle_text: "Kicker {G} (You may pay an additional {G} as you cast this spell.)\nTarget \
+                      creature can't be the target of spells or abilities your opponents control \
+                      this turn. If this spell was kicked, that creature gets +4/+4 until end of \
+                      turn."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Kicker),
             AbilityDefinition::Spell {
@@ -48,7 +55,11 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::known_wrong("'can't be the target of spells or abilities your opponents control' is modeled as full KeywordAbility::Hexproof, which also prevents the controller from targeting the creature. No controller-scoped targeting restriction exists in the DSL."),
+        completeness: Completeness::known_wrong(
+            "'can't be the target of spells or abilities your opponents control' is modeled as \
+             full KeywordAbility::Hexproof, which also prevents the controller from targeting the \
+             creature. No controller-scoped targeting restriction exists in the DSL.",
+        ),
         ..Default::default()
     }
 }

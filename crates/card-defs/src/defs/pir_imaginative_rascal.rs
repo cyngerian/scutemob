@@ -9,15 +9,19 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("pir-imaginative-rascal"),
         name: "Pir, Imaginative Rascal".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 1,
+            ..Default::default()
+        }),
         types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Human"]),
-        oracle_text:
-            "Partner with Toothy, Imaginary Friend (When this creature enters the battlefield, \
-             target player may search their library for a card named Toothy, Imaginary Friend, \
-             reveal it, put it into their hand, then shuffle.)\n\
-             If one or more counters would be put on a permanent your team controls, that many \
-             plus one of each of those kinds of counters are put on that permanent instead."
-                .to_string(),
+        oracle_text: "Partner with Toothy, Imaginary Friend (When this creature enters the \
+                      battlefield, target player may search their library for a card named \
+                      Toothy, Imaginary Friend, reveal it, put it into their hand, then \
+                      shuffle.)\nIf one or more counters would be put on a permanent your team \
+                      controls, that many plus one of each of those kinds of counters are put on \
+                      that permanent instead."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
@@ -52,6 +56,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

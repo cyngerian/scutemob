@@ -12,15 +12,24 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("braided-net-braided-quipu"),
         name: "Braided Net".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "When Braided Net enters the battlefield, tap target creature an opponent controls.\nCraft with artifact {2}{U}".to_string(),
+        oracle_text: "When Braided Net enters the battlefield, tap target creature an opponent \
+                      controls.\nCraft with artifact {2}{U}"
+            .to_string(),
         power: None,
         toughness: None,
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Craft),
             AbilityDefinition::Craft {
-                cost: ManaCost { generic: 2, blue: 1, ..Default::default() },
+                cost: ManaCost {
+                    generic: 2,
+                    blue: 1,
+                    ..Default::default()
+                },
                 materials: CraftMaterials::Artifacts(1),
             },
             // DSL gap: ETB tap target creature needs TapTarget effect
@@ -30,7 +39,9 @@ pub fn card() -> CardDefinition {
             name: "Braided Quipu".to_string(),
             mana_cost: None,
             types: types(&[CardType::Artifact]),
-            oracle_text: "When Braided Quipu enters the battlefield, tap target creature an opponent controls.\nWhenever you cast a spell, draw a card.".to_string(),
+            oracle_text: "When Braided Quipu enters the battlefield, tap target creature an \
+                          opponent controls.\nWhenever you cast a spell, draw a card."
+                .to_string(),
             power: None,
             toughness: None,
             abilities: vec![
@@ -48,6 +59,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

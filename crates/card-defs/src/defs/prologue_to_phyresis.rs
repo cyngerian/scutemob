@@ -6,7 +6,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("prologue-to-phyresis"),
         name: "Prologue to Phyresis".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            blue: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
         oracle_text: "Each opponent gets a poison counter.\nDraw a card.".to_string(),
         abilities: vec![AbilityDefinition::Spell {
@@ -31,7 +35,14 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::known_wrong("'Each opponent gets a poison counter' is a silent no-op. Effect::AddCounter has no ResolvedTarget::Player arm (effects/mod.rs:2320-2346), and ForEach::EachOpponent binds a Player target (:3104-3118), so the counter is discarded and only the draw happens. No effect can grant a player a poison counter today (poison_counters is written only by infect damage and Proliferate). Needs a player-counter effect before this card is authorable."),
+        completeness: Completeness::known_wrong(
+            "'Each opponent gets a poison counter' is a silent no-op. Effect::AddCounter has no \
+             ResolvedTarget::Player arm (effects/mod.rs:2320-2346), and ForEach::EachOpponent \
+             binds a Player target (:3104-3118), so the counter is discarded and only the draw \
+             happens. No effect can grant a player a poison counter today (poison_counters is \
+             written only by infect damage and Proliferate). Needs a player-counter effect before \
+             this card is authorable.",
+        ),
         ..Default::default()
     }
 }

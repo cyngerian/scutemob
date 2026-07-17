@@ -17,15 +17,22 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("roil-elemental"),
         name: "Roil Elemental".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, blue: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            blue: 3,
+            ..Default::default()
+        }),
         types: creature_types(&["Elemental"]),
-        oracle_text: "Flying\nLandfall \u{2014} Whenever a land you control enters, you may gain control of target creature for as long as you control this creature.".to_string(),
+        oracle_text: "Flying\nLandfall \u{2014} Whenever a land you control enters, you may gain \
+                      control of target creature for as long as you control this creature."
+            .to_string(),
         power: Some(3),
         toughness: Some(2),
-        abilities: vec![
-            AbilityDefinition::Keyword(KeywordAbility::Flying),
-        ],
-        completeness: Completeness::partial("Blocker — EffectDuration::WhileYouControlSource variant for 'for as long as you control this creature' on a..."),
+        abilities: vec![AbilityDefinition::Keyword(KeywordAbility::Flying)],
+        completeness: Completeness::partial(
+            "Blocker — EffectDuration::WhileYouControlSource variant for 'for as long as you \
+             control this creature' on a...",
+        ),
         ..Default::default()
     }
 }

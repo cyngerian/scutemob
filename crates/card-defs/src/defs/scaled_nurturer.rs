@@ -10,26 +10,33 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("scaled-nurturer"),
         name: "Scaled Nurturer".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Dragon", "Druid"]),
-        oracle_text: "{T}: Add {G}. When you spend this mana to cast a Dragon creature spell, you gain 2 life.".to_string(),
+        oracle_text: "{T}: Add {G}. When you spend this mana to cast a Dragon creature spell, you \
+                      gain 2 life."
+            .to_string(),
         power: Some(0),
         toughness: Some(2),
-        abilities: vec![
-            AbilityDefinition::Activated {
-                cost: Cost::Tap,
-                effect: Effect::AddMana {
-                    player: PlayerTarget::Controller,
-                    mana: mana_pool(0, 0, 0, 0, 1, 0),
-                },
-                timing_restriction: None,
-                targets: vec![],
-                activation_condition: None,
-                activation_zone: None,
-            once_per_turn: false,
+        abilities: vec![AbilityDefinition::Activated {
+            cost: Cost::Tap,
+            effect: Effect::AddMana {
+                player: PlayerTarget::Controller,
+                mana: mana_pool(0, 0, 0, 0, 1, 0),
             },
-        ],
-        completeness: Completeness::partial("'When you spend this mana to cast a Dragon creature spell, you gain 2 life.' DSL gap: no 'when you spend this mana to..."),
+            timing_restriction: None,
+            targets: vec![],
+            activation_condition: None,
+            activation_zone: None,
+            once_per_turn: false,
+        }],
+        completeness: Completeness::partial(
+            "'When you spend this mana to cast a Dragon creature spell, you gain 2 life.' DSL \
+             gap: no 'when you spend this mana to...",
+        ),
         ..Default::default()
     }
 }

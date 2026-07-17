@@ -8,14 +8,22 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("thousand-year-elixir"),
         name: "Thousand-Year Elixir".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "You may activate abilities of creatures you control as though those creatures had haste.\n{1}, {T}: Untap target creature.".to_string(),
+        oracle_text: "You may activate abilities of creatures you control as though those \
+                      creatures had haste.\n{1}, {T}: Untap target creature."
+            .to_string(),
         abilities: vec![
             // {1},{T}: Untap target creature (CR 701.17).
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 1,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                 ]),
                 effect: Effect::UntapPermanent {
@@ -25,11 +33,14 @@ pub fn card() -> CardDefinition {
                 targets: vec![TargetRequirement::TargetCreature],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         // TODO: static ability — "activate creature abilities as though they had haste"
-        completeness: Completeness::partial("DSL gap — static ability 'creatures you control may activate abilities as though they had haste' not expressible (no..."),
+        completeness: Completeness::partial(
+            "DSL gap — static ability 'creatures you control may activate abilities as though \
+             they had haste' not expressible (no...",
+        ),
         ..Default::default()
     }
 }

@@ -7,7 +7,9 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("rograkh-son-of-rohgahh"),
         name: "Rograkh, Son of Rohgahh".to_string(),
-        mana_cost: Some(ManaCost { ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            ..Default::default()
+        }),
         // Rograkh has no mana cost (free), so it gets its red color from the color indicator
         // (CR 204.1: objects with no mana cost and a color indicator have the indicated color).
         color_indicator: Some(vec![Color::Red]),
@@ -16,7 +18,9 @@ pub fn card() -> CardDefinition {
             &[CardType::Creature],
             &["Kobold", "Warrior"],
         ),
-        oracle_text: "First strike, menace, trample\nPartner (You can have two commanders if both have partner.)".to_string(),
+        oracle_text: "First strike, menace, trample\nPartner (You can have two commanders if both \
+                      have partner.)"
+            .to_string(),
         power: Some(0),
         toughness: Some(1),
         abilities: vec![

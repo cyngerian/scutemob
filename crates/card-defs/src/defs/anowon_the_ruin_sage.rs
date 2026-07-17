@@ -6,9 +6,19 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("anowon-the-ruin-sage"),
         name: "Anowon, the Ruin Sage".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, black: 2, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Vampire", "Shaman"]),
-        oracle_text: "At the beginning of your upkeep, each player sacrifices a non-Vampire creature of their choice.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            black: 2,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Creature],
+            &["Vampire", "Shaman"],
+        ),
+        oracle_text: "At the beginning of your upkeep, each player sacrifices a non-Vampire \
+                      creature of their choice."
+            .to_string(),
         power: Some(4),
         toughness: Some(3),
         abilities: vec![

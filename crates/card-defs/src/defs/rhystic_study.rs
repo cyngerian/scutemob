@@ -23,9 +23,9 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: types(&[CardType::Enchantment]),
-        oracle_text:
-            "Whenever an opponent casts a spell, you may draw a card unless that player pays {1}."
-                .to_string(),
+        oracle_text: "Whenever an opponent casts a spell, you may draw a card unless that player \
+                      pays {1}."
+            .to_string(),
         abilities: vec![AbilityDefinition::Triggered {
             once_per_turn: false,
             trigger_condition: TriggerCondition::WheneverOpponentCastsSpell {
@@ -55,12 +55,12 @@ pub fn card() -> CardDefinition {
         }],
         completeness: Completeness::known_wrong(
             "SR-33: the draw always fires and the {1} is never collected — this card's whole \
-             point is the tax, so it plays as an unconditional 'draw a card whenever an \
-             opponent casts a spell'. Two independent blockers: `Effect::MayPayOrElse` \
-             discards `cost`/`payer` and unconditionally runs `or_else` (effects/mod.rs), and \
-             the trigger resolves with `targets: vec![]`, so `DeclaredTarget { index: 0 }` \
-             (the casting opponent) resolves to an empty list even once choice exists. Needs \
-             a general choice Command plus trigger-context target wiring.",
+             point is the tax, so it plays as an unconditional 'draw a card whenever an opponent \
+             casts a spell'. Two independent blockers: `Effect::MayPayOrElse` discards \
+             `cost`/`payer` and unconditionally runs `or_else` (effects/mod.rs), and the trigger \
+             resolves with `targets: vec![]`, so `DeclaredTarget { index: 0 }` (the casting \
+             opponent) resolves to an empty list even once choice exists. Needs a general choice \
+             Command plus trigger-context target wiring.",
         ),
         ..Default::default()
     }

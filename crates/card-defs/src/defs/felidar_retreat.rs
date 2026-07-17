@@ -11,9 +11,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("felidar-retreat"),
         name: "Felidar Retreat".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            white: 1,
+            ..Default::default()
+        }),
         types: full_types(&[], &[CardType::Enchantment], &[]),
-        oracle_text: "Landfall — Whenever a land you control enters, choose one —\n\u{2022} Create a 2/2 white Cat Beast creature token.\n\u{2022} Put a +1/+1 counter on each creature you control. Those creatures gain vigilance until end of turn.".to_string(),
+        oracle_text: "Landfall — Whenever a land you control enters, choose one —\n\u{2022} \
+                      Create a 2/2 white Cat Beast creature token.\n\u{2022} Put a +1/+1 counter \
+                      on each creature you control. Those creatures gain vigilance until end of \
+                      turn."
+            .to_string(),
         abilities: vec![
             // CR 700.2b / PB-35: Landfall modal triggered ability.
             // Mode 0: Create a 2/2 white Cat Beast token.

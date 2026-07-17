@@ -10,9 +10,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("farewell"),
         name: "Farewell".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, white: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            white: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Choose one or more —\n• Exile all artifacts.\n• Exile all creatures.\n• Exile all enchantments.\n• Exile all graveyards.".to_string(),
+        oracle_text: "Choose one or more —\n• Exile all artifacts.\n• Exile all creatures.\n• \
+                      Exile all enchantments.\n• Exile all graveyards."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![]),
             targets: vec![],
@@ -52,7 +58,10 @@ pub fn card() -> CardDefinition {
             }),
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("'exile all graveyards' — ExileAll only targets battlefield permanents. Needs a zone-scoped ExileAll or separate effect"),
+        completeness: Completeness::partial(
+            "'exile all graveyards' — ExileAll only targets battlefield permanents. Needs a \
+             zone-scoped ExileAll or separate effect",
+        ),
         ..Default::default()
     }
 }

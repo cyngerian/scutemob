@@ -9,15 +9,32 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("ink-eyes-servant-of-oni"),
         name: "Ink-Eyes, Servant of Oni".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, black: 2, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Rat", "Ninja"]),
-        oracle_text: "Ninjutsu {3}{B}{B} ({3}{B}{B}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)\nWhenever Ink-Eyes, Servant of Oni deals combat damage to a player, you may put target creature card from that player's graveyard onto the battlefield under your control.\n{1}{B}: Regenerate Ink-Eyes.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            black: 2,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Creature],
+            &["Rat", "Ninja"],
+        ),
+        oracle_text: "Ninjutsu {3}{B}{B} ({3}{B}{B}, Return an unblocked attacker you control to \
+                      hand: Put this card onto the battlefield from your hand tapped and \
+                      attacking.)\nWhenever Ink-Eyes, Servant of Oni deals combat damage to a \
+                      player, you may put target creature card from that player's graveyard onto \
+                      the battlefield under your control.\n{1}{B}: Regenerate Ink-Eyes."
+            .to_string(),
         power: Some(5),
         toughness: Some(4),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Ninjutsu),
             AbilityDefinition::Ninjutsu {
-                cost: ManaCost { generic: 3, black: 2, ..Default::default() },
+                cost: ManaCost {
+                    generic: 3,
+                    black: 2,
+                    ..Default::default()
+                },
             },
             // Combat damage trigger: reanimate from opponent's graveyard.
             AbilityDefinition::Triggered {
@@ -36,7 +53,11 @@ pub fn card() -> CardDefinition {
             },
             // {1}{B}: Regenerate
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { generic: 1, black: 1, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    generic: 1,
+                    black: 1,
+                    ..Default::default()
+                }),
                 effect: Effect::Regenerate {
                     target: EffectTarget::Source,
                 },
@@ -47,7 +68,14 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("Blocked on scoping the graveyard target to the damaged player (TargetFilter has no graveyard-owner field; PlayerTarget::DamagedPlayer cannot narrow TargetCardInGraveyard) and on 'you may' optionality (Effect::Choose is non-interactive, effects/mod.rs:3190). TargetCardInGraveyard and Effect::MoveZone both exist. Trigger currently declares a required target with Effect::Nothing — targets should be vec![] until the effect lands."),
+        completeness: Completeness::partial(
+            "Blocked on scoping the graveyard target to the damaged player (TargetFilter has no \
+             graveyard-owner field; PlayerTarget::DamagedPlayer cannot narrow \
+             TargetCardInGraveyard) and on 'you may' optionality (Effect::Choose is \
+             non-interactive, effects/mod.rs:3190). TargetCardInGraveyard and Effect::MoveZone \
+             both exist. Trigger currently declares a required target with Effect::Nothing — \
+             targets should be vec![] until the effect lands.",
+        ),
         ..Default::default()
     }
 }

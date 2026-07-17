@@ -14,9 +14,19 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("balan-wandering-knight"),
         name: "Balan, Wandering Knight".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, white: 2, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Cat", "Knight"]),
-        oracle_text: "First strike\nBalan has double strike as long as two or more Equipment are attached to it.\n{1}{W}: Attach all Equipment you control to Balan.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            white: 2,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Creature],
+            &["Cat", "Knight"],
+        ),
+        oracle_text: "First strike\nBalan has double strike as long as two or more Equipment are \
+                      attached to it.\n{1}{W}: Attach all Equipment you control to Balan."
+            .to_string(),
         power: Some(3),
         toughness: Some(3),
         abilities: vec![
@@ -24,7 +34,10 @@ pub fn card() -> CardDefinition {
             // TODO: Conditional double strike (2+ Equipment attached) — count threshold static
             // TODO: {1}{W} activated — attach all Equipment you control to Balan
         ],
-        completeness: Completeness::partial("DSL gap — conditional double strike requiring count of attached Equipment (2+) needs a..."),
+        completeness: Completeness::partial(
+            "DSL gap — conditional double strike requiring count of attached Equipment (2+) needs \
+             a...",
+        ),
         ..Default::default()
     }
 }

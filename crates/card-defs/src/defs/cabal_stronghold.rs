@@ -9,7 +9,8 @@ pub fn card() -> CardDefinition {
         name: "Cabal Stronghold".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}: Add {C}.\n{3}, {T}: Add {B} for each basic Swamp you control.".to_string(),
+        oracle_text: "{T}: Add {C}.\n{3}, {T}: Add {B} for each basic Swamp you control."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
@@ -25,7 +26,10 @@ pub fn card() -> CardDefinition {
             },
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 3, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 3,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                 ]),
                 effect: Effect::AddManaScaled {
@@ -48,7 +52,12 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("CR 605.1a/605.3b: the '{T}: Add {C}' ability IS a correctly registered mana ability, but '{3},{T}: Add {B} for each basic Swamp' is registered as a stack-using activated ability. The AMOUNT is correct (probed: 4 basic Swamps -> +4 black). Same Effect::AddManaScaled exclusion as Cabal Coffers; blocked on SF-8."),
+        completeness: Completeness::partial(
+            "CR 605.1a/605.3b: the '{T}: Add {C}' ability IS a correctly registered mana ability, \
+             but '{3},{T}: Add {B} for each basic Swamp' is registered as a stack-using activated \
+             ability. The AMOUNT is correct (probed: 4 basic Swamps -> +4 black). Same \
+             Effect::AddManaScaled exclusion as Cabal Coffers; blocked on SF-8.",
+        ),
         ..Default::default()
     }
 }

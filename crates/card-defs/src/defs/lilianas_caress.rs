@@ -12,7 +12,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("lilianas-caress"),
         name: "Liliana's Caress".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
         oracle_text: "Whenever an opponent discards a card, that player loses 2 life.".to_string(),
         abilities: vec![

@@ -6,30 +6,33 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("phyrexian-arena"),
         name: "Phyrexian Arena".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "At the beginning of your upkeep, you draw a card and you lose 1 life.".to_string(),
-        abilities: vec![
-            AbilityDefinition::Triggered {
-                once_per_turn: false,
-                trigger_condition: TriggerCondition::AtBeginningOfYourUpkeep,
-                effect: Effect::Sequence(vec![
-                    Effect::DrawCards {
-                        player: PlayerTarget::Controller,
-                        count: EffectAmount::Fixed(1),
-                    },
-                    Effect::LoseLife {
-                        player: PlayerTarget::Controller,
-                        amount: EffectAmount::Fixed(1),
-                    },
-                ]),
-                intervening_if: None,
-                targets: vec![],
+        oracle_text: "At the beginning of your upkeep, you draw a card and you lose 1 life."
+            .to_string(),
+        abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
+            trigger_condition: TriggerCondition::AtBeginningOfYourUpkeep,
+            effect: Effect::Sequence(vec![
+                Effect::DrawCards {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(1),
+                },
+                Effect::LoseLife {
+                    player: PlayerTarget::Controller,
+                    amount: EffectAmount::Fixed(1),
+                },
+            ]),
+            intervening_if: None,
+            targets: vec![],
 
-                modes: None,
-                trigger_zone: None,
-            },
-        ],
+            modes: None,
+            trigger_zone: None,
+        }],
         ..Default::default()
     }
 }

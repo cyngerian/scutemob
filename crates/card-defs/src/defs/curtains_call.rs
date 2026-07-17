@@ -7,20 +7,26 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("curtains-call"),
         name: "Curtains' Call".to_string(),
-        mana_cost: Some(ManaCost { generic: 5, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 5,
+            black: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Undaunted (This spell costs {1} less to cast for each opponent.)\nDestroy two target creatures.".to_string(),
+        oracle_text: "Undaunted (This spell costs {1} less to cast for each opponent.)\nDestroy \
+                      two target creatures."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Undaunted),
             AbilityDefinition::Spell {
                 effect: Effect::Sequence(vec![
                     Effect::DestroyPermanent {
                         target: EffectTarget::DeclaredTarget { index: 0 },
-                    cant_be_regenerated: false,
+                        cant_be_regenerated: false,
                     },
                     Effect::DestroyPermanent {
                         target: EffectTarget::DeclaredTarget { index: 1 },
-                    cant_be_regenerated: false,
+                        cant_be_regenerated: false,
                     },
                 ]),
                 targets: vec![

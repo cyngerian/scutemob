@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("awakening-zone"),
         name: "Awakening Zone".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 1,
+            ..Default::default()
+        }),
         types: full_types(&[], &[CardType::Enchantment], &[]),
-        oracle_text: "At the beginning of your upkeep, you may create a 0/1 colorless Eldrazi Spawn creature token. It has \"Sacrifice this token: Add {C}.\"".to_string(),
+        oracle_text: "At the beginning of your upkeep, you may create a 0/1 colorless Eldrazi \
+                      Spawn creature token. It has \"Sacrifice this token: Add {C}.\""
+            .to_string(),
         abilities: vec![
             // CR 603.2: "At the beginning of your upkeep, you may create a 0/1 colorless
             // Eldrazi Spawn creature token with 'Sacrifice this creature: Add {C}.'"
@@ -21,7 +27,9 @@ pub fn card() -> CardDefinition {
                     spec: TokenSpec {
                         name: "Eldrazi Spawn".to_string(),
                         card_types: [CardType::Creature].into_iter().collect(),
-                        subtypes: [SubType("Eldrazi".to_string()), SubType("Spawn".to_string())].into_iter().collect(),
+                        subtypes: [SubType("Eldrazi".to_string()), SubType("Spawn".to_string())]
+                            .into_iter()
+                            .collect(),
                         power: 0,
                         toughness: 1,
                         count: EffectAmount::Fixed(1),

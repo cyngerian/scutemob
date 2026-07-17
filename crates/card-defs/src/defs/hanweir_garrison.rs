@@ -8,13 +8,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("hanweir-garrison"),
         name: "Hanweir Garrison".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 1, ..Default::default() }),
-        types: full_types(
-            &[],
-            &[CardType::Creature],
-            &["Human", "Soldier"],
-        ),
-        oracle_text: "Whenever Hanweir Garrison attacks, create two 1/1 red Human creature tokens that are tapped and attacking.\n(Melds with Hanweir Battlements.)".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 1,
+            ..Default::default()
+        }),
+        types: full_types(&[], &[CardType::Creature], &["Human", "Soldier"]),
+        oracle_text: "Whenever Hanweir Garrison attacks, create two 1/1 red Human creature tokens \
+                      that are tapped and attacking.\n(Melds with Hanweir Battlements.)"
+            .to_string(),
         abilities: vec![
             // CR 508.4: Attack trigger — create two 1/1 red Human tokens tapped and attacking.
             // Tokens inherit the attack target of the source creature (CR 508.4).

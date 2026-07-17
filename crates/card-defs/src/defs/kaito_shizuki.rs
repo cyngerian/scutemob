@@ -11,13 +11,25 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("kaito-shizuki"),
         name: "Kaito Shizuki".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, blue: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            blue: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Planeswalker],
             &["Kaito"],
         ),
-        oracle_text: "At the beginning of your end step, if Kaito Shizuki entered this turn, he phases out.\n+1: Draw a card. Then discard a card unless you attacked this turn.\n\u{2212}2: Create a 1/1 blue Ninja creature token with \"This token can't be blocked.\"\n\u{2212}7: You get an emblem with \"Whenever a creature you control deals combat damage to a player, search your library for a blue or black creature card, put it onto the battlefield, then shuffle.\"".to_string(),
+        oracle_text: "At the beginning of your end step, if Kaito Shizuki entered this turn, he \
+                      phases out.\n+1: Draw a card. Then discard a card unless you attacked this \
+                      turn.\n\u{2212}2: Create a 1/1 blue Ninja creature token with \"This token \
+                      can't be blocked.\"\n\u{2212}7: You get an emblem with \"Whenever a \
+                      creature you control deals combat damage to a player, search your library \
+                      for a blue or black creature card, put it onto the battlefield, then \
+                      shuffle.\""
+            .to_string(),
         starting_loyalty: Some(3),
         abilities: vec![
             // ENGINE-BLOCKED: "if Kaito Shizuki entered this turn, he phases out" — needs an
@@ -50,7 +62,10 @@ pub fn card() -> CardDefinition {
             // wrong game state.
             // ENGINE-BLOCKED: −7 emblem with combat damage → search library. Not expressible.
         ],
-        completeness: Completeness::partial("'if Kaito Shizuki entered this turn, he phases out' — needs an entered-this-turn condition on an end-step trigger plus..."),
+        completeness: Completeness::partial(
+            "'if Kaito Shizuki entered this turn, he phases out' — needs an entered-this-turn \
+             condition on an end-step trigger plus...",
+        ),
         ..Default::default()
     }
 }

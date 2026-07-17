@@ -9,14 +9,18 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("poisonous-viper"),
         name: "Poisonous Viper".to_string(),
-        mana_cost: Some(ManaCost { black: 1, generic: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 1,
+            generic: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Snake"]),
-        oracle_text: "Poisonous 1 (Whenever this creature deals combat damage to a player, that player gets 1 poison counter.)".to_string(),
+        oracle_text: "Poisonous 1 (Whenever this creature deals combat damage to a player, that \
+                      player gets 1 poison counter.)"
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
-        abilities: vec![
-            AbilityDefinition::Keyword(KeywordAbility::Poisonous(1)),
-        ],
+        abilities: vec![AbilityDefinition::Keyword(KeywordAbility::Poisonous(1))],
         color_indicator: None,
         back_face: None,
         spell_cost_modifiers: vec![],
@@ -29,6 +33,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

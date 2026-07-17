@@ -15,9 +15,20 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Whenever one or more creatures attack, you may have target attacking creature gain double strike until end of turn.".to_string(),
+        oracle_text: "Whenever one or more creatures attack, you may have target attacking \
+                      creature gain double strike until end of turn."
+            .to_string(),
         abilities: vec![],
-        completeness: Completeness::inert("Blocked on a global attack trigger: 'Whenever one or more creatures attack' fires on ANY player's declare-attackers, and TriggerEvent has only controller-scoped variants (ControllerAttacks, AnyCreatureYouControlAttacks, ControllerCreatureAttacksAlone). Using a controller-scoped trigger would silently drop the ability on opponents' turns (W5: wrong game state). The effect body IS expressible today (Triggered.targets + TargetCreatureWithFilter{is_attacking} + ApplyContinuousEffect{AddKeyword(DoubleStrike), UntilEndOfTurn}); the 'you may' clause has no `optional` field on Triggered."),
+        completeness: Completeness::inert(
+            "Blocked on a global attack trigger: 'Whenever one or more creatures attack' fires on \
+             ANY player's declare-attackers, and TriggerEvent has only controller-scoped variants \
+             (ControllerAttacks, AnyCreatureYouControlAttacks, ControllerCreatureAttacksAlone). \
+             Using a controller-scoped trigger would silently drop the ability on opponents' \
+             turns (W5: wrong game state). The effect body IS expressible today \
+             (Triggered.targets + TargetCreatureWithFilter{is_attacking} + \
+             ApplyContinuousEffect{AddKeyword(DoubleStrike), UntilEndOfTurn}); the 'you may' \
+             clause has no `optional` field on Triggered.",
+        ),
         ..Default::default()
     }
 }

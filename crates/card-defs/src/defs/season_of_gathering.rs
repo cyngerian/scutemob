@@ -9,12 +9,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("season-of-gathering"),
         name: "Season of Gathering".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            green: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Choose up to five {P} worth of modes. You may choose the same mode more than once.\n\
-            {P} — Put a +1/+1 counter on a creature you control. It gains vigilance and trample until end of turn.\n\
-            {P}{P} — Choose artifact or enchantment. Destroy all permanents of the chosen type.\n\
-            {P}{P}{P} — Draw cards equal to the greatest power among creatures you control."
+        oracle_text: "Choose up to five {P} worth of modes. You may choose the same mode more \
+                      than once.\n{P} — Put a +1/+1 counter on a creature you control. It gains \
+                      vigilance and trample until end of turn.\n{P}{P} — Choose artifact or \
+                      enchantment. Destroy all permanents of the chosen type.\n{P}{P}{P} — Draw \
+                      cards equal to the greatest power among creatures you control."
             .to_string(),
         // TODO: Season of Gathering uses Phyrexian mana ({P}) as a mode budget (up to 5 {P}
         // total, repeatable modes). This requires:
@@ -25,7 +30,10 @@ pub fn card() -> CardDefinition {
         //   5. Mode 2: DrawCards where count = greatest power among creatures you control (dynamic count).
         // None of these combinations are currently expressible together in the DSL.
         abilities: vec![],
-        completeness: Completeness::inert("Season of Gathering uses Phyrexian mana ({P}) as a mode budget (up to 5 {P} total, repeatable modes). This requires: 1...."),
+        completeness: Completeness::inert(
+            "Season of Gathering uses Phyrexian mana ({P}) as a mode budget (up to 5 {P} total, \
+             repeatable modes). This requires: 1....",
+        ),
         ..Default::default()
     }
 }

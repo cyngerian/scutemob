@@ -13,20 +13,28 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("sheoldred-whispering-one"),
         name: "Sheoldred, Whispering One".to_string(),
-        mana_cost: Some(ManaCost { generic: 5, black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 5,
+            black: 2,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Phyrexian", "Praetor"],
         ),
-        oracle_text: "Swampwalk (This creature can't be blocked as long as defending player controls a Swamp.)\nAt the beginning of your upkeep, return target creature card from your graveyard to the battlefield.\nAt the beginning of each opponent's upkeep, that player sacrifices a creature of their choice.".to_string(),
+        oracle_text: "Swampwalk (This creature can't be blocked as long as defending player \
+                      controls a Swamp.)\nAt the beginning of your upkeep, return target creature \
+                      card from your graveyard to the battlefield.\nAt the beginning of each \
+                      opponent's upkeep, that player sacrifices a creature of their choice."
+            .to_string(),
         power: Some(6),
         toughness: Some(6),
         abilities: vec![
             // CR 702.14a: Swampwalk — can't be blocked if defending player controls a Swamp.
-            AbilityDefinition::Keyword(KeywordAbility::Landwalk(
-                LandwalkType::BasicType(SubType("Swamp".to_string())),
-            )),
+            AbilityDefinition::Keyword(KeywordAbility::Landwalk(LandwalkType::BasicType(SubType(
+                "Swamp".to_string(),
+            )))),
             // CR 603.3: At the beginning of your upkeep, return target creature card from
             // your graveyard to the battlefield under your control.
             AbilityDefinition::Triggered {
@@ -50,7 +58,10 @@ pub fn card() -> CardDefinition {
             // not exist. The ability is omitted rather than using AtBeginningOfEachUpkeep which
             // would incorrectly fire on your own upkeep too and lacks a "that player" effect target.
         ],
-        completeness: Completeness::partial("(DSL GAP): 'At the beginning of each opponent's upkeep, that player sacrifices a creature' requires..."),
+        completeness: Completeness::partial(
+            "(DSL GAP): 'At the beginning of each opponent's upkeep, that player sacrifices a \
+             creature' requires...",
+        ),
         ..Default::default()
     }
 }

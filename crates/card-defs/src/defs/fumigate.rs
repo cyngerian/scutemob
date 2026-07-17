@@ -6,11 +6,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("fumigate"),
         name: "Fumigate".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, white: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            white: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text:
-            "Destroy all creatures. You gain 1 life for each creature destroyed this way."
-                .to_string(),
+        oracle_text: "Destroy all creatures. You gain 1 life for each creature destroyed this way."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             // CR 701.8: Destroy all creatures, then gain life equal to the count.
             // EffectAmount::LastEffectCount reads ctx.last_effect_count set by DestroyAll.

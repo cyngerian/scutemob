@@ -16,9 +16,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("the-one-ring"),
         name: "The One Ring".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            ..Default::default()
+        }),
         types: supertypes(&[SuperType::Legendary], &[CardType::Artifact]),
-        oracle_text: "Indestructible\nWhen The One Ring enters, if you cast it, you gain protection from everything until your next turn.\nAt the beginning of your upkeep, you lose 1 life for each burden counter on The One Ring.\n{T}: Put a burden counter on The One Ring, then draw a card for each burden counter on The One Ring.".to_string(),
+        oracle_text: "Indestructible\nWhen The One Ring enters, if you cast it, you gain \
+                      protection from everything until your next turn.\nAt the beginning of your \
+                      upkeep, you lose 1 life for each burden counter on The One Ring.\n{T}: Put \
+                      a burden counter on The One Ring, then draw a card for each burden counter \
+                      on The One Ring."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Indestructible),
             // CR 702.16j: "When The One Ring enters, if you cast it, you gain protection

@@ -11,13 +11,22 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("elspeth-storm-slayer"),
         name: "Elspeth, Storm Slayer".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, white: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            white: 2,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Planeswalker],
             &["Elspeth"],
         ),
-        oracle_text: "If one or more tokens would be created under your control, twice that many of those tokens are created instead.\n+1: Create a 1/1 white Soldier creature token.\n0: Put a +1/+1 counter on each creature you control. Those creatures gain flying until your next turn.\n\u{2212}3: Destroy target creature an opponent controls with mana value 3 or greater.".to_string(),
+        oracle_text: "If one or more tokens would be created under your control, twice that many \
+                      of those tokens are created instead.\n+1: Create a 1/1 white Soldier \
+                      creature token.\n0: Put a +1/+1 counter on each creature you control. Those \
+                      creatures gain flying until your next turn.\n\u{2212}3: Destroy target \
+                      creature an opponent controls with mana value 3 or greater."
+            .to_string(),
         starting_loyalty: Some(5),
         abilities: vec![
             // Static: "If one or more tokens would be created under your control, twice that

@@ -10,14 +10,27 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("quietus-spike"),
         name: "Quietus Spike".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Artifact], &["Equipment"]),
-        oracle_text: "Equipped creature has deathtouch.\nWhenever equipped creature deals combat damage to a player, that player loses half their life, rounded up.\nEquip {3}".to_string(),
+        oracle_text: "Equipped creature has deathtouch.\nWhenever equipped creature deals combat \
+                      damage to a player, that player loses half their life, rounded up.\nEquip \
+                      {3}"
+        .to_string(),
         abilities: vec![],
         // TODO: equipped creature gains Deathtouch (continuous equipment effect)
         // TODO: combat damage trigger — target player loses half their life rounded up
         // TODO: Equip {3} activated ability
-        completeness: Completeness::inert("Deathtouch grant (AddKeywords + EffectFilter::AttachedCreature, cf. basilisk_collar.rs) and Equip {3} are expressible today, as is the WhenEquippedCreatureDealsCombatDamageToPlayer trigger. Blocked solely on the trigger's effect: EffectAmount has no half-rounded-up variant for 'that player loses half their life, rounded up'. Withheld per W5 rather than shipping deathtouch+equip with the life-loss silently dropped."),
+        completeness: Completeness::inert(
+            "Deathtouch grant (AddKeywords + EffectFilter::AttachedCreature, cf. \
+             basilisk_collar.rs) and Equip {3} are expressible today, as is the \
+             WhenEquippedCreatureDealsCombatDamageToPlayer trigger. Blocked solely on the \
+             trigger's effect: EffectAmount has no half-rounded-up variant for 'that player loses \
+             half their life, rounded up'. Withheld per W5 rather than shipping deathtouch+equip \
+             with the life-loss silently dropped.",
+        ),
         ..Default::default()
     }
 }

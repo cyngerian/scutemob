@@ -14,9 +14,20 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("the-eternal-wanderer"),
         name: "The Eternal Wanderer".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, white: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            white: 2,
+            ..Default::default()
+        }),
         types: full_types(&[SuperType::Legendary], &[CardType::Planeswalker], &[]),
-        oracle_text: "No more than one creature can attack The Eternal Wanderer each combat.\n+1: Exile up to one target artifact or creature. Return that card to the battlefield under its owner's control at the beginning of that player's next end step.\n0: Create a 2/2 white Samurai creature token with double strike.\n\u{2212}4: For each player, choose a creature that player controls. Each player sacrifices all creatures they control not chosen this way.".to_string(),
+        oracle_text: "No more than one creature can attack The Eternal Wanderer each combat.\n+1: \
+                      Exile up to one target artifact or creature. Return that card to the \
+                      battlefield under its owner's control at the beginning of that player's \
+                      next end step.\n0: Create a 2/2 white Samurai creature token with double \
+                      strike.\n\u{2212}4: For each player, choose a creature that player \
+                      controls. Each player sacrifices all creatures they control not chosen this \
+                      way."
+            .to_string(),
         starting_loyalty: Some(5),
         abilities: vec![
             // TODO: static attack restriction (no more than one creature can attack this PW)
@@ -66,7 +77,10 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
-        completeness: Completeness::partial("Static 'no more than one creature can attack The Eternal Wanderer' — attack restriction keyed on a specific..."),
+        completeness: Completeness::partial(
+            "Static 'no more than one creature can attack The Eternal Wanderer' — attack \
+             restriction keyed on a specific...",
+        ),
         ..Default::default()
     }
 }

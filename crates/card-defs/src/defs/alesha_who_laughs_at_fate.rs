@@ -10,13 +10,22 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("alesha-who-laughs-at-fate"),
         name: "Alesha, Who Laughs at Fate".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, black: 1, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            black: 1,
+            red: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Human", "Warrior"],
         ),
-        oracle_text: "First strike\nWhenever Alesha attacks, put a +1/+1 counter on it.\nRaid — At the beginning of your end step, if you attacked this turn, return target creature card with mana value less than or equal to Alesha's power from your graveyard to the battlefield.".to_string(),
+        oracle_text: "First strike\nWhenever Alesha attacks, put a +1/+1 counter on it.\nRaid — \
+                      At the beginning of your end step, if you attacked this turn, return target \
+                      creature card with mana value less than or equal to Alesha's power from \
+                      your graveyard to the battlefield."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -43,7 +52,10 @@ pub fn card() -> CardDefinition {
             // wrong targets — wrong game state.
             // (The intervening-if is now available: Condition::YouAttackedThisTurn — PB-AC6.)
         ],
-        completeness: Completeness::partial("the Raid reanimation targets a creature card in your graveyard with 'mana value less than or equal to Alesha's power'...."),
+        completeness: Completeness::partial(
+            "the Raid reanimation targets a creature card in your graveyard with 'mana value less \
+             than or equal to Alesha's power'....",
+        ),
         ..Default::default()
     }
 }

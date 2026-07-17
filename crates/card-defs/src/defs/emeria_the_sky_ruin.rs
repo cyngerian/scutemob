@@ -11,7 +11,10 @@ pub fn card() -> CardDefinition {
         name: "Emeria, the Sky Ruin".to_string(),
         mana_cost: None,
         types: supertypes(&[SuperType::Legendary], &[CardType::Land]),
-        oracle_text: "This land enters tapped.\nAt the beginning of your upkeep, if you control seven or more Plains, you may return target creature card from your graveyard to the battlefield.\n{T}: Add {W}.".to_string(),
+        oracle_text: "This land enters tapped.\nAt the beginning of your upkeep, if you control \
+                      seven or more Plains, you may return target creature card from your \
+                      graveyard to the battlefield.\n{T}: Add {W}."
+            .to_string(),
         abilities: vec![
             // CR 614.1c: self-replacement — this land enters tapped.
             AbilityDefinition::Replacement {
@@ -56,7 +59,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

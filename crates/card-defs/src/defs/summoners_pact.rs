@@ -14,7 +14,10 @@ pub fn card() -> CardDefinition {
         name: "Summoner's Pact".to_string(),
         mana_cost: Some(ManaCost::default()),
         types: types(&[CardType::Instant]),
-        oracle_text: "Search your library for a green creature card, reveal it, put it into your hand, then shuffle.\nAt the beginning of your next upkeep, pay {2}{G}{G}. If you don't, you lose the game.".to_string(),
+        oracle_text: "Search your library for a green creature card, reveal it, put it into your \
+                      hand, then shuffle.\nAt the beginning of your next upkeep, pay {2}{G}{G}. \
+                      If you don't, you lose the game."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Spell {
                 effect: Effect::SearchLibrary {
@@ -23,7 +26,9 @@ pub fn card() -> CardDefinition {
                         colors: Some([Color::Green].into_iter().collect()),
                         ..Default::default()
                     },
-                    destination: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                    destination: ZoneTarget::Hand {
+                        owner: PlayerTarget::Controller,
+                    },
                     reveal: true,
                     player: PlayerTarget::Controller,
                     also_search_graveyard: false,
@@ -36,7 +41,10 @@ pub fn card() -> CardDefinition {
             // TODO: Pact upkeep trigger — "At the beginning of your next upkeep, pay {2}{G}{G}
             //   or you lose the game." DSL gap: no DelayedTrigger variant, no Effect::LoseGameUnlessPay.
         ],
-        completeness: Completeness::partial("'At the beginning of your next upkeep, pay {2}{G}{G} or lose the game' — delayed trigger with a pact payment..."),
+        completeness: Completeness::partial(
+            "'At the beginning of your next upkeep, pay {2}{G}{G} or lose the game' — delayed \
+             trigger with a pact payment...",
+        ),
         ..Default::default()
     }
 }

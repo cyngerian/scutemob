@@ -6,9 +6,14 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("consider"),
         name: "Consider".to_string(),
-        mana_cost: Some(ManaCost { blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            blue: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Surveil 1. (Look at the top card of your library. You may put it into your graveyard.)\nDraw a card.".to_string(),
+        oracle_text: "Surveil 1. (Look at the top card of your library. You may put it into your \
+                      graveyard.)\nDraw a card."
+            .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![
                 Effect::Surveil {

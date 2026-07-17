@@ -14,13 +14,20 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("niv-mizzet-parun"),
         name: "Niv-Mizzet, Parun".to_string(),
-        mana_cost: Some(ManaCost { blue: 3, red: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            blue: 3,
+            red: 3,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Dragon", "Wizard"],
         ),
-        oracle_text: "This spell can't be countered.\nFlying\nWhenever you draw a card, Niv-Mizzet deals 1 damage to any target.\nWhenever a player casts an instant or sorcery spell, you draw a card.".to_string(),
+        oracle_text: "This spell can't be countered.\nFlying\nWhenever you draw a card, \
+                      Niv-Mizzet deals 1 damage to any target.\nWhenever a player casts an \
+                      instant or sorcery spell, you draw a card."
+            .to_string(),
         power: Some(5),
         toughness: Some(5),
         abilities: vec![
@@ -46,7 +53,13 @@ pub fn card() -> CardDefinition {
         ],
         // CR 101.6: "This spell can't be countered" — CardDefinition.cant_be_countered = true.
         cant_be_countered: true,
-        completeness: Completeness::partial("Second trigger clause unimplemented. Now authorable: express 'Whenever a player casts an instant or sorcery spell' as TWO Triggered abilities — WheneverYouCastSpell + WheneverOpponentCastsSpell, each with spell_type_filter: Some(vec![CardType::Instant, CardType::Sorcery]) — each drawing 1 card for the controller."),
+        completeness: Completeness::partial(
+            "Second trigger clause unimplemented. Now authorable: express 'Whenever a player \
+             casts an instant or sorcery spell' as TWO Triggered abilities — WheneverYouCastSpell \
+             + WheneverOpponentCastsSpell, each with spell_type_filter: \
+             Some(vec![CardType::Instant, CardType::Sorcery]) — each drawing 1 card for the \
+             controller.",
+        ),
         ..Default::default()
     }
 }

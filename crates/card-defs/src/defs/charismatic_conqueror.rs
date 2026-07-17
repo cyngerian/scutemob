@@ -14,9 +14,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("charismatic-conqueror"),
         name: "Charismatic Conqueror".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            white: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Vampire", "Soldier"]),
-        oracle_text: "Vigilance\nWhenever an artifact or creature an opponent controls enters untapped, they may tap that permanent. If they don't, you create a 1/1 white Vampire creature token with lifelink.".to_string(),
+        oracle_text: "Vigilance\nWhenever an artifact or creature an opponent controls enters \
+                      untapped, they may tap that permanent. If they don't, you create a 1/1 \
+                      white Vampire creature token with lifelink."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -24,7 +31,10 @@ pub fn card() -> CardDefinition {
             // TODO: trigger on opponent's artifact/creature entering untapped with
             //   opponent choice branch — not in DSL.
         ],
-        completeness: Completeness::partial("'Whenever an artifact or creature an opponent controls enters untapped' — no TriggerCondition for opponent's permanents..."),
+        completeness: Completeness::partial(
+            "'Whenever an artifact or creature an opponent controls enters untapped' — no \
+             TriggerCondition for opponent's permanents...",
+        ),
         ..Default::default()
     }
 }

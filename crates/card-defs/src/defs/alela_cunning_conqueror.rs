@@ -11,13 +11,22 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("alela-cunning-conqueror"),
         name: "Alela, Cunning Conqueror".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, blue: 1, black: 1, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Faerie", "Warlock"]),
-        oracle_text:
-            "Flying\n\
-             Whenever you cast your first spell during each opponent's turn, create a 1/1 black Faerie Rogue creature token with flying.\n\
-             Whenever one or more Faeries you control deal combat damage to a player, goad target creature that player controls."
-                .to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            blue: 1,
+            black: 1,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Creature],
+            &["Faerie", "Warlock"],
+        ),
+        oracle_text: "Flying\nWhenever you cast your first spell during each opponent's turn, \
+                      create a 1/1 black Faerie Rogue creature token with flying.\nWhenever one \
+                      or more Faeries you control deal combat damage to a player, goad target \
+                      creature that player controls."
+            .to_string(),
         power: Some(2),
         toughness: Some(4),
         abilities: vec![
@@ -31,7 +40,7 @@ pub fn card() -> CardDefinition {
                     spell_type_filter: None,
                     noncreature_only: false,
                     chosen_subtype_filter: false,
-                spell_subtype_filter: None,
+                    spell_subtype_filter: None,
                 },
                 effect: Effect::CreateToken {
                     spec: TokenSpec {
@@ -66,12 +75,13 @@ pub fn card() -> CardDefinition {
             // player dealt damage (PB-D).
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer {
-                    filter: Some(TargetFilter {
-                        has_subtype: Some(SubType("Faerie".to_string())),
-                        ..Default::default()
-                    }),
-                },
+                trigger_condition:
+                    TriggerCondition::WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer {
+                        filter: Some(TargetFilter {
+                            has_subtype: Some(SubType("Faerie".to_string())),
+                            ..Default::default()
+                        }),
+                    },
                 effect: Effect::Goad {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                 },
@@ -97,6 +107,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

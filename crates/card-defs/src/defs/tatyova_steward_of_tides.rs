@@ -17,7 +17,10 @@ pub fn card() -> CardDefinition {
             &[CardType::Creature],
             &["Merfolk", "Druid"],
         ),
-        oracle_text: "Land creatures you control have flying.\nWhenever a land you control enters, if you control seven or more lands, up to one target land you control becomes a 3/3 Elemental creature with haste. It's still a land.".to_string(),
+        oracle_text: "Land creatures you control have flying.\nWhenever a land you control \
+                      enters, if you control seven or more lands, up to one target land you \
+                      control becomes a 3/3 Elemental creature with haste. It's still a land."
+            .to_string(),
         power: Some(3),
         toughness: Some(3),
         abilities: vec![
@@ -90,7 +93,12 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("DSL gap — no EffectFilter for 'land creatures you control' (EffectFilter cannot intersect card types), so the flying grant is unimplemented. The landfall trigger IS implemented, but its target should be UpToN{1, TargetLandWithFilter(controller: You)}, not bare TargetLand."),
+        completeness: Completeness::partial(
+            "DSL gap — no EffectFilter for 'land creatures you control' (EffectFilter cannot \
+             intersect card types), so the flying grant is unimplemented. The landfall trigger IS \
+             implemented, but its target should be UpToN{1, TargetLandWithFilter(controller: \
+             You)}, not bare TargetLand.",
+        ),
         ..Default::default()
     }
 }

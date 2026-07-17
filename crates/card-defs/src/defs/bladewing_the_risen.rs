@@ -20,7 +20,10 @@ pub fn card() -> CardDefinition {
             &[CardType::Creature],
             &["Zombie", "Dragon"],
         ),
-        oracle_text: "Flying\nWhen Bladewing enters, you may return target Dragon permanent card from your graveyard to the battlefield.\n{B}{R}: Dragon creatures get +1/+1 until end of turn.".to_string(),
+        oracle_text: "Flying\nWhen Bladewing enters, you may return target Dragon permanent card \
+                      from your graveyard to the battlefield.\n{B}{R}: Dragon creatures get +1/+1 \
+                      until end of turn."
+            .to_string(),
         power: Some(4),
         toughness: Some(4),
         abilities: vec![
@@ -54,14 +57,18 @@ pub fn card() -> CardDefinition {
             // CR 613.4c: "{B}{R}: Dragon creatures get +1/+1 until end of turn."
             // AllCreaturesWithSubtype — no controller restriction, affects all players' Dragons.
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { black: 1, red: 1, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    black: 1,
+                    red: 1,
+                    ..Default::default()
+                }),
                 effect: Effect::ApplyContinuousEffect {
                     effect_def: Box::new(ContinuousEffectDef {
                         layer: EffectLayer::PtModify,
                         modification: LayerModification::ModifyBoth(1),
-                        filter: EffectFilter::AllCreaturesWithSubtype(
-                            SubType("Dragon".to_string()),
-                        ),
+                        filter: EffectFilter::AllCreaturesWithSubtype(SubType(
+                            "Dragon".to_string(),
+                        )),
                         duration: EffectDuration::UntilEndOfTurn,
                         condition: None,
                     }),
@@ -70,7 +77,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

@@ -6,9 +6,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("witty-roastmaster"),
         name: "Witty Roastmaster".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Devil", "Citizen"]),
-        oracle_text: "Alliance — Whenever another creature you control enters, this creature deals 1 damage to each opponent.".to_string(),
+        oracle_text: "Alliance — Whenever another creature you control enters, this creature \
+                      deals 1 damage to each opponent."
+            .to_string(),
         power: Some(3),
         toughness: Some(2),
         abilities: vec![

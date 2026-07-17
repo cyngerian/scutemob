@@ -8,13 +8,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("neriv-heart-of-the-storm"),
         name: "Neriv, Heart of the Storm".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, red: 1, white: 1, black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            red: 1,
+            white: 1,
+            black: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Spirit", "Dragon"],
         ),
-        oracle_text: "Flying\nIf a creature you control that entered this turn would deal damage, it deals twice that much damage instead.".to_string(),
+        oracle_text: "Flying\nIf a creature you control that entered this turn would deal damage, \
+                      it deals twice that much damage instead."
+            .to_string(),
         power: Some(4),
         toughness: Some(5),
         abilities: vec![

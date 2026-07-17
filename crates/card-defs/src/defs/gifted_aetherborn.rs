@@ -6,7 +6,10 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("gifted-aetherborn"),
         name: "Gifted Aetherborn".to_string(),
-        mana_cost: Some(ManaCost { black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Aetherborn", "Vampire"]),
         oracle_text: "Deathtouch, lifelink".to_string(),
         power: Some(2),

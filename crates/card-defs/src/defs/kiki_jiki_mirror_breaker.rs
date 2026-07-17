@@ -8,13 +8,20 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("kiki-jiki-mirror-breaker"),
         name: "Kiki-Jiki, Mirror Breaker".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, red: 3, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            red: 3,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Goblin", "Shaman"],
         ),
-        oracle_text: "Haste\n{T}: Create a token that's a copy of target nonlegendary creature you control, except it has haste. Sacrifice it at the beginning of the next end step.".to_string(),
+        oracle_text: "Haste\n{T}: Create a token that's a copy of target nonlegendary creature \
+                      you control, except it has haste. Sacrifice it at the beginning of the next \
+                      end step."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -42,10 +49,14 @@ pub fn card() -> CardDefinition {
                 })],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::known_wrong("activated ability is live but its target filter permits legendary creatures — TargetFilter has no nonlegendary exclusion (only `legendary: bool` = must-be-legendary). Illegal targets are accepted."),
+        completeness: Completeness::known_wrong(
+            "activated ability is live but its target filter permits legendary creatures — \
+             TargetFilter has no nonlegendary exclusion (only `legendary: bool` = \
+             must-be-legendary). Illegal targets are accepted.",
+        ),
         ..Default::default()
     }
 }

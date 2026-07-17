@@ -22,7 +22,12 @@ pub fn card() -> CardDefinition {
             &[CardType::Planeswalker],
             &["Kaito"],
         ),
-        oracle_text: "Ninjutsu {1}{U}{B}\nDuring your turn, as long as Kaito has one or more loyalty counters on him, he's a 3/4 Ninja creature and has hexproof.\n+1: You get an emblem with \"Ninjas you control get +1/+1.\"\n0: Surveil 2. Then draw a card for each opponent who lost life this turn.\n\u{2212}2: Tap target creature. Put two stun counters on it.".to_string(),
+        oracle_text: "Ninjutsu {1}{U}{B}\nDuring your turn, as long as Kaito has one or more \
+                      loyalty counters on him, he's a 3/4 Ninja creature and has hexproof.\n+1: \
+                      You get an emblem with \"Ninjas you control get +1/+1.\"\n0: Surveil 2. \
+                      Then draw a card for each opponent who lost life this turn.\n\u{2212}2: Tap \
+                      target creature. Put two stun counters on it."
+            .to_string(),
         abilities: vec![
             // Ninjutsu keyword marker
             AbilityDefinition::Keyword(KeywordAbility::Ninjutsu),
@@ -37,24 +42,22 @@ pub fn card() -> CardDefinition {
                 cost: LoyaltyCost::Plus(1),
                 effect: Effect::CreateEmblem {
                     triggered_abilities: vec![],
-                    static_effects: vec![
-                        ContinuousEffectDef {
-                            layer: EffectLayer::PtModify,
-                            // Layer 7c: +1/+1 to Ninjas you control.
-                            // ModifyBoth applies the same value to both P and T.
-                            modification: LayerModification::ModifyBoth(1),
-                            // OtherCreaturesYouControlWithSubtype("Ninja") resolves correctly
-                            // for emblems: the emblem (source) is in the command zone, not a
-                            // Ninja creature, so no battlefield creature is excluded. All Ninja
-                            // creatures you control receive the bonus (CR 114.4).
-                            filter: EffectFilter::OtherCreaturesYouControlWithSubtype(
-                                SubType("Ninja".to_string()),
-                            ),
-                            // Indefinite: emblems never leave the command zone (CR 114.1).
-                            duration: EffectDuration::Indefinite,
-                            condition: None,
-                        },
-                    ],
+                    static_effects: vec![ContinuousEffectDef {
+                        layer: EffectLayer::PtModify,
+                        // Layer 7c: +1/+1 to Ninjas you control.
+                        // ModifyBoth applies the same value to both P and T.
+                        modification: LayerModification::ModifyBoth(1),
+                        // OtherCreaturesYouControlWithSubtype("Ninja") resolves correctly
+                        // for emblems: the emblem (source) is in the command zone, not a
+                        // Ninja creature, so no battlefield creature is excluded. All Ninja
+                        // creatures you control receive the bonus (CR 114.4).
+                        filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType(
+                            "Ninja".to_string(),
+                        )),
+                        // Indefinite: emblems never leave the command zone (CR 114.1).
+                        duration: EffectDuration::Indefinite,
+                        condition: None,
+                    }],
                     play_from_graveyard: None,
                 },
                 targets: vec![],
@@ -92,7 +95,13 @@ pub fn card() -> CardDefinition {
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
         cant_be_countered: false,
-        completeness: Completeness::partial("Blocked on 'draw a card for each opponent who lost life this turn' — no EffectAmount tracks per-opponent life loss this turn. Also unimplemented: the conditional animation static ('during your turn, while he has loyalty counters, he's a 3/4 Ninja with hexproof'). Missing AbilityDefinition::Ninjutsu { cost: {1}{U}{B} } — the Keyword(Ninjutsu) marker alone carries no cost (cf. ink_eyes_servant_of_oni.rs)."),
+        completeness: Completeness::partial(
+            "Blocked on 'draw a card for each opponent who lost life this turn' — no EffectAmount \
+             tracks per-opponent life loss this turn. Also unimplemented: the conditional \
+             animation static ('during your turn, while he has loyalty counters, he's a 3/4 Ninja \
+             with hexproof'). Missing AbilityDefinition::Ninjutsu { cost: {1}{U}{B} } — the \
+             Keyword(Ninjutsu) marker alone carries no cost (cf. ink_eyes_servant_of_oni.rs).",
+        ),
         ..Default::default()
     }
 }

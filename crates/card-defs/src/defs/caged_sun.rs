@@ -9,9 +9,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("caged-sun"),
         name: "Caged Sun".to_string(),
-        mana_cost: Some(ManaCost { generic: 6, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 6,
+            ..Default::default()
+        }),
         types: types(&[CardType::Artifact]),
-        oracle_text: "As Caged Sun enters, choose a color.\nCreatures you control of the chosen color get +1/+1.\nWhenever a land's ability causes you to add one or more mana of the chosen color, add an additional one mana of that color.".to_string(),
+        oracle_text: "As Caged Sun enters, choose a color.\nCreatures you control of the chosen \
+                      color get +1/+1.\nWhenever a land's ability causes you to add one or more \
+                      mana of the chosen color, add an additional one mana of that color."
+            .to_string(),
         abilities: vec![
             // CR 614.12 / CR 614.12a: "As this enters, choose a color."
             // Replacement effect — NOT a triggered ability (PB-X C1 lesson).

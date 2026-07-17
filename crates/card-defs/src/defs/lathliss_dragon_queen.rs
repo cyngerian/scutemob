@@ -9,9 +9,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("lathliss-dragon-queen"),
         name: "Lathliss, Dragon Queen".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, red: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            red: 2,
+            ..Default::default()
+        }),
         types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Dragon"]),
-        oracle_text: "Flying\nWhenever another nontoken Dragon you control enters, create a 5/5 red Dragon creature token with flying.\n{1}{R}: Dragons you control get +1/+0 until end of turn.".to_string(),
+        oracle_text: "Flying\nWhenever another nontoken Dragon you control enters, create a 5/5 \
+                      red Dragon creature token with flying.\n{1}{R}: Dragons you control get \
+                      +1/+0 until end of turn."
+            .to_string(),
         power: Some(6),
         toughness: Some(6),
         abilities: vec![
@@ -59,14 +66,18 @@ pub fn card() -> CardDefinition {
             },
             // CR 613.4c: {1}{R}: Dragons you control get +1/+0 until end of turn.
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { generic: 1, red: 1, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    generic: 1,
+                    red: 1,
+                    ..Default::default()
+                }),
                 effect: Effect::ApplyContinuousEffect {
                     effect_def: Box::new(ContinuousEffectDef {
                         layer: EffectLayer::PtModify,
                         modification: LayerModification::ModifyPower(1),
-                        filter: EffectFilter::CreaturesYouControlWithSubtype(
-                            SubType("Dragon".to_string()),
-                        ),
+                        filter: EffectFilter::CreaturesYouControlWithSubtype(SubType(
+                            "Dragon".to_string(),
+                        )),
                         duration: EffectDuration::UntilEndOfTurn,
                         condition: None,
                     }),

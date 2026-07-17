@@ -22,7 +22,14 @@ pub fn card() -> CardDefinition {
             &[CardType::Planeswalker],
             &["Wrenn"],
         ),
-        oracle_text: "+1: Reveal the top four cards of your library. Put all land cards from among them into your hand and the rest into your graveyard.\n0: Put any number of land cards from your hand onto the battlefield tapped.\n\u{2212}3: Create a green Treefolk creature token with reach and \"This creature's power and toughness are each equal to the number of lands you control.\"\n\u{2212}8: Return all permanent cards from your graveyard to your hand. You get an emblem with \"You have no maximum hand size.\"".to_string(),
+        oracle_text: "+1: Reveal the top four cards of your library. Put all land cards from \
+                      among them into your hand and the rest into your graveyard.\n0: Put any \
+                      number of land cards from your hand onto the battlefield \
+                      tapped.\n\u{2212}3: Create a green Treefolk creature token with reach and \
+                      \"This creature's power and toughness are each equal to the number of lands \
+                      you control.\"\n\u{2212}8: Return all permanent cards from your graveyard \
+                      to your hand. You get an emblem with \"You have no maximum hand size.\""
+            .to_string(),
         abilities: vec![
             // +1: Reveal top 4, put lands in hand, rest to graveyard.
             // TODO: "Reveal top N and sort into different zones by card type" is a complex
@@ -77,24 +84,22 @@ pub fn card() -> CardDefinition {
                 // graveyard filter. Partial: just create the emblem.
                 effect: Effect::CreateEmblem {
                     triggered_abilities: vec![],
-                    static_effects: vec![
-                        ContinuousEffectDef {
-                            layer: EffectLayer::Ability,
-                            // TODO: INCORRECT APPROXIMATION — "You have no maximum hand size"
-                            // is a player-level rule modification (CR 402.3), not a keyword
-                            // granted to permanents. The cleanup step should check whether the
-                            // active player has a no_max_hand_size flag and skip discard if so.
-                            // This grants NoMaxHandSize to permanents you control as a proxy,
-                            // which fails when the player controls no permanents (the emblem
-                            // would have no effect). Correct fix: add player.no_max_hand_size
-                            // flag to PlayerState and check it in the cleanup step discard loop.
-                            // Known DSL gap — MEDIUM severity per PB-22 S6 review.
-                            modification: LayerModification::AddKeyword(KeywordAbility::NoMaxHandSize),
-                            filter: EffectFilter::CreaturesYouControl,
-                            duration: EffectDuration::Indefinite,
-                            condition: None,
-                        },
-                    ],
+                    static_effects: vec![ContinuousEffectDef {
+                        layer: EffectLayer::Ability,
+                        // TODO: INCORRECT APPROXIMATION — "You have no maximum hand size"
+                        // is a player-level rule modification (CR 402.3), not a keyword
+                        // granted to permanents. The cleanup step should check whether the
+                        // active player has a no_max_hand_size flag and skip discard if so.
+                        // This grants NoMaxHandSize to permanents you control as a proxy,
+                        // which fails when the player controls no permanents (the emblem
+                        // would have no effect). Correct fix: add player.no_max_hand_size
+                        // flag to PlayerState and check it in the cleanup step discard loop.
+                        // Known DSL gap — MEDIUM severity per PB-22 S6 review.
+                        modification: LayerModification::AddKeyword(KeywordAbility::NoMaxHandSize),
+                        filter: EffectFilter::CreaturesYouControl,
+                        duration: EffectDuration::Indefinite,
+                        condition: None,
+                    }],
                     play_from_graveyard: None,
                 },
                 targets: vec![],
@@ -106,7 +111,17 @@ pub fn card() -> CardDefinition {
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
         cant_be_countered: false,
-        completeness: Completeness::partial("+1 is NOT a gap — use Effect::RevealAndRoute { count: Fixed(4), filter: has_card_type Land, matched_dest: Hand, unmatched_dest: Graveyard } (replace the current Scry 4, which is wrong game state, not a partial). -8 hand-size clause is NOT a gap — use Effect::SetNoMaximumHandSize { player: Controller } (PB-AC9); delete the stale 'add player.no_max_hand_size flag' TODO. Still blocked: 0 ability ('put any number of land cards from your hand onto the battlefield tapped' — interactive multi-card selection from hand); -3 token CDA (P/T = lands you control) on a TokenSpec; -8 'return all permanent cards from your graveyard to your hand'. Current -3 creates a 0/0 with no CDA, which dies to SBA."),
+        completeness: Completeness::partial(
+            "+1 is NOT a gap — use Effect::RevealAndRoute { count: Fixed(4), filter: \
+             has_card_type Land, matched_dest: Hand, unmatched_dest: Graveyard } (replace the \
+             current Scry 4, which is wrong game state, not a partial). -8 hand-size clause is \
+             NOT a gap — use Effect::SetNoMaximumHandSize { player: Controller } (PB-AC9); delete \
+             the stale 'add player.no_max_hand_size flag' TODO. Still blocked: 0 ability ('put \
+             any number of land cards from your hand onto the battlefield tapped' — interactive \
+             multi-card selection from hand); -3 token CDA (P/T = lands you control) on a \
+             TokenSpec; -8 'return all permanent cards from your graveyard to your hand'. Current \
+             -3 creates a 0/0 with no CDA, which dies to SBA.",
+        ),
         ..Default::default()
     }
 }

@@ -8,9 +8,18 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("sharktocrab"),
         name: "Sharktocrab".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 1, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 1,
+            blue: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Shark", "Octopus", "Crab"]),
-        oracle_text: "{2}{G}{U}: Adapt 1. (If this creature has no +1/+1 counters on it, put a +1/+1 counter on it.)\nWhenever one or more +1/+1 counters are put on this creature, tap target creature an opponent controls. That creature doesn't untap during its controller's next untap step.".to_string(),
+        oracle_text: "{2}{G}{U}: Adapt 1. (If this creature has no +1/+1 counters on it, put a \
+                      +1/+1 counter on it.)\nWhenever one or more +1/+1 counters are put on this \
+                      creature, tap target creature an opponent controls. That creature doesn't \
+                      untap during its controller's next untap step."
+            .to_string(),
         abilities: vec![
             // Keyword marker for Adapt 1 (CR 701.46)
             AbilityDefinition::Keyword(KeywordAbility::Adapt(1)),
@@ -19,7 +28,12 @@ pub fn card() -> CardDefinition {
             // if true, places a counter. Mana is always spent regardless (ruling 2019-01-25).
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 2, green: 1, blue: 1, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 2,
+                        green: 1,
+                        blue: 1,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                 ]),
                 effect: Effect::Conditional {
@@ -37,7 +51,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // CR 122.6 / 122.7 / 502.3: "Whenever one or more +1/+1 counters are put on
             // this creature, tap target creature an opponent controls. That creature
@@ -80,6 +94,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::Complete,
+        completeness: Completeness::Complete,
     }
 }

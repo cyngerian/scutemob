@@ -8,10 +8,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("wake-the-dead"),
         name: "Wake the Dead".to_string(),
-        mana_cost: Some(ManaCost { black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 2,
+            ..Default::default()
+        }),
         // {X}{B}{B} — X cost not expressible in ManaCost struct
         types: types(&[CardType::Instant]),
-        oracle_text: "Cast this spell only during combat on an opponent's turn.\nReturn X target creature cards from your graveyard to the battlefield. Sacrifice those creatures at the beginning of the next end step.".to_string(),
+        oracle_text: "Cast this spell only during combat on an opponent's turn.\nReturn X target \
+                      creature cards from your graveyard to the battlefield. Sacrifice those \
+                      creatures at the beginning of the next end step."
+            .to_string(),
         abilities: vec![
             // TODO: This card has multiple DSL gaps:
             // 1. {X} in mana cost: ManaCost has no X field; X-value effects require EffectAmount::XValue
@@ -23,7 +29,14 @@ pub fn card() -> CardDefinition {
             //    triggered sacrifice is not expressible in the DSL.
             // Empty per W5 policy.
         ],
-        completeness: Completeness::partial("Blocked on (a) TimingRestriction has only SorcerySpeed/AnyTime — 'cast only during combat on an opponent's turn' is inexpressible; (b) X target creature cards — no variable-count targeting; (c) 'sacrifice those creatures at the beginning of the next end step' — delayed sacrifice exists only on TokenSpec. ManaCost.x_count DOES exist ({X}{B}{B} is representable); that is no longer a blocker and the def's mana_cost should carry x_count: 1."),
+        completeness: Completeness::partial(
+            "Blocked on (a) TimingRestriction has only SorcerySpeed/AnyTime — 'cast only during \
+             combat on an opponent's turn' is inexpressible; (b) X target creature cards — no \
+             variable-count targeting; (c) 'sacrifice those creatures at the beginning of the \
+             next end step' — delayed sacrifice exists only on TokenSpec. ManaCost.x_count DOES \
+             exist ({X}{B}{B} is representable); that is no longer a blocker and the def's \
+             mana_cost should carry x_count: 1.",
+        ),
         ..Default::default()
     }
 }

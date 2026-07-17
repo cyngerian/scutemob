@@ -8,7 +8,8 @@ pub fn card() -> CardDefinition {
         name: "Temple of the False God".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}: Add {C}{C}. Activate only if you control five or more lands.".to_string(),
+        oracle_text: "{T}: Add {C}{C}. Activate only if you control five or more lands."
+            .to_string(),
         abilities: vec![
             // {T}: Add {C}{C}. Activate only if you control five or more lands.
             // "five or more lands" = four or more OTHER lands (since Temple itself is a land).
@@ -23,7 +24,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: Some(Condition::ControlAtLeastNOtherLands(4)),
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

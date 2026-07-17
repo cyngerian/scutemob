@@ -7,7 +7,9 @@ pub fn card() -> CardDefinition {
         name: "Azorius Chancery".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "This land enters tapped.\nWhen this land enters, return a land you control to its owner's hand.\n{T}: Add {W}{U}.".to_string(),
+        oracle_text: "This land enters tapped.\nWhen this land enters, return a land you control \
+                      to its owner's hand.\n{T}: Add {W}{U}."
+            .to_string(),
         abilities: vec![
             // CR 614.1c: self-replacement — this land enters tapped.
             AbilityDefinition::Replacement {
@@ -27,7 +29,9 @@ pub fn card() -> CardDefinition {
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     to: ZoneTarget::Hand {
-                        owner: PlayerTarget::OwnerOf(Box::new(EffectTarget::DeclaredTarget { index: 0 })),
+                        owner: PlayerTarget::OwnerOf(Box::new(EffectTarget::DeclaredTarget {
+                            index: 0,
+                        })),
                     },
                     controller_override: None,
                 },
@@ -51,7 +55,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

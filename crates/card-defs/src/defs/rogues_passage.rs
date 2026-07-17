@@ -9,7 +9,8 @@ pub fn card() -> CardDefinition {
         name: "Rogue's Passage".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}: Add {C}.\n{4}, {T}: Target creature can't be blocked this turn.".to_string(),
+        oracle_text: "{T}: Add {C}.\n{4}, {T}: Target creature can't be blocked this turn."
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
@@ -21,14 +22,17 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // CR 509.1 / CR 702 (CantBeBlocked): {4}, {T}: target creature can't be
             // blocked this turn. Applies a UntilEndOfTurn continuous effect granting
             // KeywordAbility::CantBeBlocked in layer 6.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 4, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 4,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                 ]),
                 effect: Effect::ApplyContinuousEffect {
@@ -46,7 +50,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![TargetRequirement::TargetCreature],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

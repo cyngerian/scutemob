@@ -8,9 +8,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("ainok-strike-leader"),
         name: "Ainok Strike Leader".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            white: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Dog", "Warrior"]),
-        oracle_text: "Whenever you attack with this creature and/or your commander, for each opponent, create a 1/1 red Goblin creature token that's tapped and attacking that player.\nSacrifice this creature: Creature tokens you control gain indestructible until end of turn.".to_string(),
+        oracle_text: "Whenever you attack with this creature and/or your commander, for each \
+                      opponent, create a 1/1 red Goblin creature token that's tapped and \
+                      attacking that player.\nSacrifice this creature: Creature tokens you \
+                      control gain indestructible until end of turn."
+            .to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
@@ -28,7 +36,10 @@ pub fn card() -> CardDefinition {
             // DSL gap: ApplyContinuousEffect with GrantKeyword(Indestructible) to
             // EffectFilter::CreatureTokensYouControl does not exist.
         ],
-        completeness: Completeness::partial("'Whenever you attack with this creature and/or your commander, for each opponent, create a 1/1 red Goblin creature..."),
+        completeness: Completeness::partial(
+            "'Whenever you attack with this creature and/or your commander, for each opponent, \
+             create a 1/1 red Goblin creature...",
+        ),
         ..Default::default()
     }
 }

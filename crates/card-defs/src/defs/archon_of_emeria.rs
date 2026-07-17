@@ -7,9 +7,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("archon-of-emeria"),
         name: "Archon of Emeria".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            white: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Archon"]),
-        oracle_text: "Flying\nEach player can't cast more than one spell each turn.\nNonbasic lands your opponents control enter tapped.".to_string(),
+        oracle_text: "Flying\nEach player can't cast more than one spell each turn.\nNonbasic \
+                      lands your opponents control enter tapped."
+            .to_string(),
         power: Some(2),
         toughness: Some(3),
         abilities: vec![

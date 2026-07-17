@@ -6,9 +6,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("mana-reflection"),
         name: "Mana Reflection".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            green: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "If you tap a permanent for mana, it produces twice as much of that mana instead.".to_string(),
+        oracle_text: "If you tap a permanent for mana, it produces twice as much of that mana \
+                      instead."
+            .to_string(),
         abilities: vec![
             // CR 106.12b: "If you tap a permanent for mana, it produces twice as much."
             // Replacement effect: multiplies mana produced by {T}-cost mana abilities by 2.

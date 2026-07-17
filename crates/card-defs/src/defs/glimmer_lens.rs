@@ -12,14 +12,29 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("glimmer-lens"),
         name: "Glimmer Lens".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, white: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            white: 1,
+            ..Default::default()
+        }),
         types: full_types(&[], &[CardType::Artifact], &["Equipment"]),
-        oracle_text: "For Mirrodin! (When this Equipment enters, create a 2/2 red Rebel creature token, then attach this to it.)\nWhenever equipped creature and at least one other creature attack, draw a card.\nEquip {1}{W}".to_string(),
+        oracle_text: "For Mirrodin! (When this Equipment enters, create a 2/2 red Rebel creature \
+                      token, then attach this to it.)\nWhenever equipped creature and at least \
+                      one other creature attack, draw a card.\nEquip {1}{W}"
+            .to_string(),
         abilities: vec![
             // TODO: For Mirrodin! + equipped attack trigger not expressible.
             AbilityDefinition::Keyword(KeywordAbility::Equip),
         ],
-        completeness: Completeness::partial("Blocked on the attack trigger only: 'Whenever equipped creature and at least one other creature attack' has no TriggerCondition (WhenEquippedCreatureDealsCombatDamageToPlayer is a damage trigger; WheneverYouAttack is unfiltered). 'For Mirrodin!' is NOT blocked — Effect::CreateTokenAndAttachSource on a WhenEntersBattlefield trigger expresses it. Equip {1}{W} cost is also not modeled (bare KeywordAbility::Equip marker with no cost ability)."),
+        completeness: Completeness::partial(
+            "Blocked on the attack trigger only: 'Whenever equipped creature and at least one \
+             other creature attack' has no TriggerCondition \
+             (WhenEquippedCreatureDealsCombatDamageToPlayer is a damage trigger; \
+             WheneverYouAttack is unfiltered). 'For Mirrodin!' is NOT blocked — \
+             Effect::CreateTokenAndAttachSource on a WhenEntersBattlefield trigger expresses it. \
+             Equip {1}{W} cost is also not modeled (bare KeywordAbility::Equip marker with no \
+             cost ability).",
+        ),
         ..Default::default()
     }
 }

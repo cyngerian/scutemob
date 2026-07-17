@@ -11,9 +11,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("nanogene-conversion"),
         name: "Nanogene Conversion".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            blue: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Choose target creature you control. Each other creature becomes a copy of that creature until end of turn, except it isn't legendary.".to_string(),
+        oracle_text: "Choose target creature you control. Each other creature becomes a copy of \
+                      that creature until end of turn, except it isn't legendary."
+            .to_string(),
         abilities: vec![
             // TODO: ForEach(AllCreatures) + BecomeCopyOf(target) + except-not-legendary.
             // Multiple DSL gaps: mass copy effect, "except" clause on copies.
@@ -27,7 +33,10 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::partial("'each other creature becomes a copy' — needs ForEach over all creatures + BecomeCopyOf(target) + except-not-legendary...."),
+        completeness: Completeness::partial(
+            "'each other creature becomes a copy' — needs ForEach over all creatures + \
+             BecomeCopyOf(target) + except-not-legendary....",
+        ),
         ..Default::default()
     }
 }

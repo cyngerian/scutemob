@@ -8,13 +8,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("miirym-sentinel-wyrm"),
         name: "Miirym, Sentinel Wyrm".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, green: 1, blue: 1, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            green: 1,
+            blue: 1,
+            red: 1,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Dragon", "Spirit"],
         ),
-        oracle_text: "Flying, ward {2}\nWhenever another nontoken Dragon you control enters, create a token that's a copy of it, except the token isn't legendary.".to_string(),
+        oracle_text: "Flying, ward {2}\nWhenever another nontoken Dragon you control enters, \
+                      create a token that's a copy of it, except the token isn't legendary."
+            .to_string(),
         power: Some(6),
         toughness: Some(6),
         abilities: vec![

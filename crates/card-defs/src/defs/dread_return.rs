@@ -7,9 +7,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("dread-return"),
         name: "Dread Return".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            black: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Return target creature card from your graveyard to the battlefield.\nFlashback—Sacrifice three creatures. (You may cast this card from your graveyard for its flashback cost. Then exile it.)".to_string(),
+        oracle_text: "Return target creature card from your graveyard to the \
+                      battlefield.\nFlashback—Sacrifice three creatures. (You may cast this card \
+                      from your graveyard for its flashback cost. Then exile it.)"
+            .to_string(),
         abilities: vec![
             AbilityDefinition::Spell {
                 effect: Effect::MoveZone {
@@ -31,7 +38,10 @@ pub fn card() -> CardDefinition {
             // flashback cost requires a new Cost variant in AltCastAbility. The flashback
             // ability is omitted — card can only be cast from hand (no flashback from graveyard).
         ],
-        completeness: Completeness::partial("Flashback cost is 'Sacrifice three creatures' — not a mana cost. The AltCastAbility DSL only accepts ManaCost for..."),
+        completeness: Completeness::partial(
+            "Flashback cost is 'Sacrifice three creatures' — not a mana cost. The AltCastAbility \
+             DSL only accepts ManaCost for...",
+        ),
         ..Default::default()
     }
 }

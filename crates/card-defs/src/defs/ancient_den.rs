@@ -8,17 +8,18 @@ pub fn card() -> CardDefinition {
         mana_cost: None,
         types: types(&[CardType::Artifact, CardType::Land]),
         oracle_text: "{T}: Add {W}.".to_string(),
-        abilities: vec![
-            AbilityDefinition::Activated {
-                cost: Cost::Tap,
-                effect: Effect::AddMana { player: PlayerTarget::Controller, mana: mana_pool(1, 0, 0, 0, 0, 0) },
-                timing_restriction: None,
-                targets: vec![],
-                activation_condition: None,
-                activation_zone: None,
-            once_per_turn: false,
+        abilities: vec![AbilityDefinition::Activated {
+            cost: Cost::Tap,
+            effect: Effect::AddMana {
+                player: PlayerTarget::Controller,
+                mana: mana_pool(1, 0, 0, 0, 0, 0),
             },
-        ],
+            timing_restriction: None,
+            targets: vec![],
+            activation_condition: None,
+            activation_zone: None,
+            once_per_turn: false,
+        }],
         ..Default::default()
     }
 }

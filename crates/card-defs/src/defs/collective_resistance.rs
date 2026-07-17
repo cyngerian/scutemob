@@ -10,17 +10,24 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("collective-resistance"),
         name: "Collective Resistance".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Escalate {G} (Pay this cost for each mode chosen beyond the first.)\n\
-            Choose one or more —\n\
-            • Destroy target artifact.\n\
-            • Destroy target enchantment.\n\
-            • Target creature gains hexproof and indestructible until end of turn."
+        oracle_text: "Escalate {G} (Pay this cost for each mode chosen beyond the first.)\nChoose \
+                      one or more —\n• Destroy target artifact.\n• Destroy target enchantment.\n• \
+                      Target creature gains hexproof and indestructible until end of turn."
             .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Escalate),
-            AbilityDefinition::Escalate { cost: ManaCost { green: 1, ..Default::default() } },
+            AbilityDefinition::Escalate {
+                cost: ManaCost {
+                    green: 1,
+                    ..Default::default()
+                },
+            },
             AbilityDefinition::Spell {
                 effect: Effect::Sequence(vec![]),
                 // Targets across all modes (flat, NOT migrated to `mode_targets` — PB-AC4):
@@ -51,12 +58,12 @@ pub fn card() -> CardDefinition {
                         // Mode 0: Destroy target artifact.
                         Effect::DestroyPermanent {
                             target: EffectTarget::DeclaredTarget { index: 0 },
-                    cant_be_regenerated: false,
+                            cant_be_regenerated: false,
                         },
                         // Mode 1: Destroy target enchantment.
                         Effect::DestroyPermanent {
                             target: EffectTarget::DeclaredTarget { index: 1 },
-                    cant_be_regenerated: false,
+                            cant_be_regenerated: false,
                         },
                         // Mode 2: Target creature gains hexproof and indestructible until end of turn.
                         Effect::Sequence(vec![
@@ -89,7 +96,10 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::partial("this card has Escalate, and the engine HARD-REJECTS casting a spell that pays Escalate for 2+ modes when its..."),
+        completeness: Completeness::partial(
+            "this card has Escalate, and the engine HARD-REJECTS casting a spell that pays \
+             Escalate for 2+ modes when its...",
+        ),
         ..Default::default()
     }
 }

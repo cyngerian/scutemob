@@ -16,19 +16,39 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("mindleecher"),
         name: "Mindleecher".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, black: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            black: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Nightmare"]),
-        oracle_text: "Mutate {4}{B} (If you cast this spell for its mutate cost, put it over or under target non-Human creature you own. They mutate into the creature on top plus all abilities from under it.)\nFlying\nWhenever this creature mutates, exile the top card of each opponent's library face down. You may look at and play those cards for as long as they remain exiled.".to_string(),
+        oracle_text: "Mutate {4}{B} (If you cast this spell for its mutate cost, put it over or \
+                      under target non-Human creature you own. They mutate into the creature on \
+                      top plus all abilities from under it.)\nFlying\nWhenever this creature \
+                      mutates, exile the top card of each opponent's library face down. You may \
+                      look at and play those cards for as long as they remain exiled."
+            .to_string(),
         power: Some(5),
         toughness: Some(5),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Mutate),
             AbilityDefinition::MutateCost {
-                cost: ManaCost { generic: 4, black: 1, ..Default::default() },
+                cost: ManaCost {
+                    generic: 4,
+                    black: 1,
+                    ..Default::default()
+                },
             },
             AbilityDefinition::Keyword(KeywordAbility::Flying),
         ],
-        completeness: Completeness::partial("DSL gap — no Effect variant for 'exile the top card of each opponent's library face down' plus a look-at/play-while-exiled permission grant. The mutate trigger itself is NOT a blocker: TriggerCondition::WhenMutates is wired end-to-end (replay_harness.rs:2817 -> TriggerEvent::SelfMutates -> abilities.rs:5439). Shares the exile-top-of-library primitive with laelia_the_blade_reforged, moria_marauder, mystic_forge."),
+        completeness: Completeness::partial(
+            "DSL gap — no Effect variant for 'exile the top card of each opponent's library face \
+             down' plus a look-at/play-while-exiled permission grant. The mutate trigger itself \
+             is NOT a blocker: TriggerCondition::WhenMutates is wired end-to-end \
+             (replay_harness.rs:2817 -> TriggerEvent::SelfMutates -> abilities.rs:5439). Shares \
+             the exile-top-of-library primitive with laelia_the_blade_reforged, moria_marauder, \
+             mystic_forge.",
+        ),
         ..Default::default()
     }
 }

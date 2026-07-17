@@ -7,7 +7,9 @@ pub fn card() -> CardDefinition {
         name: "Command Beacon".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}: Add {C}.\n{T}, Sacrifice this land: Put your commander into your hand from the command zone.".to_string(),
+        oracle_text: "{T}: Add {C}.\n{T}, Sacrifice this land: Put your commander into your hand \
+                      from the command zone."
+            .to_string(),
         abilities: vec![
             // {T}: Add {C}
             AbilityDefinition::Activated {
@@ -20,13 +22,16 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // TODO: {T}, Sacrifice: Put your commander into your hand from the command zone
             // — Cost::Sequence([Cost::Tap, Cost::SacrificeThis]) is expressible;
             // blocked on Effect to move a card from command zone to hand
         ],
-        completeness: Completeness::partial("{T}, Sacrifice: Put your commander into your hand from the command zone — Cost::Sequence([Cost::Tap..."),
+        completeness: Completeness::partial(
+            "{T}, Sacrifice: Put your commander into your hand from the command zone — \
+             Cost::Sequence([Cost::Tap...",
+        ),
         ..Default::default()
     }
 }

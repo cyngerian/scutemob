@@ -20,21 +20,26 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {1}: Return Oboro to its owner's hand.
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    generic: 1,
+                    ..Default::default()
+                }),
                 effect: Effect::MoveZone {
                     target: EffectTarget::Source,
-                    to: ZoneTarget::Hand { owner: PlayerTarget::OwnerOf(Box::new(EffectTarget::Source)) },
+                    to: ZoneTarget::Hand {
+                        owner: PlayerTarget::OwnerOf(Box::new(EffectTarget::Source)),
+                    },
                     controller_override: None,
                 },
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

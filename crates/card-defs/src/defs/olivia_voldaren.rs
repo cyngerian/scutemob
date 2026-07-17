@@ -9,13 +9,18 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("olivia-voldaren"),
         name: "Olivia Voldaren".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, black: 1, red: 1, ..Default::default() }),
-        types: full_types(
-            &[SuperType::Legendary],
-            &[CardType::Creature],
-            &["Vampire"],
-        ),
-        oracle_text: "Flying\n{1}{R}: Olivia Voldaren deals 1 damage to another target creature. That creature becomes a Vampire in addition to its other types. Put a +1/+1 counter on Olivia Voldaren.\n{3}{B}{B}: Gain control of target Vampire for as long as you control Olivia Voldaren.".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            black: 1,
+            red: 1,
+            ..Default::default()
+        }),
+        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Vampire"]),
+        oracle_text: "Flying\n{1}{R}: Olivia Voldaren deals 1 damage to another target creature. \
+                      That creature becomes a Vampire in addition to its other types. Put a +1/+1 \
+                      counter on Olivia Voldaren.\n{3}{B}{B}: Gain control of target Vampire for \
+                      as long as you control Olivia Voldaren."
+            .to_string(),
         power: Some(3),
         toughness: Some(3),
         abilities: vec![
@@ -26,7 +31,11 @@ pub fn card() -> CardDefinition {
             // CR 613.1b: {3}{B}{B}: Gain control of target Vampire for as long as you control
             // Olivia Voldaren (WhileSourceOnBattlefield approximation).
             AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost { generic: 3, black: 2, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    generic: 3,
+                    black: 2,
+                    ..Default::default()
+                }),
                 effect: Effect::GainControl {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     duration: EffectDuration::WhileSourceOnBattlefield,
@@ -38,10 +47,17 @@ pub fn card() -> CardDefinition {
                 })],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("{1}{R} ability unimplemented. Blocker is stale: LayerModification::AddSubtypes exists. Author as Effect::Sequence([DealDamage, ApplyContinuousEffect{AddSubtypes(Vampire), EffectFilter::DeclaredTarget, Indefinite}, AddCounter{Source}]) with a TargetFilter{exclude_self: true} creature target. Verify ApplyContinuousEffect resolves DeclaredTarget correctly before marking Complete."),
+        completeness: Completeness::partial(
+            "{1}{R} ability unimplemented. Blocker is stale: LayerModification::AddSubtypes \
+             exists. Author as Effect::Sequence([DealDamage, \
+             ApplyContinuousEffect{AddSubtypes(Vampire), EffectFilter::DeclaredTarget, \
+             Indefinite}, AddCounter{Source}]) with a TargetFilter{exclude_self: true} creature \
+             target. Verify ApplyContinuousEffect resolves DeclaredTarget correctly before \
+             marking Complete.",
+        ),
         ..Default::default()
     }
 }

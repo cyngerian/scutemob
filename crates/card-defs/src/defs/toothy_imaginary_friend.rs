@@ -9,15 +9,23 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("toothy-imaginary-friend"),
         name: "Toothy, Imaginary Friend".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, blue: 1, ..Default::default() }),
-        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Illusion"]),
-        oracle_text:
-            "Partner with Pir, Imaginative Rascal (When this creature enters the battlefield, \
-             target player may search their library for a card named Pir, Imaginative Rascal, \
-             reveal it, put it into their hand, then shuffle.)\n\
-             Whenever you draw a card, put a +1/+1 counter on Toothy, Imaginary Friend.\n\
-             When Toothy leaves the battlefield, draw a card for each +1/+1 counter on it."
-                .to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            blue: 1,
+            ..Default::default()
+        }),
+        types: full_types(
+            &[SuperType::Legendary],
+            &[CardType::Creature],
+            &["Illusion"],
+        ),
+        oracle_text: "Partner with Pir, Imaginative Rascal (When this creature enters the \
+                      battlefield, target player may search their library for a card named Pir, \
+                      Imaginative Rascal, reveal it, put it into their hand, then \
+                      shuffle.)\nWhenever you draw a card, put a +1/+1 counter on Toothy, \
+                      Imaginary Friend.\nWhen Toothy leaves the battlefield, draw a card for each \
+                      +1/+1 counter on it."
+            .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![

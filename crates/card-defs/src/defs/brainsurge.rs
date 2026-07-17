@@ -11,9 +11,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("brainsurge"),
         name: "Brainsurge".to_string(),
-        mana_cost: Some(ManaCost { generic: 3, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            blue: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text: "Draw four cards, then put two cards from your hand on top of your library in any order.".to_string(),
+        oracle_text: "Draw four cards, then put two cards from your hand on top of your library \
+                      in any order."
+            .to_string(),
         abilities: vec![
             // Draw 4, then put 2 back on top.
             // TODO: "put 2 cards from hand on top" — needs interactive card selection.
@@ -28,7 +34,10 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::partial("'put two cards from hand on top of library' — interactive card selection deferred to M10. Approximated as DrawCards(4)..."),
+        completeness: Completeness::partial(
+            "'put two cards from hand on top of library' — interactive card selection deferred to \
+             M10. Approximated as DrawCards(4)...",
+        ),
         ..Default::default()
     }
 }

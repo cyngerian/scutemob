@@ -7,18 +7,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("unearth"),
         name: "Unearth".to_string(),
-        mana_cost: Some(ManaCost { black: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            black: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Sorcery]),
-        oracle_text: "Return target creature card with mana value 3 or less from your graveyard to the battlefield.\nCycling {2} ({2}, Discard this card: Draw a card.)".to_string(),
+        oracle_text: "Return target creature card with mana value 3 or less from your graveyard \
+                      to the battlefield.\nCycling {2} ({2}, Discard this card: Draw a card.)"
+            .to_string(),
         abilities: vec![
             // TODO: TargetCardInYourGraveyard lacks mana value filter (<=3).
             //   Using unfiltered graveyard targeting as approximation.
             AbilityDefinition::Spell {
                 effect: Effect::MoveZone {
                     target: EffectTarget::DeclaredTarget { index: 0 },
-                    to: ZoneTarget::Battlefield {
-                        tapped: false,
-                    },
+                    to: ZoneTarget::Battlefield { tapped: false },
                     controller_override: None,
                 },
                 targets: vec![TargetRequirement::TargetCardInYourGraveyard(TargetFilter {
@@ -30,10 +33,17 @@ pub fn card() -> CardDefinition {
             },
             AbilityDefinition::Keyword(KeywordAbility::Cycling),
             AbilityDefinition::Cycling {
-                cost: ManaCost { generic: 2, ..Default::default() },
+                cost: ManaCost {
+                    generic: 2,
+                    ..Default::default()
+                },
             },
         ],
-        completeness: Completeness::partial("REWIRE then drop marker: add `max_cmc: Some(3)` to the TargetCardInYourGraveyard filter. Until then the marker should read known_wrong — the def currently allows returning a creature card of any mana value."),
+        completeness: Completeness::partial(
+            "REWIRE then drop marker: add `max_cmc: Some(3)` to the TargetCardInYourGraveyard \
+             filter. Until then the marker should read known_wrong — the def currently allows \
+             returning a creature card of any mana value.",
+        ),
         ..Default::default()
     }
 }

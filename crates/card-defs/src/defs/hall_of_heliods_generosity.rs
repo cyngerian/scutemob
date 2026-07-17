@@ -9,7 +9,9 @@ pub fn card() -> CardDefinition {
         name: "Hall of Heliod's Generosity".to_string(),
         mana_cost: None,
         types: supertypes(&[SuperType::Legendary], &[CardType::Land]),
-        oracle_text: "{T}: Add {C}.\n{1}{W}, {T}: Put target enchantment card from your graveyard on top of your library.".to_string(),
+        oracle_text: "{T}: Add {C}.\n{1}{W}, {T}: Put target enchantment card from your graveyard \
+                      on top of your library."
+            .to_string(),
         abilities: vec![
             // {T}: Add {C}
             AbilityDefinition::Activated {
@@ -22,12 +24,16 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {1}{W}, {T}: Put target enchantment card from your GY on top of library.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 1, white: 1, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 1,
+                        white: 1,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                 ]),
                 effect: Effect::MoveZone {
@@ -45,7 +51,7 @@ pub fn card() -> CardDefinition {
                 })],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         ..Default::default()

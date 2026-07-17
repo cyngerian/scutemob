@@ -15,12 +15,10 @@ pub fn card() -> CardDefinition {
             green: 1,
             ..Default::default()
         }),
-        types: full_types(
-            &[SuperType::Legendary],
-            &[CardType::Creature],
-            &["Dragon"],
-        ),
-        oracle_text: "Flying, haste\nWhen Karrthus enters, gain control of all Dragons, then untap all Dragons.\nOther Dragon creatures you control have haste.".to_string(),
+        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Dragon"]),
+        oracle_text: "Flying, haste\nWhen Karrthus enters, gain control of all Dragons, then \
+                      untap all Dragons.\nOther Dragon creatures you control have haste."
+            .to_string(),
         power: Some(7),
         toughness: Some(7),
         abilities: vec![
@@ -59,7 +57,9 @@ pub fn card() -> CardDefinition {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::Ability,
                     modification: LayerModification::AddKeyword(KeywordAbility::Haste),
-                    filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType("Dragon".to_string())),
+                    filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType(
+                        "Dragon".to_string(),
+                    )),
                     duration: EffectDuration::WhileSourceOnBattlefield,
                     condition: None,
                 },

@@ -6,9 +6,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("lys-alana-huntmaster"),
         name: "Lys Alana Huntmaster".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Elf", "Warrior"]),
-        oracle_text: "Whenever you cast an Elf spell, you may create a 1/1 green Elf Warrior creature token.".to_string(),
+        oracle_text: "Whenever you cast an Elf spell, you may create a 1/1 green Elf Warrior \
+                      creature token."
+            .to_string(),
         power: Some(3),
         toughness: Some(3),
         abilities: vec![
@@ -23,13 +29,15 @@ pub fn card() -> CardDefinition {
                     spell_type_filter: Some(vec![CardType::Creature]),
                     noncreature_only: false,
                     chosen_subtype_filter: false,
-                spell_subtype_filter: None,
+                    spell_subtype_filter: None,
                 },
                 effect: Effect::CreateToken {
                     spec: TokenSpec {
                         name: "Elf Warrior".to_string(),
                         card_types: [CardType::Creature].into_iter().collect(),
-                        subtypes: [SubType("Elf".to_string()), SubType("Warrior".to_string())].into_iter().collect(),
+                        subtypes: [SubType("Elf".to_string()), SubType("Warrior".to_string())]
+                            .into_iter()
+                            .collect(),
                         colors: [Color::Green].into_iter().collect(),
                         power: 1,
                         toughness: 1,
@@ -51,7 +59,12 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("Rewire: set spell_subtype_filter: Some(vec![SubType(\"Elf\")]) — it shipped in PB-AC7 and the def currently over-triggers on all creature spells. Remaining blocker after rewiring: 'you may create' optionality is not expressible (Effect::Choose is non-interactive, effects/mod.rs:3190)."),
+        completeness: Completeness::partial(
+            "Rewire: set spell_subtype_filter: Some(vec![SubType(\"Elf\")]) — it shipped in \
+             PB-AC7 and the def currently over-triggers on all creature spells. Remaining blocker \
+             after rewiring: 'you may create' optionality is not expressible (Effect::Choose is \
+             non-interactive, effects/mod.rs:3190).",
+        ),
         ..Default::default()
     }
 }

@@ -15,9 +15,17 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("wayward-swordtooth"),
         name: "Wayward Swordtooth".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            green: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Dinosaur"]),
-        oracle_text: "Ascend (If you control ten or more permanents, you get the city's blessing for the rest of the game.)\nYou may play an additional land on each of your turns.\nWayward Swordtooth can't attack or block unless you have the city's blessing.".to_string(),
+        oracle_text: "Ascend (If you control ten or more permanents, you get the city's blessing \
+                      for the rest of the game.)\nYou may play an additional land on each of your \
+                      turns.\nWayward Swordtooth can't attack or block unless you have the city's \
+                      blessing."
+            .to_string(),
         power: Some(5),
         toughness: Some(5),
         abilities: vec![
@@ -37,6 +45,11 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::partial("Blocked on a self-restriction gating attack/block on a game-state predicate: no AbilityDefinition::StaticRestriction form conditions CantAttack/CantBlock on a Condition. Condition::HasCitysBlessing and Condition::Not DO exist — the gap is the restriction carrier, not the condition."),
+        completeness: Completeness::partial(
+            "Blocked on a self-restriction gating attack/block on a game-state predicate: no \
+             AbilityDefinition::StaticRestriction form conditions CantAttack/CantBlock on a \
+             Condition. Condition::HasCitysBlessing and Condition::Not DO exist — the gap is the \
+             restriction carrier, not the condition.",
+        ),
     }
 }

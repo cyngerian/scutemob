@@ -10,7 +10,11 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("goblin-electromancer"),
         name: "Goblin Electromancer".to_string(),
-        mana_cost: Some(ManaCost { blue: 1, red: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            blue: 1,
+            red: 1,
+            ..Default::default()
+        }),
         types: creature_types(&["Goblin", "Wizard"]),
         oracle_text: "Instant and sorcery spells you cast cost {1} less to cast.".to_string(),
         power: Some(2),

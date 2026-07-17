@@ -8,9 +8,16 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("oran-rief-hydra"),
         name: "Oran-Rief Hydra".to_string(),
-        mana_cost: Some(ManaCost { generic: 4, green: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 4,
+            green: 2,
+            ..Default::default()
+        }),
         types: creature_types(&["Hydra"]),
-        oracle_text: "Trample\nLandfall — Whenever a land you control enters, put a +1/+1 counter on Oran-Rief Hydra. If that land is a Forest, put two +1/+1 counters on Oran-Rief Hydra instead.".to_string(),
+        oracle_text: "Trample\nLandfall — Whenever a land you control enters, put a +1/+1 counter \
+                      on Oran-Rief Hydra. If that land is a Forest, put two +1/+1 counters on \
+                      Oran-Rief Hydra instead."
+            .to_string(),
         power: Some(5),
         toughness: Some(5),
         abilities: vec![
@@ -41,7 +48,10 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — "If that land is a Forest, put two counters instead."
             // Conditional based on entering permanent's subtype not in DSL.
         ],
-        completeness: Completeness::partial("DSL gap — 'If that land is a Forest, put two counters instead.' Conditional based on entering permanent's subtype not..."),
+        completeness: Completeness::partial(
+            "DSL gap — 'If that land is a Forest, put two counters instead.' Conditional based on \
+             entering permanent's subtype not...",
+        ),
         ..Default::default()
     }
 }

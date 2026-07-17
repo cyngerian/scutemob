@@ -8,18 +8,26 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("cyclonic-rift"),
         name: "Cyclonic Rift".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, blue: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            blue: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Instant]),
-        oracle_text:
-            "Return target nonland permanent you don't control to its owner's hand.\n\
-             Overload {6}{U} (You may cast this spell for its overload cost. If you do, change \"target\" in its text to \"each.\")"
-                .to_string(),
+        oracle_text: "Return target nonland permanent you don't control to its owner's \
+                      hand.\nOverload {6}{U} (You may cast this spell for its overload cost. If \
+                      you do, change \"target\" in its text to \"each.\")"
+            .to_string(),
         abilities: vec![
             // CR 702.96a: Overload keyword marker.
             AbilityDefinition::Keyword(KeywordAbility::Overload),
             // CR 702.96a: Overload alternative cost {6}{U}.
             AbilityDefinition::Overload {
-                cost: ManaCost { generic: 6, blue: 1, ..Default::default() },
+                cost: ManaCost {
+                    generic: 6,
+                    blue: 1,
+                    ..Default::default()
+                },
             },
             // CR 702.96b: Spell effect — branches on WasOverloaded.
             // Normal: return one declared target nonland permanent to owner's hand.
@@ -49,9 +57,9 @@ pub fn card() -> CardDefinition {
                     if_false: Box::new(Effect::MoveZone {
                         target: EffectTarget::DeclaredTarget { index: 0 },
                         to: ZoneTarget::Hand {
-                            owner: PlayerTarget::OwnerOf(Box::new(
-                                EffectTarget::DeclaredTarget { index: 0 },
-                            )),
+                            owner: PlayerTarget::OwnerOf(Box::new(EffectTarget::DeclaredTarget {
+                                index: 0,
+                            })),
                         },
                         controller_override: None,
                     }),

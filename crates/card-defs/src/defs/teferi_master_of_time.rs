@@ -14,13 +14,21 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("teferi-master-of-time"),
         name: "Teferi, Master of Time".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, blue: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            blue: 2,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Planeswalker],
             &["Teferi"],
         ),
-        oracle_text: "You may activate loyalty abilities of Teferi, Master of Time on any player's turn any time you could cast an instant.\n+1: Draw a card, then discard a card.\n\u{2212}3: Target creature you don't control phases out.\n\u{2212}10: Take two extra turns after this one.".to_string(),
+        oracle_text: "You may activate loyalty abilities of Teferi, Master of Time on any \
+                      player's turn any time you could cast an instant.\n+1: Draw a card, then \
+                      discard a card.\n\u{2212}3: Target creature you don't control phases \
+                      out.\n\u{2212}10: Take two extra turns after this one."
+            .to_string(),
         starting_loyalty: Some(3),
         abilities: vec![
             // +1: Draw a card, then discard a card.
@@ -52,7 +60,11 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
-        completeness: Completeness::known_wrong("known_wrong — −3 is Effect::Nothing (no Effect::PhaseOut exists), so paying 3 loyalty does nothing; +1 drops 'then discard a card' although Effect::DiscardCards would express it. Also missing: instant-speed loyalty activation permission."),
+        completeness: Completeness::known_wrong(
+            "known_wrong — −3 is Effect::Nothing (no Effect::PhaseOut exists), so paying 3 \
+             loyalty does nothing; +1 drops 'then discard a card' although Effect::DiscardCards \
+             would express it. Also missing: instant-speed loyalty activation permission.",
+        ),
         ..Default::default()
     }
 }

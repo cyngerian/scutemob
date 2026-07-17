@@ -8,13 +8,19 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("elesh-norn-grand-cenobite"),
         name: "Elesh Norn, Grand Cenobite".to_string(),
-        mana_cost: Some(ManaCost { generic: 5, white: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 5,
+            white: 2,
+            ..Default::default()
+        }),
         types: full_types(
             &[SuperType::Legendary],
             &[CardType::Creature],
             &["Phyrexian", "Praetor"],
         ),
-        oracle_text: "Vigilance\nOther creatures you control get +2/+2.\nCreatures your opponents control get -2/-2.".to_string(),
+        oracle_text: "Vigilance\nOther creatures you control get +2/+2.\nCreatures your opponents \
+                      control get -2/-2."
+            .to_string(),
         power: Some(4),
         toughness: Some(7),
         abilities: vec![
