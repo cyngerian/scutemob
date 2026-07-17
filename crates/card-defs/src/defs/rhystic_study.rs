@@ -17,9 +17,15 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("rhystic-study"),
         name: "Rhystic Study".to_string(),
-        mana_cost: Some(ManaCost { blue: 1, generic: 2, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            blue: 1,
+            generic: 2,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Whenever an opponent casts a spell, you may draw a card unless that player pays {1}.".to_string(),
+        oracle_text:
+            "Whenever an opponent casts a spell, you may draw a card unless that player pays {1}."
+                .to_string(),
         abilities: vec![AbilityDefinition::Triggered {
             once_per_turn: false,
             trigger_condition: TriggerCondition::WheneverOpponentCastsSpell {
@@ -27,7 +33,10 @@ pub fn card() -> CardDefinition {
                 noncreature_only: false,
             },
             effect: Effect::MayPayOrElse {
-                cost: Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
+                cost: Cost::Mana(ManaCost {
+                    generic: 1,
+                    ..Default::default()
+                }),
                 // DeclaredTarget { index: 0 } = the specific opponent who cast the spell.
                 // This is the correct model (CR 603.1): only "that player" pays, not all
                 // opponents. Resolves to an empty list at runtime until trigger context

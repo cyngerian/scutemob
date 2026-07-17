@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-17 03:01 UTC  
-**Git:** `a87b227b` on `feat/sr-33-88-dualtri-lands-are-complete-but-broken-effectchoose-`  
+**Generated:** 2026-07-17 03:18 UTC  
+**Git:** `a25f87c8` on `feat/sr-33-88-dualtri-lands-are-complete-but-broken-effectchoose-`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,8 +25,8 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 194 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **108%** (1,763 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 58.1% | 1,016 | -3 |
-| With TODO markers | 670 | +3 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 57.9% | 1,012 | -4 |
+| With TODO markers | 674 | +4 |
 | Empty `abilities: vec![]` placeholders | 62 | · |
 | Total TODO lines across all defs | 1,045 | · |
 
@@ -34,10 +34,10 @@ and what is intentionally NOT in it.**
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 1,272 |
-| last 30 days | 0 | 1,584 |
-| last 90 days | 0 | 1,624 |
-| last 1 year | 1,773 | 2,007 |
+| last 7 days | 0 | 1,377 |
+| last 30 days | 0 | 1,689 |
+| last 90 days | 0 | 1,729 |
+| last 1 year | 1,773 | 2,112 |
 
 ## Bonus defs outside the plan
 
@@ -67,9 +67,9 @@ are blocked on engine primitives.
 | Group | Auth / Total | % | Clean | TODO | Empty |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | `combat-keyword` | 187 / 187 | 100% | 77 | 102 | 8 |
-| `draw` | 163 / 169 | 96% | 69 | 83 | 11 |
+| `draw` | 163 / 169 | 96% | 66 | 86 | 11 |
 | `token-create` | 145 / 155 | 94% | 68 | 77 | 0 |
-| `land-etb-tapped` | 138 / 138 | 100% | 118 | 20 | 0 |
+| `land-etb-tapped` | 138 / 138 | 100% | 117 | 21 | 0 |
 | `other` | 108 / 131 | 82% | 67 | 41 | 0 |
 | `modal-choice` | 68 / 105 | 65% | 31 | 37 | 0 |
 | `mana-land` | 92 / 92 | 100% | 63 | 28 | 1 |
@@ -222,6 +222,8 @@ tyvar_jubilant_brawler: // TODO: static — creatures you control can activate a
 ## Recent card-touching commits
 
 ```
+a25f87c8 scutemob-89: card review fixes — dimir_guildgate stale comment + oracle text; SF-6
+5dcca855 scutemob-89: SR-33 — dual/tri lands produce every printed colour; gate the Choose stub
 e2b1eb02 scutemob-88: /review fixes — unwrap 8 notes, 2 kind corrections, gate nit, EF-13
 1de82c7c scutemob-88: marker sweep — audit all 742 non-Complete markers vs current engine
 8ca8d2bc SR-10: migrate im 15.1 → imbl 7.0 (maintained fork)
@@ -245,8 +247,6 @@ e71b11d4 W6-cards: PB-AC6 backfill — partials, Kaito +1, and marker correction
 e9025936 W6-cards: PB-AC4 — fix 2 HIGH card review findings (golgari regenerate, abzan target filter)
 6947ec36 W6-cards: PB-AC4 backfill — migrate modal cards to per-mode targeting
 81fec080 W6-prim: PB-AC4 — per-mode target requirements on ModeSelection (CR 700.2c/700.2f)
-d771b795 W6-prim: PB-AC3 card-review fixes — 4 HIGH wrong-game-state resolutions
-0d274517 W6-prim: PB-AC3 review fix — Mirror Entity AddAllCreatureTypes to Layer 4 (TypeChange)
 ```
 
 ## Missing card-defs sidecar

@@ -44,10 +44,17 @@ additional cost (only `requires_tap`, `sacrifice_self`, `damage_to_controller`),
 `handle_tap_for_mana` (`rules/mana.rs`) has no cost-payment step. So this is a real
 primitive: `ManaAbility` needs an activation cost and `TapForMana` needs to pay it.
 
-**Not actioned in SR-33**: out of scope (the task is the `Choose` stub), and unlike the
-88 lands these cards are not silently *wrong* — they produce the right mana, just via the
-stack. That is a CR violation with real consequences (an opponent can respond; they cannot
-be used mid-cast, which is what a Signet is *for*), but it is not corrupted game state.
+**Not actioned in SR-33**: out of scope (the task is the `Choose` stub). For the Signets,
+Cluestones and filter lands, the consequence is "right mana, wrong mechanism": they produce
+the correct colours but via the stack, so an opponent can respond and they cannot be used
+mid-cast — which is what a Signet is *for*. A CR violation with real consequences, but not
+corrupted game state.
+
+> **Correction (found in review).** That tabling argument does **not** cover the three
+> horizon lands (Fiery Islet, Nurturing Peatland, Silent Clearing). They are blocked here
+> *and* on **SF-3**, and via SF-3 they add `{C}` — a colour they do not print. So they are
+> not "right mana, wrong mechanism"; they are the wrong mana, and they were `Complete`.
+> SR-33 demoted all three to `known_wrong`. Fixing them needs **both** primitives.
 
 ---
 
@@ -92,24 +99,51 @@ gate on the difference. **The gate added by SR-33 only covers `Complete` defs**,
 
 ---
 
-## SF-3 — `Effect::AddManaChoice` carries no colour list
+## SF-3 — `Effect::AddManaChoice` adds **one colorless mana**, whatever the card prints
 
-**Severity: MEDIUM.**
+**Severity: HIGH. Gated and demoted in SR-33; the primitive is still missing.**
+
+> **Correction.** The first draft of this finding said `AddManaChoice` "means 'any colour' —
+> strictly over-permissive". **That was wrong**, and wrong in the exact way this task
+> indicts the `path_to_exile` ALLOWLIST entry for (SF-5, EF-2): it reasoned from the
+> variant's *name* and stopped at the match arm's head without reading the body. Caught in
+> review. The corrected facts follow.
 
 ```rust
 AddManaChoice { player: PlayerTarget, count: EffectAmount }
 ```
 
-There is nowhere to say *which* colours. `effects/mod.rs:2120` handles it in the same arm
-as `AddManaAnyColor`, so it means "any colour" — strictly over-permissive for
-`{T}: Add {G}, {W}, or {U}` (Noble Hierarch could make black). It is also unknown to
-`try_as_tap_mana_ability`, so it registered no mana ability at all. Both hierarchs were
-rewritten to explicit per-colour abilities in SR-33.
+There is nowhere to say *which* colours — the variant cannot express "Add {U} or {R}" even
+in principle. Its **only** execution site (`effects/mod.rs:2120`, confirmed by exhaustive
+grep: the other three hits are the declaration, `hash.rs`, and a CR 605.1b classifier in
+`rules/mana.rs:608`) shares an arm with `AddManaAnyColor`, and the body is:
 
-Remaining users: `nurturing_peatland`, `silent_clearing`, `fiery_islet`, `glistening_sphere`,
-`grand_warlord_radha`. The first three are horizon lands and are also blocked on **SF-1**
-(their cost is `{T}, Pay 1 life`), so they cannot be fixed by the same rewrite. Either give
-the variant a colour list or delete it in favour of per-colour abilities.
+```rust
+// M9+: interactive mana color choice. For now, add colorless.
+ps.mana_pool.add(ManaColor::Colorless, 1);
+```
+
+So it adds **one `{C}`** — not a colour the card prints at all — and **ignores `count`**.
+
+The asymmetry that hides this: `AddManaAnyColor` escapes into a real `ManaAbility` with
+`any_color: true` via `try_as_tap_mana_ability` (`replay_harness.rs:3641`) and so never
+reaches that arm. `AddManaChoice` is **not** recognised there, so its users always route
+through the stack and into the colorless body. Sharing the arm is therefore not the
+harmless simplification it reads as.
+
+**Victims (all were `Complete`, all now `known_wrong` in SR-33):** Fiery Islet, Nurturing
+Peatland, Silent Clearing (each printing `{T}, Pay 1 life: Add {X} or {Y}` and adding `{C}`),
+and Glistening Sphere (whose "Add three mana of any one colour" adds one colorless — wrong
+on both amount and colour). `grand_warlord_radha` was already `partial`.
+`tests/core/effect_choose_gate.rs` now gates the variant out of `Complete`.
+
+**This also falsifies SF-1's tabling argument for the three horizon lands** — see the
+correction note there. They are not "right mana via the stack"; they are the wrong mana.
+
+**To fix properly** the variant needs a colour list and `count` support (or deletion in
+favour of per-colour abilities) — but the three horizon lands are blocked on **SF-1** as
+well, since their cost is `{T}, Pay 1 life`, so per-colour abilities alone would not make
+them mana abilities.
 
 ---
 
@@ -121,13 +155,61 @@ Unlike `MayPayOrElse` (a pure stub, now gated), `MayPayThenEffect` honours its `
 pays when able. `effects/mod.rs` documents this as a legal deterministic choice under
 CR 118.12, and for a *beneficial* optional cost paid by the controller that is defensible.
 
-It is not defensible when the payer is an **opponent**: "each opponent may pay {2}; if they
-do, …" resolves as every opponent always paying, which is the opposite of how the card
-plays. 7 `Complete` defs use it (Crossway Troublemakers, Hazoret's Monument, Leaf-Crowned
-Visionary, Miara, Nadir Kraken, Springbloom Druid, Tainted Observer). SR-33 did **not** gate
-this variant: doing so would demote 7 cards on a premise that is only true for some of them,
-and the per-card judgement is authoring work, not a machine gate. Worth a triage pass:
-split by whether `payer` is the controller.
+It would not be defensible if the payer were an **opponent**: "each opponent may pay {2}; if
+they do, …" would resolve as every opponent always paying, the opposite of how the card
+plays.
+
+> **Correction (found in review).** That risk is **hypothetical today**. Every one of the 7
+> `Complete` users passes `PlayerTarget::Controller`; **none** has an opponent payer
+> (Crossway Troublemakers, Hazoret's Monument, Leaf-Crowned Visionary, Miara, Nadir Kraken,
+> Springbloom Druid, Tainted Observer). So the carve-out is better founded than the first
+> draft argued, not weaker: pay-when-able for a *beneficial* cost paid by the card's own
+> controller is a legal deterministic choice, and that is the only case in the corpus.
+
+The distinction from `MayPayOrElse` survives inspection and is not special pleading:
+`MayPayOrElse` destructures away `cost`/`payer` and collects nothing (`effects/mod.rs:3196`),
+whereas `MayPayThenEffect` resolves the payer, calls `try_pay_optional_cost`, and runs `then`
+only if the cost was actually paid (`:3203`) — a complete, legal transaction.
+
+Worth keeping only as a **tripwire**: if a def ever authors `MayPayThenEffect` with a
+non-`Controller` payer, it needs the interactive-choice work first. That is a cheap gate
+someone could add (assert every `MayPayThenEffect.payer` is `Controller`) and SR-33 did not,
+because no card needs it yet.
+
+---
+
+## SF-7 — `cargo fmt` covers **zero** of the 1,749 card defs **[proven]**
+
+**Severity: MEDIUM (a CI gate that silently excludes most of the corpus).**
+
+`cargo fmt --check` is a CI step and it passes. It is also not looking at any card def.
+
+```
+crates/card-defs/src/defs/mod.rs:
+    include!(concat!(env!("OUT_DIR"), "/card_defs_generated.rs"));
+```
+
+`build.rs` discovers the defs and emits `#[path = "…"] pub mod <card>;` into `OUT_DIR`.
+rustfmt walks the **module tree from the crate root** and cannot expand `include!` or
+`env!`, so it never discovers a single def module. Proof: `cargo fmt --check` reports clean
+while `rustfmt --check crates/card-defs/src/defs/tundra.rs` — the same file, named directly
+— reports a diff.
+
+This is a consequence of SR-6's extraction (defs moved behind `build.rs` discovery) and has
+presumably been true since. SR-33 hit it head-on: a scripted transform emitted
+`AbilityDefinition::Activated {` at column 0 in 88 files and `cargo fmt` reported clean.
+
+Second-order trap found while fixing it: naming the files directly *still* left 51
+unformatted, silently and with **exit 0** — rustfmt abandons a macro body it cannot fit in
+`max_width`, and the generated single-line `Effect::AddMana { … mana: mana_pool(…) }`
+exceeded it. So `rustfmt <file>` reporting success does not mean the file was formatted.
+Splitting the long line let rustfmt take the whole body.
+
+**Fix options**: (a) add the def files to CI as an explicit `rustfmt` invocation over
+`crates/card-defs/src/defs/*.rs`; (b) have `build.rs` emit real `mod` statements into a
+checked-in file rather than `OUT_DIR`. (a) is cheap and does not disturb SR-6's arrow
+direction. **Do not** simply run `cargo fmt` over the corpus expecting coverage — it is
+structurally incapable of reaching it.
 
 ---
 

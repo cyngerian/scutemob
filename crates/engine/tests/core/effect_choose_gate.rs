@@ -1,14 +1,19 @@
-//! SR-33 gates: the `Effect::Choose` / `Effect::MayPayOrElse` stubs cannot ship as
-//! `Complete`, and every `Complete` land produces each colour it prints.
+//! SR-33 gates: the `Effect::Choose` / `MayPayOrElse` / `AddManaChoice` stubs cannot ship
+//! as `Complete`, and every `Complete` land produces exactly the colours it prints.
 //!
 //! ## Why this file exists
 //!
-//! `Effect::Choose` and `Effect::MayPayOrElse` are M7-era stubs that never grew their
-//! interactive half. `execute_effect_inner` unconditionally runs `choices.first()` for
-//! the former and unconditionally takes `or_else` for the latter — the `prompt`,
-//! remaining `choices`, `cost` and `payer` fields are inert. Nothing observed this:
-//! both compile, both execute, and a def built on either passes every gate while
-//! silently doing one fixed thing.
+//! These three are M7-era stubs that never grew their interactive half. Each takes a field
+//! that looks like a choice and ignores it:
+//!
+//! | variant | what it actually does |
+//! |---|---|
+//! | `Effect::Choose` | always executes `choices.first()`; `prompt` and the rest are inert |
+//! | `Effect::MayPayOrElse` | discards `cost`/`payer`, always takes `or_else` — the payment is never offered |
+//! | `Effect::AddManaChoice` | adds one **colorless** mana; has no field for which colours are legal, and ignores `count` |
+//!
+//! Nothing observed this: all three compile, all three execute, and a def built on any of
+//! them passes every other gate while silently doing one fixed thing.
 //!
 //! That is how 88 dual/tri lands shipped `Complete` while producing only their first
 //! colour. `{T}: Add {G} or {U}` was authored as `Choose{[AddMana(G), AddMana(U)]}`,
@@ -18,11 +23,13 @@
 //! cycles. See `memory/decisions.md` (2026-07-17) for why those were rewritten to one
 //! activated ability per colour rather than the stub being implemented.
 //!
-//! The gates below close the hole in both directions: no new def may reach for a stub
-//! and call itself finished, and no `Complete` land may drop a printed colour.
+//! The gates below close the hole in both directions: no new def may reach for a stub and
+//! call itself finished, and no `Complete` land may drop a printed colour or invent an
+//! unprinted one.
 //!
-//! **Delete these gates when interactive choice lands** (a general `MakeChoice` Command);
-//! at that point the variants stop being stubs and the constraint is wrong.
+//! **Delete the stub gates when interactive choice lands** (a general `MakeChoice` Command
+//! plus a colour list on `AddManaChoice`); at that point the variants stop being stubs and
+//! the constraint is wrong. The colour gate should outlive them.
 //!
 //! ## Why a serde walk rather than a match on `Effect`
 //!
@@ -34,6 +41,12 @@
 //! reaches every field of the whole `CardDefinition` by construction, so a new nesting
 //! site is covered the moment it exists. `Effect` is externally tagged, so a variant
 //! is an object key.
+//!
+//! **The one way this walk can go blind**: a `#[serde(skip)]` on an effect-bearing field
+//! would remove that field from the tree, and these gates would keep passing while seeing
+//! less. There is no such attribute in `card_definition.rs` today (checked), and SR-8's
+//! `PROTOCOL_SCHEMA_FINGERPRINT` would fail on the wire-shape change — but it would not
+//! say *this*, so it is written down here.
 
 use std::collections::{BTreeSet, HashMap};
 use std::sync::Arc;
@@ -105,6 +118,40 @@ fn no_complete_def_uses_the_may_pay_or_else_stub() {
         "`Effect::MayPayOrElse` discards `cost`/`payer` and unconditionally executes \
          `or_else` (effects/mod.rs) — the payment is never offered and never collected, so \
          the optional clause always resolves one way. Mark such a def \
+         `Completeness::known_wrong(\"...\")`. Offenders: {offenders:?}"
+    );
+}
+
+/// A `Complete` def may not contain `Effect::AddManaChoice`: it adds one **colorless**
+/// mana regardless of what the card prints.
+///
+/// This is the third member of the same stub family, and the least obvious. The variant's
+/// name says "choice" and its fields are `{ player, count }` — it has nowhere to record
+/// *which* colours are legal, and its only execution site shares an arm with
+/// `AddManaAnyColor` whose body is `mana_pool.add(ManaColor::Colorless, 1)`
+/// ("For now, add colorless" — `effects/mod.rs`). So a card printing `{T}, Pay 1 life:
+/// Add {U} or {R}` adds `{C}`: not one of its colours, and not a colour it prints at all.
+/// `count` is ignored too, so "add three mana" adds one.
+///
+/// Unlike `AddManaAnyColor` — which escapes into a real `ManaAbility` with `any_color:
+/// true` via `try_as_tap_mana_ability` and so never reaches that arm — `AddManaChoice` is
+/// not recognised there, so its users always route through the stack and into the
+/// colorless arm. That asymmetry is why sharing the match arm is not the harmless
+/// simplification it looks like.
+#[test]
+fn no_complete_def_uses_the_add_mana_choice_stub() {
+    let offenders: Vec<String> = all_cards()
+        .into_iter()
+        .filter(|d| d.completeness.is_complete() && def_uses(d, "AddManaChoice"))
+        .map(|d| d.name)
+        .collect();
+
+    assert!(
+        offenders.is_empty(),
+        "`Effect::AddManaChoice` adds one colorless mana and ignores `count` \
+         (effects/mod.rs, the arm it shares with AddManaAnyColor) — it has no field for \
+         which colours are legal, so it cannot express \"Add {{U}} or {{R}}\". Author one \
+         activated ability per colour instead, or mark the def \
          `Completeness::known_wrong(\"...\")`. Offenders: {offenders:?}"
     );
 }
@@ -284,18 +331,21 @@ fn every_complete_land_registers_each_printed_tap_mana_color() {
         }
         let registered = registered_colors(&def, &defs);
         let missing: Vec<_> = printed.difference(&registered).collect();
-        if !missing.is_empty() {
+        let invented: Vec<_> = registered.difference(&printed).collect();
+        if !missing.is_empty() || !invented.is_empty() {
             failures.push(format!(
-                "{}: prints {:?} but registers {:?} (missing {:?})",
-                def.name, printed, registered, missing
+                "{}: prints {:?} but registers {:?} (missing {:?}, invented {:?})",
+                def.name, printed, registered, missing, invented
             ));
         }
     }
 
     assert!(
         failures.is_empty(),
-        "these Complete defs print a tap-for-mana colour they cannot actually produce \
-         (CR 605.1a) — the SR-33 defect class: {failures:#?}"
+        "these Complete defs do not produce exactly the tap-for-mana colours they print \
+         (CR 605.1a) — the SR-33 defect class. `missing` is a printed colour the card \
+         cannot make (what SR-33 fixed); `invented` is a colour it makes but does not \
+         print: {failures:#?}"
     );
 }
 

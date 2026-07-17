@@ -37,18 +37,24 @@ pub fn card() -> CardDefinition {
             // made at activation — `TapForMana { ability_index }` selects the
             // colour. Modelling it as `Effect::Choose` registered zero mana
             // abilities and only ever produced the first colour.
-AbilityDefinition::Activated {
+            AbilityDefinition::Activated {
                 cost: Cost::Tap,
-                effect: Effect::AddMana { player: PlayerTarget::Controller, mana: mana_pool(0, 0, 1, 0, 0, 0) },
+                effect: Effect::AddMana {
+                    player: PlayerTarget::Controller,
+                    mana: mana_pool(0, 0, 1, 0, 0, 0),
+                },
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
             once_per_turn: false,
             },
-AbilityDefinition::Activated {
+            AbilityDefinition::Activated {
                 cost: Cost::Tap,
-                effect: Effect::AddMana { player: PlayerTarget::Controller, mana: mana_pool(0, 0, 0, 0, 1, 0) },
+                effect: Effect::AddMana {
+                    player: PlayerTarget::Controller,
+                    mana: mana_pool(0, 0, 0, 0, 1, 0),
+                },
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
