@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-17 03:18 UTC  
-**Git:** `a25f87c8` on `feat/sr-33-88-dualtri-lands-are-complete-but-broken-effectchoose-`  
+**Generated:** 2026-07-17 05:38 UTC  
+**Git:** `2943a8bd` on `feat/sr-34-mana-abilities-with-additional-costs-are-never-registe`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,8 +25,8 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 194 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **108%** (1,763 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 57.9% | 1,012 | -4 |
-| With TODO markers | 674 | +4 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 57.1% | 998 | -17 |
+| With TODO markers | 688 | +17 |
 | Empty `abilities: vec![]` placeholders | 62 | · |
 | Total TODO lines across all defs | 1,045 | · |
 
@@ -34,10 +34,10 @@ and what is intentionally NOT in it.**
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 1,377 |
-| last 30 days | 0 | 1,689 |
-| last 90 days | 0 | 1,729 |
-| last 1 year | 1,773 | 2,112 |
+| last 7 days | 0 | 1,375 |
+| last 30 days | 0 | 1,697 |
+| last 90 days | 0 | 1,737 |
+| last 1 year | 1,773 | 2,120 |
 
 ## Bonus defs outside the plan
 
@@ -66,15 +66,15 @@ are blocked on engine primitives.
 
 | Group | Auth / Total | % | Clean | TODO | Empty |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `combat-keyword` | 187 / 187 | 100% | 77 | 102 | 8 |
-| `draw` | 163 / 169 | 96% | 66 | 86 | 11 |
+| `combat-keyword` | 187 / 187 | 100% | 76 | 103 | 8 |
+| `draw` | 163 / 169 | 96% | 69 | 83 | 11 |
 | `token-create` | 145 / 155 | 94% | 68 | 77 | 0 |
-| `land-etb-tapped` | 138 / 138 | 100% | 117 | 21 | 0 |
+| `land-etb-tapped` | 138 / 138 | 100% | 115 | 23 | 0 |
 | `other` | 108 / 131 | 82% | 67 | 41 | 0 |
 | `modal-choice` | 68 / 105 | 65% | 31 | 37 | 0 |
-| `mana-land` | 92 / 92 | 100% | 63 | 28 | 1 |
+| `mana-land` | 92 / 92 | 100% | 55 | 36 | 1 |
 | `body-only` | 55 / 70 | 79% | 26 | 10 | 19 |
-| `removal-destroy` | 56 / 56 | 100% | 34 | 20 | 2 |
+| `removal-destroy` | 56 / 56 | 100% | 33 | 21 | 2 |
 | `counters-plus` | 49 / 49 | 100% | 21 | 27 | 1 |
 | `land-fetch` | 45 / 45 | 100% | 27 | 17 | 1 |
 | `attack-trigger` | 6 / 34 | 18% | 2 | 4 | 0 |
@@ -219,9 +219,23 @@ teferi_master_of_time: // TODO: Effect::PhaseOut not yet implemented. Placeholde
 tyvar_jubilant_brawler: // TODO: static — creatures you control can activate abilities as though they had haste
 ```
 
+## ⚠ Completeness-marker drift
+
+6 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
+
+- `ashnods_altar` — marked partial but has no TODO / ENGINE-BLOCKED comment
+- `cabal_coffers` — marked partial but has no TODO / ENGINE-BLOCKED comment
+- `cabal_stronghold` — marked partial but has no TODO / ENGINE-BLOCKED comment
+- `crypt_of_agadeem` — marked partial but has no TODO / ENGINE-BLOCKED comment
+- `phyrexian_tower` — marked partial but has no TODO / ENGINE-BLOCKED comment
+- `temple_of_the_dragon_queen` — marked partial but has no TODO / ENGINE-BLOCKED comment
+
 ## Recent card-touching commits
 
 ```
+b0290d2c scutemob-90: SR-34 §9 — un-demote the 3 horizon lands, extend the SR-33 colour gate to composite costs
+247437f1 scutemob-90: SR-34 steps 1-6 — ManaAbility gains mana_cost/life_cost, handle_tap_for_mana pays them, mana-ability lowering widens from bare Cost::Tap
+104bd5e3 scutemob-89: review fixes — gate AddManaChoice (3rd stub), correct 3 wrong findings, fmt
 a25f87c8 scutemob-89: card review fixes — dimir_guildgate stale comment + oracle text; SF-6
 5dcca855 scutemob-89: SR-33 — dual/tri lands produce every printed colour; gate the Choose stub
 e2b1eb02 scutemob-88: /review fixes — unwrap 8 notes, 2 kind corrections, gate nit, EF-13
@@ -244,9 +258,6 @@ e71b11d4 W6-cards: PB-AC6 backfill — partials, Kaito +1, and marker correction
 5920a5eb W6-prim: PB-AC5 review fixes — 2 HIGH hash-corruption defects
 32bd607d W6-prim: PB-AC5 — Warp, Transmute, Exert, pitch alt-costs
 5df8ed1a W6-cards: PB-AC4 — precise rakdos_charm ENGINE-BLOCKED marker
-e9025936 W6-cards: PB-AC4 — fix 2 HIGH card review findings (golgari regenerate, abzan target filter)
-6947ec36 W6-cards: PB-AC4 backfill — migrate modal cards to per-mode targeting
-81fec080 W6-prim: PB-AC4 — per-mode target requirements on ModeSelection (CR 700.2c/700.2f)
 ```
 
 ## Missing card-defs sidecar

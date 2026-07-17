@@ -883,3 +883,232 @@ fn sr34_gates_are_not_vacuous() {
         "it must instead register as a stack-using activated ability"
     );
 }
+
+// ── Roster reconciliation (scutemob-90, criterion 4767) ──────────────────────────
+
+/// Every def SR-34's widened gate certified as working end-to-end, pinned by the exact
+/// mana it produces — not by `!mana_abilities.is_empty()`, which is the SF-5/SF-8
+/// anti-pattern that let `AddManaScaled` register a `produces: {colour: 1}` marker and
+/// call itself covered.
+///
+/// Each row is `(card, generic cost that MUST be charged, exact mana produced)`. The
+/// generic cost is written out here rather than read back off the spec: reading it from
+/// the object under test makes the assertion self-fulfilling (a def with the wrong cost
+/// gets a pool sized to its wrong cost and balances), which is how `magnifying_glass.rs`
+/// shipped a `{1}` cost on a card whose oracle prints a bare `{T}` — that bug survived a
+/// draft of this very test.
+/// Evidence and the full 27-def verdict table: `memory/primitives/sr34-roster-reconciliation.md`.
+///
+/// The two lands are the Odyssey filter cycle *as currently errata'd* — Scryfall oracle
+/// for both is a plain `{1}, {T}: Add {U}{B}` / `{B}{G}`, not the three-way
+/// `{U}{U}, {U}{B}, or {B}{B}` choice the printed cards had. Verified via MCP; do not
+/// "fix" them back into a choice.
+/// One row of `sr34_certified_defs_produce_exactly_their_printed_mana`:
+/// (card name, generic cost that must be charged, exact mana produced).
+type CertifiedManaSource = (&'static str, u32, &'static [(ManaColor, u32)]);
+
+#[test]
+fn sr34_certified_defs_produce_exactly_their_printed_mana() {
+    let cases: [CertifiedManaSource; 10] = [
+        (
+            "Boros Signet",
+            1,
+            &[(ManaColor::White, 1), (ManaColor::Red, 1)],
+        ),
+        (
+            "Dimir Signet",
+            1,
+            &[(ManaColor::Blue, 1), (ManaColor::Black, 1)],
+        ),
+        (
+            "Golgari Signet",
+            1,
+            &[(ManaColor::Black, 1), (ManaColor::Green, 1)],
+        ),
+        (
+            "Izzet Signet",
+            1,
+            &[(ManaColor::Blue, 1), (ManaColor::Red, 1)],
+        ),
+        (
+            "Orzhov Signet",
+            1,
+            &[(ManaColor::White, 1), (ManaColor::Black, 1)],
+        ),
+        (
+            "Rakdos Signet",
+            1,
+            &[(ManaColor::Black, 1), (ManaColor::Red, 1)],
+        ),
+        (
+            "Simic Signet",
+            1,
+            &[(ManaColor::Blue, 1), (ManaColor::Green, 1)],
+        ),
+        (
+            "Darkwater Catacombs",
+            1,
+            &[(ManaColor::Blue, 1), (ManaColor::Black, 1)],
+        ),
+        (
+            "Viridescent Bog",
+            1,
+            &[(ManaColor::Black, 1), (ManaColor::Green, 1)],
+        ),
+        // Magnifying Glass's oracle is a *bare* `{T}: Add {C}` (MCP-verified); its def
+        // modelled a `{1}` cost and a `{3}` Investigate, both wrong. Fixed in
+        // scutemob-90, so it pays nothing and is a real (free) {C} source.
+        ("Magnifying Glass", 0, &[(ManaColor::Colorless, 1)]),
+    ];
+
+    let defs = defs_map();
+    for (name, generic_cost, expected) in cases {
+        let def = defs
+            .get(name)
+            .unwrap_or_else(|| panic!("{name} has no CardDefinition"));
+        assert!(
+            def.completeness.is_complete(),
+            "{name} is certified by this test and must stay Complete"
+        );
+
+        let spec = make_spec(p(1), name, ZoneId::Battlefield, &defs);
+        assert_eq!(
+            spec.mana_abilities.len(),
+            1,
+            "{name} must register exactly one ManaAbility (CR 605.1a)"
+        );
+
+        // The lowered cost must be the one this table declares — not whatever the def
+        // happens to say (see the doc comment: reading it back is self-fulfilling).
+        let lowered_generic = spec.mana_abilities[0]
+            .mana_cost
+            .as_ref()
+            .map(|mc| mc.generic)
+            .unwrap_or(0);
+        assert_eq!(
+            lowered_generic, generic_cost,
+            "{name}: printed activation cost is {{{generic_cost}}} (MCP-verified oracle) \
+             but the def lowers a {{{lowered_generic}}} generic cost"
+        );
+
+        let registry = CardRegistry::new(all_cards());
+        let mut state = GameStateBuilder::new()
+            .add_player(p(1))
+            .add_player(p(2))
+            .with_registry(registry)
+            .object(spec)
+            .player_mana(
+                p(1),
+                mtg_engine::ManaPool {
+                    colorless: generic_cost,
+                    ..Default::default()
+                },
+            )
+            .active_player(p(1))
+            .at_step(Step::PreCombatMain)
+            .build()
+            .expect("state should build");
+        state.turn_mut().priority_holder = Some(p(1));
+
+        let source = find_by_name(&state, name);
+        let (state, _events) = process_command(
+            state,
+            Command::TapForMana {
+                player: p(1),
+                source,
+                ability_index: 0,
+            },
+        )
+        .unwrap_or_else(|e| panic!("{name} TapForMana should succeed: {e:?}"));
+
+        // CR 605.3b: a mana ability never uses the stack.
+        assert!(
+            state.stack_objects().is_empty(),
+            "{name}: a mana ability must not use the stack (CR 605.3b)"
+        );
+
+        for color in [
+            ManaColor::White,
+            ManaColor::Blue,
+            ManaColor::Black,
+            ManaColor::Red,
+            ManaColor::Green,
+            ManaColor::Colorless,
+        ] {
+            let want = expected
+                .iter()
+                .find(|(c, _)| *c == color)
+                .map(|(_, n)| *n)
+                .unwrap_or(0);
+            assert_eq!(
+                pool_amount(&state, p(1), color),
+                want,
+                "{name}: wrong {color:?} in pool after TapForMana — the {generic_cost} \
+                 generic cost must be spent and exactly the printed mana added"
+            );
+        }
+    }
+}
+
+/// The reconciliation's marker verdicts, pinned so a def cannot silently drift back to
+/// `Complete` without someone re-running the probe.
+///
+/// `Partial` = every game state the card produces is correct; only CR 605.3b timing is
+/// missing (it uses the stack). `KnownWrong` = it writes state outside the legal option
+/// set — "Add one mana of any color" producing `{C}`, which CR 106.1a/106.1b says is not
+/// a color at all. Reasoning and per-def evidence:
+/// `memory/primitives/sr34-roster-reconciliation.md`.
+#[test]
+fn sr34_roster_markers_match_the_reconciliation() {
+    let defs = defs_map();
+
+    let partial = [
+        "Cabal Coffers",
+        "Cabal Stronghold",
+        "Crypt of Agadeem",
+        "Ashnod's Altar",
+        "Phyrexian Tower",
+        "Temple of the Dragon Queen",
+    ];
+    let known_wrong = [
+        "Mana Confluence",
+        "Staff of Compleation",
+        "Voldaren Estate",
+        "Phyrexian Altar",
+        "Goldhound",
+        "Druids' Repository",
+        "Gemstone Array",
+        "Three Tree City",
+        "Maelstrom of the Spirit Dragon",
+        "Secluded Courtyard",
+        "Unclaimed Territory",
+    ];
+
+    for name in partial {
+        let def = defs
+            .get(name)
+            .unwrap_or_else(|| panic!("{name} has no def"));
+        assert!(
+            matches!(
+                def.completeness,
+                mtg_engine::cards::Completeness::Partial(_)
+            ),
+            "{name} must be Partial (right mana, wrong mechanism — CR 605.3b), got {:?}",
+            def.completeness
+        );
+    }
+    for name in known_wrong {
+        let def = defs
+            .get(name)
+            .unwrap_or_else(|| panic!("{name} has no def"));
+        assert!(
+            matches!(
+                def.completeness,
+                mtg_engine::cards::Completeness::KnownWrong(_)
+            ),
+            "{name} must be KnownWrong (produces mana outside the legal option set — \
+             CR 106.1b), got {:?}",
+            def.completeness
+        );
+    }
+}

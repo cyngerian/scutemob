@@ -49,6 +49,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::known_wrong("CR 106.1b: '{T}: Add one mana of any color. Spend this mana only to cast a creature spell of the chosen type' adds one COLORLESS mana. The RESTRICTION is honoured (probed: pool.restricted = [Colorless x1 (CreatureSpellsOnly)]) but colorless is not a color. Also CR 605.1a/605.3b: Effect::AddManaAnyColorRestricted has no try_as_tap_mana_ability arm, so despite a bare Cost::Tap this is a stack-using activated ability. ChooseCreatureType is NOT hardcoded (replacement.rs picks the most common creature subtype on board). The '{T}: Add {C}' ability is correct."),
         ..Default::default()
     }
 }

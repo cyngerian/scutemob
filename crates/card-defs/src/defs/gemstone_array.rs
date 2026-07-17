@@ -38,6 +38,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::known_wrong("CR 106.1b: 'Remove a charge counter: Add one mana of any color' adds one COLORLESS mana (probed with 5 charge counters: +1 colorless). Same Cost::RemoveCounter lowering blocker and same unexercised requires_tap: false path as Druids' Repository. The '{2}: Put a charge counter' ability is correct. The color bug is the reason for known_wrong rather than partial."),
         ..Default::default()
     }
 }
