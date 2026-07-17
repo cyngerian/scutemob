@@ -259,9 +259,12 @@
   `memory/card-authoring/sr36-engine-findings-2026-07-17.md` (**SG-1 MEDIUM: the simulator's
   `LegalActionProvider` ignores `life_cost` — harmless while the cost was dropped, now it
   offers bots unpayable actions**).
-- **Last Updated**: 2026-07-17 (**SR-36 collected, `scutemob-92`** — SF-8 + SF-9, both HIGH,
+- **Last Updated**: 2026-07-17 (**SR-36 collected, `scutemob-92` merge `264f0e9e`** — SF-8 + SF-9, both HIGH,
   both fixed; see the bullet above. The headline is the roster, not the fix: 11 `Complete`
-  fetchlands were fetching for free. 3319 tests. Earlier: **SR-35 collected, `scutemob-91`** — the card corpus is
+  fetchlands were fetching for free. Filed **SR-38** (`scutemob-94`): SG-1 simulator
+  `LegalActionProvider` ignores `life_cost` — unchanged code whose meaning SR-36 changed; bots can
+  pick activations the engine now rejects — plus SG-2/SG-3 hardening
+  (`memory/card-authoring/sr36-engine-findings-2026-07-17.md`). 3319 tests. Earlier: **SR-35 collected, `scutemob-91`** — the card corpus is
   format-checked for the *first time*: `cargo fmt --all -- --check` exits 0 having checked **zero** of
   the 1,748 defs, and 321 were misformatted. The brief's fix — "run rustfmt over the defs" — would have
   produced a gate **vacuous for 79% of the corpus**: a long `oracle_text` makes rustfmt fall back to
