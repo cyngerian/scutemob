@@ -1137,7 +1137,10 @@ mod tests {
         // CR 119.4b: a life cost of 0 is always payable — offered even though 1 life is low.
         assert!(taps_for("Free Source"), "life_cost 0 must be offered");
         // 1 >= 1: exactly affordable, offered.
-        assert!(taps_for("Cheap Source"), "life_cost == life must be offered");
+        assert!(
+            taps_for("Cheap Source"),
+            "life_cost == life must be offered"
+        );
         // 1 < 2: unpayable, must NOT be offered (would be InsufficientLife, CR 118.3).
         assert!(
             !taps_for("Expensive Source"),

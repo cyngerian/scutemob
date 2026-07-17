@@ -649,7 +649,9 @@ fn land_color_gate_compares_scaled_clause_colors() {
         .expect("Cabal Stronghold has a def");
     let printed = printed_tap_mana_colors(&stronghold.oracle_text);
     let registered = registered_colors(stronghold, &defs);
-    let both: BTreeSet<ManaColor> = [ManaColor::Black, ManaColor::Colorless].into_iter().collect();
+    let both: BTreeSet<ManaColor> = [ManaColor::Black, ManaColor::Colorless]
+        .into_iter()
+        .collect();
     assert_eq!(
         printed, both,
         "Cabal Stronghold prints {{C}} and a scaled {{B}} — both colours must be kept (SG-3)"
