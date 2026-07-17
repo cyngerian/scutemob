@@ -754,6 +754,57 @@ Task-specific extras:
 _One entry per session, newest first. Format:_
 `- YYYY-MM-DD — SR-<N> (scutemob-<id>) — <status: done / in progress / blocked> — <one-line outcome + hazards + pointer for next session>`
 
+- 2026-07-17 — SR-34 (scutemob-90) — **ready for collection** — **CR 605.1a is now enforced by what
+  an ability does, not what it costs.** `enrich_spec_from_def` only lowered bare `Cost::Tap`, so every
+  mana source with an additional cost registered **zero** mana abilities and routed through the stack —
+  it could not be activated mid-cast, which is what a Signet is *for*. `ManaAbility` gained
+  `mana_cost`/`life_cost`; `handle_tap_for_mana` gained cost-legality (5b) and payment (6b) steps;
+  `mana_ability_lowering` is now the **single** predicate for both mana-ability registration and the
+  `activated_abilities` exclusion (the two lists had already diverged — `AddManaMatchingType` was in one
+  and not the other, which would have deleted an ability silently). Tests **3284 → 3300**; registry
+  coverage **58.1% → 57.1%** (−17 honest demotions, +3 horizon lands un-demoted; arithmetic closes).
+  **Three traps, each of which would have shipped a bug, and none of which was visible from the code
+  the task was pointed at:**
+  (a) **Widening the gate naively breaks Cabal Coffers.** `try_as_tap_mana_ability`'s `AddManaScaled`
+  arm registers `produces = {color: 1}` and calls it "a marker; actual production is dynamic" —
+  *nothing makes it dynamic*; the dynamic eval is reachable only via stack resolution. Cabal Coffers is
+  correct **today only because the `Cost::Tap` gate excluded it**. `AddManaScaled` is now actively
+  excluded from the widened path, pinned by T10 (traced: deleting the exclusion flips both assertions).
+  (b) **The lowering loop dropped `targets` on the floor** — CR 605.1a has *three* criteria and only one
+  was checked. Deathrite Shaman was not a mana ability by luck. Now `targets.is_empty()` is checked first.
+  (c) **CR 118.3, not 118.4**, is "can't pay what you can't pay"; CR 119.4b makes a 0-life payment always
+  legal, so the check must short-circuit on `life_cost > 0` — every non-life mana ability takes that
+  branch on every activation, and the unguarded form wrongly rejects at negative life.
+  **Method note worth keeping:** the roster was enumerated from `all_cards()` and then every one of the
+  27 affected `Complete` defs was **activated**, not inspected. The probe **falsified 7 of 27**
+  source-traced predictions — including that Magnifying Glass contradicted its own oracle and shipped a
+  net-zero mana rock, and that `ChooseColor(White)` is a *fallback behind a real board-scanning
+  heuristic*, not a hardcode. A trace this careful was still wrong 26% of the time; only activation found it.
+  **Version bumps:** `PROTOCOL_VERSION` 2→3, `HASH_SCHEMA_VERSION` 40→41, both fingerprints, 30
+  sentinels across 29 files, `FROZEN_HISTORY_PREFIX_DIGEST` re-pinned; append-only, zero stale sentinels.
+  **Five findings filed, not fixed** (`memory/card-authoring/sr34-engine-findings-2026-07-17.md`):
+  **SF-8** (HIGH — `Cost::Tap` + `AddManaScaled`: Gaea's Cradle taps for exactly 1 green *today*,
+  regardless of board; ~6 defs, and it is what makes (a)'s exclusion load-bearing), **SF-9** (upgraded
+  MEDIUM→HIGH — `Cost::PayLife` silently unpaid for non-mana activated abilities: **Staff of Compleation
+  ships a free proliferate and free draw**, probed at life 40→40, and it is `Complete`), **SF-10**
+  (`ManaAbility` has no `activation_condition` — Tainted Field taps for `{W}` with no Swamp),
+  **SF-11** (`any_color: true` → one **colorless**; CR 106.1b makes colorless a mana *type*, not a
+  colour, so "Add one mana of any color" produces a result outside the legal option set. **Birds of
+  Paradise and Command Tower are live `Complete` victims outside this task's roster** — deliberately not
+  demoted; extending it moves headline coverage and needs its own roster, as EF-13 was deferred for the
+  same reason), **SF-12** (the SR-33 colour gate is blind to every "any color" card on *both* sides —
+  the parser needs a `{` the clause lacks, and `registered_colors` reads a `produces` that `any_color`
+  leaves empty — so Mana Confluence passed it vacuously).
+  **The eleventh-plus consecutive SR task whose sharpest findings are holes in checkers, not engine
+  code** — and this time two of them were **false claims written into gates**: SR-33's
+  `effect_choose_gate.rs` justified blocking `AddManaChoice` while letting `AddManaAnyColor` through by
+  an asymmetry that **does not exist** (both add the same one colorless). Review (0 HIGH, 5 MEDIUM,
+  3 LOW — all 8 resolved) caught this task *reproducing that very pattern*: it documented the blind spot
+  it **inherited** (SF-8) and left undocumented the one it **found** (SF-12). Both now stated in-gate.
+  **Next:** SR-35 (`cargo fmt --check` covers zero card defs — `include!`/`#[path]` are invisible to
+  rustfmt; this task had to run `rustfmt` by name over all 29 touched defs, and CI cannot catch that).
+  Then SF-8 and SF-9 are the two HIGHs this task filed and could not take.
+
 - 2026-07-16 — SR-25 (scutemob-80) — **done** (collected, merge `acc528b9`) — **Closes the re-audit
   batch: SR-17..SR-32 are 16/16 DONE.** The never-swept files are classified with the SR-4 method:
   `layers.rs` 45 → 36 bare lookups (9 impossible re-reads/loops → `expect_*`; the ~35 dependency-
