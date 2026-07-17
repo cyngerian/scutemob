@@ -40,6 +40,7 @@ pub fn card() -> CardDefinition {
                             requires_tap: false,
                             produces: imbl::ordmap! { ManaColor::Colorless => 1 },
                             damage_to_controller: 0,
+                            ..Default::default()
                         }],
                         activated_abilities: vec![],
                         ..Default::default()

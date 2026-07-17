@@ -428,6 +428,7 @@ fn test_w3lc_sacrifice_mana_uses_layer_resolved_types() {
                 sacrifice_self: true,
                 any_color: false,
                 damage_to_controller: 0,
+                ..Default::default()
             }),
         )
         .add_continuous_effect(animate_all)

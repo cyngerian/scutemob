@@ -38,6 +38,7 @@ fn cryptolith_grant(eff_id: u64, source_obj: ObjectId, ts: u64) -> ContinuousEff
             sacrifice_self: false,
             any_color: true,
             damage_to_controller: 0,
+            ..Default::default()
         }),
         is_cda: false,
         condition: None,
@@ -59,6 +60,7 @@ fn lantern_grant(eff_id: u64, source_obj: ObjectId, ts: u64) -> ContinuousEffect
             sacrifice_self: false,
             any_color: true,
             damage_to_controller: 0,
+            ..Default::default()
         }),
         is_cda: false,
         condition: None,
@@ -237,6 +239,7 @@ fn test_cryptolith_rite_grant_ends_when_source_leaves() {
             sacrifice_self: false,
             any_color: true,
             damage_to_controller: 0,
+            ..Default::default()
         }),
         is_cda: false,
         condition: None,
@@ -483,6 +486,7 @@ fn test_paradise_mantle_grants_only_equipped_creature() {
             sacrifice_self: false,
             any_color: true,
             damage_to_controller: 0,
+            ..Default::default()
         }),
         is_cda: false,
         condition: None,

@@ -33,6 +33,7 @@ pub fn card() -> CardDefinition {
                         sacrifice_self: false,
                         any_color: true,
                         damage_to_controller: 0,
+                        ..Default::default()
                     }),
                     filter: EffectFilter::LandsYouControl,
                     duration: EffectDuration::WhileSourceOnBattlefield,

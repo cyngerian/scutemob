@@ -29,7 +29,7 @@
     "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
-    "generation_notes": "Magnifying Glass engine definition (definitions.rs line 2938): ability 0 = '{1},{T}: Add {C}' (AbilityDefinition::Activated with Cost::Sequence([Mana{generic:1}, Tap]), Effect::AddMana); ability 1 = '{3},{T}: Investigate' (AbilityDefinition::Activated with Cost::Sequence([Mana{generic:3}, Tap]), Effect::Investigate). CRITICAL harness behavior: the `enrich_spec_from_def` function in replay_harness.rs only filters out mana abilities when cost is exactly `Cost::Tap` (line 741: `matches!(cost, Cost::Tap)`). Because the first ability has `Cost::Sequence([Mana, Tap])`, it is NOT recognized as a mana ability and is placed in `characteristics.activated_abilities` as index 0. Therefore: ability_index 0 = mana ability '{1},{T}: Add {C}' (incorrectly included); ability_index 1 = Investigate ability '{3},{T}: Investigate'. This means the Investigate ability must use ability_index: 1, not 0. The Clue token (created by Investigate) has ability_index 0 — it has exactly one activated ability, no mana abilities. Mana plan: p1 starts with {5} colorless in mana pool. Activate Magnifying Glass Investigate: pay {3}, tap artifact → 2 colorless remain. Activate Clue: pay {2} + sacrifice → 0 mana remains. Library has one Plains to ensure the draw succeeds. Sacrifice as cost for Clue (CR 602.2c): Clue moves to graveyard at activation time, before ability hits stack. Clue token name is 'Clue' (clue_token_spec name field). Investigate effect creates the token inline during ability resolution (effects/mod.rs line 490: state.add_object, no separate stack entry for token creation). Script 098 (Thraben Inspector Clue) used as reference for the Clue activation pattern.",
+    "generation_notes": "Magnifying Glass engine definition: ability 0 = '{1},{T}: Add {C}' (AbilityDefinition::Activated with Cost::Sequence([Mana{generic:1}, Tap]), Effect::AddMana); ability 1 = '{3},{T}: Investigate' (AbilityDefinition::Activated with Cost::Sequence([Mana{generic:3}, Tap]), Effect::Investigate). SR-34 (2026-07-17) update: `enrich_spec_from_def` now lowers a mana-producing activated ability into a ManaAbility for ANY cost payable through Command::TapForMana (mana + tap + pay-life + sacrifice-self), not just bare Cost::Tap (CR 605.1a: an ability is a mana ability by what it does, not what it costs). Magnifying Glass's '{1},{T}: Add {C}' is now correctly registered as mana_abilities[0] and excluded from activated_abilities, so the Investigate ability is activated_abilities[0], not [1]. The Clue token (created by Investigate) is unaffected — still activated_abilities[0], no mana abilities. Mana plan: p1 starts with {5} colorless in mana pool. Activate Magnifying Glass Investigate: pay {3}, tap artifact → 2 colorless remain. Activate Clue: pay {2} + sacrifice → 0 mana remains. Library has one Plains to ensure the draw succeeds. Sacrifice as cost for Clue (CR 602.2c): Clue moves to graveyard at activation time, before ability hits stack. Clue token name is 'Clue' (clue_token_spec name field). Investigate effect creates the token inline during ability resolution (effects/mod.rs: state.add_object, no separate stack entry for token creation). Script 098 (Thraben Inspector Clue) used as reference for the Clue activation pattern.",
     "disputes": []
   },
   "initial_state": {
@@ -117,14 +117,14 @@
           "player": "p1",
           "action": "activate_ability",
           "card": "Magnifying Glass",
-          "ability_index": 1,
+          "ability_index": 0,
           "targets": [],
           "mana_paid": {
             "colorless": 3
           },
           "mana_source": [],
           "cr_ref": "602.2",
-          "note": "CR 602.2: p1 activates Magnifying Glass ability_index 1 ('{3},{T}: Investigate'). Index 1 because the harness enrich_spec_from_def places the mana ability '{1},{T}: Add {C}' at index 0 (its cost is Cost::Sequence, not filtered as mana-only). Cost: {3} generic paid from pool + tap Magnifying Glass. Magnifying Glass is NOT sacrificed — it stays on battlefield tapped. The Investigate ability is placed on the stack."
+          "note": "CR 602.2: p1 activates Magnifying Glass ability_index 0 ('{3},{T}: Investigate'). Index 0 because SR-34 (2026-07-17) widened enrich_spec_from_def's mana-ability lowering to any cost payable through Command::TapForMana (CR 605.1a), so '{1},{T}: Add {C}' is now correctly a ManaAbility, not an activated ability, and Investigate is the only entry in activated_abilities. Cost: {3} generic paid from pool + tap Magnifying Glass. Magnifying Glass is NOT sacrificed — it stays on battlefield tapped. The Investigate ability is placed on the stack."
         },
         {
           "type": "assert_state",

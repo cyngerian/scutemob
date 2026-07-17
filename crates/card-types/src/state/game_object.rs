@@ -158,9 +158,16 @@ impl ManaCost {
 /// Mana abilities do not use the stack and resolve immediately. They can be
 /// activated any time a player has priority or is paying a cost (CR 605.3b).
 ///
-/// For M3-A, only tap-activated mana abilities are supported (the most common
-/// case: basic lands, dual lands, etc.). Future milestones will add additional
-/// cost components (pay life, sacrifice a permanent, etc.).
+/// SR-34: in addition to `{T}`, a mana ability's activation cost may include a
+/// mana component (`mana_cost`, e.g. a Signet's `{1}`) and/or a life component
+/// (`life_cost`, e.g. a horizon land's `Pay 1 life`) — CR 605.1a classifies an
+/// ability as a mana ability by what it *does*, not what it costs, so these are
+/// payable exactly like `requires_tap` and `sacrifice_self` already are. Not
+/// every activation cost is representable here: a component that needs a
+/// caller-supplied `ObjectId` (discard a card, sacrifice *another* permanent,
+/// remove a counter) has no channel through `Command::TapForMana` and stays a
+/// stack-using activated ability instead (see `mana_ability_cost_components` in
+/// `testing/replay_harness.rs`).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ManaAbility {
     /// The mana produced when this ability resolves, keyed by color.
@@ -185,6 +192,21 @@ pub struct ManaAbility {
     /// "{T}: Add {R} or {W}. This land deals 1 damage to you.").
     #[serde(default)]
     pub damage_to_controller: u32,
+    /// CR 602.2b / CR 601.2f: mana component of this mana ability's activation cost.
+    /// `{1}, {T}: Add {C}{C}` (Signets, Cluestones) and `{W/B}, {T}: Add ...` (filter
+    /// lands, though the hybrid component is unenforced — CR 106; `ManaPool::can_spend`
+    /// reads only the fixed-color/generic fields, not `hybrid`). Paid from the
+    /// controller's pool at activation (CR 118.3a), before mana is produced. CR 605.3a
+    /// permits the payer to have filled the pool from another mana ability first.
+    #[serde(default)]
+    pub mana_cost: Option<ManaCost>,
+    /// CR 119.4 / CR 118.3b: life component of this mana ability's activation cost.
+    /// `{T}, Pay 1 life: Add {B}` (horizon lands). Legal only if
+    /// `life_total >= life_cost`; CR 119.4b makes a cost of 0 always legal, so the
+    /// check must short-circuit on 0 (a player at negative life must still be able to
+    /// activate a `life_cost: 0` mana ability).
+    #[serde(default)]
+    pub life_cost: u32,
 }
 impl ManaAbility {
     /// Convenience constructor: tap this permanent to add one mana of `color`.
@@ -194,9 +216,7 @@ impl ManaAbility {
         Self {
             produces,
             requires_tap: true,
-            sacrifice_self: false,
-            any_color: false,
-            damage_to_controller: 0,
+            ..Default::default()
         }
     }
     /// CR 111.10a: Treasure token mana ability — "{T}, Sacrifice this artifact:
@@ -207,7 +227,7 @@ impl ManaAbility {
             requires_tap: true,
             sacrifice_self: true,
             any_color: true,
-            damage_to_controller: 0,
+            ..Default::default()
         }
     }
 }

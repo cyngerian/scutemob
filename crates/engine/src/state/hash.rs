@@ -1390,6 +1390,10 @@ impl HashInto for ManaAbility {
         self.sacrifice_self.hash_into(hasher);
         self.any_color.hash_into(hasher);
         self.damage_to_controller.hash_into(hasher);
+        // SR-34: two states differing only in a mana ability's activation cost
+        // must not hash identically.
+        self.mana_cost.hash_into(hasher);
+        self.life_cost.hash_into(hasher);
     }
 }
 impl HashInto for Characteristics {
