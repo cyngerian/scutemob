@@ -184,6 +184,9 @@ fn shipped_gate_rejects(label: &str, fixture: &str) -> bool {
         .output()
         .expect("run gate on temp corpus");
 
+    // Clean up before asserting, so a failed guard does not leak the temp tree.
+    let _ = std::fs::remove_dir_all(&tmp);
+
     // Guard against a vacuous pass: the gate must have actually seen the fixture.
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(
@@ -192,7 +195,6 @@ fn shipped_gate_rejects(label: &str, fixture: &str) -> bool {
          stdout: {stdout}"
     );
 
-    let _ = std::fs::remove_dir_all(&tmp);
     !out.status.success()
 }
 
@@ -229,8 +231,17 @@ fn gate_catches_an_unbreakable_over_width_line() {
 fn the_gate_edition_matches_the_workspace() {
     let root = workspace_root();
     let manifest = std::fs::read_to_string(root.join("Cargo.toml")).expect("workspace Cargo.toml");
+
+    // Scoped to the `[workspace.package]` table rather than grepping the whole
+    // file: `edition` is a legal key in other tables, and a first-match search
+    // would silently start comparing against the wrong one if a future edit adds
+    // any table above this one. (`edition.workspace = true` lines in member
+    // manifests never parse as a number, but that is luck, not a guarantee.)
     let declared = manifest
         .lines()
+        .skip_while(|l| l.trim() != "[workspace.package]")
+        .skip(1)
+        .take_while(|l| !l.trim_start().starts_with('['))
         .find_map(|l| {
             let l = l.trim();
             l.strip_prefix("edition")?
@@ -241,7 +252,7 @@ fn the_gate_edition_matches_the_workspace() {
                 .parse::<u32>()
                 .ok()
         })
-        .expect("workspace [workspace.package] edition");
+        .expect("workspace Cargo.toml has [workspace.package] edition = \"<year>\"");
 
     let script =
         std::fs::read_to_string(root.join("tools/check-defs-fmt.sh")).expect("gate script");
