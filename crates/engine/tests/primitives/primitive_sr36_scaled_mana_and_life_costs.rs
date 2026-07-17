@@ -13,9 +13,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use mtg_engine::{
-    all_cards, card_name_to_id, enrich_spec_from_def, process_command, CardDefinition, CardId,
-    CardRegistry, Command, Effect, GameEvent, GameState, GameStateBuilder, GameStateError,
-    ManaColor, ObjectId, ObjectSpec, PlayerId, Step, SubType, ZoneId,
+    all_cards, card_name_to_id, enrich_spec_from_def, process_command, AbilityDefinition,
+    CardDefinition, CardId, CardRegistry, Command, Cost, Effect, EffectAmount, GameEvent,
+    GameState, GameStateBuilder, GameStateError, ManaColor, ObjectId, ObjectSpec, PlayerId,
+    PlayerTarget, Step, SubType, ZoneId,
 };
 
 // ── Helpers (duplicated per-file per SR-9a convention — see primitive_sr34_composite_mana_costs.rs) ──
@@ -878,5 +879,77 @@ fn crypt_of_agadeem_counts_only_black_creature_cards_in_graveyard() {
         pool_amount(&state, p(1), ManaColor::Colorless),
         3,
         "the {{2}} generic cost must actually leave the pool (5 - 2)"
+    );
+}
+
+// ── SR-38 SG-2: the non-`Controller` refusal in `try_as_tap_mana_ability` ──────────────
+//
+// SR-36 added a guard: an `Effect::AddManaScaled` whose `player` is not
+// `PlayerTarget::Controller` is *not* lowered into a `ManaAbility`, because the stackless
+// `TapForMana` path always pays the activating player. No real card exercises it (every
+// scaled mana source in the corpus pays its controller — verified via `all_cards()`), so its
+// deletion would otherwise be silent. This test pins the branch and, via a controller-paying
+// control case, proves the `PlayerTarget` guard is the sole cause of the difference.
+
+/// A synthetic land whose single `{T}` ability adds a scaled amount of black mana to `player`.
+fn scaled_mana_def(name: &str, player: PlayerTarget) -> CardDefinition {
+    CardDefinition {
+        name: name.to_string(),
+        abilities: vec![AbilityDefinition::Activated {
+            cost: Cost::Tap,
+            effect: Effect::AddManaScaled {
+                player,
+                color: ManaColor::Black,
+                count: EffectAmount::Fixed(1),
+            },
+            timing_restriction: None,
+            targets: vec![],
+            activation_condition: None,
+            activation_zone: None,
+            once_per_turn: false,
+        }],
+        ..Default::default()
+    }
+}
+
+#[test]
+fn opponent_scaled_mana_stays_a_stack_ability() {
+    // Paying EACH OPPONENT: the stackless TapForMana path cannot express "pay another
+    // player", so `mana_ability_lowering` declines and the ability stays on the stack, where
+    // `Effect::AddManaScaled`'s stack-resolution arm handles an arbitrary PlayerTarget.
+    let mut defs = defs_map();
+    let opp = scaled_mana_def("SG2 Opponent Scaled", PlayerTarget::EachOpponent);
+    defs.insert(opp.name.clone(), opp);
+    let spec = enrich_spec_from_def(
+        ObjectSpec::card(p(1), "SG2 Opponent Scaled").in_zone(ZoneId::Battlefield),
+        &defs,
+    );
+    assert!(
+        spec.mana_abilities.is_empty(),
+        "an AddManaScaled paying a non-controller must NOT lower to a mana ability (CR 605.3b)"
+    );
+    assert_eq!(
+        spec.activated_abilities.len(),
+        1,
+        "it must remain a stack-using activated ability so its PlayerTarget resolves correctly"
+    );
+
+    // Control (non-vacuity): the IDENTICAL ability paying the CONTROLLER *does* lower — so the
+    // `PlayerTarget::Controller` guard is the only reason the opponent case above differs.
+    let mut defs2 = defs_map();
+    let ctrl = scaled_mana_def("SG2 Controller Scaled", PlayerTarget::Controller);
+    defs2.insert(ctrl.name.clone(), ctrl);
+    let spec2 = enrich_spec_from_def(
+        ObjectSpec::card(p(1), "SG2 Controller Scaled").in_zone(ZoneId::Battlefield),
+        &defs2,
+    );
+    assert_eq!(
+        spec2.mana_abilities.len(),
+        1,
+        "the controller-paying variant lowers to a mana ability (SR-36)"
+    );
+    assert!(
+        spec2.activated_abilities.is_empty(),
+        "a lowered mana ability is excluded from activated_abilities (SF-6)"
     );
 }

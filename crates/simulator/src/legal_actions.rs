@@ -185,6 +185,17 @@ impl LegalActionProvider for StubProvider {
         let stack_empty = state.stack_objects().is_empty();
         let is_active = state.turn().active_player == player;
 
+        // SG-1 (SR-38, CR 118.3 / CR 119.4): the activating player's life total, used to
+        // gate life-cost activations below. SR-34 gave `ManaAbility` a `life_cost` (horizon
+        // lands, Mana Confluence) and SR-36 gave `ActivationCost` a `life_cost` (fetchlands,
+        // Doom Whisperer) — and made both real, so `handle_tap_for_mana` / `handle_activate_ability`
+        // now reject an unpayable life cost with `GameStateError::InsufficientLife`. Before this
+        // the provider would offer a bot at low life an activation the engine rejects (or, worse,
+        // a "lethal" fetch that would put it below 0). We mirror the engine's check here so the
+        // bot's legal-action list stays a subset of what the engine will accept. CR 119.4b makes
+        // a cost of 0 always payable, so every check short-circuits on `life_cost > 0`.
+        let life_total = state.player(player).map(|p| p.life_total).unwrap_or(0);
+
         // Play lands: hand lands, main phase, stack empty, active player,
         // land plays remaining
         if is_main_phase && stack_empty && is_active {
@@ -288,6 +299,12 @@ impl LegalActionProvider for StubProvider {
                 .unwrap_or_else(|| obj.characteristics.clone());
             for (idx, ability) in chars.mana_abilities.iter().enumerate() {
                 if ability.requires_tap {
+                    // SG-1 (CR 118.3 / CR 119.4b): a horizon land / Mana Confluence mana
+                    // ability with a life component the player cannot pay is rejected by
+                    // `handle_tap_for_mana` (rules/mana.rs step 5b) — don't offer it.
+                    if ability.life_cost > 0 && life_total < ability.life_cost as i32 {
+                        continue;
+                    }
                     actions.push(LegalAction::TapForMana {
                         source: obj.id,
                         ability_index: idx,
@@ -400,6 +417,13 @@ impl LegalActionProvider for StubProvider {
                     if !can_afford(state, player, cost) {
                         continue;
                     }
+                }
+                // SG-1 (CR 118.3 / CR 119.4b): a non-mana activated ability with a life
+                // component the player cannot pay (fetchlands' "Pay 1 life", Doom Whisperer's
+                // "Pay 2 life") is rejected by `handle_activate_ability` (rules/abilities.rs) —
+                // don't offer it. Mirrors the mana-ability check above.
+                if ability.cost.life_cost > 0 && life_total < ability.cost.life_cost as i32 {
+                    continue;
                 }
                 // PB-18 review Finding 4: filter abilities blocked by active restrictions.
                 // Mirrors check_activate_restrictions in rules/abilities.rs.
@@ -1016,4 +1040,159 @@ fn is_cast_restricted_by_stax(state: &GameState, player: PlayerId) -> bool {
     }
 
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mtg_engine::{ActivatedAbility, ActivationCost, GameStateBuilder, ManaAbility, ObjectSpec};
+
+    /// Find a battlefield object's id by its printed name.
+    fn id_of(state: &GameState, name: &str) -> ObjectId {
+        state
+            .objects()
+            .iter()
+            .find(|(_, o)| o.characteristics.name == name)
+            .map(|(id, _)| *id)
+            .unwrap_or_else(|| panic!("no object named {name:?}"))
+    }
+
+    /// A `ManaAbility` that taps for one Black mana and costs `life` life to activate.
+    fn tap_for_black_costing_life(life: u32) -> ManaAbility {
+        let mut ma = ManaAbility::tap_for(mtg_engine::ManaColor::Black);
+        ma.life_cost = life;
+        ma
+    }
+
+    /// A non-mana activated ability whose only cost is `life` life (no tap, no mana).
+    fn activated_costing_life(life: u32) -> ActivatedAbility {
+        ActivatedAbility {
+            cost: ActivationCost {
+                life_cost: life,
+                ..Default::default()
+            },
+            description: format!("Pay {life} life: do nothing"),
+            ..Default::default()
+        }
+    }
+
+    /// SG-1 (SR-38, CR 118.3 / CR 119.4): the provider must never offer a life-cost
+    /// activation the player cannot pay. Before SR-36 the life cost was silently dropped
+    /// by the engine, so the provider's optimism was accidentally correct; SF-9 made the
+    /// cost real, so an over-optimistic provider now hands the bot an action the engine
+    /// rejects with `GameStateError::InsufficientLife`. A single board holds five sources —
+    /// two payable, three not — proving both the mana-ability and the non-mana-ability path.
+    #[test]
+    fn provider_omits_life_costs_the_player_cannot_pay() {
+        // Player 1 sits at 1 life. Payable: life_cost 0 and life_cost 1 (1 >= 1). Not
+        // payable: life_cost 2 (1 < 2), on both a mana ability and a stack-using ability.
+        let state = GameStateBuilder::new()
+            .add_player(PlayerId(1))
+            .add_player(PlayerId(2))
+            .active_player(PlayerId(1))
+            .player_life(PlayerId(1), 1)
+            .object(
+                ObjectSpec::land(PlayerId(1), "Free Source")
+                    .in_zone(ZoneId::Battlefield)
+                    .with_mana_ability(tap_for_black_costing_life(0)),
+            )
+            .object(
+                ObjectSpec::land(PlayerId(1), "Cheap Source")
+                    .in_zone(ZoneId::Battlefield)
+                    .with_mana_ability(tap_for_black_costing_life(1)),
+            )
+            .object(
+                ObjectSpec::land(PlayerId(1), "Expensive Source")
+                    .in_zone(ZoneId::Battlefield)
+                    .with_mana_ability(tap_for_black_costing_life(2)),
+            )
+            .object(
+                ObjectSpec::artifact(PlayerId(1), "Cheap Sacrament")
+                    .in_zone(ZoneId::Battlefield)
+                    .with_activated_ability(activated_costing_life(1)),
+            )
+            .object(
+                ObjectSpec::artifact(PlayerId(1), "Suicidal Engine")
+                    .in_zone(ZoneId::Battlefield)
+                    .with_activated_ability(activated_costing_life(2)),
+            )
+            .build()
+            .expect("state builds");
+
+        let actions = StubProvider.legal_actions(&state, PlayerId(1));
+
+        let taps_for = |name: &str| {
+            let id = id_of(&state, name);
+            actions
+                .iter()
+                .any(|a| matches!(a, LegalAction::TapForMana { source, .. } if *source == id))
+        };
+        let activates = |name: &str| {
+            let id = id_of(&state, name);
+            actions
+                .iter()
+                .any(|a| matches!(a, LegalAction::ActivateAbility { source, .. } if *source == id))
+        };
+
+        // CR 119.4b: a life cost of 0 is always payable — offered even though 1 life is low.
+        assert!(taps_for("Free Source"), "life_cost 0 must be offered");
+        // 1 >= 1: exactly affordable, offered.
+        assert!(
+            taps_for("Cheap Source"),
+            "life_cost == life must be offered"
+        );
+        // 1 < 2: unpayable, must NOT be offered (would be InsufficientLife, CR 118.3).
+        assert!(
+            !taps_for("Expensive Source"),
+            "a mana ability whose life cost exceeds life must not be offered"
+        );
+        assert!(
+            activates("Cheap Sacrament"),
+            "payable life cost must be offered"
+        );
+        assert!(
+            !activates("Suicidal Engine"),
+            "a non-mana ability whose life cost exceeds life must not be offered"
+        );
+    }
+
+    /// CR 119.4b corner: a player at negative life may still activate a `life_cost: 0`
+    /// ability. The short-circuit on `life_cost > 0` is what makes this hold — a bare
+    /// `life_total >= life_cost as i32` would wrongly reject it at, say, -3 life.
+    #[test]
+    fn provider_offers_zero_life_cost_at_negative_life() {
+        let state = GameStateBuilder::new()
+            .add_player(PlayerId(1))
+            .add_player(PlayerId(2))
+            .active_player(PlayerId(1))
+            .player_life(PlayerId(1), -3)
+            .object(
+                ObjectSpec::land(PlayerId(1), "Free Source")
+                    .in_zone(ZoneId::Battlefield)
+                    .with_mana_ability(tap_for_black_costing_life(0)),
+            )
+            .object(
+                ObjectSpec::artifact(PlayerId(1), "Free Sacrament")
+                    .in_zone(ZoneId::Battlefield)
+                    .with_activated_ability(activated_costing_life(0)),
+            )
+            .build()
+            .expect("state builds");
+
+        let actions = StubProvider.legal_actions(&state, PlayerId(1));
+        let mana_id = id_of(&state, "Free Source");
+        let act_id = id_of(&state, "Free Sacrament");
+        assert!(
+            actions
+                .iter()
+                .any(|a| matches!(a, LegalAction::TapForMana { source, .. } if *source == mana_id)),
+            "life_cost 0 mana ability must be offered even at negative life"
+        );
+        assert!(
+            actions.iter().any(
+                |a| matches!(a, LegalAction::ActivateAbility { source, .. } if *source == act_id)
+            ),
+            "life_cost 0 activated ability must be offered even at negative life"
+        );
+    }
 }

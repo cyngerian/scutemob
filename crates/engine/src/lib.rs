@@ -36,10 +36,10 @@ pub use state::hash::{HashSchemaEpoch, HASH_SCHEMA_HISTORY, HASH_SCHEMA_VERSION}
 pub use state::types::ALL_CREATURE_TYPES;
 pub use state::{get_dungeon, DungeonDef, DungeonId, DungeonState, RoomDef, RoomIndex};
 pub use state::{
-    AbilityInstance, AdditionalCost, AffinityTarget, AltCostKind, AttackTarget,
-    BlockingExceptionFilter, CardId, CardType, ChampionFilter, Characteristics, Color, CombatState,
-    ContinuousEffect, CounterType, CumulativeUpkeepCost, DamageTargetFilter, DayNight,
-    DeathTriggerFilter, Designations, ETBSuppressFilter, ETBSuppressor, ETBTriggerFilter,
+    AbilityInstance, ActivatedAbility, ActivationCost, AdditionalCost, AffinityTarget, AltCostKind,
+    AttackTarget, BlockingExceptionFilter, CardId, CardType, ChampionFilter, Characteristics,
+    Color, CombatState, ContinuousEffect, CounterType, CumulativeUpkeepCost, DamageTargetFilter,
+    DayNight, DeathTriggerFilter, Designations, ETBSuppressFilter, ETBSuppressor, ETBTriggerFilter,
     EffectDuration, EffectFilter, EffectId, EffectLayer, EnchantControllerConstraint,
     EnchantFilter, EnchantTarget, FaceDownKind, FlashGrant, FlashGrantFilter, GameObject,
     GameRestriction, GameState, GameStateBuilder, GameStateError, HybridMana, HybridManaPayment,

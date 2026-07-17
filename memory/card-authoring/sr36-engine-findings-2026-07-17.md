@@ -15,6 +15,16 @@ by taxonomy). All four are in `memory/card-authoring/sr34-engine-findings-2026-0
 
 ## SG-1 — `LegalActionProvider` ignores `ManaAbility::life_cost` and `ActivationCost::life_cost`
 
+**RESOLVED (SR-38, `scutemob-94`).** `StubProvider::legal_actions` now computes the player's
+`life_total` once and skips both the `TapForMana` emission (for a `ManaAbility::life_cost` it
+can't pay) and the `ActivateAbility` emission (for an `ActivationCost::life_cost` it can't
+pay), short-circuiting on `life_cost > 0` per CR 119.4b. `ActivatedAbility`/`ActivationCost`
+were added to the engine's public re-exports so the simulator test can build synthetic
+abilities. Two tests in `crates/simulator/src/legal_actions.rs`:
+`provider_omits_life_costs_the_player_cannot_pay` (unpayable mana + non-mana ability omitted
+at 1 life; payable ones offered) and `provider_offers_zero_life_cost_at_negative_life` (the
+CR 119.4b corner). Non-vacuity verified: the omit test fails if the guard is removed.
+
 **Severity: MEDIUM. Introduced-in-effect by SR-36, though the code is unchanged.**
 
 `crates/simulator/src/legal_actions.rs:399` builds the bot's legal-action list without
@@ -40,6 +50,15 @@ this task's surface and unreviewed here.
 
 ## SG-2 — `try_as_tap_mana_ability`'s non-`Controller` refusal is untested and its rationale is arguable
 
+**RESOLVED (SR-38, `scutemob-94`).** Pinned by `opponent_scaled_mana_stays_a_stack_ability`
+in `primitives/primitive_sr36_scaled_mana_and_life_costs.rs`: a synthetic def whose
+`AddManaScaled` pays `PlayerTarget::EachOpponent` registers 0 mana abilities and 1 activated
+ability, with a controller-paying control case proving the `PlayerTarget` guard is the sole
+cause of the difference. The comment was reworded to match SR-33's position — keeping a mana
+ability on the stack is a rules compromise (CR 605.3b grants opponents a priority window it
+should not), accepted only because the branch is unreachable for corpus cards, not merely
+"correct-but-slow".
+
 **Severity: LOW.**
 
 SR-36 added a guard refusing to lower an `Effect::AddManaScaled` whose `player` is not
@@ -61,6 +80,17 @@ asserting it registers 0 mana abilities and 1 activated ability; reword the comm
 ---
 
 ## SG-3 — `registered_colors`'s `scaled_amount.is_none()` filter is the weaker of two symmetric fixes
+
+**RESOLVED (SR-38, `scutemob-94`) — the stronger fix was taken.** Exclusion 2 in
+`tests/core/effect_choose_gate.rs` is now narrowed to *amounts only*: `printed_tap_mana_colors`
+keeps the colour parsed before a "for each" / "equal to" tail, and `registered_colors` reads
+scaled abilities' `produces.keys()` (the `{colour: 1}` marker) instead of filtering them out.
+Both sides now carry the colour and ignore the amount (which lives only in `scaled_amount`, and
+stays verified by the SR-36 activation tests). This lets the gate catch a scaled ability that
+registers an outright wrong colour, which the whole-clause drop passed vacuously. Pinned by
+`land_color_gate_compares_scaled_clause_colors`: (a) Cabal Stronghold's scaled `{B}` flows
+through both sides on a real `Complete` card; (b) a synthetic def printing `{R}` but registering
+`AddManaScaled { color: Black }` is caught. The full gate stays green.
 
 **Severity: LOW. Reviewer's Finding 6; recorded rather than actioned.**
 

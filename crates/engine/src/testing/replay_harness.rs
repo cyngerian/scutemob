@@ -3812,12 +3812,20 @@ fn try_as_tap_mana_ability(effect: &Effect) -> Option<ManaAbility> {
     // `scaled_amount` carries the real `EffectAmount` for `handle_tap_for_mana` to
     // resolve at activation (SR-36 — see the doc comment on `ManaAbility::scaled_amount`).
     //
-    // SR-36: the stackless `TapForMana` path always pays the activating player. A
-    // scaled mana ability that adds mana to a player OTHER than its controller
+    // SR-36 / SR-38 (SG-2): the stackless `TapForMana` path always pays the activating
+    // player, so a scaled mana ability that adds mana to a player OTHER than its controller
     // (`player` here is not `PlayerTarget::Controller`) cannot be lowered — declining
     // (returning `None`) leaves it on the stack, where `Effect::AddManaScaled`'s
-    // stack-resolution arm already handles an arbitrary `PlayerTarget` correctly. This
-    // is correct-but-slow, not wrong.
+    // stack-resolution arm handles an arbitrary `PlayerTarget` correctly.
+    //
+    // This is a compromise, not a free "slow path". CR 605.3b: a mana ability doesn't use
+    // the stack, so an ability kept there hands opponents a priority window it should never
+    // grant — precisely the defect SR-33 fixed by rewriting 88 dual lands, and why Cabal
+    // Coffers was `Partial` rather than `Complete`. It is accepted here only because it is
+    // unreachable: every mana source in the corpus adds to its controller, so this branch is
+    // dead for real cards (verified via `all_cards()`). It guards solely against a future def
+    // that would otherwise silently register a free, stackless mana ability paying the wrong
+    // player. Pinned by `opponent_scaled_mana_stays_a_stack_ability` (SR-38).
     if let Effect::AddManaScaled {
         player,
         color,
