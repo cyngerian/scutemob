@@ -786,7 +786,23 @@ _One entry per session, newest first. Format:_
   have >100-col comment lines, none inert) — so `error_on_unformatted` is not needed and was not added.
   **Safety:** `format_strings` rewrites string literals, and `oracle_text` reaches `Characteristics` →
   the SR-8 fingerprint. Proven non-semantic by diffing the full `Debug` of `all_cards()` across the
-  reformat: 1,719 files changed, **byte-identical**, 1,748 cards. Suite 3300 → 3302 (the gate's own).
+  reformat: 1,719 files changed, **byte-identical**, 1,748 cards. Suite 3300 → 3305 (the gate's own).
+  **Review (0 HIGH, 1 MEDIUM, 2 LOW — all resolved) made it the twelfth consecutive SR task whose
+  sharpest finding was a hole in a checker, and this time the checker was *this task's own gate*:**
+  the two `--config` flags are load-bearing and **nothing guarded them**. Deleting
+  `format_strings=true` left the gate printing `1748 defs checked / clean` with every test passing —
+  because the reformatted corpus **cannot detect its own blindness** (the defs now carry `\`
+  continuations, so rustfmt-without-the-flag leaves them alone) while every newly authored def goes
+  back to invisible. Only the demo proved the flags matter, and **nothing executed the demo**. Fixed
+  with two canaries in `cargo test` that stand up a throwaway corpus and invoke the **shipped script**
+  (it derives its defs dir from its own location, so they cannot drift from the real arg set); the
+  isolation matrix was measured *before* writing them, and each flag was then deleted in turn to
+  confirm exactly the matching canary reddens. Also: `--edition` was an unguarded second copy of a
+  `Cargo.toml` fact (drift test added), and the demo wrote fixtures into the live `defs/` dir that
+  `build.rs` discovers by listing. **The reviewer also verified the semantics claim by a better method
+  than the author's** — parsing all 8,082 string literals under Rust's escape rules rather than
+  trusting the `Debug` diff — and noted the SR-8 fingerprint would *not* have caught a value change
+  (it digests the type closure, not values), so that check was load-bearing, not ceremony.
   **Next:** SF-8 and SF-9 — the two HIGHs SR-34 filed and could not take.
 - 2026-07-17 — SR-34 (scutemob-90) — **ready for collection** — **CR 605.1a is now enforced by what
   an ability does, not what it costs.** `enrich_spec_from_def` only lowered bare `Cost::Tap`, so every

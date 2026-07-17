@@ -33,7 +33,9 @@
   accessors, gated on the `test-util` feature (self dev-dependency). **`cargo build
   --workspace` is the only gate that proves the seal** — `test --all` and `clippy
   --all-targets` enable `test-util` workspace-wide via feature unification. It is a CI step.
-- **Tests**: **3284 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
+- **Tests**: **3305 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
+  — and `fmt` here means `cargo fmt --check` **plus** `tools/check-defs-fmt.sh`, which is the only one
+  of the two that looks at the 1,748 card defs (SR-35)
 - **CI**: **LIVE and green** since 2026-07-10 (SR-1, merge `e9742dc2`) — single Ubuntu job (fmt + clippy + `build --workspace` + full tests) on push/PR to main + workflow_dispatch; rust-cache@v2, 45m timeout. **Toolchain pinned (SR-11, `scutemob-63`)**: `rust-toolchain.toml` pins exact stable `1.95.0` and CI reads that `channel` from the file (no more floating to latest stable), so local `clippy -D warnings` is an authoritative CI preview. SR remediation track: original SR-1..16 all DONE 2026-07-10; a 2026-07-11 re-audit of the remediated baseline filed **SR-17..SR-32**, all DONE 2026-07-14..16 (16/16 collected; full record: `docs/sr-remediation-plan.md`).
 - **Abilities**: ~199 validated; 42/42 P1; 17/17 P2; 40/40 P3; 95/95 P4 implemented (9 permanent-n/a; 1 deferred: Banding)
 - **Primitives**: PB-0..PB-37 + named-letter chain (PB-A/B/E/J/M/S/X/Q/Q4/N/D/P/L/T/SFT/CC-{W,B,C,A}/TS/LKI-CC/CD/LKI-Power/EWC/XS/XS-E/XA/EAT/XA2/EWC-D) all DONE. PB-Q2/Q3/Q5 reserved.
@@ -135,8 +137,13 @@
   errors in the file*; `error_on_line_overflow=true` makes it exit 1. The corpus has zero such
   lines, so that check is hard-fail with **no allowlist** — a def whose formatted output
   overflows 100 columns fails and you split the line by hand. Both flags are passed on the
-  command line, never a workspace `rustfmt.toml` (which would restyle the engine crates too),
-  and both are proven load-bearing in `crates/engine/tests/sr35_adversarial_demo.sh`. Long
+  command line, never a workspace `rustfmt.toml` (which would restyle the engine crates too).
+  **Do not delete either flag to make something pass** — each is pinned by its own canary
+  (`gate_catches_a_def_whose_oracle_text_is_one_long_line`,
+  `gate_catches_an_unbreakable_over_width_line`), which stands up a throwaway corpus and runs the
+  shipped script against it. Those canaries exist because the reformatted corpus **cannot detect its
+  own blindness**: with a flag removed, rustfmt leaves the already-`\`-continued defs alone, so the
+  gate stays green while every *newly authored* def goes back to invisible. Long
   *comments* do **not** trigger the fallback (245 defs have >100-col comment lines; none inert).
   The reformat was proven semantics-preserving by diffing the full `Debug` of `all_cards()`
   across it: 1,719 files changed, **byte-identical** output.
@@ -208,7 +215,16 @@
   `initial_state` fields the harness ignores. **Only 6 of `translate_player_action`'s 60+ `Command`
   shapes are cross-validated**; the alt-cost translations (convoke, delve, escape, kicker, casualty,
   splice, escalate, modal, mutate, ninjutsu…) are not. Adding a scenario is cheap.
-- **Last Updated**: 2026-07-17 (SR-33 collected, `scutemob-89` merge `953cc5a6` — 88 `Effect::Choose`
+- **Last Updated**: 2026-07-17 (**SR-35 ready for collection, `scutemob-91`** — the card corpus is
+  format-checked for the *first time*: `cargo fmt --all -- --check` exits 0 having checked **zero** of
+  the 1,748 defs, and 321 were misformatted. The brief's fix — "run rustfmt over the defs" — would have
+  produced a gate **vacuous for 79% of the corpus**: a long `oracle_text` makes rustfmt fall back to
+  verbatim for the enclosing expression and leave the whole file untouched at exit 0, canary-measured at
+  **1,380/1,748 defs inert** under *direct* rustfmt. `format_strings=true` → 0 inert;
+  `error_on_line_overflow=true` kills the residual unbreakable-line case; both proven load-bearing and
+  each pinned by its own canary. Reformat proven non-semantic (full `Debug` of `all_cards()`
+  byte-identical; reviewer independently re-proved it by parsing 8,082 string literals). Suite 3305.
+  See the SR-35 bullet above. Earlier: SR-33 collected, `scutemob-89` merge `953cc5a6` — 88 `Effect::Choose`
   dual/tri lands rewritten to one-activated-ability-per-colour (tainted_field pattern; decision in
   `memory/decisions.md`: CR 605.3b makes a general choice Command pointless for stackless mana
   abilities — `TapForMana{ability_index}` IS the choice channel). The new broad gate
