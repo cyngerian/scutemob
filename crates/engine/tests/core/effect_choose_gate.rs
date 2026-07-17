@@ -544,9 +544,7 @@ fn every_complete_land_registers_each_printed_tap_mana_color() {
 #[test]
 fn land_color_gate_is_not_blind_to_any_color_lands() {
     let defs = defs_map();
-    let def = defs
-        .get("Command Tower")
-        .expect("Command Tower has a def");
+    let def = defs.get("Command Tower").expect("Command Tower has a def");
 
     let printed = printed_tap_mana_colors(&def.oracle_text);
     let all_five: BTreeSet<ManaColor> = [

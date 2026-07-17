@@ -101,7 +101,8 @@ pub const PROTOCOL_VERSION: u32 = 5;
 /// variant, or adding `#[serde(skip)]` all move it, but redefining what an
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
-pub const PROTOCOL_SCHEMA_FINGERPRINT: &str = "460d610fbd10d2856e9cd44c7784f064b215356f544992edcf5e580f09e1610c";
+pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
+    "e8d28a23ccc2a1ba7c7b2643b33bb32b0374e0651b3eb6b60ec15f4817e3a85a";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -178,7 +179,7 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         version: 5,
         // SR-37 (2026-07-17): ManaAbility gained activation_condition (see the `- 5:`
         // History line above).
-        fingerprint: "460d610fbd10d2856e9cd44c7784f064b215356f544992edcf5e580f09e1610c",
+        fingerprint: "e8d28a23ccc2a1ba7c7b2643b33bb32b0374e0651b3eb6b60ec15f4817e3a85a",
     },
 ];
 

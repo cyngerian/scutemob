@@ -18,9 +18,9 @@ use std::collections::HashMap;
 
 use mtg_engine::cards::{AbilityDefinition, Cost};
 use mtg_engine::{
-    all_cards, card_name_to_id, enrich_spec_from_def, process_command, CardDefinition, CardRegistry,
-    Command, Effect, GameState, GameStateBuilder, ManaColor, ObjectId, ObjectSpec, PlayerId, Step,
-    ZoneId,
+    all_cards, card_name_to_id, enrich_spec_from_def, process_command, CardDefinition,
+    CardRegistry, Command, Effect, GameState, GameStateBuilder, ManaColor, ObjectId, ObjectSpec,
+    PlayerId, Step, ZoneId,
 };
 
 fn p(n: u64) -> PlayerId {
@@ -34,11 +34,7 @@ fn defs_map() -> HashMap<String, CardDefinition> {
         .collect()
 }
 
-fn make_spec(
-    owner: PlayerId,
-    name: &str,
-    defs: &HashMap<String, CardDefinition>,
-) -> ObjectSpec {
+fn make_spec(owner: PlayerId, name: &str, defs: &HashMap<String, CardDefinition>) -> ObjectSpec {
     enrich_spec_from_def(
         ObjectSpec::card(owner, name)
             .in_zone(ZoneId::Battlefield)
@@ -230,7 +226,7 @@ fn conditioned_bare_tap_mana_abilities_carry_their_condition() {
         let registered_conditions: Vec<_> = spec
             .mana_abilities
             .iter()
-            .filter_map(|ma| ma.activation_condition.clone())
+            .filter_map(|ma| ma.activation_condition.as_deref().cloned())
             .collect();
 
         for cond in &def_conditions {

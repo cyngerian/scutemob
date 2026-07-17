@@ -229,9 +229,12 @@ pub struct ManaAbility {
     /// Field's coloured arms ("Activate only if you control a Swamp"). Carried through
     /// from `AbilityDefinition::Activated::activation_condition` by `mana_ability_lowering`
     /// — before SR-37 that field was silently dropped by the lowering loop's `..`, so a
-    /// conditioned mana ability produced its colour with the condition unmet.
+    /// conditioned mana ability produced its colour with the condition unmet. Boxed for the
+    /// same reason as `scaled_amount`: `Condition` is a wide enum, and unboxed it pushes
+    /// `LayerModification::AddManaAbility(ManaAbility)` over clippy's `large_enum_variant`
+    /// threshold.
     #[serde(default)]
-    pub activation_condition: Option<crate::cards::card_definition::Condition>,
+    pub activation_condition: Option<Box<crate::cards::card_definition::Condition>>,
 }
 impl ManaAbility {
     /// Convenience constructor: tap this permanent to add one mana of `color`.

@@ -8,11 +8,10 @@ use crate::testing::script_schema::{
 use crate::{
     all_cards, register_commander_zone_replacements, AbilityDefinition, CardDefinition,
     CardEffectTarget, CardId, CardRegistry, CardType, Color, Command, Condition, Cost,
-    DeathTriggerFilter,
-    Designations, ETBTriggerFilter, Effect, EffectAmount, GameState, GameStateBuilder,
-    GameStateError, KeywordAbility, ManaAbility, ManaColor, ManaCost, ObjectSpec, PlayerId,
-    PlayerTarget, Step, TargetController, TargetFilter, TargetRequirement, TimingRestriction,
-    TriggerCondition, TriggerEvent, TriggeredAbilityDef, ZoneId,
+    DeathTriggerFilter, Designations, ETBTriggerFilter, Effect, EffectAmount, GameState,
+    GameStateBuilder, GameStateError, KeywordAbility, ManaAbility, ManaColor, ManaCost, ObjectSpec,
+    PlayerId, PlayerTarget, Step, TargetController, TargetFilter, TargetRequirement,
+    TimingRestriction, TriggerCondition, TriggerEvent, TriggeredAbilityDef, ZoneId,
 };
 use imbl::OrdMap;
 /// Replay harness helpers — extracted from `crates/engine/tests/script_replay.rs`
@@ -2125,8 +2124,7 @@ pub fn enrich_spec_from_def(
             ..
         } = ability
         {
-            if let Some(ma) =
-                mana_ability_lowering(ab_targets, cost, effect, activation_condition)
+            if let Some(ma) = mana_ability_lowering(ab_targets, cost, effect, activation_condition)
             {
                 spec = spec.with_mana_ability(ma);
             }
@@ -3765,7 +3763,7 @@ fn mana_ability_lowering(
     // still lowered), but the condition must be enforced at activation — `handle_tap_for_mana`
     // checks it. Before SR-37 the lowering loop's `..` dropped this field, so Tainted Field's
     // coloured arms produced {W}/{B} with no Swamp controlled.
-    ma.activation_condition = activation_condition.clone();
+    ma.activation_condition = activation_condition.clone().map(Box::new);
     Some(ma)
 }
 /// If `effect` is `AddMana` with exactly one non-zero single-color entry,

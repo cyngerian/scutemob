@@ -510,7 +510,7 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // SR-37 (2026-07-17): ManaAbility gained activation_condition (see the `- 43:`
         // History line above). decl_fingerprint moves (genuine struct-shape change);
         // stream_fingerprint moves per the v40 mechanism.
-        decl_fingerprint: "56c33f24371307570b8c8fe201b764bac286fb1301f3447e42ca0676ee3fc6b2",
+        decl_fingerprint: "893cf5c44cb308599a6b0140196bce22c900548896ccab86e977ceb8ef593d3a",
         stream_fingerprint: "b1941d3caed23ec2d41979f368e312c69eaa9861056edece97d7a03a8977495c",
     },
 ];

@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-17 07:33 UTC  
-**Git:** `1a3602bc` on `feat/sr-36-sf-8-sf-9-both-high-addmanascaled-taps-for-exactly-1-g`  
+**Generated:** 2026-07-17 22:18 UTC  
+**Git:** `2a1f0b60` on `feat/sr-37-gate-hygiene-from-sr-34-findings-sf-10-manaability-ign`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,8 +25,8 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 194 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **108%** (1,763 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 57.3% | 1,001 | · |
-| With TODO markers | 685 | · |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 56.2% | 983 | -18 |
+| With TODO markers | 703 | +18 |
 | Empty `abilities: vec![]` placeholders | 62 | · |
 | Total TODO lines across all defs | 1,045 | · |
 
@@ -34,7 +34,7 @@ and what is intentionally NOT in it.**
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 2,595 |
+| last 7 days | 0 | 1,744 |
 | last 30 days | 0 | 2,918 |
 | last 90 days | 0 | 2,958 |
 | last 1 year | 1,773 | 3,341 |
@@ -67,10 +67,10 @@ are blocked on engine primitives.
 | Group | Auth / Total | % | Clean | TODO | Empty |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | `combat-keyword` | 187 / 187 | 100% | 76 | 103 | 8 |
-| `draw` | 163 / 169 | 96% | 69 | 83 | 11 |
+| `draw` | 163 / 169 | 96% | 68 | 84 | 11 |
 | `token-create` | 145 / 155 | 94% | 68 | 77 | 0 |
 | `land-etb-tapped` | 138 / 138 | 100% | 116 | 22 | 0 |
-| `other` | 108 / 131 | 82% | 67 | 41 | 0 |
+| `other` | 108 / 131 | 82% | 66 | 42 | 0 |
 | `modal-choice` | 68 / 105 | 65% | 31 | 37 | 0 |
 | `mana-land` | 92 / 92 | 100% | 57 | 34 | 1 |
 | `body-only` | 55 / 70 | 79% | 26 | 10 | 19 |
@@ -79,17 +79,17 @@ are blocked on engine primitives.
 | `land-fetch` | 45 / 45 | 100% | 27 | 17 | 1 |
 | `attack-trigger` | 6 / 34 | 18% | 2 | 4 | 0 |
 | `death-trigger` | 34 / 34 | 100% | 16 | 17 | 1 |
-| `mana-artifact` | 34 / 34 | 100% | 22 | 10 | 2 |
+| `mana-artifact` | 34 / 34 | 100% | 14 | 18 | 2 |
 | `activated-tap` | 2 / 27 | 7% | 0 | 2 | 0 |
 | `pump-buff` | 27 / 27 | 100% | 16 | 11 | 0 |
 | `cant-restriction` | 25 / 25 | 100% | 16 | 9 | 0 |
 | `removal-damage-target` | 23 / 23 | 100% | 8 | 13 | 2 |
 | `activated-sacrifice` | 3 / 19 | 16% | 1 | 2 | 0 |
-| `mana-creature` | 19 / 19 | 100% | 14 | 5 | 0 |
+| `mana-creature` | 19 / 19 | 100% | 12 | 7 | 0 |
 | `graveyard-recursion` | 18 / 18 | 100% | 7 | 11 | 0 |
 | `removal-damage-each` | 17 / 17 | 100% | 11 | 6 | 0 |
 | `counter` | 16 / 16 | 100% | 6 | 6 | 4 |
-| `removal-exile` | 13 / 14 | 93% | 5 | 4 | 4 |
+| `removal-exile` | 13 / 14 | 93% | 4 | 5 | 4 |
 | `untap-phase` | 1 / 13 | 8% | 0 | 0 | 1 |
 | `cost-reduction` | 12 / 12 | 100% | 12 | 0 | 0 |
 | `opponent-punish` | 12 / 12 | 100% | 3 | 9 | 0 |
@@ -230,6 +230,9 @@ tyvar_jubilant_brawler: // TODO: static — creatures you control can activate a
 ## Recent card-touching commits
 
 ```
+2a1f0b60 SR-37: SF-11 + SF-12 — gate the any-color mana stubs; land gate sees them
+530ba541 SR-36: close the review's 3 MEDIUMs — 0 HIGH found
+91ce106c SR-36: reconcile markers — 3 upgrades, 2 stale notes, and a gate asymmetry SF-8 exposed
 ae14ed5a scutemob-91: SR-35 — rustfmt gate over the card-def corpus (was checking zero files)
 1fa03bc6 scutemob-90: apply SR-34 review fixes (0 HIGH, 5 MEDIUM, 3 LOW — all 8 resolved)
 5cadf2ca scutemob-90: SR-34 roster reconciliation (criterion 4767) — 27 defs probed, 17 markers, 10 certified
@@ -252,9 +255,6 @@ b9397215 W6-cards: PB-AC9 backfill HIGH — Reforge the Soul stale Miracle marke
 cbcc02d8 W6-cards: PB-AC7 backfill — 5 clean cards + 2 partial-clause improvements
 1caa8cc1 W6-prim: PB-AC7 engine — SetCreatureTypes/SetCardTypes + spell_subtype_filter
 56602d5b W6-cards: PB-AC6 — /review polish (2 non-blocking observations)
-bcc96cdf W6-cards: PB-AC6 — fix card review findings (2 HIGH, 1 MEDIUM)
-e71b11d4 W6-cards: PB-AC6 backfill — partials, Kaito +1, and marker correction sweep
-286c2b18 W6-cards: PB-AC6 backfill — 6 clean cards + integration tests
 ```
 
 ## Missing card-defs sidecar
