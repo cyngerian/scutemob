@@ -232,30 +232,73 @@ fn symbol_to_color(c: char) -> Option<ManaColor> {
     })
 }
 
-/// Colours printed in this card's own plain `{T}: Add ...` clauses.
+/// Colours printed in this card's own tap-for-mana `... Add ...` clauses.
 ///
-/// Two exclusions, both load-bearing — without them this reports cards that are not the
-/// SR-33 defect:
+/// **SR-34 update.** Originally scoped to a bare `{T}: Add ...` clause only — before
+/// SR-34, `enrich_spec_from_def` lowered nothing else into a `ManaAbility`, so widening
+/// this parser to a composite cost would have asserted a defect (the missing lowering)
+/// this gate was not filed to catch. SR-34 widened the lowering itself to any cost
+/// payable through `Command::TapForMana` (mana + tap + pay-life + sacrifice-self —
+/// `mana_ability_cost_components` in `testing/replay_harness.rs`), so this parser now
+/// widens in lockstep: a clause's *cost* only needs to **include** `{T}` somewhere (CR
+/// 106.12: "tap for mana" means the activation cost includes `{T}`, not that it *is*
+/// `{T}`), which covers `{1}, {T}: Add {R}{W}` (Signets), `{T}, Pay 1 life: Add {B} or
+/// {G}` (horizon lands), and `{W/B}, {T}: Add ...` (filter lands) alongside the original
+/// bare-`{T}` case.
 ///
-/// 1. **The tap must be the whole cost.** `{1}, {T}: Add {R}{W}` (a Signet) and
-///    `{T}, Pay 1 life: Add {B} or {G}` (a horizon land) are mana abilities by CR 605.1a,
-///    but `enrich_spec_from_def` only lowers `Cost::Tap` into a `ManaAbility`, so they are
-///    *uniformly* unregistered regardless of how their colours are modelled. That is a
-///    real and separate gap (filed, see the SR-33 follow-ups) — folding it in here would
-///    make this gate assert a defect it is not about and cannot fix.
-/// 2. **The clause must be this card's own.** `Creatures you control have "{T}: Add {G}"`
+/// Two exclusions remain, both load-bearing — without them this reports cards that are
+/// not the SR-33/SR-34 defect:
+///
+/// 1. **The clause must be this card's own.** `Creatures you control have "{T}: Add {G}"`
 ///    (Citanul Hierophants) grants the ability to *other* objects; the granting card has
 ///    no mana ability of its own and is correct as written.
+/// 2. **A dynamic-amount clause is excluded, not asserted against.** This parser reads
+///    *colours*, never *amounts* — `{T}: Add {G} for each creature you control`
+///    (`Effect::AddManaScaled`) and `Add an amount of mana ... equal to ...`
+///    (`Effect::AddManaOfAnyColorAmount`) print a colour but produce a count this parser
+///    cannot verify (that is **SF-8**, a live HIGH bug: `handle_tap_for_mana` has no
+///    `AddManaScaled` branch and reads the registered `produces: {colour: 1}` marker
+///    literally, so e.g. Gaea's Cradle taps for exactly 1 green regardless of creature
+///    count — filed, not fixed by SR-34; see
+///    `memory/card-authoring/sr34-engine-findings-2026-07-17.md`). A clause ending in
+///    "for each" / "equal to" is dropped from `printed` entirely, not compared. This is
+///    necessary, not just conservative: `mana_ability_lowering`'s Finding-A exclusion
+///    (SR-34) deliberately keeps `AddManaScaled` OFF the widened lowering path for any
+///    cost that is not bare `Cost::Tap` — Cabal Coffers (`{2},{T}: Add {B} for each
+///    Swamp...`) registers **zero** mana abilities on purpose (it stays on the stack
+///    rather than being captured and producing the wrong, fixed amount) — so asserting
+///    colour equality on that clause would fail a `Complete` card for behaving exactly as
+///    designed. A bare-`Cost::Tap` scaled source (Gaea's Cradle) is *also* excluded here;
+///    that clause was never actually amount-checked by this gate before this rewrite
+///    either (it only ever compared the marker's single colour, which is why SF-8 was
+///    invisible to it) — excluding it is what makes that blind spot documented instead of
+///    silent, per SR-34 §9.
 fn printed_tap_mana_colors(oracle: &str) -> BTreeSet<ManaColor> {
     let mut out = BTreeSet::new();
-    for (idx, _) in oracle.match_indices("{T}: Add ") {
-        // (1) Anything other than a clause boundary before the {T} means an extra cost.
-        // Strip spaces only — a newline *is* the boundary, so it must survive the trim.
-        let before = oracle[..idx].trim_end_matches(' ');
-        if !(before.is_empty() || before.ends_with('\n') || before.ends_with('(')) {
+    for (idx, _) in oracle.match_indices(": Add ") {
+        // The clause boundary: start of oracle text, a newline, or an opening paren
+        // (reminder text) — whichever is closest before `idx`.
+        let before_all = &oracle[..idx];
+        let boundary = before_all.rfind(['\n', '(']).map(|p| p + 1).unwrap_or(0);
+        let cost = &before_all[boundary..];
+        // SR-34: the cost must include {T} somewhere — a cost with no {T} at all
+        // (Druids' Repository's "Remove a charge counter: Add...", Ashnod's Altar's
+        // "Sacrifice a creature: Add...") is not a tap-mana source (CR 106.12) and is
+        // out of this gate's scope regardless of the SR-34 lowering widening.
+        if !cost.contains("{T}") {
             continue;
         }
-        // (2) An odd number of preceding quotes means we are inside a granted ability.
+        // SR-34: "Sacrifice a/an <noun>" (sacrificing a DIFFERENT permanent, not this
+        // one) needs a caller-supplied ObjectId `Command::TapForMana` has no payload
+        // for, so `mana_ability_cost_components` refuses it and the ability stays a
+        // stack-using activated ability regardless of the {T} in its cost (Phyrexian
+        // Tower: "{T}, Sacrifice a creature: Add {B}{B}."). Distinct from "Sacrifice
+        // this" (self-sacrifice, e.g. Treasure tokens), which IS lowerable via
+        // `ManaAbility::sacrifice_self` and must not be excluded here.
+        if cost.contains("Sacrifice a ") || cost.contains("Sacrifice an ") {
+            continue;
+        }
+        // An odd number of preceding quotes means we are inside a granted ability.
         if oracle[..idx].matches('"').count() % 2 == 1 {
             continue;
         }
@@ -263,7 +306,8 @@ fn printed_tap_mana_colors(oracle: &str) -> BTreeSet<ManaColor> {
         // mana symbol or a separator — that token ends the "Add" clause. Anything the
         // parser does not understand ends the clause rather than being skipped over, so
         // it can only ever under-report, never invent a colour.
-        let mut rest = &oracle[idx + "{T}: Add ".len()..];
+        let mut rest = &oracle[idx + ": Add ".len()..];
+        let mut clause_colors = BTreeSet::new();
         loop {
             rest = rest.trim_start_matches([' ', ',']);
             if let Some(r) = rest.strip_prefix("or ") {
@@ -280,9 +324,18 @@ fn printed_tap_mana_colors(oracle: &str) -> BTreeSet<ManaColor> {
             let Some(color) = sym.chars().next().and_then(symbol_to_color) else {
                 break;
             };
-            out.insert(color);
+            clause_colors.insert(color);
             rest = r;
         }
+        // Exclusion 2: a dynamic-amount clause (see doc comment) is dropped, not
+        // compared. `rest` is exactly the tail immediately after the last successfully
+        // parsed symbol, so this check is positioned precisely at the point parsing
+        // stopped.
+        let tail = rest.trim_start();
+        if tail.starts_with("for each") || tail.starts_with("equal to") {
+            continue;
+        }
+        out.extend(clause_colors);
     }
     out
 }

@@ -9,23 +9,45 @@ pub fn card() -> CardDefinition {
         name: "Nurturing Peatland".to_string(),
         mana_cost: None,
         types: types(&[CardType::Land]),
-        oracle_text: "{T}, Pay 1 life: Add {B} or {G}.\n{1}, {T}, Sacrifice this land: Draw a card.".to_string(),
+        oracle_text:
+            "{T}, Pay 1 life: Add {B} or {G}.\n{1}, {T}, Sacrifice this land: Draw a card."
+                .to_string(),
         abilities: vec![
+            // {T}, Pay 1 life: Add {B} or {G}.
+            // SR-34: the "or" is modeled as two separate activated abilities, one per
+            // color (tainted_field.rs pattern) — see fiery_islet.rs for the full
+            // rationale. First option: {B}.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![Cost::Tap, Cost::PayLife(1)]),
-                effect: Effect::AddManaChoice {
+                effect: Effect::AddMana {
                     player: PlayerTarget::Controller,
-                    count: EffectAmount::Fixed(1),
+                    mana: mana_pool(0, 0, 1, 0, 0, 0),
                 },
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
+            },
+            // Second color option: {G}.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![Cost::Tap, Cost::PayLife(1)]),
+                effect: Effect::AddMana {
+                    player: PlayerTarget::Controller,
+                    mana: mana_pool(0, 0, 0, 0, 1, 0),
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+                activation_zone: None,
+                once_per_turn: false,
             },
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
-                    Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
+                    Cost::Mana(ManaCost {
+                        generic: 1,
+                        ..Default::default()
+                    }),
                     Cost::Tap,
                     Cost::SacrificeSelf,
                 ]),
@@ -37,19 +59,9 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
-        completeness: Completeness::known_wrong(
-            "SR-33: adds {C}, not {B} or {G}. `Effect::AddManaChoice` has no field for which \
-             colours are legal and its only execution site adds one colorless mana \
-             (effects/mod.rs, the arm it shares with AddManaAnyColor), so \
-             '{T}, Pay 1 life: Add {B} or {G}' produces a colour this land does not print. Blocked twice \
-             over: the cost is {T} + Pay 1 life, and enrich_spec_from_def only lowers \
-             `Cost::Tap` into a ManaAbility, so it is not a mana ability either (CR \
-             605.1a). Needs a colour list on the variant (or per-colour abilities) AND \
-             an activation cost on ManaAbility.",
-        ),
         ..Default::default()
     }
 }

@@ -6,10 +6,13 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("cryptolith-rite"),
         name: "Cryptolith Rite".to_string(),
-        mana_cost: Some(ManaCost { generic: 1, green: 1, ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            green: 1,
+            ..Default::default()
+        }),
         types: types(&[CardType::Enchantment]),
-        oracle_text: "Creatures you control have \"{T}: Add one mana of any color.\""
-            .to_string(),
+        oracle_text: "Creatures you control have \"{T}: Add one mana of any color.\"".to_string(),
         abilities: vec![
             // CR 613.1f: Layer 6 static ability — grants the mana ability to each
             // creature you control for as long as this enchantment is on the battlefield.

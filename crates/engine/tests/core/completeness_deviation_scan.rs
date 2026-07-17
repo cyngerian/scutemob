@@ -109,6 +109,25 @@ const ALLOWLIST: &[(&str, &str)] = &[
         "\"Effect::WheelHand fixes the previous approximation\" — describes a \
          now-corrected approximation; the current implementation is faithful.",
     ),
+    (
+        "fiery_islet",
+        "\"the 'or' is modeled as two separate activated abilities, one per color\" \
+         — same tainted_field.rs pattern, faithful decomposition, fully implemented \
+         (SR-34 un-demoted from known_wrong: the cost is now a real mana ability, \
+         CR 605.1a).",
+    ),
+    (
+        "nurturing_peatland",
+        "\"the 'or' is modeled as two separate activated abilities, one per color\" \
+         — same tainted_field.rs pattern, faithful decomposition, fully implemented \
+         (SR-34 un-demoted from known_wrong).",
+    ),
+    (
+        "silent_clearing",
+        "\"the 'or' is modeled as two separate activated abilities, one per color\" \
+         — same tainted_field.rs pattern, faithful decomposition, fully implemented \
+         (SR-34 un-demoted from known_wrong).",
+    ),
 ];
 
 /// Read every `*.rs` file directly under `defs/`. Returns `(file_stem, source)`.
