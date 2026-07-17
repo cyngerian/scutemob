@@ -33,7 +33,7 @@
   accessors, gated on the `test-util` feature (self dev-dependency). **`cargo build
   --workspace` is the only gate that proves the seal** — `test --all` and `clippy
   --all-targets` enable `test-util` workspace-wide via feature unification. It is a CI step.
-- **Tests**: **3326 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
+- **Tests**: **3330 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
   — and `fmt` here means `cargo fmt --check` **plus** `tools/check-defs-fmt.sh`, which is the only one
   of the two that looks at the 1,748 card defs (SR-35)
 - **CI**: **LIVE and green** since 2026-07-10 (SR-1, merge `e9742dc2`) — single Ubuntu job (fmt + clippy + `build --workspace` + full tests) on push/PR to main + workflow_dispatch; rust-cache@v2, 45m timeout. **Toolchain pinned (SR-11, `scutemob-63`)**: `rust-toolchain.toml` pins exact stable `1.95.0` and CI reads that `channel` from the file (no more floating to latest stable), so local `clippy -D warnings` is an authoritative CI preview. SR remediation track: original SR-1..16 all DONE 2026-07-10; a 2026-07-11 re-audit of the remediated baseline filed **SR-17..SR-32**, all DONE 2026-07-14..16 (16/16 collected; full record: `docs/sr-remediation-plan.md`).
@@ -259,7 +259,13 @@
   `memory/card-authoring/sr36-engine-findings-2026-07-17.md` (**SG-1 MEDIUM: the simulator's
   `LegalActionProvider` ignores `life_cost` — harmless while the cost was dropped, now it
   offers bots unpayable actions**).
-- **Last Updated**: 2026-07-17 (**SR-37 collected, `scutemob-93` merge `df49eb61`** — gate hygiene:
+- **Last Updated**: 2026-07-17 (**SR-38 collected, `scutemob-94` merge `ac65216a`** — simulator
+  `StubProvider` now gates `TapForMana`/`ActivateAbility` suggestions on `life_cost` vs
+  `life_total` (CR 119.4b short-circuit), mirroring the engine's own checks — a bot can no longer
+  suggest an activation the engine rejects; SG-2's non-Controller refusal pinned by test; SG-3's
+  scaled-clause exclusion narrowed to amounts (colours compared on both sides). 3330 tests. This
+  clears the SR-33..38 chain that the marker sweep opened — **no open SR tasks**. Earlier:
+  **SR-37 collected, `scutemob-93` merge `df49eb61`** — gate hygiene:
   `ManaAbility.activation_condition` added and checked in `handle_tap_for_mana` (CR 602.5b —
   enrich's `..` was silently dropping it; Tainted Field's coloured arms now require a Swamp);
   the `AddManaAnyColor` family (`/Restricted//OfAnyColorAmount`) gated out of Complete — all
