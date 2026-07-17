@@ -124,6 +124,13 @@ no such roster was built. Fix shape: add a `life_cost: u32` (or similar) field t
 
 ## SF-10 — `ManaAbility` has no `activation_condition`; a conditioned mana ability ignores its own condition
 
+> **RESOLVED by SR-37 (`scutemob-93`).** `ManaAbility` gained `activation_condition:
+> Option<Box<Condition>>`; `mana_ability_lowering` threads it through and
+> `handle_tap_for_mana` checks it via `check_condition` before any mutation (CR 602.5b).
+> Tainted Field's coloured arms now require a Swamp. `HASH_SCHEMA_VERSION` 42→43,
+> `PROTOCOL_VERSION` 4→5. Tests: `primitives/primitive_sr37_conditioned_mana_abilities.rs`.
+
+
 **Severity: MEDIUM. Pre-existing (Tainted Field was already lowered before SR-34, being
 bare `Cost::Tap`); SR-34 does not widen its blast radius, but does not fix it either.**
 
@@ -200,6 +207,14 @@ naturally resolved. For the record, post-SR-34 status of the roster's remaining 
 
 ## SF-11 — `effect_choose_gate.rs` blocks `AddManaChoice` from `Complete` on a **false** justification, and lets the identically-broken `AddManaAnyColor` through
 
+> **RESOLVED by SR-37 (`scutemob-93`).** New gate `no_complete_def_uses_an_any_color_mana_stub`
+> blocks `AddManaAnyColor` / `AddManaAnyColorRestricted` / `AddManaOfAnyColorAmount` from
+> `Complete`; the false-asymmetry doc on the `AddManaChoice` gate is corrected. 18 newly-caught
+> `Complete` defs demoted to `known_wrong` (Birds of Paradise, Command Tower, City of Brass, the
+> moxen, Chromatic Lantern, …). Clean coverage 56.2% (983/1748). Gate keys pinned non-vacuously
+> in `stub_gates_are_not_vacuous`. Delete the gate when a colour channel for `any_color` lands.
+
+
 **Severity: MEDIUM. Filed by `scutemob-90` (criterion 4767). Verified by probe.**
 
 `no_complete_def_uses_the_add_mana_choice_stub`'s doc comment
@@ -245,6 +260,14 @@ exhaustive; the corpus-wide sweep that would complete it is the SF-11 fix itself
 ---
 
 ## SF-12 — `every_complete_land_registers_each_printed_tap_mana_color` is structurally blind to every "any color" land
+
+> **RESOLVED by SR-37 (`scutemob-93`).** `printed_tap_mana_colors` now parses "one mana of any
+> color" as all five colours; `registered_colors` reports the `{Colorless}` an `any_color: true`
+> `ManaAbility` truly produces — so the gate reports `missing {W,U,B,R,G}, invented {C}` instead of
+> passing vacuously. Pinned by `land_color_gate_is_not_blind_to_any_color_lands`. NB: the fix
+> reports the real `{C}`, **not** the finding's suggested "claims all five" (which would make both
+> sides equal and pass — the finding's own worked example wants a FAIL).
+
 
 **Severity: MEDIUM. Filed by `scutemob-90`. Verified by reading both halves of the chain.**
 
