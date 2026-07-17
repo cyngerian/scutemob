@@ -33,7 +33,7 @@
   accessors, gated on the `test-util` feature (self dev-dependency). **`cargo build
   --workspace` is the only gate that proves the seal** — `test --all` and `clippy
   --all-targets` enable `test-util` workspace-wide via feature unification. It is a CI step.
-- **Tests**: **3185 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
+- **Tests**: **3275 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
 - **CI**: **LIVE and green** since 2026-07-10 (SR-1, merge `e9742dc2`) — single Ubuntu job (fmt + clippy + `build --workspace` + full tests) on push/PR to main + workflow_dispatch; rust-cache@v2, 45m timeout. **Toolchain pinned (SR-11, `scutemob-63`)**: `rust-toolchain.toml` pins exact stable `1.95.0` and CI reads that `channel` from the file (no more floating to latest stable), so local `clippy -D warnings` is an authoritative CI preview. SR remediation track: original SR-1..16 all DONE 2026-07-10; a 2026-07-11 re-audit of the remediated baseline filed **SR-17..SR-32**, all DONE 2026-07-14..16 (16/16 collected; full record: `docs/sr-remediation-plan.md`).
 - **Abilities**: ~199 validated; 42/42 P1; 17/17 P2; 40/40 P3; 95/95 P4 implemented (9 permanent-n/a; 1 deferred: Banding)
 - **Primitives**: PB-0..PB-37 + named-letter chain (PB-A/B/E/J/M/S/X/Q/Q4/N/D/P/L/T/SFT/CC-{W,B,C,A}/TS/LKI-CC/CD/LKI-Power/EWC/XS/XS-E/XA/EAT/XA2/EWC-D) all DONE. PB-Q2/Q3/Q5 reserved.
@@ -181,7 +181,14 @@
   `initial_state` fields the harness ignores. **Only 6 of `translate_player_action`'s 60+ `Command`
   shapes are cross-validated**; the alt-cost translations (convoke, delve, escape, kicker, casualty,
   splice, escalate, modal, mutate, ninjutsu…) are not. Adding a scenario is cheap.
-- **Last Updated**: 2026-07-10 (SR-9c — the golden-script corpus is triaged (94→**210 approved**, **61
+- **Last Updated**: 2026-07-16 (scutemob-88 marker sweep collected — see "Last shipped" above.
+  Critical finding filed as **SR-33 (`scutemob-89`)**: 88 dual/tri lands are Complete-but-broken —
+  `Effect::Choose` is a stub that always executes `choices.first()` (effects/mod.rs:3190) and
+  `try_as_tap_mana_ability` doesn't handle `Choose`, so Tropical Island et al. register **zero**
+  mana abilities (CR 605.1a). Also on that task: `path_to_exile`'s deviation-scan ALLOWLIST
+  justification is false (`MayPayOrElse` always declines) and `rhystic_study` is Complete while
+  its draw always fires. **EF-13 open, needs user call**: 105 `partial` defs register no behaviour
+  and are `Inert` by taxonomy — moves headline numbers. Earlier: 2026-07-10 (SR-9c — the golden-script corpus is triaged (94→**210 approved**, **61
   retired** with recorded reasons, **0 pending**) and can no longer skip silently. This closes SR-9. The
   corpus's green was fiction: `run_all_scripts` dropped 175 `pending_review` scripts without a count, six
   scripts never deserialized (`review_status: draft`; `disputes[]` missing `raised_by`) and had been
