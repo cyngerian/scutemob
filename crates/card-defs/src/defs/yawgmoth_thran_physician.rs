@@ -52,13 +52,17 @@ pub fn card() -> CardDefinition {
             },
         ],
         completeness: Completeness::partial(
-            "'Sacrifice another creature' is NOT a gap — Cost::Sacrifice(TargetFilter) exists \
-             (card_definition.rs:1226, enforced abilities.rs:733). The real blocker is \
-             Cost::PayLife: replay_harness.rs:3774 has no ActivationCost representation for it \
-             and silently drops it, so 'Pay 1 life, Sacrifice another creature: ...' would \
-             resolve as a free sacrifice. Un-author until PayLife is representable in \
-             ActivationCost. Engine gap #2: Cost::Sacrifice does not exclude the source despite \
-             being documented as 'sacrifice another'.",
+            "The 'Pay 1 life, Sacrifice another creature: Put a -1/-1 counter on up to one target \
+             creature and draw a card' ability is unauthored. Two of its three former blockers \
+             are gone: Cost::Sacrifice(TargetFilter) exists (card_definition.rs, enforced in \
+             abilities.rs), and Cost::PayLife IS now representable — SR-36 (scutemob-92) added \
+             ActivationCost::life_cost and a payment step to handle_activate_ability (CR \
+             118.3/119.4), so it is no longer silently dropped. The surviving blocker is the \
+             'another': handle_activate_ability's sacrifice_filter path validates zone, \
+             controller, can't-be-sacrificed and the type filter, but never that sacrifice_target \
+             != source — so 'sacrifice ANOTHER creature' would let Yawgmoth pay by sacrificing \
+             itself (CR 602.2). Authoring it now would ship wrong game state, not a missing \
+             clause.",
         ),
         ..Default::default()
     }

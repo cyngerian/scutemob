@@ -732,9 +732,15 @@ fn find_activated_ability_index_panics_when_nothing_matches() {
 // would fail rather than pass with a coincidentally-equal number.
 
 /// CR 605.1a: Cabal Stronghold's `{3},{T}: Add {B} for each basic Swamp you control`
-/// produces one black per BASIC Swamp. The board carries a nonbasic Swamp (Cabal Coffers is
-/// not a Swamp at all; a nonbasic Swamp decoy is the point) — `TargetFilter::basic` must be
-/// live.
+/// produces one black per **basic** Swamp.
+///
+/// The decoy is **Bayou** — a Land with the `Swamp` subtype and no `Basic` supertype —
+/// specifically so this test pins `TargetFilter::basic`. An earlier version used Cabal
+/// Coffers, which is not a Swamp at all (`types(&[CardType::Land])`, no subtypes), so
+/// `matches_filter` rejected it on `has_subtype` and never reached the `basic` check:
+/// deleting `basic: true` from the def left the count at 2 and this test green (SR-36
+/// review, Finding 2). A decoy must fail on exactly the field under test, or it pins
+/// nothing.
 #[test]
 fn cabal_stronghold_counts_only_basic_swamps() {
     let defs = defs_map();
@@ -756,8 +762,8 @@ fn cabal_stronghold_counts_only_basic_swamps() {
         .object(stronghold)
         .object(make_spec(p(1), "Swamp", ZoneId::Battlefield, &defs))
         .object(make_spec(p(1), "Swamp", ZoneId::Battlefield, &defs))
-        // Nonbasic, and not a Swamp: must not be counted by either reading of the filter.
-        .object(make_spec(p(1), "Cabal Coffers", ZoneId::Battlefield, &defs))
+        // A Swamp by subtype but NOT basic: reaches the `basic` check and must fail it.
+        .object(make_spec(p(1), "Bayou", ZoneId::Battlefield, &defs))
         .player_mana(
             p(1),
             mtg_engine::ManaPool {

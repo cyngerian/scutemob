@@ -376,14 +376,11 @@ fn test_add_mana_scaled_registered_as_mana_ability() {
 /// Note: Cards with Cost::Sequence([Mana, Tap]) + AddManaScaled (Cabal Coffers, Cabal
 /// Stronghold, Crypt of Agadeem) are NOT bare `Cost::Tap`, so they are not in this list,
 /// which stays bare-`Cost::Tap` cards only. They were excluded from mana-ability lowering
-/// by SR-34's Finding-A guard until SF-8 deleted it. Of the three, only Cabal Coffers is
-/// activated-and-amount-tested elsewhere —
-/// `primitive_sr36_scaled_mana_and_life_costs.rs::cabal_coffers_is_a_real_mana_ability`.
-/// **Cabal Stronghold and Crypt of Agadeem's scaled amounts are not verified by activation
-/// anywhere in the suite as of this task** — only their `Completeness::Partial` marker is
-/// checked (`primitive_sr34_composite_mana_costs.rs::sr34_roster_markers_match_the_reconciliation`).
-/// That is a real, named gap, not silently dropped coverage; closing it is §3 work
-/// (card-def marker reconciliation), out of this task's scope.
+/// by SR-34's Finding-A guard until SF-8 deleted it. All three are activated-and-amount-
+/// tested in `primitives/primitive_sr36_scaled_mana_and_life_costs.rs`
+/// (`cabal_coffers_is_a_real_mana_ability`, `cabal_stronghold_counts_only_basic_swamps`,
+/// `crypt_of_agadeem_counts_only_black_creature_cards_in_graveyard`), which is what their
+/// `Partial` -> `Complete` upgrade rests on.
 fn test_add_mana_scaled_orphan_fix_all_cards() {
     let (defs, registry) = build_defs_and_registry();
 
