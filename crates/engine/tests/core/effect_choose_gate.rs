@@ -133,22 +133,18 @@ fn no_complete_def_uses_the_may_pay_or_else_stub() {
 /// Add {U} or {R}` adds `{C}`: not one of its colours, and not a colour it prints at all.
 /// `count` is ignored too, so "add three mana" adds one.
 ///
-/// **`AddManaAnyColor` produces the identical wrong result — this gate does not catch
-/// it (SR-34 review Finding 3 / SF-11).** `handle_tap_for_mana` step 8 and
-/// `Effect::AddManaAnyColor`'s stack-resolution arm both add exactly one
-/// `ManaColor::Colorless`, whether or not the ability escapes into a real `ManaAbility` —
-/// probed empirically for Mana Confluence, Goldhound, and Phyrexian Altar
-/// (`memory/card-authoring/sr34-engine-findings-2026-07-17.md`, SF-11). There is no
-/// asymmetry between the two effects; both are `{C}`, and per CR 106.1a/106.1b colorless
-/// is a mana *type*, not a colour, so `{C}` is outside the legal option set for "any
-/// color" on either path. This gate blocks only `AddManaChoice` because extending it to
-/// `AddManaAnyColor` (and `AddManaAnyColorRestricted` / `AddManaOfAnyColorAmount`, which
-/// share the bug) would demote `Complete` defs outside SR-34's roster — including Birds
-/// of Paradise and Command Tower, see `memory/primitives/sr34-roster-reconciliation.md`
-/// §1 — and move headline coverage numbers; that is an acknowledged, scope-bounded
-/// inconsistency (SF-11), not a principled distinction between the two stubs. Delete
-/// this gate's asymmetry, and extend it, when a colour channel for `any_color` mana
-/// lands.
+/// **`AddManaAnyColor` and its two siblings share this defect and are now gated the same
+/// way — see [`no_complete_def_uses_an_any_color_mana_stub`] (SR-37 / SF-11).** The doc
+/// comment here previously claimed an *asymmetry* justified blocking only `AddManaChoice`:
+/// that `AddManaAnyColor` "escapes into a real `ManaAbility` with `any_color: true` and so
+/// never reaches [the colorless] arm." That claim was **false**. `handle_tap_for_mana`
+/// step 8 does exactly what the stack arm does — `mana_pool.add(ManaColor::Colorless, ...)`
+/// — so escaping into a `ManaAbility` changes nothing; both paths add `{C}`. Per CR
+/// 106.1a/106.1b colorless is a mana *type*, not a colour, so `{C}` is outside the legal
+/// option set for "any color" on either path. SR-37 deleted the asymmetry and extended the
+/// gate; the deferral note (Birds of Paradise, Command Tower, `sr34-roster-reconciliation.md`
+/// §1) is discharged — those defs are demoted. **Delete all of it when a colour channel for
+/// `any_color` mana lands.**
 #[test]
 fn no_complete_def_uses_the_add_mana_choice_stub() {
     let offenders: Vec<String> = all_cards()
@@ -164,6 +160,47 @@ fn no_complete_def_uses_the_add_mana_choice_stub() {
          which colours are legal, so it cannot express \"Add {{U}} or {{R}}\". Author one \
          activated ability per colour instead, or mark the def \
          `Completeness::known_wrong(\"...\")`. Offenders: {offenders:?}"
+    );
+}
+
+/// SR-37 / SF-11 (CR 106.1a/106.1b): a `Complete` def may not contain `Effect::AddManaAnyColor`,
+/// `Effect::AddManaAnyColorRestricted`, or `Effect::AddManaOfAnyColorAmount`. All three add
+/// **colorless** mana today — `ManaColor::Colorless` — regardless of the "any color" they
+/// print. Colorless is a mana *type*, not a colour, so producing `{C}` for "add one mana of
+/// any color" is not a degraded choice; it is outside the legal option set.
+///
+/// This is the fourth+fifth+sixth members of the stub family that
+/// [`no_complete_def_uses_the_add_mana_choice_stub`] guards, split into their own gate only
+/// because the failure message and the fix ("author one ability per colour, or wait for a
+/// colour channel and mark `known_wrong` until then") differ. Both execution paths were
+/// probed empirically for Mana Confluence, Goldhound, and Phyrexian Altar
+/// (`memory/card-authoring/sr34-engine-findings-2026-07-17.md`, SF-11): `handle_tap_for_mana`
+/// step 8 (the `any_color: true` `ManaAbility` path) and each effect's stack-resolution arm
+/// both add exactly one `ManaColor::Colorless`.
+///
+/// **Delete this gate when a colour channel for `any_color` mana lands** (a way to record and
+/// honour the player's colour choice); at that point the variants stop being stubs.
+#[test]
+fn no_complete_def_uses_an_any_color_mana_stub() {
+    let offenders: Vec<String> = all_cards()
+        .into_iter()
+        .filter(|d| {
+            d.completeness.is_complete()
+                && (def_uses(d, "AddManaAnyColor")
+                    || def_uses(d, "AddManaAnyColorRestricted")
+                    || def_uses(d, "AddManaOfAnyColorAmount"))
+        })
+        .map(|d| d.name)
+        .collect();
+
+    assert!(
+        offenders.is_empty(),
+        "`Effect::AddManaAnyColor` / `AddManaAnyColorRestricted` / `AddManaOfAnyColorAmount` \
+         add one **colorless** mana (effects/mod.rs; and `handle_tap_for_mana` step 8 for the \
+         `any_color: true` ManaAbility path) — colorless is a mana type, not a colour \
+         (CR 106.1a/106.1b), so they cannot express \"one mana of any color\". Author one \
+         activated ability per colour, or mark the def `Completeness::known_wrong(\"...\")` \
+         until a colour channel for any-color mana lands (SF-11). Offenders: {offenders:?}"
     );
 }
 
@@ -224,9 +261,56 @@ fn stub_gates_are_not_vacuous() {
     );
     // Negative: a def with no stub is not flagged, so the gate is not simply always-true.
     assert!(
-        !def_uses(&bare(add_g), "Choose"),
+        !def_uses(&bare(add_g.clone()), "Choose"),
         "gate must not flag a def with no Effect::Choose"
     );
+
+    // SR-37 / SF-11: the any-color stub gate matches three more Effect variants by exact
+    // serde key. Pin each — a `#[serde(rename)]` or a variant rename would silently make
+    // `no_complete_def_uses_an_any_color_mana_stub` vacuous on a clean corpus, the exact
+    // "hole in the checker" this task is named for.
+    use mtg_engine::cards::card_definition::{EffectAmount, ManaRestriction};
+    let any_color_probes = [
+        (
+            Effect::AddManaAnyColor {
+                player: PlayerTarget::Controller,
+            },
+            "AddManaAnyColor",
+        ),
+        (
+            Effect::AddManaAnyColorRestricted {
+                player: PlayerTarget::Controller,
+                restriction: ManaRestriction::CreatureSpellsOnly,
+            },
+            "AddManaAnyColorRestricted",
+        ),
+        (
+            Effect::AddManaOfAnyColorAmount {
+                player: PlayerTarget::Controller,
+                amount: EffectAmount::Fixed(1),
+            },
+            "AddManaOfAnyColorAmount",
+        ),
+    ];
+    for (effect, key) in any_color_probes {
+        assert!(
+            def_uses(&bare(effect), key),
+            "the any-color gate must detect Effect::{key}"
+        );
+    }
+    // Negative: a plain single-colour AddMana matches none of the three any-color keys
+    // (exact-key matching — `AddManaAnyColor` must not be found in a bare `AddMana` def).
+    let plain = bare(add_g);
+    for key in [
+        "AddManaAnyColor",
+        "AddManaAnyColorRestricted",
+        "AddManaOfAnyColorAmount",
+    ] {
+        assert!(
+            !def_uses(&plain, key),
+            "a plain AddMana def must not be flagged for {key}"
+        );
+    }
 }
 
 // ── Lands produce every colour they print ─────────────────────────────────────
@@ -294,23 +378,25 @@ fn symbol_to_color(c: char) -> Option<ManaColor> {
 ///    Before SF-8 no registered ability corresponded to a dropped clause, so nothing could
 ///    expose the asymmetry — and `ManaAbility::scaled_amount`, which SF-8 added, is the
 ///    only thing that makes the registered side able to identify one.
-/// 3. **"Add one mana of any color" is invisible to this gate, on both sides, and
-///    passes vacuously (SR-34 review Finding 4 / SF-12).** On the *printed* side, this
-///    parser requires a `{` after the cost (see the `strip_prefix('{')` walk below);
-///    "Add one mana of any color." has no brace, so the walk finds no colours,
-///    `printed` is empty, and the caller's `if printed.is_empty() { continue; }` skips
-///    the card entirely. On the *registered* side, `registered_colors` reads
-///    `ma.produces.keys()`, which is empty for an `any_color: true` `ManaAbility`
-///    (probed: Mana Confluence reports `produces={} any_color=true`). So a card like
-///    Mana Confluence, Birds of Paradise, or Command Tower — CR 106.1a/106.1b: printing
-///    "any color" but registering/producing `{C}` (SF-11) — is never even examined by
-///    `every_complete_land_registers_each_printed_tap_mana_color`, let alone flagged.
-///    Fix shape (SF-12): teach this parser the "one mana of any color" / "an amount of
-///    mana of that color" phrasings (all five colours), and teach `registered_colors`
-///    that `any_color: true` means "claims all five" — the two must land together, or a
-///    parser-only fix produces a `missing`-everything failure that blames the wrong
-///    side. Not fixed here: it is the SF-11 extension by another name and carries the
-///    same scope-bounded deferral.
+/// 3. **"Add one mana of any color" — now handled (SR-37 / SF-12), was invisible on both
+///    sides.** Previously: on the *printed* side this parser required a `{` after the cost
+///    (the `strip_prefix('{')` walk below), and "Add one mana of any color." has no brace,
+///    so `printed` was empty and the caller's `if printed.is_empty() { continue; }` skipped
+///    the card; on the *registered* side `registered_colors` read only `ma.produces.keys()`,
+///    empty for an `any_color: true` `ManaAbility` (probed: Mana Confluence reports
+///    `produces={} any_color=true`). So Mana Confluence / Birds of Paradise / Command Tower —
+///    CR 106.1a/106.1b: printing "any color" but producing `{C}` (SF-11) — passed vacuously.
+///    SR-37 closes both halves, and they had to land together (the finding's warning): the
+///    printed side now seeds all five colours on the "one mana of any color" phrasing (see
+///    the `clause_line` check below), and `registered_colors` now reports the `{Colorless}`
+///    an `any_color` ability truly adds. An any-color land that produces `{C}` therefore
+///    fails with `missing {W,U,B,R,G}, invented {C}` — the honest report — rather than being
+///    skipped. In practice every such def is now `known_wrong` (SF-11 demotions), so this
+///    gate, scoped to `Complete`, does not fire on them; the machinery is a **backstop** and
+///    is pinned non-vacuously by `land_color_gate_is_not_blind_to_any_color_lands`.
+///    NB: `registered_colors` maps `any_color` to the true production `{Colorless}`, not to
+///    "all five" — the finding's suggested "claims all five" would make the gate *pass* an
+///    any-color land (both sides five); reporting the real `{C}` is what makes it fail.
 fn printed_tap_mana_colors(oracle: &str) -> BTreeSet<ManaColor> {
     let mut out = BTreeSet::new();
     for (idx, _) in oracle.match_indices(": Add ") {
@@ -346,6 +432,28 @@ fn printed_tap_mana_colors(oracle: &str) -> BTreeSet<ManaColor> {
         // it can only ever under-report, never invent a colour.
         let mut rest = &oracle[idx + ": Add ".len()..];
         let mut clause_colors = BTreeSet::new();
+        // SR-37 / SF-12: "one mana of any color" prints all five colours but writes no
+        // brace, so the symbol walk below finds nothing and the clause used to vanish.
+        // Detect the phrasing (bounded to this clause's own line) and seed all five.
+        // Paired with `registered_colors` mapping an `any_color: true` ManaAbility to
+        // {Colorless}: an any-color land that produces {C} then fails this gate with
+        // `missing {W,U,B,R,G}, invented {C}` — the honest report (CR 106.1a/106.1b).
+        let clause_line = oracle[idx + ": Add ".len()..]
+            .split('\n')
+            .next()
+            .unwrap_or("");
+        if clause_line.contains("mana of any color")
+            || clause_line.contains("mana of any of the colors")
+            || clause_line.contains("mana of any one color")
+        {
+            clause_colors.extend([
+                ManaColor::White,
+                ManaColor::Blue,
+                ManaColor::Black,
+                ManaColor::Red,
+                ManaColor::Green,
+            ]);
+        }
         loop {
             rest = rest.trim_start_matches([' ', ',']);
             if let Some(r) = rest.strip_prefix("or ") {
@@ -401,7 +509,18 @@ fn registered_colors(
         // amounts ARE verified, by activation, in
         // `primitives/primitive_sr36_scaled_mana_and_life_costs.rs`.
         .filter(|ma| ma.scaled_amount.is_none())
-        .flat_map(|ma| ma.produces.keys().copied())
+        .flat_map(|ma| {
+            // SR-37 / SF-12: an `any_color: true` ManaAbility carries an empty `produces`
+            // (probed: Mana Confluence reports `produces={} any_color=true`) but actually
+            // adds one `ManaColor::Colorless` — `handle_tap_for_mana` step 8. Report that,
+            // so the gate sees the {C} an "any color" land really makes rather than an
+            // empty set that passes vacuously (SF-11/SF-12).
+            let mut cs: Vec<ManaColor> = ma.produces.keys().copied().collect();
+            if ma.any_color {
+                cs.push(ManaColor::Colorless);
+            }
+            cs
+        })
         .collect()
 }
 
@@ -458,6 +577,56 @@ fn every_complete_land_registers_each_printed_tap_mana_color() {
          (CR 605.1a) — the SR-33 defect class. `missing` is a printed colour the card \
          cannot make (what SR-33 fixed); `invented` is a colour it makes but does not \
          print: {failures:#?}"
+    );
+}
+
+/// SR-37 / SF-12 non-vacuity: prove `every_complete_land_registers_each_printed_tap_mana_color`
+/// is no longer structurally blind to an "any color" land. Command Tower prints "Add one mana
+/// of any color" and registers an `any_color: true` `ManaAbility` that produces `{C}`. The
+/// parser must now see all five printed colours, and `registered_colors` must report the
+/// `{Colorless}` actually produced — so the gate's `missing`/`invented` sets are both
+/// non-empty and it *would* flag this card were it `Complete`. (It is not: SF-11 demoted it
+/// to `known_wrong`, so the live gate skips it — this test exercises the machinery directly,
+/// bypassing the completeness scope.)
+#[test]
+fn land_color_gate_is_not_blind_to_any_color_lands() {
+    let defs = defs_map();
+    let def = defs.get("Command Tower").expect("Command Tower has a def");
+
+    let printed = printed_tap_mana_colors(&def.oracle_text);
+    let all_five: BTreeSet<ManaColor> = [
+        ManaColor::White,
+        ManaColor::Blue,
+        ManaColor::Black,
+        ManaColor::Red,
+        ManaColor::Green,
+    ]
+    .into_iter()
+    .collect();
+    assert_eq!(
+        printed, all_five,
+        "\"Add one mana of any color\" must parse to all five colours, not empty (SF-12)"
+    );
+
+    let registered = registered_colors(def, &defs);
+    assert_eq!(
+        registered,
+        [ManaColor::Colorless].into_iter().collect::<BTreeSet<_>>(),
+        "an any_color ManaAbility must register the {{C}} it actually produces (SF-12), not \
+         an empty set that would pass vacuously"
+    );
+
+    // The gate's two difference sets — both non-empty means the card is caught, not skipped.
+    let missing: BTreeSet<_> = printed.difference(&registered).collect();
+    let invented: BTreeSet<_> = registered.difference(&printed).collect();
+    assert_eq!(
+        missing.len(),
+        5,
+        "all five printed colours are unproducible — the gate must report them missing"
+    );
+    assert!(
+        invented.contains(&&ManaColor::Colorless),
+        "the {{C}} it really makes must show as invented"
     );
 }
 
