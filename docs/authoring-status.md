@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-17 05:38 UTC  
-**Git:** `2943a8bd` on `feat/sr-34-mana-abilities-with-additional-costs-are-never-registe`  
+**Generated:** 2026-07-17 07:33 UTC  
+**Git:** `1a3602bc` on `feat/sr-36-sf-8-sf-9-both-high-addmanascaled-taps-for-exactly-1-g`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,8 +25,8 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 194 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **108%** (1,763 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 57.1% | 998 | -17 |
-| With TODO markers | 688 | +17 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 57.3% | 1,001 | · |
+| With TODO markers | 685 | · |
 | Empty `abilities: vec![]` placeholders | 62 | · |
 | Total TODO lines across all defs | 1,045 | · |
 
@@ -34,10 +34,10 @@ and what is intentionally NOT in it.**
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 1,375 |
-| last 30 days | 0 | 1,697 |
-| last 90 days | 0 | 1,737 |
-| last 1 year | 1,773 | 2,120 |
+| last 7 days | 0 | 2,595 |
+| last 30 days | 0 | 2,918 |
+| last 90 days | 0 | 2,958 |
+| last 1 year | 1,773 | 3,341 |
 
 ## Bonus defs outside the plan
 
@@ -69,10 +69,10 @@ are blocked on engine primitives.
 | `combat-keyword` | 187 / 187 | 100% | 76 | 103 | 8 |
 | `draw` | 163 / 169 | 96% | 69 | 83 | 11 |
 | `token-create` | 145 / 155 | 94% | 68 | 77 | 0 |
-| `land-etb-tapped` | 138 / 138 | 100% | 115 | 23 | 0 |
+| `land-etb-tapped` | 138 / 138 | 100% | 116 | 22 | 0 |
 | `other` | 108 / 131 | 82% | 67 | 41 | 0 |
 | `modal-choice` | 68 / 105 | 65% | 31 | 37 | 0 |
-| `mana-land` | 92 / 92 | 100% | 55 | 36 | 1 |
+| `mana-land` | 92 / 92 | 100% | 57 | 34 | 1 |
 | `body-only` | 55 / 70 | 79% | 26 | 10 | 19 |
 | `removal-destroy` | 56 / 56 | 100% | 33 | 21 | 2 |
 | `counters-plus` | 49 / 49 | 100% | 21 | 27 | 1 |
@@ -221,18 +221,18 @@ tyvar_jubilant_brawler: // TODO: static — creatures you control can activate a
 
 ## ⚠ Completeness-marker drift
 
-6 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
+3 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
 
 - `ashnods_altar` — marked partial but has no TODO / ENGINE-BLOCKED comment
-- `cabal_coffers` — marked partial but has no TODO / ENGINE-BLOCKED comment
-- `cabal_stronghold` — marked partial but has no TODO / ENGINE-BLOCKED comment
-- `crypt_of_agadeem` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `phyrexian_tower` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `temple_of_the_dragon_queen` — marked partial but has no TODO / ENGINE-BLOCKED comment
 
 ## Recent card-touching commits
 
 ```
+ae14ed5a scutemob-91: SR-35 — rustfmt gate over the card-def corpus (was checking zero files)
+1fa03bc6 scutemob-90: apply SR-34 review fixes (0 HIGH, 5 MEDIUM, 3 LOW — all 8 resolved)
+5cadf2ca scutemob-90: SR-34 roster reconciliation (criterion 4767) — 27 defs probed, 17 markers, 10 certified
 b0290d2c scutemob-90: SR-34 §9 — un-demote the 3 horizon lands, extend the SR-33 colour gate to composite costs
 247437f1 scutemob-90: SR-34 steps 1-6 — ManaAbility gains mana_cost/life_cost, handle_tap_for_mana pays them, mana-ability lowering widens from bare Cost::Tap
 104bd5e3 scutemob-89: review fixes — gate AddManaChoice (3rd stub), correct 3 wrong findings, fmt
@@ -255,9 +255,6 @@ cbcc02d8 W6-cards: PB-AC7 backfill — 5 clean cards + 2 partial-clause improvem
 bcc96cdf W6-cards: PB-AC6 — fix card review findings (2 HIGH, 1 MEDIUM)
 e71b11d4 W6-cards: PB-AC6 backfill — partials, Kaito +1, and marker correction sweep
 286c2b18 W6-cards: PB-AC6 backfill — 6 clean cards + integration tests
-5920a5eb W6-prim: PB-AC5 review fixes — 2 HIGH hash-corruption defects
-32bd607d W6-prim: PB-AC5 — Warp, Transmute, Exert, pitch alt-costs
-5df8ed1a W6-cards: PB-AC4 — precise rakdos_charm ENGINE-BLOCKED marker
 ```
 
 ## Missing card-defs sidecar

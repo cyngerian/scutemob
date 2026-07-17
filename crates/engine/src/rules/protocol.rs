@@ -72,7 +72,14 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   what it does, not what it costs; `handle_tap_for_mana` now pays these). The
 ///   closure stays 91 types (no new type joins it, `ManaCost` was already in the
 ///   closure), but `ManaAbility`'s declared shape changed, so the digest moves.
-pub const PROTOCOL_VERSION: u32 = 3;
+/// - 4: SR-36 (2026-07-17) — SF-8/SF-9: `ManaAbility` gains
+///   `scaled_amount: Option<Box<EffectAmount>>` (a dynamic mana amount, CR 605.1a) and
+///   `ActivationCost` (reachable via `Characteristics.activated_abilities: Vec<ActivatedAbility>`
+///   → `ActivatedAbility.cost: ActivationCost`) gains `life_cost: u32` (CR 118.3/119.4
+///   — a non-mana activated ability's life-payment component). `EffectAmount` was
+///   already in the closure (via `Effect`), so the closure's type count is unchanged;
+///   both structs' declared shapes moved, so the digest moves.
+pub const PROTOCOL_VERSION: u32 = 4;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -90,7 +97,7 @@ pub const PROTOCOL_VERSION: u32 = 3;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "c23d09a7956b239cc1a4edfe629b268b37a2918138def227c9ba373d805ea0f6";
+    "45dd82a14adf0b7e2247f7d22fad32c017adf9a25cc4129c92c489513c4ae4d4";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -156,6 +163,12 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // SR-34 (2026-07-17): ManaAbility gained mana_cost/life_cost (see the `- 3:`
         // History line above).
         fingerprint: "c23d09a7956b239cc1a4edfe629b268b37a2918138def227c9ba373d805ea0f6",
+    },
+    ProtocolEpoch {
+        version: 4,
+        // SR-36 (2026-07-17): ManaAbility gained scaled_amount; ActivationCost gained
+        // life_cost (see the `- 4:` History line above).
+        fingerprint: "45dd82a14adf0b7e2247f7d22fad32c017adf9a25cc4129c92c489513c4ae4d4",
     },
 ];
 

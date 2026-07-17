@@ -9,8 +9,10 @@
 //! land's "Pay 1 life") in addition to `{T}` / sacrifice-self. A cost component that needs a
 //! caller-supplied `ObjectId` (discard a card, sacrifice *another* permanent, remove a
 //! counter) has no channel through `Command::TapForMana` and is out of scope — those
-//! abilities stay stack-using activated abilities (SF-9, SF-8; see
-//! `memory/card-authoring/sr34-engine-findings-2026-07-17.md`).
+//! abilities stay stack-using activated abilities.
+//!
+//! SR-36: production may also be dynamic (`ManaAbility::scaled_amount`, e.g. Gaea's
+//! Cradle's "for each creature you control") rather than the fixed `produces` count.
 use super::events::{CombatDamageTarget, GameEvent};
 use crate::cards::card_definition::{
     AbilityDefinition, Effect, ManaSourceFilter, TriggerCondition,
@@ -225,6 +227,21 @@ pub fn handle_tap_for_mana(
             amount: ability.life_cost,
         });
     }
+    // 6c. SR-36 (CR 605.1a): resolve a dynamic mana amount (Gaea's Cradle, Elvish
+    //     Archdruid, Priest of Titania, Marwyn the Nurturer, Circle of Dreams Druid,
+    //     Cabal Coffers, Cabal Stronghold, Crypt of Agadeem). `resolve_amount`'s
+    //     `PermanentCount` arm (`effects/mod.rs`) filters on zone/phased-in only, never
+    //     on tapped status, so resolving after the {T} tap in step 6 is safe even for the
+    //     creature sources that count creatures (they count themselves too, tapped or
+    //     not). Must run BEFORE step 7's sacrifice cost: Marwyn's count is
+    //     `EffectAmount::PowerOf(EffectTarget::Source)`, which needs `source` to still be
+    //     a live ObjectId (CR 400.7) — none of the current roster combines a scaled
+    //     amount with `sacrifice_self`, but this ordering keeps that combination correct
+    //     if one is ever authored.
+    let resolved_scaled_amount: Option<u32> = ability.scaled_amount.as_ref().map(|amt| {
+        let ctx = crate::effects::EffectContext::new(player, source, vec![]);
+        crate::effects::resolve_amount(state, amt, &ctx).max(0) as u32
+    });
     // SR-28 (CR 106.12a / CR 106.12b): Snapshot the source's layer-resolved
     // characteristics BEFORE the sacrifice cost step below. A {T}+Sacrifice mana
     // source (Treasure — CR 111.10a; Crystal Vein; Dwarven Ruins) is a dead ObjectId
@@ -297,12 +314,17 @@ pub fn handle_tap_for_mana(
     //     to append to the mana pool after multiplication (CR 106.6a).
     let (mana_multiplier, mana_additions) = if ability.requires_tap {
         // Compute base mana preview for color-filter checks in apply_mana_production_replacements.
+        // SR-36: a scaled ability's `produces` amount is a `1`-per-colour marker, not the
+        // real count (see `ManaAbility::scaled_amount`'s doc comment) — substitute the
+        // resolved amount so a multiplier replacement (Nyxbloom Ancient) multiplies the
+        // real count, not the marker.
         let mut base_preview: Vec<(ManaColor, u32)> = Vec::new();
         if ability.any_color {
             base_preview.push((ManaColor::Colorless, 1));
         } else {
             for (color, amount) in &ability.produces {
-                base_preview.push((*color, *amount));
+                let amount = resolved_scaled_amount.unwrap_or(*amount);
+                base_preview.push((*color, amount));
             }
         }
         apply_mana_production_replacements(state, player, &base_preview, &source_pre_cost_chars)
@@ -329,6 +351,8 @@ pub fn handle_tap_for_mana(
     } else {
         let player_state = state.player_mut(player)?;
         for (color, base_amount) in &ability.produces {
+            // SR-36: substitute the resolved dynamic amount for the `1`-per-colour marker.
+            let base_amount = resolved_scaled_amount.unwrap_or(*base_amount);
             let amount = base_amount * mana_multiplier;
             player_state.mana_pool.add(*color, amount);
             events.push(GameEvent::ManaAdded {

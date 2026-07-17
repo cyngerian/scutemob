@@ -67,13 +67,7 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial(
-            "CR 605.1a/605.3b: the '{T}: Add {B}' ability IS a correctly registered mana ability, \
-             but '{2},{T}: Add {B} for each black creature card in your graveyard' is registered \
-             as a stack-using activated ability. The AMOUNT is correct (probed: 3 black creature \
-             cards in graveyard -> +3 black). Same Effect::AddManaScaled exclusion as Cabal \
-             Coffers; blocked on SF-8.",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

@@ -381,7 +381,17 @@
 ///   `mana_abilities` (if any) carry only default cost fields, so the two new feeds
 ///   are not themselves exercised by non-default values — the bump is mandatory
 ///   regardless, per the checklist above.
-pub const HASH_SCHEMA_VERSION: u8 = 41;
+/// - 42: SR-36 (2026-07-17) — SF-8/SF-9 (`memory/card-authoring/sr34-engine-findings-2026-07-17.md`):
+///   `ManaAbility` gains `scaled_amount: Option<Box<EffectAmount>>` (a dynamic mana amount,
+///   e.g. Gaea's Cradle's "for each creature you control", CR 605.1a) and
+///   `ActivationCost` gains `life_cost: u32` (CR 118.3/119.4 — a non-mana activated
+///   ability's life-payment component). Both fed to `HashInto`: `scaled_amount` right
+///   after `ManaAbility::life_cost`, `ActivationCost::life_cost` right after `exert`.
+///   Two states differing only in either field must not hash identically.
+///   `decl_fingerprint` MOVES — two genuine struct-declaration changes (a new
+///   `#[serde(default)]` field on each of `ManaAbility` and `ActivationCost`).
+///   `stream_fingerprint` also moves, per the v40 mechanism.
+pub const HASH_SCHEMA_VERSION: u8 = 42;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -479,6 +489,15 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // stream's first byte).
         decl_fingerprint: "23a35b04194f1ad873972164daba7e6379889de61d2215347530c349f5d45c16",
         stream_fingerprint: "d3bfa1b49e41fdc5b8e44a67f8fa61de5dbd1b4f7e0f6de28b6109fa69a0246b",
+    },
+    HashSchemaEpoch {
+        version: 42,
+        // SR-36 (2026-07-17): ManaAbility gained scaled_amount; ActivationCost gained
+        // life_cost (see the `- 42:` History line above). decl_fingerprint moves
+        // (genuine struct-shape change on two structs); stream_fingerprint moves per
+        // the v40 mechanism.
+        decl_fingerprint: "076daf3beb23647e7e19b1d15820a85a344bac276c8a7ee10376471a8fff9750",
+        stream_fingerprint: "b4066259be357b02da366fd68fd23a9b2d78ff6145947ac30b93de8101e95a57",
     },
 ];
 
@@ -1415,6 +1434,9 @@ impl HashInto for ManaAbility {
         // must not hash identically.
         self.mana_cost.hash_into(hasher);
         self.life_cost.hash_into(hasher);
+        // SR-36: two states differing only in a mana ability's dynamic-amount
+        // expression must not hash identically.
+        self.scaled_amount.hash_into(hasher);
     }
 }
 impl HashInto for Characteristics {
@@ -2665,6 +2687,10 @@ impl HashInto for ActivationCost {
         // two ActivationCosts differing only in exert would produce identical hashes
         // (the exact PB-S H1 failure mode the comment above warns about).
         self.exert.hash_into(hasher);
+        // SR-36: life_cost field. Must be present or two ActivationCosts differing
+        // only in life_cost would produce identical hashes (the same PB-S H1 failure
+        // mode the comments above warn about).
+        self.life_cost.hash_into(hasher);
     }
 }
 impl HashInto for ActivatedAbility {

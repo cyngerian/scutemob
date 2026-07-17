@@ -9,9 +9,9 @@ use crate::{
     all_cards, register_commander_zone_replacements, AbilityDefinition, CardDefinition,
     CardEffectTarget, CardId, CardRegistry, CardType, Color, Command, Cost, DeathTriggerFilter,
     Designations, ETBTriggerFilter, Effect, EffectAmount, GameState, GameStateBuilder,
-    GameStateError, KeywordAbility, ManaAbility, ManaColor, ManaCost, ObjectSpec, PlayerId, Step,
-    TargetController, TargetFilter, TargetRequirement, TimingRestriction, TriggerCondition,
-    TriggerEvent, TriggeredAbilityDef, ZoneId,
+    GameStateError, KeywordAbility, ManaAbility, ManaColor, ManaCost, ObjectSpec, PlayerId,
+    PlayerTarget, Step, TargetController, TargetFilter, TargetRequirement, TimingRestriction,
+    TriggerCondition, TriggerEvent, TriggeredAbilityDef, ZoneId,
 };
 use imbl::OrdMap;
 /// Replay harness helpers — extracted from `crates/engine/tests/script_replay.rs`
@@ -2265,6 +2265,7 @@ pub fn enrich_spec_from_def(
                     remove_counter_cost: None,
                     exile_self: false,
                     exert: false,
+                    life_cost: 0,
                 },
                 description: "Outlast (CR 702.107a)".to_string(),
                 effect: Some(Effect::AddCounter {
@@ -3732,16 +3733,12 @@ fn mana_ability_cost_components(cost: &Cost) -> Option<ManaAbilityCost> {
 /// cost shapes this engine can pay without a stack (see its doc); `try_as_tap_mana_ability`
 /// recognises the mana-producing effect shapes.
 ///
-/// **Finding A (SR-34 §0): `AddManaScaled` is excluded from every cost shape except bare
-/// `Cost::Tap`.** `try_as_tap_mana_ability`'s `AddManaScaled` arm registers
-/// `produces = {color: 1}` as a marker — the actual dynamic count is only evaluated via
-/// stack resolution (`effects/mod.rs`), which `handle_tap_for_mana` cannot reach. Bare
-/// `Cost::Tap` + `AddManaScaled` keeps its pre-existing (broken, SF-8 — see
-/// `memory/card-authoring/sr34-engine-findings-2026-07-17.md`) behaviour unchanged; any
-/// *other* cost shape (e.g. Cabal Coffers's `{2},{T}`) must NOT be captured here, or it
-/// would demote from "correct via the stack" to "exactly one black mana" (Finding A). This
-/// exclusion is a documented, revisitable seam: deleting it is what re-includes Cabal
-/// Coffers once SF-8 lands.
+/// **SR-36: `AddManaScaled` is no longer excluded from any cost shape.** SF-8 gave
+/// `handle_tap_for_mana` an `AddManaScaled` branch (it resolves `ManaAbility::scaled_amount`
+/// via `resolve_amount`), so the ex-Finding-A exclusion that used to keep every
+/// non-bare-`Cost::Tap` `AddManaScaled` ability on the stack (Cabal Coffers, Cabal
+/// Stronghold, Crypt of Agadeem) is gone — `try_as_tap_mana_ability`'s `AddManaScaled` arm
+/// now carries the real amount for any cost shape `mana_ability_cost_components` accepts.
 fn mana_ability_lowering(
     targets: &[TargetRequirement],
     cost: &Cost,
@@ -3752,10 +3749,6 @@ fn mana_ability_lowering(
         return None;
     }
     let components = mana_ability_cost_components(cost)?;
-    let is_bare_tap = matches!(cost, Cost::Tap);
-    if !is_bare_tap && matches!(effect, Effect::AddManaScaled { .. }) {
-        return None;
-    }
     let mut ma = try_as_tap_mana_ability(effect)?;
     ma.requires_tap = components.requires_tap;
     ma.sacrifice_self = components.sacrifice_self;
@@ -3804,8 +3797,26 @@ fn try_as_tap_mana_ability(effect: &Effect) -> Option<ManaAbility> {
         });
     }
     // Scaled mana: {T}: AddManaScaled { color, count }
-    // Registers with produces={color: 1} as a marker; actual production is dynamic.
-    if let Effect::AddManaScaled { color, .. } = effect {
+    // `produces={color: 1}` is kept as the colour-channel marker SR-33's
+    // `every_complete_land_registers_each_printed_tap_mana_color` gate reads;
+    // `scaled_amount` carries the real `EffectAmount` for `handle_tap_for_mana` to
+    // resolve at activation (SR-36 — see the doc comment on `ManaAbility::scaled_amount`).
+    //
+    // SR-36: the stackless `TapForMana` path always pays the activating player. A
+    // scaled mana ability that adds mana to a player OTHER than its controller
+    // (`player` here is not `PlayerTarget::Controller`) cannot be lowered — declining
+    // (returning `None`) leaves it on the stack, where `Effect::AddManaScaled`'s
+    // stack-resolution arm already handles an arbitrary `PlayerTarget` correctly. This
+    // is correct-but-slow, not wrong.
+    if let Effect::AddManaScaled {
+        player,
+        color,
+        count,
+    } = effect
+    {
+        if !matches!(player, PlayerTarget::Controller) {
+            return None;
+        }
         let mut p = imbl::OrdMap::new();
         p.insert(*color, 1u32);
         return Some(ManaAbility {
@@ -3814,6 +3825,7 @@ fn try_as_tap_mana_ability(effect: &Effect) -> Option<ManaAbility> {
             sacrifice_self: false,
             any_color: false,
             damage_to_controller: 0,
+            scaled_amount: Some(Box::new(count.clone())),
             ..Default::default()
         });
     }
@@ -3869,8 +3881,9 @@ fn mana_pool_to_ability(
 }
 /// Convert a card-definition [`Cost`] into an [`ActivationCost`] for object characteristics.
 ///
-/// Handles `Tap`, `Mana`, `Sacrifice`, `DiscardCard`, and `Sequence` (recursively).
-/// Unrecognised cost components (`PayLife`) are silently ignored.
+/// Handles `Tap`, `Mana`, `Sacrifice`, `DiscardCard`, `PayLife` (SR-36) and `Sequence`
+/// (recursively). See `flatten_cost_into` for the components still without an
+/// `ActivationCost` representation — each is ignored here and named there.
 fn cost_to_activation_cost(cost: &Cost) -> ActivationCost {
     let mut ac = ActivationCost::default();
     flatten_cost_into(cost, &mut ac);
@@ -3912,7 +3925,9 @@ fn flatten_cost_into(cost: &Cost, ac: &mut ActivationCost) {
         Cost::DiscardSelf => ac.discard_self = true,
         Cost::Forage => ac.forage = true,
         Cost::ExileSelf => ac.exile_self = true,
-        Cost::PayLife(_) => {} // no ActivationCost representation yet
+        // SR-36: `+=`, not `=` — a `Cost::Sequence` may hold more than one `PayLife`
+        // component and this walk is recursive (CR 118.3 / 119.4).
+        Cost::PayLife(n) => ac.life_cost += *n,
         Cost::ExileFromHand { .. } => {} // pitch is a spell alt cost, not an activation cost
         Cost::Exert => ac.exert = true,
         Cost::RemoveCounter { counter, count } => {
