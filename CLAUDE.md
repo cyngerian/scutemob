@@ -18,7 +18,7 @@
 - **Invariant #9 is machine-enforced (SR-2).** `CardDefinition.completeness` (`Complete` by
   Default) marks a def `Inert` / `Partial` / `KnownWrong`; `validate_deck` rejects any
   non-`Complete` card with `DeckViolation::IncompleteCard`. `CardRegistry::try_new` errors on
-  duplicate CardIds. Current markers: 60 inert, 570 partial, 99 known-wrong (`scutemob-88`).
+  duplicate CardIds. Current markers: 62 inert, 570 partial, 97 known-wrong (`scutemob-88`).
   **New card defs must be `Complete` or carry a marker with a note** — an inert def now fails a
   test. **"Inert" means registers no *behaviour*, not `abilities: vec![]`** — a cost-reduction
   static is a `spell_cost_modifier`, not an `AbilityDefinition`, so those defs correctly ship an
@@ -49,7 +49,14 @@
   `abilities.is_empty()`, which is **not** the same as "registers no behaviour" — a cost-reduction
   static lives in `spell_cost_modifiers` — so the gate itself minted the false
   `inert("no abilities implemented")` markers it then demanded. Now `registers_no_behavior` +
-  `inert_gate_is_not_vacuous`. Method that made it work (per `feedback_verify_full_chain`):
+  `inert_gate_is_not_vacuous`. **Open follow-up (EF-13): 105 defs are marked `partial` but
+  register no behaviour at all — they are `Inert` by the taxonomy.** Not a safety issue (both are
+  non-`Complete`, so `validate_deck` rejects them alike), but it misreports the campaign's
+  todo/empty buckets; deferred because it moves headline numbers and is inherited drift.
+  **Count that class from `all_cards()`, never from source text** — the regex
+  `abilities:\s*vec!\[\s*\]` also matches inside `mana_abilities: vec![]`, the same trap
+  CLAUDE.md already records against the authoring report; it fired twice more during this task.
+  Method that made it work (per `feedback_verify_full_chain`):
   **variant existence is not proof a blocker is stale** — a `TriggerCondition` needs a builder arm
   in `enrich_spec_from_def` *and* a dispatch in `check_triggers`, and several `TargetFilter` fields
   are silently ignored by `matches_filter`. Calibration case `megrim.rs`: note false on every

@@ -28,7 +28,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::known_wrong("known_wrong(\"Oracle: 'Look at the top three cards of your library. Put one of them into your hand and the rest on the bottom of your library in any order. Proliferate.' Def approximates clause 1 as a blind DrawCards(1), which (a) skips the choice among three and (b) leaves the other two on TOP instead of the BOTTOM — the library order diverges permanently. Blocked on interactive selection (Effect::Choose is non-interactive, effects/mod.rs:3190). Effect::RevealAndRoute could route top-3 by filter but cannot express player choice. Proliferate is correct. Consider abilities: vec![] per W5.\")"),
+        completeness: Completeness::known_wrong("Oracle: 'Look at the top three cards of your library. Put one of them into your hand and the rest on the bottom of your library in any order. Proliferate.' Def approximates clause 1 as a blind DrawCards(1), which (a) skips the choice among three and (b) leaves the other two on TOP instead of the BOTTOM — the library order diverges permanently. Blocked on interactive selection (Effect::Choose is non-interactive, effects/mod.rs:3190). Effect::RevealAndRoute could route top-3 by filter but cannot express player choice. Proliferate is correct. Consider abilities: vec![] per W5."),
         ..Default::default()
     }
 }

@@ -20,7 +20,7 @@ pub fn card() -> CardDefinition {
             // TODO: untap all permanents you control during each other player's untap step
             //   (no TriggerCondition for "during opponent's untap step" + Effect::UntapAllYouControl)
         ],
-        completeness: Completeness::known_wrong("'untap all permanents you control during each other player's untap step' is the card's only ability and is omitted. Blocked solely on the hook — no TriggerCondition/TriggerEvent for another player's untap step (Effect::UntapAll{filter} already exists for the effect half)."),
+        completeness: Completeness::inert("'untap all permanents you control during each other player's untap step' is the card's only ability and is omitted, so this def registers no behaviour at all (CR: Inert, not KnownWrong — nothing is implemented-but-deviating). Blocked solely on the hook — no TriggerCondition/TriggerEvent for another player's untap step (Effect::UntapAll{filter} already exists for the effect half)."),
         ..Default::default()
     }
 }

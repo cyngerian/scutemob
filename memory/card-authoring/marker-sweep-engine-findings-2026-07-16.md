@@ -224,3 +224,62 @@ PROBE Caves of Koilos  mana_abilities=3  {Colorless:1}/{White:1 dmg1}/{Black:1 d
 Sol Ring **is** registered as a mana ability. This comment nearly talked this sweep out of a
 correct upgrade (Ancient Tomb's `{C}{C}` looked excluded by it). Fix the comment to describe
 what `mana_pool_to_ability` actually does.
+
+---
+
+## EF-13 — 105 defs are marked `partial` but register no behaviour at all (they are `inert`) **[coordinator-verified against the compiled registry]**
+
+**Severity: MEDIUM (taxonomy/bookkeeping, not safety).** Raised by `/review` on scutemob-88;
+**not fixed here** — see "why deferred" below.
+
+`Completeness`'s taxonomy (`card_definition.rs:186-193`) is explicit:
+
+- `Inert` — "registers with no abilities at all … a blank permanent that happens to have the
+  right name, types, and mana cost."
+- `Partial` — "Some clauses are implemented and at least one is not."
+- `KnownWrong` — "**Every** clause is implemented, but at least one deliberately deviates."
+
+**105 defs marked `partial` implement *nothing*** — `registers_no_behavior` is true for them.
+By the taxonomy they are `Inert`. Examples: Academy Manufactor, Birthing Pod, Azami, Black
+Market Connections, Brokers Ascendancy, Agadeem's Awakening, Al Bhed Salvagers, Alandra.
+
+**Not a safety issue**: `Partial` and `Inert` are both non-`Complete`, so `validate_deck`
+rejects them identically (invariant #9 holds). It is a *bookkeeping* issue — it misreports the
+campaign's `todo` vs `empty` buckets — and a *trust* issue, since the taxonomy is the thing this
+sweep exists to make reliable.
+
+### The count is 105, not 99 — and the difference is itself the finding
+
+`/review` reported 99 from a source scan. The authoritative number, computed from the
+**compiled registry** (`all_cards()` + the `registers_no_behavior` predicate), is **105**.
+
+A text scan undercounts because the regex `abilities:\s*vec!\[\s*\]` also matches the substring
+inside **`mana_abilities: vec![]`**, so defs that really do have abilities get miscounted and
+defs that don't get missed. This is **the same bug CLAUDE.md already records** against the
+authoring report ("The prior 56.2% was an undercount: the authoring report's `abilities: vec![]`
+regex also matched nested `mana_abilities: vec![]`"). It was reproduced twice more during this
+task — once by the reviewer, once by the worker's own verification script, which is exactly why
+`pongify` and `martial_coup` were briefly and wrongly suspected of registering no behaviour.
+**Count this class from `all_cards()`, never from source text.**
+
+### Why deferred rather than fixed
+
+- It is 105 defs and would move the campaign's headline buckets (`todo` 667 → ~562,
+  `empty` 62 → ~167). That is a reporting change the campaign owner should make deliberately.
+- It is **inherited drift**, not introduced by scutemob-88: these markers' *kinds* were already
+  wrong; this task corrected their *notes* and their stale *blockers*.
+- It is not "a stale marker" in this task's sense (the stated blocker is often perfectly valid).
+
+### Recommended fix (one ticket)
+
+Reclassify the 105, then **machine-enforce the kind↔shape rule** so it cannot recur — the gate
+already has the predicate:
+
+```rust
+// a def that registers no behaviour is Inert by definition; Partial/KnownWrong both
+// claim something IS implemented.
+assert!(!(registers_no_behavior(d) && matches!(d.completeness, Partial(_) | KnownWrong(_))));
+```
+
+Pair it with the two defs already corrected here (`seedborn_muse`, `scavenging_ooze`), which are
+the same error and were fixed because `/review` named them individually.

@@ -124,9 +124,13 @@ fn test_all_cards_have_unique_card_ids() {
 /// fully implemented.
 ///
 /// So this asks the real question — does *any* behaviour-bearing field carry something?
-/// `oracle_text` / `name` / `types` / P/T are excluded: they are identity and
-/// characteristics, not behaviour, and a vanilla creature has no rules text to begin with
-/// (so it never reaches this check).
+///
+/// Excluded on purpose, as identity/characteristics rather than behaviour: `card_id`,
+/// `name`, `mana_cost`, `types`, `oracle_text`, `power`, `toughness`, `color_indicator`,
+/// `completeness` — and `starting_loyalty`, which is a *characteristic* (CR 208.2), not an
+/// ability: a planeswalker with a loyalty number and no loyalty abilities is exactly as
+/// inert as a blank permanent, and should be caught here. (A vanilla creature never
+/// reaches this check at all: it has no printed rules text.)
 ///
 /// **Adding a behaviour-bearing field to `CardDefinition` means adding it here**, or the
 /// gate will demand an `inert` marker on a def that is actually complete.
@@ -139,7 +143,6 @@ fn registers_no_behavior(d: &CardDefinition) -> bool {
         && d.back_face.is_none()
         && d.adventure_face.is_none()
         && d.meld_pair.is_none()
-        && d.starting_loyalty.is_none()
         && !d.cant_be_countered
         && !d.self_exile_on_resolution
         && !d.self_shuffle_on_resolution

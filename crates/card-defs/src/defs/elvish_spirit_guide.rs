@@ -31,7 +31,7 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
         ],
-        completeness: Completeness::known_wrong("known_wrong(\"Oracle: 'Exile this creature from your hand: Add {G}.' Hand activation is inexpressible — ActivationZone (card_definition.rs:4049) has only Graveyard. The def currently ships a FREE, repeatable, battlefield-activated 'Add {G}' (cost: Cost::Mana(default), activation_zone: None) = unbounded infinite mana. Blocked on ActivationZone::Hand + an exile-self-from-hand cost. Consider abilities: vec![] per W5 until then.\")"),
+        completeness: Completeness::known_wrong("Oracle: 'Exile this creature from your hand: Add {G}.' Hand activation is inexpressible — ActivationZone (card_definition.rs:4049) has only Graveyard. The def currently ships a FREE, repeatable, battlefield-activated 'Add {G}' (cost: Cost::Mana(default), activation_zone: None) = unbounded infinite mana. Blocked on ActivationZone::Hand + an exile-self-from-hand cost. Consider abilities: vec![] per W5 until then."),
         ..Default::default()
     }
 }
