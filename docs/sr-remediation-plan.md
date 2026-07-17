@@ -754,6 +754,32 @@ Task-specific extras:
 _One entry per session, newest first. Format:_
 `- YYYY-MM-DD — SR-<N> (scutemob-<id>) — <status: done / in progress / blocked> — <one-line outcome + hazards + pointer for next session>`
 
+- 2026-07-17 — SR-36 (scutemob-92) — **ready for collection** — **SF-8 + SF-9 fixed (both HIGH); the
+  roster was the finding.** SF-8: `handle_tap_for_mana` had no `AddManaScaled` branch and read the
+  registered `produces: {colour: 1}` *marker* literally — Gaea's Cradle tapped for exactly 1 green
+  regardless of board (`ManaAbility::scaled_amount` + step 6c resolve it via `resolve_amount`, CR
+  605.1a). That is what made deleting SR-34's Finding-A exclusion correct, so it is deleted: Cabal
+  Coffers / Cabal Stronghold / Crypt of Agadeem are now real mana abilities and **upgraded `Partial`
+  → `Complete`** (coverage 57.1% → **57.3%**, marker drift 6 → 3 — an increase, unlike the last three
+  SRs). SF-9: `flatten_cost_into` mapped `Cost::PayLife(_) => {}` and `ActivationCost` had no life
+  field, so **every activated ability not lowered into a `ManaAbility` paid nothing**
+  (`ActivationCost::life_cost` + payment in `handle_activate_ability`, CR 118.3/119.4, CR 119.4b
+  short-circuit). **The corpus scan SR-34 said was still owed is now run**: 28 rows, 14 on `Complete`
+  defs — the **entire 11-card fetchland cycle** plus Doom Whisperer, Razaketh, Warren Soultrader, all
+  `Complete` and **free** in legal decks. Conversely SF-8's roster is **smaller** than filed — its 5
+  speculative cards carry `AddManaScaled` on `Spell`/`Triggered` abilities (stack-resolved, always
+  correct) or only in aspirational notes; falsified, as that finding's own caveat allowed. Paths are
+  disjoint by construction (`mana_ability_lowering` is the same call that builds the `ManaAbility` and
+  excludes it from `activated_abilities`) — no double-charge. `PROTOCOL_VERSION` 3→4,
+  `HASH_SCHEMA_VERSION` 41→42, machine-forced. Review **0 HIGH**, 3 MEDIUM all closed — the sharpest
+  was a **vacuous decoy in this task's own test** (`cabal_stronghold_counts_only_basic_swamps` used a
+  decoy with no subtypes, so `matches_filter` rejected it before the `basic` check; deleting
+  `basic: true` left it green — now Bayou, and deleting the field fails it 3≠2), plus a third
+  consecutive stale-marker note. SF-8 also exposed a live asymmetry in SR-33's colour gate (printed
+  side dropped "for each" clauses, registered side did not). 3319 tests.
+  **Next:** SG-1 (MEDIUM, `memory/card-authoring/sr36-engine-findings-2026-07-17.md`) — the
+  simulator's `LegalActionProvider` ignores `life_cost`, harmless while the cost was dropped, now it
+  offers bots unpayable actions. SF-10/SF-11/SF-12 and EF-13 remain open and untouched.
 - 2026-07-17 — SR-35 (scutemob-91) — **ready for collection** — **the card corpus is format-checked for
   the first time; the brief's fix would have covered 21% of it.** `cargo fmt --all -- --check` exits 0
   having checked **zero** of the 1,748 defs (rustfmt walks `mod` decls textually — no macro expansion, no

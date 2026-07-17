@@ -521,7 +521,8 @@ pub fn handle_activate_ability(
             object_id: source,
         });
     }
-    // SR-36 / SF-9 (CR 118.3 / CR 119.4b): life-cost legality check, before any cost is paid.
+    // SR-36 / SF-9 (CR 118.3 / CR 119.4b): life-cost legality check, before the mana cost
+    // is paid (the {T} cost above is already paid by this point).
     // Mirrors `handle_tap_for_mana`'s step 5b (`rules/mana.rs`) — the mana-ability and
     // non-mana-ability paths are disjoint by construction (`mana_ability_lowering` in
     // `testing/replay_harness.rs`: an ability that lowers into a `ManaAbility` is excluded

@@ -3881,8 +3881,9 @@ fn mana_pool_to_ability(
 }
 /// Convert a card-definition [`Cost`] into an [`ActivationCost`] for object characteristics.
 ///
-/// Handles `Tap`, `Mana`, `Sacrifice`, `DiscardCard`, and `Sequence` (recursively).
-/// Unrecognised cost components (`PayLife`) are silently ignored.
+/// Handles `Tap`, `Mana`, `Sacrifice`, `DiscardCard`, `PayLife` (SR-36) and `Sequence`
+/// (recursively). See `flatten_cost_into` for the components still without an
+/// `ActivationCost` representation — each is ignored here and named there.
 fn cost_to_activation_cost(cost: &Cost) -> ActivationCost {
     let mut ac = ActivationCost::default();
     flatten_cost_into(cost, &mut ac);

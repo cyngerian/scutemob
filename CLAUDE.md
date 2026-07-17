@@ -33,7 +33,7 @@
   accessors, gated on the `test-util` feature (self dev-dependency). **`cargo build
   --workspace` is the only gate that proves the seal** — `test --all` and `clippy
   --all-targets` enable `test-util` workspace-wide via feature unification. It is a CI step.
-- **Tests**: **3305 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
+- **Tests**: **3319 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
   — and `fmt` here means `cargo fmt --check` **plus** `tools/check-defs-fmt.sh`, which is the only one
   of the two that looks at the 1,748 card defs (SR-35)
 - **CI**: **LIVE and green** since 2026-07-10 (SR-1, merge `e9742dc2`) — single Ubuntu job (fmt + clippy + `build --workspace` + full tests) on push/PR to main + workflow_dispatch; rust-cache@v2, 45m timeout. **Toolchain pinned (SR-11, `scutemob-63`)**: `rust-toolchain.toml` pins exact stable `1.95.0` and CI reads that `channel` from the file (no more floating to latest stable), so local `clippy -D warnings` is an authoritative CI preview. SR remediation track: original SR-1..16 all DONE 2026-07-10; a 2026-07-11 re-audit of the remediated baseline filed **SR-17..SR-32**, all DONE 2026-07-14..16 (16/16 collected; full record: `docs/sr-remediation-plan.md`).
@@ -215,7 +215,53 @@
   `initial_state` fields the harness ignores. **Only 6 of `translate_player_action`'s 60+ `Command`
   shapes are cross-validated**; the alt-cost translations (convoke, delve, escape, kicker, casualty,
   splice, escalate, modal, mutate, ninjutsu…) are not. Adding a scenario is cheap.
-- **Last Updated**: 2026-07-17 (**SR-35 collected, `scutemob-91`** — the card corpus is
+- **An activation cost is only paid if some code pays it, and nothing was checking (SR-36).**
+  Two HIGH defects, both pre-existing, both fixed: (1) `handle_tap_for_mana` had no
+  `AddManaScaled` branch and read the registered `produces: {colour: 1}` **marker**
+  literally, so Gaea's Cradle tapped for exactly 1 green regardless of board state
+  (`ManaAbility::scaled_amount` + step 6c now resolve it via `resolve_amount`, CR 605.1a);
+  (2) `flatten_cost_into` mapped `Cost::PayLife(_) => {}` and `ActivationCost` had no life
+  field, so **any activated ability not lowered into a `ManaAbility` paid no life at all**
+  (`ActivationCost::life_cost` + a payment step in `handle_activate_ability`, CR 118.3/119.4,
+  with the CR 119.4b short-circuit — a 0 cost is payable at negative life). The two payment
+  paths are **disjoint by construction**: `mana_ability_lowering` is the same call that builds
+  the `ManaAbility` and excludes the ability from `activated_abilities`, so neither can
+  double-charge. **The rosters were the finding, not the fixes.** SR-34 filed SF-9 around
+  Staff of Compleation and said "a full corpus scan is still owed"; running it over
+  `all_cards()` found **28 ability rows, 14 on `Complete` defs** — the **entire 11-card
+  fetchland cycle** (Arid Mesa, Bloodstained Mire, Flooded Strand, Marsh Flats, Misty
+  Rainforest, Polluted Delta, Prismatic Vista, Scalding Tarn, Verdant Catacombs, Windswept
+  Heath, Wooded Foothills) plus Doom Whisperer, Razaketh and Warren Soultrader, all shipping
+  `Complete` and **free**, in legal decks, invisible to every marker and gate. Conversely
+  SF-8's roster is **smaller** than filed: the five cards it speculated about (Everflowing
+  Chalice, Elvish Guidance, Brightstone Ritual, Battle Hymn, Black Market) carry
+  `AddManaScaled` on a **`Spell`** or **`Triggered`** ability (both resolve through the stack,
+  where the amount was always evaluated correctly) or only in aspirational notes — falsified,
+  exactly as that finding's own "not re-verified" caveat warned. **A roster from
+  "by the same shape" reasoning is a hypothesis; enumerate `all_cards()` and filter on the
+  `AbilityDefinition` variant, never grep source** — a grep would have matched all five.
+  Deleting SR-34's Finding-A exclusion widened Cabal Coffers / Cabal Stronghold / Crypt of
+  Agadeem into real mana abilities, **upgraded `Partial` → `Complete`** (coverage 57.1% →
+  **57.3%**, marker drift 6 → 3 — an *increase*, unlike the last three SRs), each proven by
+  activation with a decoy its filter must exclude. **A decoy must fail on exactly the field
+  under test**: the reviewer caught that `cabal_stronghold_counts_only_basic_swamps` used
+  Cabal Coffers, which has *no subtypes*, so `matches_filter` rejected it on `has_subtype`
+  and never reached the `basic` check — deleting `basic: true` left the test green. Bayou
+  (Land — Forest Swamp, nonbasic) is the real decoy. SF-8 also **exposed an asymmetry in
+  SR-33's colour gate**: `printed_tap_mana_colors` drops a "for each" clause from the printed
+  side, but `registered_colors` read every mana ability, so the moment Cabal Stronghold's
+  scaled arm became real the gate cried `invented [Black]` against a card printing `{B}`
+  plainly — fixed by `scaled_amount.is_none()` there, and `scaled_amount` is the only thing
+  that lets the registered side identify a dynamic ability at all. `PROTOCOL_VERSION` 3→4,
+  `HASH_SCHEMA_VERSION` 41→42, both machine-forced. Review: **0 HIGH**, 3 MEDIUM (all closed,
+  incl. a third consecutive stale-marker note — `yawgmoth_thran_physician` said "un-author
+  until PayLife is representable"; it now is). Findings for the next SR:
+  `memory/card-authoring/sr36-engine-findings-2026-07-17.md` (**SG-1 MEDIUM: the simulator's
+  `LegalActionProvider` ignores `life_cost` — harmless while the cost was dropped, now it
+  offers bots unpayable actions**).
+- **Last Updated**: 2026-07-17 (**SR-36 collected, `scutemob-92`** — SF-8 + SF-9, both HIGH,
+  both fixed; see the bullet above. The headline is the roster, not the fix: 11 `Complete`
+  fetchlands were fetching for free. 3319 tests. Earlier: **SR-35 collected, `scutemob-91`** — the card corpus is
   format-checked for the *first time*: `cargo fmt --all -- --check` exits 0 having checked **zero** of
   the 1,748 defs, and 321 were misformatted. The brief's fix — "run rustfmt over the defs" — would have
   produced a gate **vacuous for 79% of the corpus**: a long `oracle_text` makes rustfmt fall back to
