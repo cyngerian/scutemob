@@ -15,13 +15,48 @@
 | W3: LOW Remediation | — | available | — | LOW Sweep campaign COMPLETE 2026-05-16 (`scutemob-31..38`): 36 LOWs closed, LOW-OPEN 45→6. 6 remain (honestly deferred). Plan: `memory/low-sweep-plan.md`. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available | — | **Card Authoring Campaign ACTIVE** — plan: `memory/card-authoring/campaign-plan-2026-05-16.md` (§0 recalibration 2026-07-07 is authoritative; PB-first sequencing). PB-AC1/AC2/AC3 shipped 2026-07-07/08 (`scutemob-43..45`). Next: dispatch PB-AC4 (modal & optional targeting), then AC5..AC9 in chain order. Clean coverage 951/1,748 = 54.4%. |
+| W6: Primitive + Card Authoring | — | available | — | **Card Authoring Campaign ACTIVE** — plan: `memory/card-authoring/campaign-plan-2026-05-16.md` (§0 recalibration 2026-07-07 authoritative). **PB-AC chain COMPLETE** — AC0..AC9 all shipped (`scutemob-41..47`, `49..52`). Clean coverage 1,006/1,748 = 57.6% (post-SR track). Next: re-read plan §0 against SR-2's machine-tracked completeness markers, then W-PB2 (~55 cards unblocked by AC4..AC6) / W-EMPTY + W-MISS derisking. |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
 `RETIRED` (replaced by another workstream)
 
 ## Last Handoff
+
+**Date**: 2026-07-08..10 (oversight session — coordinator dispatching; /eot run 2026-07-16)
+**Workstream**: W6: Primitive + Card Authoring — Card Authoring Campaign, PB-AC chain close
+**Task**: PB-AC4..AC9 dispatched, verified, collected (`scutemob-46/47/49/50/51/52`) — **AC chain complete (AC0..AC9)**
+
+**Completed** (all merged to main AND pushed same-day):
+- **PB-AC4** (`scutemob-46`, merge `dca25ec0`): `ModeSelection.mode_targets` per-mode targeting (CR 601.2c) + Escalate hard-reject fail-safe; UpToN verified already shipped by PB-T, not re-added. Review 0 HIGH / 1 MED fixed. Backfill 11 migrated (Casualties of War was uncastable; Cryptic Command stubs replaced) + 2 cleanups; 2 card HIGHs fixed. Tests 2940→2957; coverage 951→954.
+- **PB-AC5** (`scutemob-47`, merge `0ce2c470`): Warp (CR 702.185, exile/recast), Transmute, Exert (attack-cost AND activation-cost shapes), `Cost::ExileFromHand`+`AltCostKind::Pitch`, `CounterSpell.exile_instead` add-on. Review 2 HIGH (`was_warped`+`exert` unhashed — mutation-verified fixes). Backfill 6 clean (Force of Will/Vigor/Negation trio). Tests →2984; coverage →960. Worker corrected 3 brief errors (Warp was in CR; Exert is a keyword action; DoesNotUntap wrong model for Exert).
+- **PB-AC6** (`scutemob-49`, merge `0628807e`): first-main + postcombat-main generic CardDef sweeps, `WhenBecomesTarget` at announcement, 5 Conditions, 3 PlayerState trackers with all-player turn-boundary resets (plan's `spells_cast_this_turn` reuse rejected — wrong game state). Review 0 HIGH / 0 MED. Backfill 6 clean + marker-correction sweep over 13 blocked cards. Tests →3009; coverage →965.
+- **PB-AC7** (`scutemob-50`, merge `2f214906`): `SetCreatureTypes`/`SetCardTypes` Layer 4 (review HIGH = CR 205.1a correlated-subtype removal; + CR 613.8 payload-aware `depends_on` arms), `spell_subtype_filter`. LoseAbilities + one-shot Layer-4 override verified already-expressible. Backfill 5 clean. Tests →3035; coverage →970.
+- **PB-AC8** (`scutemob-51`, merge `a2aea440`): `CantAttackOwner`, `CantBeSacrificed` (cost-payment AND delayed-trigger choke points — review MED caught half-wiring, the verify-full-chain failure mode), `Effect::WinGame` w/ mandatory 4p test (worker corrected brief's inverted CR 104.3h). 2/5 briefed primitives already existed. Backfill 3 clean — all mis-triaged, blocked only by stale markers. Tests →3062; coverage →973.
+- **PB-AC9** (`scutemob-52`, merge `a4750cdb`): `WheelHand` + `SetNoMaximumHandSize` (unbriefed co-blocker); 3/5 briefed already existed (`RollDice` d20+results, `DoubleTokens`, `AddManaFilterChoice`); **token doubling rewired 2→13/13 creation sites** (doublers silently failing on Squad/Offspring/Myriad/Embalm/Eternalize/Encore/Living Weapon/Gift/Investigate/Amass — invisible to any marker). Review MED = Amass bypassing `apply_counter_replacement` (pre-existing, CR 701.47a). Backfill 11 clean (doubler trio, wheels, d20 dragons); 1 HIGH = Reforge the Soul stale Miracle marker. Tests →**3090**; coverage →**983 (56.2%)** at chain close.
+- Coordinator chores: filed `scutemob-48` (registry gate, invariant #9, from AC5 worker flag — since **CLOSED by SR-2**); fixed `/implement-primitive` skill wip path to `memory/primitives/primitive-wip.md` (`7c88a1be`) after the stale path caused a runner to clobber AC3's close-out; CLAUDE.md snapshot after each collection.
+
+**Not done / deferred**:
+- W-PB2 (~55 cards unblocked by AC4..AC6) not started; W-EMPTY / W-MISS derisking batches not run.
+- AC8+AC9 workers both recommended a campaign-wide stale-marker sweep — likely superseded by SR-2's machine-tracked completeness markers (68 inert / 627 partial / 47 known-wrong); reconcile before scheduling.
+
+**Next session candidates** (highest-yield first):
+- Re-read campaign plan §0 against the SR-2 completeness-marker system (and `docs/sr-remediation-plan.md`), then dispatch **W-PB2** — or a marker-reconciliation batch first if the plan still assumes comment markers.
+- W-EMPTY / W-MISS 12-card derisking batches (plan §0.4).
+
+**Hazards** (carrying forward):
+- **Recon-first is mandatory**: AC7/AC8/AC9 each found 2-3 of the brief's primitives already existing under other names — a grep proving absence is only as good as the name you guess; planners must verify under multiple names before building.
+- HashInto omissions were review HIGHs twice (AC1, AC5); engineered out from AC6 on by baking mutation-verified hash tests into acceptance criteria — keep that criterion in every engine-touching brief.
+- Coordinator briefs are advisory: workers correctly overturned brief claims 3x (Warp-in-CR, Exert shape, CR 104.3h). Keep verify-before-implement in every brief.
+- `cargo build --workspace` does NOT compile test targets — sub-agents falsely reported green twice; workers must re-run all gates themselves. (Post-SR-3 note: `build --workspace` is ALSO the only gate proving the GameState seal — run both.)
+- CR file bare `\r` line endings: rule-number greps silently match nothing — use the mtg-rules MCP, never grep.
+- Still applies: strictly-sequential dispatches (~30G `target/` per worktree); `esm task unlock` right after in_progress; phantom `.claude/skills/*` deletions never committed.
+
+**Commit prefix used**: worker `W6-prim:`/`W6-cards:`, `merge:` for merges, coordinator `chore:`.
+
+---
+
+## Previous Handoff (preserved for chain context)
 
 **Date**: 2026-07-08 (oversight session 2026-07-07/08 — coordinator dispatching)
 **Workstream**: W6: Primitive + Card Authoring — Card Authoring Campaign, PB chain
@@ -55,40 +90,11 @@
 
 ---
 
-## Previous Handoff (preserved for chain context)
-
-**Date**: 2026-07-07 session close (work merged under 2026-05-16/18 commit stamps)
-**Workstream**: W6: Primitive + Card Authoring — **Card Authoring Campaign launched**
-**Task**: Campaign triage + two derisking batches + one engine PB — `scutemob-39..42` + 1 chore, 5 merges, all local (origin 14 behind).
-
-**Completed** (all merged to main):
-- **scutemob-39** (merge `941e557e`): triage & scope — refreshed DSL gap audit (`memory/card-authoring/dsl-gap-audit-2026-05-16.md`) + campaign plan (`memory/card-authoring/campaign-plan-2026-05-16.md`). Plan estimate: ~435 authorable-now / ~470 engine-blocked behind 9 PBs (PB-AC1..AC9) / ~110 defer; ~75-session critical path.
-- **scutemob-40** (merge `80b7cc44`): W-NOW-1 batch 1, 12 stale-TODO cards. Disposition **4 CLEAN / 5 PARTIAL / 3 BLOCKED**. Surfaced that the creature-ETB harness path silently dropped `has_subtype`/nontoken filters (review: `memory/card-authoring/review-scutemob-40.md`).
-- **scutemob-41 / PB-AC0** (merge `df997fd2`): engine fix — creature-ETB path forwards `triggering_creature_filter` (`replay_harness.rs:2411`) and `abilities.rs` honors subtype + nontoken. Ganax + Lathliss ETB clauses now live; Miirym + The Great Henge latent over-triggers fixed. Reviewer NEEDS-FIX → PASS. Tests 2860→**2873** (+13).
-- **scutemob-42** (merge `a0da201f`): W-NOW-1 batch 2, 12 cards. Disposition **0 CLEAN / 8 PARTIAL / 4 BLOCKED** (review 0 HIGH / 0 MEDIUM / 3 LOW, all addressed).
-- **chore** (`fa4d593f`): `tools/authoring-report.py` counts `// ENGINE-BLOCKED` as incomplete — batch-2 cards had been miscounted clean (true clean 928 / 53.1%, not the false 938).
-
-**Not done / deferred**:
-- **Push to origin** — local main 14 commits ahead; a month of work exists only locally.
-- **Campaign plan recalibration** — measured fully-clean rate is 4/24 (~17%), well under the audit's NOW-EXPRESSIBLE estimate; plan still lists the ETB cluster as "stale" (resolved by PB-AC0) and overstates free-card yield.
-- PB-AC1..AC9 not started; W-NOW batches 3+ paused pending recalibration.
-
-**Next session candidates** (highest-yield first):
-- Push the 14 commits to origin (backup first).
-- Recalibrate `campaign-plan-2026-05-16.md`: mark ETB cluster resolved by PB-AC0; discount authorable-now using the measured 17%-clean / 67%-partial mix; reorder PB-track-first (engine primitives are the bottleneck, not authoring throughput).
-- Dispatch **PB-AC1** (untap / counter-placed / once-per-turn — highest-yield PB in the plan), then author its unblocked cohort behind it (the PB-AC0 rhythm: engine fix flips a whole cohort).
-
-**Hazards** (carrying forward):
-- Card authors mark incomplete clauses with `// TODO` OR `// ENGINE-BLOCKED` — any tooling or grep for incomplete cards must match BOTH markers (report tool fixed in `fa4d593f`).
-- Gap-audit "NOW-EXPRESSIBLE" claims must be verified per card: measured batches show most stale-TODO cards still carry ≥1 genuinely blocked clause.
-- Fresh worktrees show phantom `.claude/skills/*` deletions in `git status` — do NOT commit them (both workers correctly excluded; they vanish with the worktree).
-- Disk hazard from the LOW-sweep note still applies: run dispatches strictly sequential, one worktree at a time.
-
-**Commit prefix used**: worker `scutemob-N:` / `W5-cards:` / `W6-prim:`, `merge:` for merges, coordinator `chore:`.
-
----
-
 ## Handoff History
+
+### 2026-07-07 (coordinator session — campaign launch) — W6: Primitive + Card Authoring
+
+- **Campaign triage + 2 derisking batches + PB-AC0** (`scutemob-39..42` + chore, 5 merges): DSL gap audit + campaign plan written (~435 authorable-now estimate, falsified next session at 17% measured clean); W-NOW-1 batches 1-2 (4 CLEAN / 13 PARTIAL / 7 BLOCKED over 24 cards); **PB-AC0** creature-ETB filter forwarding (`df997fd2`, +13 tests, 2860→**2873**); `authoring-report.py` taught to count `// ENGINE-BLOCKED` (true clean 928 / 53.1%). Deferred at close: origin 14 ahead (pushed next session), plan recalibration (done next session as §0).
 
 ### 2026-05-16 (coordinator session — LOW Sweep campaign) — W3: LOW Remediation
 
@@ -106,9 +112,5 @@
 
 - **PB-XS shipped** (`scutemob-21`, merged `dbc17896`). `TargetFilter.exclude_self: bool` for "another target X" spell/ability target selection (CR 109.1 / 601.2c). Per-call-site validator enforcement across 4 filter-bearing TargetRequirement variants + 6 trigger auto-target-picker sites. 9 card defs updated (4 migrated bare `TargetCreature` → `TargetCreatureWithFilter`). HASH 18→**19**. Tests 2754→**2764** (+10). Review NEEDS-FIX → CLEAN (1 HIGH tautological test replaced with F-1/F-2 real-trigger discriminators). 5 OOS-XS seeds filed.
 
-### 2026-05-14 (PB-EWC) — W6: Primitive
-
-- **PB-EWC shipped** (`scutemob-20`, merged `9ea3ba8c`). `ReplacementModification::EntersWithCounters.count: u32 → Box<EffectAmount>` per CR 614.1c. Resolver builds `EffectContext` pinned to the replacement source and calls live-arm `resolve_amount` (handles `PowerOf(Source)`, `XValue`, `Fixed`). Zero pre-existing call-site reshapes — no live cards used the static u32. 2 cards: Master Biomancer counter half (Mutant-grant deferred to PB-EAT 2026-05-15) + Ingenious Prodigy (refactored from DEVIATION trigger stub to true replacement). HASH 17→**18**. Tests 2749→**2754** (+5). 3 OOS-EWC seeds filed; EWC-1 closed by 2026-05-15 PB-EAT, EWC-2 closed by 2026-05-15 OOS-EWC-2 dispatch, EWC-3 closed by 2026-05-15 PB-EWC-D.
-- Review: PASS-WITH-NITS (0 HIGH, 0 MEDIUM, 7 LOW). E1 (defensive-default + race comment) fixed inline; 6 LOW triaged.
 
 
