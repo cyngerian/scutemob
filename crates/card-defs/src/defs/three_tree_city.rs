@@ -56,6 +56,7 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
         ],
+        completeness: Completeness::known_wrong("CR 106.1b: '{2},{T}: Choose a color. Add an amount of mana of that color equal to the number of creatures you control of the chosen type' adds COLORLESS mana, not a chosen color — Effect::AddManaOfAnyColorAmount ignores the color choice entirely (effects/mod.rs: 'deterministic: adds N colorless'). The AMOUNT is correct (probed: 2 creatures of the chosen type -> 2 mana) and ChooseCreatureType is NOT a hardcoded stub (replacement.rs picks the controller's most common layer-resolved creature subtype; probed: chose Soldier, not the declared 'Human' default). Also CR 605.3b: uses the stack. The '{T}: Add {C}' ability is correct."),
         ..Default::default()
     }
 }

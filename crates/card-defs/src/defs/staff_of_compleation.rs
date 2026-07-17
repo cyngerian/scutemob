@@ -31,7 +31,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {T}, Pay 2 life: Add one mana of any color.
             AbilityDefinition::Activated {
@@ -46,7 +46,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {T}, Pay 3 life: Proliferate.
             AbilityDefinition::Activated {
@@ -59,7 +59,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {T}, Pay 4 life: Draw a card.
             AbilityDefinition::Activated {
@@ -75,7 +75,7 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {5}: Untap Staff of Compleation.
             AbilityDefinition::Activated {
@@ -85,9 +85,10 @@ pub fn card() -> CardDefinition {
                 timing_restriction: None,
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
+        completeness: Completeness::known_wrong("Two independent defects, both probed. (1) CR 106.1b: '{T}, Pay 2 life: Add one mana of any color' adds one COLORLESS mana (life IS paid: probed 40 -> 38); colorless is not a color, so this is wrong state. (2) SF-9 — the OTHER three abilities pay NO life at all: flatten_cost_into (testing/replay_harness.rs) maps Cost::PayLife(_) => {} and ActivationCost has no life field, so '{T}, Pay 3 life: Proliferate' and '{T}, Pay 4 life: Draw a card' both probed at life 40 -> 40. This card ships a free proliferate and a free draw. See memory/card-authoring/sr34-engine-findings-2026-07-17.md SF-9."),
         ..Default::default()
     }
 }

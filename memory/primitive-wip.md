@@ -1,135 +1,154 @@
-# Primitive WIP: PB-AC3 — Dynamic P/T & count amounts (CDA residual)
+# Primitive WIP: SR-34 — Mana abilities with additional costs are never registered
 
-batch: PB-AC3
-title: Dynamic P/T & count amounts (CDA residual)
-cards_affected: ~14 (discounted; real roster to be identified from oracle text)
-started: 2026-07-08
-phase: closed
-plan_file: memory/primitives/pb-plan-AC3.md
+batch: SR-34
+title: Composite-cost mana abilities (CR 605.1a) — `enrich_spec_from_def` only lowers bare `Cost::Tap`
+task: scutemob-90
+branch: feat/sr-34-mana-abilities-with-additional-costs-are-never-registe
+cards_affected: 39 defs w/ non-`Cost::Tap` mana-producing abilities (23 `Complete`) + 10 bare-`Cost::Tap`
+  defs that register nothing. Roster: `memory/primitives/sr34-affected-defs.md` (enumerated from
+  `all_cards()`). `ManaAbility { mana_cost, life_cost }` fixes 26 of 39.
+started: 2026-07-17
+phase: done
+plan_file: memory/primitives/pb-plan-sr34.md
+roster_file: memory/primitives/sr34-affected-defs.md
 
-## Close-out (2026-07-08)
-- Primitive review (primitive-impl-reviewer): 0 HIGH, 1 MEDIUM, 4 LOW. MEDIUM
-  fixed inline (Mirror Entity `AddAllCreatureTypes` moved Layer 6 -> Layer 4
-  `TypeChange`, CR 613.1d). 4 LOW pre-existing/out-of-scope. `pb-review-AC3.md`.
-- Card review (card-batch-reviewer, `pb-review-AC3-cards.md`): 7 CLEAN backfill
-  cards oracle-accurate; found 4 HIGH wrong-game-state on PARTIAL cards. ALL FIXED
-  (author now-expressible clause via PB-AC3 primitives, TODO the truly-blocked one):
-  mishra (Fixed(1)->AttackingCreatureCount), multani (dying 0/0 -> CdaModify Sum),
-  ashaya (dying */* -> CdaPowerToughness; removed overbroad token type-grant),
-  wight (omitted self-sac ability per vampire_gourmand precedent).
-- +2 CDA regression tests (Ashaya, Multani) -> 21 tests in pb_ac3 file, 2940 total.
-- Coverage: clean 946 -> 951 (54.1% -> 54.4%). Krenko misclassified 'empty' by a
-  pre-existing authoring-report.py regex bug (documented, out of scope).
-- Gates ALL GREEN: build --workspace, test --all (2940/0), clippy --all-targets
-  -D warnings, fmt --check.
-- Commits: 6daf98bc, 0f30d81e, af4ee811 (engine+backfill+gates), 0d274517 (MED fix),
-  d771b795 (card-review HIGH fixes + regression tests).
+## Plan headlines (2026-07-17) — read these before touching code
 
-## Coordinator decisions on plan (2026-07-08)
-- **HandSize**: ADD it (criterion 4225 names it literally) as a thin alias
-  `EffectAmount::HandSize { player }` delegating to the same counting logic as
-  `CardCount{Hand}` in BOTH resolve_amount and resolve_cda_amount; doc-comment flags
-  it as a convenience alias. Discriminant 21.
-- **Hash collision at LayerModification disc 26** (RemoveSuperType vs ModifyPowerDynamic):
-  FIX in-batch — reassign RemoveSuperType → next free disc; schema is already bumping.
+- **Finding A — the naive widening BREAKS Cabal Coffers.** `try_as_tap_mana_ability`'s
+  `AddManaScaled` arm registers `produces = {color: 1}` and calls it "a marker; actual production
+  is dynamic". Nothing makes it dynamic — the dynamic evaluation is only reachable via stack
+  resolution. Cabal Coffers is correct *today only because the `Cost::Tap` gate excludes it*.
+  `AddManaScaled` must be **actively excluded** from the widened path, with a test pinning it.
+- **CR 605.1a has three criteria and the lowering loop only checks one.** It drops `targets` on
+  the floor; it avoids making Deathrite Shaman a mana ability by luck. Widening without adding
+  `targets.is_empty()` silently violates CR 605.1a.
+- **CR 118.3, not 118.4**, is "can't pay what you can't pay". CR 119.4b makes a 0-life payment
+  always legal, so the life check must short-circuit on `life_cost > 0`; the boundary is `>=`.
+- All three version constants move: `PROTOCOL_VERSION` 2→3, `HASH_SCHEMA_VERSION` 40→41
+  (30 sentinels across 29 files), and both fingerprints.
+- New findings to FILE, not fix: **SF-8** (`Cost::Tap` + `AddManaScaled` → Gaea's Cradle taps for
+  exactly 1 green today, HIGH), **SF-9** (`Cost::PayLife` silently unpaid for non-mana activated
+  abilities), **SF-10** (`ManaAbility` has no `activation_condition` — Tainted Field taps for `{W}`
+  with no Swamp).
 
-## Implementation progress (2026-07-08)
-- [x] `EffectAmount::AttackingCreatureCount` (disc 19), `TappedCreatureCount` (disc 20) —
-      `crates/engine/src/cards/card_definition.rs` (enum def), `resolve_amount`
-      (`effects/mod.rs`) and `resolve_cda_amount` (`rules/layers.rs`) both wired (lockstep).
-- [x] `EffectAmount::HandSize { player }` (disc 21) — thin alias delegating to
-      `CardCount{Hand}` in both resolve_amount and resolve_cda_amount, per coordinator decision.
-- [x] `LayerModification::SetBothDynamic { amount: Box<EffectAmount> }` (disc 28, Layer 7b) —
-      `state/continuous_effect.rs` enum def; substitution arm in `effects/mod.rs`
-      `ApplyContinuousEffect`; apply arm in `rules/layers.rs` `apply_layer_modification`.
-- [x] `CombatState::is_attacking` helper — `state/combat.rs`; wired into both count arms
-      (not left dead).
-- [x] hash.rs: 3 new `EffectAmount` HashInto arms (19/20/21) + 1 `LayerModification` arm
-      (28) + `HASH_SCHEMA_VERSION` 29 -> 30 with changelog block.
-- [x] Hash collision verdict: CONFIRMED REAL — `RemoveSuperType` and `ModifyPowerDynamic`
-      both hashed prefix `26u8`. Fixed: `RemoveSuperType` reassigned to discriminant 29.
-      Updated all 21 test files asserting `HASH_SCHEMA_VERSION, 29u8` -> `30u8`.
-- [x] Card fixes: keep_watch (AttackingCreatureCount), throne_of_the_god_pharaoh
-      (Triggered end-step + TappedCreatureCount), mirror_entity (SetBothDynamic +
-      AddAllCreatureTypes), krenko_tin_street_kingpin (PowerOf(Source) token count),
-      ulvenwald_hydra (CdaPowerToughness lands), wight_of_the_reliquary
-      (CdaModifyPowerToughness graveyard-creature-count; SacrificeAnother TODO
-      intentionally left — separate pre-existing DSL gap, out of PB-AC3 scope),
-      storm_kiln_artist (CdaModifyPowerToughness artifact count).
-- [x] PARTIAL TODOs updated (galadhrim_ambush, mishra_claimed_by_gix,
-      ashaya_soul_of_the_wild, multani_yavimayas_avatar) — functional code untouched
-      per coordinator instruction, comments updated to name remaining gap.
-      OOS cards (grand_warlord_radha, harvest_season, commissar_severina_raine,
-      dawnstrike_vanguard, opposition, springleaf_drum, mothdust_changeling,
-      glare_of_subdual, iroas_god_of_victory, dolmen_gate, reconnaissance) left alone.
-- [x] Unit tests file `pb_ac3_dynamic_pt_counts.rs` — 19 tests, all passing.
-- [x] Gates — ALL GREEN:
-      `cargo build --workspace` clean; `cargo test --all` 2938 passed / 0 failed
-      (2919 baseline + 19 new); `cargo clippy --all-targets -- -D warnings` clean;
-      `cargo fmt --check` clean (after one `cargo fmt` auto-fix pass).
-      `python3 tools/authoring-report.py`: clean 946->951 (54.1%->54.4%), todo
-      621->616, total_todos 1122->1106.
-      **Finding for coordinator**: expected +6 clean (6 CLEAN-roster cards fixed)
-      but delta is +5. Root cause: `tools/authoring-report.py`'s `classify_file`
-      empty-abilities regex `abilities:\s*vec!\[\s*\]\s*,` has NO word boundary, so
-      it false-positive-matches the substring in `activated_abilities: vec![],` /
-      `mana_abilities: vec![],` (present in Krenko's TokenSpec literal, pre-existing,
-      unrelated to this batch's edit). Krenko is misclassified "empty" both before
-      and after this batch's fix — its card def is functionally correct and covered
-      by `test_krenko_tokens_equal_power` (loads the actual shipped CardDefinition).
-      This is a pre-existing tooling defect, not a PB-AC3 regression; left unfixed
-      (out of declared PB-AC3 scope — tooling change, not engine/card/test).
+## Origin
 
-## Task reference
-- ESM task: scutemob-45
-- Branch: feat/pb-ac3-dynamic-pt-count-amounts-cda-residual
-- Acceptance criteria:
-  - 4225: Engine primitives implemented — `LayerModification::ModifyBoth` accepting
-    `EffectAmount`; `EffectAmount::{AttackingCreatureCount, TappedCreatureCount,
-    HandSize}`; power-based token count — each with tests citing CR sections (layer
-    interactions covered)
-  - 4226: Review pass complete; primitive-impl-reviewer findings written; all
-    HIGH/MEDIUM fixed
-  - 4227: Backfill complete; all cards unblocked by PB-AC3 re-authored, stale
-    TODO/ENGINE-BLOCKED markers removed, reviewed by card-batch-reviewer
-  - 4228: All gates green; authoring-report rerun and coverage delta posted as
-    task comment
+SF-1 in `memory/card-authoring/sr33-engine-findings-2026-07-17.md` (empirically proven).
+CR 605.1a makes an ability a mana ability based on **what it does**, not what it costs.
+`enrich_spec_from_def` (`crates/engine/src/testing/replay_harness.rs:2117`) gates on
+`matches!(cost, Cost::Tap)`, so every mana source with an additional cost is treated as a
+stack-using activated ability: it cannot be found by `TapForMana` and cannot be activated
+while casting a spell (CR 605.3b) — which is what a Signet is *for*.
 
-## Scope (from campaign-plan-2026-05-16.md §2, PB-AC3 row)
-Primitives to add:
-- `LayerModification::ModifyBoth` accepting `EffectAmount` — dynamic P/T set/modify
-  (CDA residual). Layer 7a (CDA), dependency-ordered per CR 613.4.
-- `EffectAmount::{AttackingCreatureCount, TappedCreatureCount, HandSize}` — dynamic
-  count amounts.
-- Power-based token count (token count = a creature's power / some dynamic value).
+## Known affected shapes (from SF-1; must be re-derived from the registry)
 
-CR refs (613 layers, 107.3) are ADVISORY — verify against the CR via the mtg-rules
-MCP. Card rosters in the plan are advisory; identify the real roster from oracle
-text (feedback_oversight_primitive_category_not_cards). Grep card defs for BOTH
-`// TODO` and `// ENGINE-BLOCKED` markers citing dynamic-P/T / CDA / count-amount
-patterns.
+| Shape | Cards |
+|---|---|
+| `{1}, {T}: Add {C}{C}` | Signets, Cluestones, Viridescent Bog, Darkwater Catacombs, Magnifying Glass |
+| `{T}, Pay 1 life: Add {B} or {G}` | horizon lands (Fiery Islet, Nurturing Peatland, Silent Clearing) |
+| `{W/B}, {T}: Add …` | filter lands (accepted-limitation note in `tests/casting/mana_filter.rs` — that note understates the gap) |
+| `{2}, {T}: Add {B} for each Swamp` | Cabal Coffers, Cabal Stronghold |
 
-## Hazards (from task description)
-1. **LAYER SYSTEM batch** — load `memory/gotchas-rules.md` before planning. CDA P/T
-   is Layer 7a; characteristic-defining abilities apply in the CDA sublayer,
-   dependency-ordered (CR 613.4). All battlefield characteristic reads must go
-   through `calculate_characteristics()` (W3-LC discipline).
-2. Card DSL gotcha: `*/*` CDA creatures use `power: None, toughness: None`
-   (NOT `Some(0)`).
-3. Verify KW/AbilDef/SOK discriminant chain from current code before adding variants.
-4. New struct fields / mutable runtime fields MUST be added to `state/hash.rs`
-   HashInto impls (PB-AC1 review HIGH was exactly this).
-5. Exhaustive matches in `tools/tui/src/play/panels/stack_view.rs` AND
-   `tools/replay-viewer/src/view_model.rs` need arms for every new enum variant —
-   verify with `cargo build --workspace`.
-6. Do NOT commit phantom `.claude/skills/*/SKILL.md` deletions in the worktree.
+## Scope notes
 
-## Gates
-- cargo build --workspace
-- cargo test --all
-- cargo clippy --all-targets -- -D warnings
-- cargo fmt --check
-- python3 tools/authoring-report.py → post clean-coverage delta as task comment
+- `ManaAbility` (`crates/card-types/src/state/game_object.rs:165`) has no field for an
+  additional cost — only `requires_tap`, `sacrifice_self`, `any_color`,
+  `damage_to_controller`. `handle_tap_for_mana` (`crates/engine/src/rules/mana.rs:29`) has
+  no cost-payment step at all. Both need one.
+- The three horizon lands are blocked on SF-1 **and** SF-3 (`Effect::AddManaChoice` is a stub
+  that adds one `{C}` and ignores `count`). SR-33 demoted them to `known_wrong`; this task
+  un-demotes them. The SR-33 fix shape applies: one activated ability per printed colour
+  (`tainted_field` pattern), which makes SF-3 unnecessary for them.
+- `Effect::AddManaChoice` is gated out of `Complete` by `tests/core/effect_choose_gate.rs`
+  — do not reintroduce it.
+- SF-6: `enrich_spec_from_def` excludes tap-mana abilities from `activated_abilities` so
+  `ability_index` does not shift. Widening the mana-ability gate **moves abilities out of
+  `activated_abilities`**, so indices shift again on affected defs. That exclusion list
+  (`is_tap_mana_ability`, `replay_harness.rs:2141`) must be widened in lockstep, and any
+  test/script referencing an affected card by ability index must be re-checked.
+- SF-7: `cargo fmt` reaches **zero** card defs (they live behind `include!`/`#[path]` from
+  `OUT_DIR`). Run `rustfmt` over touched def files by name, and note that rustfmt exits 0
+  while silently abandoning a macro body that exceeds `max_width`.
 
-## Commit prefix
-W6-prim:
+## Implementation complete (2026-07-17, scutemob-90)
+
+Plan §3 steps 1–7, §6 tests, and §9's card-def work (horizon lands + `mana_filter.rs` +
+`effect_choose_gate.rs`) are DONE. §3 step 8's broader roster reconciliation was
+explicitly out of this agent's scope (per its brief) — see the "Roster items not
+reconciled" section of the findings doc below for what that leaves open.
+
+- `ManaAbility` gained `mana_cost: Option<ManaCost>` / `life_cost: u32`
+  (`crates/card-types/src/state/game_object.rs`), hashed in `state/hash.rs`.
+- `handle_tap_for_mana` (`rules/mana.rs`) gained cost-legality (step 5b) and payment
+  (step 6b) steps; new `GameStateError::InsufficientLife`.
+- `mana_ability_lowering` (`testing/replay_harness.rs`) is the single predicate for both
+  mana-ability registration and the `activated_abilities` exclusion; widened from bare
+  `Cost::Tap` to any cost payable through `Command::TapForMana`; actively excludes
+  `Effect::AddManaScaled` from every cost but bare `Cost::Tap` (Finding A).
+  `targets.is_empty()` gate protects Deathrite Shaman.
+- Three horizon lands (Fiery Islet, Nurturing Peatland, Silent Clearing) rewritten to
+  the `tainted_field.rs` one-ability-per-colour pattern and un-demoted to `Complete`.
+- `tests/casting/mana_filter.rs` rewritten (filter lands now activate via `TapForMana`,
+  hybrid-cost non-enforcement documented explicitly, not silently).
+- `tests/core/effect_choose_gate.rs`'s `printed_tap_mana_colors` widened to cover
+  composite-cost tap-mana clauses (Signets, horizon lands, filter lands), with the
+  `AddManaScaled`/dynamic-amount blind spot and the sacrifice-another exclusion both
+  documented in the function's doc comment.
+- New test file `crates/engine/tests/primitives/primitive_sr34_composite_mana_costs.rs`
+  (14 tests, T1–T13 from the plan's §6, T12 split into two).
+- Version bumps done last, in dedicated commits: `PROTOCOL_VERSION` 2→3,
+  `HASH_SCHEMA_VERSION` 40→41, both fingerprints, both `FROZEN_HISTORY_PREFIX_DIGEST`s
+  re-pinned, 30 sentinels across 29 files updated.
+- SF-6 sweep (3 passes, mechanical probe deleted before commit): only Magnifying Glass
+  (script 099 fixed) and Staff of Compleation (unreferenced, no action) actually shift
+  indices among the roster's `Complete` defs.
+- SF-8, SF-9, SF-10 filed, not fixed:
+  `memory/card-authoring/sr34-engine-findings-2026-07-17.md`.
+
+All gates green: `cargo build --workspace`, `cargo test --all` (3298 passing, up from
+3284 baseline), `cargo clippy --all-targets -- -D warnings` (0 warnings),
+`cargo fmt --check` + `rustfmt` over every touched def by name,
+`tests/scripts/run_all_scripts.rs` (210/210 approved scripts pass).
+
+## Review fix phase complete (2026-07-17, `scutemob-90`)
+
+Review (`memory/primitives/pb-review-sr34.md`): 0 HIGH, 5 MEDIUM, 3 LOW. All eight
+findings applied — none refuted. Findings 1, 2, 5 were reviewer analytic claims (no
+Bash tool in that session); all three verified empirically before fixing and all three
+held:
+
+- **Finding 1** (`replay_harness.rs`): `mana_ability_cost_components`'s `Cost::Mana` arm
+  now declines (returns `false`) rather than overwrites on a second `Cost::Mana`
+  component in the same `Cost::Sequence` (CR 601.2h). Verified latent (no live corpus
+  victim) by grep before fixing. New negative control in T13.
+- **Finding 2** (`replay_harness.rs`): `mana_ability_cost_components` now returns `None`
+  when the cost has no `Cost::Tap` component, closing the wholly-untested
+  `requires_tap: false` lowering path (CR 106.12) rather than proving it. Verified zero
+  test coverage by grep before fixing; verified the only three affected defs (Elvish/
+  Simian Spirit Guide, Food Chain) are already non-`Complete`. New negative control in
+  T13.
+- **Finding 3** (`effect_choose_gate.rs`): rewrote the `AddManaChoice` gate's doc
+  comment — the "asymmetry" it cited against `AddManaAnyColor` was false (SF-11); both
+  produce identical `{C}`. Gate behaviour unchanged.
+- **Finding 4** (`effect_choose_gate.rs`): added exclusion (3) — SF-12's "any color"
+  blind spot — to `printed_tap_mana_colors`'s doc comment; noted the misleading name on
+  `every_complete_land_registers_each_printed_tap_mana_color` without renaming it.
+- **Finding 5** (`sr34-roster-reconciliation.md`, `sr34-engine-findings-2026-07-17.md`):
+  amended both docs to state the Partial-vs-KnownWrong taxonomy is roster-bounded, not
+  corpus-wide, naming Birds of Paradise and Command Tower as known live `Complete`
+  victims of the same `any_color`→`{C}` bug outside the roster. Not demoted.
+- **Finding 6** (`primitive_sr34_composite_mana_costs.rs`): softened T11's doc comment
+  — it pins the partition, not the lowering.
+- **Finding 7** (`primitive_sr34_composite_mana_costs.rs`): deleted dead `cards_pos`.
+- **Finding 8** (card defs): `rustfmt --check` by name over all 29 touched defs proved
+  SF-7 directly — rustfmt reports pre-existing `once_per_turn` indentation drift as
+  already-formatted (macro body over `max_width`). Hand-fixed 15 defs.
+
+All gates re-verified green after fixes: `cargo build --workspace`, `cargo test --all`
+(3300 passing — task count did not change, since the new negative controls extend an
+existing `#[test]` fn rather than adding new ones), `cargo clippy --all-targets -- -D
+warnings` (0 warnings), `cargo fmt --check` (clean) + `rustfmt --check` by name over
+every touched def (clean). No `Completeness` markers moved in the fix phase, so
+`tools/authoring-report.py` was not re-run.
+
+phase: done

@@ -23,7 +23,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {T}, Pay 1 life: Add one mana of any color. Spend this mana only to cast a Vampire spell.
             AbilityDefinition::Activated {
@@ -36,7 +36,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {5}, {T}: Create a Blood token. This ability costs {1} less for each Vampire you control.
             AbilityDefinition::Activated {
@@ -51,7 +51,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         // CR 602.2b + 601.2f: Blood token ability (activated_ability index 1) costs {1} less
@@ -69,6 +69,7 @@ pub fn card() -> CardDefinition {
                 controller: PlayerTarget::Controller,
             },
         )],
+        completeness: Completeness::known_wrong("Two defects, both probed. (1) CR 106.1b: '{T}, Pay 1 life: Add one mana of any color. Spend this mana only to cast a Vampire spell' adds one COLORLESS mana. The RESTRICTION is honoured correctly (probed: pool.restricted = [Colorless x1 (SubtypeOnly(Vampire))]) but colorless is not a color, so the mana itself is wrong state. (2) SF-9 — the Pay 1 life is never charged (probed: life 40 -> 40), because Effect::AddManaAnyColorRestricted has no try_as_tap_mana_ability arm, so this ability stays on the stack path where flatten_cost_into silently drops Cost::PayLife. The '{T}: Add {C}' ability is correct."),
         ..Default::default()
     }
 }

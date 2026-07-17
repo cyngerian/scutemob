@@ -37,9 +37,10 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
+        completeness: Completeness::known_wrong("CR 106.1b: 'Remove a charge counter: Add one mana of any color' adds one COLORLESS mana (probed with 5 charge counters: +1 colorless). Also a CR 605.1a/605.3b violation — it is a mana ability but registers as a stack-using activated ability, because mana_ability_cost_components refuses Cost::RemoveCounter (ManaAbility has no counter-cost field and handle_tap_for_mana has no counter payment path). Note this ability has NO tap component at all, and every try_as_tap_mana_ability return site hardcodes requires_tap: true — the requires_tap: false path is unexercised in the whole corpus. The color bug is the reason for known_wrong rather than partial."),
         ..Default::default()
     }
 }

@@ -65,7 +65,14 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   the former struct variant — but the shape digest moved because the closure grew
 ///   by one type (90 → 91) and the variant's declared form changed. Bumped per this
 ///   gate's policy that any non-variant-reorder digest move bumps the version.
-pub const PROTOCOL_VERSION: u32 = 2;
+/// - 3: SR-34 (2026-07-17) — `ManaAbility` (reachable from `Command`/`GameEvent` via
+///   `Characteristics.mana_abilities: Vec<ManaAbility>`, a [`CLOSURE_MUST_CONTAIN`]
+///   entry) gains `mana_cost: Option<ManaCost>` and `life_cost: u32`, its activation
+///   cost's mana and life components (CR 605.1a — a mana ability is classified by
+///   what it does, not what it costs; `handle_tap_for_mana` now pays these). The
+///   closure stays 91 types (no new type joins it, `ManaCost` was already in the
+///   closure), but `ManaAbility`'s declared shape changed, so the digest moves.
+pub const PROTOCOL_VERSION: u32 = 3;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -83,7 +90,7 @@ pub const PROTOCOL_VERSION: u32 = 2;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "ba7907d9f51a65acba39ccf020a14bd6234f637731c934490a7cbf749e5f97b6";
+    "c23d09a7956b239cc1a4edfe629b268b37a2918138def227c9ba373d805ea0f6";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -135,14 +142,22 @@ pub struct ProtocolEpoch {
 /// The baseline is version 2 (the version at SR-27 time). Versions 1..=1 predate
 /// this ledger and are not reconstructed — exactly as SR-17 started
 /// `HASH_SCHEMA_HISTORY` at the then-current version rather than back-filling.
-pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[ProtocolEpoch {
-    version: 2,
-    // SR-27 (2026-07-16): baseline. Pins whatever PROTOCOL_VERSION 2 already was
-    // (the 91-type closure after SR-10 boxed CastSpell). Same value as
-    // PROTOCOL_SCHEMA_FINGERPRINT; the two are kept in lockstep by
-    // `history_tail_matches_the_fingerprint_const`.
-    fingerprint: "ba7907d9f51a65acba39ccf020a14bd6234f637731c934490a7cbf749e5f97b6",
-}];
+pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
+    ProtocolEpoch {
+        version: 2,
+        // SR-27 (2026-07-16): baseline. Pins whatever PROTOCOL_VERSION 2 already was
+        // (the 91-type closure after SR-10 boxed CastSpell). Same value as
+        // PROTOCOL_SCHEMA_FINGERPRINT; the two are kept in lockstep by
+        // `history_tail_matches_the_fingerprint_const`.
+        fingerprint: "ba7907d9f51a65acba39ccf020a14bd6234f637731c934490a7cbf749e5f97b6",
+    },
+    ProtocolEpoch {
+        version: 3,
+        // SR-34 (2026-07-17): ManaAbility gained mana_cost/life_cost (see the `- 3:`
+        // History line above).
+        fingerprint: "c23d09a7956b239cc1a4edfe629b268b37a2918138def227c9ba373d805ea0f6",
+    },
+];
 
 /// Why a versioned message could not be decoded.
 #[derive(Debug, thiserror::Error)]

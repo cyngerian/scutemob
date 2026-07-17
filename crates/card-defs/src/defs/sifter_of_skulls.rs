@@ -41,6 +41,7 @@ pub fn card() -> CardDefinition {
                             requires_tap: false,
                             produces: imbl::OrdMap::new(),
                             damage_to_controller: 0,
+                            ..Default::default()
                         }],
                         ..Default::default()
                     },

@@ -27,9 +27,10 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
+        completeness: Completeness::known_wrong("CR 106.1b: '{T}, Sacrifice this creature: Add one mana of any color' adds one COLORLESS mana (probed: +1 colorless). SR-34 DID lower this to a real ManaAbility — sacrifice_self already existed on ManaAbility and only the matches!(cost, Cost::Tap) gate was blocking it, so the mechanism is now correct (stack empty, self sacrificed) — but the mana it produces is not one of the legal options 'any color' offers. Blocked on interactive/deterministic color choice for any_color mana."),
         ..Default::default()
     }
 }

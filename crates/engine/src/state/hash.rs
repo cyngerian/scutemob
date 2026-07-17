@@ -369,7 +369,19 @@
 ///   so the two *new feeds* are not themselves exercised by the digest; the bump is
 ///   mandatory regardless per the checklist above (any change to what `HashInto`
 ///   feeds bumps).
-pub const HASH_SCHEMA_VERSION: u8 = 40;
+/// - 41: SR-34 (2026-07-17) — `ManaAbility` gains `mana_cost: Option<ManaCost>` and
+///   `life_cost: u32` (its activation cost's mana and life components, CR 605.1a — a
+///   mana ability is classified by what it does, not what it costs), both fed to
+///   `HashInto` right after `damage_to_controller`. Two states differing only in a
+///   mana ability's cost must not hash identically. `decl_fingerprint` MOVES — unlike
+///   v40, this is a genuine struct-declaration change (two new `#[serde(default)]`
+///   fields on `ManaAbility`), not just a `HashInto`-body edit. `stream_fingerprint`
+///   also moves, per the same v40 mechanism (`public_state_hash` folds
+///   `HASH_SCHEMA_VERSION` in as its first byte). The canonical fixture's populated
+///   `mana_abilities` (if any) carry only default cost fields, so the two new feeds
+///   are not themselves exercised by non-default values — the bump is mandatory
+///   regardless, per the checklist above.
+pub const HASH_SCHEMA_VERSION: u8 = 41;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -458,6 +470,15 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // attribute part of the move to the new feeds themselves.
         decl_fingerprint: "9398dee6d2338d30b7c4bf02f769d8f3654b10ccd9ee38fd0afdcf11223b5419",
         stream_fingerprint: "0f29fd405c5c2d062a06ecffec69dcbf2fe31c77063a801fb50b63be8c9ff621",
+    },
+    HashSchemaEpoch {
+        version: 41,
+        // SR-34 (2026-07-17): ManaAbility gained mana_cost/life_cost (see the `- 41:`
+        // History line above). decl_fingerprint moves (genuine struct-shape change);
+        // stream_fingerprint moves per the v40 mechanism (HASH_SCHEMA_VERSION is the
+        // stream's first byte).
+        decl_fingerprint: "23a35b04194f1ad873972164daba7e6379889de61d2215347530c349f5d45c16",
+        stream_fingerprint: "d3bfa1b49e41fdc5b8e44a67f8fa61de5dbd1b4f7e0f6de28b6109fa69a0246b",
     },
 ];
 
@@ -1390,6 +1411,10 @@ impl HashInto for ManaAbility {
         self.sacrifice_self.hash_into(hasher);
         self.any_color.hash_into(hasher);
         self.damage_to_controller.hash_into(hasher);
+        // SR-34: two states differing only in a mana ability's activation cost
+        // must not hash identically.
+        self.mana_cost.hash_into(hasher);
+        self.life_cost.hash_into(hasher);
     }
 }
 impl HashInto for Characteristics {

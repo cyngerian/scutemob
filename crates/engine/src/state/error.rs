@@ -77,4 +77,14 @@ pub enum GameStateError {
         first_kind: &'static str,
         first_note: String,
     },
+    /// CR 119.4 / SR-34: a mana ability's `life_cost` component could not be paid.
+    /// CR 119.4b makes a payment of 0 always legal (never raised for `life_cost: 0`);
+    /// the boundary for a nonzero cost is `life_total >= required` (CR 119.4:
+    /// "greater than or equal to").
+    #[error("player {player:?} cannot pay {required} life (has {actual})")]
+    InsufficientLife {
+        player: PlayerId,
+        required: u32,
+        actual: i32,
+    },
 }

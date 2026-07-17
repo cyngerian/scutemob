@@ -9,9 +9,9 @@ use crate::{
     all_cards, register_commander_zone_replacements, AbilityDefinition, CardDefinition,
     CardEffectTarget, CardId, CardRegistry, CardType, Color, Command, Cost, DeathTriggerFilter,
     Designations, ETBTriggerFilter, Effect, EffectAmount, GameState, GameStateBuilder,
-    GameStateError, KeywordAbility, ManaAbility, ManaColor, ObjectSpec, PlayerId, Step,
-    TargetController, TargetFilter, TimingRestriction, TriggerCondition, TriggerEvent,
-    TriggeredAbilityDef, ZoneId,
+    GameStateError, KeywordAbility, ManaAbility, ManaColor, ManaCost, ObjectSpec, PlayerId, Step,
+    TargetController, TargetFilter, TargetRequirement, TimingRestriction, TriggerCondition,
+    TriggerEvent, TriggeredAbilityDef, ZoneId,
 };
 use imbl::OrdMap;
 /// Replay harness helpers — extracted from `crates/engine/tests/script_replay.rs`
@@ -2108,16 +2108,23 @@ pub fn enrich_spec_from_def(
             spec = spec.with_keyword(kw.clone());
         }
     }
-    // Convert simple tap-for-mana activated abilities into mana abilities.
-    // This covers basic lands and any rock with `{T}: Add {N mana}`.
-    // Multi-step costs (e.g. Evolving Wilds's tap+sacrifice) are intentionally
-    // excluded — those are activated abilities, not mana abilities.
+    // SR-34 (CR 605.1a): convert mana-producing activated abilities into mana abilities.
+    // CR 605.1a classifies an ability as a mana ability by what it *does* (no target,
+    // could add mana, not a loyalty ability), not by what it costs — so this is no longer
+    // gated on `matches!(cost, Cost::Tap)`. `mana_ability_lowering` (below) is the single
+    // predicate deciding both this and the `activated_abilities` exclusion right below it,
+    // so the two can never disagree (SR-34 §3 step 5 — they previously did, silently, for
+    // `Effect::AddManaMatchingType`).
     for ability in &def.abilities {
-        if let AbilityDefinition::Activated { cost, effect, .. } = ability {
-            if matches!(cost, Cost::Tap) {
-                if let Some(ma) = try_as_tap_mana_ability(effect) {
-                    spec = spec.with_mana_ability(ma);
-                }
+        if let AbilityDefinition::Activated {
+            cost,
+            effect,
+            targets: ab_targets,
+            ..
+        } = ability
+        {
+            if let Some(ma) = mana_ability_lowering(ab_targets, cost, effect) {
+                spec = spec.with_mana_ability(ma);
             }
         }
     }
@@ -2135,18 +2142,11 @@ pub fn enrich_spec_from_def(
             ..
         } = ability
         {
-            // Skip ALL tap-for-mana abilities (fixed-mana, any-color, and pain-land
-            // Sequence variants). These are registered as ManaAbility above via
-            // try_as_tap_mana_ability. Including them here would shift ability_index.
-            let is_tap_mana_ability = matches!(cost, Cost::Tap)
-                && (matches!(
-                    effect,
-                    Effect::AddMana { .. }
-                        | Effect::AddManaAnyColor { .. }
-                        | Effect::AddManaScaled { .. }
-                        | Effect::AddManaFilterChoice { .. }
-                        | Effect::AddManaMatchingType { .. }
-                ) || try_as_tap_mana_ability(effect).is_some());
+            // Skip every ability the loop above registered as a ManaAbility (SR-34: no
+            // longer just bare-Tap fixed/any-color/scaled/filter-choice). Including it here
+            // too would shift ability_index for every non-mana activated ability that
+            // follows it (SF-6).
+            let is_tap_mana_ability = mana_ability_lowering(ab_targets, cost, effect).is_some();
             if !is_tap_mana_ability {
                 let activation_cost = cost_to_activation_cost(cost);
                 let ab = ActivatedAbility {
@@ -3626,6 +3626,143 @@ fn find_on_battlefield_by_name(state: &GameState, name: &str) -> Option<crate::s
         }
     })
 }
+/// The cost components of a mana ability's activation cost, as `handle_tap_for_mana`
+/// (`rules/mana.rs`) can pay them. Mirrors `ManaAbility`'s cost fields.
+struct ManaAbilityCost {
+    requires_tap: bool,
+    sacrifice_self: bool,
+    mana_cost: Option<ManaCost>,
+    life_cost: u32,
+}
+/// SR-34 (CR 605.1a): decompose a `Cost` into the components a mana ability can pay
+/// through `Command::TapForMana { player, source, ability_index }`. Returns `None` if
+/// any component needs a channel `TapForMana` does not have — a caller-supplied
+/// `ObjectId` (discard a specific card, sacrifice *another* permanent, remove a counter)
+/// — in which case the ability is not lowerable and stays a stack-using activated
+/// ability. Accepts `Cost::Tap`, `Cost::Mana(_)`, `Cost::PayLife(_)`, `Cost::SacrificeSelf`
+/// (already honoured by `handle_tap_for_mana` via `ManaAbility::sacrifice_self` —
+/// e.g. Treasure tokens), and any `Cost::Sequence` composed only of those.
+///
+/// **SR-34 review Finding 1 (CR 601.2h)**: a second `Cost::Mana` component in the same
+/// sequence declines rather than overwriting the first — `Cost::Sequence([Mana({1}),
+/// Tap, Mana({1})])` must not silently lower to `mana_cost = {1}`. "Partial payments are
+/// not allowed"; a cost this function cannot represent correctly must not lower at all.
+/// No card in the corpus has two `Cost::Mana` components today (verified by grep across
+/// every `Cost::Sequence` def); this is a latent-defect guard, not a live fix.
+///
+/// **SR-34 review Finding 2 (CR 106.12)**: a cost with no `Cost::Tap` component declines
+/// to lower, even though `ManaAbility::requires_tap: false` exists and is otherwise
+/// payable. Before this fix, `Cost::Mana`-only (Elvish/Simian Spirit Guide) and
+/// `Cost::SacrificeSelf`-only (Food Chain) costs lowered into free, repeatable,
+/// stackless mana abilities via a path (`handle_tap_for_mana` skips the tapped-status
+/// check and has no exhaustion mechanism when `requires_tap` is false) that has zero
+/// test coverage and was explicitly flagged as unproven by
+/// `memory/primitives/sr34-affected-defs.md`. All three affected defs are non-`Complete`
+/// today, so this closes the seam at zero cost rather than proving it correct. To
+/// re-open it: add a test lowering a synthetic `Cost::Mana`-only or
+/// `Cost::SacrificeSelf`-only def and asserting `TapForMana` pays/produces correctly
+/// with no tapped-status check — see `sr34-affected-defs.md` and
+/// `memory/card-authoring/sr34-engine-findings-2026-07-17.md` (Finding 2 discussion).
+fn mana_ability_cost_components(cost: &Cost) -> Option<ManaAbilityCost> {
+    fn walk(cost: &Cost, acc: &mut ManaAbilityCost) -> bool {
+        match cost {
+            Cost::Tap => {
+                acc.requires_tap = true;
+                true
+            }
+            Cost::Mana(m) => {
+                if acc.mana_cost.is_some() {
+                    // A second Cost::Mana component: this function cannot merge two
+                    // mana costs without risking a silent partial payment. Decline.
+                    false
+                } else {
+                    acc.mana_cost = Some(m.clone());
+                    true
+                }
+            }
+            Cost::PayLife(n) => {
+                acc.life_cost += n;
+                true
+            }
+            Cost::SacrificeSelf => {
+                acc.sacrifice_self = true;
+                true
+            }
+            Cost::Sequence(costs) => costs.iter().all(|c| walk(c, acc)),
+            // Not lowerable: needs a caller-supplied ObjectId (Sacrifice(filter),
+            // RemoveCounter, DiscardCard) or is a hand/self-exile alt-cost shape
+            // (DiscardSelf, ExileSelf, ExileFromHand, Forage, Exert) that
+            // `Command::TapForMana` has no payload for.
+            Cost::Sacrifice(_)
+            | Cost::RemoveCounter { .. }
+            | Cost::DiscardCard
+            | Cost::DiscardSelf
+            | Cost::Forage
+            | Cost::ExileSelf
+            | Cost::ExileFromHand { .. }
+            | Cost::Exert => false,
+        }
+    }
+    let mut acc = ManaAbilityCost {
+        requires_tap: false,
+        sacrifice_self: false,
+        mana_cost: None,
+        life_cost: 0,
+    };
+    if !walk(cost, &mut acc) {
+        return None;
+    }
+    if !acc.requires_tap {
+        // SR-34 review Finding 2: decline to lower a no-tap cost. See the doc comment
+        // above for the seam this leaves closed and how to re-open it deliberately.
+        return None;
+    }
+    Some(acc)
+}
+/// **The single predicate deciding mana-ability lowering (SR-34, CR 605.1a).** Used both
+/// to build the `ManaAbility` (`enrich_spec_from_def`'s mana-ability loop) and to decide
+/// the `activated_abilities` exclusion right after it — the same call, so the two lists
+/// can never disagree (SR-34 §3 step 5; they previously did for `AddManaMatchingType`,
+/// silently, because no card exercised the gap).
+///
+/// CR 605.1a: an activated ability is a mana ability iff it has no target, could add mana
+/// when it resolves, and is not a loyalty ability (loyalty abilities never reach this
+/// function — see the `AbilityDefinition::Activated` match in `enrich_spec_from_def`).
+/// `targets.is_empty()` is the first criterion; `mana_ability_cost_components` bounds which
+/// cost shapes this engine can pay without a stack (see its doc); `try_as_tap_mana_ability`
+/// recognises the mana-producing effect shapes.
+///
+/// **Finding A (SR-34 §0): `AddManaScaled` is excluded from every cost shape except bare
+/// `Cost::Tap`.** `try_as_tap_mana_ability`'s `AddManaScaled` arm registers
+/// `produces = {color: 1}` as a marker — the actual dynamic count is only evaluated via
+/// stack resolution (`effects/mod.rs`), which `handle_tap_for_mana` cannot reach. Bare
+/// `Cost::Tap` + `AddManaScaled` keeps its pre-existing (broken, SF-8 — see
+/// `memory/card-authoring/sr34-engine-findings-2026-07-17.md`) behaviour unchanged; any
+/// *other* cost shape (e.g. Cabal Coffers's `{2},{T}`) must NOT be captured here, or it
+/// would demote from "correct via the stack" to "exactly one black mana" (Finding A). This
+/// exclusion is a documented, revisitable seam: deleting it is what re-includes Cabal
+/// Coffers once SF-8 lands.
+fn mana_ability_lowering(
+    targets: &[TargetRequirement],
+    cost: &Cost,
+    effect: &Effect,
+) -> Option<ManaAbility> {
+    // CR 605.1a: "it doesn't require a target".
+    if !targets.is_empty() {
+        return None;
+    }
+    let components = mana_ability_cost_components(cost)?;
+    let is_bare_tap = matches!(cost, Cost::Tap);
+    if !is_bare_tap && matches!(effect, Effect::AddManaScaled { .. }) {
+        return None;
+    }
+    let mut ma = try_as_tap_mana_ability(effect)?;
+    ma.requires_tap = components.requires_tap;
+    ma.sacrifice_self = components.sacrifice_self;
+    ma.mana_cost = components.mana_cost;
+    ma.life_cost = components.life_cost;
+    Some(ma)
+}
 /// If `effect` is `AddMana` with exactly one non-zero single-color entry,
 /// return a corresponding `ManaAbility::tap_for`. Returns `None` otherwise.
 ///
@@ -3645,6 +3782,7 @@ fn try_as_tap_mana_ability(effect: &Effect) -> Option<ManaAbility> {
             sacrifice_self: false,
             any_color: true,
             damage_to_controller: 0,
+            ..Default::default()
         });
     }
     // Filter land pattern: {Hybrid},{T}: AddManaFilterChoice { color_a, color_b }
@@ -3662,6 +3800,7 @@ fn try_as_tap_mana_ability(effect: &Effect) -> Option<ManaAbility> {
             sacrifice_self: false,
             any_color: false,
             damage_to_controller: 0,
+            ..Default::default()
         });
     }
     // Scaled mana: {T}: AddManaScaled { color, count }
@@ -3675,6 +3814,7 @@ fn try_as_tap_mana_ability(effect: &Effect) -> Option<ManaAbility> {
             sacrifice_self: false,
             any_color: false,
             damage_to_controller: 0,
+            ..Default::default()
         });
     }
     // Pain land pattern: {T}: Sequence([AddMana, DealDamage{Controller, Fixed(n)}])
@@ -3724,6 +3864,7 @@ fn mana_pool_to_ability(
         sacrifice_self: false,
         any_color: false,
         damage_to_controller,
+        ..Default::default()
     })
 }
 /// Convert a card-definition [`Cost`] into an [`ActivationCost`] for object characteristics.

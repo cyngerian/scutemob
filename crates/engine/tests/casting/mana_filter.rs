@@ -7,15 +7,37 @@
 //! Engine simplification: AddManaFilterChoice produces 1 of color_a + 1 of color_b
 //! (the middle option). Interactive full-choice deferred to M10.
 //!
-//! CR 605.1a — activated mana abilities resolve immediately (no priority window).
-//!   (Filter lands use Cost::Sequence and go through ActivateAbility, which puts them
-//!   on the stack. Stack resolution yields the same final mana result.)
-//! CR 602.2 — activated abilities cost must be paid before the ability goes on the stack.
+//! CR 605.1a — activated mana abilities resolve immediately (no priority window), and
+//! `handle_tap_for_mana` never puts anything on the stack (CR 605.3b).
 //!
-//! Note: Hybrid mana cost enforcement is a pre-existing engine limitation (not in scope
-//! for PB-34). The ManaCost.can_spend() method does not validate hybrid mana symbols;
-//! this means the {W/B} hybrid activation cost is structurally correct in the card
-//! definition but not enforced at activation time. Hybrid enforcement is a P4 item.
+//! **SR-34 update (2026-07-17).** Before SR-34, `enrich_spec_from_def` only lowered a
+//! bare `Cost::Tap` activated ability into a `ManaAbility` — the whole reason this
+//! module's original note claimed "filter lands use `Cost::Sequence` and go through
+//! `ActivateAbility`, which puts them on the stack. Stack resolution yields the same
+//! final mana result." **That claim was always the wrong bar** (SF-1 in
+//! `memory/card-authoring/sr33-engine-findings-2026-07-17.md`): CR 605.3b is not about
+//! the *final mana*, it is about whether an opponent gets a priority window to respond
+//! and whether the ability can be activated mid-cast (CR 605.3a) — a filter land on the
+//! stack cannot fund a spell the way a Signet or a basic land can. SR-34 widened the
+//! lowering gate to any cost payable through `Command::TapForMana` (see
+//! `mana_ability_cost_components` in `testing/replay_harness.rs`), which includes a
+//! `Cost::Sequence([Mana(hybrid), Tap])` filter ability. **Filter lands are now real
+//! mana abilities** and this file's tests activate them via `Command::TapForMana`, not
+//! `Command::ActivateAbility`.
+//!
+//! **What is still NOT fixed, and this file must not claim otherwise (SR-34 §8 item 6):**
+//! `ManaPool::can_spend` / `ManaPool::spend` (`card-types/src/state/player.rs`) read only
+//! the fixed-color and generic fields of a `ManaCost` — `hybrid` and `phyrexian` are
+//! ignored entirely, before and after SR-34. A filter land's `ManaCost { hybrid: [{W/B}],
+//! ..Default::default() }` has `mana_value() == 1` (CR 202.3f counts a `ColorColor` hybrid
+//! symbol as 1), so `handle_tap_for_mana`'s cost-legality check DOES run `can_spend` —
+//! but `can_spend` only ever reads `white`/`blue`/`black`/`red`/`green`/`colorless`/
+//! `generic`, every one of which is 0 on a pure-hybrid cost, so it returns `true`
+//! unconditionally regardless of pool contents, and `spend()` then deducts nothing.
+//! Filter lands genuinely improved (off the stack, usable mid-cast, CR 605.3b) but their
+//! printed `{W/B}` cost is paid for free. This is a pre-existing P4 item, unchanged by
+//! SR-34.
+//! CR 602.2 — activated abilities cost must be paid before the ability resolves.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -82,52 +104,42 @@ fn build_with_filter_land(name: &str) -> GameState {
     state
 }
 
-/// Pass priority for all listed players once (drives stack resolution).
-fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent>) {
-    let mut all_events = Vec::new();
-    let mut current = state;
-    for &pl in players {
-        let (s, ev) = process_command(current, Command::PassPriority { player: pl })
-            .unwrap_or_else(|e| panic!("PassPriority by {:?} failed: {:?}", pl, e));
-        current = s;
-        all_events.extend(ev);
-    }
-    (current, all_events)
-}
-
-// ── CR 605.1a / PB-34: Filter land produces 2 mana (1 of each color) ─────────
+// ── CR 605.1a / SR-34: Filter land produces 2 mana (1 of each color) ─────────
 
 #[test]
-/// CR 605.1a — Fetid Heath: activating filter ability adds {W}{B} to mana pool.
-/// Effect::AddManaFilterChoice produces 1 white + 1 black (middle option of 3 choices).
-/// Starting with an empty mana pool, resolution should yield white:1 + black:1.
-/// NOTE: Hybrid mana enforcement is a pre-existing limitation; the hybrid activation
-/// cost is structurally correct in the ability definition but not validated at runtime.
+/// CR 605.1a / SR-34 — Fetid Heath: activating the filter ability via `TapForMana`
+/// (not `ActivateAbility`) adds {W}{B} to the pool and resolves immediately, no stack
+/// (CR 605.3b). Effect::AddManaFilterChoice produces 1 white + 1 black (middle option
+/// of 3 choices). Starting with an empty mana pool, activation should yield white:1 +
+/// black:1.
+/// NOTE: Hybrid mana enforcement is a pre-existing limitation (SR-34 §8 item 6); the
+/// hybrid activation cost is structurally correct in the ability definition but not
+/// validated or deducted at activation time — see the module doc comment.
 fn test_filter_land_produces_two_mana_fetid_heath() {
     let state = build_with_filter_land("Fetid Heath");
     let land_id = find_by_name(&state, "Fetid Heath");
 
-    // Fetid Heath abilities:
-    //   tap-mana: {T}: Add {C}  — registered as ManaAbility, NOT in activated_abilities
-    //   activated_ability[0]: {W/B},{T}: Add {W}{B} (AddManaFilterChoice)
-    let (state_after_activate, _activate_events) = process_command(
+    // Fetid Heath abilities (post-SR-34, both are ManaAbilities, neither is in
+    // activated_abilities):
+    //   mana_abilities[0]: {T}: Add {C}
+    //   mana_abilities[1]: {W/B},{T}: Add {W}{B} (AddManaFilterChoice)
+    let (state_resolved, resolve_events) = process_command(
         state,
-        Command::ActivateAbility {
+        Command::TapForMana {
             player: p(1),
             source: land_id,
-            ability_index: 0, // filter ability is activated_ability index 0
-            targets: vec![],
-            discard_card: None,
-            sacrifice_target: None,
-            x_value: None,
+            ability_index: 1,
         },
     )
-    .expect("filter land activation should succeed (CR 602.2)");
+    .expect("filter land activation should succeed (CR 605.1a)");
 
-    // Ability is now on the stack. Pass priority for both players to resolve it.
-    let (state_resolved, resolve_events) = pass_all(state_after_activate, &[p(1), p(2)]);
+    // No stack (CR 605.3b): a mana ability resolves immediately.
+    assert!(
+        state_resolved.stack_objects().is_empty(),
+        "a mana ability must not use the stack (CR 605.3b)"
+    );
 
-    // After resolution: p(1) should have 1 white and 1 black mana added.
+    // After activation: p(1) should have 1 white and 1 black mana added.
     let pool = &state_resolved.players()[&p(1)].mana_pool;
     assert_eq!(
         pool.white, 1,
@@ -170,8 +182,10 @@ fn test_filter_land_produces_two_mana_fetid_heath() {
 }
 
 #[test]
-/// CR 602.2 — filter land tap cost: land must be untapped to activate.
-/// Activating an already-tapped filter land returns PermanentAlreadyTapped error.
+/// CR 118.3 / SR-34 — filter land tap cost: land must be untapped to activate.
+/// Tapping an already-tapped filter land (via `TapForMana`, post-SR-34 both of Fetid
+/// Heath's abilities are ManaAbilities — see `test_filter_land_produces_two_mana_fetid_heath`)
+/// returns `PermanentAlreadyTapped`.
 fn test_filter_land_tap_required() {
     let mut state = build_with_filter_land("Fetid Heath");
 
@@ -181,27 +195,25 @@ fn test_filter_land_tap_required() {
 
     let result = process_command(
         state,
-        Command::ActivateAbility {
+        Command::TapForMana {
             player: p(1),
             source: land_id,
-            ability_index: 0,
-            targets: vec![],
-            discard_card: None,
-            sacrifice_target: None,
-            x_value: None,
+            ability_index: 1, // the filter ability
         },
     );
 
     assert!(
         result.is_err(),
-        "activating tapped filter land should return an error (CR 602.2)"
+        "activating tapped filter land should return an error (CR 118.3)"
     );
 }
 
 #[test]
-/// PB-34: Effect::AddManaFilterChoice is correctly used in filter land card definitions.
-/// Verify all 7 filter lands produce exactly 2 mana (1 of each constrained color)
-/// by checking the mana pool delta from an empty starting state.
+/// CR 605.1a / SR-34: Effect::AddManaFilterChoice is correctly used in filter land card
+/// definitions. Verify all 7 filter lands produce exactly 2 mana (1 of each constrained
+/// color) by checking the mana pool delta from an empty starting state, activating via
+/// `TapForMana` (each filter land's filter ability is `mana_abilities[1]`; index 0 is its
+/// plain `{T}: Add {C}` ability — see `test_filter_land_produces_two_mana_fetid_heath`).
 fn test_all_filter_lands_produce_correct_colors() {
     // (name, expected_color_a, expected_color_b)
     let filter_lands: &[(&str, ManaColor, ManaColor)] = &[
@@ -221,21 +233,15 @@ fn test_all_filter_lands_produce_correct_colors() {
         // Capture pool before activation.
         let pool_before = state.players()[&p(1)].mana_pool.clone();
 
-        let (state_activated, _) = process_command(
+        let (state_resolved, _) = process_command(
             state,
-            Command::ActivateAbility {
+            Command::TapForMana {
                 player: p(1),
                 source: land_id,
-                ability_index: 0,
-                targets: vec![],
-                discard_card: None,
-                sacrifice_target: None,
-                x_value: None,
+                ability_index: 1, // the filter ability
             },
         )
         .unwrap_or_else(|e| panic!("activating {} filter ability should succeed: {:?}", name, e));
-
-        let (state_resolved, _) = pass_all(state_activated, &[p(1), p(2)]);
 
         let pool_after = &state_resolved.players()[&p(1)].mana_pool;
 
@@ -289,6 +295,25 @@ fn get_color(pool: &ManaPool, color: ManaColor) -> u32 {
 /// Previously, AddManaScaled with Cost::Tap was orphaned — not recognized by
 /// try_as_tap_mana_ability and skipped from activated_abilities. After PB-34 fix,
 /// Gaea's Cradle should have a registered ManaAbility.
+///
+/// **SR-34 note (SF-8, HIGH — deliberately NOT fixed here; see
+/// `memory/card-authoring/sr34-engine-findings-2026-07-17.md`).** This test — and
+/// `test_add_mana_scaled_orphan_fix_all_cards` below — only ever check the *shape* of the
+/// registered `ManaAbility` (non-empty, marked with the right colour key). Neither
+/// activates the ability and asserts the mana that actually comes out. If they did, they
+/// would fail: `handle_tap_for_mana` has no `AddManaScaled` branch and reads
+/// `produces: {Green: 1}` literally, so Gaea's Cradle taps for exactly 1 green regardless
+/// of creature count — a live HIGH bug this test's shape-only assertion cannot see
+/// (SF-8's own report, verbatim: "a data-model test can pin a defect as a requirement",
+/// SF-5). Kept as shape-only deliberately (not `#[ignore]`d) because the registration
+/// property they check is still real and still worth pinning — `AddManaScaled` remains
+/// gated out of the SR-34-widened lowering path for every cost shape except bare
+/// `Cost::Tap` (Finding A, `mana_ability_lowering` in `testing/replay_harness.rs`), and a
+/// regression there (Cabal Coffers losing its stack-based "right mana, wrong mechanism"
+/// fallback) is a different, separately-pinned failure (`primitive_sr34_composite_mana_costs
+/// ::composite_cost_add_mana_scaled_stays_on_the_stack`). Fixing SF-8 needs an
+/// `EffectAmount` resolution context inside the stackless `TapForMana` path, which
+/// `handle_tap_for_mana` does not have — a separate primitive.
 fn test_add_mana_scaled_registered_as_mana_ability() {
     let (defs, registry) = build_defs_and_registry();
     let spec = make_spec(p(1), "Gaea's Cradle", ZoneId::Battlefield, &defs);
@@ -332,9 +357,17 @@ fn test_add_mana_scaled_registered_as_mana_ability() {
 /// excluded from activated_abilities — the ability was completely silent.
 /// After the fix, each should have a registered ManaAbility.
 ///
+/// Shape-only; see the SF-8 note on `test_add_mana_scaled_registered_as_mana_ability`
+/// above — it applies here too.
+///
 /// Note: Cards with Cost::Sequence([Mana, Tap]) + AddManaScaled (Cabal Coffers,
-/// Cabal Stronghold, Crypt of Agadeem) are correctly registered as activated abilities
-/// (not mana abilities) since they have an additional mana cost. Those are NOT in this list.
+/// Cabal Stronghold, Crypt of Agadeem) stay registered as activated abilities (not mana
+/// abilities), but as of SR-34 that is NOT because they have an additional mana cost —
+/// Signets have one too and now ARE mana abilities. It is `mana_ability_lowering`'s
+/// explicit Finding-A exclusion: `AddManaScaled` is only accepted through bare
+/// `Cost::Tap`, any other cost shape is refused so the ability stays on the stack rather
+/// than being captured and producing the wrong (fixed) amount. Those three are NOT in
+/// this list.
 fn test_add_mana_scaled_orphan_fix_all_cards() {
     let scaled_mana_cards = [
         "Elvish Archdruid",

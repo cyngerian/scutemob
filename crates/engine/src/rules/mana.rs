@@ -4,7 +4,13 @@
 //! They do not use the stack — they activate and resolve immediately.
 //! They can be activated any time a player has priority (CR 605.3b).
 //!
-//! For M3-A, only tap-activated mana abilities are supported.
+//! SR-34: an activation cost may also include a mana component (`ManaAbility::mana_cost`,
+//! e.g. a Signet's `{1}`) and/or a life component (`ManaAbility::life_cost`, e.g. a horizon
+//! land's "Pay 1 life") in addition to `{T}` / sacrifice-self. A cost component that needs a
+//! caller-supplied `ObjectId` (discard a card, sacrifice *another* permanent, remove a
+//! counter) has no channel through `Command::TapForMana` and is out of scope — those
+//! abilities stay stack-using activated abilities (SF-9, SF-8; see
+//! `memory/card-authoring/sr34-engine-findings-2026-07-17.md`).
 use super::events::{CombatDamageTarget, GameEvent};
 use crate::cards::card_definition::{
     AbilityDefinition, Effect, ManaSourceFilter, TriggerCondition,
@@ -137,6 +143,32 @@ pub fn handle_tap_for_mana(
         })?
         .clone();
     let mut events = Vec::new();
+    // 5b. SR-34: cost legality check (CR 118.3, 119.4). Pure validation, no mutation —
+    //     an unaffordable Signet/horizon-land activation touches nothing (CR 732 is free
+    //     here regardless, since `process_command` takes `GameState` by value and only
+    //     returns it on `Ok`, but validating first keeps the transaction visibly clean).
+    if let Some(ref mana_cost) = ability.mana_cost {
+        if mana_cost.mana_value() > 0 {
+            let player_state = state.player(player)?;
+            if !player_state.mana_pool.can_spend(mana_cost, None) {
+                return Err(GameStateError::InsufficientMana);
+            }
+        }
+    }
+    // CR 119.4b: players can always pay 0 life, no matter what their life total is — so
+    // the check must short-circuit on `life_cost > 0` rather than reading `>=` unguarded.
+    // `life_cost` is `u32`; every mana ability with no life component takes this branch
+    // (as a no-op) on every activation.
+    if ability.life_cost > 0 {
+        let player_state = state.player(player)?;
+        if player_state.life_total < ability.life_cost as i32 {
+            return Err(GameStateError::InsufficientLife {
+                player,
+                required: ability.life_cost,
+                actual: player_state.life_total,
+            });
+        }
+    }
     // 6. If the ability requires tapping: validate not already tapped, then tap.
     if ability.requires_tap {
         if obj.status.tapped {
@@ -163,6 +195,34 @@ pub fn handle_tap_for_mana(
         events.push(GameEvent::PermanentTapped {
             player,
             object_id: source,
+        });
+    }
+    // 6b. SR-34: pay the mana and life components of the activation cost (CR 601.2h:
+    //     costs in this group may be paid "in any order" — none of tap/mana/life/
+    //     sacrifice-self's legality depends on another's result). This sits BEFORE the
+    //     SR-28 snapshot below and BEFORE the sacrifice-self cost (step 7): neither
+    //     mutation touches the source's characteristics or zone, so the snapshot is
+    //     byte-identical on either side of this step, and placing it here keeps the
+    //     snapshot's boundary — "cost components that cannot move the source, then the
+    //     one that can" — true by construction rather than incidentally, for the next
+    //     cost component that DOES move an object (e.g. Krark-Clan Ironworks, out of
+    //     SR-34 scope — see SF-9 in the findings doc).
+    if let Some(ref mana_cost) = ability.mana_cost {
+        if mana_cost.mana_value() > 0 {
+            let player_state = state.player_mut(player)?;
+            player_state.mana_pool.spend(mana_cost, None);
+            events.push(GameEvent::ManaCostPaid {
+                player,
+                cost: mana_cost.clone(),
+            });
+        }
+    }
+    if ability.life_cost > 0 {
+        let player_state = state.player_mut(player)?;
+        player_state.life_total -= ability.life_cost as i32;
+        events.push(GameEvent::LifeLost {
+            player,
+            amount: ability.life_cost,
         });
     }
     // SR-28 (CR 106.12a / CR 106.12b): Snapshot the source's layer-resolved

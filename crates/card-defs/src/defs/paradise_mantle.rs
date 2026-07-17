@@ -7,7 +7,9 @@ pub fn card() -> CardDefinition {
     CardDefinition {
         card_id: cid("paradise-mantle"),
         name: "Paradise Mantle".to_string(),
-        mana_cost: Some(ManaCost { ..Default::default() }),
+        mana_cost: Some(ManaCost {
+            ..Default::default()
+        }),
         types: types_sub(&[CardType::Artifact], &["Equipment"]),
         oracle_text: "Equipped creature has \"{T}: Add one mana of any color.\"\nEquip {1}"
             .to_string(),
@@ -25,6 +27,7 @@ pub fn card() -> CardDefinition {
                         sacrifice_self: false,
                         any_color: true,
                         damage_to_controller: 0,
+                        ..Default::default()
                     }),
                     filter: EffectFilter::AttachedCreature,
                     duration: EffectDuration::WhileSourceOnBattlefield,
