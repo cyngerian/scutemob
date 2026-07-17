@@ -79,7 +79,12 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   — a non-mana activated ability's life-payment component). `EffectAmount` was
 ///   already in the closure (via `Effect`), so the closure's type count is unchanged;
 ///   both structs' declared shapes moved, so the digest moves.
-pub const PROTOCOL_VERSION: u32 = 4;
+/// - 5: SR-37 (2026-07-17) — SF-10: `ManaAbility` gains
+///   `activation_condition: Option<Condition>` (an "activate only if ..." restriction,
+///   CR 605.1a + CR 602.5b — Tainted Field's coloured arms). `Condition` was already in
+///   the closure (reachable via `Effect::Conditional`), so the closure's type count is
+///   unchanged; `ManaAbility`'s declared shape moved, so the digest moves.
+pub const PROTOCOL_VERSION: u32 = 5;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -96,8 +101,7 @@ pub const PROTOCOL_VERSION: u32 = 4;
 /// variant, or adding `#[serde(skip)]` all move it, but redefining what an
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
-pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "45dd82a14adf0b7e2247f7d22fad32c017adf9a25cc4129c92c489513c4ae4d4";
+pub const PROTOCOL_SCHEMA_FINGERPRINT: &str = "460d610fbd10d2856e9cd44c7784f064b215356f544992edcf5e580f09e1610c";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -169,6 +173,12 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // SR-36 (2026-07-17): ManaAbility gained scaled_amount; ActivationCost gained
         // life_cost (see the `- 4:` History line above).
         fingerprint: "45dd82a14adf0b7e2247f7d22fad32c017adf9a25cc4129c92c489513c4ae4d4",
+    },
+    ProtocolEpoch {
+        version: 5,
+        // SR-37 (2026-07-17): ManaAbility gained activation_condition (see the `- 5:`
+        // History line above).
+        fingerprint: "460d610fbd10d2856e9cd44c7784f064b215356f544992edcf5e580f09e1610c",
     },
 ];
 

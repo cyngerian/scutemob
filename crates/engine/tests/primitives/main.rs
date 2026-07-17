@@ -45,4 +45,5 @@ mod primitive_pb_xs;
 mod primitive_pb_xs_e;
 mod primitive_sr34_composite_mana_costs;
 mod primitive_sr36_scaled_mana_and_life_costs;
+mod primitive_sr37_conditioned_mana_abilities;
 mod sr13_lki_damage_source;

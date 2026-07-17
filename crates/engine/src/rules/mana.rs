@@ -171,6 +171,21 @@ pub fn handle_tap_for_mana(
             });
         }
     }
+    // 5c. SR-37 / SF-10 (CR 602.5b): "Activate only if [condition]". CR 605.1a keeps a
+    //     conditioned ability a mana ability, so `mana_ability_lowering` still lowers it —
+    //     but the restriction must be enforced here, exactly as `handle_activate_ability`
+    //     enforces it for a stack-using ability. Pure validation, before any mutation:
+    //     Tainted Field's `{T}: Add {W}` arm must fail when its controller has no Swamp.
+    //     `activation_condition` is `None` for the overwhelming majority, so this branch is
+    //     a no-op on virtually every activation.
+    if let Some(condition) = &ability.activation_condition {
+        let ctx = crate::effects::EffectContext::new(player, source, vec![]);
+        if !crate::effects::check_condition(state, condition, &ctx) {
+            return Err(GameStateError::InvalidCommand(
+                "mana ability activation condition not met (CR 602.5b)".into(),
+            ));
+        }
+    }
     // 6. If the ability requires tapping: validate not already tapped, then tap.
     if ability.requires_tap {
         if obj.status.tapped {

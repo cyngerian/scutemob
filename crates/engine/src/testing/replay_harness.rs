@@ -7,7 +7,8 @@ use crate::testing::script_schema::{
 };
 use crate::{
     all_cards, register_commander_zone_replacements, AbilityDefinition, CardDefinition,
-    CardEffectTarget, CardId, CardRegistry, CardType, Color, Command, Cost, DeathTriggerFilter,
+    CardEffectTarget, CardId, CardRegistry, CardType, Color, Command, Condition, Cost,
+    DeathTriggerFilter,
     Designations, ETBTriggerFilter, Effect, EffectAmount, GameState, GameStateBuilder,
     GameStateError, KeywordAbility, ManaAbility, ManaColor, ManaCost, ObjectSpec, PlayerId,
     PlayerTarget, Step, TargetController, TargetFilter, TargetRequirement, TimingRestriction,
@@ -2120,10 +2121,13 @@ pub fn enrich_spec_from_def(
             cost,
             effect,
             targets: ab_targets,
+            activation_condition,
             ..
         } = ability
         {
-            if let Some(ma) = mana_ability_lowering(ab_targets, cost, effect) {
+            if let Some(ma) =
+                mana_ability_lowering(ab_targets, cost, effect, activation_condition)
+            {
                 spec = spec.with_mana_ability(ma);
             }
         }
@@ -2146,7 +2150,8 @@ pub fn enrich_spec_from_def(
             // longer just bare-Tap fixed/any-color/scaled/filter-choice). Including it here
             // too would shift ability_index for every non-mana activated ability that
             // follows it (SF-6).
-            let is_tap_mana_ability = mana_ability_lowering(ab_targets, cost, effect).is_some();
+            let is_tap_mana_ability =
+                mana_ability_lowering(ab_targets, cost, effect, activation_condition).is_some();
             if !is_tap_mana_ability {
                 let activation_cost = cost_to_activation_cost(cost);
                 let ab = ActivatedAbility {
@@ -3743,6 +3748,7 @@ fn mana_ability_lowering(
     targets: &[TargetRequirement],
     cost: &Cost,
     effect: &Effect,
+    activation_condition: &Option<Condition>,
 ) -> Option<ManaAbility> {
     // CR 605.1a: "it doesn't require a target".
     if !targets.is_empty() {
@@ -3754,6 +3760,12 @@ fn mana_ability_lowering(
     ma.sacrifice_self = components.sacrifice_self;
     ma.mana_cost = components.mana_cost;
     ma.life_cost = components.life_cost;
+    // SR-37 / SF-10 (CR 605.1a + CR 602.5b): carry an "activate only if ..." restriction
+    // into the ManaAbility. CR 605.1a keeps a conditioned ability a mana ability (so it is
+    // still lowered), but the condition must be enforced at activation — `handle_tap_for_mana`
+    // checks it. Before SR-37 the lowering loop's `..` dropped this field, so Tainted Field's
+    // coloured arms produced {W}/{B} with no Swamp controlled.
+    ma.activation_condition = activation_condition.clone();
     Some(ma)
 }
 /// If `effect` is `AddMana` with exactly one non-zero single-color entry,

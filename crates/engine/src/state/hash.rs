@@ -391,7 +391,13 @@
 ///   `decl_fingerprint` MOVES — two genuine struct-declaration changes (a new
 ///   `#[serde(default)]` field on each of `ManaAbility` and `ActivationCost`).
 ///   `stream_fingerprint` also moves, per the v40 mechanism.
-pub const HASH_SCHEMA_VERSION: u8 = 42;
+/// - 43: SR-37 (2026-07-17) — SF-10 (`memory/card-authoring/sr34-engine-findings-2026-07-17.md`):
+///   `ManaAbility` gains `activation_condition: Option<Condition>` (an "activate only if ..."
+///   restriction, CR 605.1a + CR 602.5b — e.g. Tainted Field's "Activate only if you control
+///   a Swamp"). Fed to `HashInto` right after `scaled_amount`. `decl_fingerprint` MOVES (a new
+///   `#[serde(default)]` field on `ManaAbility`); `stream_fingerprint` moves per the v40
+///   mechanism.
+pub const HASH_SCHEMA_VERSION: u8 = 43;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -498,6 +504,14 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // the v40 mechanism.
         decl_fingerprint: "076daf3beb23647e7e19b1d15820a85a344bac276c8a7ee10376471a8fff9750",
         stream_fingerprint: "b4066259be357b02da366fd68fd23a9b2d78ff6145947ac30b93de8101e95a57",
+    },
+    HashSchemaEpoch {
+        version: 43,
+        // SR-37 (2026-07-17): ManaAbility gained activation_condition (see the `- 43:`
+        // History line above). decl_fingerprint moves (genuine struct-shape change);
+        // stream_fingerprint moves per the v40 mechanism.
+        decl_fingerprint: "56c33f24371307570b8c8fe201b764bac286fb1301f3447e42ca0676ee3fc6b2",
+        stream_fingerprint: "b1941d3caed23ec2d41979f368e312c69eaa9861056edece97d7a03a8977495c",
     },
 ];
 
@@ -1437,6 +1451,9 @@ impl HashInto for ManaAbility {
         // SR-36: two states differing only in a mana ability's dynamic-amount
         // expression must not hash identically.
         self.scaled_amount.hash_into(hasher);
+        // SR-37 (SF-10): two states differing only in a mana ability's activation
+        // condition must not hash identically.
+        self.activation_condition.hash_into(hasher);
     }
 }
 impl HashInto for Characteristics {

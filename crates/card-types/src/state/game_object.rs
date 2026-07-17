@@ -219,6 +219,19 @@ pub struct ManaAbility {
     /// pattern documented in `memory/gotchas-infra.md`).
     #[serde(default)]
     pub scaled_amount: Option<Box<crate::cards::card_definition::EffectAmount>>,
+    /// SR-37 / SF-10 (CR 605.1a + CR 602.5b): an "activate only if ..." restriction on
+    /// this mana ability. CR 605.1a is explicit that an activation restriction does *not*
+    /// disqualify an ability from being a mana ability, so the ability is still lowered
+    /// here (rather than kept on the stack) — but the restriction must still be honoured
+    /// when it is activated. `handle_tap_for_mana` checks this via `check_condition`
+    /// exactly as `handle_activate_ability` does for a stack-using ability. `None` for
+    /// the overwhelming majority (unconditioned mana sources); `Some` for e.g. Tainted
+    /// Field's coloured arms ("Activate only if you control a Swamp"). Carried through
+    /// from `AbilityDefinition::Activated::activation_condition` by `mana_ability_lowering`
+    /// — before SR-37 that field was silently dropped by the lowering loop's `..`, so a
+    /// conditioned mana ability produced its colour with the condition unmet.
+    #[serde(default)]
+    pub activation_condition: Option<crate::cards::card_definition::Condition>,
 }
 impl ManaAbility {
     /// Convenience constructor: tap this permanent to add one mana of `color`.
