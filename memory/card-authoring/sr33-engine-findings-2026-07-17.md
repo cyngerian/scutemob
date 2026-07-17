@@ -131,6 +131,26 @@ split by whether `payer` is the controller.
 
 ---
 
+## SF-6 — SR-33 shifted `activated_abilities` indices on the rewritten lands (latent)
+
+**Severity: LOW — nothing breaks today. Recorded so it is not rediscovered as a mystery.**
+
+`enrich_spec_from_def` deliberately excludes tap-for-mana abilities from
+`activated_abilities` "so `ability_index` does not shift". Before SR-33, a
+`Cost::Tap` + `Effect::Choose` ability **failed** `try_as_tap_mana_ability`, so it fell
+through that exclusion and was registered as a *non-mana* activated ability at index 0.
+Now it is correctly recognised and excluded.
+
+Consequence: on any rewritten land that also has a real non-mana activated ability, the
+non-mana ability's `ability_index` moves down. The only such card in the changed set is
+**Creeping Tar Pit** (its manland ability: 1 → 0). Verified by grep that no test or script
+in `tests/` or `test-data/` references it or any other affected land by name, so nothing
+regresses. But a `Command::ActivateAbility` written against a pre-SR-33 index would now
+silently activate a *different* ability rather than erroring — the failure is quiet, which
+is why it is written down.
+
+---
+
 ## SF-5 — A data-model test can pin a defect as a requirement
 
 **Severity: process finding, no code.**
