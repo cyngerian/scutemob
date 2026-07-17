@@ -41,6 +41,57 @@ Stays `partial`. Also unblocks the 3 sibling defs above.
 opponents of the source's controller, CR 115.x). A PB-sized task, out of scope for a
 card-authoring wave.
 
+## EF-W-PB2-3 — granted `any_color` ManaAbility stubs to `Colorless` (MEDIUM)
+
+`rules/mana.rs` `handle_tap_for_mana` (L337–365) — a `ManaAbility { any_color: true }` (whether
+intrinsic or granted via `LayerModification::AddManaAbility`) unconditionally adds
+`ManaColor::Colorless`, with the comment *"Simplified: colorless until interactive color choice is
+implemented, consistent with `Effect::AddManaAnyColor`"*. This is the **same defect class** as the
+gated `Effect::AddManaAnyColor` family (SR-37), but on the granted-mana-ability path rather than
+the Effect path — and it is **not** caught by `effect_choose_gate` (which walks the Effect serde
+tree, not `ManaAbility` structs).
+
+**Instance**: `elven_chorus.rs` — clause "Creatures you control have '{T}: Add one mana of any
+color'". Wiring `AddManaAbility{ any_color: true }` would make every creature tap for **colorless**,
+not any color — wrong game state. Stays `partial`.
+
+**Correction to the marker-sweep worklist**: it claimed `enduring_vitality.rs` implements this
+clause and is `Complete`, valid precedent. **False** — `enduring_vitality.rs` is currently
+`partial` (grep-verified), so it never proved the grant against this stub. Any future "add any
+color via granted ability" card is blocked here too.
+
+**Fix**: implement interactive/deterministic color choice for `any_color` mana abilities (the same
+work `Effect::AddManaAnyColor` needs), then the `tainted_field` one-ability-per-color pattern or a
+real choice channel. PB-sized, out of scope for an authoring wave.
+
+## EF-W-PB2-4 — no modal-activated-ability primitive (MEDIUM)
+
+`AbilityDefinition::Activated` (`card_definition.rs:285`) has **no `modes` field** — only
+`Triggered` and `Spell` carry `modes: Option<ModeSelection>`. So a "Choose one —" on an
+**activated** ability can only be modeled with the gated `Effect::Choose` stub (always executes
+`choices.first()`), which is barred from Complete.
+
+**Instance**: `goblin_cratermaker.rs` — "{1}, Sacrifice: Choose one — deal 2 damage to target
+creature; or destroy target colorless nonland permanent." Stays `known_wrong` (silently always
+resolves mode 0 while still demanding an unused mode-1 target). The secondary `exclude_colors`
+filter defect on mode 2 is moot until the modal primitive exists.
+
+**Fix**: add `modes: Option<ModeSelection>` (+ `mode_targets`) to `AbilityDefinition::Activated`
+and wire announce/validate/resolution, mirroring the `Spell`/`Triggered` modal path. PB-sized.
+
+## EF-W-PB2-5 — no "while you control source" `EffectDuration` (MEDIUM)
+
+`continuous_effect.rs` L44–64 — `EffectDuration` has `WhileSourceOnBattlefield` but no variant for
+"for as long as you control [source]". The two differ under gain-control.
+
+**Instance**: `olivia_voldaren.rs` — the `{3}{B}{B}` gain-control ability says "for as long as you
+control Olivia Voldaren"; modeled with `WhileSourceOnBattlefield`, so a borrowed creature would not
+return if an opponent gains control of Olivia while she remains on the battlefield. Demoted from
+Complete to `partial` (the `{1}{R}` half is correct).
+
+**Fix**: add `EffectDuration::WhileYouControlSource` (or similar) + its continuous-effect
+expiry check. PB-sized.
+
 ## LOW / accepted (non-blocking, cards ship Complete)
 
 - **avenger_of_zendikar** — landfall "you may put a +1/+1 counter" modeled as mandatory (the

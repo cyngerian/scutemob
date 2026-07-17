@@ -1,10 +1,6 @@
 // Aspect of Hydra — {G}, Instant
 // Target creature gets +X/+X until end of turn, where X is your devotion to green.
 // (Your devotion to green is the number of green mana symbols in the mana costs of permanents you control.)
-//
-// TODO: DSL gap — LayerModification::ModifyBoth(i32) takes a static i32, not EffectAmount.
-// Implementing "+X/+X where X = devotion" requires LayerModification::ModifyBothDynamic(EffectAmount)
-// which does not exist. Approximated as Nothing to avoid wrong game state.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -21,23 +17,25 @@ pub fn card() -> CardDefinition {
                       mana costs of permanents you control.)"
             .to_string(),
         abilities: vec![AbilityDefinition::Spell {
-            // TODO: CR 702.5c: devotion to green = number of {G} symbols in mana costs of
-            // permanents you control. EffectAmount::DevotionTo(Color::Green) computes this,
-            // but LayerModification::ModifyBoth only takes a static i32.
-            // Needs LayerModification::ModifyBothDynamic(Box<EffectAmount>) variant.
-            effect: Effect::Nothing,
+            // CR 702.5c: devotion to green = number of {G} symbols in mana costs of
+            // permanents you control. CR 608.2h: ModifyBothDynamic is substituted to a
+            // concrete ModifyBoth(v) at resolution, locking X in.
+            effect: Effect::ApplyContinuousEffect {
+                effect_def: Box::new(ContinuousEffectDef {
+                    layer: EffectLayer::PtModify,
+                    modification: LayerModification::ModifyBothDynamic {
+                        amount: Box::new(EffectAmount::DevotionTo(Color::Green)),
+                        negate: false,
+                    },
+                    filter: EffectFilter::DeclaredTarget { index: 0 },
+                    duration: EffectDuration::UntilEndOfTurn,
+                    condition: None,
+                }),
+            },
             targets: vec![TargetRequirement::TargetCreature],
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial(
-            "needs-rewiring: author Effect::ApplyContinuousEffect { ContinuousEffectDef { layer: \
-             PtModify, modification: ModifyBothDynamic { amount: \
-             EffectAmount::DevotionTo(Color::Green), negate: false }, filter: DeclaredTarget{0}, \
-             duration: UntilEndOfTurn } }. ModifyBothDynamic shipped in PB-X \
-             (continuous_effect.rs:430, effects/mod.rs:3008, layers.rs:1269); the old note is \
-             stale.",
-        ),
         ..Default::default()
     }
 }

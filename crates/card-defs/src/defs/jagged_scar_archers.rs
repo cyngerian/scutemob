@@ -1,9 +1,6 @@
 // Jagged-Scar Archers — {1}{G}{G}, Creature — Elf Archer */*
 // Power and toughness each equal number of Elves you control.
 // {T}: Deal damage equal to its power to target creature with flying.
-//
-// TODO: activated — {T}: deal damage equal to power to target creature with flying.
-// DSL gap: no EffectAmount::PowerOf(Source); no TargetFilter for "with flying". Deferred.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -42,11 +39,25 @@ pub fn card() -> CardDefinition {
                     controller: PlayerTarget::Controller,
                 },
             },
+            // {T}: This creature deals damage equal to its power to target creature
+            // with flying.
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::DealDamage {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                    amount: EffectAmount::PowerOf(EffectTarget::Source),
+                },
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                    has_card_type: Some(CardType::Creature),
+                    has_keywords: [KeywordAbility::Flying].into_iter().collect(),
+                    ..Default::default()
+                })],
+                activation_condition: None,
+                activation_zone: None,
+                once_per_turn: false,
+            },
         ],
-        completeness: Completeness::partial(
-            "Stale — remove marker after wiring the {T} ability. \
-             EffectAmount::PowerOf(EffectTarget::Source) and TargetFilter.has_keywords both exist.",
-        ),
         ..Default::default()
     }
 }
