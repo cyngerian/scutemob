@@ -1987,6 +1987,7 @@ fn test_509_1b_cant_be_blocked_via_continuous_effect() {
             remove_counter_cost: None,
             exile_self: false,
             exert: false,
+            life_cost: 0,
         },
         description: "{4},{T}: Target creature can't be blocked this turn.".to_string(),
         effect: Some(Effect::ApplyContinuousEffect {

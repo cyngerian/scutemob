@@ -296,58 +296,66 @@ fn get_color(pool: &ManaPool, color: ManaColor) -> u32 {
 /// try_as_tap_mana_ability and skipped from activated_abilities. After PB-34 fix,
 /// Gaea's Cradle should have a registered ManaAbility.
 ///
-/// **SR-34 note (SF-8, HIGH — deliberately NOT fixed here; see
-/// `memory/card-authoring/sr34-engine-findings-2026-07-17.md`).** This test — and
-/// `test_add_mana_scaled_orphan_fix_all_cards` below — only ever check the *shape* of the
-/// registered `ManaAbility` (non-empty, marked with the right colour key). Neither
-/// activates the ability and asserts the mana that actually comes out. If they did, they
-/// would fail: `handle_tap_for_mana` has no `AddManaScaled` branch and reads
-/// `produces: {Green: 1}` literally, so Gaea's Cradle taps for exactly 1 green regardless
-/// of creature count — a live HIGH bug this test's shape-only assertion cannot see
-/// (SF-8's own report, verbatim: "a data-model test can pin a defect as a requirement",
-/// SF-5). Kept as shape-only deliberately (not `#[ignore]`d) because the registration
-/// property they check is still real and still worth pinning — `AddManaScaled` remains
-/// gated out of the SR-34-widened lowering path for every cost shape except bare
-/// `Cost::Tap` (Finding A, `mana_ability_lowering` in `testing/replay_harness.rs`), and a
-/// regression there (Cabal Coffers losing its stack-based "right mana, wrong mechanism"
-/// fallback) is a different, separately-pinned failure (`primitive_sr34_composite_mana_costs
-/// ::composite_cost_add_mana_scaled_stays_on_the_stack`). Fixing SF-8 needs an
-/// `EffectAmount` resolution context inside the stackless `TapForMana` path, which
-/// `handle_tap_for_mana` does not have — a separate primitive.
+/// **SR-36 update (SF-8 fixed, `scutemob-92`).** This test used to check only the
+/// *shape* of the registered `ManaAbility` (non-empty, marked with the right colour
+/// key) — SF-8's own report named that exact pattern as the defect's cause ("a
+/// data-model test can pin a defect as a requirement"). `handle_tap_for_mana` now has a
+/// step (6c) that resolves `ManaAbility::scaled_amount` via `resolve_amount`, so this
+/// test activates the ability and asserts the real amount: 2 creatures (Gaea's Cradle
+/// itself is a land, so both fillers count) must produce 2 green, not the pre-fix
+/// marker's constant 1.
 fn test_add_mana_scaled_registered_as_mana_ability() {
     let (defs, registry) = build_defs_and_registry();
     let spec = make_spec(p(1), "Gaea's Cradle", ZoneId::Battlefield, &defs);
 
-    let state = GameStateBuilder::new()
+    let mut state = GameStateBuilder::new()
         .add_player(p(1))
         .add_player(p(2))
         .with_registry(registry)
         .object(spec)
+        .object(mtg_engine::ObjectSpec::creature(
+            p(1),
+            "Filler Bear One",
+            2,
+            2,
+        ))
+        .object(mtg_engine::ObjectSpec::creature(
+            p(1),
+            "Filler Bear Two",
+            2,
+            2,
+        ))
         .active_player(p(1))
         .at_step(Step::PreCombatMain)
         .build()
         .expect("state should build");
+    state.turn_mut().priority_holder = Some(p(1));
 
     let land_id = find_by_name(&state, "Gaea's Cradle");
-    let obj = state.objects().get(&land_id).unwrap();
-
-    // After PB-34 fix, Gaea's Cradle should have at least one registered ManaAbility.
-    // (Pre-fix: AddManaScaled with Cost::Tap was not recognized by try_as_tap_mana_ability
-    // and was silently excluded from both mana_abilities AND activated_abilities — never fired.)
-    assert!(
-        !obj.characteristics.mana_abilities.is_empty(),
-        "Gaea's Cradle should have at least one registered ManaAbility after PB-34 fix (AddManaScaled orphan bug)"
+    assert_eq!(
+        state.objects()[&land_id]
+            .characteristics
+            .mana_abilities
+            .len(),
+        1,
+        "Gaea's Cradle should have exactly one registered ManaAbility"
     );
 
-    // The registered ManaAbility should be marked as producing green mana (marker; actual count is dynamic).
-    let has_green_ability = obj
-        .characteristics
-        .mana_abilities
-        .iter()
-        .any(|ma| ma.produces.contains_key(&ManaColor::Green));
-    assert!(
-        has_green_ability,
-        "Gaea's Cradle ManaAbility should be marked as producing green mana"
+    let (state, _events) = process_command(
+        state,
+        Command::TapForMana {
+            player: p(1),
+            source: land_id,
+            ability_index: 0,
+        },
+    )
+    .expect("Gaea's Cradle activation should succeed");
+
+    assert_eq!(
+        get_color(&state.player(p(1)).unwrap().mana_pool, ManaColor::Green),
+        2,
+        "2 creatures controlled must produce 2 green — the pre-fix bug produced exactly 1 \
+         regardless of board state (SF-8)"
     );
 }
 
@@ -355,35 +363,109 @@ fn test_add_mana_scaled_registered_as_mana_ability() {
 /// PB-34: AddManaScaled orphan bug fix covers cards with Cost::Tap + AddManaScaled.
 /// These were previously orphaned: not recognized by try_as_tap_mana_ability AND
 /// excluded from activated_abilities — the ability was completely silent.
-/// After the fix, each should have a registered ManaAbility.
 ///
-/// Shape-only; see the SF-8 note on `test_add_mana_scaled_registered_as_mana_ability`
-/// above — it applies here too.
+/// **SR-36 update (SF-8 fixed, `scutemob-92`).** Activates each card and asserts the
+/// real mana it produces — never `!mana_abilities.is_empty()` alone (SF-8's own report:
+/// "a data-model test can pin a defect as a requirement"). Each board is built so the
+/// expected amount is NOT 1 (except where the printed effect genuinely produces 1 from a
+/// single controlled permanent counting itself with no filler) — an "alone on the
+/// battlefield" board for any of these cards happens to count exactly 1 of the relevant
+/// type (itself), which is indistinguishable from the pre-fix `{colour: 1}` marker; a
+/// filler creature per card is the assertion that tells the fix from the bug.
 ///
-/// Note: Cards with Cost::Sequence([Mana, Tap]) + AddManaScaled (Cabal Coffers,
-/// Cabal Stronghold, Crypt of Agadeem) stay registered as activated abilities (not mana
-/// abilities), but as of SR-34 that is NOT because they have an additional mana cost —
-/// Signets have one too and now ARE mana abilities. It is `mana_ability_lowering`'s
-/// explicit Finding-A exclusion: `AddManaScaled` is only accepted through bare
-/// `Cost::Tap`, any other cost shape is refused so the ability stays on the stack rather
-/// than being captured and producing the wrong (fixed) amount. Those three are NOT in
-/// this list.
+/// Note: Cards with Cost::Sequence([Mana, Tap]) + AddManaScaled (Cabal Coffers, Cabal
+/// Stronghold, Crypt of Agadeem) are NOT bare `Cost::Tap`, so they are not in this list,
+/// which stays bare-`Cost::Tap` cards only. They were excluded from mana-ability lowering
+/// by SR-34's Finding-A guard until SF-8 deleted it. Of the three, only Cabal Coffers is
+/// activated-and-amount-tested elsewhere —
+/// `primitive_sr36_scaled_mana_and_life_costs.rs::cabal_coffers_is_a_real_mana_ability`.
+/// **Cabal Stronghold and Crypt of Agadeem's scaled amounts are not verified by activation
+/// anywhere in the suite as of this task** — only their `Completeness::Partial` marker is
+/// checked (`primitive_sr34_composite_mana_costs.rs::sr34_roster_markers_match_the_reconciliation`).
+/// That is a real, named gap, not silently dropped coverage; closing it is §3 work
+/// (card-def marker reconciliation), out of this task's scope.
 fn test_add_mana_scaled_orphan_fix_all_cards() {
-    let scaled_mana_cards = [
-        "Elvish Archdruid",
-        "Priest of Titania",
-        "Marwyn, the Nurturer",
-        "Circle of Dreams Druid",
-        "Gaea's Cradle",
-        "Howlsquad Heavy",
-    ];
-
     let (defs, registry) = build_defs_and_registry();
 
-    for name in &scaled_mana_cards {
-        let spec = make_spec(p(1), name, ZoneId::Battlefield, &defs);
+    // (card name, extra battlefield permanents, expected colour, expected amount)
+    // Elvish Archdruid: {T}: Add {G} for each Elf you control. Itself (an Elf) + one more
+    // Elf filler it controls = 2; a non-Elf filler would not move the count (not tested
+    // here — see primitive_sr36_scaled_mana_and_life_costs.rs::elvish_archdruid_counts_only_elves
+    // for the filter-liveness proof).
+    {
+        let spec = make_spec(p(1), "Elvish Archdruid", ZoneId::Battlefield, &defs);
+        let filler = mtg_engine::ObjectSpec::creature(p(1), "Extra Elf", 1, 1)
+            .with_subtypes(vec![mtg_engine::SubType("Elf".to_string())]);
+        let mut state = GameStateBuilder::new()
+            .add_player(p(1))
+            .add_player(p(2))
+            .with_registry(registry.clone())
+            .object(spec)
+            .object(filler)
+            .active_player(p(1))
+            .at_step(Step::PreCombatMain)
+            .build()
+            .expect("state should build for Elvish Archdruid");
+        state.turn_mut().priority_holder = Some(p(1));
+        let id = find_by_name(&state, "Elvish Archdruid");
+        let (state, _) = process_command(
+            state,
+            Command::TapForMana {
+                player: p(1),
+                source: id,
+                ability_index: 0,
+            },
+        )
+        .expect("Elvish Archdruid activation should succeed");
+        assert_eq!(
+            get_color(&state.player(p(1)).unwrap().mana_pool, ManaColor::Green),
+            2,
+            "Elvish Archdruid: itself + one more Elf = 2 green"
+        );
+    }
 
-        let state = GameStateBuilder::new()
+    // Priest of Titania: {T}: Add {G} for each Elf ON THE BATTLEFIELD (PlayerTarget::EachPlayer
+    // scope — not "you control"). Itself + one Elf controlled by the OPPONENT must still
+    // count, proving both the amount resolution and the EachPlayer scope are live.
+    {
+        let spec = make_spec(p(1), "Priest of Titania", ZoneId::Battlefield, &defs);
+        let enemy_elf = mtg_engine::ObjectSpec::creature(p(2), "Enemy Elf", 1, 1)
+            .with_subtypes(vec![mtg_engine::SubType("Elf".to_string())]);
+        let mut state = GameStateBuilder::new()
+            .add_player(p(1))
+            .add_player(p(2))
+            .with_registry(registry.clone())
+            .object(spec)
+            .object(enemy_elf)
+            .active_player(p(1))
+            .at_step(Step::PreCombatMain)
+            .build()
+            .expect("state should build for Priest of Titania");
+        state.turn_mut().priority_holder = Some(p(1));
+        let id = find_by_name(&state, "Priest of Titania");
+        let (state, _) = process_command(
+            state,
+            Command::TapForMana {
+                player: p(1),
+                source: id,
+                ability_index: 0,
+            },
+        )
+        .expect("Priest of Titania activation should succeed");
+        assert_eq!(
+            get_color(&state.player(p(1)).unwrap().mana_pool, ManaColor::Green),
+            2,
+            "Priest of Titania: itself + an opponent's Elf = 2 green (counts the whole \
+             battlefield, not just permanents you control)"
+        );
+    }
+
+    // Marwyn, the Nurturer: {T}: Add {G} equal to Marwyn's power. Give it a +1/+1 counter
+    // so its power (2) differs from its base power (1) and from the pre-fix marker (1).
+    {
+        let spec = make_spec(p(1), "Marwyn, the Nurturer", ZoneId::Battlefield, &defs)
+            .with_counter(mtg_engine::CounterType::PlusOnePlusOne, 1);
+        let mut state = GameStateBuilder::new()
             .add_player(p(1))
             .add_player(p(2))
             .with_registry(registry.clone())
@@ -391,15 +473,124 @@ fn test_add_mana_scaled_orphan_fix_all_cards() {
             .active_player(p(1))
             .at_step(Step::PreCombatMain)
             .build()
-            .unwrap_or_else(|e| panic!("state build failed for {}: {:?}", name, e));
+            .expect("state should build for Marwyn");
+        state.turn_mut().priority_holder = Some(p(1));
+        let id = find_by_name(&state, "Marwyn, the Nurturer");
+        let (state, _) = process_command(
+            state,
+            Command::TapForMana {
+                player: p(1),
+                source: id,
+                ability_index: 0,
+            },
+        )
+        .expect("Marwyn activation should succeed");
+        assert_eq!(
+            get_color(&state.player(p(1)).unwrap().mana_pool, ManaColor::Green),
+            2,
+            "Marwyn: power 2 (base 1 + a +1/+1 counter) must produce 2 green"
+        );
+    }
 
-        let obj_id = find_by_name(&state, name);
-        let obj = state.objects().get(&obj_id).unwrap();
+    // Circle of Dreams Druid: {T}: Add {G} for each creature you control. Itself + one
+    // filler creature (any type) = 2.
+    {
+        let spec = make_spec(p(1), "Circle of Dreams Druid", ZoneId::Battlefield, &defs);
+        let filler = mtg_engine::ObjectSpec::creature(p(1), "Filler Bear", 2, 2);
+        let mut state = GameStateBuilder::new()
+            .add_player(p(1))
+            .add_player(p(2))
+            .with_registry(registry.clone())
+            .object(spec)
+            .object(filler)
+            .active_player(p(1))
+            .at_step(Step::PreCombatMain)
+            .build()
+            .expect("state should build for Circle of Dreams Druid");
+        state.turn_mut().priority_holder = Some(p(1));
+        let id = find_by_name(&state, "Circle of Dreams Druid");
+        let (state, _) = process_command(
+            state,
+            Command::TapForMana {
+                player: p(1),
+                source: id,
+                ability_index: 0,
+            },
+        )
+        .expect("Circle of Dreams Druid activation should succeed");
+        assert_eq!(
+            get_color(&state.player(p(1)).unwrap().mana_pool, ManaColor::Green),
+            2,
+            "Circle of Dreams Druid: itself + one filler creature = 2 green"
+        );
+    }
 
-        assert!(
-            !obj.characteristics.mana_abilities.is_empty(),
-            "{} should have a registered ManaAbility after PB-34 AddManaScaled orphan fix",
-            name
+    // Gaea's Cradle: {T}: Add {G} for each creature you control. A land counts nothing
+    // of itself, so ZERO creatures on an otherwise-populated (but creature-less) board
+    // is the load-bearing case — pre-fix this produced exactly 1 regardless.
+    {
+        let spec = make_spec(p(1), "Gaea's Cradle", ZoneId::Battlefield, &defs);
+        let mut state = GameStateBuilder::new()
+            .add_player(p(1))
+            .add_player(p(2))
+            .with_registry(registry.clone())
+            .object(spec)
+            .active_player(p(1))
+            .at_step(Step::PreCombatMain)
+            .build()
+            .expect("state should build for Gaea's Cradle");
+        state.turn_mut().priority_holder = Some(p(1));
+        let id = find_by_name(&state, "Gaea's Cradle");
+        let (state, _) = process_command(
+            state,
+            Command::TapForMana {
+                player: p(1),
+                source: id,
+                ability_index: 0,
+            },
+        )
+        .expect("Gaea's Cradle activation should succeed");
+        assert_eq!(
+            get_color(&state.player(p(1)).unwrap().mana_pool, ManaColor::Green),
+            0,
+            "Gaea's Cradle: 0 creatures controlled must produce 0 green, not the pre-fix \
+             marker's constant 1"
+        );
+    }
+
+    // Howlsquad Heavy: "Max speed — {T}: Add {R} for each Goblin you control" (the Max
+    // speed gate itself is a separate, un-actioned KnownWrong defect — see the card's
+    // Completeness note; SF-8 only concerns the AMOUNT the ability computes once
+    // activated). Itself + one Goblin filler = 2.
+    {
+        let spec = make_spec(p(1), "Howlsquad Heavy", ZoneId::Battlefield, &defs);
+        let filler = mtg_engine::ObjectSpec::creature(p(1), "Filler Goblin", 1, 1)
+            .with_subtypes(vec![mtg_engine::SubType("Goblin".to_string())]);
+        let mut state = GameStateBuilder::new()
+            .add_player(p(1))
+            .add_player(p(2))
+            .with_registry(registry.clone())
+            .object(spec)
+            .object(filler)
+            .active_player(p(1))
+            .at_step(Step::PreCombatMain)
+            .build()
+            .expect("state should build for Howlsquad Heavy");
+        state.turn_mut().priority_holder = Some(p(1));
+        let id = find_by_name(&state, "Howlsquad Heavy");
+        let (state, _) = process_command(
+            state,
+            Command::TapForMana {
+                player: p(1),
+                source: id,
+                ability_index: 0,
+            },
+        )
+        .expect("Howlsquad Heavy activation should succeed");
+        assert_eq!(
+            get_color(&state.player(p(1)).unwrap().mana_pool, ManaColor::Red),
+            2,
+            "Howlsquad Heavy: itself + one filler Goblin = 2 red"
         );
     }
 }

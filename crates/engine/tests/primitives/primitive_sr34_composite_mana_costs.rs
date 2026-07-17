@@ -541,30 +541,32 @@ fn signet_mana_cost_can_be_paid_from_another_mana_ability() {
     assert_eq!(pool_amount(&state, p(1), ManaColor::White), 1);
 }
 
-// ── T10 — Finding A: AddManaScaled is excluded from every cost but bare Cost::Tap ──
+// ── T10 — SF-8 deleted the Finding-A exclusion: Cabal Coffers is now a real mana ability ──
 
-/// SR-34 Finding A: `AddManaScaled`'s registered `produces = {colour: 1}` is a marker —
-/// `handle_tap_for_mana` has no `AddManaScaled` branch and the dynamic count is only
-/// evaluated via stack resolution. Widening the lowering gate to Cabal Coffers's
-/// `{2},{T}: Add {B} for each Swamp you control` would capture it and demote it from
-/// "correct via the stack" to "exactly one black mana" — so `AddManaScaled` is actively
-/// excluded from every cost shape except bare `Cost::Tap`. Cabal Coffers must register
-/// ZERO mana abilities and stay a stack-using activated ability. Delete this test when
-/// SF-8 lands (see `memory/card-authoring/sr34-engine-findings-2026-07-17.md`) — that is
-/// the fix that makes deleting the exclusion correct.
+/// SR-34 Finding A used to actively exclude `AddManaScaled` from every cost shape except
+/// bare `Cost::Tap`, specifically to keep Cabal Coffers's `{2},{T}: Add {B} for each Swamp
+/// you control` on the stack: widening the lowering gate without a way to resolve
+/// `AddManaScaled`'s dynamic amount would have captured it and demoted it from "correct via
+/// the stack" to "exactly one black mana" (the `{colour: 1}` marker, unmultiplied by Swamp
+/// count). SF-8 (SR-36, `scutemob-92`) gave `handle_tap_for_mana` that resolution
+/// (`ManaAbility::scaled_amount` + step 6c), so the exclusion is gone — this test now pins
+/// the exact negation of what it pinned before SF-8 landed. The amount itself (N Swamps ->
+/// N black, the `{2}` generic actually leaving the pool) is pinned by activation in
+/// `primitive_sr36_scaled_mana_and_life_costs.rs::cabal_coffers_is_a_real_mana_ability`;
+/// this test's job is the registration-shape half of that story.
 #[test]
-fn composite_cost_add_mana_scaled_stays_on_the_stack() {
+fn composite_cost_add_mana_scaled_is_now_a_real_mana_ability() {
     let defs = defs_map();
     let spec = make_spec(p(1), "Cabal Coffers", ZoneId::Battlefield, &defs);
     assert_eq!(
         spec.mana_abilities.len(),
-        0,
-        "Cabal Coffers must NOT be captured by the SR-34 widened lowering (Finding A)"
-    );
-    assert_eq!(
-        spec.activated_abilities.len(),
         1,
-        "Cabal Coffers stays a stack-using activated ability"
+        "Cabal Coffers must now be captured by the widened lowering (SF-8 deleted the \
+         Finding-A exclusion)"
+    );
+    assert!(
+        spec.activated_abilities.is_empty(),
+        "the same ability must not ALSO appear in activated_abilities (SF-6 exclusion)"
     );
 }
 

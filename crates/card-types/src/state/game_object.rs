@@ -207,6 +207,18 @@ pub struct ManaAbility {
     /// activate a `life_cost: 0` mana ability).
     #[serde(default)]
     pub life_cost: u32,
+    /// SR-36 (CR 605.1a): if this ability's mana amount is dynamic (e.g. "for each
+    /// creature you control" — Gaea's Cradle, Elvish Archdruid), the amount to
+    /// resolve at activation. Overrides the per-colour count in `produces`, which
+    /// still carries `1` per colour as the colour-channel marker
+    /// (`every_complete_land_registers_each_printed_tap_mana_color`, SR-33). `None`
+    /// for fixed-amount abilities (the overwhelming majority). Boxed:
+    /// `EffectAmount::PermanentCount` embeds a `TargetFilter`, which pushed
+    /// `LayerModification::AddManaAbility(ManaAbility)` over clippy's
+    /// `large_enum_variant` threshold unboxed (mirrors the `Option<Box<Effect>>`
+    /// pattern documented in `memory/gotchas-infra.md`).
+    #[serde(default)]
+    pub scaled_amount: Option<Box<crate::cards::card_definition::EffectAmount>>,
 }
 impl ManaAbility {
     /// Convenience constructor: tap this permanent to add one mana of `color`.
@@ -298,6 +310,15 @@ pub struct ActivationCost {
     /// `Designations::EXERTED` is set at activation time.
     #[serde(default)]
     pub exert: bool,
+    /// SR-36 (CR 118.3 / CR 119.4): life component of this ability's activation
+    /// cost, e.g. the fetchland "Pay 1 life" or Doom Whisperer's "Pay 2 life".
+    /// Legal only if `life_total >= life_cost`; CR 119.4b makes a cost of 0 always
+    /// legal (a player at negative life must still be able to activate a
+    /// `life_cost: 0` ability), so the check must short-circuit on 0. Mirrors
+    /// `ManaAbility::life_cost` — the two paths are disjoint by construction
+    /// (`mana_ability_lowering` in `testing/replay_harness.rs`).
+    #[serde(default)]
+    pub life_cost: u32,
 }
 /// A non-mana activated ability that uses the stack (CR 602).
 ///

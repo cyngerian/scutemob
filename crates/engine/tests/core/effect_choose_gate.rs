@@ -257,33 +257,39 @@ fn symbol_to_color(c: char) -> Option<ManaColor> {
 /// {G}` (horizon lands), and `{W/B}, {T}: Add ...` (filter lands) alongside the original
 /// bare-`{T}` case.
 ///
-/// Two exclusions remain, both load-bearing — without them this reports cards that are
+/// Three exclusions remain, all load-bearing — without them this reports cards that are
 /// not the SR-33/SR-34 defect:
 ///
 /// 1. **The clause must be this card's own.** `Creatures you control have "{T}: Add {G}"`
 ///    (Citanul Hierophants) grants the ability to *other* objects; the granting card has
 ///    no mana ability of its own and is correct as written.
-/// 2. **A dynamic-amount clause is excluded, not asserted against.** This parser reads
-///    *colours*, never *amounts* — `{T}: Add {G} for each creature you control`
-///    (`Effect::AddManaScaled`) and `Add an amount of mana ... equal to ...`
-///    (`Effect::AddManaOfAnyColorAmount`) print a colour but produce a count this parser
-///    cannot verify (that is **SF-8**, a live HIGH bug: `handle_tap_for_mana` has no
-///    `AddManaScaled` branch and reads the registered `produces: {colour: 1}` marker
-///    literally, so e.g. Gaea's Cradle taps for exactly 1 green regardless of creature
-///    count — filed, not fixed by SR-34; see
-///    `memory/card-authoring/sr34-engine-findings-2026-07-17.md`). A clause ending in
-///    "for each" / "equal to" is dropped from `printed` entirely, not compared. This is
-///    necessary, not just conservative: `mana_ability_lowering`'s Finding-A exclusion
-///    (SR-34) deliberately keeps `AddManaScaled` OFF the widened lowering path for any
-///    cost that is not bare `Cost::Tap` — Cabal Coffers (`{2},{T}: Add {B} for each
-///    Swamp...`) registers **zero** mana abilities on purpose (it stays on the stack
-///    rather than being captured and producing the wrong, fixed amount) — so asserting
-///    colour equality on that clause would fail a `Complete` card for behaving exactly as
-///    designed. A bare-`Cost::Tap` scaled source (Gaea's Cradle) is *also* excluded here;
-///    that clause was never actually amount-checked by this gate before this rewrite
-///    either (it only ever compared the marker's single colour, which is why SF-8 was
-///    invisible to it) — excluding it is what makes that blind spot documented instead of
-///    silent, per SR-34 §9.
+/// 2. **A dynamic-amount clause is excluded, not asserted against — by this gate,
+///    specifically, still.** This parser reads *colours*, never *amounts* —
+///    `{T}: Add {G} for each creature you control` (`Effect::AddManaScaled`) and `Add an
+///    amount of mana ... equal to ...` (`Effect::AddManaOfAnyColorAmount`) print a colour
+///    but produce a count this parser cannot verify. That is **not** the live gap it used
+///    to be: SF-8 (SR-36, `scutemob-92`) gave `handle_tap_for_mana` a `ManaAbility::scaled_amount`
+///    resolution step, so `handle_tap_for_mana` no longer reads the registered
+///    `produces: {colour: 1}` marker literally — Gaea's Cradle now taps for the real
+///    creature count, not exactly 1 regardless of board state. The amount is now verified
+///    by *activation*, elsewhere: every bare-`Cost::Tap` scaled source (Gaea's Cradle,
+///    Elvish Archdruid, Priest of Titania, Marwyn the Nurturer, Circle of Dreams Druid,
+///    Howlsquad Heavy — `tests/casting/mana_filter.rs::test_add_mana_scaled_orphan_fix_all_cards`)
+///    and Cabal Coffers, the one composite-cost scaled source SF-8 additionally unblocked
+///    (`primitive_sr36_scaled_mana_and_life_costs.rs::cabal_coffers_is_a_real_mana_ability`).
+///    **Cabal Stronghold and Crypt of Agadeem — the other two composite-cost scaled
+///    sources SF-8 unblocked — are not yet amount-verified by activation anywhere in the
+///    suite**; only their `Completeness::Partial` marker is checked
+///    (`primitive_sr34_composite_mana_costs.rs::sr34_roster_markers_match_the_reconciliation`).
+///    That is a real, named gap (their marker-upgrade reconciliation is separate, deferred
+///    work), not a silently-dropped one. This gate's own exclusion stays, regardless of
+///    SF-8: it is a parser-design boundary (colours only, never amounts, by construction —
+///    see the symbol-walk below), not a defect the gate was tracking, so a clause ending
+///    in "for each" / "equal to" is still dropped from `printed` entirely rather than
+///    compared. Cabal Coffers is why the exclusion also cannot simply widen to "any cost
+///    shape" now that Finding A is gone: this parser has no notion of "the resolved
+///    amount", only "the printed colour", so it could confirm Cabal Coffers *prints* `{B}`
+///    but never that it now legitimately produces N of it.
 /// 3. **"Add one mana of any color" is invisible to this gate, on both sides, and
 ///    passes vacuously (SR-34 review Finding 4 / SF-12).** On the *printed* side, this
 ///    parser requires a `{` after the cost (see the `strip_prefix('{')` walk below);

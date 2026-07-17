@@ -521,6 +521,24 @@ pub fn handle_activate_ability(
             object_id: source,
         });
     }
+    // SR-36 / SF-9 (CR 118.3 / CR 119.4b): life-cost legality check, before any cost is paid.
+    // Mirrors `handle_tap_for_mana`'s step 5b (`rules/mana.rs`) — the mana-ability and
+    // non-mana-ability paths are disjoint by construction (`mana_ability_lowering` in
+    // `testing/replay_harness.rs`: an ability that lowers into a `ManaAbility` is excluded
+    // from `activated_abilities`, so it never reaches this function), so this cannot
+    // double-charge a card SR-34 already fixed. CR 119.4b: a cost of 0 is always legal,
+    // even at negative life — the check must short-circuit on `life_cost > 0` rather than
+    // comparing unconditionally.
+    if ability_cost.life_cost > 0 {
+        let player_state = state.player(player)?;
+        if player_state.life_total < ability_cost.life_cost as i32 {
+            return Err(GameStateError::InsufficientLife {
+                player,
+                required: ability_cost.life_cost,
+                actual: player_state.life_total,
+            });
+        }
+    }
     // Pay mana cost if required (CR 602.2a).
     if let Some(ref mana_cost) = ability_cost.mana_cost {
         // CR 107.3k: For activated abilities with {X} in the activation cost, add x_count * x_value
@@ -570,6 +588,20 @@ pub fn handle_activate_ability(
                 cost: resolved_cost,
             });
         }
+    }
+    // SR-36 / SF-9 (CR 118.3 / CR 119.4b): pay the life cost. CR 601.2h: tap/mana/life/
+    // sacrifice costs in this group may be paid in any order — none of their legality
+    // depends on another's result — so placing payment here (after the mana-cost block,
+    // before discard/sacrifice) is about legibility, not a transactional guarantee: an
+    // `Err` anywhere below discards the whole `GameState` regardless, since
+    // `process_command` takes `GameState` by value and only returns it on `Ok`.
+    if ability_cost.life_cost > 0 {
+        let player_state = state.player_mut(player)?;
+        player_state.life_total -= ability_cost.life_cost as i32;
+        events.push(GameEvent::LifeLost {
+            player,
+            amount: ability_cost.life_cost,
+        });
     }
     // CR 602.2 / CR 111.10g: Pay discard-a-card cost (e.g., Blood token activation).
     // The discard is a cost, not an effect — it happens at activation time, before the

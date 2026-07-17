@@ -94,6 +94,7 @@ fn forager_creature(owner: PlayerId) -> ObjectSpec {
             remove_counter_cost: None,
             exile_self: false,
             exert: false,
+            life_cost: 0,
         },
         description: "{2}, Forage: You gain 2 life.".to_string(),
         effect: Some(Effect::GainLife {
@@ -124,6 +125,7 @@ fn forage_only_creature(owner: PlayerId) -> ObjectSpec {
                 remove_counter_cost: None,
                 exile_self: false,
                 exert: false,
+                life_cost: 0,
             },
             description: "Forage: You gain 1 life.".to_string(),
             effect: Some(Effect::GainLife {
