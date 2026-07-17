@@ -24,7 +24,7 @@ Whenever Rundvelt Hordemaster or another Goblin you control dies, exile the top 
             // TODO: DSL gap — death trigger with controller filter (Goblin you control)
             // + exile top card + conditional cast permission.
         ],
-        completeness: Completeness::partial("DSL gap — death trigger with controller filter (Goblin you control) + exile top card + conditional cast permission"),
+        completeness: Completeness::partial("Goblin lord static is wired. Death trigger IS expressible (TriggerCondition::WheneverCreatureDies + TargetFilter{has_subtype: Goblin, controller: You}, note includes Rundvelt itself) — that clause of the old note was stale. Real blocker: 'if it's a Goblin creature card, you may cast that card until the end of your next turn' — no cast-permission window with an end-of-next-turn duration, and 'you may' has no interactive expression (Effect::Choose executes choices.first() unconditionally, effects/mod.rs:3190)."),
         ..Default::default()
     }
 }

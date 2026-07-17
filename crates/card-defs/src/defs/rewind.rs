@@ -20,7 +20,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("'Untap up to four lands' — requires untap-N permanents with land filter and 'up to' choice"),
+        completeness: Completeness::partial("needs-rewiring: TargetRequirement::UpToN (card_definition.rs:2798) supplies the 'up to four' choice the old note called missing. Remaining question is how UpToN target slots map to EffectTarget::DeclaredTarget indices for the untap Sequence — trace that before authoring."),
         ..Default::default()
     }
 }

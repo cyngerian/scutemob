@@ -18,7 +18,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Shadow),
         ],
         // TODO: triggered ability from graveyard ("may pay {B}, return from graveyard")
-        completeness: Completeness::partial("DSL gap — triggered ability from graveyard zone not expressible, and mana-payment conditional ('you may pay {B}') not..."),
+        completeness: Completeness::partial("needs-rewiring (no engine work required). Neither stated blocker is real: AbilityDefinition::Triggered has a `trigger_zone` field and TriggerZone::Graveyard is dispatched via collect_graveyard_carddef_triggers (replay_harness.rs:2732), and Effect::MayPayThenEffect correctly gates `then` on actual payment (effects/mod.rs:3203, CR 118.12) — it does NOT share Effect::MayPayOrElse's always-decline bug. Wire as TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You), exclude_self: true, .. } + trigger_zone: Some(TriggerZone::Graveyard) + Effect::MayPayThenEffect { cost: Cost::Mana({B}), then: MoveZone(Source -> Battlefield) }."),
         ..Default::default()
     }
 }

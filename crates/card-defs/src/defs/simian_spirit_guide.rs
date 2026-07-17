@@ -28,7 +28,7 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("Cost::ExileFromHand does not exist. Same gap as Elvish Spirit Guide"),
+        completeness: Completeness::partial("activated ability is authored with Cost::Mana(default) — a free, repeatable 'Add {R}' (infinite mana). Cost::ExileFromHand (casting.rs:4168) + activation_zone: Hand are shipped; rewire to complete."),
         ..Default::default()
     }
 }

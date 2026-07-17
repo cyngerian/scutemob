@@ -32,7 +32,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — "Whenever Dwynen attacks, you gain 1 life for each attacking
             // Elf you control." Needs EffectAmount::AttackingCreatureCountWithSubtype.
         ],
-        completeness: Completeness::partial("DSL gap — 'Whenever Dwynen attacks, you gain 1 life for each attacking Elf you control.' Needs..."),
+        completeness: Completeness::partial("Wire the attack trigger: TriggerCondition::WhenAttacks with Effect::GainLife { player: PlayerTarget::Controller, amount: EffectAmount::AttackingCreatureCount { controller: PlayerTarget::Controller, filter: Some(TargetFilter { has_subtype: Some(SubType(\"Elf\")), ..Default::default() }) } }. exclude_self must stay false — Dwynen counts herself."),
         ..Default::default()
     }
 }

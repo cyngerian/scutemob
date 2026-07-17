@@ -35,7 +35,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("'any target' — using each opponent as approximation"),
+        completeness: Completeness::known_wrong("'deals 1 damage to any target' is modeled as ForEach EachOpponent, dealing 1 damage to every opponent (3x in a 4-player game) instead of to one chosen target. Needs a targeted triggered ability (TargetRequirement::TargetAny) rather than a ForEach."),
         ..Default::default()
     }
 }

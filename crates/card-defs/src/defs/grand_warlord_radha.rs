@@ -21,7 +21,7 @@ pub fn card() -> CardDefinition {
             // (dynamic count), and mana persists through phase changes (special mana
             // restriction), neither of which is expressible in the current DSL.
         ],
-        completeness: Completeness::partial("DSL gap — 'Whenever one or more creatures you control attack' requires WhenYouDeclareAttackers trigger condition which..."),
+        completeness: Completeness::partial("Blocked on the mana clauses only. Real gaps: (a) 'add that much mana in any combination of {R} and/or {G}' — AddManaChoice/AddManaOfAnyColorAmount produce N mana of ONE color; no split-across-colors variant; (b) 'you don't lose this mana as steps and phases end' — ManaRestriction's variants are spend-restrictions only, with no exemption from CR 500.4 mana emptying. NOT blocked: the trigger is TriggerCondition::WheneverYouAttack (fires once per combat, CR 508.1), and the count is EffectAmount::AttackingCreatureCount. Haste is correct."),
         ..Default::default()
     }
 }

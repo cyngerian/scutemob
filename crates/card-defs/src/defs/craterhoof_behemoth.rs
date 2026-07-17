@@ -19,7 +19,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Haste),
         ],
         // TODO: ETB trigger — mass trample grant + dynamic +X/+X (needs LayerModification with EffectAmount)
-        completeness: Completeness::partial("DSL gap — mass trample grant + dynamic +X/+X continuous effect. PermanentCount is now available for X, but..."),
+        completeness: Completeness::partial("ETB trigger unimplemented. Primitives now exist (ModifyBothDynamic + PermanentCount, substituted/locked at resolution per effects/mod.rs:3008; EffectFilter::CreaturesYouControl; AddKeywords(Trample)) — author the WhenEntersBattlefield trigger."),
         ..Default::default()
     }
 }

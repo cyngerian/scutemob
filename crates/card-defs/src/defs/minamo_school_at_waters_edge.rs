@@ -41,7 +41,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("Target should be 'legendary permanent' — TargetFilter lacks supertype constraint"),
+        completeness: Completeness::partial("Rewire: TargetPermanentWithFilter(TargetFilter { legendary: true, ..Default::default() }) — TargetFilter.legendary shipped and is enforced at effects/mod.rs:8045. The def currently targets any permanent. Likely Complete after this one-field change."),
         ..Default::default()
     }
 }

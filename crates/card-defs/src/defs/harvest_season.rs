@@ -19,7 +19,7 @@ pub fn card() -> CardDefinition {
             // Cannot express "search for up to X" where X is a dynamic battlefield count.
             // Omitted per W5 policy (partial impl would fix X at a wrong value).
         ],
-        completeness: Completeness::partial("X = number of tapped creatures you control — EffectAmount::CountTappedCreaturesYouControl does not exist. This is a..."),
+        completeness: Completeness::partial("Blocked: Effect::SearchLibrary has no count field — 'search for up to X cards' is inexpressible (single card only). (EffectAmount::TappedCreatureCount now exists per PB-AC3, so only the variable search count is missing.) Omitted per W5 policy."),
         ..Default::default()
     }
 }

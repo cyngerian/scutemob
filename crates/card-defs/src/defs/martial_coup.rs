@@ -57,7 +57,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("DestroyAll currently hits ALL creatures including the Soldier tokens created by the preceding Repeat effect. Oracle..."),
+        completeness: Completeness::known_wrong("when X >= 5, DestroyAll destroys the Soldier tokens this spell just created; oracle says 'all OTHER creatures'. No DestroyAllExcept variant and no exclude-created-this-effect flag on TargetFilter."),
         ..Default::default()
     }
 }

@@ -87,7 +87,7 @@ pub fn card() -> CardDefinition {
             },
             AbilityDefinition::Keyword(KeywordAbility::Equip),
         ],
-        completeness: Completeness::partial("Protection from green and blue on equipped creature — multi-color protection grant not in LayerModification"),
+        completeness: Completeness::partial("Equip {2} unimplemented — bare Keyword(Equip) marker with no AbilityDefinition::Activated { cost: Mana({2}), effect: AttachEquipment } (see keyword_registry.rs:89). Protection from green/blue and the combat-damage trigger ARE implemented."),
         ..Default::default()
     }
 }

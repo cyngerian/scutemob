@@ -23,7 +23,7 @@ pub fn card() -> CardDefinition {
             //    triggered sacrifice is not expressible in the DSL.
             // Empty per W5 policy.
         ],
-        completeness: Completeness::partial("This card has multiple DSL gaps: 1. {X} in mana cost: ManaCost has no X field; X-value effects require..."),
+        completeness: Completeness::partial("Blocked on (a) TimingRestriction has only SorcerySpeed/AnyTime — 'cast only during combat on an opponent's turn' is inexpressible; (b) X target creature cards — no variable-count targeting; (c) 'sacrifice those creatures at the beginning of the next end step' — delayed sacrifice exists only on TokenSpec. ManaCost.x_count DOES exist ({X}{B}{B} is representable); that is no longer a blocker and the def's mana_cost should carry x_count: 1."),
         ..Default::default()
     }
 }

@@ -48,7 +48,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
-        completeness: Completeness::known_wrong("oracle's 'activate only if' restriction is modeled as something else — the activation restriction is not enforced as printed"),
+        completeness: Completeness::known_wrong("activation_condition shipped (PB-22 S1, enforced rules/abilities.rs:255 per CR 602.5b) and Condition::HasCitysBlessing exists. Rewire: third ability should carry activation_condition: Some(Condition::HasCitysBlessing) with a bare DrawCards effect, replacing the Conditional wrapper that currently lets the cost be paid for no effect."),
         ..Default::default()
     }
 }

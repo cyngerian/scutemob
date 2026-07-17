@@ -40,7 +40,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("'may draw unless that player pays {4}' — MayPayOrElse still a gap"),
+        completeness: Completeness::known_wrong("Effect::MayPayOrElse is non-interactive — effects/mod.rs:3196 always applies or_else without offering the payment, so the opponent can never pay {4} and this draws a card off EVERY opponent noncreature spell. Cumulative upkeep {1} and the noncreature-spell trigger filter are correct."),
         ..Default::default()
     }
 }

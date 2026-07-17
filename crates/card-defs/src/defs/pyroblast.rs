@@ -46,7 +46,7 @@ pub fn card() -> CardDefinition {
             }),
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("Resolution-time color check not implemented in DSL — the color filter should be applied when the effect resolves, not..."),
+        completeness: Completeness::known_wrong("both modes resolve unconditionally, so this counters any spell / destroys any permanent regardless of color. Oracle gates both on 'if it's blue', checked at resolution (2016-06-08 ruling), and no Condition variant expresses a target's color nor can mode effects apply a conditional resolution check. Needs Condition::TargetHasColor + conditional mode resolution."),
         ..Default::default()
     }
 }

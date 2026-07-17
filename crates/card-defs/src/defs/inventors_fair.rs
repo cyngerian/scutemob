@@ -64,7 +64,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("Upkeep life gain trigger with intervening-if 'control 3+ artifacts' (count_threshold gap)"),
+        completeness: Completeness::partial("Blocked on an InterveningIf count-threshold variant for the upkeep 'if you control three or more artifacts' clause (InterveningIf has only ControllerLifeAtLeast / SourceHadNoCounterOfType). The search ability's 'activate only if you control three or more artifacts' IS expressible now via activation_condition: Some(Condition::YouControlNOrMoreWithFilter) (PB-22 S1) and must be wired — the def currently permits illegal activation."),
         ..Default::default()
     }
 }

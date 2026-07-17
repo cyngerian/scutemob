@@ -27,7 +27,7 @@ pub fn card() -> CardDefinition {
             // card_definition.rs AbilityDefinition::Replacement yet for blanket prevention.
             // Deferred until damage prevention replacement effects are added to the DSL.
         ],
-        completeness: Completeness::partial("blanket noncombat damage prevention for other creatures not expressible"),
+        completeness: Completeness::partial("'Prevent all noncombat damage dealt to other creatures you control' unimplemented. DamageWouldBeDealt + PreventAllDamage exist, but DamageTargetFilter has no combat/noncombat discriminator and no 'other creatures you control' variant. Unblock: extend DamageTargetFilter. Defender and HexproofPlayer are implemented."),
         ..Default::default()
     }
 }

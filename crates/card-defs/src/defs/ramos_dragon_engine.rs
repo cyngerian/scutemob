@@ -48,7 +48,7 @@ pub fn card() -> CardDefinition {
                 once_per_turn: true,
             },
         ],
-        completeness: Completeness::partial("'Whenever you cast a spell' trigger — needs WheneverYouCastASpell trigger + EffectAmount::SpellColorCount to count a..."),
+        completeness: Completeness::partial("'Whenever you cast a spell, put a +1/+1 counter on Ramos for each of that spell's colors.' TriggerCondition::WheneverYouCastSpell exists and is wired; the real gap is EffectAmount::SpellColorCount — no way to forward the triggering spell's color count to AddCounter. Mana ability also pending mana-ability classification (BF-1)."),
         ..Default::default()
     }
 }

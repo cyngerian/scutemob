@@ -33,7 +33,7 @@ pub fn card() -> CardDefinition {
             },
             // TODO: Activated — {B}, {T}: Target creature connives X (where X = creatures died this turn).
         ],
-        completeness: Completeness::partial("Activated — {B}, {T}: Target creature connives X (where X = creatures died this turn)"),
+        completeness: Completeness::partial("Only blocker: 'connives X, where X is the number of creatures that died this turn' — EffectAmount has no died-this-turn count. Effect::Connive itself exists (card_definition.rs:1633)."),
         ..Default::default()
     }
 }

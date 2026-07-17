@@ -54,7 +54,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("Sacrifice self from triggered ability — reflexive trigger pattern ('When you do, search...') not yet expressible...."),
+        completeness: Completeness::partial("Rewire: sacrifice the source via Effect::SacrificePermanents as the first step of the ETB Sequence — currently the sacrifice is silently skipped and the land stays on the battlefield (wrong game state). Residual deviation: the reflexive 'when you do' clause resolves inline rather than as a separate trigger."),
         ..Default::default()
     }
 }

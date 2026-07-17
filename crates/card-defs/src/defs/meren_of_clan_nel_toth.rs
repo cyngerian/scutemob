@@ -22,7 +22,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — "another creature you control dies" trigger with controller
             // filter + experience counter grant + end step trigger with MV comparison.
         ],
-        completeness: Completeness::partial("DSL gap — 'another creature you control dies' trigger with controller filter + experience counter grant + end step..."),
+        completeness: Completeness::partial("Blocked on two specifics: (1) no effect grants a counter to a player (Effect::AddCounter targets permanents; CounterType::Experience and EffectAmount::PlayerCounterCount exist but there is no way to add one); (2) no Condition compares a targeted graveyard card's mana value to a player's experience-counter count for the battlefield-vs-hand branch. STALE: the 'another creature you control dies trigger with controller filter' claim — WheneverCreatureDies { controller: Some(You), exclude_self: true } exists and is wired."),
         ..Default::default()
     }
 }

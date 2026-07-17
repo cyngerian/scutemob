@@ -42,6 +42,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::partial("'Whenever one or more other creatures you control enter, if this creature is suspected, you may suspect one of the..."),
+    completeness: Completeness::partial("Blocked on the suspect-transfer trigger: no Condition::SourceIsSuspected for the 'if this creature is suspected' intervening-if (Designations::Suspected exists on GameObject, game_object.rs:21, but no Condition reads it), and 'you may suspect one of the other creatures' is optional with no optional-effect wrapper. Effect::Unsuspect DOES now exist (card_definition.rs:1764) — it is not a blocker."),
     }
 }

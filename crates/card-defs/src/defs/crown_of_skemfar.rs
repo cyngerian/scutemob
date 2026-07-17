@@ -45,7 +45,7 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("DSL gap — static '+1/+1 for each Elf you control' count-based continuous effect on the enchanted creature. No..."),
+        completeness: Completeness::partial("Static '+1/+1 for each Elf you control' unimplemented. PermanentCount + TargetFilter::has_subtype and Static+ModifyBothDynamic live-eval (layers.rs:1269) now exist; CdaModifyPowerToughness is Source-filtered only (replacement.rs:2192) so it cannot be used. Confirm controller attribution in resolve_cda_amount (layers.rs:1270) before authoring. Reach grant and graveyard return are implemented."),
         ..Default::default()
     }
 }

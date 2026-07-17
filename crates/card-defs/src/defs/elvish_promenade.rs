@@ -35,7 +35,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("'For each Elf you control' — count-based token creation not in DSL. Using fixed 3 as approximation"),
+        completeness: Completeness::partial("Rewire: count: EffectAmount::PermanentCount { filter: { has_card_type: Creature, has_subtype: Elf, controller: You }, controller: PlayerTarget::Controller } (precedent howlsquad_heavy.rs:43). Also fix the type line — oracle is 'Kindred Sorcery — Elf'; the def omits the Kindred card type."),
         ..Default::default()
     }
 }

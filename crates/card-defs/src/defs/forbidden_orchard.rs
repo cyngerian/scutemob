@@ -62,7 +62,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("token-for-target-opponent DSL gap. CreateToken creates tokens for the controller; there is no DSL for 'target player..."),
+        completeness: Completeness::known_wrong("oracle says 'target opponent creates a 1/1 colorless Spirit'; the def creates the Spirit for Forbidden Orchard's OWN controller, inverting the card's drawback into an upside. Blocker: Effect::CreateToken (card_definition.rs:1372) / TokenSpec (:3673) have no recipient field — tokens always go to ctx.controller. Prefer vec![] for the trigger until a token recipient exists. Secondary (LOW-4): no TargetOpponent requirement variant; TargetPlayer is used."),
         ..Default::default()
     }
 }

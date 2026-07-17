@@ -21,7 +21,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — "first time each turn" attack trigger with most-life condition
             // + untap all attacking creatures + additional combat phase.
         ],
-        completeness: Completeness::partial("DSL gap — 'first time each turn' attack trigger with most-life condition + untap all attacking creatures + additional..."),
+        completeness: Completeness::partial("attack trigger unimplemented. Blocked ONLY on the most-life condition — no TriggerCondition::WhenAttacks player filter, no InterveningIf/Condition for 'attacking the player with most life or tied' (TriggerEvent::SelfAttacksPlayerWithMostLife exists but is reachable only via the Dethrone keyword path). The rest is expressible today: once_per_turn field, Effect::UntapAll{is_attacking}, Effect::AdditionalCombatPhase. Flying + Dethrone are correct."),
         ..Default::default()
     }
 }

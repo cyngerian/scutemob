@@ -11,7 +11,7 @@ pub fn card() -> CardDefinition {
         power: Some(3),
         toughness: Some(1),
         abilities: vec![],
-        completeness: Completeness::inert("no abilities implemented"),
+        completeness: Completeness::inert("Blocked on: (1) no effect for 'exile target player's graveyard' — Effect::ExileAll takes a TargetFilter over battlefield permanents only (CR 406.2); needs a graveyard-zone mass-exile primitive. (2) MDFC back face 'Boggart Bog' (Land) is not authored — def carries only the front face."),
         ..Default::default()
     }
 }

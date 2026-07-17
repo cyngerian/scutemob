@@ -32,7 +32,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::partial("Oracle text says 'tap target artifact, creature, or land' — this is a tap, not a choice between tap/untap...."),
+        completeness: Completeness::partial("Rewire: TargetPermanentWithFilter(TargetFilter { has_card_types: vec![CardType::Artifact, CardType::Creature, CardType::Land], ..Default::default() }) — has_card_types shipped with OR semantics and is enforced at effects/mod.rs:8035. The def currently uses bare TargetPermanent and can illegally target enchantments/planeswalkers. Likely Complete after this change."),
         ..Default::default()
     }
 }

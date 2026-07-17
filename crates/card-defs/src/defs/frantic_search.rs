@@ -22,7 +22,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("'Then discard two cards' + 'untap up to three lands' not expressible. Implementing draw only"),
+        completeness: Completeness::partial("needs-rewiring (blocker stale): Effect::DiscardCards (card_definition.rs:1361) and Effect::UntapPermanent (:1449) + TargetRequirement::UpToN { count: 3, inner: TargetLand } (:2798, idiom documented at :1405) all exist. Author as Sequence([DrawCards(2), DiscardCards(Controller, 2), UntapPermanent(DeclaredTarget{0..2})]). Until then the def draws 2 and skips the discard — wrong game state in the caster's favor (known_wrong)."),
         ..Default::default()
     }
 }

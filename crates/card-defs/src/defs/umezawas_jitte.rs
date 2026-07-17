@@ -89,7 +89,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("(PB-37): Oracle says 'deals combat damage' (any target), not just to players. Needs..."),
+        completeness: Completeness::known_wrong("(1) the modal activated ability uses Effect::Choose, which always executes mode 0 (effects/mod.rs:3190) — modes 1 and 2 are unreachable; it also unconditionally requires a creature target for all modes. Should use `modes: Some(ModeSelection)`. (2) the counters trigger fires only on combat damage to PLAYERS — oracle says 'deals combat damage' (any recipient); needs a WhenEquippedCreatureDealsCombatDamage variant."),
         ..Default::default()
     }
 }

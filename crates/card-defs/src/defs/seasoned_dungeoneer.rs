@@ -67,6 +67,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::partial("Complex effect (protection + explore on targeted creature) deferred. Using WheneverYouAttack + VentureIntoDungeon as..."),
+    completeness: Completeness::known_wrong("the attack trigger executes Effect::VentureIntoDungeon, which appears nowhere in the oracle text (oracle: 'target attacking Cleric, Rogue, Warrior, or Wizard gains protection from creatures until end of turn. It explores.'). TriggerCondition::WheneverYouAttack is correct and wired; blocked on Effect::Explore (absent) and a protection-from-creatures grant to a subtype-filtered target. ETB TakeTheInitiative is correct. Prefer dropping the venture effect and re-marking partial."),
     }
 }

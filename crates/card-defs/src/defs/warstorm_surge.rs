@@ -42,7 +42,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("EffectAmount::PowerOf(EffectTarget::TriggeringCreature) — the triggering creature's power is needed for the damage..."),
+        completeness: Completeness::partial("Blocked on damage source attribution: oracle is 'it deals damage equal to its power', so the entering creature must be the damage source (its lifelink/deathtouch/source-attribution apply), but Effect::DealDamage always uses the ability's source. The trigger and PowerOf(TriggeringCreature) amount ARE wired and verified (resolution.rs:2109 -> effects/mod.rs:6260); the earlier note claiming the effect is 'approximated as Nothing' is false — read the body."),
         ..Default::default()
     }
 }

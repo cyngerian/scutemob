@@ -24,7 +24,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("DSL gap — LayerModification::ModifyBoth(i32) takes a static i32, not EffectAmount. Implementing '+X/+X where X =..."),
+        completeness: Completeness::partial("needs-rewiring: author Effect::ApplyContinuousEffect { ContinuousEffectDef { layer: PtModify, modification: ModifyBothDynamic { amount: EffectAmount::DevotionTo(Color::Green), negate: false }, filter: DeclaredTarget{0}, duration: UntilEndOfTurn } }. ModifyBothDynamic shipped in PB-X (continuous_effect.rs:430, effects/mod.rs:3008, layers.rs:1269); the old note is stale."),
         ..Default::default()
     }
 }

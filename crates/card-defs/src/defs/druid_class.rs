@@ -67,7 +67,7 @@ pub fn card() -> CardDefinition {
                 abilities: vec![],
             },
         ],
-        completeness: Completeness::partial("Level 3 needs land-animation continuous effect + ETB trigger on level-up"),
+        completeness: Completeness::partial("Level 3 blocked on a level-up trigger: 'When this Class becomes level 3, target land you control becomes a creature...' has no TriggerCondition for becoming level N, so ClassLevel{level:3}.abilities cannot be populated. The land-animation half is NO LONGER blocked — AddCardTypes(Creature) + AddKeyword(Haste) + SetPtDynamic with EffectAmount::PermanentCount(lands you control) all exist; it is only the trigger that is missing."),
         ..Default::default()
     }
 }

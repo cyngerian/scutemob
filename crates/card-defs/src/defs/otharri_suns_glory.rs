@@ -30,7 +30,7 @@ pub fn card() -> CardDefinition {
             // Tap-a-Rebel cost not expressible (Cost::TapPermanentWithSubtype not in DSL).
             // Also no ReturnFromGraveyardToBattlefield effect with tapped modifier.
         ],
-        completeness: Completeness::partial("'Whenever Otharri attacks, you get an experience counter. Then create a 2/2 red Rebel token that's tapped and attacking..."),
+        completeness: Completeness::partial("Blocked on experience counters: PlayerState tracks poison counters only (effects/mod.rs:3528-3533) — CounterType::Experience exists in the type system with no backing field. (EffectAmount::PlayerCounterCount DOES exist and would serve the token loop once the field lands; TokenSpec already supports tapped + enters_attacking + EffectAmount count.) Second ability additionally blocked on a Cost variant for tapping another untapped permanent by subtype (same gap as Opposition)."),
         ..Default::default()
     }
 }

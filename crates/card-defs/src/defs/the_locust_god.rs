@@ -78,7 +78,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("'then discard' — forced discard after draw not expressible"),
+        completeness: Completeness::partial("Rewire the {2}{U}{R} ability to Effect::Sequence([DrawCards{Controller,Fixed(1)}, DiscardCards{Controller,Fixed(1)}]) — Effect::DiscardCards exists (card_definition.rs:1361). No DSL gap remains; likely Complete after rewiring."),
         ..Default::default()
     }
 }

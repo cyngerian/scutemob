@@ -17,7 +17,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — "Equip legendary creature {3}" variant equip cost.
             AbilityDefinition::Keyword(KeywordAbility::Equip),
         ],
-        completeness: Completeness::partial("DSL gap — dynamic +1/+1 per land you control. LayerModification needs EffectAmount, not fixed i32"),
+        completeness: Completeness::partial("The dynamic +1/+1-per-land clause is now expressible (LayerModification::ModifyBothDynamic + EffectAmount::PermanentCount + EffectFilter::AttachedCreature) and should be authored, along with Equip {7} as an Activated/AttachEquipment ability (skullclamp.rs is the reference). Remaining blocker: the second 'Equip legendary creature {3}' variant equip cost has no DSL representation."),
         ..Default::default()
     }
 }

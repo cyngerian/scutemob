@@ -31,7 +31,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("'Draw for each creature with +1/+1 counter' — EffectAmount lacks PermanentCountWithCounter variant. Using..."),
+        completeness: Completeness::partial("Draw count must be rewired to PermanentCount { filter: { has_card_type: Creature, controller: You, has_counter_type: Some(PlusOnePlusOne) } } (armorcraft_judge.rs precedent) — the current def draws for ALL your creatures, which is wrong. Remaining blocker: no EffectFilter variant selects 'creatures you control with a +1/+1 counter' for the indestructible grant."),
         ..Default::default()
     }
 }

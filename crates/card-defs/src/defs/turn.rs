@@ -9,7 +9,7 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Instant]),
         oracle_text: "Until end of turn, target creature loses all abilities and becomes a red Weird with base power and toughness 0/1.\nFuse (You may cast one or both halves of this card from your hand.)".to_string(),
         abilities: vec![],
-        completeness: Completeness::inert("no abilities implemented"),
+        completeness: Completeness::inert("Authorable now — Fuse shipped (AbilityDefinition::Fuse, reference def connive.rs). Needs: Turn half via RemoveAllAbilities+SetColors+SetCreatureTypes+SetPowerToughness, Burn half as AbilityDefinition::Fuse{name:\"Burn\", cost {1}{R}, DealDamage 2}, plus KeywordAbility::Fuse."),
         ..Default::default()
     }
 }

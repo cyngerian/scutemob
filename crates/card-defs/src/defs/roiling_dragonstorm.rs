@@ -29,7 +29,7 @@ pub fn card() -> CardDefinition {
             // TODO: "When a Dragon you control enters, return this to hand" —
             //   Dragon-ETB self-bounce trigger not expressible.
         ],
-        completeness: Completeness::partial("'then discard a card' — forced discard not easily expressible"),
+        completeness: Completeness::partial("needs-rewiring: (1) ETB — wrap the draw in Sequence([DrawCards 2, DiscardCards{Controller, Fixed(1)}]); Effect::DiscardCards exists. (2) Dragon-ETB bounce — TriggerCondition::WheneverPermanentEntersBattlefield{filter: TargetFilter{has_subtype: Dragon, controller: You}, exclude_self: false} + Effect::MoveZone to hand (card_definition.rs:3097). Both old TODOs are stale."),
         ..Default::default()
     }
 }

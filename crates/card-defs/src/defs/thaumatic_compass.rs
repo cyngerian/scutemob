@@ -90,6 +90,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::partial("at beginning of your end step, if you control seven or more lands, transform (needs..."),
+    completeness: Completeness::partial("Blocked on a transform-self effect: Effect has no Transform variant (only Meld). TriggerCondition::AtBeginningOfYourEndStep and Condition::YouControlNOrMoreWithFilter{count:7, lands} both exist and are ready to use once the effect lands."),
     }
 }

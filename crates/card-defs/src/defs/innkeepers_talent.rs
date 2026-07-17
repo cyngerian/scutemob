@@ -18,7 +18,7 @@ pub fn card() -> CardDefinition {
             // Class mechanics are partially supported (PB-15) but these specific level
             // abilities need more DSL primitives.
         ],
-        completeness: Completeness::partial("DSL gap — Class levels with begin-combat trigger (Level 1), conditional ward grant (Level 2), counter doubling..."),
+        completeness: Completeness::partial("Blocked on Level 2 only: no EffectFilter variant selects 'permanents you control with counters on them' (has_counter_type is a TargetFilter field; EffectFilter's controlled-by variants carry no TargetFilter). Level 1 (AtBeginningOfCombat + targeted trigger) and Level 3 (ReplacementModification::DoubleCounters) are both expressible today."),
         ..Default::default()
     }
 }

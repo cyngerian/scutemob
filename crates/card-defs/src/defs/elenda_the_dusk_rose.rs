@@ -67,7 +67,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("'When dies, create X tokens where X = power' — EffectAmount lacks power-based count. Using fixed 3 as approximation"),
+        completeness: Completeness::partial("Replace TokenSpec.count: EffectAmount::Fixed(3) with EffectAmount::SourcePowerAtLastKnownInformation (effects/mod.rs:7003; lki_power captured for SelfDies at abilities.rs:4167). This is the canonical 'X is Elenda's power' death-trigger shape and is fully wired."),
         ..Default::default()
     }
 }

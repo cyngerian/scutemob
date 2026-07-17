@@ -1,5 +1,9 @@
 // Emerald Medallion — {2}, Artifact
 // Green spells you cast cost {1} less to cast.
+// The card's only rules text is a cost reduction. That is not an `AbilityDefinition` --
+// it lives in the `spell_cost_modifiers` field, which `apply_spell_cost_modifiers`
+// applies on the real cast path (battlefield + command-zone-with-eminence only).
+// `abilities: vec![]` is correct here and is NOT an unimplemented card.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -18,7 +22,6 @@ pub fn card() -> CardDefinition {
             exclude_self: false,
             colored_mana_reduction: None,
         }],
-        completeness: Completeness::inert("no abilities implemented"),
         ..Default::default()
     }
 }

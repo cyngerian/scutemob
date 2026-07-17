@@ -96,7 +96,7 @@ pub fn card() -> CardDefinition {
                 ],
             },
         ],
-        completeness: Completeness::known_wrong("targets any permanent; the printed 'artifact or creature' filters are omitted on both abilities"),
+        completeness: Completeness::known_wrong("+1 and -5 use bare TargetPermanent: the 'artifact or creature' type filters AND the 'you control' / 'an opponent controls' controller constraints on the -5 are all omitted; has_card_types and TargetController both exist and should be used"),
         ..Default::default()
     }
 }

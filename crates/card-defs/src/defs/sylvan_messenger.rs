@@ -25,7 +25,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Trample),
         ],
-        completeness: Completeness::partial("DSL gap — the ETB trigger requires: 1. Revealing the top N cards of your library. 2. Filtering by creature subtype..."),
+        completeness: Completeness::partial("Authorable now via Effect::RevealAndRoute (count 4, Elf subtype filter, matched→Hand, unmatched→Library Bottom). Only residual: bottom order is deterministic rather than chosen."),
         ..Default::default()
     }
 }

@@ -20,7 +20,7 @@ pub fn card() -> CardDefinition {
         ],
         // TODO: Alliance trigger — "double this creature's power until EOT"
         // (requires LayerModification for multiplicative power change)
-        completeness: Completeness::partial("DSL gap — 'double this creature's power' continuous effect not expressible (no LayerModification for power doubling)"),
+        completeness: Completeness::partial("Alliance trigger unimplemented. Primitives exist: WheneverCreatureEntersBattlefield { filter: creature/controller You, exclude_self: true } (card_definition.rs:3079) + Effect::ApplyContinuousEffect with ModifyPowerDynamic { amount: PowerOf(Source) } (locked at resolution per effects/mod.rs:3013, CR 608.2h) on EffectFilter::Source, UntilEndOfTurn."),
         ..Default::default()
     }
 }

@@ -37,7 +37,7 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("(granted abilities): 'Equipped creature has [activated ability] and [triggered ability]' requires granting arbitrary..."),
+        completeness: Completeness::partial("Blocked on LayerModification::AddTriggeredAbility (does not exist) for the granted 'Whenever a creature dies, untap this creature', and on an attach-on-trigger effect plus 'you may' optionality for the Shaman auto-attach. NOT blocked: LayerModification::AddActivatedAbility exists and is wired (layers.rs:1188) — the granted '{2},{T}: deals 1 damage to any target' can be authored today via EffectFilter::AttachedCreature. Equip {4} implemented."),
         ..Default::default()
     }
 }

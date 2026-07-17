@@ -57,7 +57,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("'If you control creature with power 4+' intervening-if on ETB"),
+        completeness: Completeness::partial("ETB 'if you control a creature with power 4 or greater' is modeled as an unconditional draw. InterveningIf has no board-state variant (only ControllerLifeAtLeast / SourceHadNoCounterOfType), so CR 603.4's trigger-time check is inexpressible. Effect::Conditional + Condition::YouControlNOrMoreWithFilter would fix the resolution-time half; the trigger-time half remains blocked. Other two clauses (trample static, power-4+ ETB draw trigger) are correct."),
         ..Default::default()
     }
 }

@@ -27,7 +27,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("'that creature's controller' — needs ControllerOf(dying creature) as PlayerTarget. WheneverCreatureDies gives..."),
+        completeness: Completeness::partial("draws for Fecundity's controller on every creature death; oracle says 'that creature's controller may draw'. Rewire to PlayerTarget::ControllerOf(EffectTarget::TriggeringCreature) (wired: abilities.rs:4446 -> 7758 -> resolution.rs:2109 -> effects/mod.rs:6333). Residual after rewire: 'may' is inexpressible, and ControllerOf reads the graveyard object whose controller was reset to owner (CR 603.10a)."),
         ..Default::default()
     }
 }

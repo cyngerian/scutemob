@@ -47,7 +47,7 @@ pub fn card() -> CardDefinition {
         ],
         power: Some(2),
         toughness: Some(1),
-        completeness: Completeness::partial("'Activate only if a non-Skeleton creature died under your control this turn' condition requires a..."),
+        completeness: Completeness::known_wrong("known_wrong(\"{1}{B} graveyard recursion is activatable with no restriction: 'Activate only if a non-Skeleton creature died under your control this turn' is omitted because no Condition variant tracks creature deaths this turn. Strictly more permissive than oracle. Unblock: Condition::CreatureDiedThisTurn { filter }.\")"),
         ..Default::default()
     }
 }

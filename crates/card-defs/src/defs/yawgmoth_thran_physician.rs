@@ -41,7 +41,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("'Sacrifice another creature' — Cost::SacrificeOtherCreature not in DSL. Leaving the sacrifice ability with TODO"),
+        completeness: Completeness::partial("'Sacrifice another creature' is NOT a gap — Cost::Sacrifice(TargetFilter) exists (card_definition.rs:1226, enforced abilities.rs:733). The real blocker is Cost::PayLife: replay_harness.rs:3774 has no ActivationCost representation for it and silently drops it, so 'Pay 1 life, Sacrifice another creature: ...' would resolve as a free sacrifice. Un-author until PayLife is representable in ActivationCost. Engine gap #2: Cost::Sacrifice does not exclude the source despite being documented as 'sacrifice another'."),
         ..Default::default()
     }
 }

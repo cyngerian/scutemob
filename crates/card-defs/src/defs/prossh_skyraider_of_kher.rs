@@ -21,7 +21,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Sacrifice another creature: Prossh gets +1/+0 until end of turn"
             // — pump effect (Effect for +N/+M until EOT) not in DSL
         ],
-        completeness: Completeness::partial("'When you cast this spell' cast trigger creating X tokens where X = mana spent — cast triggers with X-equals-mana-spent..."),
+        completeness: Completeness::partial("Cast trigger blocked: TriggerCondition::WhenYouCastThisSpell exists but no EffectAmount expresses 'amount of mana spent to cast it' (XValue is the cost's X, which Prossh lacks). The sacrifice-pump ability IS now expressible (Cost::Sacrifice + ApplyContinuousEffect/ModifyPower/UntilEndOfTurn) and should be authored."),
         ..Default::default()
     }
 }

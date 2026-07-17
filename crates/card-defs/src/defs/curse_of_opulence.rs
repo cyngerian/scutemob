@@ -16,7 +16,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Whenever enchanted player is attacked" trigger not in DSL.
             // TODO: Gold token spec not a helper function.
         ],
-        completeness: Completeness::partial("'Enchant player' not in EnchantTarget enum"),
+        completeness: Completeness::partial("Blocked on player attachment: EnchantTarget::Player exists on the enum but sba.rs:995 rejects it (Auras cannot attach to players yet). Also needs a 'whenever enchanted player is attacked' TriggerCondition and a Gold token spec helper."),
         ..Default::default()
     }
 }

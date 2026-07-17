@@ -44,7 +44,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — "When Roalesk dies, proliferate, then proliferate again."
             // WhenThisDies trigger + Effect::Proliferate (twice).
         ],
-        completeness: Completeness::partial("DSL gap — 'When Roalesk dies, proliferate, then proliferate again.' WhenThisDies trigger + Effect::Proliferate (twice)"),
+        completeness: Completeness::partial("needs-rewiring: add Triggered{trigger_condition: WhenDies, effect: Sequence([Proliferate, Proliferate])}. Both primitives shipped — WhenDies (replay_harness.rs:2289) and Effect::Proliferate (effects/mod.rs:3467). Should reach Complete once wired."),
         ..Default::default()
     }
 }

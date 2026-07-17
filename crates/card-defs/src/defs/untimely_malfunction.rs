@@ -68,7 +68,7 @@ pub fn card() -> CardDefinition {
             }),
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("'one or two target creatures' requires variable target count (1-2 targets), which is not expressible in the current..."),
+        completeness: Completeness::partial("mode 2 ('One or two target creatures can't block this turn') applies CantBlock to a single target only. TargetRequirement::UpToN exists but has no minimum — UpToN{count:2} would allow 0 targets, violating oracle's 'one or two'. Needs a min/max target-count requirement (NToM). Modes 0 and 1 are complete. Same gap as Abzan Charm mode 2."),
         ..Default::default()
     }
 }

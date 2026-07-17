@@ -22,7 +22,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Whenever Edgar attacks" — AddCounters to each Vampire you control.
             // EffectTarget::AllCreaturesYouControlWithSubtype not in DSL.
         ],
-        completeness: Completeness::partial("Eminence — triggers from command zone. WheneverYouCastSpell with subtype filter (Vampire only) + command-zone condition..."),
+        completeness: Completeness::partial("Wire the attack trigger now: TriggerCondition::WhenAttacks + Effect::AddCounter { target: EffectTarget::AllPermanentsMatching(Box::new(TargetFilter { has_subtype: Some(SubType(\"Vampire\")), controller: TargetController::You, ..Default::default() })), counter: PlusOnePlusOne, count: 1 }. Eminence remains blocked: it must trigger from the command zone and TriggerZone has only a Graveyard variant (card_definition.rs:4063-4066). The Vampire-spell subtype filter itself is NOT a blocker — WheneverYouCastSpell.spell_subtype_filter exists (:3131-3135)."),
         ..Default::default()
     }
 }

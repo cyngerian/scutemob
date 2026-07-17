@@ -23,7 +23,7 @@ pub fn card() -> CardDefinition {
             // TODO: ETB — destroy target nonbasic land an opponent controls, then its controller
             // searches for a basic land and puts it into play tapped with a stun counter
         ],
-        completeness: Completeness::partial("DSL gap — ETB trigger targeting a nonbasic land (non_land filter won't work — need nonbasic land specifically)..."),
+        completeness: Completeness::partial("Blocked on PlayerTarget::ControllerOf resolution: 'its controller searches their library' would route the search to the Hellkite's controller (effects/mod.rs:3609/3661 resolve ControllerOf/OwnerOf to ctx.controller). NOTE: the old claims about nonbasic-land filters and Stun counters are STALE — TargetFilter.nonbasic and CounterType::Stun both exist."),
         ..Default::default()
     }
 }

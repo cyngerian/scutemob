@@ -77,7 +77,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
-        completeness: Completeness::partial("EffectAmount lacks 'greatest power among creatures you control' variant"),
+        completeness: Completeness::known_wrong("-3 hardcodes DrawCards Fixed(3) and -6 hardcodes 5 Wurm tokens; both deviate from oracle. -6 is rewirable now via TokenSpec.count = EffectAmount::PermanentCount{filter: has_card_type Land, controller: Controller}. -3 remains blocked: EffectAmount has no 'greatest power among creatures you control' variant."),
         ..Default::default()
     }
 }

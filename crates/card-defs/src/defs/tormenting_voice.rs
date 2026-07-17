@@ -20,7 +20,7 @@ pub fn card() -> CardDefinition {
             cant_be_countered: false,
         }],
         // TODO: AdditionalCost::DiscardCard not wired to Spell definition yet.
-        completeness: Completeness::partial("AdditionalCost::DiscardCard not wired to Spell definition yet"),
+        completeness: Completeness::known_wrong("'As an additional cost, discard a card' is silently dropped — the spell resolves as an unconditional Draw 2 for {1}{R}. SpellAdditionalCost (card_definition.rs:1265) has only Sacrifice* variants; no Discard variant exists, so a CardDefinition cannot declare this cost."),
         ..Default::default()
     }
 }

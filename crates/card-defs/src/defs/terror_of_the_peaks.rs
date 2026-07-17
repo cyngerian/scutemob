@@ -21,7 +21,7 @@ pub fn card() -> CardDefinition {
             // equal to that creature's power to any target.
             // DSL gap: no "entering creature's power" dynamic damage amount; requires targeted_trigger.
         ],
-        completeness: Completeness::partial("Static ability — spells opponents cast that target this creature cost 3 additional life. DSL gap: no..."),
+        completeness: Completeness::partial("DSL gap — 'spells your opponents cast that target this creature cost an additional 3 life' has no expressible static (no targeting-keyed additional-life-cost). The ETB damage trigger IS authorable now via WheneverPermanentEntersBattlefield{creature/You, exclude_self: true} + DealDamage{PowerOf(TriggeringCreature)} + TargetAny (see warstorm_surge.rs)."),
         ..Default::default()
     }
 }

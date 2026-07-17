@@ -20,7 +20,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("Mode 1 needs mana-scaled-by-opponent-hand-count"),
+        completeness: Completeness::partial("Blocked on conditional mode count — 'if you control a commander you may choose both' needs a Condition-gated ModeSelection.max_modes (currently a fixed u32); and on impulse-exile (exile top 3, playable this turn) which Effect::PlayExiledCard does not express. Mode 1 IS expressible now via Effect::AddManaScaled + EffectAmount::HandSize + mode_targets."),
         ..Default::default()
     }
 }

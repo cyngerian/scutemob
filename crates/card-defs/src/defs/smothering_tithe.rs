@@ -26,7 +26,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("'that player may pay {2}, if they don't' — MayPayOrElse still a gap"),
+        completeness: Completeness::known_wrong("opponent's 'may pay {2}' is not expressible (MayPayOrElse cannot make an opponent the payer and always declines, effects/mod.rs:3196); def creates the Treasure unconditionally on every opponent draw"),
         ..Default::default()
     }
 }

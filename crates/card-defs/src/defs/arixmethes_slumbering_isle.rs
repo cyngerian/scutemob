@@ -85,7 +85,7 @@ pub fn card() -> CardDefinition {
         ],
         power: Some(12),
         toughness: Some(12),
-        completeness: Completeness::partial("'Whenever you cast a spell, you may remove a slumber counter from Arixmethes.' DSL gap: no WheneverYouCastASpell..."),
+        completeness: Completeness::partial("needs-rewiring: author (a) ReplacementModification::EntersWithCounters { Slumber, 5 } (replacement.rs:1607) and (b) TriggerCondition::WheneverYouCastSpell -> optional Effect::RemoveCounter. Both primitives shipped; the old note citing them as DSL gaps is stale. Until rewired the def is known_wrong — with no slumber counters the type-change statics never fire and Arixmethes is a 12/12 creature on ETB."),
         ..Default::default()
     }
 }

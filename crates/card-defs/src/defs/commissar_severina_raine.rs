@@ -22,7 +22,7 @@ pub fn card() -> CardDefinition {
             //   EffectAmount lacks AttackingCreatureCount. Attack trigger exists.
             // TODO: "Sacrifice another creature" — Cost::SacrificeOther not in DSL.
         ],
-        completeness: Completeness::partial("'Each opponent loses X where X = other attacking creatures' — EffectAmount lacks AttackingCreatureCount. Attack trigger..."),
+        completeness: Completeness::partial("Attack trigger is authorable now — EffectAmount::AttackingCreatureCount { controller: EachOpponent-scoped, filter: exclude_self } shipped in PB-AC3 (card_definition.rs:2697) and its doc names this card. Still blocked: '{2}, Sacrifice another creature' — Cost::Sacrifice(TargetFilter) drops `exclude_self` when lowered to SacrificeFilter (replay_harness.rs:3743), so 'another' cannot be enforced."),
         ..Default::default()
     }
 }

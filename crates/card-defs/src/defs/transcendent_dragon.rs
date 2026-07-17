@@ -23,7 +23,7 @@ pub fn card() -> CardDefinition {
             // (Condition::WasCast) + counter-to-exile + PlayExiledCard. Without intervening-if,
             // this would fire on reanimation/flicker (KI-2). Stripped per W6 policy.
         ],
-        completeness: Completeness::partial("'When this creature enters, if you cast it, counter target spell.' + exile-instead + free cast from exile. Requires 'if..."),
+        completeness: Completeness::partial("ETB counter-target-spell omitted. 'if you cast it' IS now expressible (intervening_if: Option<Condition> + Condition::WasCast). Remaining blocker: Effect::CounterSpell cannot redirect the countered spell to exile instead of its owner's graveyard, and nothing binds that exiled card as the object for a follow-up free cast (PlayExiledCard has no 'the spell just countered' referent)."),
         ..Default::default()
     }
 }

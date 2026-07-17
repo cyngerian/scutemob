@@ -35,7 +35,7 @@ pub fn card() -> CardDefinition {
             // TODO: "{1}{R}, Discard a card: Draw a card. Activate only if attacking."
             // Requires activation condition (is_attacking) + discard as cost.
         ],
-        completeness: Completeness::partial("'{1}{R}, Discard a card: Draw a card. Activate only if attacking.' Requires activation condition (is_attacking) +..."),
+        completeness: Completeness::partial("Blocked on the activation condition only: '{1}{R}, Discard a card: Draw a card. Activate only if this creature is attacking' needs a Condition::SourceIsAttacking for activation_condition; Condition has no source-is-attacking predicate (YouAttackedThisTurn is not equivalent). Discard-as-cost is NOT blocked — Cost::Sequence(vec![Cost::Mana(..), Cost::DiscardCard]) expresses it. Haste and the discard trigger are correct."),
         ..Default::default()
     }
 }

@@ -101,7 +101,7 @@ pub fn card() -> CardDefinition {
                 controller: PlayerTarget::Controller,
             },
         )],
-        completeness: Completeness::partial("Target filter should restrict to 'artifact, enchantment, or nonbasic land' — needs has_card_types OR semantics combined..."),
+        completeness: Completeness::partial("Rewire only — no blocker. TargetFilter.has_card_types (OR semantics, card_definition.rs:2854) + nonbasic (card_definition.rs:2829) express 'artifact, enchantment, or nonbasic land an opponent controls' exactly. NOTE: the current filter is overbroad (any opponent-controlled permanent is a legal target), so this is a correctness fix, not just polish. Everything else on the card is complete."),
         ..Default::default()
     }
 }

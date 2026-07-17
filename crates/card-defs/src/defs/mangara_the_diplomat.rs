@@ -24,7 +24,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Lifelink),
             // TODO: Both draw triggers need opponent-action tracking.
         ],
-        completeness: Completeness::partial("Both triggers require opponent-action tracking not in DSL"),
+        completeness: Completeness::partial("Blocked on two specifics: (1) 'opponent's second spell each turn' needs an intervening-if capable of Condition::OpponentCastNSpells — InterveningIf has only ControllerLifeAtLeast / SourceHadNoCounterOfType; (2) 'attacks with two or more creatures attacking you and/or your planeswalkers' needs a batch-attack trigger with an attacker count scoped to the defending player. Lifelink implemented."),
         ..Default::default()
     }
 }

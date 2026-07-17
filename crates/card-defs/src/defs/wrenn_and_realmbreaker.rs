@@ -120,7 +120,7 @@ pub fn card() -> CardDefinition {
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
         cant_be_countered: false,
-        completeness: Completeness::partial("Granting arbitrary mana abilities to permanents is a complex DSL pattern (AnyColor mana production from lands). Known..."),
+        completeness: Completeness::partial("Two clauses unauthored: (1) static 'Lands you control have {T}: Add one mana of any color' — NOT a gap, copy the chromatic_lantern.rs pattern (Static + LayerModification::AddManaAbility(ManaAbility { requires_tap: true, any_color: true, .. }) + EffectFilter::LandsYouControl). (2) -2 'Mill three, you may put a permanent card from among the milled cards into your hand' — genuinely blocked: no effect tracks the identity of just-milled cards, and 'you may' has no interactive expression. The -2 is currently Effect::Sequence(vec![]) (activatable no-op)."),
         ..Default::default()
     }
 }

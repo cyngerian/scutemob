@@ -28,7 +28,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("'Sacrifice creatures' additional cost + 'copy for each sacrificed' not in DSL. Implementing the base effect only (1..."),
+        completeness: Completeness::partial("Reflexive 'When you do, copy this spell for each creature sacrificed this way' is not expressible: no reflexive trigger off an AdditionalCost, and no EffectAmount counting creatures sacrificed to the cost. AdditionalCost::Sacrifice and Effect::CopySpellOnStack both exist. Def implements the zero-sacrifice line only (draw 1, lose 1)."),
         ..Default::default()
     }
 }

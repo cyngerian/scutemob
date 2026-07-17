@@ -18,7 +18,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — end step trigger with tapped creature count condition +
             // mass counter placement excluding self. Multiple DSL gaps.
         ],
-        completeness: Completeness::partial("DSL gap — end step trigger with tapped creature count condition + mass counter placement excluding self. Multiple DSL..."),
+        completeness: Completeness::partial("Trigger unimplemented. End step trigger (AtBeginningOfYourEndStep) and 'each creature you control other than this' (ForEachTarget::EachOtherCreatureYouControl, effects/mod.rs:8778) both exist. Blocked ONLY on the intervening-if: Condition::YouControlNOrMoreWithFilter routes through matches_filter, which silently ignores TargetFilter::is_tapped (a GameObject field) — do NOT author it that way. Unblock: check is_tapped in the YouControlNOrMoreWithFilter arm (effects/mod.rs:8508) or add a tapped-count Condition."),
         ..Default::default()
     }
 }

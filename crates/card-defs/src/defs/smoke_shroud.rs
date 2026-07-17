@@ -49,7 +49,7 @@ pub fn card() -> CardDefinition {
             // DSL gap: triggered from graveyard zone with subtype filter, return-to-battlefield
             // attached mechanic. Deferred.
         ],
-        completeness: Completeness::partial("Graveyard-return trigger (when a Ninja enters, return from GY to battlefield attached). DSL gap: return_from_graveyard..."),
+        completeness: Completeness::partial("Graveyard-return trigger blocked on: no effect returning a card from graveyard to battlefield attached to the triggering creature, and no working 'you may' optionality. (Subtype-filtered ETB triggers and trigger_zone are both shipped.)"),
         ..Default::default()
     }
 }

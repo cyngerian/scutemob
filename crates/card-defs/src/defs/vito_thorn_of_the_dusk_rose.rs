@@ -56,7 +56,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("DSL gap — 'Whenever you gain life, target opponent loses that much life.' requires TriggerCondition::WhenYouGainLife..."),
+        completeness: Completeness::known_wrong("'target opponent loses that much life' is modeled as EachOpponent losing Fixed(1). Two deviations: no EffectAmount carries the triggering life-gain amount, and EachOpponent hits every opponent instead of one target. The WheneverYouGainLife trigger itself is wired and correct."),
         ..Default::default()
     }
 }

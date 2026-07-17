@@ -20,7 +20,7 @@ pub fn card() -> CardDefinition {
             // requiring creature-type filter (Ninja) and combat-state filter (unblocked attacker).
             // DSL gap: no such filter combination exists in ContinuousEffectDef.
         ],
-        completeness: Completeness::partial("Static continuous effect giving lifelink to a subset of creatures (unblocked attacking Ninjas you control) requires..."),
+        completeness: Completeness::partial("Blocked on an 'unblocked attacking' combat-state EffectFilter. EffectFilter::AttackingCreaturesYouControlWithSubtype covers 'attacking Ninjas you control' but there is no unblocked-attacker variant, and blocked status is a runtime CombatState property not visible to matches_filter. The creature-type half of the filter is NOT a gap."),
         ..Default::default()
     }
 }

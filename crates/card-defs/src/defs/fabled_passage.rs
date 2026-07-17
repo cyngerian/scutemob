@@ -34,7 +34,7 @@ pub fn card() -> CardDefinition {
             activation_zone: None,
             once_per_turn: false,
         }],
-        completeness: Completeness::partial("The conditional untap ('if you control four or more lands, untap that land') requires (a) a..."),
+        completeness: Completeness::partial("partial(\"'Then if you control four or more lands, untap that land' — blocked ONLY on referencing the searched land. Effect::SearchLibrary does not set ctx.last_created_permanent (written solely by CreateToken/Manifest/Cloak — effects/mod.rs:714/3637/3687/4893), so EffectTarget::LastCreatedPermanent has no referent. The condition half is NOT a gap: Condition::YouControlNOrMoreWithFilter { count: 4, filter: { has_card_type: Land, controller: You } } exists (card_definition.rs:3571). Needs SearchLibrary to publish the placed card into EffectContext. Search-and-tapped clause implemented.\")"),
         ..Default::default()
     }
 }

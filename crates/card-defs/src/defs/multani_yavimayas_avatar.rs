@@ -71,7 +71,7 @@ pub fn card() -> CardDefinition {
             // and a cost of returning lands ("return two lands you control to hand"), neither
             // of which is in the DSL. See file-header comment for full PB-AC3 disposition.
         ],
-        completeness: Completeness::partial("'{1}{G}, Return two lands you control to their owner's hand: Return this card from your graveyard to your hand.'..."),
+        completeness: Completeness::partial("Sole blocker: no Cost variant expresses 'Return two lands you control to their owner's hand' as an activation cost. The graveyard-activation half is NOT a blocker — AbilityDefinition::Activated already has an `activation_zone` field and graveyard-zone abilities are wired via collect_graveyard_carddef_triggers (replay_harness.rs:2732). Reach, trample, and the CDA are implemented."),
         ..Default::default()
     }
 }

@@ -31,7 +31,7 @@ pub fn card() -> CardDefinition {
             // 3. "Exile top card; you may play it this turn" requires PlayExiledCard which
             //    needs DSL support for play-from-exile with end-of-turn expiry.
         ],
-        completeness: Completeness::partial("'Whenever one or more Dragons you control deal combat damage to an opponent, choose one that hasn't been chosen this..."),
+        completeness: Completeness::partial("Blocked on the modal constraint 'choose one that hasn't been chosen this turn' — no per-ability per-turn chosen-mode tracking exists in the DSL. (The other two previously-noted gaps are stale: TriggerCondition::WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer takes a filter: Option<TargetFilter> so Dragon-scoping works, and Effect::PlayExiledCard exists.)"),
         ..Default::default()
     }
 }

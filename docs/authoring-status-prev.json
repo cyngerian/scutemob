@@ -1,18 +1,18 @@
 {
-  "generated": "2026-07-10 07:46 UTC",
-  "git_head": "98a7a6a7",
+  "generated": "2026-07-17 01:53 UTC",
+  "git_head": "525c6051",
   "total_files": 1748,
-  "total_todos": 1048,
+  "total_todos": 1045,
   "file_buckets": {
-    "clean": 1006,
-    "todo": 674,
-    "empty": 68
+    "clean": 1019,
+    "todo": 669,
+    "empty": 60
   },
   "todo_classes": {
-    "OTHER (unclassified)": 635,
+    "OTHER (unclassified)": 634,
     "replacement effect missing": 14,
     "X-scaled tokens": 4,
-    "TriggerCondition::* missing variant": 18,
+    "TriggerCondition::* missing variant": 17,
     "attack trigger (self / generic)": 27,
     "compleated": 1,
     "DSL gap (unspecified)": 134,
@@ -30,7 +30,7 @@
     "untap-all / untap trigger": 4,
     "combat-damage-to-player trigger": 10,
     "EffectAmount::* missing variant": 13,
-    "opponent-action trigger": 8,
+    "opponent-action trigger": 7,
     "per-player effect dispatch": 6,
     "interactive / hidden-info choice": 10,
     "sacrifice as cost": 16,

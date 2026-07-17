@@ -19,7 +19,7 @@ pub fn card() -> CardDefinition {
             // TODO: {1}: Look at top 3 and rearrange — no rearrange-top-of-library effect in DSL.
             // TODO: {T}: Draw a card then put self on top of library — no PutSelfOnTopOfLibrary effect.
         ],
-        completeness: Completeness::partial("{1} ability — 'look at top 3, put back in any order' requires a rearrange/order top-of-library effect that does not..."),
+        completeness: Completeness::partial("{1} 'look at the top three cards, then put them back in any order' is omitted — no rearrange-top-of-library effect (Effect::Scry's deterministic fallback bottoms cards, which is a different card). The {T} ability is NOT blocked and should be wired: Sequence[DrawCards{Controller,1}, MoveZone{target: Source, to: Library{OwnerOf, Top}}] on Cost::Tap."),
         ..Default::default()
     }
 }

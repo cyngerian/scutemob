@@ -90,7 +90,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("grant flying to land-creatures (continuous effect with card type filter) and landfall animate-land not in DSL"),
+        completeness: Completeness::partial("DSL gap — no EffectFilter for 'land creatures you control' (EffectFilter cannot intersect card types), so the flying grant is unimplemented. The landfall trigger IS implemented, but its target should be UpToN{1, TargetLandWithFilter(controller: You)}, not bare TargetLand."),
         ..Default::default()
     }
 }

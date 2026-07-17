@@ -35,7 +35,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("'green creature' filter — PermanentCount with color filter. Using all creatures as approximation"),
+        completeness: Completeness::partial("needs-rewiring: add `colors: Some(OrdSet from [Color::Green])` to the PermanentCount TargetFilter. Capability shipped (TargetFilter.colors, matches_filter effects/mod.rs:7962). Until rewired the def over-draws — treat as known_wrong."),
         ..Default::default()
     }
 }

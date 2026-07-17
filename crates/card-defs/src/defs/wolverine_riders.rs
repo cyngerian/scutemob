@@ -44,7 +44,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Whenever another Elf enters, gain life equal to toughness" —
             //   EffectAmount lacks toughness-of-entering-creature variant.
         ],
-        completeness: Completeness::partial("'Whenever another Elf enters, gain life equal to toughness' — EffectAmount lacks toughness-of-entering-creature variant"),
+        completeness: Completeness::partial("Second ability not yet authored. Fully expressible: TriggerCondition::WheneverCreatureEntersBattlefield { filter: Some(TargetFilter { has_subtype: Elf, controller: You }), exclude_self: true } + Effect::GainLife { player: Controller, amount: EffectAmount::ToughnessOf(EffectTarget::TriggeringCreature) }. Authoring work, not a DSL gap."),
         ..Default::default()
     }
 }

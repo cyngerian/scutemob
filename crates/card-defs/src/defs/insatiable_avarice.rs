@@ -60,7 +60,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::partial("the DSL has no way to attach a per-mode TargetRequirement to an individual Spree mode. A spell-level target would..."),
+        completeness: Completeness::partial("Rewire onto ModeSelection.mode_targets (PB-AC4, casting.rs:3627). Mode 1 (+{B}{B}) currently resolves as a no-op — a player can pay for it and get nothing."),
         ..Default::default()
     }
 }

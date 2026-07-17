@@ -37,7 +37,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Sacrifice five Treasures: Gain control of target creature for as long as
             // you control Kellogg." — see comment above.
         ],
-        completeness: Completeness::partial("'Sacrifice five Treasures: Gain control of target creature for as long as you control Kellogg.' — GainControl with..."),
+        completeness: Completeness::partial("'Sacrifice five Treasures:' — Cost::Sacrifice(TargetFilter) has no count field; sacrificing N permanents of a subtype as an activation cost is not expressible. (GainControl + 'for as long as you control this' duration ARE available — Dragonlord Silumgar pattern.)"),
         ..Default::default()
     }
 }

@@ -48,7 +48,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::partial("'can't be the target of spells or abilities opponents control' is functionally Hexproof for one turn — no..."),
+        completeness: Completeness::known_wrong("'can't be the target of spells or abilities your opponents control' is modeled as full KeywordAbility::Hexproof, which also prevents the controller from targeting the creature. No controller-scoped targeting restriction exists in the DSL."),
         ..Default::default()
     }
 }

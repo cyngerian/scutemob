@@ -48,7 +48,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("'Whenever an opponent draws a card, this creature deals 1 damage to them.' DSL gap: no WheneverOpponentDrawsCard..."),
+        completeness: Completeness::known_wrong("'deals 1 damage' is modeled as Effect::LoseLife. CR 119.3 — life loss is not damage: it cannot be prevented or redirected, triggers no damage triggers, and ignores lifelink. The WheneverPlayerDrawsCard{Opponent} trigger and the IsYourTurn first-strike static are both correctly wired."),
         ..Default::default()
     }
 }

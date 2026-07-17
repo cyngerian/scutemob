@@ -106,7 +106,7 @@ pub fn card() -> CardDefinition {
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
         cant_be_countered: false,
-        completeness: Completeness::partial("'Reveal top N and sort into different zones by card type' is a complex effect. Known DSL gap. Partial: Scry 4 as..."),
+        completeness: Completeness::partial("+1 is NOT a gap — use Effect::RevealAndRoute { count: Fixed(4), filter: has_card_type Land, matched_dest: Hand, unmatched_dest: Graveyard } (replace the current Scry 4, which is wrong game state, not a partial). -8 hand-size clause is NOT a gap — use Effect::SetNoMaximumHandSize { player: Controller } (PB-AC9); delete the stale 'add player.no_max_hand_size flag' TODO. Still blocked: 0 ability ('put any number of land cards from your hand onto the battlefield tapped' — interactive multi-card selection from hand); -3 token CDA (P/T = lands you control) on a TokenSpec; -8 'return all permanent cards from your graveyard to your hand'. Current -3 creates a 0/0 with no CDA, which dies to SBA."),
         ..Default::default()
     }
 }

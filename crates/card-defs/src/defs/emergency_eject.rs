@@ -34,7 +34,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("'Lander token' is a new named token type not present in the DSL. The CreateToken effect requires a TokenSpec, and no..."),
+        completeness: Completeness::partial("partial(\"'Its controller creates a Lander token' — blocked on token recipient, NOT on the token spec. Effect::CreateToken { spec } has no recipient field and always creates for ctx.controller (effects/mod.rs:666-714); TokenSpec has no owner field. A Lander IS expressible today (TokenSpec.activated_abilities, card_definition.rs:3706; precedent: food/clue helpers at 3794/3845). Needs a CreateToken recipient (PlayerTarget::ControllerOf) primitive. Destroy clause implemented.\")"),
         ..Default::default()
     }
 }

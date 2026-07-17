@@ -9,7 +9,7 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Instant]),
         oracle_text: "Target creature you control gains protection from the color of your choice until end of turn.".to_string(),
         abilities: vec![],
-        completeness: Completeness::inert("no abilities implemented"),
+        completeness: Completeness::inert("Blocked twice: (1) 'protection from the color of your choice' — ProtectionQuality has only FromColor(Color) fixed at authoring time; no FromChosenColor and no path from an on-resolution color choice to a protection grant (same blocker as Mother of Runes); (2) MDFC back face (Sejiri Glacier, Land, enters tapped) is not authored — back_face is None."),
         ..Default::default()
     }
 }

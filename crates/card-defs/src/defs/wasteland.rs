@@ -38,7 +38,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("Target should be 'nonbasic land' — TargetFilter lacks non_basic exclusion field. Using TargetLand as approximation..."),
+        completeness: Completeness::partial("Blocker shipped. Rewire targets to TargetRequirement::TargetPermanentWithFilter(TargetFilter { has_card_type: Some(CardType::Land), nonbasic: true, ..Default::default() }) — TargetFilter.nonbasic exists (card_definition.rs:2829, CR 205.4a). Until then the def can destroy basic lands (wrong game state)."),
         ..Default::default()
     }
 }

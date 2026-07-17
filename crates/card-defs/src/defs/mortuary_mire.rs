@@ -48,7 +48,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("DSL gap — 'you may' optional trigger not expressible. Currently mandatory if valid target exists"),
+        completeness: Completeness::known_wrong("'you may put target creature card from your graveyard on top of your library' is authored as a MANDATORY trigger — it fires and moves the card whenever any legal target exists, so the controller can never decline. There is no `optional`/`may` field on AbilityDefinition::Triggered and Effect::Choose is non-interactive (effects/mod.rs:3190 always executes choices.first())."),
         ..Default::default()
     }
 }

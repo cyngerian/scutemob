@@ -49,7 +49,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("DSL gap — there is no effect variant for untapping a specific permanent (self), and WheneverCreatureEntersBattlefield..."),
+        completeness: Completeness::known_wrong("'Whenever a creature enters, you MAY untap this artifact' is authored as a mandatory untap — the engine has no interactive optional trigger (Effect::Choose always takes choices.first(), effects/mod.rs:3190). Both the trigger and Effect::UntapPermanent{Source} exist and are wired; only the optionality is wrong."),
         ..Default::default()
     }
 }

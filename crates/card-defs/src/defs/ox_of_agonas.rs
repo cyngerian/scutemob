@@ -56,6 +56,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::known_wrong("ETB approximated as 'discard up to 7 then draw 3'; the interactive choice is not modeled"),
+    completeness: Completeness::known_wrong("ETB uses DiscardCards Fixed(7) instead of EffectAmount::HandSize, so a hand of 8+ is under-discarded; AND the oracle clause 'This creature escapes with a +1/+1 counter on it' is entirely unimplemented and the stored oracle_text is stale"),
     }
 }

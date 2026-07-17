@@ -30,7 +30,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("DSL gap — 'Ward—Sacrifice a creature.' Ward with non-mana cost (sacrifice) not in KeywordAbility::Ward variant...."),
+        completeness: Completeness::partial("Ward—Sacrifice a creature is inexpressible (KeywordAbility::Ward carries only a mana value, no non-mana cost). Additionally the dies-trigger drain is untargeted (oracle: 'target opponent'); DrainLife is declared with targets: vec![], so the life loss does not go to a chosen opponent."),
         ..Default::default()
     }
 }

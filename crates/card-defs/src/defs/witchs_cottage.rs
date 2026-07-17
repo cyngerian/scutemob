@@ -36,7 +36,7 @@ pub fn card() -> CardDefinition {
             },
             // TODO: Triggered — When this land enters untapped, you may put target creature card from your graveyard on top of your library.
         ],
-        completeness: Completeness::partial("Triggered — When this land enters untapped, you may put target creature card from your graveyard on top of your library"),
+        completeness: Completeness::partial("Blocked on (a) no trigger condition for 'enters UNTAPPED' (WhenEntersBattlefield fires regardless of tapped state; no intervening_if reads the source's own tapped state) and (b) 'you may' has no interactive expression. TargetCardInYourGraveyard and Effect::PutOnLibrary both exist — the effect half is not the blocker."),
         ..Default::default()
     }
 }

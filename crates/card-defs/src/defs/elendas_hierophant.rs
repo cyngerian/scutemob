@@ -34,7 +34,7 @@ pub fn card() -> CardDefinition {
             // TODO: "When dies, create X Vampires where X = power" — power-based token count
             // not in DSL
         ],
-        completeness: Completeness::partial("'When dies, create X Vampires where X = power' — power-based token count not in DSL"),
+        completeness: Completeness::partial("Add the death trigger: TriggerCondition::WhenDies + Effect::CreateToken with a 1/1 white Vampire TokenSpec carrying KeywordAbility::Lifelink and count: EffectAmount::SourcePowerAtLastKnownInformation (effects/mod.rs:7003; lki_power captured at abilities.rs:4167). Mirror elenda_the_dusk_rose.rs's TokenSpec, but use the LKI power amount rather than a fixed count."),
         ..Default::default()
     }
 }

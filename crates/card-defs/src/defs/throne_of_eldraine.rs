@@ -40,7 +40,7 @@ pub fn card() -> CardDefinition {
         // a Throne with a chosen color but no functioning {T} ability is also
         // wrong game state (its other abilities would be missing).
         abilities: vec![],
-        completeness: Completeness::inert("no abilities implemented"),
+        completeness: Completeness::inert("PB-Q5: produced mana cannot carry 'spend only to cast monocolored spells of the chosen color' (no ManaRestriction variant). PB-Q2: no per-ability cost-payment color filter for 'spend only mana of the chosen color to activate'. ChooseColor replacement and AddManaOfChosenColor exist but authoring them alone leaves both restrictions unenforced — wrong game state per W6."),
         ..Default::default()
     }
 }

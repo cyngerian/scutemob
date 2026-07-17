@@ -52,7 +52,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("'Opponents can't cast/activate during your turn' stax restriction not in DSL. Attack: create Soldier tokens equal to..."),
+        completeness: Completeness::partial("needs-rewiring (no engine work required). Replace count: EffectAmount::Fixed(2) with EffectAmount::PermanentCount { filter: TargetFilter { has_subtype: Some(SubType(\"Soldier\")), controller: TargetController::You, ..Default::default() }, controller: PlayerTarget::Controller }, and add the stax half via GameRestriction::OpponentsCantCastOrActivateDuringYourTurn (stubs.rs:569 — its doc names Myrel; enforced at casting.rs:6571 / mana.rs:95). Until rewired this def is known_wrong: it creates exactly 2 Soldiers in every game."),
         ..Default::default()
     }
 }

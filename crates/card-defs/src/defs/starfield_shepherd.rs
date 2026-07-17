@@ -38,7 +38,7 @@ pub fn card() -> CardDefinition {
             // with max_mana_value ≤ 1. Two-filter OR semantics and mana value ceiling both
             // missing from TargetFilter. DSL gap (separate primitive from PB-AC5's Warp).
         ],
-        completeness: Completeness::partial("ETB — search for 'basic Plains OR creature with MV ≤ 1'. TargetFilter cannot express: (1) basic Plains subtype filter..."),
+        completeness: Completeness::partial("Sole blocker: disjunctive/cross-group OR in TargetFilter. Each half is individually expressible today (basic + has_subtype(Plains); has_card_type(Creature) + max_cmc(1)) — the 'A or B' composition is not. Warp (PB-AC5) and Flying are wired."),
         ..Default::default()
     }
 }

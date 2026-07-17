@@ -40,7 +40,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("Add SpellAdditionalCost::SacrificeColorCreature(Color) for precision"),
+        completeness: Completeness::known_wrong("the additional cost is authored as SpellAdditionalCost::SacrificeColorPermanent(Color::Green), which permits sacrificing ANY green permanent. Oracle requires sacrificing a green CREATURE (CR 601.2h) — the def is strictly more permissive than the card. Needs a SpellAdditionalCost combining color AND card type. The search half is correct."),
         ..Default::default()
     }
 }

@@ -42,7 +42,7 @@ pub fn card() -> CardDefinition {
             },
             // TODO: Metalcraft equip cost reduction not expressible.
         ],
-        completeness: Completeness::partial("'Equipment enters' trigger — WheneverPermanentEntersBattlefield with Equipment subtype filter. TargetFilter has..."),
+        completeness: Completeness::partial("Blocked on Metalcraft: 'Equipment you control have equip {0} as long as you control three or more artifacts' — no condition-gated grant of an equip cost to other permanents. Also: the ETB trigger's 'you may draw' is wired as an unconditional draw (Effect::Choose is non-interactive). The Equipment-subtype filter is implemented and is not a blocker."),
         ..Default::default()
     }
 }

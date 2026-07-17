@@ -28,7 +28,7 @@ pub fn card() -> CardDefinition {
             },
             AbilityDefinition::Keyword(KeywordAbility::Flying),
         ],
-        completeness: Completeness::partial("DSL gap — mutate trigger omitted. 'Whenever this creature mutates, exile the top card of each opponent's library face..."),
+        completeness: Completeness::partial("DSL gap — no Effect variant for 'exile the top card of each opponent's library face down' plus a look-at/play-while-exiled permission grant. The mutate trigger itself is NOT a blocker: TriggerCondition::WhenMutates is wired end-to-end (replay_harness.rs:2817 -> TriggerEvent::SelfMutates -> abilities.rs:5439). Shares the exile-top-of-library primitive with laelia_the_blade_reforged, moria_marauder, mystic_forge."),
         ..Default::default()
     }
 }

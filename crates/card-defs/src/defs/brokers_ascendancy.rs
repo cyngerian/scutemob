@@ -16,7 +16,7 @@ pub fn card() -> CardDefinition {
             // TriggerCondition::AtBeginningOfYourEndStep not available for CardDef
             // triggered abilities.
         ],
-        completeness: Completeness::partial("DSL gap — end step trigger (AtBeginningOfYourEndStep) with mass counter placement on creatures + loyalty counters on..."),
+        completeness: Completeness::partial("Rewire only — no blocker. AtBeginningOfYourEndStep is live and used by 7 other defs (atraxa_praetors_voice.rs et al.); mass +1/+1 counters follow felidar_retreat.rs:67-71 (ForEach/EachCreatureYouControl -> AddCounter), and loyalty counters follow ForEachTarget::EachPermanentMatching -> AddCounter{Loyalty}. Fully authorable to Complete."),
         ..Default::default()
     }
 }

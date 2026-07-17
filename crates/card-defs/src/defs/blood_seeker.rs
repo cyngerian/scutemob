@@ -17,7 +17,7 @@ pub fn card() -> CardDefinition {
         power: Some(1),
         toughness: Some(1),
         abilities: vec![],
-        completeness: Completeness::inert("'that player' — effect should target the entering creature's controller specifically, not all opponents. PlayerTarget..."),
+        completeness: Completeness::inert("Authorable now: WheneverCreatureEntersBattlefield{filter: controller=Opponent} + LoseLife{player: PlayerTarget::TriggeringPlayer or ControllerOf(TriggeringCreature), amount: 1}. Remaining author decision: the optional 'you may' — no `optional` field exists on AbilityDefinition::Triggered, and Effect::Choose is not interactive (always executes choices[0])."),
         ..Default::default()
     }
 }

@@ -48,7 +48,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Whenever another creature you own dies, return it to your hand unless
             // target opponent pays 3 life." DSL gap: no opponent-pays-life alternative.
         ],
-        completeness: Completeness::partial("'Whenever another creature you own dies, return it to your hand unless target opponent pays 3 life.' Requires a death..."),
+        completeness: Completeness::partial("needs-rewiring, with two residual gaps: (1) death_filter has no owner scope (only controller_you) — oracle says 'creature you own'; (2) Effect::MayPayOrElse ignores payer/cost at effects/mod.rs:3196 and always applies or_else, so 'unless target opponent pays 3 life' would resolve as 'always returns'. The old note's claim that no opponent-pays-life mechanic exists is stale (MayPayOrElse { payer } + Cost::PayLife)."),
         ..Default::default()
     }
 }

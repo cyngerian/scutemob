@@ -26,7 +26,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("Conditional draw ('if opponent cast blue/black this turn') — needs cast-tracking"),
+        completeness: Completeness::known_wrong("the def draws a card UNCONDITIONALLY — oracle draws only 'if an opponent has cast a blue or black spell this turn'. No Condition filters past casts by color (Condition::OpponentCastNSpells is count-only). Also unimplemented: 'spells you control can't be countered this turn' (continuous effect over future spells) and 'hexproof from blue and from black' (no color-specific hexproof keyword). Per W5 the Spell ability should be dropped to vec![]."),
         ..Default::default()
     }
 }

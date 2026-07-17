@@ -21,7 +21,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Whenever a Goblin or Orc you control deals combat damage to a player"
             // DSL gap: no subtype-filtered combat damage trigger for other creatures you control.
         ],
-        completeness: Completeness::partial("Trigger condition 'whenever a Goblin or Orc you control deals combat damage to a player' requires a subtype-filtered..."),
+        completeness: Completeness::partial("The trigger is NOT a blocker: TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer takes an Option<TargetFilter> on the damage-dealing creature (card_definition.rs:3232) and TargetFilter::has_subtypes gives OR semantics for 'Goblin or Orc' (card_definition.rs:2837). The live blocker is the effect: no Effect variant exiles the top card of your library, and no 'you may play that card this turn' permission grant exists. Shares this primitive with laelia_the_blade_reforged, mystic_forge, mindleecher."),
         ..Default::default()
     }
 }

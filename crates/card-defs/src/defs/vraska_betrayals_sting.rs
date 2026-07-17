@@ -122,7 +122,7 @@ pub fn card() -> CardDefinition {
             // Needs EffectAmount::PoisonDifference or similar (OOS-AC7-1). Genuine
             // remaining gap — not addressed by PB-AC7.
         ],
-        completeness: Completeness::partial("No 'poison counters equal to difference' EffectAmount variant. Needs EffectAmount::PoisonDifference or similar..."),
+        completeness: Completeness::partial("Blocked on (a) the -9: no EffectAmount for 'poison counters equal to the difference from nine', and Effect::AddCounter cannot target a player (effects/mod.rs:2321 handles ResolvedTarget::Object only); (b) Compleated is not modeled — starting_loyalty is fixed at 6, so paying {B/P} with 2 life wrongly yields 6 loyalty instead of 4."),
         ..Default::default()
     }
 }

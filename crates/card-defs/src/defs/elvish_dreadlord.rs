@@ -20,7 +20,7 @@ pub fn card() -> CardDefinition {
             // WhenDies trigger targeting all non-Elf creatures (EffectTarget with subtype
             // exclusion filter) not in DSL.
         ],
-        completeness: Completeness::partial("'When this creature dies, non-Elf creatures get -3/-3 until end of turn' — WhenDies trigger targeting all non-Elf..."),
+        completeness: Completeness::partial("Two rewires, both expressible: (1) WhenDies -> Effect::ApplyContinuousEffect { PtModify, ModifyBoth(-3), EffectFilter::AllCreaturesExcludingSubtype(Elf), UntilEndOfTurn } — precedent eyeblight_massacre.rs:16-22. (2) Add AbilityDefinition::AltCastAbility { kind: AltCostKind::Encore, cost: {5}{B}{B} } beside the existing Keyword(Encore) marker; the marker alone is inert."),
         ..Default::default()
     }
 }

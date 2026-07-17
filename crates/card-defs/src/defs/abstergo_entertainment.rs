@@ -42,7 +42,7 @@ pub fn card() -> CardDefinition {
             // DSL gaps: return_from_graveyard with historic filter; exile-self cost;
             // exile all graveyards effect not expressible.
         ],
-        completeness: Completeness::partial("{3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card from your graveyard to your hand, then..."),
+        completeness: Completeness::partial("Third ability omitted: TargetFilter has no 'historic' predicate (SpellCostFilter::Historic is cost-modifier-only), and 'exile all graveyards' is not expressible (Effect::ExileAll scans the battlefield only). The exile-self cost is available (Cost::ExileSelf)."),
         ..Default::default()
     }
 }

@@ -25,7 +25,7 @@ pub fn card() -> CardDefinition {
             },
             // TODO: {1}, {T}: Untap target legendary creature (TargetFilter lacks has_supertype)
         ],
-        completeness: Completeness::partial("'{1}, {T}: Untap target legendary creature' — TargetFilter lacks has_supertype field for legendary filtering...."),
+        completeness: Completeness::partial("Second ability unimplemented. Blocker is stale: TargetFilter.legendary exists (card_definition.rs:2858) and is enforced in matches_filter (effects/mod.rs:8045); see eiganjo_seat_of_the_empire.rs / boseiju_who_endures.rs for shipped usage. Author '{1}, {T}: Untap target legendary creature you control' as Cost::Sequence([Mana{generic:1}, Tap]) + Effect::UntapPermanent on TargetCreatureWithFilter(TargetFilter{legendary: true, controller: You})."),
         ..Default::default()
     }
 }

@@ -34,7 +34,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("DSL gap — creature-type comparison + conditional scry on mana spend not expressible. Modeled as ETB tapped + any-color..."),
+        completeness: Completeness::partial("Two issues: (1) blocked on mana-spend provenance tracking — no way to trigger on how produced mana is later spent, so the conditional scry is omitted; (2) DEVIATION: mana ability uses AddManaAnyColor, which is more permissive than 'any color in your commander's color identity' — it can produce colors outside the commander's identity. Consider known_wrong until the identity restriction is expressible."),
         ..Default::default()
     }
 }

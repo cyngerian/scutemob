@@ -37,7 +37,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("'that player' — DrawCards always targets Controller (the Horn's controller), not the player who played the land. Needs..."),
+        completeness: Completeness::known_wrong("the Horn's controller draws whenever ANY player's land enters (should be 'that player draws'). PlayerTarget::TriggeringPlayer exists but the PermanentEnteredBattlefield dispatch never sets trigger.triggering_player, so it is unresolvable here. Also fires on lands PUT onto the battlefield, not just lands played (CR 305.1). Prefer abilities: vec![] per W5 until the dispatch tags the entering permanent's controller."),
         ..Default::default()
     }
 }

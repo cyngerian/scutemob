@@ -23,7 +23,7 @@ pub fn card() -> CardDefinition {
             // target creature gains trample until end of turn.
             // DSL gap: no return-land cost; no targeted grant-keyword until-end-of-turn effect on activated abilities.
         ],
-        completeness: Completeness::partial("Activated ability — {R}{G}, return a land you control to its owner's hand: target creature gains trample until end of..."),
+        completeness: Completeness::partial("Blocked on Cost::ReturnPermanentToHand (with a lands-you-control filter) — absent from the 13-variant Cost enum. STALE: the 'no targeted grant-keyword until-end-of-turn effect on activated abilities' claim — Activated has targets: Vec<TargetRequirement> and ApplyContinuousEffect/AddKeyword/DeclaredTarget/UntilEndOfTurn all exist. Additional land play is implemented."),
         ..Default::default()
     }
 }

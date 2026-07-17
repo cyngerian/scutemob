@@ -34,7 +34,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("'non-Elf creature' filter — SacrificePermanents has no subtype exclusion"),
+        completeness: Completeness::partial("needs-rewiring: switch trigger_condition to AtBeginningOfEachUpkeep (dispatched turn_actions.rs:294) and set SacrificePermanents.filter to TargetFilter{has_card_type: Creature, exclude_subtypes: vec![Elf]} (enforced effects/mod.rs:8059). Both old TODOs are stale. Verify PlayerTarget for 'that player' — TriggeringPlayer vs the current EachPlayer — resolves correctly under an each-upkeep trigger before flipping to Complete."),
         ..Default::default()
     }
 }

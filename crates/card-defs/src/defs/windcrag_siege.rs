@@ -18,7 +18,7 @@ pub fn card() -> CardDefinition {
             // TODO: Mardu — attack trigger doubling not expressible.
             // TODO: Jeskai — upkeep Goblin token with lifelink+haste.
         ],
-        completeness: Completeness::partial("ETB mode choice (Mardu/Jeskai) not in DSL"),
+        completeness: Completeness::partial("Blocked on the as-enters mode choice (no ReplacementModification/Effect chooses a mode and gates abilities on it) AND on the Mardu clause (TriggerDoubling exists but cannot key on 'a creature attacking caused the trigger'). The Jeskai upkeep token is individually expressible but useless without the mode gate."),
         ..Default::default()
     }
 }

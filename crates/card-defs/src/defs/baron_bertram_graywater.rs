@@ -48,7 +48,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("'Whenever one or more tokens you control enter, create a 1/1 black Vampire Rogue creature token with lifelink. This..."),
+        completeness: Completeness::partial("needs-rewiring: TargetFilter.is_token IS wired for ETB trigger dispatch (abilities.rs:6260; forwarded at replay_harness.rs:2701) — the old ENGINE-BLOCKED note is stale. Author with TriggerCondition::WheneverPermanentEntersBattlefield { filter: is_token + controller You } + once_per_turn: true. ALSO FIX: the {1}{B} ability's Cost::Sacrifice(TargetFilter::default()) is overbroad — oracle requires 'another creature or artifact' (needs has_card_types [Creature, Artifact] + exclude_self)."),
         ..Default::default()
     }
 }

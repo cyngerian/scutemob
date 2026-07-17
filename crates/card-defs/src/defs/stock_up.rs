@@ -27,7 +27,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("DSL gap — 'look at top N, choose M to put in hand, rest on bottom' requires interactive player choice (select from..."),
+        completeness: Completeness::known_wrong("approximated as DrawCards(2). Deviates twice — no selection from the top five, and the unchosen three stay on top instead of going to the bottom in random order, so all later draws differ. Needs interactive top-N selection (Command::SelectLibraryCard, M10) and a bottom-random ZoneTarget."),
         ..Default::default()
     }
 }

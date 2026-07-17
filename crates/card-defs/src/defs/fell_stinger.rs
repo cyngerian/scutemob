@@ -24,7 +24,7 @@ pub fn card() -> CardDefinition {
             // targeting a player for the draw/drain effect which is not in DSL
             // (targeted_trigger gap).
         ],
-        completeness: Completeness::partial("exploit trigger draw/lose effect with target player requires targeted_trigger"),
+        completeness: Completeness::partial("Blocked on the secondary exploit trigger: no TriggerCondition for 'when this creature exploits a creature' (CR 702.110b), and Exploit's own trigger unconditionally declines the sacrifice at resolution.rs:3794 pending interactive choice (Command::ExploitCreature), so nothing is ever exploited. Targeted triggers are NOT the blocker — Triggered.targets exists and is in use."),
         ..Default::default()
     }
 }

@@ -64,7 +64,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::known_wrong("'whenever you attack' modelled as WhenAttacks on Karlach — she must attack personally"),
+        completeness: Completeness::known_wrong("'whenever you attack' modelled as WhenAttacks on Karlach — she must attack personally; TriggerCondition::WheneverYouAttack now exists and is wired (replay_harness.rs:3250, abilities.rs:3897) and should be used"),
         ..Default::default()
     }
 }

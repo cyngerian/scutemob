@@ -48,7 +48,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("'Sacrifice another permanent' on ETB/attack — forced sacrifice not expressible"),
+        completeness: Completeness::partial("'Whenever Korvold enters or attacks, sacrifice another permanent.' — Effect::SacrificePermanents exists but `TargetFilter::exclude_self` is NOT honored by `eligible_sacrifice_targets` (effects/mod.rs:7346), so the CR 109.1 'another' restriction cannot be enforced; Korvold could sacrifice itself. The 'whenever you sacrifice' half IS implemented."),
         ..Default::default()
     }
 }

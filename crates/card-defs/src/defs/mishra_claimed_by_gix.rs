@@ -44,7 +44,7 @@ pub fn card() -> CardDefinition {
         ],
         power: Some(3),
         toughness: Some(5),
-        completeness: Completeness::partial("Meld trigger (Phyrexian Dragon Engine + Mishra meld) — Meld not yet in DSL. This is the sole remaining blocker for this..."),
+        completeness: Completeness::partial("Meld is NOT a blocker — Effect::Meld + CardDefinition::meld_pair shipped and are used by hanweir_battlements.rs. The live blockers are (1) no Condition gating the meld on 'Mishra and a creature named Phyrexian Dragon Engine are attacking' (Effect::Meld only checks battlefield + same owner/controller, so an unguarded call would meld outside combat — wrong game state), and (2) no expression for the melded permanent entering tapped and attacking. The WheneverYouAttack drain/gain half is implemented via PB-AC3 AttackingCreatureCount."),
         ..Default::default()
     }
 }

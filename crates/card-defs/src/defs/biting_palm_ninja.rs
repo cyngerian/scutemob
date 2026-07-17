@@ -27,7 +27,7 @@ pub fn card() -> CardDefinition {
             // TODO: triggered — combat damage to player → may remove menace counter → reveal hand, exile nonland card.
             // DSL gap: no "when you do" chained trigger; no hand-reveal + targeted exile from hand effect.
         ],
-        completeness: Completeness::partial("DSL gap — 'enters with a menace counter' requires CounterType::Menace, which doesn't exist"),
+        completeness: Completeness::partial("Blocked on keyword counters (CR 122.1d — a menace counter must grant menace; CounterType::Custom is inert) and on the reflexive 'when you do' trigger chain with hand reveal + choose-and-exile. Ninjutsu is implemented."),
         ..Default::default()
     }
 }

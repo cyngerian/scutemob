@@ -44,7 +44,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("'If you control no Snakes' intervening-if — Condition lacks 'you control no permanents with subtype X' variant"),
+        completeness: Completeness::partial("Blocker stale: set intervening_if: Some(Condition::Not(Box::new(Condition::ControlCreatureWithSubtype(SubType(\"Snake\".into()))))) — Option<Condition> is the def-level type and check_condition handles Not + ControlCreatureWithSubtype (dispatched at resolution.rs:2073). Until rewired this def creates a Snake every upkeep regardless of board state; marker should be known_wrong, not partial."),
         ..Default::default()
     }
 }

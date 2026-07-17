@@ -2,9 +2,10 @@
 // At the beginning of your upkeep, each player draws a card.
 // Whenever an opponent draws a card, that player loses 1 life.
 //
-// TODO: "Whenever an opponent draws a card, that player loses 1 life" — needs
-//   opponent-only draw trigger + "that player" target reference. WheneverPlayerDrawsCard
-//   fires on all draws and EachOpponent targets wrong players in multiplayer.
+// Both clauses implemented. The opponent-only draw trigger is
+// `WheneverPlayerDrawsCard { player_filter: Some(TargetController::Opponent) }`, and the
+// draw dispatch tags `triggering_player`, so `PlayerTarget::TriggeringPlayer` resolves to
+// the drawing opponent (the engine comment at that dispatch names this card).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -49,7 +50,6 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("'Whenever an opponent draws a card, that player loses 1 life' — needs opponent-only draw trigger + 'that player' target..."),
         ..Default::default()
     }
 }

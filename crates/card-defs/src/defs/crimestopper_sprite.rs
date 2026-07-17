@@ -60,6 +60,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::partial("add CounterType::Stun + stun-counter replacement effect and replace the if_true branch below with: Effect::AddCounter {..."),
+    completeness: Completeness::partial("CounterType::Stun exists, but no engine handling of stun counters (CR 701.59: replace untap by removing a counter) — grep 'Stun' in rules/ finds nothing. Adding the counter would be a silent no-op, so the if_true branch is left empty per W5. Unblock: implement the stun-counter untap replacement, then wire Effect::AddCounter { counter: CounterType::Stun, count: 1 }."),
     }
 }

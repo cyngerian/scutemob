@@ -77,7 +77,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
-        completeness: Completeness::partial("Combat damage trigger + bounce + double loyalty activation not expressible. +1: Up to one target creature can't attack..."),
+        completeness: Completeness::partial("Blocked on 'activate loyalty abilities twice this turn' (no expression) and on the Drone token's LTB drain trigger (TokenSpec carries keywords only). NOT blocked: 'up to one target' — use TargetRequirement::UpToN instead of the current forced TargetCreature. BUG: +1 hardcodes UntilYourNextTurn(PlayerId(0)) — wrong player in multiplayer; and 'can't attack' is silently dropped (only CantBlock granted)."),
         ..Default::default()
     }
 }

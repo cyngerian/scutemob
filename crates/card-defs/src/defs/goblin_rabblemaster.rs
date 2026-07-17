@@ -45,7 +45,7 @@ pub fn card() -> CardDefinition {
             },
             // TODO: "+1/+0 per attacking Goblin" — count-based pump not in DSL.
         ],
-        completeness: Completeness::partial("'Other Goblins must attack' forced-attack restriction not in DSL"),
+        completeness: Completeness::partial("Blocked on the forced-attack clause only: 'Other Goblin creatures you control attack each combat if able' has no GameRestriction (all 11 variants are prohibitions; none is a must-attack requirement, and none filters to a subtype). The '+1/+0 for each other attacking Goblin' clause is NOT blocked — EffectAmount::AttackingCreatureCount{controller: Controller, filter: has_subtype Goblin, exclude_self} + LayerModification::ModifyPowerDynamic express it (confirm exclude_self is honored at that call site). Combat token trigger is correct."),
         ..Default::default()
     }
 }

@@ -36,7 +36,7 @@ pub fn card() -> CardDefinition {
             },
             // TODO: Triggered — When this land enters untapped, you may put target instant or sorcery card from your graveyard on top of your library.
         ],
-        completeness: Completeness::partial("Triggered — When this land enters untapped, you may put target instant or sorcery card from your graveyard on top of..."),
+        completeness: Completeness::partial("Sole blocker: 'you may' has no correct expression — AbilityDefinition::Triggered has no optional/may field and Effect::Choose is non-interactive (effects/mod.rs:3190 always runs choices.first()). Everything else is available: WhenEntersBattlefield + TargetCardInYourGraveyard(instant-or-sorcery) + MoveZone to LibraryPosition::Top, with the 'enters untapped' gate via Effect::Conditional { condition: Condition::SourceIsUntapped }; see mortuary_mire.rs for the analogous wiring. Same 'you may' blocker as mortuary_mire."),
         ..Default::default()
     }
 }

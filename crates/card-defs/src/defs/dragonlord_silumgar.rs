@@ -43,7 +43,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::known_wrong("'for as long as you control Dragonlord Silumgar' is approximated — control does not revert when Silumgar leaves"),
+        completeness: Completeness::known_wrong("'for as long as you control Silumgar' modelled as WhileSourceOnBattlefield: control correctly reverts when Silumgar leaves, but does NOT revert if an opponent gains control of Silumgar while he remains on the battlefield; no 'while you control source' EffectDuration exists"),
         ..Default::default()
     }
 }

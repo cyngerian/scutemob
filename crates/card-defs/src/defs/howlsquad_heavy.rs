@@ -57,7 +57,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("Multiple DSL gaps: (1) 'Start your engines!' — vehicle/speed mechanic not in DSL (2) 'At the beginning of combat..."),
+        completeness: Completeness::known_wrong("the 'Max speed — {T}: Add {R} for each Goblin you control' ability is implemented WITHOUT its Max speed gate, giving unrestricted ramp (W5/KI-2 violation). Speed / 'Start your engines!' is not in the DSL (no speed counter, no activation_condition for max speed). The combat-trigger token that must attack is also omitted. Either drop the mana ability or add the speed mechanic."),
         ..Default::default()
     }
 }

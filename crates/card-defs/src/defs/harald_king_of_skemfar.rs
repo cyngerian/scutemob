@@ -24,7 +24,7 @@ pub fn card() -> CardDefinition {
             // TODO: ETB — look at top 5, may reveal Elf/Warrior/Tyvar to hand, rest to bottom.
             // DSL gap: no look-at-top-N-choose-one with multi-subtype OR filter.
         ],
-        completeness: Completeness::partial("ETB 'look at top 5, may reveal [subtype or name] to hand' pattern. DSL gap: SearchLibrary / PutOnLibrary has no 'look..."),
+        completeness: Completeness::partial("Blocked: TargetFilter ANDs its fields, so 'an Elf, Warrior, or Tyvar card' (subtype-OR-name union) is not expressible; and the reveal is optional ('you may'), which has no correct expression. Effect::RevealAndRoute (PB-22 S3) covers the look-at-top-5/rest-to-bottom shape once a union filter exists."),
         ..Default::default()
     }
 }

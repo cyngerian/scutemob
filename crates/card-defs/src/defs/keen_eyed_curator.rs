@@ -19,7 +19,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![],
         // TODO: conditional +4/+4 and trample when 4+ card types exiled with this creature
         // TODO: {1}: exile target card from a graveyard
-        completeness: Completeness::inert("DSL gap — conditional static buff based on counting distinct card types among exiled cards attached to this permanent..."),
+        completeness: Completeness::inert("Static buff blocked: no 'cards exiled with this permanent' association is tracked on GameObject, and no Condition counts distinct card types among such cards. The {1} exile ability is expressible (TargetCardInGraveyard) but is withheld until the static can ship, since a Curator that exiles without ever getting +4/+4 and trample is wrong game state (W5)."),
         ..Default::default()
     }
 }

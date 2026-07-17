@@ -22,7 +22,7 @@ pub fn card() -> CardDefinition {
             // TODO: ETB choose-two modal ability grant (no ChooseAbility ETB in DSL)
             // TODO: Conditional +2/+2 static requiring count_threshold filter
         ],
-        completeness: Completeness::partial("DSL gap — 'As ... enters, choose from among' modal static grant is not expressible. No ChooseAbility ETB mechanism..."),
+        completeness: Completeness::partial("Blocked: 'As this enters, choose two abilities from among first strike, vigilance, and lifelink' — no as-enters ability-choice replacement and no layer grant keyed to a chosen ability set. The +2/+2 conditional static IS now expressible (Condition::YouControlNOrMoreWithFilter + ContinuousEffectDef.condition) and should be wired."),
         ..Default::default()
     }
 }

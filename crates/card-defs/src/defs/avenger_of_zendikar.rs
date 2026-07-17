@@ -48,7 +48,7 @@ pub fn card() -> CardDefinition {
             // Landfall: +1/+1 counter on each Plant
             // TODO: "Each Plant you control" counter distribution not in DSL.
         ],
-        completeness: Completeness::partial("EffectAmount lacks 'count of lands you control' variant. Using fixed 5 as approximation"),
+        completeness: Completeness::partial("needs-rewiring: replace EffectAmount::Fixed(5) with EffectAmount::PermanentCount { filter: has_card_type Land, controller: Controller } (effects/mod.rs:6749; pattern at ashaya_soul_of_the_wild.rs:34). Until then this is known_wrong, not partial — it creates exactly 5 Plants regardless of lands. Landfall clause still unauthored (evaluate ForEachTarget::EachPermanentMatching + AddCounter)."),
         ..Default::default()
     }
 }

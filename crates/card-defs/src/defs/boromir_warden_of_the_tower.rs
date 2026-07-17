@@ -31,7 +31,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Vigilance),
         ],
-        completeness: Completeness::partial("DSL gap — 'Whenever an opponent casts a spell, if no mana was spent to cast it, counter that spell' requires..."),
+        completeness: Completeness::partial("Blocked on an intervening-if testing 'no mana was spent to cast it' — no Condition/InterveningIf variant tracks mana spent on a spell. WheneverOpponentCastsSpell DOES exist. The 'Sacrifice: creatures you control gain indestructible, The Ring tempts you' ability is fully expressible now (Cost::SacrificeSelf + EffectFilter::CreaturesYouControl AddKeyword(Indestructible) UntilEndOfTurn + Effect::TheRingTemptsYou — see heroic_intervention.rs) and should be authored."),
         ..Default::default()
     }
 }
