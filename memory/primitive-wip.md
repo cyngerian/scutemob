@@ -69,3 +69,43 @@ while casting a spell (CR 605.3b) — which is what a Signet is *for*.
 - SF-7: `cargo fmt` reaches **zero** card defs (they live behind `include!`/`#[path]` from
   `OUT_DIR`). Run `rustfmt` over touched def files by name, and note that rustfmt exits 0
   while silently abandoning a macro body that exceeds `max_width`.
+
+## Implementation complete (2026-07-17, scutemob-90)
+
+Plan §3 steps 1–7, §6 tests, and §9's card-def work (horizon lands + `mana_filter.rs` +
+`effect_choose_gate.rs`) are DONE. §3 step 8's broader roster reconciliation was
+explicitly out of this agent's scope (per its brief) — see the "Roster items not
+reconciled" section of the findings doc below for what that leaves open.
+
+- `ManaAbility` gained `mana_cost: Option<ManaCost>` / `life_cost: u32`
+  (`crates/card-types/src/state/game_object.rs`), hashed in `state/hash.rs`.
+- `handle_tap_for_mana` (`rules/mana.rs`) gained cost-legality (step 5b) and payment
+  (step 6b) steps; new `GameStateError::InsufficientLife`.
+- `mana_ability_lowering` (`testing/replay_harness.rs`) is the single predicate for both
+  mana-ability registration and the `activated_abilities` exclusion; widened from bare
+  `Cost::Tap` to any cost payable through `Command::TapForMana`; actively excludes
+  `Effect::AddManaScaled` from every cost but bare `Cost::Tap` (Finding A).
+  `targets.is_empty()` gate protects Deathrite Shaman.
+- Three horizon lands (Fiery Islet, Nurturing Peatland, Silent Clearing) rewritten to
+  the `tainted_field.rs` one-ability-per-colour pattern and un-demoted to `Complete`.
+- `tests/casting/mana_filter.rs` rewritten (filter lands now activate via `TapForMana`,
+  hybrid-cost non-enforcement documented explicitly, not silently).
+- `tests/core/effect_choose_gate.rs`'s `printed_tap_mana_colors` widened to cover
+  composite-cost tap-mana clauses (Signets, horizon lands, filter lands), with the
+  `AddManaScaled`/dynamic-amount blind spot and the sacrifice-another exclusion both
+  documented in the function's doc comment.
+- New test file `crates/engine/tests/primitives/primitive_sr34_composite_mana_costs.rs`
+  (14 tests, T1–T13 from the plan's §6, T12 split into two).
+- Version bumps done last, in dedicated commits: `PROTOCOL_VERSION` 2→3,
+  `HASH_SCHEMA_VERSION` 40→41, both fingerprints, both `FROZEN_HISTORY_PREFIX_DIGEST`s
+  re-pinned, 30 sentinels across 29 files updated.
+- SF-6 sweep (3 passes, mechanical probe deleted before commit): only Magnifying Glass
+  (script 099 fixed) and Staff of Compleation (unreferenced, no action) actually shift
+  indices among the roster's `Complete` defs.
+- SF-8, SF-9, SF-10 filed, not fixed:
+  `memory/card-authoring/sr34-engine-findings-2026-07-17.md`.
+
+All gates green: `cargo build --workspace`, `cargo test --all` (3298 passing, up from
+3284 baseline), `cargo clippy --all-targets -- -D warnings` (0 warnings),
+`cargo fmt --check` + `rustfmt` over every touched def by name,
+`tests/scripts/run_all_scripts.rs` (210/210 approved scripts pass).
