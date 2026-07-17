@@ -20,8 +20,8 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // CR 603.3: ETB trigger — return target permanent card from your graveyard to hand.
             // TargetFilter uses OR semantics on has_card_types to match any permanent-type card
-            // (creature, artifact, enchantment, land, planeswalker). Instants and sorceries are
-            // excluded. Battle is not yet in the CardType enum, so the approximation is close.
+            // (creature, artifact, battle, enchantment, land, planeswalker). Instants and
+            // sorceries are excluded.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
@@ -37,6 +37,7 @@ pub fn card() -> CardDefinition {
                     has_card_types: vec![
                         CardType::Creature,
                         CardType::Artifact,
+                        CardType::Battle,
                         CardType::Enchantment,
                         CardType::Land,
                         CardType::Planeswalker,
@@ -47,10 +48,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::known_wrong(
-            "the permanent-card filter omits CardType::Battle, so Battle cards in your graveyard \
-             are not legal targets (CardType::Battle exists; add it to has_card_types)",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

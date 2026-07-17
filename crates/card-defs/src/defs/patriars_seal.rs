@@ -1,9 +1,6 @@
 // Patriar's Seal — {3}, Artifact
 // {T}: Add one mana of any color.
 // {1}, {T}: Untap target legendary creature you control.
-//
-// TODO: "{1}, {T}: Untap target legendary creature" — TargetFilter lacks has_supertype
-//   field for legendary filtering. Implementing only the mana ability.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -30,15 +27,36 @@ pub fn card() -> CardDefinition {
                 activation_zone: None,
                 once_per_turn: false,
             },
-            // TODO: {1}, {T}: Untap target legendary creature (TargetFilter lacks has_supertype)
+            // {1}, {T}: Untap target legendary creature you control.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost {
+                        generic: 1,
+                        ..Default::default()
+                    }),
+                    Cost::Tap,
+                ]),
+                effect: Effect::UntapPermanent {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                },
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                    legendary: true,
+                    controller: TargetController::You,
+                    ..Default::default()
+                })],
+                activation_condition: None,
+                activation_zone: None,
+                once_per_turn: false,
+            },
         ],
-        completeness: Completeness::partial(
-            "Second ability unimplemented. Blocker is stale: TargetFilter.legendary exists \
-             (card_definition.rs:2858) and is enforced in matches_filter (effects/mod.rs:8045); \
-             see eiganjo_seat_of_the_empire.rs / boseiju_who_endures.rs for shipped usage. Author \
-             '{1}, {T}: Untap target legendary creature you control' as \
-             Cost::Sequence([Mana{generic:1}, Tap]) + Effect::UntapPermanent on \
-             TargetCreatureWithFilter(TargetFilter{legendary: true, controller: You}).",
+        completeness: Completeness::known_wrong(
+            "Untap ability now correctly implemented (TargetCreatureWithFilter{legendary:true, \
+             controller:You}). Real blocker: the mana ability uses Effect::AddManaAnyColor, which \
+             is gated out of Complete by tests/core/effect_choose_gate.rs (SR-37/SF-11) — it \
+             always adds ManaColor::Colorless, not a chosen color, so 'Add one mana of any color' \
+             produces wrong game state. Needs the per-colour-ability rewire pattern \
+             (tainted_field.rs) once that primitive lands for artifacts.",
         ),
         ..Default::default()
     }

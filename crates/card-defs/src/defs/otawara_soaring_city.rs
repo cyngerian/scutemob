@@ -25,9 +25,8 @@ pub fn card() -> CardDefinition {
                 activation_zone: None,
                 once_per_turn: false,
             },
-            // Channel — {3}{U}, Discard this card: Return target non-land permanent to
-            // owner's hand. "artifact, creature, enchantment, or planeswalker" = any permanent
-            // that is not a land. Using non_land filter to approximate (excludes lands).
+            // Channel — {3}{U}, Discard this card: Return target artifact, creature,
+            // enchantment, or planeswalker to its owner's hand.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
                     Cost::Mana(ManaCost {
@@ -48,7 +47,12 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
-                    non_land: true,
+                    has_card_types: vec![
+                        CardType::Artifact,
+                        CardType::Creature,
+                        CardType::Enchantment,
+                        CardType::Planeswalker,
+                    ],
                     ..Default::default()
                 })],
                 activation_condition: None,
@@ -69,10 +73,7 @@ pub fn card() -> CardDefinition {
                 controller: PlayerTarget::Controller,
             },
         )],
-        completeness: Completeness::known_wrong(
-            "channel target uses non_land, which wrongly admits Battles; should be \
-             has_card_types: vec![Artifact, Creature, Enchantment, Planeswalker]",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

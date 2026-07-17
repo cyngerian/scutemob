@@ -3,12 +3,6 @@
 // Channel — {1}{G}, Discard this card: Destroy target artifact, enchantment, or nonbasic
 //   land an opponent controls. That player may search for land with basic land type,
 //   put onto battlefield, shuffle. This ability costs {1} less per legendary creature you control.
-// Partial: target filter uses controller:Opponent. "artifact OR enchantment OR nonbasic land"
-// requires expressing multi-type OR with a nonbasic-land exclusion — DSL gap (TargetFilter
-// can express opponent control via TargetController::Opponent but cannot combine multiple
-// card type alternatives with a "nonbasic" land variant in a single filter).
-// TODO: Target filter should restrict to "artifact, enchantment, or nonbasic land" —
-//   needs has_card_types OR semantics combined with non_basic land filter. DSL gap.
 use crate::cards::helpers::*;
 pub fn card() -> CardDefinition {
     CardDefinition {
@@ -36,8 +30,6 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
             // Channel — {1}{G}, Discard: Destroy target + opponent searches.
-            // Target filter restricts to opponent-controlled permanents (partial).
-            // TODO: Target filter needs "artifact, enchantment, or nonbasic land" type restriction.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
                     Cost::Mana(ManaCost {
@@ -83,6 +75,8 @@ pub fn card() -> CardDefinition {
                 ]),
                 timing_restriction: None,
                 targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
+                    has_card_types: vec![CardType::Artifact, CardType::Enchantment, CardType::Land],
+                    nonbasic: true,
                     controller: TargetController::Opponent,
                     ..Default::default()
                 })],
@@ -106,13 +100,7 @@ pub fn card() -> CardDefinition {
                 controller: PlayerTarget::Controller,
             },
         )],
-        completeness: Completeness::partial(
-            "Rewire only — no blocker. TargetFilter.has_card_types (OR semantics, \
-             card_definition.rs:2854) + nonbasic (card_definition.rs:2829) express 'artifact, \
-             enchantment, or nonbasic land an opponent controls' exactly. NOTE: the current \
-             filter is overbroad (any opponent-controlled permanent is a legal target), so this \
-             is a correctness fix, not just polish. Everything else on the card is complete.",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }
