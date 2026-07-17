@@ -39,6 +39,19 @@ into a real `ManaAbility` does not help. **No regression; a pre-existing lie sur
 
 ## 1. The Partial-vs-KnownWrong line
 
+**Scope bound (SR-34 review Finding 5, added by `scutemob-90` fix phase)**: the taxonomy
+below was applied to this task's 27-def roster only. The same `any_color` → `{C}` defect
+demonstrably persists in `Complete` defs *outside* the roster — calibration cases:
+`crates/card-defs/src/defs/birds_of_paradise.rs:38` (`{T}: Add one mana of any color`,
+`Completeness::Complete`) and `crates/card-defs/src/defs/command_tower.rs:21` (`Complete`
+by default, no marker), both `Effect::AddManaAnyColor`, both producing `{C}` by the exact
+mechanism (`handle_tap_for_mana` step 8 / `Effect::AddManaAnyColor`'s stack arm) that got
+Mana Confluence demoted here. They were **not** demoted by this task — extending the
+demotion corpus-wide needs its own roster and moves headline coverage, the same reason
+EF-13 was deferred — and are tracked instead as live victims in SF-11
+(`memory/card-authoring/sr34-engine-findings-2026-07-17.md`). Read "stated once, applied
+uniformly" below as bounded to the 27-def roster, not as a corpus-wide claim.
+
 Stated once, applied uniformly, because the prior agent flagged it as a genuine judgment call:
 
 > **Does the def write wrong game state, or does it write only correct state while omitting a clause?**

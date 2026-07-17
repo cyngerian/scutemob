@@ -21,7 +21,7 @@ use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     all_cards, card_name_to_id, enrich_spec_from_def, process_command, AbilityDefinition,
     CardDefinition, CardRegistry, Command, Cost, Effect, GameEvent, GameState, GameStateBuilder,
-    GameStateError, ManaColor, ObjectId, ObjectSpec, PlayerId, Step, ZoneId,
+    GameStateError, ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerId, Step, ZoneId,
 };
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────
@@ -581,6 +581,17 @@ fn composite_cost_add_mana_scaled_stays_on_the_stack() {
 /// `activated_abilities` and would break a naive count), every `Activated` entry must
 /// land in exactly one of `mana_abilities` / `activated_abilities` — never both, never
 /// neither.
+///
+/// **What this test does and does not pin (SR-34 review Finding 6)**: both loops in
+/// `enrich_spec_from_def` call the *same* `mana_ability_lowering` function, and the
+/// second is the exact negation of the first, so this identity holds **by construction**
+/// under the current structure — it would hold even if `mana_ability_lowering` returned
+/// `None` for every input (everything would land in `activated_abilities`; the sum still
+/// balances). It is a **partition** guard, not a lowering-correctness guard: it fails
+/// only if the single predicate is ever re-split into two, re-opening the SF-6/`AddManaMatchingType`
+/// divergence. The correctness of what actually lowers (which defs, into what
+/// `ManaAbility`) is pinned separately by T1/T10/T13 and
+/// `sr34_certified_defs_produce_exactly_their_printed_mana`.
 #[test]
 fn is_tap_mana_ability_agrees_with_the_lowering() {
     let defs = defs_map();
@@ -822,8 +833,6 @@ fn sr34_gates_are_not_vacuous() {
         }],
         ..Default::default()
     };
-    let mut cards_pos = all_cards();
-    cards_pos.push(bare_tap_def.clone());
     let mut defs_pos = defs.clone();
     defs_pos.insert(bare_tap_def.name.clone(), bare_tap_def.clone());
     let spec_pos = enrich_spec_from_def(
@@ -864,7 +873,7 @@ fn sr34_gates_are_not_vacuous() {
         }],
         ..Default::default()
     };
-    let mut defs_neg = defs;
+    let mut defs_neg = defs.clone();
     defs_neg.insert(discard_tap_def.name.clone(), discard_tap_def.clone());
     let spec_neg = enrich_spec_from_def(
         ObjectSpec::card(p(1), &discard_tap_def.name)
@@ -879,6 +888,115 @@ fn sr34_gates_are_not_vacuous() {
     );
     assert_eq!(
         spec_neg.activated_abilities.len(),
+        1,
+        "it must instead register as a stack-using activated ability"
+    );
+
+    // Negative (SR-34 review Finding 1, CR 601.2h): a second Cost::Mana component in
+    // the same Cost::Sequence must NOT lower — `mana_ability_cost_components` cannot
+    // merge two mana costs without risking a silent partial payment, so it declines
+    // rather than letting the second overwrite the first.
+    let double_mana_def = CardDefinition {
+        card_id: mtg_engine::CardId("sr34-vacuity-double-mana".to_string()),
+        name: "SR-34 Vacuity Probe Double Mana".to_string(),
+        types: mtg_engine::cards::card_definition::TypeLine {
+            card_types: vec![mtg_engine::CardType::Land].into_iter().collect(),
+            ..Default::default()
+        },
+        abilities: vec![AbilityDefinition::Activated {
+            cost: Cost::Sequence(vec![
+                Cost::Mana(ManaCost {
+                    generic: 1,
+                    ..Default::default()
+                }),
+                Cost::Tap,
+                Cost::Mana(ManaCost {
+                    generic: 1,
+                    ..Default::default()
+                }),
+            ]),
+            effect: Effect::AddMana {
+                player: mtg_engine::cards::card_definition::PlayerTarget::Controller,
+                mana: mtg_engine::ManaPool {
+                    white: 1,
+                    ..Default::default()
+                },
+            },
+            timing_restriction: None,
+            targets: vec![],
+            activation_condition: None,
+            activation_zone: None,
+            once_per_turn: false,
+        }],
+        ..Default::default()
+    };
+    let mut defs_double_mana = defs.clone();
+    defs_double_mana.insert(double_mana_def.name.clone(), double_mana_def.clone());
+    let spec_double_mana = enrich_spec_from_def(
+        ObjectSpec::card(p(1), &double_mana_def.name)
+            .in_zone(ZoneId::Battlefield)
+            .with_card_id(double_mana_def.card_id.clone()),
+        &defs_double_mana,
+    );
+    assert_eq!(
+        spec_double_mana.mana_abilities.len(),
+        0,
+        "a second Cost::Mana component must NOT lower into a ManaAbility (negative \
+         control — a two-mana-component cost stays on the stack rather than silently \
+         under-charging, CR 601.2h)"
+    );
+    assert_eq!(
+        spec_double_mana.activated_abilities.len(),
+        1,
+        "it must instead register as a stack-using activated ability"
+    );
+
+    // Negative (SR-34 review Finding 2, CR 106.12): a cost with no Cost::Tap component
+    // must NOT lower — `requires_tap: false` mana abilities have no test coverage of
+    // `handle_tap_for_mana`'s tapped-status/exhaustion behaviour with that flag, so the
+    // path stays unreachable rather than shipping unproven (see the doc comment on
+    // `mana_ability_cost_components`).
+    let no_tap_def = CardDefinition {
+        card_id: mtg_engine::CardId("sr34-vacuity-no-tap".to_string()),
+        name: "SR-34 Vacuity Probe No Tap".to_string(),
+        types: mtg_engine::cards::card_definition::TypeLine {
+            card_types: vec![mtg_engine::CardType::Land].into_iter().collect(),
+            ..Default::default()
+        },
+        abilities: vec![AbilityDefinition::Activated {
+            cost: Cost::SacrificeSelf,
+            effect: Effect::AddMana {
+                player: mtg_engine::cards::card_definition::PlayerTarget::Controller,
+                mana: mtg_engine::ManaPool {
+                    white: 1,
+                    ..Default::default()
+                },
+            },
+            timing_restriction: None,
+            targets: vec![],
+            activation_condition: None,
+            activation_zone: None,
+            once_per_turn: false,
+        }],
+        ..Default::default()
+    };
+    let mut defs_no_tap = defs;
+    defs_no_tap.insert(no_tap_def.name.clone(), no_tap_def.clone());
+    let spec_no_tap = enrich_spec_from_def(
+        ObjectSpec::card(p(1), &no_tap_def.name)
+            .in_zone(ZoneId::Battlefield)
+            .with_card_id(no_tap_def.card_id.clone()),
+        &defs_no_tap,
+    );
+    assert_eq!(
+        spec_no_tap.mana_abilities.len(),
+        0,
+        "a Cost::SacrificeSelf-only (no Cost::Tap) cost must NOT lower into a \
+         ManaAbility (negative control — requires_tap: false is unproven, kept \
+         unreachable)"
+    );
+    assert_eq!(
+        spec_no_tap.activated_abilities.len(),
         1,
         "it must instead register as a stack-using activated ability"
     );

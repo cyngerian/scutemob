@@ -8,7 +8,7 @@ cards_affected: 39 defs w/ non-`Cost::Tap` mana-producing abilities (23 `Complet
   defs that register nothing. Roster: `memory/primitives/sr34-affected-defs.md` (enumerated from
   `all_cards()`). `ManaAbility { mana_cost, life_cost }` fixes 26 of 39.
 started: 2026-07-17
-phase: implement
+phase: done
 plan_file: memory/primitives/pb-plan-sr34.md
 roster_file: memory/primitives/sr34-affected-defs.md
 
@@ -109,3 +109,46 @@ All gates green: `cargo build --workspace`, `cargo test --all` (3298 passing, up
 3284 baseline), `cargo clippy --all-targets -- -D warnings` (0 warnings),
 `cargo fmt --check` + `rustfmt` over every touched def by name,
 `tests/scripts/run_all_scripts.rs` (210/210 approved scripts pass).
+
+## Review fix phase complete (2026-07-17, `scutemob-90`)
+
+Review (`memory/primitives/pb-review-sr34.md`): 0 HIGH, 5 MEDIUM, 3 LOW. All eight
+findings applied — none refuted. Findings 1, 2, 5 were reviewer analytic claims (no
+Bash tool in that session); all three verified empirically before fixing and all three
+held:
+
+- **Finding 1** (`replay_harness.rs`): `mana_ability_cost_components`'s `Cost::Mana` arm
+  now declines (returns `false`) rather than overwrites on a second `Cost::Mana`
+  component in the same `Cost::Sequence` (CR 601.2h). Verified latent (no live corpus
+  victim) by grep before fixing. New negative control in T13.
+- **Finding 2** (`replay_harness.rs`): `mana_ability_cost_components` now returns `None`
+  when the cost has no `Cost::Tap` component, closing the wholly-untested
+  `requires_tap: false` lowering path (CR 106.12) rather than proving it. Verified zero
+  test coverage by grep before fixing; verified the only three affected defs (Elvish/
+  Simian Spirit Guide, Food Chain) are already non-`Complete`. New negative control in
+  T13.
+- **Finding 3** (`effect_choose_gate.rs`): rewrote the `AddManaChoice` gate's doc
+  comment — the "asymmetry" it cited against `AddManaAnyColor` was false (SF-11); both
+  produce identical `{C}`. Gate behaviour unchanged.
+- **Finding 4** (`effect_choose_gate.rs`): added exclusion (3) — SF-12's "any color"
+  blind spot — to `printed_tap_mana_colors`'s doc comment; noted the misleading name on
+  `every_complete_land_registers_each_printed_tap_mana_color` without renaming it.
+- **Finding 5** (`sr34-roster-reconciliation.md`, `sr34-engine-findings-2026-07-17.md`):
+  amended both docs to state the Partial-vs-KnownWrong taxonomy is roster-bounded, not
+  corpus-wide, naming Birds of Paradise and Command Tower as known live `Complete`
+  victims of the same `any_color`→`{C}` bug outside the roster. Not demoted.
+- **Finding 6** (`primitive_sr34_composite_mana_costs.rs`): softened T11's doc comment
+  — it pins the partition, not the lowering.
+- **Finding 7** (`primitive_sr34_composite_mana_costs.rs`): deleted dead `cards_pos`.
+- **Finding 8** (card defs): `rustfmt --check` by name over all 29 touched defs proved
+  SF-7 directly — rustfmt reports pre-existing `once_per_turn` indentation drift as
+  already-formatted (macro body over `max_width`). Hand-fixed 15 defs.
+
+All gates re-verified green after fixes: `cargo build --workspace`, `cargo test --all`
+(3300 passing — task count did not change, since the new negative controls extend an
+existing `#[test]` fn rather than adding new ones), `cargo clippy --all-targets -- -D
+warnings` (0 warnings), `cargo fmt --check` (clean) + `rustfmt --check` by name over
+every touched def (clean). No `Completeness` markers moved in the fix phase, so
+`tools/authoring-report.py` was not re-run.
+
+phase: done

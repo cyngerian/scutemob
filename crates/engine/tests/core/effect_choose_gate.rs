@@ -133,11 +133,22 @@ fn no_complete_def_uses_the_may_pay_or_else_stub() {
 /// Add {U} or {R}` adds `{C}`: not one of its colours, and not a colour it prints at all.
 /// `count` is ignored too, so "add three mana" adds one.
 ///
-/// Unlike `AddManaAnyColor` — which escapes into a real `ManaAbility` with `any_color:
-/// true` via `try_as_tap_mana_ability` and so never reaches that arm — `AddManaChoice` is
-/// not recognised there, so its users always route through the stack and into the
-/// colorless arm. That asymmetry is why sharing the match arm is not the harmless
-/// simplification it looks like.
+/// **`AddManaAnyColor` produces the identical wrong result — this gate does not catch
+/// it (SR-34 review Finding 3 / SF-11).** `handle_tap_for_mana` step 8 and
+/// `Effect::AddManaAnyColor`'s stack-resolution arm both add exactly one
+/// `ManaColor::Colorless`, whether or not the ability escapes into a real `ManaAbility` —
+/// probed empirically for Mana Confluence, Goldhound, and Phyrexian Altar
+/// (`memory/card-authoring/sr34-engine-findings-2026-07-17.md`, SF-11). There is no
+/// asymmetry between the two effects; both are `{C}`, and per CR 106.1a/106.1b colorless
+/// is a mana *type*, not a colour, so `{C}` is outside the legal option set for "any
+/// color" on either path. This gate blocks only `AddManaChoice` because extending it to
+/// `AddManaAnyColor` (and `AddManaAnyColorRestricted` / `AddManaOfAnyColorAmount`, which
+/// share the bug) would demote `Complete` defs outside SR-34's roster — including Birds
+/// of Paradise and Command Tower, see `memory/primitives/sr34-roster-reconciliation.md`
+/// §1 — and move headline coverage numbers; that is an acknowledged, scope-bounded
+/// inconsistency (SF-11), not a principled distinction between the two stubs. Delete
+/// this gate's asymmetry, and extend it, when a colour channel for `any_color` mana
+/// lands.
 #[test]
 fn no_complete_def_uses_the_add_mana_choice_stub() {
     let offenders: Vec<String> = all_cards()
@@ -273,6 +284,23 @@ fn symbol_to_color(c: char) -> Option<ManaColor> {
 ///    either (it only ever compared the marker's single colour, which is why SF-8 was
 ///    invisible to it) — excluding it is what makes that blind spot documented instead of
 ///    silent, per SR-34 §9.
+/// 3. **"Add one mana of any color" is invisible to this gate, on both sides, and
+///    passes vacuously (SR-34 review Finding 4 / SF-12).** On the *printed* side, this
+///    parser requires a `{` after the cost (see the `strip_prefix('{')` walk below);
+///    "Add one mana of any color." has no brace, so the walk finds no colours,
+///    `printed` is empty, and the caller's `if printed.is_empty() { continue; }` skips
+///    the card entirely. On the *registered* side, `registered_colors` reads
+///    `ma.produces.keys()`, which is empty for an `any_color: true` `ManaAbility`
+///    (probed: Mana Confluence reports `produces={} any_color=true`). So a card like
+///    Mana Confluence, Birds of Paradise, or Command Tower — CR 106.1a/106.1b: printing
+///    "any color" but registering/producing `{C}` (SF-11) — is never even examined by
+///    `every_complete_land_registers_each_printed_tap_mana_color`, let alone flagged.
+///    Fix shape (SF-12): teach this parser the "one mana of any color" / "an amount of
+///    mana of that color" phrasings (all five colours), and teach `registered_colors`
+///    that `any_color: true` means "claims all five" — the two must land together, or a
+///    parser-only fix produces a `missing`-everything failure that blames the wrong
+///    side. Not fixed here: it is the SF-11 extension by another name and carries the
+///    same scope-bounded deferral.
 fn printed_tap_mana_colors(oracle: &str) -> BTreeSet<ManaColor> {
     let mut out = BTreeSet::new();
     for (idx, _) in oracle.match_indices(": Add ") {
@@ -369,6 +397,14 @@ fn defs_map() -> HashMap<String, CardDefinition> {
 /// `validate_deck` already rejects it, so holding it to this bar would be asserting
 /// against the taxonomy. This is the broad form of the SR-33 defect — a printed colour
 /// the card cannot actually produce.
+///
+/// **Name is misleading (SR-34 review Finding 4)**: this walks `all_cards()` and
+/// filters on `printed_tap_mana_colors(&def.oracle_text)` being non-empty, not on card
+/// type — it iterates every `Complete` def with a tap-mana clause, not just lands
+/// (Signets fall in scope the same way). That is correct and load-bearing (it is why
+/// the Signet coverage claim elsewhere holds), but the name says "land" and does not.
+/// Not renamed here — the name is quoted by several `memory/` docs across SR-33/SR-34;
+/// a rename should update those references in the same change.
 #[test]
 fn every_complete_land_registers_each_printed_tap_mana_color() {
     let defs = defs_map();

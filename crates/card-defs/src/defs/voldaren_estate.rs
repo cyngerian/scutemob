@@ -23,7 +23,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {T}, Pay 1 life: Add one mana of any color. Spend this mana only to cast a Vampire spell.
             AbilityDefinition::Activated {
@@ -36,7 +36,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {5}, {T}: Create a Blood token. This ability costs {1} less for each Vampire you control.
             AbilityDefinition::Activated {
@@ -51,7 +51,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         // CR 602.2b + 601.2f: Blood token ability (activated_ability index 1) costs {1} less

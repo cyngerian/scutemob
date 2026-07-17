@@ -231,6 +231,17 @@ enforce it.
 because it demotes defs beyond this task's roster and moves headline coverage — the same reason
 EF-13 was deferred. Delete all of it when a colour channel for `any_color` lands.
 
+**Known live `Complete` victims outside the SR-34 roster (added by the SR-34 review fix
+phase, `scutemob-90`, per review Finding 5)**: `birds_of_paradise.rs:38` and
+`command_tower.rs:21` both ship `Effect::AddManaAnyColor` on a `Complete` def (Birds of
+Paradise marked explicitly; Command Tower `Complete` by default, no marker) and both
+produce `{C}` by the identical mechanism demonstrated above (probed: `handle_tap_for_mana`
+step 8 / `Effect::AddManaAnyColor`'s stack arm both add one `ManaColor::Colorless`). Two
+of the most-played cards in the format, deck-legal today, carrying the same defect Mana
+Confluence was demoted for. Not demoted by `scutemob-90` — see the scope-bound note at
+`memory/primitives/sr34-roster-reconciliation.md` §1. This roster is a starting point, not
+exhaustive; the corpus-wide sweep that would complete it is the SF-11 fix itself.
+
 ---
 
 ## SF-12 — `every_complete_land_registers_each_printed_tap_mana_color` is structurally blind to every "any color" land

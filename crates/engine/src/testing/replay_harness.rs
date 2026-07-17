@@ -3642,6 +3642,27 @@ struct ManaAbilityCost {
 /// ability. Accepts `Cost::Tap`, `Cost::Mana(_)`, `Cost::PayLife(_)`, `Cost::SacrificeSelf`
 /// (already honoured by `handle_tap_for_mana` via `ManaAbility::sacrifice_self` —
 /// e.g. Treasure tokens), and any `Cost::Sequence` composed only of those.
+///
+/// **SR-34 review Finding 1 (CR 601.2h)**: a second `Cost::Mana` component in the same
+/// sequence declines rather than overwriting the first — `Cost::Sequence([Mana({1}),
+/// Tap, Mana({1})])` must not silently lower to `mana_cost = {1}`. "Partial payments are
+/// not allowed"; a cost this function cannot represent correctly must not lower at all.
+/// No card in the corpus has two `Cost::Mana` components today (verified by grep across
+/// every `Cost::Sequence` def); this is a latent-defect guard, not a live fix.
+///
+/// **SR-34 review Finding 2 (CR 106.12)**: a cost with no `Cost::Tap` component declines
+/// to lower, even though `ManaAbility::requires_tap: false` exists and is otherwise
+/// payable. Before this fix, `Cost::Mana`-only (Elvish/Simian Spirit Guide) and
+/// `Cost::SacrificeSelf`-only (Food Chain) costs lowered into free, repeatable,
+/// stackless mana abilities via a path (`handle_tap_for_mana` skips the tapped-status
+/// check and has no exhaustion mechanism when `requires_tap` is false) that has zero
+/// test coverage and was explicitly flagged as unproven by
+/// `memory/primitives/sr34-affected-defs.md`. All three affected defs are non-`Complete`
+/// today, so this closes the seam at zero cost rather than proving it correct. To
+/// re-open it: add a test lowering a synthetic `Cost::Mana`-only or
+/// `Cost::SacrificeSelf`-only def and asserting `TapForMana` pays/produces correctly
+/// with no tapped-status check — see `sr34-affected-defs.md` and
+/// `memory/card-authoring/sr34-engine-findings-2026-07-17.md` (Finding 2 discussion).
 fn mana_ability_cost_components(cost: &Cost) -> Option<ManaAbilityCost> {
     fn walk(cost: &Cost, acc: &mut ManaAbilityCost) -> bool {
         match cost {
@@ -3650,8 +3671,14 @@ fn mana_ability_cost_components(cost: &Cost) -> Option<ManaAbilityCost> {
                 true
             }
             Cost::Mana(m) => {
-                acc.mana_cost = Some(m.clone());
-                true
+                if acc.mana_cost.is_some() {
+                    // A second Cost::Mana component: this function cannot merge two
+                    // mana costs without risking a silent partial payment. Decline.
+                    false
+                } else {
+                    acc.mana_cost = Some(m.clone());
+                    true
+                }
             }
             Cost::PayLife(n) => {
                 acc.life_cost += n;
@@ -3682,11 +3709,15 @@ fn mana_ability_cost_components(cost: &Cost) -> Option<ManaAbilityCost> {
         mana_cost: None,
         life_cost: 0,
     };
-    if walk(cost, &mut acc) {
-        Some(acc)
-    } else {
-        None
+    if !walk(cost, &mut acc) {
+        return None;
     }
+    if !acc.requires_tap {
+        // SR-34 review Finding 2: decline to lower a no-tap cost. See the doc comment
+        // above for the seam this leaves closed and how to re-open it deliberately.
+        return None;
+    }
+    Some(acc)
 }
 /// **The single predicate deciding mana-ability lowering (SR-34, CR 605.1a).** Used both
 /// to build the `ManaAbility` (`enrich_spec_from_def`'s mana-ability loop) and to decide

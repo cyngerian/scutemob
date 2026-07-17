@@ -22,7 +22,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {T}: Add one mana of any color. Spend this mana only to cast a Dragon spell
             // or an Omen spell.
@@ -39,7 +39,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
             // {4}, {T}, Sacrifice: Search for a Dragon card, put into hand, shuffle.
             // CR 701.23
@@ -74,7 +74,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
         ],
         completeness: Completeness::known_wrong("CR 106.1b: '{T}: Add one mana of any color. Spend this mana only to cast a Dragon spell or an Omen spell' adds one COLORLESS mana. The RESTRICTION is honoured (probed: pool.restricted = [Colorless x1 (SubtypeOrSubtype(Dragon, Omen))]) but colorless is not a color. Also CR 605.1a/605.3b: Effect::AddManaAnyColorRestricted has no try_as_tap_mana_ability arm, so despite a bare Cost::Tap this ability is a stack-using activated ability. The '{T}: Add {C}' ability is correct."),
