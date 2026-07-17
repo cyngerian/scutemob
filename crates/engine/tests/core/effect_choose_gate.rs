@@ -261,9 +261,56 @@ fn stub_gates_are_not_vacuous() {
     );
     // Negative: a def with no stub is not flagged, so the gate is not simply always-true.
     assert!(
-        !def_uses(&bare(add_g), "Choose"),
+        !def_uses(&bare(add_g.clone()), "Choose"),
         "gate must not flag a def with no Effect::Choose"
     );
+
+    // SR-37 / SF-11: the any-color stub gate matches three more Effect variants by exact
+    // serde key. Pin each — a `#[serde(rename)]` or a variant rename would silently make
+    // `no_complete_def_uses_an_any_color_mana_stub` vacuous on a clean corpus, the exact
+    // "hole in the checker" this task is named for.
+    use mtg_engine::cards::card_definition::{EffectAmount, ManaRestriction};
+    let any_color_probes = [
+        (
+            Effect::AddManaAnyColor {
+                player: PlayerTarget::Controller,
+            },
+            "AddManaAnyColor",
+        ),
+        (
+            Effect::AddManaAnyColorRestricted {
+                player: PlayerTarget::Controller,
+                restriction: ManaRestriction::CreatureSpellsOnly,
+            },
+            "AddManaAnyColorRestricted",
+        ),
+        (
+            Effect::AddManaOfAnyColorAmount {
+                player: PlayerTarget::Controller,
+                amount: EffectAmount::Fixed(1),
+            },
+            "AddManaOfAnyColorAmount",
+        ),
+    ];
+    for (effect, key) in any_color_probes {
+        assert!(
+            def_uses(&bare(effect), key),
+            "the any-color gate must detect Effect::{key}"
+        );
+    }
+    // Negative: a plain single-colour AddMana matches none of the three any-color keys
+    // (exact-key matching — `AddManaAnyColor` must not be found in a bare `AddMana` def).
+    let plain = bare(add_g);
+    for key in [
+        "AddManaAnyColor",
+        "AddManaAnyColorRestricted",
+        "AddManaOfAnyColorAmount",
+    ] {
+        assert!(
+            !def_uses(&plain, key),
+            "a plain AddMana def must not be flagged for {key}"
+        );
+    }
 }
 
 // ── Lands produce every colour they print ─────────────────────────────────────
