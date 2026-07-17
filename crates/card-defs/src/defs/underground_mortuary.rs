@@ -9,6 +9,35 @@ pub fn card() -> CardDefinition {
         types: types_sub(&[CardType::Land], &["Swamp", "Forest"]),
         oracle_text: "({T}: Add {B} or {G}.)\nThis land enters tapped.\nWhen this land enters, surveil 1. (Look at the top card of your library. You may put it into your graveyard.)".to_string(),
         abilities: vec![
+            // SR-33 (CR 305.6 / 605.1a): the printed mana ability, modelled
+            // explicitly — one activated ability per colour, as `forest.rs`
+            // does. The engine does not derive mana abilities from basic land
+            // subtypes, so a def that leaves this to CR 305.6 produces nothing
+            // at all. `TapForMana { ability_index }` picks the colour.
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::AddMana {
+                    player: PlayerTarget::Controller,
+                    mana: mana_pool(0, 0, 1, 0, 0, 0),
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+                activation_zone: None,
+                once_per_turn: false,
+            },
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::AddMana {
+                    player: PlayerTarget::Controller,
+                    mana: mana_pool(0, 0, 0, 0, 1, 0),
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+                activation_zone: None,
+                once_per_turn: false,
+            },
             // CR 614.1c: self-replacement — this land enters tapped.
             AbilityDefinition::Replacement {
                 trigger: ReplacementTrigger::WouldEnterBattlefield {
@@ -32,7 +61,10 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 trigger_zone: None,
             },
-            // Mana production handled by basic land subtypes Swamp/Forest (CR 305.6).
+            // SR-33: the Swamp/Forest subtypes do NOT grant mana abilities — the engine
+            // does not implement CR 305.6, so this comment previously described a
+            // mana source that did not exist and this land produced nothing at all.
+            // The printed ability is modelled explicitly above (see `forest.rs`).
         ],
         ..Default::default()
     }

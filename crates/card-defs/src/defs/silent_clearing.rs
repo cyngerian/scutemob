@@ -40,6 +40,16 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::known_wrong(
+            "SR-33: adds {C}, not {W} or {B}. `Effect::AddManaChoice` has no field for which \
+             colours are legal and its only execution site adds one colorless mana \
+             (effects/mod.rs, the arm it shares with AddManaAnyColor), so \
+             '{T}, Pay 1 life: Add {W} or {B}' produces a colour this land does not print. Blocked twice \
+             over: the cost is {T} + Pay 1 life, and enrich_spec_from_def only lowers \
+             `Cost::Tap` into a ManaAbility, so it is not a mana ability either (CR \
+             605.1a). Needs a colour list on the variant (or per-colour abilities) AND \
+             an activation cost on ManaAbility.",
+        ),
         ..Default::default()
     }
 }

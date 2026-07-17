@@ -9,6 +9,13 @@
 // target (index 1) even when choosing the Proliferate mode — this is a known DSL limitation
 // matching the Abzan Charm pre-declaration pattern. The Choose effect will only execute
 // one chosen branch, so unused targets are benign (they have no effect if their mode is not chosen).
+//
+// SR-33: "one chosen branch" is not what happens — `Effect::Choose` always executes
+// `choices.first()` (effects/mod.rs), so this card is only ever "destroy target artifact".
+// The destroy-enchantment and proliferate modes are unreachable, and because both targets
+// are declared up front the ability cannot even be activated without a legal artifact
+// *and* a legal enchantment on the battlefield. `known_wrong` until a general choice
+// Command exists.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -57,6 +64,13 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::known_wrong(
+            "SR-33: only mode 0 (destroy target artifact) is reachable. `Effect::Choose` \
+             always executes `choices.first()` (effects/mod.rs), so destroy-enchantment and \
+             proliferate never happen, and the up-front target declaration additionally \
+             requires a legal artifact AND enchantment to activate at all. Needs a general \
+             choice Command plus per-mode targets on `AbilityDefinition::Activated`.",
+        ),
         ..Default::default()
     }
 }

@@ -50,6 +50,14 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
+        completeness: Completeness::known_wrong(
+            "SR-33: the Corrupted ability adds ONE colorless mana, not three of a chosen \
+             colour. `Effect::AddManaChoice { count: Fixed(3) }` ignores `count` entirely and \
+             adds a single {C} (effects/mod.rs, the arm it shares with AddManaAnyColor), so \
+             this is wrong on both the amount and the colour. Needs a colour list plus count \
+             support on the variant. The plain {T}: Add-one-mana-of-any-colour ability is \
+             fine (AddManaAnyColor lowers into a real any_color ManaAbility).",
+        ),
         ..Default::default()
     }
 }

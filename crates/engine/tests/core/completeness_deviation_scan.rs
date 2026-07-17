@@ -87,11 +87,13 @@ const ALLOWLIST: &[(&str, &str)] = &[
         "\"the 'or' is modeled as two separate activated abilities, one per color\" \
          — faithful decomposition of a hybrid mana ability, fully implemented.",
     ),
-    (
-        "path_to_exile",
-        "\"'May search' — modelled as MayPayOrElse with zero cost\" — a faithful \
-         encoding of the optional search, not a simplification of it.",
-    ),
+    // SR-33 removed `path_to_exile` from this list. Its justification — "a faithful
+    // encoding of the optional search, not a simplification of it" — was false:
+    // `Effect::MayPayOrElse` discards `cost`/`payer` and unconditionally executes
+    // `or_else`, so the search always fires and the "may" was never encoded at all. The
+    // entry was reasoned from the *intent* of the DSL shape without tracing into the
+    // effect's implementation — inside the gate that exists to catch exactly that. The
+    // def is now `known_wrong`, which is what removes it from this scan's scope.
     (
         "elvish_warmaster",
         "\"not an overbroad generic-creature approximation\" — the comment \
