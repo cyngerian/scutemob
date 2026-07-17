@@ -33,7 +33,7 @@
   accessors, gated on the `test-util` feature (self dev-dependency). **`cargo build
   --workspace` is the only gate that proves the seal** — `test --all` and `clippy
   --all-targets` enable `test-util` workspace-wide via feature unification. It is a CI step.
-- **Tests**: **3284 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
+- **Tests**: **3300 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
 - **CI**: **LIVE and green** since 2026-07-10 (SR-1, merge `e9742dc2`) — single Ubuntu job (fmt + clippy + `build --workspace` + full tests) on push/PR to main + workflow_dispatch; rust-cache@v2, 45m timeout. **Toolchain pinned (SR-11, `scutemob-63`)**: `rust-toolchain.toml` pins exact stable `1.95.0` and CI reads that `channel` from the file (no more floating to latest stable), so local `clippy -D warnings` is an authoritative CI preview. SR remediation track: original SR-1..16 all DONE 2026-07-10; a 2026-07-11 re-audit of the remediated baseline filed **SR-17..SR-32**, all DONE 2026-07-14..16 (16/16 collected; full record: `docs/sr-remediation-plan.md`).
 - **Abilities**: ~199 validated; 42/42 P1; 17/17 P2; 40/40 P3; 95/95 P4 implemented (9 permanent-n/a; 1 deferred: Banding)
 - **Primitives**: PB-0..PB-37 + named-letter chain (PB-A/B/E/J/M/S/X/Q/Q4/N/D/P/L/T/SFT/CC-{W,B,C,A}/TS/LKI-CC/CD/LKI-Power/EWC/XS/XS-E/XA/EAT/XA2/EWC-D) all DONE. PB-Q2/Q3/Q5 reserved.
@@ -181,7 +181,18 @@
   `initial_state` fields the harness ignores. **Only 6 of `translate_player_action`'s 60+ `Command`
   shapes are cross-validated**; the alt-cost translations (convoke, delve, escape, kicker, casualty,
   splice, escalate, modal, mutate, ninjutsu…) are not. Adding a scenario is cheap.
-- **Last Updated**: 2026-07-17 (SR-33 collected, `scutemob-89` merge `953cc5a6` — 88 `Effect::Choose`
+- **Last Updated**: 2026-07-17 (SR-34 collected, `scutemob-90` merge `ce6f30b0` — composite-cost
+  mana abilities (CR 605.1a by what an ability *does*, not what it costs): `ManaAbility` gained
+  `mana_cost`/`life_cost`; `mana_ability_lowering` widened from bare `Cost::Tap` to any
+  `TapForMana`-payable cost; `handle_tap_for_mana` now checks legality (CR 118.3/119.4, 119.4b
+  short-circuit) and collects payment. 27 affected Complete defs probed by *activation* — 7 of 27
+  source-traced predictions falsified (incl. Magnifying Glass contradicting its own oracle); 10
+  certified with regression tests, 17 honest demotions, +3 horizon lands restored; coverage
+  58.1% → **57.1%**. `PROTOCOL_VERSION` 2→3, `HASH_SCHEMA_VERSION` 40→41, history rows appended.
+  Filed **SR-36** (`scutemob-92`: SF-8 Gaea's Cradle taps for 1 regardless of board + SF-9
+  `Cost::PayLife` silently unpaid on non-mana abilities — both HIGH, live-probed) and **SR-37**
+  (`scutemob-93`: SF-10..12 gate hygiene). Findings: `memory/card-authoring/sr34-engine-findings-2026-07-17.md`.
+  3300 tests. Earlier: SR-33 collected, `scutemob-89` merge `953cc5a6` — 88 `Effect::Choose`
   dual/tri lands rewritten to one-activated-ability-per-colour (tainted_field pattern; decision in
   `memory/decisions.md`: CR 605.3b makes a general choice Command pointless for stackless mana
   abilities — `TapForMana{ability_index}` IS the choice channel). The new broad gate
