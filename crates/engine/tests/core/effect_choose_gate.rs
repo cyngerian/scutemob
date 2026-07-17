@@ -53,9 +53,9 @@ use std::sync::Arc;
 
 use mtg_engine::cards::{Completeness, TypeLine};
 use mtg_engine::{
-    all_cards, enrich_spec_from_def, process_command, CardDefinition, CardRegistry, Command,
-    Effect, GameState, GameStateBuilder, ManaColor, ObjectId, ObjectSpec, PlayerId, PlayerTarget,
-    Step, ZoneId,
+    all_cards, enrich_spec_from_def, process_command, AbilityDefinition, CardDefinition,
+    CardRegistry, Command, Cost, Effect, EffectAmount, GameState, GameStateBuilder, ManaColor,
+    ObjectId, ObjectSpec, PlayerId, PlayerTarget, Step, ZoneId,
 };
 
 // ── serde-tree helpers ────────────────────────────────────────────────────────
@@ -347,37 +347,33 @@ fn symbol_to_color(c: char) -> Option<ManaColor> {
 /// 1. **The clause must be this card's own.** `Creatures you control have "{T}: Add {G}"`
 ///    (Citanul Hierophants) grants the ability to *other* objects; the granting card has
 ///    no mana ability of its own and is correct as written.
-/// 2. **A dynamic-amount clause is excluded, not asserted against — by this gate,
-///    specifically, still.** This parser reads *colours*, never *amounts* —
-///    `{T}: Add {G} for each creature you control` (`Effect::AddManaScaled`) and `Add an
-///    amount of mana ... equal to ...` (`Effect::AddManaOfAnyColorAmount`) print a colour
-///    but produce a count this parser cannot verify. That is **not** the live gap it used
-///    to be: SF-8 (SR-36, `scutemob-92`) gave `handle_tap_for_mana` a `ManaAbility::scaled_amount`
-///    resolution step, so `handle_tap_for_mana` no longer reads the registered
-///    `produces: {colour: 1}` marker literally — Gaea's Cradle now taps for the real
-///    creature count, not exactly 1 regardless of board state. The amount is now verified
-///    by *activation*, elsewhere: every bare-`Cost::Tap` scaled source (Gaea's Cradle,
-///    Elvish Archdruid, Priest of Titania, Marwyn the Nurturer, Circle of Dreams Druid,
-///    Howlsquad Heavy — `tests/casting/mana_filter.rs::test_add_mana_scaled_orphan_fix_all_cards`)
-///    and all three composite-cost scaled sources SF-8 additionally unblocked — Cabal
-///    Coffers, Cabal Stronghold and Crypt of Agadeem (`cabal_coffers_is_a_real_mana_ability`,
-///    `cabal_stronghold_counts_only_basic_swamps`,
+/// 2. **A dynamic-amount clause has its *amount* excluded but its *colour* compared
+///    (SR-38 / SG-3).** This parser reads *colours*, never *amounts* — `{T}: Add {G} for
+///    each creature you control` (`Effect::AddManaScaled`) prints a colour AND a count. The
+///    count this parser cannot verify; the colour it can. Earlier iterations dropped the
+///    whole clause from *both* sides (`printed_tap_mana_colors` skipped a "for each" / "equal
+///    to" clause; `registered_colors` filtered on `scaled_amount.is_none()`) — sound only
+///    while symmetric, and it discarded a checkable colour to stay that way. SR-38 narrows
+///    the exclusion to amounts only: the printed side now keeps the colour parsed before the
+///    dynamic tail, and the registered side reads scaled abilities' `produces.keys()` (the
+///    `{colour: 1}` marker `try_as_tap_mana_ability` sets), so both carry the colour and the
+///    amount lives only in `scaled_amount`, which neither inspects. The gain: a scaled
+///    ability registering an outright WRONG colour is now caught (it passed vacuously before).
+///    The amount remains verified by *activation*, elsewhere: SF-8 (SR-36, `scutemob-92`) gave
+///    `handle_tap_for_mana` a `ManaAbility::scaled_amount` resolution step, so Gaea's Cradle
+///    taps for the real creature count, not exactly 1 regardless of board state. Every
+///    bare-`Cost::Tap` scaled source (Gaea's Cradle, Elvish Archdruid, Priest of Titania,
+///    Marwyn the Nurturer, Circle of Dreams Druid, Howlsquad Heavy —
+///    `tests/casting/mana_filter.rs::test_add_mana_scaled_orphan_fix_all_cards`) and all three
+///    composite-cost scaled sources SF-8 unblocked — Cabal Coffers, Cabal Stronghold and Crypt
+///    of Agadeem (`cabal_coffers_is_a_real_mana_ability`, `cabal_stronghold_counts_only_basic_swamps`,
 ///    `crypt_of_agadeem_counts_only_black_creature_cards_in_graveyard`, all in
-///    `primitives/primitive_sr36_scaled_mana_and_life_costs.rs`). Those three activation
-///    tests are what the three cards' `Partial` -> `Complete` upgrade rests on; each board
-///    carries a decoy its filter must exclude, so a filter degraded to a raw count fails
-///    rather than passing on a coincidentally-equal number.
-///    This gate's own exclusion stays, regardless of SF-8: it is a parser-design boundary
-///    (colours only, never amounts, by construction — see the symbol-walk below), not a
-///    defect the gate was tracking, so a clause ending in "for each" / "equal to" is still
-///    dropped from `printed` entirely rather than compared. **`registered_colors` drops the
-///    same clauses, via `scaled_amount.is_none()` — the exclusion is only sound if it is
-///    symmetric.** It was not, until SR-36: SF-8 turned Cabal Stronghold's dropped
-///    `{3},{T}: Add {B} for each basic Swamp` into a real mana ability, and the gate
-///    promptly reported `invented [Black]` against a card that prints `{B}` in plain text.
-///    Before SF-8 no registered ability corresponded to a dropped clause, so nothing could
-///    expose the asymmetry — and `ManaAbility::scaled_amount`, which SF-8 added, is the
-///    only thing that makes the registered side able to identify one.
+///    `primitives/primitive_sr36_scaled_mana_and_life_costs.rs`) — assert the count with a
+///    board decoy its filter must exclude, so a filter degraded to a raw count fails rather
+///    than passing on a coincidentally-equal number. NB: an `Effect::AddManaOfAnyColorAmount`
+///    clause ("Add an amount of ... equal to ...") parses NO colour on the printed side (the
+///    symbol walk breaks on the leading "an"), so it contributes nothing here regardless; its
+///    colour blindness is exclusion 3's concern (SF-12), not this one's.
 /// 3. **"Add one mana of any color" — now handled (SR-37 / SF-12), was invisible on both
 ///    sides.** Previously: on the *printed* side this parser required a `{` after the cost
 ///    (the `strip_prefix('{')` walk below), and "Add one mana of any color." has no brace,
@@ -473,14 +469,18 @@ fn printed_tap_mana_colors(oracle: &str) -> BTreeSet<ManaColor> {
             clause_colors.insert(color);
             rest = r;
         }
-        // Exclusion 2: a dynamic-amount clause (see doc comment) is dropped, not
-        // compared. `rest` is exactly the tail immediately after the last successfully
-        // parsed symbol, so this check is positioned precisely at the point parsing
-        // stopped.
-        let tail = rest.trim_start();
-        if tail.starts_with("for each") || tail.starts_with("equal to") {
-            continue;
-        }
+        // Exclusion 2 (narrowed to amounts only — SR-38 / SG-3). A dynamic-amount clause
+        // ("... {B} for each basic Swamp" / "Add {C} equal to ...") prints a colour AND a
+        // count. This parser reads *colours*, never amounts, so the colour parsed before the
+        // dynamic tail (`clause_colors`) is verifiable and the amount is not — dropping the
+        // whole clause discarded a checkable colour along with the uncheckable count.
+        // `registered_colors` now reads scaled abilities' `produces.keys()` symmetrically, so
+        // both sides carry the colour and the amount lives only in `scaled_amount`, which
+        // neither side inspects. This lets the gate catch a scaled ability that registers an
+        // outright WRONG colour (previously passed vacuously) while still leaving amounts to
+        // the activation tests named in the doc comment. NB: a leading "an amount of ..."
+        // (e.g. `Effect::AddManaOfAnyColorAmount`) parses NO colour — the symbol walk breaks
+        // on "an", so `clause_colors` is empty and such clauses still contribute nothing here.
         out.extend(clause_colors);
     }
     out
@@ -496,19 +496,17 @@ fn registered_colors(
     );
     spec.mana_abilities
         .iter()
-        // Exclusion 2, applied to the registered side (SR-36). `printed_tap_mana_colors`
-        // drops a "for each" / "equal to" clause from `printed` entirely, so a scaled
-        // ability's colour must be dropped here too or the two sides disagree by
-        // construction: Cabal Stronghold prints `{T}: Add {C}` (parsed) plus `{3},{T}: Add
-        // {B} for each basic Swamp` (dropped), and before SF-8 its scaled arm registered no
-        // mana ability at all, so the asymmetry was invisible. SF-8 made that arm real and
-        // the gate reported `invented [Black]` against a card that prints {B} plainly.
-        // `scaled_amount.is_some()` is the exact counterpart of the printed side's tail
-        // check — it is set by `try_as_tap_mana_ability` for precisely the
-        // `Effect::AddManaScaled` clauses that produce the "for each" phrasing. Their
-        // amounts ARE verified, by activation, in
-        // `primitives/primitive_sr36_scaled_mana_and_life_costs.rs`.
-        .filter(|ma| ma.scaled_amount.is_none())
+        // Exclusion 2, applied symmetrically to the registered side (SR-38 / SG-3). A scaled
+        // ability (`scaled_amount.is_some()`) carries its colour in `produces` — `{colour: 1}`,
+        // the marker `try_as_tap_mana_ability` sets — and its dynamic amount in `scaled_amount`.
+        // `printed_tap_mana_colors` now keeps the colour of a "for each" / "equal to" clause
+        // (dropping only the amount, which it never tracked), so this side must keep it too:
+        // reading `produces.keys()` for scaled abilities exactly matches. Both sides therefore
+        // compare Cabal Stronghold's `{B}` (previously dropped) while ignoring "for each basic
+        // Swamp" — the amount is verified by activation in
+        // `primitives/primitive_sr36_scaled_mana_and_life_costs.rs`. Before SR-38 this line
+        // was `.filter(|ma| ma.scaled_amount.is_none())`, which dropped the colour too and so
+        // would have passed a scaled ability registering an outright WRONG colour.
         .flat_map(|ma| {
             // SR-37 / SF-12: an `any_color: true` ManaAbility carries an empty `produces`
             // (probed: Mana Confluence reports `produces={} any_color=true`) but actually
@@ -627,6 +625,76 @@ fn land_color_gate_is_not_blind_to_any_color_lands() {
     assert!(
         invented.contains(&&ManaColor::Colorless),
         "the {{C}} it really makes must show as invented"
+    );
+}
+
+/// SR-38 / SG-3 non-vacuity: the strengthened exclusion 2 compares a scaled clause's
+/// COLOUR (dropping only its uncheckable amount). Two halves:
+///
+/// (a) On a real `Complete` scaled land — Cabal Stronghold, `{T}: Add {C}` plus `{3},{T}:
+///     Add {B} for each basic Swamp` — the scaled `{B}` now flows through BOTH sides
+///     (previously dropped from both). If it did not, the assertion below would fail, proving
+///     the colour is genuinely compared rather than ignored.
+/// (b) A synthetic def whose oracle prints `{R}` but whose ability registers
+///     `AddManaScaled { color: Black }` is caught: `printed = {Red}`, `registered = {Black}`.
+///     The pre-SG-3 code (whole-clause drop on printed + `scaled_amount.is_none()` filter on
+///     registered) dropped both to the empty set and passed this vacuously.
+#[test]
+fn land_color_gate_compares_scaled_clause_colors() {
+    let defs = defs_map();
+
+    // (a) Real card: the scaled {B} is present on both sides (and the plain {C}).
+    let stronghold = defs
+        .get("Cabal Stronghold")
+        .expect("Cabal Stronghold has a def");
+    let printed = printed_tap_mana_colors(&stronghold.oracle_text);
+    let registered = registered_colors(stronghold, &defs);
+    let both: BTreeSet<ManaColor> = [ManaColor::Black, ManaColor::Colorless].into_iter().collect();
+    assert_eq!(
+        printed, both,
+        "Cabal Stronghold prints {{C}} and a scaled {{B}} — both colours must be kept (SG-3)"
+    );
+    assert_eq!(
+        registered, both,
+        "the scaled {{B}} arm must register its colour, compared not filtered (SG-3)"
+    );
+
+    // (b) Synthetic wrong-colour scaled ability: prints {R}, registers Black — must mismatch.
+    let mut defs2 = defs_map();
+    let wrong = CardDefinition {
+        name: "SG3 Wrong Colour Scaled".to_string(),
+        oracle_text: "{T}: Add {R} for each creature you control.".to_string(),
+        abilities: vec![AbilityDefinition::Activated {
+            cost: Cost::Tap,
+            effect: Effect::AddManaScaled {
+                player: PlayerTarget::Controller,
+                color: ManaColor::Black, // deliberately NOT the printed {R}
+                count: EffectAmount::Fixed(1),
+            },
+            timing_restriction: None,
+            targets: vec![],
+            activation_condition: None,
+            activation_zone: None,
+            once_per_turn: false,
+        }],
+        ..Default::default()
+    };
+    defs2.insert(wrong.name.clone(), wrong.clone());
+    let wp = printed_tap_mana_colors(&wrong.oracle_text);
+    let wr = registered_colors(&wrong, &defs2);
+    assert_eq!(
+        wp,
+        [ManaColor::Red].into_iter().collect::<BTreeSet<_>>(),
+        "the printed {{R}} of a 'for each' clause must be kept, not dropped (SG-3)"
+    );
+    assert_eq!(
+        wr,
+        [ManaColor::Black].into_iter().collect::<BTreeSet<_>>(),
+        "the scaled ability's registered colour must be compared, not filtered out (SG-3)"
+    );
+    assert_ne!(
+        wp, wr,
+        "a scaled ability registering the wrong colour must now be caught, not passed vacuously"
     );
 }
 
