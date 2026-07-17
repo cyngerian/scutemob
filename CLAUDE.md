@@ -113,6 +113,33 @@
   would otherwise make the trigger a silent no-op. **New per-kind state goes in a
   `TriggerData` variant, never as a field on the struct** — a new field fails the suite.
   `HASH_SCHEMA_VERSION` is now **37**.
+- **The card-def corpus is format-checked by `tools/check-defs-fmt.sh`, not by `cargo fmt` (SR-35).**
+  `cargo fmt --all -- --check` exits 0 having checked **zero** of the 1,748 files in
+  `crates/card-defs/src/defs/`: rustfmt walks `mod` declarations *textually*, expanding no
+  macros and running no build scripts, and `defs/mod.rs` is one
+  `include!(concat!(env!("OUT_DIR"), …))` whose `#[path]` mods `build.rs` writes into
+  `target/`. Both halves defeat the walk, so the corpus was **unvisited, not clean** — 321
+  defs were misformatted, some with plainly broken indentation. The SR-6 layout that causes
+  this is worth keeping (one file per card, no shared registry to collide on), so the gate
+  hands rustfmt the file list explicitly instead. **Run it, or `cargo test --all` (which
+  runs it via `core card_defs_fmt`) — `cargo fmt` will keep lying.** `--fix` reformats.
+  **Pointing rustfmt at the files is necessary but not sufficient**, and this is the part
+  to remember: rustfmt has two failure modes here that are *indistinguishable from success*
+  — no output, exit 0, file untouched. (1) When an expression won't fit `max_width`, rustfmt
+  emits the original source verbatim and the fallback propagates to the **enclosing**
+  expression; a long `oracle_text: "…".to_string(),` therefore swallows the whole
+  `CardDefinition` literal — the whole file. Measured by canary (inject a misindented
+  `card_id`, ask rustfmt directly): **1,380 of 1,748 defs were inert**. `format_strings=true`
+  splits long strings with `\` continuations, which fits them, which stops the fallback: 0
+  inert. (2) An unbreakable over-width line (>~107 cols) does the same thing and *hides other
+  errors in the file*; `error_on_line_overflow=true` makes it exit 1. The corpus has zero such
+  lines, so that check is hard-fail with **no allowlist** — a def whose formatted output
+  overflows 100 columns fails and you split the line by hand. Both flags are passed on the
+  command line, never a workspace `rustfmt.toml` (which would restyle the engine crates too),
+  and both are proven load-bearing in `crates/engine/tests/sr35_adversarial_demo.sh`. Long
+  *comments* do **not** trigger the fallback (245 defs have >100-col comment lines; none inert).
+  The reformat was proven semantics-preserving by diffing the full `Debug` of `all_cards()`
+  across it: 1,719 files changed, **byte-identical** output.
 - **Serialized `Command` / `GameEvent` / replay-log streams carry a version tag (SR-8).**
   Policy is **strict lockstep**: `rules::protocol::Envelope<T>` declares `protocol_version`,
   and a receiver accepts it iff it equals `PROTOCOL_VERSION` **exactly** — older *and newer*
@@ -497,7 +524,9 @@ When completing a milestone:
 - [ ] All acceptance criteria met
 - [ ] All tests pass: `cargo test --all`
 - [ ] No clippy warnings: `cargo clippy -- -D warnings`
-- [ ] Formatted: `cargo fmt --check`
+- [ ] Formatted: `cargo fmt --check` **and** `tools/check-defs-fmt.sh` (SR-35 — `cargo fmt`
+      checks none of the 1,748 card defs and still exits 0; the script is the only thing
+      that checks them. `cargo test --all` runs it too, via `core card_defs_fmt`.)
 - [ ] Performance benchmarks run (if applicable to this milestone)
 - [ ] Update "Current State" section of this file
 - [ ] Update "Active Milestone" to the next milestone

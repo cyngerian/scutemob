@@ -135,18 +135,27 @@ echo
 echo "=============================================================="
 echo "C. the max_width skip named in the brief (error_on_line_overflow)"
 echo "=============================================================="
-# A line rustfmt formats but cannot fit in 100 columns. rustfmt keeps the file's
-# original text and exits 0 unless error_on_line_overflow is on.
+# A line rustfmt cannot fit in 100 columns *and* cannot break — here a single
+# over-long path, which has no break points. rustfmt gives up on the enclosing
+# expression, keeps the file's original text (hiding the misindented card_id
+# above it), and exits 0 unless error_on_line_overflow is on.
+#
+# The over-long path is synthetic: no real card def today has a single token that
+# wide, so nothing in the corpus currently trips this. The mechanism is pinned
+# anyway because it is the one SR-33 hit for real — a long `AddMana` line left 51
+# files silently unformatted until someone split it by hand. rustfmt only parses
+# here, so the fake type names are irrelevant to what is being demonstrated.
+#
+# Note this is NOT the same as a long *comment*: comments do not trigger the
+# fallback (245 defs have >100-column comment lines and none are inert).
 cat > "$FIXTURE" <<'FIXTURE_EOF'
 // SR-35 demo fixture.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
     CardDefinition {
-        card_id: cid("zz-sr35-fixture"),
-        name: "ZZ SR35 Fixture".to_string(),
-        mana_cost: Some(ManaCost { generic: 2, white: 1, black: 1, green: 1, ..Default::default() }),
-        types: types(&[CardType::Instant]),
+                card_id: cid("zz-sr35-fixture"),
+        name: SomeEnum::AVeryLongVariantNameThatCannotBeBrokenAnywhereAtAllBecauseItIsOneSingleIdentifierToken::Nested,
         ..Default::default()
     }
 }
@@ -165,7 +174,7 @@ else
   naive=$(probe "$FIXTURE" --config format_strings=true)
   ok_flag=$(probe "$FIXTURE" --config format_strings=true --config error_on_line_overflow=true)
   if [ "$naive" = "green" ]; then
-    ok "WITHOUT error_on_line_overflow: rustfmt is GREEN and leaves the file unformatted"
+    ok "WITHOUT error_on_line_overflow: GREEN — and note the misindented card_id is hidden too"
   else
     bad "WITHOUT error_on_line_overflow: expected green (silent skip), got $naive"
   fi
@@ -173,6 +182,11 @@ else
     ok "WITH error_on_line_overflow=true: RED — the skip is a failure, not silence"
   else
     bad "WITH error_on_line_overflow=true: expected red, got $ok_flag"
+  fi
+  if ./$GATE >/dev/null 2>&1; then
+    bad "the shipped gate is GREEN on the fixture"
+  else
+    ok "the shipped gate is RED on the fixture"
   fi
 fi
 rm -f "$FIXTURE"

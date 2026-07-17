@@ -103,8 +103,13 @@ case "$mode" in
         echo "Done. Re-run without --fix to verify."
         ;;
     check | "")
+        # Emitted before the verdict, and on both the pass and fail paths, so the
+        # count is always observable. `the_fmt_gate_is_not_vacuous` parses it and
+        # compares it against the directory listing: a gate that reports success
+        # after checking nothing is the precise bug this script exists to fix.
+        echo "card-defs fmt gate: ${#defs[@]} defs checked"
         if rustfmt "${args[@]}" --check "${defs[@]}"; then
-            echo "card-defs fmt gate: ${#defs[@]} defs clean"
+            echo "clean"
         else
             cat >&2 <<EOF
 

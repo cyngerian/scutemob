@@ -754,6 +754,40 @@ Task-specific extras:
 _One entry per session, newest first. Format:_
 `- YYYY-MM-DD — SR-<N> (scutemob-<id>) — <status: done / in progress / blocked> — <one-line outcome + hazards + pointer for next session>`
 
+- 2026-07-17 — SR-35 (scutemob-91) — **ready for collection** — **the card corpus is format-checked for
+  the first time; the brief's fix would have covered 21% of it.** `cargo fmt --all -- --check` exits 0
+  having checked **zero** of the 1,748 defs (rustfmt walks `mod` decls textually — no macro expansion, no
+  build scripts — and `defs/mod.rs` is one `include!(concat!(env!("OUT_DIR"), …))` over `#[path]` mods
+  `build.rs` writes into `target/`). 321 defs were misformatted, several with plainly broken indentation.
+  Gate: `tools/check-defs-fmt.sh` (check | `--fix`), a CI step, and `core card_defs_fmt` so `cargo test
+  --all` runs it too — a gate only CI runs is a gate discovered late. SR-6's layout is untouched: the fix
+  is to hand rustfmt the file list, not to reintroduce a shared registry.
+  **The finding the brief did not have:** pointing rustfmt at the files is necessary and **not
+  sufficient**. rustfmt has two failure modes here that are *indistinguishable from success* — no output,
+  exit 0, file untouched. When an expression won't fit `max_width`, rustfmt emits the original source
+  verbatim, and that fallback propagates to the **enclosing** expression; a long
+  `oracle_text: "…".to_string(),` swallows the entire `CardDefinition` literal, i.e. the entire file.
+  Measured by canary (inject a misindented `card_id`, ask rustfmt **directly**, per
+  `feedback_verify_full_chain`): **1,380 of 1,748 defs were INERT** — the naive gate would have been
+  vacuous for **79%** of the corpus while reporting success, which is the same class of bug as the one
+  being fixed. `format_strings=true` splits long strings with `\` continuations → 0 inert. The residual
+  case is the one the brief names: an unbreakable >~107-col line makes rustfmt bail *and hides other
+  errors in the same file*; `error_on_line_overflow=true` makes it exit 1. Corpus has zero such lines, so
+  it ships **hard-fail, no allowlist**. Both flags proven load-bearing (not asserted) in
+  `sr35_adversarial_demo.sh`: 10 checks, each first asserting the perturbation changed the file.
+  **AC 4770 answered "made failing", not "documented with a count"** — the count is 0 because the class
+  was eliminated, not tolerated.
+  **Traps worth keeping:** (a) `$?` after a pipeline is the *last* command's status — an early read of
+  `rustfmt … | head` reported exit 0 and nearly buried the whole finding; (b) rustfmt colorizes, so
+  `grep '^error\[internal\]'` matched nothing and reported 0 errors where there were 128 (`--color=never`);
+  (c) the first attack-C fixture was **red for the wrong reason** — at 103 cols rustfmt *breaks* the line
+  and reports a diff, so it demonstrated nothing; the silent bail needs ≥~108 cols. A fixture that goes red
+  is not a fixture that reproduced the bug. (d) Long **comments** do *not* trigger the fallback (245 defs
+  have >100-col comment lines, none inert) — so `error_on_unformatted` is not needed and was not added.
+  **Safety:** `format_strings` rewrites string literals, and `oracle_text` reaches `Characteristics` →
+  the SR-8 fingerprint. Proven non-semantic by diffing the full `Debug` of `all_cards()` across the
+  reformat: 1,719 files changed, **byte-identical**, 1,748 cards. Suite 3300 → 3302 (the gate's own).
+  **Next:** SF-8 and SF-9 — the two HIGHs SR-34 filed and could not take.
 - 2026-07-17 — SR-34 (scutemob-90) — **ready for collection** — **CR 605.1a is now enforced by what
   an ability does, not what it costs.** `enrich_spec_from_def` only lowered bare `Cost::Tap`, so every
   mana source with an additional cost registered **zero** mana abilities and routed through the stack —
