@@ -31,7 +31,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("Ferocious — gain 4 life for each creature with power 4+. EffectAmount lacks a 'count permanents matching power filter'..."),
+        completeness: Completeness::partial("Ferocious life-gain clause unimplemented. TargetFilter.min_power + EffectAmount::PermanentCount/ForEach::EachPermanentMatching make it expressible — needs authoring, not a primitive."),
         ..Default::default()
     }
 }

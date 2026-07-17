@@ -39,7 +39,7 @@ pub fn card() -> CardDefinition {
             // TODO: "{1}{U}, {T}: Creatures your opponents control attack this turn if able."
             // Forced attack effect not expressible in current DSL.
         ],
-        completeness: Completeness::partial("'Whenever a creature you control deals combat damage to a player' — this is a per-creature trigger, not..."),
+        completeness: Completeness::partial("Blocked on forced attack: '{1}{U}, {T}: Creatures your opponents control attack this turn if able' has no DSL primitive (GameRestriction covers can't-attack restrictions, not attack requirements). Also: the combat-damage trigger is authored (line 28) but draws unconditionally — oracle says 'you may draw a card', so the draw is mandatory in the engine (relevant on an empty library). The old note claiming WheneverCreatureYouControlDealsCombatDamageToPlayer is missing is stale — it shipped in PB-23 and the def uses it."),
         ..Default::default()
     }
 }

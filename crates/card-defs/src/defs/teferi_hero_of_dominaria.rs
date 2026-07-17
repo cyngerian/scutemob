@@ -60,7 +60,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
-        completeness: Completeness::partial("Delayed trigger 'at the beginning of the next end step, untap up to two lands' is not expressible in DSL. Implementing..."),
+        completeness: Completeness::known_wrong("known_wrong — −3 puts the permanent on TOP of the library, not third from top (LibraryPosition lacks NthFromTop); −8 creates an empty emblem. Also missing: the +1 delayed 'untap up to two lands at the next end step' (no delayed-trigger primitive). Note: the emblem's draw trigger IS now expressible (TriggerCondition::WheneverYouDrawACard + CreateEmblem.triggered_abilities)."),
         ..Default::default()
     }
 }

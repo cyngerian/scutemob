@@ -46,7 +46,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("'Create a token that's a copy of this creature, except it has haste and loses soulbond' — copy-token creation with..."),
+        completeness: Completeness::known_wrong("the AtBeginningOfCombat copy-token trigger is authored unconditionally on Mirage Phalanx itself. Oracle grants it only while paired (CR 702.94a) and grants it to BOTH paired creatures; an unpaired Mirage Phalanx must not trigger. Also 'loses soulbond' on the copy is not expressible. Blocker is the soulbond while-paired ability grant, NOT CreateTokenCopy/delayed exile — both of those are already used in this file."),
         ..Default::default()
     }
 }

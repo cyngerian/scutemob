@@ -15,7 +15,7 @@ pub fn card() -> CardDefinition {
             // takes fixed i32, not EffectAmount. Needs dynamic LayerModification.
             AbilityDefinition::Keyword(KeywordAbility::Equip),
         ],
-        completeness: Completeness::partial("DSL gap — dynamic +1/+1 per card in hand. LayerModification::ModifyBoth takes fixed i32, not EffectAmount. Needs..."),
+        completeness: Completeness::partial("Rewire: AbilityDefinition::Static { ContinuousEffectDef { layer: PtModify, modification: LayerModification::ModifyBothDynamic { amount: Box::new(EffectAmount::HandSize { player: PlayerTarget::Controller }), negate: false }, filter: EffectFilter::AttachedCreature, duration: WhileSourceOnBattlefield } }. Verify first: layers.rs:1270-1275 resolves via the modified object's controller, not the Equipment's — confirm 'your hand' resolves to the Equipment controller under gain-control before marking Complete."),
         ..Default::default()
     }
 }

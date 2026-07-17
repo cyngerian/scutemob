@@ -25,7 +25,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::partial("Targets 'target player' — no TargetRequirement::TargetPlayer. Approximated as affecting all creatures via ForEach or as..."),
+        completeness: Completeness::partial("TargetRequirement::TargetPlayer exists; the layer 4/5/6/7b modifications (SetCreatureTypes, SetColors, RemoveAllAbilities, SetPowerToughness) all exist. Blocked only on scoping an EffectFilter to creatures controlled by declared-target-0 — verify EffectFilter::CreaturesControlledBy's parameter before authoring. Currently Effect::Nothing."),
         ..Default::default()
     }
 }

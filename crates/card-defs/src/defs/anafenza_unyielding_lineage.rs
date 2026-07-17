@@ -21,7 +21,7 @@ pub fn card() -> CardDefinition {
             // nontoken + controller filter not in DSL. Endure keyword (put counters OR create
             // token) also not in DSL.
         ],
-        completeness: Completeness::partial("'Whenever another nontoken creature you control dies' — WhenDies with nontoken + controller filter not in DSL. Endure..."),
+        completeness: Completeness::partial("Endure 2 (CR 702.183): modal 'two +1/+1 counters on this OR create a 2/2 white Spirit' choice at trigger resolution. The nontoken/controller death filter IS in the DSL (death_filter.nontoken_only + controller_you) — only the Endure choice is unauthored."),
         ..Default::default()
     }
 }

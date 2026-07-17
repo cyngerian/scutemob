@@ -16,7 +16,7 @@ pub fn card() -> CardDefinition {
             // Temur: cast-trigger mill 4 (approximable with WheneverYouCastSpell trigger).
             // Sultai: play lands from graveyard (BLOCKED — no PlayerPermission for this).
         ],
-        completeness: Completeness::partial("'Choose Temur or Sultai' on ETB — siege mode choice. Temur: cast-trigger mill 4 (approximable with WheneverYouCastSpell..."),
+        completeness: Completeness::partial("As-enters mode choice ('choose Temur or Sultai') is the sole blocker — ReplacementModification has ChooseCreatureType/ChooseColor but no mode-selection variant, and no Condition reads a chosen mode. Both mode bodies are expressible today (Temur: WheneverYouCastSpell{instant/sorcery} + MillCards(4); Sultai: AbilityDefinition::StaticPlayFromGraveyard{filter: PlayFromTopFilter::LandsOnly})."),
         ..Default::default()
     }
 }

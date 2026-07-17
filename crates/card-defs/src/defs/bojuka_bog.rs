@@ -33,7 +33,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("Triggered — When this land enters, exile target player's graveyard. DSL gap: targeted_trigger (ETB trigger cannot..."),
+        completeness: Completeness::partial("Blocked on an effect that exiles a target player's graveyard — Effect::ExileAll only reaches battlefield objects (effects/mod.rs:1554) and there is no graveyard-exile effect. Targeted ETB triggers ARE supported (PB-5; see fell_specter.rs). ETB-tapped and {T}: Add {B} are implemented."),
         ..Default::default()
     }
 }

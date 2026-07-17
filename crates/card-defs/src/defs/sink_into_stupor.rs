@@ -30,7 +30,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("Should also target spells on the stack — no combined target variant"),
+        completeness: Completeness::partial("Two gaps: (1) no combined 'target spell or nonland permanent' TargetRequirement — spell-targeting half omitted; (2) MDFC back face (Soporific Springs, Land — enters tapped, {T}: Add {U}) is not authored (back_face: None)."),
         ..Default::default()
     }
 }

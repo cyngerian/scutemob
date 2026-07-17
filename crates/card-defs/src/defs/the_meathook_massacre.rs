@@ -56,7 +56,7 @@ Whenever a creature an opponent controls dies, you gain 1 life.".to_string(),
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("ETB 'each creature gets -X/-X until end of turn' — requires LayerModification::ModifyBothDynamic(EffectAmount) to set..."),
+        completeness: Completeness::partial("ModifyBothDynamic{amount: XValue, negate: true} + EffectFilter::AllCreatures + UntilEndOfTurn now expresses the ETB (continuous_effect.rs:430). Rewire and verify X is readable from the ETB trigger's context (doc warns unsubstituted XValue resolves to 0). Both death triggers already implemented."),
         ..Default::default()
     }
 }

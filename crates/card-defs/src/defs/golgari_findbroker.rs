@@ -39,7 +39,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::known_wrong("Battle is not in the CardType enum, so the permanent-card filter does not exclude Battles"),
+        completeness: Completeness::known_wrong("the permanent-card filter omits CardType::Battle, so Battle cards in your graveyard are not legal targets (CardType::Battle exists; add it to has_card_types)"),
         ..Default::default()
     }
 }

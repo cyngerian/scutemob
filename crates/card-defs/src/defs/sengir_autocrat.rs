@@ -62,7 +62,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("'When this creature leaves the battlefield, exile all Serf tokens' — WhenLeavesBattlefield trigger not in..."),
+        completeness: Completeness::partial("both triggers are implemented (WhenEntersBattlefield → 3 Serf tokens; WhenLeavesBattlefield → ExileAll{has_subtype: Serf}). Deviation: oracle exiles only Serf TOKENS, the def exiles all Serfs — TargetFilter.is_token is a GameObject field and is silently ignored by matches_filter() (see its doc comment at card_definition.rs:2859-2868), so token-only filtering is not honored on ExileAll."),
         ..Default::default()
     }
 }

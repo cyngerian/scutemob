@@ -27,7 +27,7 @@ pub fn card() -> CardDefinition {
             // Spend this mana only to cast Dragon spells or activate abilities of Dragons.
             // DSL gap: X-removal cost + variable mana output + mana restriction not expressible.
         ],
-        completeness: Completeness::partial("{1}, {T}: Put a storage counter on this land. DSL gap: no Effect::AddCounter targeting self with CounterType::Storage"),
+        completeness: Completeness::partial("{T}: Add {C} implemented. Storage-counter add ({1},{T}) is now expressible (Effect::AddCounter + EffectTarget::Source + CounterType::Custom) but is omitted because the payoff ability is blocked: Cost::RemoveCounter (card_definition.rs:1240) has a fixed u32 count, so 'Remove X storage counters: Add X mana in any combination of colors' cannot be expressed. Unblock: X-valued counter-removal cost."),
         ..Default::default()
     }
 }

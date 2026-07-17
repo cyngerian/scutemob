@@ -35,7 +35,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Whenever a creature an opponent controls dies, that player loses 2 life."
             // Blocked on PB-26: WheneverCreatureDies needs opponent controller filter.
         ],
-        completeness: Completeness::partial("'Whenever a creature an opponent controls dies, that player loses 2 life.' Blocked on PB-26: WheneverCreatureDies needs..."),
+        completeness: Completeness::partial("Blocked on PlayerTarget::ControllerOf resolution — 'that player loses 2 life' would drain the Wurm's own controller (effects/mod.rs:3609/3661 resolve ControllerOf/OwnerOf to ctx.controller). STALE: the PB-26 'WheneverCreatureDies needs an opponent controller filter' claim — that filter exists and is wired."),
         ..Default::default()
     }
 }

@@ -19,7 +19,7 @@ pub fn card() -> CardDefinition {
             // TODO: For Mirrodin! + equipped attack trigger not expressible.
             AbilityDefinition::Keyword(KeywordAbility::Equip),
         ],
-        completeness: Completeness::partial("'For Mirrodin!' — ETB token + auto-attach not expressible"),
+        completeness: Completeness::partial("Blocked on the attack trigger only: 'Whenever equipped creature and at least one other creature attack' has no TriggerCondition (WhenEquippedCreatureDealsCombatDamageToPlayer is a damage trigger; WheneverYouAttack is unfiltered). 'For Mirrodin!' is NOT blocked — Effect::CreateTokenAndAttachSource on a WhenEntersBattlefield trigger expresses it. Equip {1}{W} cost is also not modeled (bare KeywordAbility::Equip marker with no cost ability)."),
         ..Default::default()
     }
 }

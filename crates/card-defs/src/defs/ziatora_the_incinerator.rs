@@ -30,7 +30,7 @@ pub fn card() -> CardDefinition {
             // 3. Damage amount = sacrificed creature's power (dynamic LKI value) not
             //    expressible — no EffectAmount::SacrificedCreaturePower variant.
         ],
-        completeness: Completeness::partial("'At the beginning of your end step, you may sacrifice another creature. When you do, deal damage equal to that..."),
+        completeness: Completeness::partial("Blocked on (1) optional sacrifice inside a triggered ability — Triggered has no `may`/optional field, Cost::Sacrifice is activation-cost-only, and Effect::Choose is non-interactive (always executes choices.first(), so it would force the sacrifice); (2) reflexive 'when you do' triggered ability. NOT blocked on the damage amount — EffectAmount::PowerOfSacrificedCreature shipped in PB-P (card_definition.rs:2611), but ctx.sacrificed_creature_powers is only populated on the activated-ability-cost and spell-additional-cost paths, so it would need threading to the trigger path too."),
         ..Default::default()
     }
 }

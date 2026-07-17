@@ -45,7 +45,7 @@ pub fn card() -> CardDefinition {
             // Blocked by: (1) no TargetFilter::non_basic field; (2) "that land's controller"
             // requires PlayerTarget::ControllerOf a destroyed permanent (post-destruction LKI).
         ],
-        completeness: Completeness::partial("{2}, {T}, Sacrifice this land: Destroy target nonbasic land an opponent controls. That land's controller may search..."),
+        completeness: Completeness::partial("Activated ability omitted per W5. 'Target nonbasic land' IS now expressible (TargetFilter::nonbasic, card_definition.rs:2829) — that half of the old note was stale. Still blocked on: (a) both 'may search' clauses (Effect::Choose is non-interactive, effects/mod.rs:3190 — would force the search); (b) resolving 'that land's controller' from a permanent destroyed earlier in the same resolution (PlayerTarget::ControllerOf exists but post-destruction LKI behavior is unverified)."),
         ..Default::default()
     }
 }

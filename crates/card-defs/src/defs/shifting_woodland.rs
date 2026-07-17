@@ -63,7 +63,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("TargetFilter lacks 'permanent card' constraint. Currently allows instants/sorceries as targets. Oracle says 'target..."),
+        completeness: Completeness::partial("Delirium copy ability targets TargetFilter::default() — allows instant/sorcery cards. Express 'permanent card' via has_card_types: [Artifact, Creature, Enchantment, Land, Planeswalker, Battle]."),
         ..Default::default()
     }
 }

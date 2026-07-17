@@ -30,7 +30,7 @@ pub fn card() -> CardDefinition {
             // TODO: {T}: Target attacking Elf you control gains deathtouch until end of turn.
             // DSL gap: EffectTarget has no AttackingCreatureWithSubtype variant.
         ],
-        completeness: Completeness::partial("{T}: Target attacking Elf you control gains deathtouch until end of turn. DSL gap: EffectTarget has no..."),
+        completeness: Completeness::partial("Second ability ('{T}: Target attacking Elf you control gains deathtouch until end of turn') is now fully expressible and just needs authoring: AbilityDefinition::Activated { cost: Cost::Tap, targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter { is_attacking: true, has_subtype: Some(Elf), controller: TargetController::You, ..default })], effect: Effect::ApplyContinuousEffect(AddKeyword(Deathtouch), filter: EffectFilter::DeclaredTarget, UntilEndOfTurn) }. Once wired the card should be Complete — the mana ability is already correct."),
         ..Default::default()
     }
 }

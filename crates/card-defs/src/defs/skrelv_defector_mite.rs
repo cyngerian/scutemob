@@ -33,7 +33,7 @@ pub fn card() -> CardDefinition {
             // CR 509.1b: "Skrelv can't block."
             AbilityDefinition::Keyword(KeywordAbility::CantBlock),
         ],
-        completeness: Completeness::partial("DSL gap — the activated ability requires: 1. Phyrexian mana cost ({W/P}) — NOW representable via ManaCost.phyrexian..."),
+        completeness: Completeness::partial("Activated ability blocked on: no Effect::ChooseColor primitive, no hexproof-from-chosen-color grant, no 'can't be blocked by creatures of that color' restriction. (Phyrexian mana and CantBlock are both shipped and CantBlock is already implemented.)"),
         ..Default::default()
     }
 }

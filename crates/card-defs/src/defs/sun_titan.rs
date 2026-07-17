@@ -40,7 +40,7 @@ pub fn card() -> CardDefinition {
             // TODO: TriggerCondition::WhenAttacks not yet available for self-attack triggers.
             // When implemented, duplicate the above trigger with WhenAttacks condition.
         ],
-        completeness: Completeness::partial("TriggerCondition::WhenAttacks not yet available for self-attack triggers. When implemented, duplicate the above trigger..."),
+        completeness: Completeness::partial("WhenAttacks half is authorable (duplicate the ETB trigger). Remaining: 'you may return' optionality has no correct expression — Effect::Choose always takes the first branch (effects/mod.rs:3190)."),
         ..Default::default()
     }
 }

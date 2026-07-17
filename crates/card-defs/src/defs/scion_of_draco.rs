@@ -23,7 +23,7 @@ pub fn card() -> CardDefinition {
             // TODO: color-conditional keyword grant to creatures you control
         ],
         self_cost_reduction: Some(SelfCostReduction::BasicLandTypes { per: 2 }),
-        completeness: Completeness::partial("DSL gap — static ability: 'Each creature you control has vigilance if it's white, hexproof if it's blue, lifelink if..."),
+        completeness: Completeness::partial("color-conditional keyword grant unimplemented but EXPRESSIBLE — five Static ContinuousEffectDefs at EffectLayer::Ability using EffectFilter::CreaturesYouControlWithColor (layers.rs:824). Needs authoring, no primitive work."),
         ..Default::default()
     }
 }

@@ -21,7 +21,7 @@ pub fn card() -> CardDefinition {
             // you control." Needs EffectAmount::SubtypeCount("Elf", You) — not in DSL.
             // W5: omitted to avoid wrong game state.
         ],
-        completeness: Completeness::partial("'loses life equal to the number of Elves you control' — EffectAmount::PermanentCountWithSubtype(SubType('Elf')..."),
+        completeness: Completeness::partial("ETB unimplemented but EXPRESSIBLE — the note's requested primitive shipped as EffectAmount::PermanentCount{filter: {has_subtype: Elf, controller: You}, controller: Controller} (card_definition.rs:2502). Needs authoring: WhenEntersBattlefield + LoseLife{DeclaredTarget} + targets: [TargetPlayer]. Verify 'target opponent' (not any player) can be expressed before flipping to Complete."),
         ..Default::default()
     }
 }

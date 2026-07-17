@@ -26,7 +26,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Creatures you control have '{T}: Add one mana of any color.'"
             // Requires GrantActivatedAbility DSL support (separate gap). Deferred.
         ],
-        completeness: Completeness::partial("'Creatures you control have '{T}: Add one mana of any color.'' Requires GrantActivatedAbility DSL support (separate..."),
+        completeness: Completeness::partial("Rewire only: add AbilityDefinition::Static with LayerModification::AddManaAbility(ManaAbility { requires_tap: true, any_color: true, .. }) + EffectFilter::CreaturesYouControl, duration WhileSourceOnBattlefield. Verbatim precedent: enduring_vitality.rs:21-35. Expected to reach Complete."),
         ..Default::default()
     }
 }

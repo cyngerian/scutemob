@@ -9,7 +9,7 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Instant]),
         oracle_text: "Put any number of cards from your hand on the bottom of your library, then draw that many cards plus one.".to_string(),
         abilities: vec![],
-        completeness: Completeness::inert("no abilities implemented"),
+        completeness: Completeness::inert("Blocked on variable-count card selection from hand ('any number') plus feeding that chosen count into the subsequent draw (EffectAmount has no source for it). Also an MDFC — the Valakut Stoneforge land back face is unauthored."),
         ..Default::default()
     }
 }

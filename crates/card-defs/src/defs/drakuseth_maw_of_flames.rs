@@ -32,7 +32,7 @@ pub fn card() -> CardDefinition {
             // a single DeclaredTarget list but has no "up to two other" pattern for triggered
             // abilities. Omitted per W5 policy.
         ],
-        completeness: Completeness::partial("'Whenever Drakuseth attacks, it deals 4 damage to any target and 3 damage to each of up to two other targets.'..."),
+        completeness: Completeness::partial("Blocked on target distinctness: 'it deals 4 damage to any target and 3 damage to each of up to two OTHER targets' needs the up-to-two optional targets to exclude the first. TargetRequirement::UpToN (PB-T) covers the optional-count half, but TargetFilter has no exclude-declared-target predicate, so 'other' cannot be enforced and the same target could be picked twice. Omitted per W5 policy."),
         ..Default::default()
     }
 }

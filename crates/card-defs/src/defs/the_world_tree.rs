@@ -35,7 +35,7 @@ pub fn card() -> CardDefinition {
             // TODO: Activated — {W}{W}{U}{U}{B}{B}{R}{R}{G}{G}, {T}, Sacrifice: search library for
             // any number of God cards. DSL gap: multi-card search with type filter.
         ],
-        completeness: Completeness::partial("Static — As long as you control six or more lands, lands you control have '{T}: Add one mana of any color.' DSL gap:..."),
+        completeness: Completeness::partial("Blocked only on multi-card search: Effect::SearchLibrary has no count field (card_definition.rs:1648), so 'search for any number of God cards' is inexpressible. The six-lands static grant is NOT blocked — LayerModification::AddManaAbility (wired at layers.rs:1193) + EffectFilter::LandsYouControl + ContinuousEffectDef.condition = YouControlNOrMoreWithFilter{count:6} expresses it; rewire that clause."),
         ..Default::default()
     }
 }

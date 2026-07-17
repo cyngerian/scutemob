@@ -1,8 +1,11 @@
 // Ancient Tomb — Land.
 // "{T}: Add {C}{C}. Ancient Tomb deals 2 damage to you."
-// CR 305.6: Land activated ability; produces {C}{C} but also deals 2 damage.
-// Modeled as a regular Activated ability (not a pure mana ability) because it
-// has a non-mana side effect. Engine timing: resolves normally (not mana-ability fast).
+// CR 605.1a: this IS a mana ability — it produces mana, has no target, and is not a
+// loyalty ability; the damage rider does not change that. It is authored as an
+// `Activated { Cost::Tap, Sequence([AddMana, DealDamage{Controller}]) }` because that is
+// the shape `try_as_tap_mana_ability` recognises as a pain land: it registers a real
+// `ManaAbility { produces: {Colorless: 2}, damage_to_controller: 2 }`, so it does not use
+// the stack and is reachable via `Command::TapForMana`. Same pattern as caves_of_koilos.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -32,7 +35,6 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
-        completeness: Completeness::known_wrong("modeled as a stack-using activated ability; CR 605.1a makes it a mana ability, so opponents can respond and it can't be activated while casting"),
         ..Default::default()
     }
 }

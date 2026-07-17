@@ -18,7 +18,7 @@ pub fn card() -> CardDefinition {
             // resolution). TargetRequirement::TargetCardInGraveyard exists but conditional
             // effect based on card type at resolution not in DSL.
         ],
-        completeness: Completeness::partial("DSL gap — 'Exile target card from a graveyard' with conditional on creature card type (EffectTarget for graveyard card..."),
+        completeness: Completeness::inert("'{G}: Exile target card from a graveyard' is the card's only ability and is omitted, so this def registers no behaviour at all (Inert, not KnownWrong — nothing is implemented-but-deviating). TargetCardInGraveyard exists, but no Condition variant tests whether the exiled card was a creature card, so the counter + lifegain rider cannot be gated (W5: an unconditional rider would be wrong)."),
         ..Default::default()
     }
 }

@@ -44,7 +44,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("'may draw' — optional draw, implementing as mandatory"),
+        completeness: Completeness::known_wrong("known_wrong — 'you may draw a card' is implemented as a MANDATORY draw; no optional-trigger primitive exists (Effect::Choose always takes the first option, effects/mod.rs:3190)."),
         ..Default::default()
     }
 }

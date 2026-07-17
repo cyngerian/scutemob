@@ -42,7 +42,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("'Whenever you sacrifice a creature' trigger not in DSL"),
+        completeness: Completeness::partial("'At the beginning of your upkeep, sacrifice a creature' is unimplemented — no Effect expresses a forced controller-chosen sacrifice. The card currently has its upside (draw on sacrifice) without its drawback. (WheneverYouSacrifice is shipped and already wired.)"),
         ..Default::default()
     }
 }

@@ -49,7 +49,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("DSL gap — 'You have hexproof' (player hexproof) not in layer system"),
+        completeness: Completeness::partial("two clauses of the hexproof static are unimplemented. (1) 'You have hexproof' — no player-scoped LayerModification (Effect::GrantPlayerProtection is a one-shot, not a static). (2) 'planeswalkers you control have hexproof' — no EffectFilter scoping to planeswalkers you control. 'Other creatures you control have hexproof' and the {4}{G}{G} counter ability are implemented."),
         ..Default::default()
     }
 }

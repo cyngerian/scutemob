@@ -35,7 +35,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("'For each Elf you control' — count-based token creation not in DSL. Using fixed 3 as approximation"),
+        completeness: Completeness::partial("Rewire only: count: EffectAmount::PermanentCount { filter: TargetFilter { has_card_type: Some(CardType::Creature), has_subtype: Some(SubType(\"Elf\")), controller: TargetController::You, ..default }, controller: PlayerTarget::Controller }. Precedent: howlsquad_heavy.rs:43. Expected to reach Complete."),
         ..Default::default()
     }
 }

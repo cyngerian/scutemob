@@ -18,7 +18,7 @@ pub fn card() -> CardDefinition {
             // without the condition would create a token even without another Elf,
             // which is wrong behavior. Using TODO per W5 policy.
         ],
-        completeness: Completeness::partial("'If you control another Elf' intervening-if — Condition lacks 'you control a permanent with subtype X' variant...."),
+        completeness: Completeness::partial("Blocked on the 'another' exclusion, not on subtype counting. 'When this creature enters, if you control ANOTHER Elf' — Condition::ControlCreatureWithSubtype (card_definition.rs:3536) and Condition::YouControlNOrMoreWithFilter (:3571) both exist, but neither can exclude the source: ControlCreatureWithSubtype has no exclusion, and YouControlNOrMoreWithFilter's evaluator (effects/mod.rs:8508-8536) silently ignores TargetFilter.exclude_self. Implementing without the exclusion would create a token off Dwynen's Elite alone, which is wrong. Omitted per W5 policy."),
         ..Default::default()
     }
 }

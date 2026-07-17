@@ -16,7 +16,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — "this creature or another Vampire you control dies" trigger
             // with controller + subtype filter + optional mana payment at resolution.
         ],
-        completeness: Completeness::partial("DSL gap — 'this creature or another Vampire you control dies' trigger with controller + subtype filter + optional mana..."),
+        completeness: Completeness::partial("Stale — remove marker after authoring. WheneverCreatureDies{filter} (card_definition.rs:3048, dispatch abilities.rs:4386) and Effect::MayPayThenEffect (PB-AC2, precedent leaf_crowned_visionary.rs) both exist."),
         ..Default::default()
     }
 }

@@ -23,7 +23,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("'Put creature cards from graveyard on top of library' — multi-target graveyard-to-library move. Implementing draw only"),
+        completeness: Completeness::partial("Blocked on unbounded target count: oracle says 'any number of target creature cards from your graveyard', but TargetRequirement::UpToN (card_definition.rs:2798) needs a fixed count and there is no unbounded-target form. The move itself is expressible today (TargetCardInYourGraveyard at :2765 + Effect::MoveZone to Library Top at :1594). Draw is implemented; the graveyard-to-library clause is not."),
         ..Default::default()
     }
 }

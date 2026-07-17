@@ -25,7 +25,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("'put a Goblin from hand onto battlefield' — needs MoveZone from hand with subtype filter. Using Nothing stub"),
+        completeness: Completeness::partial("Blocked: (a) no effect puts a filtered (Goblin permanent) card from hand onto the battlefield — Effect::PutLandFromHandOntoBattlefield is land-only; (b) 'you may' is inexpressible (Effect::Choose always takes the first option, effects/mod.rs:3190); (c) oracle says 'deals damage to a player' (any damage) but TriggerCondition has only WhenDealsCombatDamageToPlayer, so the trigger under-fires on noncombat damage. Trigger currently resolves to Effect::Nothing."),
         ..Default::default()
     }
 }

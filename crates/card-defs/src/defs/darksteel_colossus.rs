@@ -51,6 +51,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::known_wrong("'shuffle into library' modelled as RedirectToZone(Library) — no shuffle"),
+    completeness: Completeness::known_wrong("the 'reveal it' clause is not modelled; the shuffle-into-owner's-library replacement itself is correct (ReplacementModification::ShuffleIntoOwnerLibrary)"),
     }
 }

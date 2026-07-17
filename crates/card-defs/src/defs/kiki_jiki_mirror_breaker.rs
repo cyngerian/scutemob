@@ -45,7 +45,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("target filter lacks 'nonlegendary' restriction (TargetFilter has no nonlegendary bool)"),
+        completeness: Completeness::known_wrong("activated ability is live but its target filter permits legendary creatures — TargetFilter has no nonlegendary exclusion (only `legendary: bool` = must-be-legendary). Illegal targets are accepted."),
         ..Default::default()
     }
 }

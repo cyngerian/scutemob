@@ -24,7 +24,7 @@ pub fn card() -> CardDefinition {
         ),
         oracle_text: "Equipped creature gets +1/+1 and has haste.\nAt the beginning of each combat, untap equipped creature.\nEquipped creature has first strike as long as it's blocking or blocked by a Goblin or Orc.\nEquip {2}".to_string(),
         abilities: vec![],
-        completeness: Completeness::inert("DSL gap — static 'Equipped creature gets +1/+1 and has haste.' (equipment continuous effects require..."),
+        completeness: Completeness::inert("Three of four clauses are now expressible (AttachedCreature static for +1/+1+haste, AtBeginningOfCombat+EquippedCreature untap, Equip {2}). Blocked only on 'first strike as long as it's blocking or blocked by a Goblin or Orc' — no Condition variant for a combat relationship to a creature of a given subtype. Authoring the rest without it would drop a combat-relevant keyword (wrong game state per W6)."),
         ..Default::default()
     }
 }

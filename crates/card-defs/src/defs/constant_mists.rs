@@ -24,7 +24,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::partial("Buyback cost is 'sacrifice a land' not mana. AbilityDefinition::Buyback only accepts ManaCost. When Buyback supports..."),
+        completeness: Completeness::known_wrong("Buyback's real cost is 'sacrifice a land' but AbilityDefinition::Buyback accepts only ManaCost (card_definition.rs:540), so the def ships ManaCost::default() = a FREE {0} buyback (casting.rs:5060 pays it verbatim). This makes Constant Mists a repeatable free fog. Prefer dropping the Buyback ability until non-mana buyback costs are supported."),
         ..Default::default()
     }
 }

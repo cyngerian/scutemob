@@ -19,7 +19,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — "move any number of +1/+1 counters" requires counter
             // movement with player choice (M10 player choice).
         ],
-        completeness: Completeness::partial("DSL gap — 'Whenever a player casts a spell' trigger condition. WheneverASpellIsCast exists but may not match 'a player'..."),
+        completeness: Completeness::partial("Blocked on the upkeep ability: 'move any number of +1/+1 counters from this creature onto other creatures' has no Effect expression (no counter-move-with-player-choice primitive; AddCounter/RemoveCounter/Proliferate do not compose to it), and both abilities are 'you may' (no optional-effect wrapper; Effect::Choose is non-interactive at effects/mod.rs:3190). NOT blocked on the trigger: 'whenever a player casts a spell' is expressible as WheneverYouCastSpell (card_definition.rs:3117) + WheneverOpponentCastsSpell together."),
         ..Default::default()
     }
 }

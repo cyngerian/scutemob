@@ -46,7 +46,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("Static — 'Creatures you control are every creature type' — DSL lacks a 'grant all subtypes / changeling' layer..."),
+        completeness: Completeness::partial("Rewire the battlefield half: AbilityDefinition::Static with LayerModification::AddAllCreatureTypes + EffectFilter::CreaturesYouControl (shipped; layers.rs:1106 names this card). Remaining blocker: no EffectFilter covers creature spells you control or creature cards you own outside the battlefield."),
         ..Default::default()
     }
 }

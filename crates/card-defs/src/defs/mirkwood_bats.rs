@@ -37,7 +37,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("token-only filter on sacrifice (is_token field not in TargetFilter)"),
+        completeness: Completeness::known_wrong("the WheneverYouSacrifice trigger is authored with filter: None, so it fires on ANY sacrifice, not just tokens — each opponent loses 1 life when they should not. TargetFilter::is_token exists but is documented as NOT checked by matches_filter (only in the combat_damage_filter path), so it cannot restrict this trigger today. Separately, the 'whenever you create a token' half has no TriggerCondition and is entirely unimplemented (the file comment claiming it is 'already covered by TokenCreated event' is false)."),
         ..Default::default()
     }
 }

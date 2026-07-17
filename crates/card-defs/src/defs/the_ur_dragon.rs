@@ -35,7 +35,7 @@ pub fn card() -> CardDefinition {
             exclude_self: true,
             colored_mana_reduction: None,
         }],
-        completeness: Completeness::partial("attack trigger — draw X cards where X = number of attacking Dragons, then put a permanent from hand onto the battlefield"),
+        completeness: Completeness::partial("Attack trigger: 'draw that many' is now expressible (EffectAmount::AttackingCreatureCount with a Dragon filter, card_definition.rs:2697). Still blocked on (a) an effect putting a *permanent* card from hand onto the battlefield (only PutLandFromHandOntoBattlefield exists) and (b) 'you may' optionality — Effect::Choose is non-interactive (effects/mod.rs:3190 always takes the first option). Eminence is implemented via spell_cost_modifiers."),
         ..Default::default()
     }
 }

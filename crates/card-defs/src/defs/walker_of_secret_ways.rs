@@ -22,7 +22,7 @@ pub fn card() -> CardDefinition {
             // TODO: "{1}{U}: Return target Ninja you control to its owner's hand" — requires
             // subtype-filtered targeting (Ninja) + MoveZone to hand + "activate only during your turn".
         ],
-        completeness: Completeness::partial("'look at that player's hand' — hidden information reveal, no DSL support"),
+        completeness: Completeness::partial("Blocked on 'look at that player's hand' — no Effect exposes a hidden zone to one player (RevealAndRoute reveals to all). The {1}{U} bounce ability is NOT blocked: TargetCreatureWithFilter{has_subtype: Ninja} + Effect::MoveZone to Hand + activation_condition: Condition::IsYourTurn all exist and should be wired."),
         ..Default::default()
     }
 }

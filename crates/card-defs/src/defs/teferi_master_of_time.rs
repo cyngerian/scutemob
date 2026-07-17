@@ -52,7 +52,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
-        completeness: Completeness::partial("'Activate on any player's turn' — instant-speed loyalty not in DSL"),
+        completeness: Completeness::known_wrong("known_wrong — −3 is Effect::Nothing (no Effect::PhaseOut exists), so paying 3 loyalty does nothing; +1 drops 'then discard a card' although Effect::DiscardCards would express it. Also missing: instant-speed loyalty activation permission."),
         ..Default::default()
     }
 }

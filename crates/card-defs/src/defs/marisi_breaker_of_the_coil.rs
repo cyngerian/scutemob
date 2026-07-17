@@ -22,7 +22,7 @@ pub fn card() -> CardDefinition {
             // TODO: "goad each creature that player controls" — ForEach over DamagedPlayer's
             //   creatures requires TargetController::DamagedPlayer support. Deferred to PB-37.
         ],
-        completeness: Completeness::partial("'Your opponents can't cast spells during combat' — phase-scoped CantCast not in DSL"),
+        completeness: Completeness::partial("Blocked on clause 1 only: 'Your opponents can't cast spells during combat' needs a phase-scoped GameRestriction (all 11 variants are turn/count-scoped). STALE: the goad clause's TargetController::DamagedPlayer blocker shipped in PB-D and PlayerTarget::DamagedPlayer resolves via ctx.damaged_player."),
         ..Default::default()
     }
 }

@@ -32,7 +32,7 @@ pub fn card() -> CardDefinition {
             },
             AbilityDefinition::Cipher,
         ],
-        completeness: Completeness::partial("'tap or untap' requires player choice between tap/untap. Using TapPermanent as approximation (more common use case)"),
+        completeness: Completeness::known_wrong("modeled as an unconditional double tap. Oracle is 'you MAY tap OR untap' — the untap mode and the optionality are both dropped, and 'another target permanent' distinctness is not enforced. Effect::Choose is non-interactive (effects/mod.rs:3190 always executes the first option), so the mode choice has no correct expression today."),
         ..Default::default()
     }
 }

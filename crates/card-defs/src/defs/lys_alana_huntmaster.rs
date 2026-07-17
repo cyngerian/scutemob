@@ -51,7 +51,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("'you may' — optional create. Using mandatory. Note: 'Elf spell' needs subtype filter on spells (not yet in DSL). Using..."),
+        completeness: Completeness::partial("Rewire: set spell_subtype_filter: Some(vec![SubType(\"Elf\")]) — it shipped in PB-AC7 and the def currently over-triggers on all creature spells. Remaining blocker after rewiring: 'you may create' optionality is not expressible (Effect::Choose is non-interactive, effects/mod.rs:3190)."),
         ..Default::default()
     }
 }

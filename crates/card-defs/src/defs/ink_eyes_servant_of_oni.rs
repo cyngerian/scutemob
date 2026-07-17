@@ -47,7 +47,7 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("'target creature from that player's graveyard' — needs TargetCardInOpponentGraveyard + 'under your control' zone move"),
+        completeness: Completeness::partial("Blocked on scoping the graveyard target to the damaged player (TargetFilter has no graveyard-owner field; PlayerTarget::DamagedPlayer cannot narrow TargetCardInGraveyard) and on 'you may' optionality (Effect::Choose is non-interactive, effects/mod.rs:3190). TargetCardInGraveyard and Effect::MoveZone both exist. Trigger currently declares a required target with Effect::Nothing — targets should be vec![] until the effect lands."),
         ..Default::default()
     }
 }

@@ -106,7 +106,7 @@ pub fn card() -> CardDefinition {
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
         cant_be_countered: false,
-        completeness: Completeness::partial("Delayed triggered abilities (scoped to the current turn) are not yet fully supported via DSL. This is a known gap"),
+        completeness: Completeness::known_wrong("the -6 emblem creates the Soldier token but silently omits 'then put a +1/+1 counter on each creature you control' (see TODO at line 74) — a shipped ability with half its effect. The -2 is separately blocked on turn-scoped delayed triggered abilities (real gap, no DSL primitive). Fix the -6 (ForEachTarget::EachCreatureYouControl + AddCounter) before this can drop to partial."),
         ..Default::default()
     }
 }

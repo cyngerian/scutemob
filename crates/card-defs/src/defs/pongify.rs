@@ -42,7 +42,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("PlayerTarget::TargetController when available (wrong in multiplayer when opponent's creature is destroyed — token goes..."),
+        completeness: Completeness::known_wrong("'Its controller creates a 3/3 Ape' is modeled as the caster creating the token. Effect::CreateToken takes no recipient (card_definition.rs:1372) and TokenSpec has no recipient field, so the token always goes to the spell's controller — wrong whenever the destroyed creature belongs to another player. Needs a recipient on CreateToken/TokenSpec."),
         ..Default::default()
     }
 }

@@ -26,7 +26,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Whenever an Elf you control dies, each opponent loses 1 life and you gain
             // 1 life." Blocked on PB-26: WheneverCreatureDies needs subtype filter (Elf only).
         ],
-        completeness: Completeness::partial("'Whenever an Elf you control dies, each opponent loses 1 life and you gain 1 life.' Blocked on PB-26:..."),
+        completeness: Completeness::partial("Wire the death trigger: TriggerCondition::WheneverCreatureDies { controller: Some(TargetController::You), exclude_self: false, nontoken_only: false, filter: Some(TargetFilter { has_subtype: Some(SubType(\"Elf\")), ..Default::default() }) } with Effect::Sequence([LoseLife { player: EachOpponent, amount: Fixed(1) }, GainLife { player: Controller, amount: Fixed(1) }]). The PB-26/PB-N subtype filter exists (card_definition.rs:3058-3063)."),
         ..Default::default()
     }
 }

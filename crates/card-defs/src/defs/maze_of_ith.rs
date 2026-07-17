@@ -34,7 +34,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
-        completeness: Completeness::known_wrong("targets any creature; the printed 'attacking creature' restriction is not enforced"),
+        completeness: Completeness::known_wrong("targets any creature; the printed 'attacking creature' restriction is not enforced — TargetFilter::is_attacking now exists (PB-XA2) and should be used"),
         ..Default::default()
     }
 }

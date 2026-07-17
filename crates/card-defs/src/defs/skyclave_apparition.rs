@@ -47,7 +47,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("'nontoken' and 'mana value 4 or less' filters not in TargetFilter"),
+        completeness: Completeness::partial("ETB filter is over-permissive (any permanent an opponent controls): non_land + max_cmc: Some(4) are shipped and should be applied; is_nontoken exists but needs call-site enforcement. LTB clause is unimplemented (Effect::Nothing) — requires exiled-by-source tracking and token P/T = exiled card's mana value."),
         ..Default::default()
     }
 }

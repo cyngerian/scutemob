@@ -25,7 +25,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::partial("Interactive 'choose 1 of 3' — M10 player choice. Approximated as DrawCards(1)"),
+        completeness: Completeness::known_wrong("known_wrong — approximated as DrawCards(1); the card actually looks at the top three and distributes them to hand/top/bottom. No interactive choose-1-of-N exists (Effect::Choose always takes the first option, effects/mod.rs:3190)."),
         ..Default::default()
     }
 }

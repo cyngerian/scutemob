@@ -36,7 +36,7 @@ pub fn card() -> CardDefinition {
                 },
             },
         ],
-        completeness: Completeness::partial("activated — {T}: deal damage equal to power to target creature with flying. DSL gap: no EffectAmount::PowerOf(Source)..."),
+        completeness: Completeness::partial("Stale — remove marker after wiring the {T} ability. EffectAmount::PowerOf(EffectTarget::Source) and TargetFilter.has_keywords both exist."),
         ..Default::default()
     }
 }

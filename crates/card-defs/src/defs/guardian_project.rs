@@ -36,7 +36,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("'nontoken' filter — TargetFilter lacks non_token field"),
+        completeness: Completeness::known_wrong("draws on EVERY creature-you-control ETB. Missing (a) the nontoken restriction and (b) the 'doesn't share a name with another creature you control or a creature card in your graveyard' intervening-if — no name-uniqueness Condition exists. Overdraws vs. the real card. (TargetFilter.is_nontoken exists but is ignored by matches_filter — confirm the ETB trigger path checks it.)"),
         ..Default::default()
     }
 }

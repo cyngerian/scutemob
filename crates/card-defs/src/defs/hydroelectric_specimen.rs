@@ -18,7 +18,7 @@ pub fn card() -> CardDefinition {
             // TODO: ETB trigger — redirect target of an instant/sorcery spell.
             // DSL gap: target redirection effect not expressible.
         ],
-        completeness: Completeness::partial("ETB trigger — redirect target of an instant/sorcery spell. DSL gap: target redirection effect not expressible"),
+        completeness: Completeness::partial("Blocked: Effect::ChangeTargets (PB-J) exists but has no 'new target' parameter — must_change retargets to the effect's controller, not to a named object, so 'change the target ... to this creature' would redirect to the player instead. Needs a ChangeTargets new-target argument (EffectTarget::Source). Also 'you may' is not expressible. MDFC back face (Hydroelectric Laboratory) is missing."),
         ..Default::default()
     }
 }

@@ -54,7 +54,7 @@ pub fn card() -> CardDefinition {
             },
             // "Can be your commander" — inherent, no ability definition needed.
         ],
-        completeness: Completeness::partial("RevealAndRoute reveals all; 'look' is private. Using RevealAndRoute with count=2 and any-card filter as approximation"),
+        completeness: Completeness::known_wrong("known_wrong — +1's RevealAndRoute uses an all-matching default filter, so BOTH cards go to hand instead of one to hand / one to bottom (and 'look' is modeled as a public reveal); −10 is Effect::Nothing — the instant-speed-loyalty emblem has no expressible static."),
         ..Default::default()
     }
 }

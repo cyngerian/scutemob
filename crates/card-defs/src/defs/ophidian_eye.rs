@@ -37,7 +37,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("(PB-37): approximation — oracle says 'an opponent' but WhenEnchantedCreatureDealsDamageToPlayer fires on damage to ANY..."),
+        completeness: Completeness::partial("Two deviations: (1) oracle says 'an opponent' but WhenEnchantedCreatureDealsDamageToPlayer fires on damage to ANY player, including yourself (matters in multiplayer/redirection); (2) oracle says 'you MAY draw a card' but the draw is unconditional — no optional-trigger expression exists in the DSL (Effect::Choose is non-interactive, effects/mod.rs:3190). Also the noncombat damage path (combat_only: false) is not yet dispatched from GameEvent::DamageDealt (PB-37)."),
         ..Default::default()
     }
 }

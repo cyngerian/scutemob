@@ -33,6 +33,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::partial("static grant)"),
+    completeness: Completeness::partial("'Each creature you control with a +1/+1 counter on it has first strike' omitted: EffectFilter (ContinuousEffectDef.filter) carries no TargetFilter, so has_counter_type cannot scope a static keyword grant. Outlast is complete."),
     }
 }

@@ -26,7 +26,7 @@ pub fn card() -> CardDefinition {
             },
             // TODO: upkeep night counter trigger + 8-counter token creation
         ],
-        completeness: Completeness::partial("Upkeep trigger with counter threshold + token creation of named artifact tokens with mana abilities. Implementing only..."),
+        completeness: Completeness::partial("needs-rewiring: TokenSpec.mana_abilities (card_definition.rs:3701) makes the Replicated Ring token expressible; upkeep trigger + CounterType::Custom + Condition::SourceHasCounters + Effect::RemoveCounter all exist. Verify the >=8 threshold form of SourceHasCounters before authoring."),
         ..Default::default()
     }
 }

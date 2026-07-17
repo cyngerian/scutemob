@@ -112,19 +112,56 @@ fn test_all_cards_have_unique_card_ids() {
 
 // ── Completeness markers on the shipped corpus ────────────────────────────────
 
+/// True when a def registers **no behaviour at all** — the condition this file calls
+/// "inert": a blank permanent wearing the card's name.
+///
+/// `abilities.is_empty()` alone is **not** that condition, and assuming it was is how the
+/// marker corpus acquired a family of false `inert("no abilities implemented")` markers
+/// (scutemob-88 marker sweep). Not every printed ability is an `AbilityDefinition`: a
+/// cost-reduction static ("Dragon spells you cast cost {1} less") is not an ability the
+/// engine dispatches, it is a `spell_cost_modifier` consumed on the cast path by
+/// `apply_spell_cost_modifiers`. Those defs correctly ship `abilities: vec![]` and are
+/// fully implemented.
+///
+/// So this asks the real question — does *any* behaviour-bearing field carry something?
+///
+/// Excluded on purpose, as identity/characteristics rather than behaviour: `card_id`,
+/// `name`, `mana_cost`, `types`, `oracle_text`, `power`, `toughness`, `color_indicator`,
+/// `completeness` — and `starting_loyalty`, which is a *characteristic* (CR 208.2), not an
+/// ability: a planeswalker with a loyalty number and no loyalty abilities is exactly as
+/// inert as a blank permanent, and should be caught here. (A vanilla creature never
+/// reaches this check at all: it has no printed rules text.)
+///
+/// **Adding a behaviour-bearing field to `CardDefinition` means adding it here**, or the
+/// gate will demand an `inert` marker on a def that is actually complete.
+fn registers_no_behavior(d: &CardDefinition) -> bool {
+    d.abilities.is_empty()
+        && d.spell_cost_modifiers.is_empty()
+        && d.self_cost_reduction.is_none()
+        && d.activated_ability_cost_reductions.is_empty()
+        && d.spell_additional_costs.is_empty()
+        && d.back_face.is_none()
+        && d.adventure_face.is_none()
+        && d.meld_pair.is_none()
+        && !d.cant_be_countered
+        && !d.self_exile_on_resolution
+        && !d.self_shuffle_on_resolution
+}
+
 #[test]
-/// A definition that registers zero abilities for a card with printed rules text is
+/// A definition that registers zero behaviour for a card with printed rules text is
 /// inert: it is a blank permanent wearing the card's name. Every such def must carry a
 /// non-`Complete` marker so `validate_deck` rejects it.
 ///
-/// This is the guard that keeps the SR-2 sweep from rotting. A newly authored def with
-/// `abilities: vec![]` and a non-empty `oracle_text` fails here until it is either
-/// implemented or explicitly marked.
+/// This is the guard that keeps the SR-2 sweep from rotting. A newly authored def with no
+/// registered behaviour and a non-empty `oracle_text` fails here until it is either
+/// implemented or explicitly marked. See [`registers_no_behavior`] for why "no behaviour"
+/// is not the same as "no `abilities`".
 fn test_inert_definitions_are_marked_incomplete() {
     let unmarked: Vec<String> = all_cards()
         .into_iter()
         .filter(|d| {
-            d.abilities.is_empty()
+            registers_no_behavior(d)
                 && !d.oracle_text.trim().is_empty()
                 && d.completeness.is_complete()
         })
@@ -133,8 +170,44 @@ fn test_inert_definitions_are_marked_incomplete() {
 
     assert!(
         unmarked.is_empty(),
-        "these defs have oracle text but no abilities, and are not marked incomplete \
-         (add `completeness: Completeness::inert(\"...\")`): {unmarked:?}"
+        "these defs have oracle text but register no behaviour at all, and are not marked \
+         incomplete (add `completeness: Completeness::inert(\"...\")`): {unmarked:?}"
+    );
+}
+
+#[test]
+/// Non-vacuity for [`test_inert_definitions_are_marked_incomplete`].
+///
+/// `registers_no_behavior` is a conjunction over a dozen fields, so it is easy to widen it
+/// into something that is never true — at which point the inert gate above passes for
+/// every def and silently stops guarding anything. Pin both directions against the real
+/// corpus: some defs *do* register no behaviour (and are marked), and some defs carry
+/// their whole implementation outside `abilities`.
+fn inert_gate_is_not_vacuous() {
+    let cards = all_cards();
+
+    // Direction 1: the predicate still fires on real inert defs (all of which are marked,
+    // which is why the gate above is green).
+    let inert_marked = cards
+        .iter()
+        .filter(|d| registers_no_behavior(d) && !d.oracle_text.trim().is_empty())
+        .count();
+    assert!(
+        inert_marked > 0,
+        "registers_no_behavior() matched zero defs — the inert gate is vacuous"
+    );
+
+    // Direction 2: the predicate does NOT fire on defs whose behaviour lives outside
+    // `abilities`. These are exactly the defs the old `abilities.is_empty()` check
+    // mis-flagged as inert. If this hits zero, the exclusion has stopped being exercised.
+    let behavior_outside_abilities = cards
+        .iter()
+        .filter(|d| d.abilities.is_empty() && !registers_no_behavior(d))
+        .count();
+    assert!(
+        behavior_outside_abilities > 0,
+        "no def carries behaviour outside `abilities` — the sibling-field exclusion in \
+         registers_no_behavior() is untested and may be silently wrong"
     );
 }
 

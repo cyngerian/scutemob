@@ -22,7 +22,7 @@ pub fn card() -> CardDefinition {
             //   Effect::Fight is now available (PB-21), but the modal ETB choice and the
             //   "whenever creature with flying ETB" conditional trigger pattern remain blocking gaps.
         ],
-        completeness: Completeness::partial("Modal ETB choice (Khans vs Dragons), phase-specific mana trigger, and 'whenever creature with flying ETB, fight'..."),
+        completeness: Completeness::partial("As-enters mode choice ('choose Khans or Dragons') is the sole blocker — ReplacementModification has ChooseCreatureType/ChooseColor but no mode-selection variant, and no Condition reads a chosen mode. Both modes' bodies are otherwise expressible today (Khans: AtBeginningOfFirstMainPhase + AtBeginningOfPostcombatMain + AddMana; Dragons: WheneverCreatureEntersBattlefield{filter: has_keywords=[Flying], controller=You} + Effect::Fight)."),
         ..Default::default()
     }
 }

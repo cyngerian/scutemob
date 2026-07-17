@@ -2,10 +2,8 @@
 // Tap target creature.
 // Metalcraft — If you control three or more artifacts, exile that creature.
 //
-// TODO: Metalcraft conditional — if 3+ artifacts, exile the same target creature instead
-//   of just tapping. The Effect::Conditional can check Condition::YouControlNOrMoreOfType
-//   for artifacts, but the "exile THAT creature" reference to the declared target within
-//   the conditional is the right approach. This is expressible.
+// Both clauses are implemented: the Metalcraft conditional re-uses
+// `DeclaredTarget { index: 0 }` so the exile hits the same creature that was tapped.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -42,7 +40,6 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::partial("Metalcraft conditional — if 3+ artifacts, exile the same target creature instead of just tapping. The..."),
         ..Default::default()
     }
 }

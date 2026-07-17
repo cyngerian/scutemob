@@ -41,7 +41,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("Complex ETB condition 'if none were cast or no mana spent' not in DSL. Using generic creature ETB as approximation"),
+        completeness: Completeness::known_wrong("ETB draw fires on every nontoken/token creature you control entering; oracle requires 'none of them were cast or no mana was spent to cast them' (no Condition variant for cast-ness/mana-spent of an entering permanent) and a batched Satoru-and/or-others trigger. Current def over-draws."),
         ..Default::default()
     }
 }

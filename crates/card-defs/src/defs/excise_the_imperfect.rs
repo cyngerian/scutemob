@@ -17,7 +17,7 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Instant]),
         oracle_text: "Exile target nonland permanent. Its controller incubates X, where X is its mana value. (They create an Incubator token with X +1/+1 counters on it and \"{2}: Transform this token.\" It transforms into a 0/0 Phyrexian artifact creature.)".to_string(),
         abilities: vec![],
-        completeness: Completeness::inert("The 'incubates X where X is its mana value' clause requires: 1. Effect::Incubate (not yet in DSL) — creates an..."),
+        completeness: Completeness::inert("Blocked on Effect::Incubate — no primitive creates an Incubator token (a transforming token with X +1/+1 counters and '{2}: Transform this token'). EffectAmount::ManaValueOf(EffectTarget) is NOT a blocker; it exists. Per W5 the exile half is left unauthored because an exile with no incubate is wrong game state (opponent gets no Incubator)."),
         ..Default::default()
     }
 }

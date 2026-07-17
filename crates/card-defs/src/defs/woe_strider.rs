@@ -65,7 +65,7 @@ pub fn card() -> CardDefinition {
                 details: Some(AltCastDetails::Escape { exile_count: 4 }),
             },
         ],
-        completeness: Completeness::partial("'This creature escapes with two +1/+1 counters' — needs Escape ETB counter replacement effect (the counters are only..."),
+        completeness: Completeness::partial("Two items. (1) Blocker shipped: add AbilityDefinition::EscapeWithCounter (card_definition.rs:521; wired at resolution.rs:853, tested at tests/mechanics_e_l/escape.rs:141) for 'escapes with two +1/+1 counters'. (2) Still blocked / currently wrong: 'Sacrifice another creature: Scry 1' uses Cost::Sacrifice with a bare creature filter, which cannot exclude the source — Woe Strider can sacrifice itself. Same exclude-self gap as wight_of_the_reliquary.rs / vampire_gourmand.rs, which omit the ability instead."),
         ..Default::default()
     }
 }

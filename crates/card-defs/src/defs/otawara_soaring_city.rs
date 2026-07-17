@@ -58,7 +58,7 @@ pub fn card() -> CardDefinition {
                 controller: PlayerTarget::Controller,
             },
         )],
-        completeness: Completeness::known_wrong("target filter approximated with 'non-land'; the printed filter differs"),
+        completeness: Completeness::known_wrong("channel target uses non_land, which wrongly admits Battles; should be has_card_types: vec![Artifact, Creature, Enchantment, Planeswalker]"),
         ..Default::default()
     }
 }

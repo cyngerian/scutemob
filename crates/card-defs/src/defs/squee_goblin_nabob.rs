@@ -32,7 +32,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: Some(TriggerZone::Graveyard),
             },
         ],
-        completeness: Completeness::partial("Oracle says 'you may' — currently non-optional (bot always returns)"),
+        completeness: Completeness::known_wrong("'you may return' is modeled as an unconditional return — AbilityDefinition::Triggered has no optional/may field and Effect::Choose always takes option 0 (effects/mod.rs:3190). Controller is forced to return Squee each upkeep."),
         ..Default::default()
     }
 }

@@ -30,7 +30,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("Requires TriggerCondition::WheneverOpponentDiscards which does not exist in the DSL. The damage target 'that player'..."),
+        completeness: Completeness::known_wrong("'deals 2 damage to that player' is modeled as Effect::LoseLife; life loss is not damage (CR 119.3) — unpreventable, unredirectable, triggers no damage triggers, ignores lifelink. STALE: the old claim that TriggerCondition::WheneverOpponentDiscards does not exist — it exists and this def already uses it."),
         ..Default::default()
     }
 }

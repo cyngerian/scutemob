@@ -35,7 +35,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("'with non-Gnome creatures' condition and counter-based token count not in DSL"),
+        completeness: Completeness::known_wrong("fires on every attack — TriggerCondition::WheneverYouAttack has no attacker filter, so 'with one or more non-Gnome creatures' is unenforced and the +1/+1 counter is wrongly added on Gnome-only attacks. Token-creation clause omitted (EffectAmount::CounterCount would express it once the trigger can be scoped)."),
         ..Default::default()
     }
 }

@@ -98,7 +98,7 @@ pub fn card() -> CardDefinition {
             },
         ],
         starting_loyalty: Some(3),
-        completeness: Completeness::partial("(static ability): 'Elves you control have '{T}: Add {B}'' requires granting a mana ability via a continuous layer..."),
+        completeness: Completeness::partial("-6 emblem only. Its 'Whenever you cast an Elf spell, IT gains haste until end of turn' grants a keyword to the spell object on the stack — no LayerModification/EffectFilter reaches stack objects. (The static 'Elves you control have \"{T}: Add {B}\"' is now expressible via LayerModification::AddManaAbility (PB-S) + EffectFilter::CreaturesYouControlWithSubtype, and the emblem's subtype trigger via WheneverYouCastSpell.spell_subtype_filter — both should be wired.)"),
         ..Default::default()
     }
 }

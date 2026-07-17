@@ -36,7 +36,7 @@ pub fn card() -> CardDefinition {
             // DSL gap: WheneverPermanentEntersBattlefield with subtype filter + intervening-if
             // count condition + "any target" targeting.
         ],
-        completeness: Completeness::partial("Triggered — Whenever a Mountain you control enters, if you control at least five other Mountains, deal 3 damage to any..."),
+        completeness: Completeness::partial("the trigger's shape is now expressible (WheneverPermanentEntersBattlefield{filter: has_subtype Mountain, controller: You} + intervening_if: Option<Condition>), but two gaps remain: (1) 'you MAY have this land deal 3 damage' — Effect::Choose always executes choices[0] (effects/mod.rs:3190), so the damage would be mandatory; (2) Condition::ControlAtLeastNOtherLandsWithSubtype excludes ctx.source (Valakut), not the ENTERING Mountain, so it counts the just-entered Mountain toward 'five other Mountains' — off by one. ETB-tapped and the mana ability are complete."),
         ..Default::default()
     }
 }

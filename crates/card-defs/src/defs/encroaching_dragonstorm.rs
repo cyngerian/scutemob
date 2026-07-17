@@ -51,7 +51,7 @@ pub fn card() -> CardDefinition {
             //     controller: TargetController::You, ..Default::default() }) }
             // → Effect::ReturnToHand { target: EffectTarget::Source }
         ],
-        completeness: Completeness::partial("(second trigger): Effect::ReturnToHand does not exist as a DSL variant. When a Dragon you control enters, return this..."),
+        completeness: Completeness::partial("Rewire: TriggerCondition::WheneverCreatureEntersBattlefield { filter: Some({ has_subtype: Dragon, controller: You }) } -> Effect::MoveZone { target: EffectTarget::Source, to: ZoneTarget::Hand, controller_override: None } (card_definition.rs:1594-1603 — defaults to owner, which is what the oracle wants). Also review the ETB clause: 'up to two basic land cards' is modeled as two separate SearchLibrary calls (lines 24-39), which is not one search and cannot express 'up to'."),
         ..Default::default()
     }
 }

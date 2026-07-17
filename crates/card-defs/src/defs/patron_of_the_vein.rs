@@ -44,7 +44,7 @@ pub fn card() -> CardDefinition {
             //    information, now in the graveyard). ExileObject with a dying-creature
             //    reference is not in the DSL.
         ],
-        completeness: Completeness::partial("'Whenever a creature an opponent controls dies, exile it and put a +1/+1 counter on each Vampire you control.' DSL..."),
+        completeness: Completeness::partial("Second trigger unimplemented. Blocker partly stale: TriggerCondition::WheneverCreatureDies has controller: Option<TargetController> (card_definition.rs:3048), so 'a creature an opponent controls dies' is expressible directly — KI-5/overbroad no longer applies. Remaining question is 'exile it': verify EffectTarget::TriggeringCreature resolves to the graveyard object for Effect::ExileObject (CR 400.7 / LKI) before authoring; the counter half is AddCounter over AllPermanentsMatching(Vampire, You)."),
         ..Default::default()
     }
 }

@@ -41,7 +41,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("DSL gap — '{1}{R}: deal 1 damage + add Vampire subtype + +1/+1 counter on self' Needs: DealDamage to target +..."),
+        completeness: Completeness::partial("{1}{R} ability unimplemented. Blocker is stale: LayerModification::AddSubtypes exists. Author as Effect::Sequence([DealDamage, ApplyContinuousEffect{AddSubtypes(Vampire), EffectFilter::DeclaredTarget, Indefinite}, AddCounter{Source}]) with a TargetFilter{exclude_self: true} creature target. Verify ApplyContinuousEffect resolves DeclaredTarget correctly before marking Complete."),
         ..Default::default()
     }
 }

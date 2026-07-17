@@ -30,7 +30,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("'Each opponent with fewer creatures' count not expressible"),
+        completeness: Completeness::known_wrong("'draw a card for each opponent who controls fewer creatures than you' is approximated as an unconditional draw of 1. No EffectAmount counts opponents matching a comparison predicate."),
         ..Default::default()
     }
 }

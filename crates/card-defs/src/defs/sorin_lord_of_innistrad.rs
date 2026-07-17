@@ -75,7 +75,7 @@ pub fn card() -> CardDefinition {
                 }],
             },
         ],
-        completeness: Completeness::partial("Emblem with static P/T modification (all creatures +1/+0) — the emblem creates a static continuous effect. EmblemSpec..."),
+        completeness: Completeness::partial("Ready to author: -2 emblem is expressible via Effect::CreateEmblem { static_effects: [ContinuousEffectDef { layer: PtModify, modification: ModifyPower(1), filter: CreaturesYouControl, duration: Indefinite }] } — see kaito_bane_of_nightmares.rs. Current Effect::Nothing is an activatable no-op."),
         ..Default::default()
     }
 }

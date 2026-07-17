@@ -40,7 +40,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("'Whenever this creature or another Dragon you control enters, it deals X damage to any target, where X is the number of..."),
+        completeness: Completeness::partial("the Dragon-ETB damage trigger is unimplemented but EXPRESSIBLE — WheneverCreatureEntersBattlefield{filter: {controller: You, has_subtype: Dragon}, exclude_self: false} + DealDamage with EffectAmount::PermanentCount{filter: {has_subtype: Dragon}, controller: Controller} + targets: [TargetAny]. Remaining known deviation on rewiring: 'it deals X damage' sources the damage to the entering Dragon, but DealDamage sources to the ability's source (Scourge)."),
         ..Default::default()
     }
 }

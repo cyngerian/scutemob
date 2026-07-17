@@ -20,7 +20,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("Multi-target graveyard-to-library not expressible. Draw only"),
+        completeness: Completeness::partial("Blocked: (a) 'any number of target' is unbounded — TargetRequirement::UpToN takes a fixed count, so only a bounded approximation exists; (b) no effect routes DECLARED graveyard targets to library top — Effect::PutOnLibrary takes a count + source zone, not declared targets. Graveyard targeting itself is NOT blocked (TargetRequirement::TargetCardInYourGraveyard, PB-10). Def currently implements only 'Draw a card' and declares no targets."),
         ..Default::default()
     }
 }

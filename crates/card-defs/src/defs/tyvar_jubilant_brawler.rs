@@ -42,7 +42,7 @@ pub fn card() -> CardDefinition {
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
         cant_be_countered: false,
-        completeness: Completeness::partial("static — creatures you control can activate abilities as though they had haste DSL gap: no ActivateAsIfHaste static..."),
+        completeness: Completeness::partial("(1) static 'activate abilities of creatures you control as though they had haste' — no permission-granting LayerModification exists (all 32 are characteristic modifications; GameRestriction is prohibitions only). (2) -2 is a live but empty ability (Effect::Sequence(vec![])) — MillCards exists, but 'you may return a creature card with mana value 2 or less from your graveyard to the battlefield' needs optionality (Effect::Choose always executes choices[0], effects/mod.rs:3190) plus a graveyard-to-battlefield selection."),
         ..Default::default()
     }
 }

@@ -1,9 +1,11 @@
 // Liliana's Caress — {1}{B}, Enchantment
 // Whenever an opponent discards a card, that player loses 2 life.
 //
-// TODO: Requires TriggerCondition::WheneverOpponentDiscards which does not exist in the DSL.
-// The life-loss target "that player" also requires the trigger to pass the discarding player
-// as a target reference, which is not supported. Omitted per W5 policy.
+// Both clauses implemented. `TriggerCondition::WheneverOpponentDiscards` -> builder arm in
+// `enrich_spec_from_def` -> `TriggerEvent::OpponentDiscards` dispatch, which tags
+// `triggering_player`, so `PlayerTarget::TriggeringPlayer` resolves to the discarding
+// opponent. Oracle says "loses 2 life", so `Effect::LoseLife` is exact (contrast megrim.rs,
+// which says "deals 2 damage" and cannot use LoseLife -- CR 119.3).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -29,7 +31,6 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("Requires TriggerCondition::WheneverOpponentDiscards which does not exist in the DSL. The life-loss target 'that player'..."),
         ..Default::default()
     }
 }

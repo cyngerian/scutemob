@@ -76,7 +76,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
-        completeness: Completeness::partial("ApplyContinuousEffect to all creatures you control not wired to DSL"),
+        completeness: Completeness::partial("+1 unimplemented (Effect::Nothing). Expressible now — ApplyContinuousEffect x2 over EffectFilter::CreaturesYouControl (ModifyBoth(1) at PtModify, AddKeywords([Haste]) at Ability, UntilEndOfTurn). Needs wiring."),
         ..Default::default()
     }
 }

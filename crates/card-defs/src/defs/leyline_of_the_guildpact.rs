@@ -36,7 +36,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Lands you control are every basic land type" — layer 4 static.
             //   DSL gap: no LayerModification::AddAllBasicLandTypes variant.
         ],
-        completeness: Completeness::partial("'If this card is in your opening hand, begin the game with it on the battlefield' — no..."),
+        completeness: Completeness::partial("'Each nonland permanent you control is all colors' — EffectFilter has no nonland-permanents-you-control variant (ControlledBy(PlayerId) is unfiltered and needs a concrete PlayerId). The other two clauses ARE now expressible: AbilityDefinition::OpeningHand (see leyline_of_the_void.rs) and EffectFilter::LandsYouControl + AddSubtypes(5 basic types) (see dryad_of_the_ilysian_grove.rs)."),
         ..Default::default()
     }
 }

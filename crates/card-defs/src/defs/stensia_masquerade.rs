@@ -46,7 +46,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("Madness {2}{R} — AltCostKind::Madness not in DSL"),
+        completeness: Completeness::partial("Ready to author: AbilityDefinition::Madness { cost } exists (card_definition.rs:508). Add the Madness cost ability + Keyword(Madness) marker; the other two clauses are already complete."),
         ..Default::default()
     }
 }

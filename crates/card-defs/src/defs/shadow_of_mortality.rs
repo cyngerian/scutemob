@@ -1,6 +1,9 @@
 // Shadow of Mortality — {13}{B}{B}, Creature — Avatar 7/7
 // If your life total is less than your starting life total, this spell costs {X} less
 // to cast, where X is the difference.
+// The card's only rules text is a self cost reduction. That is not an
+// `AbilityDefinition` -- it lives in the `self_cost_reduction` field, consumed on the
+// cast path. `abilities: vec![]` is correct here and is NOT an unimplemented card.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -14,7 +17,6 @@ pub fn card() -> CardDefinition {
         toughness: Some(7),
         abilities: vec![],
         self_cost_reduction: Some(SelfCostReduction::LifeLostFromStarting),
-        completeness: Completeness::inert("no abilities implemented"),
         ..Default::default()
     }
 }

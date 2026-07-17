@@ -11,7 +11,7 @@ pub fn card() -> CardDefinition {
         power: Some(3),
         toughness: Some(3),
         abilities: vec![],
-        completeness: Completeness::inert("no abilities implemented"),
+        completeness: Completeness::inert("Authorable now: WhenEntersBattlefield + MayPayThenEffect{cost: Cost::Sacrifice(creature, exclude self), then: Sequence[GainLife{PowerOfSacrificedCreature}, DrawCards{PowerOfSacrificedCreature}]}. Also needs the MDFC back face (Garden of Freyalise, Land)."),
         ..Default::default()
     }
 }

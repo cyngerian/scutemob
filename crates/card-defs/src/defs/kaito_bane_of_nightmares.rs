@@ -92,7 +92,7 @@ pub fn card() -> CardDefinition {
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
         cant_be_countered: false,
-        completeness: Completeness::partial("Ninjutsu cost activated ability — ninjutsu is handled by the keyword engine and doesn't need a separate activated..."),
+        completeness: Completeness::partial("Blocked on 'draw a card for each opponent who lost life this turn' — no EffectAmount tracks per-opponent life loss this turn. Also unimplemented: the conditional animation static ('during your turn, while he has loyalty counters, he's a 3/4 Ninja with hexproof'). Missing AbilityDefinition::Ninjutsu { cost: {1}{U}{B} } — the Keyword(Ninjutsu) marker alone carries no cost (cf. ink_eyes_servant_of_oni.rs)."),
         ..Default::default()
     }
 }

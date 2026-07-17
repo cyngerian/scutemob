@@ -23,7 +23,7 @@ pub fn card() -> CardDefinition {
             // zone" is a special activated ability from the command zone that bypasses casting.
             // No ActivateFromCommandZone mechanism exists.
         ],
-        completeness: Completeness::partial("DSL gap — 'When Derevi enters and whenever a creature you control deals combat damage to a player' is a dual-trigger..."),
+        completeness: Completeness::partial("Blocked on: (a) 'you may tap or untap target permanent' — Effect::Choose is non-interactive (effects/mod.rs:3190 always executes the first option), so the modal choice cannot be expressed; (b) '{1}{G}{W}{U}: Put Derevi onto the battlefield from the command zone' — no activated-from-command-zone mechanism. NOTE: both trigger conditions DO exist (WhenEntersBattlefield; WheneverCreatureYouControlDealsCombatDamageToPlayer, chain replay_harness.rs:3020 -> abilities.rs:4949) — the old note was wrong about that."),
         ..Default::default()
     }
 }

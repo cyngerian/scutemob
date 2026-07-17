@@ -59,7 +59,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("ETB counter placement (X +1/+1 counters where X = other Humans you control) requires PermanentCount with subtype filter..."),
+        completeness: Completeness::partial("Rewire: add a replacement — ReplacementModification::EntersWithCounters { counter: CounterType::PlusOnePlusOne, count: Box::new(EffectAmount::PermanentCount { filter: TargetFilter { has_card_type: Creature, has_subtype: Human, controller: You, exclude_self: true, ..default }, controller: PlayerTarget::Controller }) }. Note that 'enters with' is a replacement (CR 614.1c), NOT the ETB trigger the old note assumed. Expected to reach Complete."),
         ..Default::default()
     }
 }

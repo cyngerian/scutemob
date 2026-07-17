@@ -51,7 +51,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("'any target' means player or creature — using each opponent as approximation"),
+        completeness: Completeness::partial("'any target' is modeled as Effect::ForEach{over: EachOpponent}, dealing 1 damage to every opponent on each draw instead of 1 damage to a single chosen target. Fix: use targets: vec![TargetRequirement::TargetAny] + DealDamage to DeclaredTarget{index:0}, as niv_mizzet_parun.rs already does."),
         ..Default::default()
     }
 }

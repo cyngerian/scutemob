@@ -46,7 +46,7 @@ pub fn card() -> CardDefinition {
             },
             // TODO: "{1}{B}: Each player mills a card." — needs Effect::Mill with ForEach::EachPlayer.
         ],
-        completeness: Completeness::partial("Full Syr Konrad requires 3 separate trigger conditions: 1. Another creature dies (WheneverCreatureDies covers this but..."),
+        completeness: Completeness::partial("DSL gap — no trigger for 'a creature card is put into a graveyard from anywhere other than the battlefield' or 'a creature card leaves your graveyard'. (The 'another creature dies' trigger is wired with exclude_self; the {1}{B} mill ability is authorable via MillCards{PlayerTarget::EachPlayer} and should be added.)"),
         ..Default::default()
     }
 }

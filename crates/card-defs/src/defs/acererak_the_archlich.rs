@@ -102,6 +102,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::known_wrong("attack trigger skips 'unless that player sacrifices a creature' — tokens are always created"),
+    completeness: Completeness::known_wrong("Two wrongnesses. (1) Token recipient: oracle says 'that player creates', but ForEach{EachOpponent} keeps ctx.controller (effects/mod.rs:3113) and CreateToken reads the recipient from ctx.controller (effects/mod.rs:677), so all tokens enter under Acererak's controller's control — wrong in multiplayer. Needs a token-recipient field or EffectTarget::CurrentIterationPlayer. (2) Attack trigger skips 'unless that player sacrifices a creature'; MayPayOrElse cannot help (effects/mod.rs:3196 always applies or_else without offering payment)."),
     }
 }

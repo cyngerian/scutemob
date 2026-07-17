@@ -41,7 +41,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
-        completeness: Completeness::known_wrong("search filter requires the basic supertype, so nonbasic lands with basic land types are not findable"),
+        completeness: Completeness::known_wrong("Uses basic_land_filter() (Basic supertype) instead of has_subtypes: [Plains, Island, Swamp, Mountain, Forest]; nonbasic duals with basic land types are not findable. Rewiring is unblocked — has_subtypes is honored by matches_filter on the SearchLibrary path."),
         ..Default::default()
     }
 }

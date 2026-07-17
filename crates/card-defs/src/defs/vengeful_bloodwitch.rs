@@ -42,7 +42,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::known_wrong("'target opponent' is approximated as DeclaredTarget { index: 0 }"),
+        completeness: Completeness::known_wrong("'target opponent' is modeled as TargetRequirement::TargetPlayer — TargetRequirement has no opponent-only player variant, so the controller is an illegal-but-accepted target (CR 115.1)."),
         ..Default::default()
     }
 }

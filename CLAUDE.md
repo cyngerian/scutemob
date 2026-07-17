@@ -14,12 +14,17 @@
 > Detailed PB-by-PB handoffs, hazards, and seed inventories live in `memory/workstream-state.md`.
 > Worker sessions: append detail there, not here. CLAUDE.md tracks current snapshot only.
 
-- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage **1,006/1,748 = 57.6%** per `tools/authoring-report.py`; **PB-AC chain COMPLETE — AC0..AC9 all shipped**)
+- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage **1,019/1,748 = 58.3%** per `tools/authoring-report.py`; **PB-AC chain COMPLETE — AC0..AC9 all shipped**; **marker sweep COMPLETE — `scutemob-88`**)
 - **Invariant #9 is machine-enforced (SR-2).** `CardDefinition.completeness` (`Complete` by
   Default) marks a def `Inert` / `Partial` / `KnownWrong`; `validate_deck` rejects any
   non-`Complete` card with `DeckViolation::IncompleteCard`. `CardRegistry::try_new` errors on
-  duplicate CardIds. Current markers: 68 inert, 627 partial, 47 known-wrong. **New card defs
-  must be `Complete` or carry a marker with a note** — an inert def now fails a test.
+  duplicate CardIds. Current markers: 62 inert, 570 partial, 97 known-wrong (`scutemob-88`).
+  **New card defs must be `Complete` or carry a marker with a note** — an inert def now fails a
+  test. **"Inert" means registers no *behaviour*, not `abilities: vec![]`** — a cost-reduction
+  static is a `spell_cost_modifier`, not an `AbilityDefinition`, so those defs correctly ship an
+  empty `abilities` vec and are Complete. `card_registry_gate::registers_no_behavior` is the
+  predicate and it checks every behaviour-bearing field; **adding such a field to
+  `CardDefinition` means adding it there**, and `inert_gate_is_not_vacuous` pins both directions.
 - **Invariant #3 is machine-enforced (SR-3).** All `GameState` fields are `pub(crate)` with
   one public read accessor each; the `&mut`-handing methods (`player_mut`, `object_mut`,
   `add_object`, `move_object_to_zone`, `next_object_id`, …) are `pub(crate)` too. Outside the
@@ -32,7 +37,38 @@
 - **CI**: **LIVE and green** since 2026-07-10 (SR-1, merge `e9742dc2`) — single Ubuntu job (fmt + clippy + `build --workspace` + full tests) on push/PR to main + workflow_dispatch; rust-cache@v2, 45m timeout. **Toolchain pinned (SR-11, `scutemob-63`)**: `rust-toolchain.toml` pins exact stable `1.95.0` and CI reads that `channel` from the file (no more floating to latest stable), so local `clippy -D warnings` is an authoritative CI preview. SR remediation track: original SR-1..16 all DONE 2026-07-10; a 2026-07-11 re-audit of the remediated baseline filed **SR-17..SR-32**, all DONE 2026-07-14..16 (16/16 collected; full record: `docs/sr-remediation-plan.md`).
 - **Abilities**: ~199 validated; 42/42 P1; 17/17 P2; 40/40 P3; 95/95 P4 implemented (9 permanent-n/a; 1 deferred: Banding)
 - **Primitives**: PB-0..PB-37 + named-letter chain (PB-A/B/E/J/M/S/X/Q/Q4/N/D/P/L/T/SFT/CC-{W,B,C,A}/TS/LKI-CC/CD/LKI-Power/EWC/XS/XS-E/XA/EAT/XA2/EWC-D) all DONE. PB-Q2/Q3/Q5 reserved.
-- **Last shipped**: **PB-AC9** (`scutemob-52`, merge `a4750cdb`) — **closes the AC chain**. Recon: 3/5 briefed primitives already existed (`Effect::RollDice` d20+results CR 706, `ReplacementModification::DoubleTokens` CR 614.1, `Effect::AddManaFilterChoice`); SearchLibrary multi-name 0-yield → OOS seed. Built: `Effect::WheelHand` + `Effect::SetNoMaximumHandSize` (unbriefed co-blocker — flag was recomputed each cleanup, "rest of the game" inexpressible). **Token doubling rewired 2→13/13 creation sites** (Squad, Offspring, Myriad, Embalm, Eternalize, Encore, Living Weapon, Gift keyed to recipient, Investigate, Amass — doublers were silently failing, invisible to any marker/roster). Review 0 HIGH / 1 MEDIUM fixed (Amass bypassed `apply_counter_replacement` — CR 701.47a; fix proven non-vacuous). Backfill: 11 clean incl. token doublers (Parallel Lives, Anointed Procession, Doubling Season), wheels (Echo of Eons, Winds of Change), d20 Ancient dragons; 1 backfill HIGH (Reforge the Soul stale Miracle marker — 2nd consecutive stale-marker HIGH; AC8+AC9 workers both recommend a campaign-wide marker sweep next). New gotcha logged: `timestamp_counter` IS the object-id counter — rewinding it aliases ObjectIds (`3d7e216c`). Prior: PB-AC8..AC1 (`scutemob-51..43`). Next per campaign plan: **W-PB2** (author ~55 cards unblocked by AC4..AC6), W-EMPTY/W-MISS derisking batches. Registry-gate debt **CLOSED** by SR-2 (`scutemob-54`); follow-up `scutemob-64` (SR-12).
+- **Last shipped**: **Marker sweep** (`scutemob-88`) — the AC8/AC9 follow-up both workers asked
+  for. All **742** non-`Complete` markers audited against the current engine (29 agent batches,
+  full coverage, 0 missing). **42% were wrong**: 208 `stale-blocker-shipped` (note cites a
+  capability that now exists) + 100 `wrong-or-vague-note`; only 434 still valid. Applied: **13
+  upgraded to Complete** (coverage **57.6% → 58.3%**), **54 `partial` → `known_wrong`** (the
+  marker understated the card — it ships wrong game state, it does not merely omit a clause),
+  266 notes rewritten to the real blocker. **116 ready cards emitted as a worklist across 16
+  blocker groups** (`memory/card-authoring/marker-sweep-worklist-2026-07-16.md`) — not authored
+  here. Root cause found and fixed: `card_registry_gate`'s inert check tested
+  `abilities.is_empty()`, which is **not** the same as "registers no behaviour" — a cost-reduction
+  static lives in `spell_cost_modifiers` — so the gate itself minted the false
+  `inert("no abilities implemented")` markers it then demanded. Now `registers_no_behavior` +
+  `inert_gate_is_not_vacuous`. **Open follow-up (EF-13): 105 defs are marked `partial` but
+  register no behaviour at all — they are `Inert` by the taxonomy.** Not a safety issue (both are
+  non-`Complete`, so `validate_deck` rejects them alike), but it misreports the campaign's
+  todo/empty buckets; deferred because it moves headline numbers and is inherited drift.
+  **Count that class from `all_cards()`, never from source text** — the regex
+  `abilities:\s*vec!\[\s*\]` also matches inside `mana_abilities: vec![]`, the same trap
+  CLAUDE.md already records against the authoring report; it fired twice more during this task.
+  Method that made it work (per `feedback_verify_full_chain`):
+  **variant existence is not proof a blocker is stale** — a `TriggerCondition` needs a builder arm
+  in `enrich_spec_from_def` *and* a dispatch in `check_triggers`, and several `TargetFilter` fields
+  are silently ignored by `matches_filter`. Calibration case `megrim.rs`: note false on every
+  clause, yet the card is still not Complete (models "deals 2 damage" as `LoseLife`, CR 119.3) —
+  "note is false → upgrade" would have shipped a broken card. **12 engine findings filed for
+  SR-33+, not fixed inline**: `memory/card-authoring/marker-sweep-engine-findings-2026-07-16.md`.
+  **EF-1 is HIGH and needs a coordinator decision**: 88 dual/tri lands are `Complete` but model
+  "Add {G} or {U}" as `Effect::Choose`, which is a stub (`effects/mod.rs:3190` always takes
+  `choices.first()`) *and* is unknown to `try_as_tap_mana_ability` — so they register **zero mana
+  abilities** (CR 605.1a) and only ever make their first colour. Proven empirically; the whole
+  original dual + shockland + check/fast/temple cycles. Fix shape exists in-repo (`tainted_field`:
+  two abilities, one per colour). 3275 tests. Prior: **PB-AC9** (`scutemob-52`, merge `a4750cdb`) — **closes the AC chain**. Recon: 3/5 briefed primitives already existed (`Effect::RollDice` d20+results CR 706, `ReplacementModification::DoubleTokens` CR 614.1, `Effect::AddManaFilterChoice`); SearchLibrary multi-name 0-yield → OOS seed. Built: `Effect::WheelHand` + `Effect::SetNoMaximumHandSize` (unbriefed co-blocker — flag was recomputed each cleanup, "rest of the game" inexpressible). **Token doubling rewired 2→13/13 creation sites** (Squad, Offspring, Myriad, Embalm, Eternalize, Encore, Living Weapon, Gift keyed to recipient, Investigate, Amass — doublers were silently failing, invisible to any marker/roster). Review 0 HIGH / 1 MEDIUM fixed (Amass bypassed `apply_counter_replacement` — CR 701.47a; fix proven non-vacuous). Backfill: 11 clean incl. token doublers (Parallel Lives, Anointed Procession, Doubling Season), wheels (Echo of Eons, Winds of Change), d20 Ancient dragons; 1 backfill HIGH (Reforge the Soul stale Miracle marker — 2nd consecutive stale-marker HIGH; AC8+AC9 workers both recommend a campaign-wide marker sweep next). New gotcha logged: `timestamp_counter` IS the object-id counter — rewinding it aliases ObjectIds (`3d7e216c`). Prior: PB-AC8..AC1 (`scutemob-51..43`). Next per campaign plan: **W-PB2** (author ~55 cards unblocked by AC4..AC6), W-EMPTY/W-MISS derisking batches. Registry-gate debt **CLOSED** by SR-2 (`scutemob-54`); follow-up `scutemob-64` (SR-12).
 - **Open primitive seeds**: OOS-XA2-1/2/4/5, OOS-EWCD-1..3, OOS-EAT-1..3, OOS-XS-E-2; older OOS-XS-1/3/4, OOS-LKI-Power-1/4/5, OOS-LKI-1..4, OOS-TS-1..4 — all 0-yield defensives or card-gated; high-confidence backlog exhausted. (OOS-XA-3/XA2-3 RESOLVED by `scutemob-30`; OOS-LKI-Power-3 shipped.) Full list: `memory/primitives/pb-retriage-CC.md`.
 - **Known issues**: 0 HIGH; 2 MEDIUM (pre-M8 deferred to M10+); **6 LOW open** (4 M10-gated: MR-M8-11, MR-B16-04/05/06; 2 permanent perf: MR-M1-18, MR-M6-14). Full: `docs/mtg-engine-milestone-reviews.md`.
 - **Strategic Review**: `docs/mtg-engine-strategic-review.md` (2026-03-07) — decouple M11 from M10, split M10, downscope M12, web-vs-Tauri decision pending

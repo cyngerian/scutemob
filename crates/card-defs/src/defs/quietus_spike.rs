@@ -17,7 +17,7 @@ pub fn card() -> CardDefinition {
         // TODO: equipped creature gains Deathtouch (continuous equipment effect)
         // TODO: combat damage trigger — target player loses half their life rounded up
         // TODO: Equip {3} activated ability
-        completeness: Completeness::inert("DSL gap — 'equipped creature has deathtouch' requires equipment continuous effect; the combat damage trigger with 'half..."),
+        completeness: Completeness::inert("Deathtouch grant (AddKeywords + EffectFilter::AttachedCreature, cf. basilisk_collar.rs) and Equip {3} are expressible today, as is the WhenEquippedCreatureDealsCombatDamageToPlayer trigger. Blocked solely on the trigger's effect: EffectAmount has no half-rounded-up variant for 'that player loses half their life, rounded up'. Withheld per W5 rather than shipping deathtouch+equip with the life-loss silently dropped."),
         ..Default::default()
     }
 }

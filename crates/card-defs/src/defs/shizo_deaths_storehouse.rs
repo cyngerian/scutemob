@@ -46,7 +46,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("add legendary filter when available"),
+        completeness: Completeness::partial("Fear-grant ability targets TargetCreature instead of TargetCreatureWithFilter(TargetFilter{legendary:true}). TargetFilter.legendary shipped; rewire and this card is Complete."),
         ..Default::default()
     }
 }

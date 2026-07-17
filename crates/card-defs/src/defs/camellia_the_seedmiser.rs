@@ -107,6 +107,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::known_wrong("Forage ability also targets Camellia herself — TargetFilter has no exclude-source"),
+    completeness: Completeness::known_wrong("Forage ability puts a +1/+1 counter on Camellia herself; oracle says 'each other Squirrel you control'. TargetFilter::exclude_self exists (card_definition.rs:2991) but is silently ignored at the EffectTarget::AllPermanentsMatching resolution site (effects/mod.rs:6220-6244); ForEachTarget::EachOtherCreatureYouControl excludes the source but takes no subtype filter. Needs exclude_self enforcement at AllPermanentsMatching, or a subtype-filtered other-creatures ForEach."),
     }
 }

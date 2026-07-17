@@ -57,7 +57,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
-        completeness: Completeness::partial("Chapter I/II need 'this Saga gains [ability]' (continuous effect granting activated ability)"),
+        completeness: Completeness::partial("chapter II only. Its granted ability creates a 0/0 Construct token with a CDA ('gets +1/+1 for each artifact you control'), and TokenSpec carries fixed power/toughness — no CDA-on-token support. Chapter I ('This Saga gains \"{T}: Add {C}\"') is now expressible via LayerModification::AddManaAbility (PB-S) + EffectFilter::Source and should be wired; the GainLife(0) placeholders on I and II must go (KI-10). Chapter III approximates 'mana cost {0} or {1}' as max_cmc: Some(1) (mana value, CR 202.3)."),
         ..Default::default()
     }
 }

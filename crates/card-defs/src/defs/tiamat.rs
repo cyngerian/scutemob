@@ -39,7 +39,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
         ],
-        completeness: Completeness::partial("DSL gap — the ETB triggered ability requires SearchLibrary with: 1. 'up to five' (variable count) cards matching a..."),
+        completeness: Completeness::partial("Blocked on SearchLibrary having no count field (card_definition.rs:1648) — 'up to five' — and no 'each have different names' uniqueness constraint. Also needs a name-exclusion (TargetFilter.has_name is inclusion-only). NOT gaps: arbitrary TargetFilter and ZoneTarget::Hand destinations are supported (see thaumatic_compass.rs, tooth_and_nail.rs), and 'if you cast it' is Condition::WasCast. Flying implemented."),
         ..Default::default()
     }
 }

@@ -32,7 +32,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("Player choice 'Food or Treasure' not in DSL"),
+        completeness: Completeness::known_wrong("'create a Food token or a Treasure token' is modeled as an unconditional Treasure. The player never gets the choice and never gets Food. Effect::Choose is non-interactive (effects/mod.rs:3190 executes choices.first()), so the modal choice has no correct expression today."),
         ..Default::default()
     }
 }

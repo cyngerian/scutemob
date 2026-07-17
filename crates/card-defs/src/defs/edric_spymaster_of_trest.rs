@@ -34,7 +34,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("approximation — oracle says 'its controller' (the creature's controller) draws a card, but PlayerTarget::Controller..."),
+        completeness: Completeness::partial("Rewire the draw to the damaging creature's controller: Effect::DrawCards { player: PlayerTarget::ControllerOf(Box::new(EffectTarget::TriggeringCreature)), count: Fixed(1) } — EffectTarget::TriggeringCreature (card_definition.rs:2442-2446) explicitly names Edric as its use case. Current PlayerTarget::Controller is wrong in multiplayer: Edric's controller draws for every player's connecting creature. Card stays partial after rewiring: 'its controller MAY draw' optionality is still inexpressible (Effect::Choose is non-interactive, effects/mod.rs:3190)."),
         ..Default::default()
     }
 }

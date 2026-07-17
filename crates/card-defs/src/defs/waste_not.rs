@@ -49,7 +49,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("All three abilities require TriggerCondition::WheneverOpponentDiscards which does not exist in the DSL. Additionally..."),
+        completeness: Completeness::known_wrong("the discard trigger fires unconditionally and always creates a 2/2 Zombie, regardless of the discarded card's type — so the land ({B}{B}) and noncreature-nonland (draw) clauses are wrong, not merely missing. Blocked on a discarded-card type filter on the discard trigger. TriggerCondition::WheneverOpponentDiscards DOES exist and is wired (the def already uses it); the old note claiming otherwise was false."),
         ..Default::default()
     }
 }

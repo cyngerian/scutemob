@@ -9,7 +9,7 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Instant]),
         oracle_text: "Choose target creature. You lose 2 life. Until end of turn, that creature gains \"When this creature dies, return it to the battlefield tapped under its owner's control.\"".to_string(),
         abilities: vec![],
-        completeness: Completeness::inert("no abilities implemented"),
+        completeness: Completeness::inert("Blocked twice: (1) no LayerModification::AddTriggeredAbility — 'that creature gains \\\"When this creature dies, return it to the battlefield tapped under its owner's control\\\"' cannot be granted until EOT; (2) MDFC back face (Malakir Mire, Land, enters tapped) is not authored — back_face is None."),
         ..Default::default()
     }
 }

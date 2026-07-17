@@ -28,7 +28,7 @@ pub fn card() -> CardDefinition {
             // TODO: Return a Forest to hand: Untap target creature (once per turn)
             // — Cost::ReturnPermanentToHand not in DSL; Effect::UntapPermanent not in DSL
         ],
-        completeness: Completeness::partial("DSL gap — the activated ability (return Forest to hand: untap target creature, once per turn) requires a..."),
+        completeness: Completeness::partial("the activated ability is omitted, blocked solely on the cost — no Cost variant returns a permanent you control to its owner's hand ('Return a Forest you control to its owner's hand'). The rest is expressible today: Effect::UntapPermanent + targets: [TargetCreature] + the once_per_turn field on AbilityDefinition::Activated. Flash/Flying/protection from blue are implemented."),
         ..Default::default()
     }
 }

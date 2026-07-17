@@ -19,9 +19,11 @@ pub fn card() -> CardDefinition {
         toughness: Some(5),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // When Kokusho dies, each opponent loses 5 life. "You gain life equal to
-            // the life lost this way" — simplified to drain 5 from each opponent.
-            // DrainLife handles the lose+gain pattern.
+            // "When Kokusho dies, each opponent loses 5 life. You gain life equal to the
+            // life lost this way." `Effect::DrainLife` implements exactly that: it sums
+            // each opponent's *actual* life-total delta (after CR 614.1 life-loss
+            // replacements) and gains the controller that sum — not opponent_count * 5.
+            // See effects/mod.rs `Effect::DrainLife`.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDies,
@@ -33,7 +35,6 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::known_wrong("drains 5 from each opponent instead of gaining life equal to the life lost this way"),
         ..Default::default()
     }
 }

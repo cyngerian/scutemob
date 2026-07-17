@@ -26,7 +26,7 @@ pub fn card() -> CardDefinition {
             // TODO: activated — {1}{B}{G}: target creature you control with toxic gains deathtouch until end of turn.
             // DSL gap: no TargetFilter::CreatureYouControlWithKeyword(Toxic).
         ],
-        completeness: Completeness::partial("DSL gap — 'whenever a creature you control with toxic deals combat damage to a player' requires..."),
+        completeness: Completeness::partial("The named types are NOT the blocker: TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer takes an Option<TargetFilter> (card_definition.rs:3232) and TargetFilter::has_keywords exists (card_definition.rs:2813). The live blocker is parameterized-keyword matching: has_keywords is matched by exact set membership (effects/mod.rs:7957, chars.keywords.contains(kw)), and Toxic is KeywordAbility::Toxic(u32) — so has_keywords={Toxic(2)} misses Toxic(1)/Toxic(3) and 'a creature you control with toxic' (any N) cannot be expressed. Blocks both the trigger and the {1}{B}{G} deathtouch grant."),
         ..Default::default()
     }
 }

@@ -46,7 +46,7 @@ pub fn card() -> CardDefinition {
         ],
         // CR 101.6: "This spell can't be countered" — CardDefinition.cant_be_countered = true.
         cant_be_countered: true,
-        completeness: Completeness::partial("'Whenever a player casts an instant or sorcery spell, you draw a card' — requires..."),
+        completeness: Completeness::partial("Second trigger clause unimplemented. Now authorable: express 'Whenever a player casts an instant or sorcery spell' as TWO Triggered abilities — WheneverYouCastSpell + WheneverOpponentCastsSpell, each with spell_type_filter: Some(vec![CardType::Instant, CardType::Sorcery]) — each drawing 1 card for the controller."),
         ..Default::default()
     }
 }

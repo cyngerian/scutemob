@@ -93,7 +93,7 @@ pub fn card() -> CardDefinition {
             },
         ],
         // TODO: static "can't counter creature/enchantment spells you control"
-        completeness: Completeness::partial("DSL gap — 'can't be countered' static for specific spell types not expressible (AbilityDefinition::Spell has..."),
+        completeness: Completeness::partial("Blocked on the static 'Creature and enchantment spells you control can't be countered': cant_be_countered is read only off the spell's own CardDefinition (casting.rs:3563-3594); there is no static grant conferring uncounterability on other spells. The {3}{G} land-animation ability IS fully implemented (the old note wrongly claimed otherwise). Also note the def omits 'Target land YOU CONTROL' — targets is TargetRequirement::TargetLand, unfiltered; verify before completing."),
         ..Default::default()
     }
 }

@@ -32,7 +32,7 @@ pub fn card() -> CardDefinition {
             once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial("'This artifact enters with a charge counter on it for each time it was kicked.' — ETB-place-counters based on..."),
+        completeness: Completeness::known_wrong("Two deviations. (1) 'Enters with a charge counter for each time it was kicked' — no EffectAmount counts multikicker payments (Condition::WasKicked is boolean); ReplacementModification::EntersWithCounters takes a Box<EffectAmount> but there is nothing to put in it. So the artifact never gets counters. (2) The tap ability ships a FIXED Effect::AddMana of {C}1 (line 24-27) where oracle says 'Add {C} for each charge counter' — should be Effect::AddManaScaled { count: EffectAmount::CounterCount { target: Source, counter: Charge } }, which WOULD produce 0 given (1). Current def produces mana it should not. The header comment claiming the tap ability uses CounterCount is false."),
         ..Default::default()
     }
 }

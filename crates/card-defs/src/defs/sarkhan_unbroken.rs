@@ -67,7 +67,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
-        completeness: Completeness::partial("'Add one mana of any color' — player choice not in DSL. Defaults to green; actual color should be player's choice"),
+        completeness: Completeness::partial("two gaps. (1) '+1: add one mana of any color' — interactive color choice is M10-deferred (Effect::AddManaAnyColor resolves to colorless at effects/mod.rs:2120), so green is hardcoded. (2) '-8: search for any number of Dragon creature cards' is Effect::Nothing — SearchLibrary has no variable/any-number count."),
         ..Default::default()
     }
 }

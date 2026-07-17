@@ -30,7 +30,7 @@ pub fn card() -> CardDefinition {
             // TODO: Each player's upkeep trigger creating Tombspawn tokens per graveyard creature count
             // TODO: End step + LTB trigger destroying Tombspawn tokens
         ],
-        completeness: Completeness::partial("DSL gap — 'each player's upkeep' trigger (not just controller's)"),
+        completeness: Completeness::partial("Blocked on token-origin tracking — 'destroy all tokens created with this enchantment' requires per-token provenance the engine does not record — and on a combined 'each end step AND when this leaves the battlefield' trigger. NOT a gap: TriggerCondition::AtBeginningOfEachUpkeep exists and is dispatched. Per-player 'a token for each creature card in THEIR graveyard' needs verification (ForEach::EachPlayer + EffectAmount::CardCount)."),
         ..Default::default()
     }
 }

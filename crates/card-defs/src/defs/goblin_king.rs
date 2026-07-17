@@ -46,7 +46,7 @@ pub fn card() -> CardDefinition {
                 },
             },
         ],
-        completeness: Completeness::partial("DSL gap — no EffectFilter for 'all other Goblins any player controls'. AllCreaturesWithSubtype includes the source..."),
+        completeness: Completeness::known_wrong("'Other Goblins' is modeled with EffectFilter::AllCreaturesWithSubtype, which includes the source (layers.rs:902) — Goblin King illegally gives itself +1/+1 and mountainwalk, playing as a 3/3. No EffectFilter expresses 'all other creatures with subtype X regardless of controller' (OtherCreaturesYouControlWithSubtype excludes opponents' Goblins; AllCreaturesWithSubtype includes self). Stale header comments (lines 3-11) contradict the body and each other; delete them."),
         ..Default::default()
     }
 }

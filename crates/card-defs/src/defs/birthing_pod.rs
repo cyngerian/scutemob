@@ -20,7 +20,7 @@ pub fn card() -> CardDefinition {
             // TODO: {1}{G/P}, {T}, Sacrifice a creature: search for creature with MV = sacrificed MV + 1
             //   (needs dynamic MV filter on SearchLibrary; Phyrexian mana cost gap; sacrifice-as-cost with reference)
         ],
-        completeness: Completeness::partial("{1}{G/P}, {T}, Sacrifice a creature: search for creature with MV = sacrificed MV + 1 (needs dynamic MV filter on..."),
+        completeness: Completeness::partial("Blocked on a dynamic mana-value filter for SearchLibrary: MV must equal 1 + the sacrificed creature's MV, and TargetFilter only has static max_cmc/min_cmc. Phyrexian mana and Cost::Sacrifice are available (already used in this def's mana_cost)."),
         ..Default::default()
     }
 }

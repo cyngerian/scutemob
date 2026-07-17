@@ -37,6 +37,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::partial("'can't attack or block unless you have the city's blessing' — requires either: (a)..."),
+    completeness: Completeness::partial("Blocked on a self-restriction gating attack/block on a game-state predicate: no AbilityDefinition::StaticRestriction form conditions CantAttack/CantBlock on a Condition. Condition::HasCitysBlessing and Condition::Not DO exist — the gap is the restriction carrier, not the condition."),
     }
 }

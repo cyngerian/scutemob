@@ -18,7 +18,7 @@ pub fn card() -> CardDefinition {
             // TODO: "When dies, create X Spirits where X = creature cards in graveyard"
             // — count-based token amount (EffectAmount::CreatureCardsInYourGraveyard) not in DSL
         ],
-        completeness: Completeness::partial("'When dies, create X Spirits where X = creature cards in graveyard' — count-based token amount..."),
+        completeness: Completeness::partial("Unblocked — author the dies trigger: WhenDies + CreateToken with TokenSpec.count = EffectAmount::CardCount{ zone: Graveyard, player: Controller, filter: creature }, trigger_zone Graveyard. Only Vigilance is currently implemented."),
         ..Default::default()
     }
 }

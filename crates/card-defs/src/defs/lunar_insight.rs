@@ -21,7 +21,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("'Different mana values' count not expressible. Using Fixed(3) placeholder"),
+        completeness: Completeness::known_wrong("draws a fixed 1 card instead of one per distinct mana value among nonland permanents you control; EffectAmount has no distinct-mana-value count variant."),
         ..Default::default()
     }
 }

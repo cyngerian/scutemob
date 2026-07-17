@@ -29,6 +29,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-    completeness: Completeness::partial("activated ability — {T}: target creature gets +1/+1 until end of turn for each +1/+1 counter on this creature. Requires..."),
+    completeness: Completeness::partial("Activated ability is authorable — EffectAmount::CounterCount { target: Source, counter: PlusOnePlusOne } exists (card_definition.rs:2511). Open question for the author: CR 608.2 locks the amount in at resolution; ModifyBothDynamic recalculates continuously. Needs a fixed-at-resolution amount or a documented deviation."),
     }
 }

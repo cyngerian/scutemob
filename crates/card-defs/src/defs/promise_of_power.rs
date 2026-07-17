@@ -64,7 +64,7 @@ pub fn card() -> CardDefinition {
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::partial("TokenSpec uses fixed i32 for power/toughness; dynamic X/X (cards in hand) requires a new TokenSpec variant (e.g...."),
+        completeness: Completeness::known_wrong("mode 1's X/X Demon is hardcoded to 5/5. TokenSpec.power/toughness are fixed i32 (card_definition.rs:3675) so dynamic token P/T (X = cards in hand, EffectAmount::HandSize) cannot be expressed. Selecting mode 1 produces a wrong-sized creature. Mode 0 and Entwine {4} are correct."),
         ..Default::default()
     }
 }

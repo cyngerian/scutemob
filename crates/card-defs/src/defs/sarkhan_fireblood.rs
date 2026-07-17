@@ -59,7 +59,7 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
-        completeness: Completeness::partial("Optional discard-then-draw not in DSL. Using Nothing to avoid free draw"),
+        completeness: Completeness::known_wrong("the +1 mana ability adds two unrestricted red mana; oracle is 'two mana in any combination of colors, spend only on Dragon spells' — the Dragon restriction is expressible (Effect::AddManaRestricted + ManaRestriction::SubtypeOnly) and should be wired; free-color choice is M10-deferred. The +1 rummage is Effect::Nothing because 'you may' has no interactive expression (Effect::Choose executes choices.first())."),
         ..Default::default()
     }
 }

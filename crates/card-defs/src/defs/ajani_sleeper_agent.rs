@@ -90,7 +90,7 @@ pub fn card() -> CardDefinition {
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
         cant_be_countered: false,
-        completeness: Completeness::partial("Compleated keyword — 2 fewer loyalty if Phyrexian life was paid"),
+        completeness: Completeness::known_wrong("the +1 and -3 loyalty abilities are activatable no-ops (Effect::Sequence(vec![])) — activating them gains loyalty and does nothing. The -6 emblem lacks the creature/planeswalker spell filter (TriggeredAbilityDef has no spell_type_filter), fires on AnySpellCast rather than the controller's casts, and targets any player rather than an opponent. Compleated (2 fewer loyalty if Phyrexian life was paid) is also unimplemented."),
         ..Default::default()
     }
 }

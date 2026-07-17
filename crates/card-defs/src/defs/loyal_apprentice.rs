@@ -21,7 +21,7 @@ pub fn card() -> CardDefinition {
             //   (Effect::Sequence with CreateToken then ApplyContinuousEffect targeting the
             //   newly created token is not supported). W5 policy: no approximation.
         ],
-        completeness: Completeness::partial("Lieutenant ability — requires intervening-if Condition::YouControlYourCommander which does not exist in DSL. Also token..."),
+        completeness: Completeness::partial("Lieutenant — no Condition expresses 'if you control your commander' (Condition::YouControlPermanent takes a TargetFilter, which has no commander flag). The token-haste half IS expressible (TokenSpec.keywords, or EffectTarget::LastCreatedPermanent for a true until-EOT grant)."),
         ..Default::default()
     }
 }

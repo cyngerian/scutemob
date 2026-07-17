@@ -37,7 +37,7 @@ pub fn card() -> CardDefinition {
             // for lands. Requires a replacement effect that modifies land ETB to remove the
             // tapped condition. This is a global ETB replacement and is deferred (PB-D territory).
         ],
-        completeness: Completeness::partial("Cave detection — 'if you put a Cave onto the battlefield this way, you gain 4 life' requires tracking which specific..."),
+        completeness: Completeness::partial("Three gaps: (1) 'if you put a Cave this way, gain 4 life' needs effect-result tracking; (2) 'Lands you control enter untapped' needs an EntersUntapped/ETB-tapped-counter replacement; (3) KNOWN WRONG — 'you may put a land' is currently unconditional (Effect::Choose/'may' has no correct expression today)."),
         ..Default::default()
     }
 }

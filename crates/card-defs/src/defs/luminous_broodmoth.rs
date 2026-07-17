@@ -19,7 +19,7 @@ pub fn card() -> CardDefinition {
             // WheneverCreatureDies with controller filter + keyword exclusion filter +
             // return from GY + flying counter. Multiple DSL gaps.
         ],
-        completeness: Completeness::partial("DSL gap — 'Whenever a creature you control without flying dies' needs WheneverCreatureDies with controller filter +..."),
+        completeness: Completeness::partial("Blocked: TargetFilter has no keyword-exclusion field, so 'creature you control without flying' is inexpressible; and there is no effect to return the triggering dead creature from the graveyard with a flying counter. (The WheneverCreatureDies controller filter DOES exist — that part of the old note was stale.)"),
         ..Default::default()
     }
 }

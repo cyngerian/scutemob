@@ -11,7 +11,7 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(2),
         abilities: vec![],
-        completeness: Completeness::inert("no abilities implemented"),
+        completeness: Completeness::inert("Blocked on flip-card support (CR 711): no Effect flips a permanent to its flipped face, and no CardDefinition field carries a flipped face (back_face/CardFace model DFC/MDFC, not flip). The intervening-if 'when you have 30 or more life' is expressible (Condition::ControllerLifeAtLeast); the flip action and Rune-Tail's Essence's damage-prevention static are not."),
         ..Default::default()
     }
 }

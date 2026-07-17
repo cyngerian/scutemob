@@ -15,7 +15,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — restricted mana ability (Dragon spells only) + graveyard
             // casting permission + death-exile replacement grant. Multiple DSL gaps.
         ],
-        completeness: Completeness::partial("DSL gap — restricted mana ability (Dragon spells only) + graveyard casting permission + death-exile replacement grant...."),
+        completeness: Completeness::partial("Menace only. ManaRestriction (Dragon-spells-only mana) and StaticPlayFromGraveyard / CastSelfFromGraveyard both EXIST — those clauses of the old note were stale. Real remaining blocker: granting a graveyard-cast Dragon spell the delayed 'When this creature dies, exile it' ability, and the 'once during each of your turns' cast restriction."),
         ..Default::default()
     }
 }

@@ -86,7 +86,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::known_wrong("graveyard target is not filtered to exclude Dragons as the oracle requires"),
+        completeness: Completeness::known_wrong("mode-1 graveyard target omits exclude_subtypes: vec![SubType(\"Dragon\")], so Dragon creature cards are wrongly legal targets (exclude_subtypes exists and is enforced)"),
         ..Default::default()
     }
 }

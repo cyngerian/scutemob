@@ -31,7 +31,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial("'Each opponent gets a poison counter' — EffectTarget::AllOpponents doesn't exist. Need ForEach::EachOpponent or..."),
+        completeness: Completeness::known_wrong("'Each opponent gets a poison counter' is a silent no-op. Effect::AddCounter has no ResolvedTarget::Player arm (effects/mod.rs:2320-2346), and ForEach::EachOpponent binds a Player target (:3104-3118), so the counter is discarded and only the draw happens. No effect can grant a player a poison counter today (poison_counters is written only by infect damage and Proliferate). Needs a player-counter effect before this card is authorable."),
         ..Default::default()
     }
 }

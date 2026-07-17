@@ -17,7 +17,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Gift),
             // TODO: Hexproof + conditional indestructible not easily expressible.
         ],
-        completeness: Completeness::partial("Gift mechanic draw + hexproof/indestructible continuous effects complex for DSL"),
+        completeness: Completeness::partial("Spell effect unimplemented; def carries only the Gift keyword marker with no cost AbilityDefinition. Primitives exist: AbilityDefinition::Gift { gift_type } (card_definition.rs:866), Condition::GiftWasGiven, Effect::GrantPlayerProtection (effects/mod.rs:5303), ApplyContinuousEffect + AddKeyword + EffectFilter::ControlledBy."),
         ..Default::default()
     }
 }

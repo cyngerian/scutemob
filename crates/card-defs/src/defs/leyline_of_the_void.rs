@@ -38,7 +38,7 @@ pub fn card() -> CardDefinition {
                 unless_condition: None,
             },
         ],
-        completeness: Completeness::known_wrong("the 'begin the game on the battlefield' opening-hand rule is not modelled"),
+        completeness: Completeness::known_wrong("the opening-hand rule IS modelled (AbilityDefinition::OpeningHand, engine.rs:1888), but the 'you MAY begin the game with it on the battlefield' choice is auto-taken — Leyline is always placed pre-game and the controller cannot decline"),
         ..Default::default()
     }
 }

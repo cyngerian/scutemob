@@ -18,7 +18,7 @@ pub fn card() -> CardDefinition {
         types: types(&[CardType::Instant]),
         oracle_text: "Cast this spell only before the combat damage step.\nTarget creature gains trample and gets +X/+0 until end of turn, where X is its power. At the beginning of the next end step, destroy that creature if it attacked this turn.".to_string(),
         abilities: vec![],
-        completeness: Completeness::inert("DSL gap — this card requires: 1. Timing restriction 'only before the combat damage step' (no DSL support). 2...."),
+        completeness: Completeness::inert("Blocked on two items: (1) timing restriction 'cast only before the combat damage step' — TimingRestriction has only SorcerySpeed/AnyTime; (2) delayed conditional destroy at the next end step gated on 'if it attacked this turn' — no delayed-trigger-creation primitive. The +X/+0 clause IS now expressible via EffectAmount::PowerOf(DeclaredTarget). Shares the delayed-trigger blocker with benefactors_draught.rs."),
         ..Default::default()
     }
 }

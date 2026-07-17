@@ -24,7 +24,7 @@ pub fn card() -> CardDefinition {
             // is not yet in the DSL.
             AbilityDefinition::Keyword(KeywordAbility::Persist),
         ],
-        completeness: Completeness::partial("ETB reanimate from opponent's GY — DSL gap (no MoveFrom graveyard to battlefield under your control with haste grant)...."),
+        completeness: Completeness::partial("Re-verify before authoring: TargetCardInGraveyard (PB-10) + Effect::MoveZone(Battlefield) + ExileWithDelayedReturn may now cover most of the ETB. Open links: (a) does MoveZone put a targeted graveyard card onto the battlefield under YOUR control; (b) can the target be scoped to an opponent's graveyard; (c) granting haste to the reanimated object (new object per CR 400.7)."),
         ..Default::default()
     }
 }

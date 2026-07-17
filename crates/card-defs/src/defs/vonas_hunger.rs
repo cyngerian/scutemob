@@ -24,7 +24,7 @@ pub fn card() -> CardDefinition {
             // EffectAmount variant not in DSL. Basic sacrifice also deferred to avoid
             // producing incorrect game state when city's blessing is active. W5.
         ],
-        completeness: Completeness::partial("Needs Condition::HasCitysBlessing + EffectAmount::HalfCreatureCount(rounded_up)"),
+        completeness: Completeness::partial("Blocked on an EffectAmount for 'half the creatures they control, rounded up' — no division/half variant exists. Condition::HasCitysBlessing DOES now exist and is no longer a blocker. Abilities remain empty per W5 (implementing only the non-Ascend half is wrong once the city's blessing is active)."),
         ..Default::default()
     }
 }
