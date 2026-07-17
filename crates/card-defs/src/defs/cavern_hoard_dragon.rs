@@ -36,14 +36,33 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             AbilityDefinition::Keyword(KeywordAbility::Trample),
             AbilityDefinition::Keyword(KeywordAbility::Haste),
-            // TODO: "Create a Treasure token for each artifact that player controls."
-            // DSL gap: EffectAmount/ForEach variant for artifacts controlled by the damaged
-            // player does not exist. Implementing partial (1 token) would be wrong game state.
+            // CR 510.2 / 608.2h: "Create a Treasure token for each artifact that player
+            // controls." PlayerTarget::DamagedPlayer resolves to the player the trigger
+            // fired for (ctx.damaged_player).
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
+                effect: Effect::CreateToken {
+                    spec: TokenSpec {
+                        count: EffectAmount::PermanentCount {
+                            filter: TargetFilter {
+                                has_card_type: Some(CardType::Artifact),
+                                controller: TargetController::DamagedPlayer,
+                                ..Default::default()
+                            },
+                            controller: PlayerTarget::DamagedPlayer,
+                        },
+                        ..treasure_token_spec(1)
+                    },
+                },
+                intervening_if: None,
+                targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
+            },
         ],
-        completeness: Completeness::partial(
-            "'Create a Treasure token for each artifact that player controls.' DSL gap: \
-             EffectAmount/ForEach variant for artifacts...",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

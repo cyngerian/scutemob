@@ -21,9 +21,7 @@ pub fn card() -> CardDefinition {
         power: Some(5),
         toughness: Some(5),
         abilities: vec![
-            // ETB: Create Plant tokens equal to lands you control
-            // TODO: EffectAmount lacks "count of lands you control" variant.
-            //   Using fixed 5 as approximation.
+            // ETB: Create a Plant token for each land you control.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
@@ -35,7 +33,14 @@ pub fn card() -> CardDefinition {
                         colors: [Color::Green].into_iter().collect(),
                         power: 0,
                         toughness: 1,
-                        count: EffectAmount::Fixed(5),
+                        count: EffectAmount::PermanentCount {
+                            filter: TargetFilter {
+                                has_card_type: Some(CardType::Land),
+                                controller: TargetController::You,
+                                ..Default::default()
+                            },
+                            controller: PlayerTarget::Controller,
+                        },
                         supertypes: imbl::OrdSet::new(),
                         keywords: imbl::OrdSet::new(),
                         tapped: false,
@@ -52,16 +57,40 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 trigger_zone: None,
             },
-            // Landfall: +1/+1 counter on each Plant
-            // TODO: "Each Plant you control" counter distribution not in DSL.
+            // Landfall — Whenever a land you control enters, you may put a +1/+1 counter on
+            // each Plant creature you control. Modeled unconditionally (always beneficial;
+            // same "you may" -> mandatory-take convention as khalni_heart_expedition.rs).
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::WheneverPermanentEntersBattlefield {
+                    filter: Some(TargetFilter {
+                        has_card_type: Some(CardType::Land),
+                        controller: TargetController::You,
+                        ..Default::default()
+                    }),
+                    exclude_self: false,
+                },
+                effect: Effect::ForEach {
+                    over: ForEachTarget::EachPermanentMatching(Box::new(TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        has_subtype: Some(SubType("Plant".to_string())),
+                        controller: TargetController::You,
+                        ..Default::default()
+                    })),
+                    effect: Box::new(Effect::AddCounter {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                        counter: CounterType::PlusOnePlusOne,
+                        count: 1,
+                    }),
+                },
+                intervening_if: None,
+                targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
+            },
         ],
-        completeness: Completeness::partial(
-            "needs-rewiring: replace EffectAmount::Fixed(5) with EffectAmount::PermanentCount { \
-             filter: has_card_type Land, controller: Controller } (effects/mod.rs:6749; pattern \
-             at ashaya_soul_of_the_wild.rs:34). Until then this is known_wrong, not partial — it \
-             creates exactly 5 Plants regardless of lands. Landfall clause still unauthored \
-             (evaluate ForEachTarget::EachPermanentMatching + AddCounter).",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

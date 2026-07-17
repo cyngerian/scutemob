@@ -30,18 +30,26 @@ pub fn card() -> CardDefinition {
                         controller: PlayerTarget::Controller,
                     },
                 },
-                // TODO: Ferocious — gain 4 life for each creature with power 4+.
-                //   EffectAmount lacks a "count permanents matching power filter" variant.
+                // Ferocious — gain 4 life for each creature you control with power 4+.
+                // ForEach + fixed-4 GainLife per matching creature sums to "4 life for each".
+                Effect::ForEach {
+                    over: ForEachTarget::EachPermanentMatching(Box::new(TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        controller: TargetController::You,
+                        min_power: Some(4),
+                        ..Default::default()
+                    })),
+                    effect: Box::new(Effect::GainLife {
+                        player: PlayerTarget::Controller,
+                        amount: EffectAmount::Fixed(4),
+                    }),
+                },
             ]),
             targets: vec![],
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial(
-            "Ferocious life-gain clause unimplemented. TargetFilter.min_power + \
-             EffectAmount::PermanentCount/ForEach::EachPermanentMatching make it expressible — \
-             needs authoring, not a primitive.",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

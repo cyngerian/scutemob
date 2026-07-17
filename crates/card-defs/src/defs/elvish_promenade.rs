@@ -11,12 +11,10 @@ pub fn card() -> CardDefinition {
             green: 1,
             ..Default::default()
         }),
-        types: types_sub(&[CardType::Sorcery], &["Elf"]),
+        types: types_sub(&[CardType::Kindred, CardType::Sorcery], &["Elf"]),
         oracle_text: "Create a 1/1 green Elf Warrior creature token for each Elf you control."
             .to_string(),
         abilities: vec![AbilityDefinition::Spell {
-            // TODO: "For each Elf you control" — count-based token creation not in DSL.
-            //   Using fixed 3 as approximation.
             effect: Effect::CreateToken {
                 spec: TokenSpec {
                     name: "Elf Warrior".to_string(),
@@ -27,7 +25,15 @@ pub fn card() -> CardDefinition {
                     colors: [Color::Green].into_iter().collect(),
                     power: 1,
                     toughness: 1,
-                    count: EffectAmount::Fixed(3),
+                    count: EffectAmount::PermanentCount {
+                        filter: TargetFilter {
+                            has_card_type: Some(CardType::Creature),
+                            has_subtype: Some(SubType("Elf".to_string())),
+                            controller: TargetController::You,
+                            ..Default::default()
+                        },
+                        controller: PlayerTarget::Controller,
+                    },
                     supertypes: imbl::OrdSet::new(),
                     keywords: imbl::OrdSet::new(),
                     tapped: false,
@@ -42,12 +48,7 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::partial(
-            "Rewire: count: EffectAmount::PermanentCount { filter: { has_card_type: Creature, \
-             has_subtype: Elf, controller: You }, controller: PlayerTarget::Controller } \
-             (precedent howlsquad_heavy.rs:43). Also fix the type line — oracle is 'Kindred \
-             Sorcery — Elf'; the def omits the Kindred card type.",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

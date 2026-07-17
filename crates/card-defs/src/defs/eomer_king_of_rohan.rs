@@ -1,10 +1,10 @@
 // Éomer, King of Rohan — {3}{R}{W}, Legendary Creature — Human Noble 2/2
-// Double strike; ETB: +1/+1 counter per other Human you control; ETB: monarch + deal damage equal to power
+// Double strike; enters with a +1/+1 counter per other Human you control; ETB: monarch +
+// deal damage equal to power.
 //
-// ETB trigger (BecomeMonarch + DealDamage) is implemented.
-// TODO: ETB counter placement (X +1/+1 counters where X = other Humans you control) requires
-// PermanentCount with subtype filter as the counter amount — DSL gap (EffectAmount::PermanentCount
-// exists but placing that many counters requires AddCounters with a PermanentCount amount variant).
+// CR 614.1c: "enters with" is a replacement effect, not a triggered ability —
+// ReplacementModification::EntersWithCounters (see master_biomancer.rs / ingenious_prodigy.rs
+// for the pattern).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -30,11 +30,28 @@ pub fn card() -> CardDefinition {
         toughness: Some(2),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::DoubleStrike),
-            // TODO: ETB with X +1/+1 counters where X = number of other Humans you control.
-            // Requires AddCounters with EffectAmount::PermanentCount (subtype Human filter,
-            // exclude_self). DSL gap — EffectAmount::PermanentCount works for damage/drain/draw
-            // but AddCounters does not yet support dynamic EffectAmount (only Fixed).
-            // CR 701.6a: Counter placement at ETB time.
+            // "Éomer enters with a +1/+1 counter on it for each other Human you control."
+            // CR 614.1c replacement effect, not a trigger.
+            AbilityDefinition::Replacement {
+                trigger: ReplacementTrigger::WouldEnterBattlefield {
+                    filter: ObjectFilter::Any,
+                },
+                modification: ReplacementModification::EntersWithCounters {
+                    counter: CounterType::PlusOnePlusOne,
+                    count: Box::new(EffectAmount::PermanentCount {
+                        filter: TargetFilter {
+                            has_card_type: Some(CardType::Creature),
+                            has_subtype: Some(SubType("Human".to_string())),
+                            controller: TargetController::You,
+                            exclude_self: true,
+                            ..Default::default()
+                        },
+                        controller: PlayerTarget::Controller,
+                    }),
+                },
+                is_self: true,
+                unless_condition: None,
+            },
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 // CR 603.5: "When ~ enters" — ETB trigger.
@@ -62,13 +79,16 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial(
-            "Rewire: add a replacement — ReplacementModification::EntersWithCounters { counter: \
-             CounterType::PlusOnePlusOne, count: Box::new(EffectAmount::PermanentCount { filter: \
-             TargetFilter { has_card_type: Creature, has_subtype: Human, controller: You, \
-             exclude_self: true, ..default }, controller: PlayerTarget::Controller }) }. Note \
-             that 'enters with' is a replacement (CR 614.1c), NOT the ETB trigger the old note \
-             assumed. Expected to reach Complete.",
+        completeness: Completeness::known_wrong(
+            "Enters with ONE too many +1/+1 counters. The def is correct (EntersWithCounters, \
+             count = PermanentCount{ has_subtype: Human, controller: You, exclude_self: true }), \
+             but the engine's PermanentCount resolver (effects/mod.rs:6749) does not honor \
+             `exclude_self` — unlike the sibling AttackingCreatureCount (:7032) and \
+             TappedCreatureCount (:7066) resolvers, which apply `obj.id != ctx.source`. Since the \
+             self-ETB replacement resolves with ctx.source = Éomer AFTER Éomer is on the \
+             battlefield (a Human you control), it counts itself: a 2/2 with no other Humans \
+             enters as a 3/3. Blocker filed as W-PB2 engine finding EF-W-PB2-1 (one-line fix). \
+             DoubleStrike + the two-target ETB (BecomeMonarch + DealDamage PowerOf) are correct.",
         ),
         ..Default::default()
     }

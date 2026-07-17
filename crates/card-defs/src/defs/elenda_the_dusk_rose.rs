@@ -48,8 +48,9 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 trigger_zone: None,
             },
-            // TODO: "When dies, create X tokens where X = power" — EffectAmount lacks
-            //   power-based count. Using fixed 3 as approximation.
+            // "When Elenda dies, create X 1/1 white Vampire creature tokens with lifelink,
+            // where X is Elenda's power." EffectAmount::SourcePowerAtLastKnownInformation
+            // reads the LKI power captured when the SelfDies trigger was queued.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenDies,
@@ -61,7 +62,7 @@ pub fn card() -> CardDefinition {
                         colors: [Color::White].into_iter().collect(),
                         power: 1,
                         toughness: 1,
-                        count: EffectAmount::Fixed(3),
+                        count: EffectAmount::SourcePowerAtLastKnownInformation,
                         supertypes: imbl::OrdSet::new(),
                         keywords: [KeywordAbility::Lifelink].into_iter().collect(),
                         tapped: false,
@@ -79,12 +80,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial(
-            "Replace TokenSpec.count: EffectAmount::Fixed(3) with \
-             EffectAmount::SourcePowerAtLastKnownInformation (effects/mod.rs:7003; lki_power \
-             captured for SelfDies at abilities.rs:4167). This is the canonical 'X is Elenda's \
-             power' death-trigger shape and is fully wired.",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

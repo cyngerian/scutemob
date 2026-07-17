@@ -18,28 +18,28 @@ pub fn card() -> CardDefinition {
             .to_string(),
         power: Some(1),
         toughness: Some(2),
-        abilities: vec![
-            // TODO: "X = artifacts + enchantments opponents control" — count-based
-            //   EffectAmount not in DSL. Using fixed 3 as approximation.
-            AbilityDefinition::Triggered {
-                once_per_turn: false,
-                trigger_condition: TriggerCondition::WhenEntersBattlefield,
-                effect: Effect::CreateToken {
-                    spec: treasure_token_spec(3),
+        abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
+            trigger_condition: TriggerCondition::WhenEntersBattlefield,
+            effect: Effect::CreateToken {
+                spec: TokenSpec {
+                    count: EffectAmount::PermanentCount {
+                        filter: TargetFilter {
+                            has_card_types: vec![CardType::Artifact, CardType::Enchantment],
+                            ..Default::default()
+                        },
+                        controller: PlayerTarget::EachOpponent,
+                    },
+                    ..treasure_token_spec(1)
                 },
-                intervening_if: None,
-                targets: vec![],
-
-                modes: None,
-                trigger_zone: None,
             },
-        ],
-        completeness: Completeness::partial(
-            "Wire ETB to Effect::CreateToken with TokenSpec.count = EffectAmount::PermanentCount \
-             { filter: TargetFilter { has_card_types: vec![CardType::Artifact, \
-             CardType::Enchantment], ..Default::default() }, controller: \
-             PlayerTarget::EachOpponent }. Remove the fixed-3 approximation.",
-        ),
+            intervening_if: None,
+            targets: vec![],
+
+            modes: None,
+            trigger_zone: None,
+        }],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }
