@@ -37,14 +37,38 @@ set -u
 CARGO="$HOME/.cargo/bin/cargo"
 GATE=tools/check-defs-fmt.sh
 VICTIM=crates/card-defs/src/defs/abrade.rs
-FIXTURE=crates/card-defs/src/defs/zz_sr35_fixture.rs
+# Fixtures live in a scratch dir, never in crates/card-defs/src/defs/: section C's
+# fixture is deliberately non-compiling Rust, and build.rs discovers that directory
+# by listing it — a concurrent `cargo build` would pick the fixture up and fail.
+# Only attack A touches tracked source, because only attack A is about a real def.
+SCRATCH=$(mktemp -d)
+FIXTURE="$SCRATCH/zz_sr35_fixture.rs"
 fails=0
 
-cleanup() { git checkout -- "$VICTIM" 2>/dev/null; rm -f "$FIXTURE"; }
+cleanup() { git checkout -- "$VICTIM" 2>/dev/null; rm -rf "$SCRATCH"; }
 trap cleanup EXIT
 
 ok()   { echo "  PASS: $1"; }
 bad()  { echo "  FAIL: $1"; fails=$((fails + 1)); }
+
+# Stand up a throwaway corpus holding just the fixture and run the SHIPPED gate
+# against it — the script derives its defs dir from its own location, so this
+# exercises the real argument set rather than a copy of it. Echoes green|red.
+shipped_gate_on_fixture() {
+  local tmp; tmp=$(mktemp -d)
+  mkdir -p "$tmp/crates/card-defs/src/defs" "$tmp/tools"
+  cp "$GATE" "$tmp/tools/"
+  cp "$FIXTURE" "$tmp/crates/card-defs/src/defs/zz_sr35_fixture.rs"
+  local out rc
+  out=$(cd "$tmp" && ./tools/check-defs-fmt.sh 2>&1); rc=$?
+  rm -rf "$tmp"
+  # A gate that never saw the fixture proves nothing either way.
+  case "$out" in
+    *"1 defs checked"*) ;;
+    *) echo "vacuous"; return ;;
+  esac
+  [ "$rc" -eq 0 ] && echo green || echo red
+}
 
 # Run rustfmt --check over one file with an explicit config set; echo green|red.
 probe() { # <file> <config-args...>
@@ -69,10 +93,18 @@ assert_changed() { # <file> <before-md5> — the SR track rule
 echo "=============================================================="
 echo "A. cargo fmt is blind to the defs; the new gate is not"
 echo "=============================================================="
-before=$(md5sum "$VICTIM" | cut -d' ' -f1)
-# Over-indent the card_id line: valid Rust, unambiguously misformatted.
-perl -0pi -e 's/\n        card_id:/\n                card_id:/' "$VICTIM"
-if assert_changed "$VICTIM" "$before"; then
+# Baseline first. `cargo fmt --all -- --check` failing for some unrelated reason
+# (a misformatted engine file, say) would otherwise read as "cargo fmt caught the
+# def" and turn this attack into a false alarm — which it did, once, while this
+# script was being written.
+if ! "$CARGO" fmt --all -- --check >/dev/null 2>&1; then
+  bad "cargo fmt --all -- --check is already RED before any perturbation — \
+run 'cargo fmt --all' first; this attack cannot say anything until it is green"
+else
+  before=$(md5sum "$VICTIM" | cut -d' ' -f1)
+  # Over-indent the card_id line: valid Rust, unambiguously misformatted.
+  perl -0pi -e 's/\n        card_id:/\n                card_id:/' "$VICTIM"
+  if assert_changed "$VICTIM" "$before"; then
   if "$CARGO" fmt --all -- --check >/dev/null 2>&1; then
     ok "cargo fmt --all -- --check is GREEN on a misformatted def (the SR-35 bug)"
   else
@@ -82,6 +114,7 @@ if assert_changed "$VICTIM" "$before"; then
     bad "the new gate is GREEN on a misformatted def — it is vacuous"
   else
     ok "the new gate is RED on the same def"
+  fi
   fi
 fi
 git checkout -- "$VICTIM"
@@ -123,11 +156,11 @@ else
     bad "WITH format_strings=true: expected red, got $ok_flag"
   fi
   # And the gate as shipped must catch it.
-  if ./$GATE >/dev/null 2>&1; then
-    bad "the shipped gate is GREEN on the fixture"
-  else
-    ok "the shipped gate is RED on the fixture"
-  fi
+  case "$(shipped_gate_on_fixture)" in
+    red)     ok  "the shipped gate is RED on the fixture" ;;
+    green)   bad "the shipped gate is GREEN on the fixture" ;;
+    vacuous) bad "the shipped gate never saw the fixture — this check proves nothing" ;;
+  esac
 fi
 rm -f "$FIXTURE"
 
@@ -183,11 +216,11 @@ else
   else
     bad "WITH error_on_line_overflow=true: expected red, got $ok_flag"
   fi
-  if ./$GATE >/dev/null 2>&1; then
-    bad "the shipped gate is GREEN on the fixture"
-  else
-    ok "the shipped gate is RED on the fixture"
-  fi
+  case "$(shipped_gate_on_fixture)" in
+    red)     ok  "the shipped gate is RED on the fixture" ;;
+    green)   bad "the shipped gate is GREEN on the fixture" ;;
+    vacuous) bad "the shipped gate never saw the fixture — this check proves nothing" ;;
+  esac
 fi
 rm -f "$FIXTURE"
 

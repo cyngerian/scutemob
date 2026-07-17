@@ -100,3 +100,165 @@ fn the_fmt_gate_is_not_vacuous() {
         "the gate checked {checked} defs but {on_disk} exist on disk"
     );
 }
+
+// ---------------------------------------------------------------------------
+// The gate's two --config flags are load-bearing, and nothing above notices if
+// one is deleted.
+//
+// Both flags exist to stop rustfmt from silently doing nothing (see the script's
+// header). Neither is guarded by the tests above, and the corpus cannot guard
+// them either: the defs are already formatted, so with a flag removed rustfmt
+// leaves them alone and everything stays green — while every newly authored def
+// goes back to being invisible. Deleting `format_strings=true` was measured to do
+// exactly that: gate green, both tests above passing, 79% of new cards unchecked.
+//
+// `sr35_adversarial_demo.sh` proves the flags matter, but nothing executes it, and
+// this repo already learned that lesson the expensive way (SR-9b): "a documented
+// hazard that nothing executes is a hazard, not a note." So the demo's two
+// load-bearing fixtures are re-run here, in `cargo test`, against a throwaway
+// corpus.
+//
+// Each fixture isolates exactly one flag — verified across the full matrix:
+//
+//     fixture                  both   fs-only   eolo-only   neither
+//     long one-line string     RED    RED       GREEN       GREEN
+//     unbreakable long line    RED    GREEN     RED         GREEN
+//
+// so a canary asserting RED reddens if, and only if, its flag goes missing.
+// ---------------------------------------------------------------------------
+
+/// A def written the way an author writes one: `oracle_text` as a single long
+/// line. rustfmt cannot fit it, falls back to verbatim source for the enclosing
+/// expression — the whole `CardDefinition` literal — and exits 0, hiding the
+/// misindented `card_id`. `format_strings=true` is what makes it visible.
+const FIXTURE_LONG_ORACLE_TEXT: &str = r#"use crate::cards::helpers::*;
+
+pub fn card() -> CardDefinition {
+    CardDefinition {
+                card_id: cid("zz-canary"),
+        name: "ZZ Canary".to_string(),
+        oracle_text: "Whenever a creature you control deals combat damage to a player, draw a card. Then if creatures you control have total toughness 20 or greater, untap each creature you control.".to_string(),
+        ..Default::default()
+    }
+}
+"#;
+
+/// A line rustfmt can neither fit nor break (one over-long path). Same silent
+/// bail, same hidden `card_id`. `error_on_line_overflow=true` is what makes it
+/// visible. The path is synthetic — no real def has a token that wide today —
+/// but the mechanism is the one that left 51 files unformatted during SR-33.
+/// rustfmt only parses here, so the fake type names are irrelevant.
+const FIXTURE_UNBREAKABLE_LINE: &str = r#"use crate::cards::helpers::*;
+
+pub fn card() -> CardDefinition {
+    CardDefinition {
+                card_id: cid("zz-canary"),
+        name: SomeEnum::AVeryLongVariantNameThatCannotBeBrokenAnywhereAtAllBecauseItIsOneSingleIdentifierToken::Nested,
+        ..Default::default()
+    }
+}
+"#;
+
+/// Stand up a throwaway corpus containing exactly `fixture` and run the SHIPPED
+/// script against it. The script derives its defs dir from its own location, so
+/// copying it into a temp tree is all that is needed — which means these canaries
+/// exercise the real argument set and cannot drift from it. Returns true if the
+/// gate rejected the fixture.
+fn shipped_gate_rejects(label: &str, fixture: &str) -> bool {
+    let root = workspace_root();
+    let tmp = std::env::temp_dir().join(format!("sr35_canary_{}_{}", label, std::process::id()));
+    let _ = std::fs::remove_dir_all(&tmp);
+    let defs = tmp.join("crates/card-defs/src/defs");
+    std::fs::create_dir_all(&defs).expect("create temp defs dir");
+    std::fs::create_dir_all(tmp.join("tools")).expect("create temp tools dir");
+    std::fs::copy(
+        root.join("tools/check-defs-fmt.sh"),
+        tmp.join("tools/check-defs-fmt.sh"),
+    )
+    .expect("copy gate script");
+    std::fs::write(defs.join("zz_canary.rs"), fixture).expect("write fixture");
+
+    let out = Command::new("bash")
+        .arg(tmp.join("tools/check-defs-fmt.sh"))
+        .current_dir(&tmp)
+        .output()
+        .expect("run gate on temp corpus");
+
+    // Guard against a vacuous pass: the gate must have actually seen the fixture.
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("1 defs checked"),
+        "the temp corpus was not picked up by the gate — this canary proves nothing. \
+         stdout: {stdout}"
+    );
+
+    let _ = std::fs::remove_dir_all(&tmp);
+    !out.status.success()
+}
+
+#[test]
+fn gate_catches_a_def_whose_oracle_text_is_one_long_line() {
+    assert!(
+        shipped_gate_rejects("fs", FIXTURE_LONG_ORACLE_TEXT),
+        "The gate PASSED a def with a blatantly misindented `card_id`, because a long \
+         one-line `oracle_text` makes rustfmt give up on the whole file and exit 0.\n\n\
+         This almost certainly means `--config format_strings=true` was dropped from \
+         tools/check-defs-fmt.sh. Without it the gate still reports every existing def \
+         clean — they already carry `\\` continuations — while every newly authored card \
+         is unchecked. That was 1,380 of 1,748 defs before SR-35. Put the flag back."
+    );
+}
+
+#[test]
+fn gate_catches_an_unbreakable_over_width_line() {
+    assert!(
+        shipped_gate_rejects("eolo", FIXTURE_UNBREAKABLE_LINE),
+        "The gate PASSED a def with a misindented `card_id`, because an over-width line \
+         rustfmt cannot break makes it give up on the file and exit 0.\n\n\
+         This almost certainly means `--config error_on_line_overflow=true` was dropped \
+         from tools/check-defs-fmt.sh. The corpus has no such lines today, so nothing \
+         else would notice. Put the flag back."
+    );
+}
+
+/// The script passes `--edition` explicitly (a bare file list carries no Cargo
+/// manifest, so rustfmt cannot infer it) — which means it is a second copy of a
+/// fact owned by `Cargo.toml`, and copies drift. An edition bump that misses the
+/// script would silently format the corpus under the old edition.
+#[test]
+fn the_gate_edition_matches_the_workspace() {
+    let root = workspace_root();
+    let manifest = std::fs::read_to_string(root.join("Cargo.toml")).expect("workspace Cargo.toml");
+    let declared = manifest
+        .lines()
+        .find_map(|l| {
+            let l = l.trim();
+            l.strip_prefix("edition")?
+                .trim_start()
+                .strip_prefix('=')?
+                .trim()
+                .trim_matches('"')
+                .parse::<u32>()
+                .ok()
+        })
+        .expect("workspace [workspace.package] edition");
+
+    let script =
+        std::fs::read_to_string(root.join("tools/check-defs-fmt.sh")).expect("gate script");
+    let used = script
+        .lines()
+        .find_map(|l| {
+            l.trim()
+                .strip_prefix("--edition ")?
+                .trim()
+                .parse::<u32>()
+                .ok()
+        })
+        .expect("gate script passes --edition");
+
+    assert_eq!(
+        used, declared,
+        "tools/check-defs-fmt.sh formats the card defs under edition {used}, but the \
+         workspace is edition {declared}. Update the script's --edition."
+    );
+}
