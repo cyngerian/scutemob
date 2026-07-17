@@ -1178,14 +1178,23 @@ fn sr34_certified_defs_produce_exactly_their_printed_mana() {
 /// set — "Add one mana of any color" producing `{C}`, which CR 106.1a/106.1b says is not
 /// a color at all. Reasoning and per-def evidence:
 /// `memory/primitives/sr34-roster-reconciliation.md`.
+///
+/// **SR-36 (`scutemob-92`) graduated three rows off the `Partial` list**: Cabal Coffers,
+/// Cabal Stronghold and Crypt of Agadeem are now `Complete`. Their sole recorded blocker
+/// was the CR 605.3b mis-registration above, and SF-8 fixed exactly that — it deleted
+/// SR-34's Finding-A exclusion and gave `handle_tap_for_mana` the `scaled_amount`
+/// resolution the exclusion existed to work around. They are removed from the list rather
+/// than left as a stale expectation; the CR 605.1a/605.3b properties they used to fail
+/// (registered as a real mana ability, off the stack, correct scaled amount, generic cost
+/// actually spent) are now asserted by activation in
+/// `primitive_sr36_scaled_mana_and_life_costs.rs`. This gate's job is unchanged for the
+/// rows that remain: stop a def drifting back to `Complete` without someone re-running the
+/// probe.
 #[test]
 fn sr34_roster_markers_match_the_reconciliation() {
     let defs = defs_map();
 
     let partial = [
-        "Cabal Coffers",
-        "Cabal Stronghold",
-        "Crypt of Agadeem",
         "Ashnod's Altar",
         "Phyrexian Tower",
         "Temple of the Dragon Queen",

@@ -717,3 +717,160 @@ fn find_activated_ability_index_panics_when_nothing_matches() {
     // Doom Whisperer has no Effect::Proliferate ability.
     let _ = find_activated_ability_index(&state, demon_id, |e| matches!(e, Effect::Proliferate));
 }
+
+// ── SF-8: the other two ex-Finding-A cards, upgraded Partial -> Complete by SR-36 ──────
+//
+// Cabal Stronghold and Crypt of Agadeem were `Partial` with one recorded blocker each: the
+// CR 605.1a/605.3b mis-registration SF-8 fixed. SR-36 (`scutemob-92`) upgraded both to
+// `Complete`, so the amount their upgrade rests on is pinned here by activation. Without
+// these, the two cards would be Complete on the strength of a marker note alone — the
+// `megrim.rs` calibration error (CLAUDE.md), where a note's claim and the card's real
+// behaviour are independent facts.
+//
+// Each board contains a decoy the count MUST exclude, so a filter that silently degraded to
+// a raw count (several `TargetFilter` fields are ignored by `matches_filter` — CLAUDE.md)
+// would fail rather than pass with a coincidentally-equal number.
+
+/// CR 605.1a: Cabal Stronghold's `{3},{T}: Add {B} for each basic Swamp you control`
+/// produces one black per BASIC Swamp. The board carries a nonbasic Swamp (Cabal Coffers is
+/// not a Swamp at all; a nonbasic Swamp decoy is the point) — `TargetFilter::basic` must be
+/// live.
+#[test]
+fn cabal_stronghold_counts_only_basic_swamps() {
+    let defs = defs_map();
+    let stronghold = make_spec(p(1), "Cabal Stronghold", ZoneId::Battlefield, &defs);
+    assert_eq!(
+        stronghold.mana_abilities.len(),
+        2,
+        "both the {{T}}: Add {{C}} arm and the scaled arm must register (SF-8)"
+    );
+    assert!(
+        stronghold.activated_abilities.is_empty(),
+        "neither ability may ALSO appear in activated_abilities (SF-6 exclusion)"
+    );
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .with_registry(CardRegistry::new(all_cards()))
+        .object(stronghold)
+        .object(make_spec(p(1), "Swamp", ZoneId::Battlefield, &defs))
+        .object(make_spec(p(1), "Swamp", ZoneId::Battlefield, &defs))
+        // Nonbasic, and not a Swamp: must not be counted by either reading of the filter.
+        .object(make_spec(p(1), "Cabal Coffers", ZoneId::Battlefield, &defs))
+        .player_mana(
+            p(1),
+            mtg_engine::ManaPool {
+                colorless: 5,
+                ..Default::default()
+            },
+        )
+        .active_player(p(1))
+        .at_step(Step::PreCombatMain)
+        .build()
+        .expect("state should build");
+    state.turn_mut().priority_holder = Some(p(1));
+
+    let id = find_by_name(&state, "Cabal Stronghold");
+    let (state, _events) = process_command(
+        state,
+        Command::TapForMana {
+            player: p(1),
+            source: id,
+            ability_index: 1,
+        },
+    )
+    .expect("Cabal Stronghold's scaled arm should activate via TapForMana (CR 605.3b)");
+
+    assert!(
+        state.stack_objects().is_empty(),
+        "CR 605.3b: a mana ability must not use the stack"
+    );
+    assert_eq!(
+        pool_amount(&state, p(1), ManaColor::Black),
+        2,
+        "2 basic Swamps must produce 2 black (pre-SF-8 this was the constant 1)"
+    );
+    assert_eq!(
+        pool_amount(&state, p(1), ManaColor::Colorless),
+        2,
+        "the {{3}} generic cost must actually leave the pool (5 - 3)"
+    );
+}
+
+/// CR 605.1a: Crypt of Agadeem's `{2},{T}: Add {B} for each black creature card in your
+/// graveyard` counts by colour. A green creature card in the same graveyard must not count
+/// — `TargetFilter::colors` must be live through `EffectAmount::CardCount`.
+#[test]
+fn crypt_of_agadeem_counts_only_black_creature_cards_in_graveyard() {
+    let defs = defs_map();
+    let crypt = make_spec(p(1), "Crypt of Agadeem", ZoneId::Battlefield, &defs);
+    assert_eq!(
+        crypt.mana_abilities.len(),
+        2,
+        "both the {{T}}: Add {{B}} arm and the scaled arm must register (SF-8)"
+    );
+    assert!(
+        crypt.activated_abilities.is_empty(),
+        "neither ability may ALSO appear in activated_abilities (SF-6 exclusion)"
+    );
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .with_registry(CardRegistry::new(all_cards()))
+        .object(crypt)
+        .object(make_spec(
+            p(1),
+            "Doom Whisperer",
+            ZoneId::Graveyard(p(1)),
+            &defs,
+        ))
+        .object(make_spec(
+            p(1),
+            "Razaketh, the Foulblooded",
+            ZoneId::Graveyard(p(1)),
+            &defs,
+        ))
+        // Green creature card in the same graveyard: the colour filter must exclude it.
+        .object(make_spec(
+            p(1),
+            "Elvish Archdruid",
+            ZoneId::Graveyard(p(1)),
+            &defs,
+        ))
+        .player_mana(
+            p(1),
+            mtg_engine::ManaPool {
+                colorless: 5,
+                ..Default::default()
+            },
+        )
+        .active_player(p(1))
+        .at_step(Step::PreCombatMain)
+        .build()
+        .expect("state should build");
+    state.turn_mut().priority_holder = Some(p(1));
+
+    let id = find_by_name(&state, "Crypt of Agadeem");
+    let (state, _events) = process_command(
+        state,
+        Command::TapForMana {
+            player: p(1),
+            source: id,
+            ability_index: 1,
+        },
+    )
+    .expect("Crypt of Agadeem's scaled arm should activate via TapForMana (CR 605.3b)");
+
+    assert_eq!(
+        pool_amount(&state, p(1), ManaColor::Black),
+        2,
+        "2 black creature cards must produce 2 black; the green Elvish Archdruid must not count"
+    );
+    assert_eq!(
+        pool_amount(&state, p(1), ManaColor::Colorless),
+        3,
+        "the {{2}} generic cost must actually leave the pool (5 - 2)"
+    );
+}

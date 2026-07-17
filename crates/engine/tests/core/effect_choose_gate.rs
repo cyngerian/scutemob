@@ -275,21 +275,25 @@ fn symbol_to_color(c: char) -> Option<ManaColor> {
 ///    by *activation*, elsewhere: every bare-`Cost::Tap` scaled source (Gaea's Cradle,
 ///    Elvish Archdruid, Priest of Titania, Marwyn the Nurturer, Circle of Dreams Druid,
 ///    Howlsquad Heavy — `tests/casting/mana_filter.rs::test_add_mana_scaled_orphan_fix_all_cards`)
-///    and Cabal Coffers, the one composite-cost scaled source SF-8 additionally unblocked
-///    (`primitive_sr36_scaled_mana_and_life_costs.rs::cabal_coffers_is_a_real_mana_ability`).
-///    **Cabal Stronghold and Crypt of Agadeem — the other two composite-cost scaled
-///    sources SF-8 unblocked — are not yet amount-verified by activation anywhere in the
-///    suite**; only their `Completeness::Partial` marker is checked
-///    (`primitive_sr34_composite_mana_costs.rs::sr34_roster_markers_match_the_reconciliation`).
-///    That is a real, named gap (their marker-upgrade reconciliation is separate, deferred
-///    work), not a silently-dropped one. This gate's own exclusion stays, regardless of
-///    SF-8: it is a parser-design boundary (colours only, never amounts, by construction —
-///    see the symbol-walk below), not a defect the gate was tracking, so a clause ending
-///    in "for each" / "equal to" is still dropped from `printed` entirely rather than
-///    compared. Cabal Coffers is why the exclusion also cannot simply widen to "any cost
-///    shape" now that Finding A is gone: this parser has no notion of "the resolved
-///    amount", only "the printed colour", so it could confirm Cabal Coffers *prints* `{B}`
-///    but never that it now legitimately produces N of it.
+///    and all three composite-cost scaled sources SF-8 additionally unblocked — Cabal
+///    Coffers, Cabal Stronghold and Crypt of Agadeem (`cabal_coffers_is_a_real_mana_ability`,
+///    `cabal_stronghold_counts_only_basic_swamps`,
+///    `crypt_of_agadeem_counts_only_black_creature_cards_in_graveyard`, all in
+///    `primitives/primitive_sr36_scaled_mana_and_life_costs.rs`). Those three activation
+///    tests are what the three cards' `Partial` -> `Complete` upgrade rests on; each board
+///    carries a decoy its filter must exclude, so a filter degraded to a raw count fails
+///    rather than passing on a coincidentally-equal number.
+///    This gate's own exclusion stays, regardless of SF-8: it is a parser-design boundary
+///    (colours only, never amounts, by construction — see the symbol-walk below), not a
+///    defect the gate was tracking, so a clause ending in "for each" / "equal to" is still
+///    dropped from `printed` entirely rather than compared. **`registered_colors` drops the
+///    same clauses, via `scaled_amount.is_none()` — the exclusion is only sound if it is
+///    symmetric.** It was not, until SR-36: SF-8 turned Cabal Stronghold's dropped
+///    `{3},{T}: Add {B} for each basic Swamp` into a real mana ability, and the gate
+///    promptly reported `invented [Black]` against a card that prints `{B}` in plain text.
+///    Before SF-8 no registered ability corresponded to a dropped clause, so nothing could
+///    expose the asymmetry — and `ManaAbility::scaled_amount`, which SF-8 added, is the
+///    only thing that makes the registered side able to identify one.
 /// 3. **"Add one mana of any color" is invisible to this gate, on both sides, and
 ///    passes vacuously (SR-34 review Finding 4 / SF-12).** On the *printed* side, this
 ///    parser requires a `{` after the cost (see the `strip_prefix('{')` walk below);
@@ -384,6 +388,19 @@ fn registered_colors(
     );
     spec.mana_abilities
         .iter()
+        // Exclusion 2, applied to the registered side (SR-36). `printed_tap_mana_colors`
+        // drops a "for each" / "equal to" clause from `printed` entirely, so a scaled
+        // ability's colour must be dropped here too or the two sides disagree by
+        // construction: Cabal Stronghold prints `{T}: Add {C}` (parsed) plus `{3},{T}: Add
+        // {B} for each basic Swamp` (dropped), and before SF-8 its scaled arm registered no
+        // mana ability at all, so the asymmetry was invisible. SF-8 made that arm real and
+        // the gate reported `invented [Black]` against a card that prints {B} plainly.
+        // `scaled_amount.is_some()` is the exact counterpart of the printed side's tail
+        // check — it is set by `try_as_tap_mana_ability` for precisely the
+        // `Effect::AddManaScaled` clauses that produce the "for each" phrasing. Their
+        // amounts ARE verified, by activation, in
+        // `primitives/primitive_sr36_scaled_mana_and_life_costs.rs`.
+        .filter(|ma| ma.scaled_amount.is_none())
         .flat_map(|ma| ma.produces.keys().copied())
         .collect()
 }

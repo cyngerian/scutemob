@@ -76,14 +76,17 @@ pub fn card() -> CardDefinition {
             },
         )],
         completeness: Completeness::known_wrong(
-            "Two defects, both probed. (1) CR 106.1b: '{T}, Pay 1 life: Add one mana of any \
-             color. Spend this mana only to cast a Vampire spell' adds one COLORLESS mana. The \
-             RESTRICTION is honoured correctly (probed: pool.restricted = [Colorless x1 \
-             (SubtypeOnly(Vampire))]) but colorless is not a color, so the mana itself is wrong \
-             state. (2) SF-9 — the Pay 1 life is never charged (probed: life 40 -> 40), because \
-             Effect::AddManaAnyColorRestricted has no try_as_tap_mana_ability arm, so this \
-             ability stays on the stack path where flatten_cost_into silently drops \
-             Cost::PayLife. The '{T}: Add {C}' ability is correct.",
+            "CR 106.1b: '{T}, Pay 1 life: Add one mana of any color. Spend this mana only to cast \
+             a Vampire spell' adds one COLORLESS mana. The RESTRICTION is honoured correctly \
+             (probed: pool.restricted = [Colorless x1 (SubtypeOnly(Vampire))]) but colorless is \
+             not a color, so the mana itself is wrong state (SF-11/SF-12, \
+             memory/card-authoring/sr34-engine-findings-2026-07-17.md). This ability stays on the \
+             stack path (Effect::AddManaAnyColorRestricted has no try_as_tap_mana_ability arm) — \
+             deliberately not lowered, since adding an arm would trade this colour bug for the \
+             cost-drop bug SF-9 fixed elsewhere (see memory/primitives/pb-plan-sr36.md §3). SF-9 \
+             (the Pay 1 life silently unpaid) was fixed by SR-36/scutemob-92: now probed at life \
+             40 -> 39. The '{T}: Add {C}' ability is correct. Remaining blocker is the colour bug \
+             above only.",
         ),
         ..Default::default()
     }
