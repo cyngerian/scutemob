@@ -33,7 +33,7 @@
   accessors, gated on the `test-util` feature (self dev-dependency). **`cargo build
   --workspace` is the only gate that proves the seal** — `test --all` and `clippy
   --all-targets` enable `test-util` workspace-wide via feature unification. It is a CI step.
-- **Tests**: **3319 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
+- **Tests**: **3326 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
   — and `fmt` here means `cargo fmt --check` **plus** `tools/check-defs-fmt.sh`, which is the only one
   of the two that looks at the 1,748 card defs (SR-35)
 - **CI**: **LIVE and green** since 2026-07-10 (SR-1, merge `e9742dc2`) — single Ubuntu job (fmt + clippy + `build --workspace` + full tests) on push/PR to main + workflow_dispatch; rust-cache@v2, 45m timeout. **Toolchain pinned (SR-11, `scutemob-63`)**: `rust-toolchain.toml` pins exact stable `1.95.0` and CI reads that `channel` from the file (no more floating to latest stable), so local `clippy -D warnings` is an authoritative CI preview. SR remediation track: original SR-1..16 all DONE 2026-07-10; a 2026-07-11 re-audit of the remediated baseline filed **SR-17..SR-32**, all DONE 2026-07-14..16 (16/16 collected; full record: `docs/sr-remediation-plan.md`).
@@ -259,7 +259,14 @@
   `memory/card-authoring/sr36-engine-findings-2026-07-17.md` (**SG-1 MEDIUM: the simulator's
   `LegalActionProvider` ignores `life_cost` — harmless while the cost was dropped, now it
   offers bots unpayable actions**).
-- **Last Updated**: 2026-07-17 (**SR-36 collected, `scutemob-92` merge `264f0e9e`** — SF-8 + SF-9, both HIGH,
+- **Last Updated**: 2026-07-17 (**SR-37 collected, `scutemob-93` merge `df49eb61`** — gate hygiene:
+  `ManaAbility.activation_condition` added and checked in `handle_tap_for_mana` (CR 602.5b —
+  enrich's `..` was silently dropping it; Tainted Field's coloured arms now require a Swamp);
+  the `AddManaAnyColor` family (`/Restricted//OfAnyColorAmount`) gated out of Complete — all
+  three add `ManaColor::Colorless` — with **18 Complete defs demoted** to known_wrong; the land
+  gate now parses "one mana of any color" as all five and reports the invented `{C}` instead of
+  skipping. Coverage 57.3% → **56.2%** (983/1748, honest). HASH 42→43, PROTOCOL 4→5. 3326 tests.
+  Earlier: **SR-36 collected, `scutemob-92` merge `264f0e9e`** — SF-8 + SF-9, both HIGH,
   both fixed; see the bullet above. The headline is the roster, not the fix: 11 `Complete`
   fetchlands were fetching for free. Filed **SR-38** (`scutemob-94`): SG-1 simulator
   `LegalActionProvider` ignores `life_cost` — unchanged code whose meaning SR-36 changed; bots can
