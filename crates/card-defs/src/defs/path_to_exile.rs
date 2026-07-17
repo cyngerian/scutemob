@@ -1,8 +1,14 @@
 // 21. Path to Exile — {W}, Instant; exile target creature, its controller may
 // search for a basic land and put it into play tapped.
-// CR 701.23: "may search" is modelled via MayPayOrElse with zero cost.
-// M9.4 deterministic fallback: payer does not pay → or_else (search) fires.
-// The exiled creature's controller is the payer (ControllerOf target).
+//
+// SR-33: the search is NOT optional here, and previously said it was. `MayPayOrElse`
+// (effects/mod.rs) discards `cost` and `payer` and unconditionally executes `or_else`,
+// so the controller of the exiled creature always searches and always ramps — they are
+// never offered the choice to decline. That is a real game-state deviation (declining is
+// often correct play), not a deterministic-but-legal shortcut, so this def is
+// `known_wrong` until interactive choice exists. It was `Complete`, and the
+// `completeness_deviation_scan` ALLOWLIST justified it as "a faithful encoding of the
+// optional search" — false; the entry has been removed.
 use crate::cards::helpers::*;
 pub fn card() -> CardDefinition {
     CardDefinition {
@@ -17,9 +23,9 @@ pub fn card() -> CardDefinition {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                 },
                 // "May search" — modelled as MayPayOrElse with zero cost.
-                // or_else = search (fires when player declines to "pay" the
-                // zero cost, i.e. chooses NOT to search in interactive play).
-                // Deterministic fallback: always fires or_else (always searches).
+                // or_else = search. NOTE (SR-33): MayPayOrElse never collects the
+                // payment and always runs or_else, so this ALWAYS searches. The
+                // "may" is not expressible today; see the known_wrong marker below.
                 Effect::MayPayOrElse {
                     cost: Cost::Mana(
                         ManaCost { ..Default::default() }
@@ -52,6 +58,13 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::known_wrong(
+            "SR-33: the search always fires. `Effect::MayPayOrElse` discards its `cost` and \
+             `payer` and unconditionally executes `or_else` (effects/mod.rs), so the exiled \
+             creature's controller is never offered the option to decline and always gets the \
+             basic land. Needs a general choice Command (M9+); until then the exile half is \
+             correct and the ramp half is unconditional.",
+        ),
         ..Default::default()
     }
 }

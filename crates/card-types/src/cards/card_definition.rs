@@ -1693,6 +1693,20 @@ pub enum Effect {
         effect: Box<Effect>,
     },
     /// Player chooses one of the given effects (modal effects, CR 700.2).
+    ///
+    /// **STUB — the choice is not implemented (SR-33).** `execute_effect_inner`
+    /// unconditionally executes `choices.first()`; `prompt` and every choice after the
+    /// first are inert. There is no Command that supplies a choice (the enum has
+    /// `ChooseDredge` / `ChooseMiracle` / `ChooseDungeonRoom` and no general
+    /// `MakeChoice`), so a card modelled with this variant silently always does its
+    /// first option. **Do not reach for this to express "you may X"** — `Choose{[X,
+    /// Nothing]}` always does X.
+    ///
+    /// A def containing this variant cannot be `Complete`; the gate is
+    /// `tests/core/effect_choose_gate.rs`. For a mana ability specifically, do not use
+    /// this at all: a mana ability never uses the stack (CR 605.3b), so its mode is
+    /// chosen at activation — author one activated ability per colour and let
+    /// `Command::TapForMana { ability_index }` select (see `tainted_field.rs`).
     Choose {
         prompt: String,
         choices: Vec<Effect>,
@@ -1700,6 +1714,17 @@ pub enum Effect {
     /// Execute effects in order (CR 101.2).
     Sequence(Vec<Effect>),
     /// A player may pay a cost; if they don't, apply the effect.
+    ///
+    /// **STUB — the payment is never offered (SR-33).** `execute_effect_inner`
+    /// destructures away `cost` and `payer` and unconditionally executes `or_else`, so
+    /// the "may" is not a choice: the `or_else` branch always fires and the cost is never
+    /// collected. This is the CR 118.12a tax shape (Rhystic Study, Mystic Remora), and a
+    /// tax nobody can pay is not the printed card.
+    ///
+    /// A def containing this variant cannot be `Complete`; the gate is
+    /// `tests/core/effect_choose_gate.rs`. Contrast [`Effect::MayPayThenEffect`] below,
+    /// which does honour its `payer` and pays when able — a deterministic but *legal*
+    /// game choice, which is why it is not gated.
     MayPayOrElse {
         cost: Cost,
         payer: PlayerTarget,

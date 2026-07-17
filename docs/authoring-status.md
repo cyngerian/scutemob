@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-17 02:01 UTC  
-**Git:** `1de82c7c` on `feat/marker-sweep-audit-all-non-complete-completeness-markers-aga`  
+**Generated:** 2026-07-17 03:01 UTC  
+**Git:** `a87b227b` on `feat/sr-33-88-dualtri-lands-are-complete-but-broken-effectchoose-`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,16 +25,16 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 194 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **108%** (1,763 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 58.3% | 1,019 | · |
-| With TODO markers | 667 | -2 |
-| Empty `abilities: vec![]` placeholders | 62 | +2 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 58.1% | 1,016 | -3 |
+| With TODO markers | 670 | +3 |
+| Empty `abilities: vec![]` placeholders | 62 | · |
 | Total TODO lines across all defs | 1,045 | · |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 1,274 |
+| last 7 days | 0 | 1,272 |
 | last 30 days | 0 | 1,584 |
 | last 90 days | 0 | 1,624 |
 | last 1 year | 1,773 | 2,007 |
@@ -74,7 +74,7 @@ are blocked on engine primitives.
 | `modal-choice` | 68 / 105 | 65% | 31 | 37 | 0 |
 | `mana-land` | 92 / 92 | 100% | 63 | 28 | 1 |
 | `body-only` | 55 / 70 | 79% | 26 | 10 | 19 |
-| `removal-destroy` | 56 / 56 | 100% | 35 | 19 | 2 |
+| `removal-destroy` | 56 / 56 | 100% | 34 | 20 | 2 |
 | `counters-plus` | 49 / 49 | 100% | 21 | 27 | 1 |
 | `land-fetch` | 45 / 45 | 100% | 27 | 17 | 1 |
 | `attack-trigger` | 6 / 34 | 18% | 2 | 4 | 0 |
@@ -222,6 +222,7 @@ tyvar_jubilant_brawler: // TODO: static — creatures you control can activate a
 ## Recent card-touching commits
 
 ```
+e2b1eb02 scutemob-88: /review fixes — unwrap 8 notes, 2 kind corrections, gate nit, EF-13
 1de82c7c scutemob-88: marker sweep — audit all 742 non-Complete markers vs current engine
 8ca8d2bc SR-10: migrate im 15.1 → imbl 7.0 (maintained fork)
 b6f748f8 SR-6: extract card-defs and card-types crates — compile isolation for 1,749 defs
@@ -246,7 +247,6 @@ e9025936 W6-cards: PB-AC4 — fix 2 HIGH card review findings (golgari regenerat
 81fec080 W6-prim: PB-AC4 — per-mode target requirements on ModeSelection (CR 700.2c/700.2f)
 d771b795 W6-prim: PB-AC3 card-review fixes — 4 HIGH wrong-game-state resolutions
 0d274517 W6-prim: PB-AC3 review fix — Mirror Entity AddAllCreatureTypes to Layer 4 (TypeChange)
-0f30d81e W6-prim: PB-AC3 card backfill — Keep Watch, Throne, Mirror Entity, Krenko, CDA residuals + tests
 ```
 
 ## Missing card-defs sidecar

@@ -12,16 +12,48 @@ pub fn card() -> CardDefinition {
         power: Some(0),
         toughness: Some(1),
         abilities: vec![
-            AbilityDefinition::Keyword(KeywordAbility::Exalted),
+            // SR-33 (CR 305.6 / 605.1a): the printed mana ability, modelled
+            // explicitly — one activated ability per colour, as `forest.rs`
+            // does. The engine does not derive mana abilities from basic land
+            // subtypes, so a def that leaves this to CR 305.6 produces nothing
+            // at all. `TapForMana { ability_index }` picks the colour.
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
-                effect: Effect::AddManaChoice { player: PlayerTarget::Controller, count: EffectAmount::Fixed(1) },
+                effect: Effect::AddMana {
+                    player: PlayerTarget::Controller,
+                    mana: mana_pool(0, 0, 1, 0, 0, 0),
+                },
                 timing_restriction: None,
                 targets: vec![],
                 activation_condition: None,
                 activation_zone: None,
-            once_per_turn: false,
+                once_per_turn: false,
             },
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::AddMana {
+                    player: PlayerTarget::Controller,
+                    mana: mana_pool(0, 0, 0, 1, 0, 0),
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+                activation_zone: None,
+                once_per_turn: false,
+            },
+            AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::AddMana {
+                    player: PlayerTarget::Controller,
+                    mana: mana_pool(0, 0, 0, 0, 1, 0),
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+                activation_zone: None,
+                once_per_turn: false,
+            },
+            AbilityDefinition::Keyword(KeywordAbility::Exalted),
         ],
         ..Default::default()
     }

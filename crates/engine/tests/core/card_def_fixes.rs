@@ -170,60 +170,108 @@ fn test_read_the_bones_scry_then_draw() {
     );
 }
 
-// ── CR 106.6: Dimir Guildgate — modal color choice ────────────────────────────
+// ── CR 605.1a: Dimir Guildgate — one mana ability per printed colour ──────────
 
 #[test]
-/// CR 106.6 — Dimir Guildgate: tap ability is modelled as Effect::Choose between
-/// AddMana blue and AddMana black (replacing the old AddManaAnyColor).
-/// This is a data model test verifying the card definition is correct.
-fn test_dimir_guildgate_modal_color() {
-    use mtg_engine::{AbilityDefinition, Cost, Effect, ManaPool};
+/// CR 605.1a/605.3b — Dimir Guildgate (`{T}: Add {U} or {B}`) models the "or" as two
+/// separate tap abilities, one per colour, so each lowers into a real `ManaAbility` and
+/// the player picks with `TapForMana { ability_index }`.
+///
+/// **This test previously asserted the opposite** — that the ability *must* be
+/// `Effect::Choose` with two choices — and so pinned the SR-33 defect in place as a
+/// requirement. `Effect::Choose` always executes `choices.first()` and is unknown to
+/// `try_as_tap_mana_ability`, so what it actually described was a land that registered
+/// zero mana abilities, used the stack, and could only ever make blue. A data-model test
+/// can only ever check that the def has the shape someone expected; it cannot notice that
+/// the shape does not work. This version asserts the behaviour instead.
+fn test_dimir_guildgate_produces_each_printed_color() {
+    use mtg_engine::{
+        enrich_spec_from_def, AbilityDefinition, CardDefinition, Cost, Effect, ManaColor,
+    };
+    use std::collections::HashMap;
+    use std::sync::Arc;
 
     let def = all_cards()
         .into_iter()
         .find(|d| d.name == "Dimir Guildgate")
         .expect("Dimir Guildgate must be in all_cards()");
 
-    // Find the activated tap ability (should have a Choose effect).
-    let tap_ability = def.abilities.iter().find(|a| {
-        matches!(
-            a,
+    // No `Effect::Choose` anywhere: the choice primitive is a stub (see
+    // `tests/core/effect_choose_gate.rs`).
+    let tap_effects: Vec<&Effect> = def
+        .abilities
+        .iter()
+        .filter_map(|a| match a {
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
+                effect,
                 ..
-            }
-        )
-    });
-
+            } => Some(effect),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        tap_effects.len(),
+        2,
+        "Dimir Guildgate must have one tap ability per printed colour; got {tap_effects:?}"
+    );
     assert!(
-        tap_ability.is_some(),
-        "Dimir Guildgate should have a tap activated ability"
+        tap_effects
+            .iter()
+            .all(|e| matches!(e, Effect::AddMana { .. })),
+        "each arm must be a bare AddMana so it lowers into a ManaAbility; got {tap_effects:?}"
     );
 
-    if let Some(AbilityDefinition::Activated { effect, .. }) = tap_ability {
-        // CR 106.6: must be a Choose between two AddMana options.
-        assert!(
-            matches!(effect, Effect::Choose { choices, .. } if choices.len() == 2),
-            "Dimir Guildgate tap ability must use Effect::Choose with 2 choices; got: {:?}",
-            effect
-        );
+    // And the behaviour those arms exist for: each index yields its own colour, with no
+    // stack use (CR 605.3b).
+    let defs: HashMap<String, CardDefinition> = all_cards()
+        .iter()
+        .map(|d| (d.name.clone(), d.clone()))
+        .collect();
+    let registry = CardRegistry::new(all_cards());
 
-        if let Effect::Choose { choices, .. } = effect {
-            // First choice must add 1 blue mana.
-            assert!(
-                matches!(&choices[0], Effect::AddMana { mana, .. }
-                    if mana == &ManaPool { blue: 1, ..Default::default() }),
-                "First choice should add 1 blue mana; got: {:?}",
-                choices[0]
-            );
-            // Second choice must add 1 black mana.
-            assert!(
-                matches!(&choices[1], Effect::AddMana { mana, .. }
-                    if mana == &ManaPool { black: 1, ..Default::default() }),
-                "Second choice should add 1 black mana; got: {:?}",
-                choices[1]
-            );
-        }
+    for (index, color, amount) in [(0usize, ManaColor::Blue, 1u32), (1, ManaColor::Black, 1)] {
+        let spec = enrich_spec_from_def(
+            ObjectSpec::card(PlayerId(1), "Dimir Guildgate").in_zone(ZoneId::Battlefield),
+            &defs,
+        );
+        let state = GameStateBuilder::new()
+            .add_player(PlayerId(1))
+            .add_player(PlayerId(2))
+            .with_registry(Arc::clone(&registry))
+            .object(spec)
+            .active_player(PlayerId(1))
+            .at_step(Step::PreCombatMain)
+            .build()
+            .expect("state builds");
+        let land = state
+            .objects()
+            .iter()
+            .find(|(_, o)| o.characteristics.name == "Dimir Guildgate")
+            .map(|(id, _)| *id)
+            .expect("guildgate on battlefield");
+
+        let (state, _) = process_command(
+            state,
+            Command::TapForMana {
+                player: PlayerId(1),
+                source: land,
+                ability_index: index,
+            },
+        )
+        .unwrap_or_else(|e| panic!("TapForMana index {index} must be legal: {e:?}"));
+
+        let pool = &state.player(PlayerId(1)).expect("p1").mana_pool;
+        let got = match color {
+            ManaColor::Blue => pool.blue,
+            ManaColor::Black => pool.black,
+            _ => unreachable!(),
+        };
+        assert_eq!(got, amount, "ability_index {index} must add {color:?}");
+        assert!(
+            state.stack_objects().is_empty(),
+            "CR 605.3b: a mana ability must not use the stack"
+        );
     }
 }
 
