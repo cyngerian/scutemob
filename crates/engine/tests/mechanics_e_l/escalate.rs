@@ -107,6 +107,7 @@ fn escalate_test_spell_def() -> CardDefinition {
                         // Mode 2: deal 2 damage to the controller (measurable, no real target
                         // declaration needed in the stub approach).
                         Effect::DealDamage {
+            source: None,
                             target: EffectTarget::Controller,
                             amount: EffectAmount::Fixed(2),
                         },

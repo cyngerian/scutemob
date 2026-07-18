@@ -104,7 +104,7 @@ fn combat_with_blocker(blocker_id: ObjectId, attacker_id: ObjectId) -> CombatSta
 #[test]
 fn test_pb_hash_schema_version_live_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 46u8,
+        HASH_SCHEMA_VERSION, 47u8,
         "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
     );
 }
@@ -678,6 +678,7 @@ fn attacking_or_blocking_target_ability(name: &str) -> CardDefinition {
         abilities: vec![AbilityDefinition::Activated {
             cost: Cost::Tap,
             effect: Effect::DealDamage {
+                source: None,
                 target: EffectTarget::DeclaredTarget { index: 0 },
                 amount: EffectAmount::Fixed(4),
             },

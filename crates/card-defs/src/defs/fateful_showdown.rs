@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             // (identical) hand-size snapshot for the discard/draw that follows.
             effect: Effect::Sequence(vec![
                 Effect::DealDamage {
+                    source: None,
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     amount: EffectAmount::HandSize {
                         player: PlayerTarget::Controller,

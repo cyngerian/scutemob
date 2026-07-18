@@ -5,7 +5,7 @@ title: Add EffectFilter::TriggeringCreature (continuous-effect subject = the jus
 task: scutemob-105
 branch: feat/pb-ef4-triggeringcreature-as-effect-subjectsource-ef-w-pb2-6
 started: 2026-07-18
-phase: plan
+phase: implement
 plan_file: memory/primitives/pb-plan-EF4.md
 
 ## Source findings
@@ -83,3 +83,57 @@ plan_file: memory/primitives/pb-plan-EF4.md
   `Some(TriggeringCreature)`). serde(default) on source: YES (codebase convention; does NOT reduce
   blast radius). Exhaustive-match compile-forced sites: layers.rs matches_filter, hash.rs EffectFilter
   (disc 35) + Effect::DealDamage. Next: impl phase.
+- 2026-07-18 implement DONE (scutemob-105).
+  - Change 1: `EffectFilter::TriggeringCreature` added (`continuous_effect.rs`, after `Source`).
+  - Change 2: resolved at `ApplyContinuousEffect` executor (`effects/mod.rs`) →
+    `SingleObject(ctx.triggering_creature_id)` / `None => return`.
+  - Change 3: `matches_filter` (layers.rs) → `TriggeringCreature => false` (compile-forced,
+    confirmed).
+  - Change 4: hash.rs `HashInto for EffectFilter` → disc 35 (confirmed last-used was 34).
+  - Change 5: `Effect::DealDamage.source: Option<EffectTarget>` added with `#[serde(default)]`.
+  - Change 6: `damage_source_id` computed once, threaded through all 12 `ctx.source` reads in the
+    executor arm (plan said 11; actual count 12 incl. both Player and Object branches — extra
+    site was a second `damage_source_controller` call already counted in the plan's list, just
+    off-by-one in the enumeration, not a missed site).
+  - Change 7: hash.rs `HashInto for Effect` DealDamage arm binds+hashes `source`.
+  - Change 8: bulk sed `source: None,` across 90 files / 110 sites in `card-defs` (confirmed exact
+    count matched plan) + 1 hand-edit in `replay_harness.rs` (turned out to be a match PATTERN, not
+    a construction — added `..` instead of a field, since the pain-land match doesn't bind
+    `source`). `cargo build --workspace` was clean after; found +1 unanticipated class: ~30
+    `Effect::DealDamage` sites inside `crates/engine/tests/` (not in the plan's site count, which
+    only covered card-defs/engine-src/card-types) — bulk-sed'd those too via `cargo test --all
+    --no-run` as the backstop, exactly as the plan's Change 8 step 4 anticipated ("let the
+    compiler close the set").
+  - 3 override cards hand-edited: scourge_of_valkas, warstorm_surge, dragon_tempest (Dragon half)
+    → `source: Some(EffectTarget::TriggeringCreature)`.
+  - Chain-verified all 7 oracle texts against `.scryfall-cache/oracle-cards.json` (no MCP tool
+    access in this session — used the raw Scryfall cache directly). All matched the plan exactly.
+  - 7 cards shipped Complete: dragon_tempest, scourge_of_valkas, ogre_battledriver (flips);
+    atarka_world_render, fervent_charge (new); dreadhorde_invasion, warstorm_surge (flips).
+    shared_animosity stays `inert` — note rewritten (was half-stale: TriggeringCreature gap is now
+    closed, only the count-`EffectAmount` gap remains) and now cites OOS-EF4-1 explicitly.
+    goblin_piledriver / muxus NOT created. terror_of_the_peaks untouched (no DealDamage
+    construction in that file at all, so the bulk sed never touched it).
+  - Wire bumps: PROTOCOL 8→9 (fingerprint `9bf63ef2...`, history row appended, sentinel + FROZEN
+    prefix digest re-pinned from failing-test output). HASH 46→47 (decl `35e95651...`, stream
+    `64546a7b...`, history row appended, FROZEN prefix digest re-pinned). Both driven by the
+    failing gates per convention, never guessed.
+  - Tests: new file `crates/engine/tests/primitives/pb_ef4_triggering_creature_subject_source.rs`
+    (10 tests: 2 required decoys + 7 card-integration, plus 1 extra split for scourge's two
+    scenarios), registered in `primitives/main.rs`. Both required decoys' non-vacuity verified by
+    temporary revert (confirmed red, then restored) — decoy 1 (swap filter to
+    `CreaturesYouControl`) and decoy 2 (revert `damage_source_id` threading to bare `ctx.source`).
+    One test-authoring bug found and fixed along the way: the Scourge-of-Valkas "self vs. another
+    Dragon" test originally pre-placed BOTH Scourge and the second Dragon before either "entered",
+    which double-counted Dragons for the self-ETB scenario (PermanentCount saw both, not just
+    Scourge) — fixed by splitting into two independent scoped setups (self-only, then
+    self+second-dragon-enters).
+  - Gates: `cargo build --workspace` clean; `cargo test --all` 3382 passed / 0 failed;
+    `cargo clippy --all-targets -- -D warnings` clean; `cargo fmt --check` clean;
+    `tools/check-defs-fmt.sh` clean (1789 defs). No remaining TODO/partial/known-wrong markers on
+    the 7 shipped cards.
+  - No deviations from the plan beyond the two documented above (replay_harness pattern-not-
+    construction; the ~30 test-file DealDamage sites the plan's count didn't include but its own
+    "let the compiler close the set" backstop anticipated).
+  - Next: review phase (formal OOS-EF4-1 filing, if not already sufficiently captured by the
+    rewritten shared_animosity.rs completeness note, is a reviewer call).

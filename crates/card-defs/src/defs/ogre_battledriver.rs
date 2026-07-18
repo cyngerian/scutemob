@@ -2,13 +2,9 @@
 // Whenever another creature you control enters, that creature gets +2/+0 and gains
 // haste until end of turn.
 //
-// ENGINE-BLOCKED: "that creature gets +2/+0 and gains haste until end of turn" requires
-// Effect::ApplyContinuousEffect with EffectFilter::TriggeringCreature (the entering
-// creature). EffectTarget::TriggeringCreature exists for point effects (AddCounter,
-// DealDamage), but ContinuousEffectDef.filter is EffectFilter — and EffectFilter has
-// no TriggeringCreature variant. The trigger itself is now correct (filter + exclude_self
-// both supported), but the effect cannot target the entering creature for a continuous
-// P/T + keyword grant.
+// PB-EF4: "that creature" = the entering creature, aimed via EffectFilter::TriggeringCreature
+// on two ApplyContinuousEffect grants (P/T pump + Haste, both until end of turn).
+// exclude_self: true = "another" (Ogre's own ETB does not fire this trigger).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -27,16 +23,45 @@ pub fn card() -> CardDefinition {
         power: Some(3),
         toughness: Some(3),
         abilities: vec![
-            // ENGINE-BLOCKED: trigger fires correctly (WheneverCreatureEntersBattlefield,
-            // exclude_self: true), but Effect::ApplyContinuousEffect cannot target the
-            // TriggeringCreature — EffectFilter::TriggeringCreature does not exist in the DSL.
-            // Omitted per W5 policy: wrong game state (e.g. buffing self or all creatures)
-            // is worse than no implementation.
+            // CR 603.6a / CR 611.2a: "Whenever another creature you control enters, that
+            // creature gets +2/+0 and gains haste until end of turn." Both continuous
+            // effects target EffectFilter::TriggeringCreature (the entering creature).
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
+                    filter: Some(TargetFilter {
+                        controller: TargetController::You,
+                        ..Default::default()
+                    }),
+                    exclude_self: true,
+                },
+                effect: Effect::Sequence(vec![
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::PtModify,
+                            modification: LayerModification::ModifyPower(2),
+                            filter: EffectFilter::TriggeringCreature,
+                            duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
+                        }),
+                    },
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::Ability,
+                            modification: LayerModification::AddKeyword(KeywordAbility::Haste),
+                            filter: EffectFilter::TriggeringCreature,
+                            duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
+                        }),
+                    },
+                ]),
+                intervening_if: None,
+                targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
+            },
         ],
-        completeness: Completeness::inert(
-            "'that creature gets +2/+0 and gains haste until end of turn' requires \
-             Effect::ApplyContinuousEffect with...",
-        ),
         ..Default::default()
     }
 }

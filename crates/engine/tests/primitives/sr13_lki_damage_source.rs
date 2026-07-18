@@ -88,6 +88,7 @@ fn enrage_pinger(
             intervening_if: None,
             description: format!("Whenever ~ is dealt damage, it deals {} damage.", amount),
             effect: Some(Effect::DealDamage {
+                source: None,
                 target,
                 amount: EffectAmount::Fixed(amount),
             }),

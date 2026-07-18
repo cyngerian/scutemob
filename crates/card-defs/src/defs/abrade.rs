@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
                 modes: vec![
                     // Mode 0: Deal 3 damage to target creature.
                     Effect::DealDamage {
+                        source: None,
                         target: EffectTarget::DeclaredTarget { index: 0 },
                         amount: EffectAmount::Fixed(3),
                     },

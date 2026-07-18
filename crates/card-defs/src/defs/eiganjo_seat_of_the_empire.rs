@@ -37,6 +37,7 @@ pub fn card() -> CardDefinition {
                     Cost::DiscardSelf,
                 ]),
                 effect: Effect::DealDamage {
+                    source: None,
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     amount: EffectAmount::Fixed(4),
                 },

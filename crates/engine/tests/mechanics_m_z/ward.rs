@@ -725,10 +725,12 @@ fn test_ward_multiple_targets_trigger_separately() {
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::Sequence(vec![
                 Effect::DealDamage {
+                    source: None,
                     target: CardEffectTarget::DeclaredTarget { index: 0 },
                     amount: EffectAmount::Fixed(2),
                 },
                 Effect::DealDamage {
+                    source: None,
                     target: CardEffectTarget::DeclaredTarget { index: 1 },
                     amount: EffectAmount::Fixed(2),
                 },

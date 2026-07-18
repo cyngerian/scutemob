@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
             .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::DealDamage {
+                source: None,
                 target: EffectTarget::DeclaredTarget { index: 0 },
                 amount: EffectAmount::PermanentCount {
                     filter: TargetFilter {

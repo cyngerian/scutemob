@@ -41,6 +41,7 @@ pub fn card() -> CardDefinition {
                     choices: vec![
                         // Mode 0: Goblin Cratermaker deals 2 damage to target creature.
                         Effect::DealDamage {
+                            source: None,
                             target: EffectTarget::DeclaredTarget { index: 0 },
                             amount: EffectAmount::Fixed(2),
                         },

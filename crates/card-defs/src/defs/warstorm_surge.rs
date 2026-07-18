@@ -1,12 +1,9 @@
 // Warstorm Surge — {5}{R}, Enchantment
 // Whenever a creature you control enters, it deals damage equal to its power to any target.
 //
-// TODO: EffectAmount::PowerOf(EffectTarget::TriggeringCreature) — the triggering creature's power
-// is needed for the damage amount. EffectTarget::TriggeringCreature exists, but PowerOf applied
-// to a TriggeringCreature at effect resolution needs to be verified against the execution path
-// in effects/mod.rs (EffectAmount::PowerOf reads power via resolve_effect_target). The effect
-// is approximated as Nothing since directing targeted damage with a variable amount from
-// TriggeringCreature power is marginally supported but untested here.
+// PB-EF4: the entering creature is both the amount reference (PowerOf(TriggeringCreature))
+// AND the damage source (source: Some(TriggeringCreature)) — so its own
+// lifelink/deathtouch/protection interactions apply correctly (CR 119.3 / 702.15a).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -39,6 +36,7 @@ pub fn card() -> CardDefinition {
                     exclude_self: false,
                 },
                 effect: Effect::DealDamage {
+                    source: Some(EffectTarget::TriggeringCreature),
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     amount: EffectAmount::PowerOf(EffectTarget::TriggeringCreature),
                 },
@@ -48,14 +46,6 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial(
-            "Blocked on damage source attribution: oracle is 'it deals damage equal to its \
-             power', so the entering creature must be the damage source (its \
-             lifelink/deathtouch/source-attribution apply), but Effect::DealDamage always uses \
-             the ability's source. The trigger and PowerOf(TriggeringCreature) amount ARE wired \
-             and verified (resolution.rs:2109 -> effects/mod.rs:6260); the earlier note claiming \
-             the effect is 'approximated as Nothing' is false — read the body.",
-        ),
         ..Default::default()
     }
 }

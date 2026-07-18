@@ -44,6 +44,7 @@ pub fn card() -> CardDefinition {
                 effect: Effect::Conditional {
                     condition: Condition::WasKicked,
                     if_true: Box::new(Effect::DealDamage {
+                        source: None,
                         target: EffectTarget::DeclaredTarget { index: 0 },
                         amount: EffectAmount::Fixed(2),
                     }),

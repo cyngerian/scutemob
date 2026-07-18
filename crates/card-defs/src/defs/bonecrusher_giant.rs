@@ -69,6 +69,7 @@ pub fn card() -> CardDefinition {
                 // CR 120.4a: Stomp deals 2 damage to any target.
                 // TODO: "Damage can't be prevented this turn" — no prevention-removal DSL effect.
                 effect: Effect::DealDamage {
+                    source: None,
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     amount: EffectAmount::Fixed(2),
                 },

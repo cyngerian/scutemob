@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Activated {
                 cost: Cost::PayLife(50),
                 effect: Effect::DealDamage {
+                    source: None,
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     amount: EffectAmount::Fixed(50),
                 },

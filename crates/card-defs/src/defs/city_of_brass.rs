@@ -18,6 +18,7 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenSelfBecomesTapped,
                 effect: Effect::DealDamage {
+                    source: None,
                     target: EffectTarget::Controller,
                     amount: EffectAmount::Fixed(1),
                 },

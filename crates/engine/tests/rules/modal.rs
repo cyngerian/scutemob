@@ -97,6 +97,7 @@ fn modal_test_spell_def() -> CardDefinition {
                     },
                     // Mode 2: deal 2 damage to controller.
                     Effect::DealDamage {
+                        source: None,
                         target: CardEffectTarget::Controller,
                         amount: EffectAmount::Fixed(2),
                     },
@@ -148,6 +149,7 @@ fn choose_two_spell_def() -> CardDefinition {
                         count: EffectAmount::Fixed(2),
                     },
                     Effect::DealDamage {
+                        source: None,
                         target: CardEffectTarget::Controller,
                         amount: EffectAmount::Fixed(2),
                     },

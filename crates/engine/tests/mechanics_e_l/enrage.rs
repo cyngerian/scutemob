@@ -118,6 +118,7 @@ fn shock_def() -> CardDefinition {
         toughness: None,
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::DealDamage {
+                source: None,
                 target: CardEffectTarget::DeclaredTarget { index: 0 },
                 amount: EffectAmount::Fixed(2),
             },

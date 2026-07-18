@@ -34,6 +34,7 @@ pub fn card() -> CardDefinition {
                     }),
                 },
                 effect: Effect::DealDamage {
+                    source: None,
                     target: EffectTarget::AttackTarget,
                     amount: EffectAmount::Fixed(1),
                 },

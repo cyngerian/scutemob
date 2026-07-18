@@ -41,11 +41,13 @@ pub fn card() -> CardDefinition {
                     modes: vec![
                         // Mode 0: 4 damage to target player or planeswalker.
                         Effect::DealDamage {
+                            source: None,
                             target: EffectTarget::DeclaredTarget { index: 0 },
                             amount: EffectAmount::Fixed(4),
                         },
                         // Mode 1: 2 damage to each creature. No target.
                         Effect::DealDamage {
+                            source: None,
                             target: EffectTarget::AllCreatures,
                             amount: EffectAmount::Fixed(2),
                         },

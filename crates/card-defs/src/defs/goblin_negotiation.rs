@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
             // CR 107.3m: Deal X damage to target creature.
             effect: Effect::Sequence(vec![
                 Effect::DealDamage {
+                    source: None,
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     amount: EffectAmount::XValue,
                 },

@@ -97,6 +97,7 @@ fn stomp_giant_def() -> CardDefinition {
             color_indicator: None,
             abilities: vec![AbilityDefinition::Spell {
                 effect: Effect::DealDamage {
+            source: None,
                     target: mtg_engine::cards::card_definition::EffectTarget::EachOpponent,
                     amount: mtg_engine::cards::card_definition::EffectAmount::Fixed(1),
                 },

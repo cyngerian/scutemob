@@ -42,6 +42,7 @@ pub fn card() -> CardDefinition {
                     },
                     // Mode 1: Deal 2 damage to target creature.
                     Effect::DealDamage {
+                        source: None,
                         target: EffectTarget::DeclaredTarget { index: 0 },
                         amount: EffectAmount::Fixed(2),
                     },

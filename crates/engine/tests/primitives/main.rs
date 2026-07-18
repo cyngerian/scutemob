@@ -23,6 +23,7 @@ mod pb_ef1_exclude_self_enforcement;
 mod pb_ef2_create_token_recipient;
 mod pb_ef3_attack_trigger_targets;
 mod pb_ef3b_granted_keyword_triggers;
+mod pb_ef4_triggering_creature_subject_source;
 mod pb_k_land_drops;
 mod pb_l_landfall;
 mod pbd_damaged_player_filter;

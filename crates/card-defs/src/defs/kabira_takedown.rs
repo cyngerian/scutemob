@@ -19,6 +19,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![AbilityDefinition::Spell {
             // CR 608.2b: Damage amount determined at resolution.
             effect: Effect::DealDamage {
+                source: None,
                 target: EffectTarget::DeclaredTarget { index: 0 },
                 amount: EffectAmount::PermanentCount {
                     filter: TargetFilter {

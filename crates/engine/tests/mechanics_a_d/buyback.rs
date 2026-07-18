@@ -101,6 +101,7 @@ fn searing_touch_def() -> CardDefinition {
             },
             AbilityDefinition::Spell {
                 effect: Effect::DealDamage {
+            source: None,
                     target: CardEffectTarget::DeclaredTarget { index: 0 },
                     amount: EffectAmount::Fixed(1),
                 },
@@ -129,6 +130,7 @@ fn lightning_bolt_def() -> CardDefinition {
         oracle_text: "Lightning Bolt deals 3 damage to any target.".to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::DealDamage {
+                source: None,
                 target: CardEffectTarget::DeclaredTarget { index: 0 },
                 amount: EffectAmount::Fixed(3),
             },

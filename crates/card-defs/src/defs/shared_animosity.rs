@@ -20,18 +20,21 @@ pub fn card() -> CardDefinition {
             // CR 508.1m / CR 603.2: "Whenever a creature you control attacks, it gets +1/+0
             // until end of turn for each other attacking creature that shares a creature type."
             // WheneverCreatureYouControlAttacks exists (PB-N) — the trigger condition is now
-            // expressible.
-            // TODO: DSL gap — EffectAmount has no variant for "count of other attacking
-            // creatures that share a creature type with the triggering creature". This requires
-            // a dynamic per-trigger count keyed on the triggering creature's subtypes vs. all
-            // other attackers' subtypes. No EffectAmount::CountOtherAttackersWithSharedSubtype
-            // or equivalent exists. The buff target (the triggering creature) also requires
-            // EffectFilter::TriggeringCreature in ContinuousEffectDef. Both gaps must be filled
-            // before this ability can be expressed without producing wrong game state.
+            // expressible, and PB-EF4 closed the buff-target gap: EffectFilter::TriggeringCreature
+            // now exists, so the +1/+0 grant CAN be aimed at the attacking creature.
+            // TODO: DSL gap (OOS-EF4-1) — EffectAmount still has no variant for "count of other
+            // attacking creatures that share a creature type with the triggering creature". This
+            // requires a dynamic per-trigger count keyed on the triggering creature's
+            // layer-resolved subtypes vs. every other attacker's subtypes. No
+            // EffectAmount::CountOtherAttackersWithSharedSubtype or equivalent exists. Authoring
+            // with a fixed/wrong amount would ship incorrect game state (PB-EF4 plan, "do NOT
+            // substitute a gated Effect::Choose/fixed count").
         ],
         completeness: Completeness::inert(
-            "DSL gap — EffectAmount has no variant for 'count of other attacking creatures that \
-             share a creature type with the...",
+            "OOS-EF4-1: DSL gap — EffectAmount has no variant for 'count of other attacking \
+             creatures that share a creature type with the triggering creature' (a dynamic \
+             per-trigger count). EffectFilter::TriggeringCreature (PB-EF4) closed the buff-target \
+             half; only the count-amount half remains blocked.",
         ),
         ..Default::default()
     }

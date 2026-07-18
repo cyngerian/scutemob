@@ -23,15 +23,26 @@ pub fn card() -> CardDefinition {
         toughness: Some(4),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // "Whenever this creature ... enters, it deals X damage to any target, where X is
-            // the number of Dragons you control." Self-ETB half only (CR 603.3): here "it" =
-            // Scourge = the ability's source, so Effect::DealDamage's implicit ctx.source
-            // sourcing is faithful. See the completeness note for why the "another Dragon you
-            // control enters" half is NOT authored here.
+            // "Whenever this creature or another Dragon you control enters, it deals X
+            // damage to any target, where X is the number of Dragons you control." Scourge
+            // is itself a Dragon, so "this creature or another Dragon you control" = "a
+            // Dragon you control" — one trigger with exclude_self: false covers both halves
+            // (CR 603.3). The damage source is the entering Dragon
+            // (Some(EffectTarget::TriggeringCreature)): when Scourge itself enters,
+            // triggering_creature_id == Scourge == ctx.source (identical to the old
+            // self-only behaviour); when another Dragon enters, it == that Dragon.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
+                    filter: Some(TargetFilter {
+                        has_subtype: Some(SubType("Dragon".to_string())),
+                        controller: TargetController::You,
+                        ..Default::default()
+                    }),
+                    exclude_self: false,
+                },
                 effect: Effect::DealDamage {
+                    source: Some(EffectTarget::TriggeringCreature),
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     amount: EffectAmount::PermanentCount {
                         filter: TargetFilter {
@@ -71,19 +82,6 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial(
-            "The self-ETB half ('this creature ... enters') is now authored and Complete-faithful \
-             (WhenEntersBattlefield + DealDamage{amount: PermanentCount{Dragon,You}}, \
-             targets:[TargetAny] — ctx.source IS Scourge here, so the implicit DealDamage source \
-             matches oracle 'it'). The residual: 'another Dragon you control enters' — \
-             WheneverCreatureEntersBattlefield{filter:{Dragon,You},exclude_self:true} is \
-             wireable, but 'it deals X damage' there means the ENTERING Dragon deals the damage, \
-             and Effect::DealDamage has no source-override field (always sources from ctx.source, \
-             i.e. Scourge, not the entering Dragon — confirmed no def in the corpus uses a \
-             `source:` field on DealDamage). Implementing that half would silently misattribute \
-             the damage source (wrong for protection/redirection/'a source you control' \
-             interactions) — left unauthored per W5 rather than shipped wrong.",
-        ),
         ..Default::default()
     }
 }

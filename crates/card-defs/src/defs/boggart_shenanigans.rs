@@ -42,6 +42,7 @@ pub fn card() -> CardDefinition {
                     }),
                 },
                 effect: Effect::DealDamage {
+                    source: None,
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     amount: EffectAmount::Fixed(1),
                 },

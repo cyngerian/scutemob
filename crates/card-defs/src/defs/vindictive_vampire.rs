@@ -33,6 +33,7 @@ pub fn card() -> CardDefinition {
                     Effect::ForEach {
                         over: ForEachTarget::EachOpponent,
                         effect: Box::new(Effect::DealDamage {
+                            source: None,
                             target: EffectTarget::DeclaredTarget { index: 0 },
                             amount: EffectAmount::Fixed(1),
                         }),

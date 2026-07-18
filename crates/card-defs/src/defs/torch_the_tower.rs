@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
                 effect: Effect::Conditional {
                     condition: Condition::WasBargained,
                     if_true: Box::new(Effect::DealDamage {
+                        source: None,
                         target: EffectTarget::DeclaredTarget { index: 0 },
                         amount: EffectAmount::Fixed(3),
                         // TODO: also apply "controller can't gain life this turn" —
@@ -33,6 +34,7 @@ pub fn card() -> CardDefinition {
                         // wrap this in Effect::Sequence(vec![DealDamage{3}, CantGainLife{...}]).
                     }),
                     if_false: Box::new(Effect::DealDamage {
+                        source: None,
                         target: EffectTarget::DeclaredTarget { index: 0 },
                         amount: EffectAmount::Fixed(2),
                     }),
