@@ -104,11 +104,20 @@ pub fn card() -> CardDefinition {
             },
         ],
         completeness: Completeness::known_wrong(
-            "SF-11 (CR 106.1a/106.1b): this card's \"any color\" mana resolves to one COLORLESS \
-             mana (Effect::AddManaAnyColor family; effects/mod.rs and handle_tap_for_mana step 8 \
-             both add ManaColor::Colorless). Colorless is a mana TYPE, not a color, so {C} is \
-             outside the option set \"any color\" offers — wrong game state, not an omitted \
-             clause. Un-mark when a color channel for any-color mana lands (SR-37 / scutemob-93).",
+            "PB-EF12 (EF-W-PB2-3) re-triage: this card is NOT restored, contrary to an earlier \
+             pass in this same task that eyeballed it as a plain served ability and was wrong. \
+             The first ability ('{T}: Exile target land card from a graveyard. Add one mana of \
+             any color.') has a TARGET (TargetCardInGraveyard) — CR 605.1a: a mana ability \
+             'doesn't require a target'. `mana_ability_lowering` (testing/replay_harness.rs) \
+             checks `targets.is_empty()` FIRST and returns None for any non-empty target list, so \
+             this whole ability is never lowered into a ManaAbility regardless of its \
+             Effect::AddManaAnyColor payload — it stays a stack-using Activated ability, and the \
+             nested Effect::AddManaAnyColor (inside a Sequence with ExileObject) resolves through \
+             execute_effect's stack-resolution arm, which still adds ManaColor::Colorless \
+             unconditionally. Caught by the refined effect_choose_gate \
+             (no_complete_def_uses_an_any_color_mana_stub), which is exactly why that gate is \
+             programmatic rather than eyeballed. The other two abilities ({B}/{G} \
+             exile+drain/gain) are correctly implemented and unaffected.",
         ),
         ..Default::default()
     }

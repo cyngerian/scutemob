@@ -107,6 +107,8 @@ fn tainted_field_colorless_arm_needs_no_swamp() {
             player: p(1),
             source: land,
             ability_index: COLORLESS_ARM,
+
+            chosen_color: None,
         },
     )
     .expect("the unconditioned {C} arm must be legal with no Swamp");
@@ -130,6 +132,8 @@ fn tainted_field_colored_arms_rejected_without_a_swamp() {
                 player: p(1),
                 source: land,
                 ability_index: arm,
+
+                chosen_color: None,
             },
         );
         assert!(
@@ -152,6 +156,8 @@ fn tainted_field_colored_arms_work_with_a_swamp() {
                 player: p(1),
                 source: land,
                 ability_index: arm,
+
+                chosen_color: None,
             },
         )
         .unwrap_or_else(|e| panic!("arm {arm} must be legal while controlling a Swamp: {e:?}"));

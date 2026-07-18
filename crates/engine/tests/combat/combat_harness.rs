@@ -166,6 +166,7 @@ fn test_harness_declare_attackers_basic() {
         None,   // sacrifice_card_name: not used for combat harness actions
         &[],    // exert_names: not used for combat harness actions
         None,   // pitch_exile_card_name: not used for combat harness actions
+        None,   // chosen_color_name: not used for combat harness actions
         &state,
         &players,
     );
@@ -253,6 +254,7 @@ fn test_harness_declare_attackers_empty() {
         None,   // sacrifice_card_name: not used for combat harness actions
         &[],    // exert_names: not used for combat harness actions
         None,   // pitch_exile_card_name: not used for combat harness actions
+        None,   // chosen_color_name: not used for combat harness actions
         &state,
         &players,
     );
@@ -380,6 +382,7 @@ fn test_harness_declare_blockers_basic() {
         None,   // sacrifice_card_name: not used for combat harness actions
         &[],    // exert_names: not used for combat harness actions
         None,   // pitch_exile_card_name: not used for combat harness actions
+        None,   // chosen_color_name: not used for combat harness actions
         &state,
         &players,
     );
@@ -475,6 +478,7 @@ fn test_harness_declare_blockers_empty() {
         None,   // sacrifice_card_name: not used for combat harness actions
         &[],    // exert_names: not used for combat harness actions
         None,   // pitch_exile_card_name: not used for combat harness actions
+        None,   // chosen_color_name: not used for combat harness actions
         &state,
         &players,
     );
@@ -556,6 +560,7 @@ fn test_harness_full_combat_unblocked_damage() {
         None,   // sacrifice_card_name: not used for combat harness actions
         &[],    // exert_names: not used for combat harness actions
         None,   // pitch_exile_card_name: not used for combat harness actions
+        None,   // chosen_color_name: not used for combat harness actions
         &state,
         &players,
     )
@@ -605,6 +610,7 @@ fn test_harness_full_combat_unblocked_damage() {
         None,   // sacrifice_card_name: not used for combat harness actions
         &[],    // exert_names: not used for combat harness actions
         None,   // pitch_exile_card_name: not used for combat harness actions
+        None,   // chosen_color_name: not used for combat harness actions
         &state,
         &players,
     )
@@ -682,6 +688,7 @@ fn test_harness_declare_attackers_default_target() {
         None,   // sacrifice_card_name: not used for combat harness actions
         &[],    // exert_names: not used for combat harness actions
         None,   // pitch_exile_card_name: not used for combat harness actions
+        None,   // chosen_color_name: not used for combat harness actions
         &state,
         &players,
     );

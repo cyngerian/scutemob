@@ -30,31 +30,30 @@ pub fn card() -> CardDefinition {
                 condition: None,
                 on_cast_effect: None,
             },
-            // TODO: "Creatures you control have '{T}: Add one mana of any color.'"
-            // The grant primitive (LayerModification::AddManaAbility(ManaAbility{ any_color:
-            // true, .. }) + EffectFilter::CreaturesYouControl) exists structurally, but
-            // NOT implementing it here — empirically verified (rules/mana.rs:337-365,
-            // handle_tap_for_mana) that `any_color: true` mana abilities are STUBBED:
-            // "Simplified: colorless until interactive color choice is implemented" —
-            // they always add ManaColor::Colorless, never a real chosen color. This is
-            // the same class of defect as the gated Effect::AddManaAnyColor family
-            // (SR-37). enduring_vitality.rs, despite carrying the identical grant, is
-            // itself still `partial` (for its unrelated Enduring-cycle clause) and its
-            // any-color grant has NOT been certified against this stub — so it is not
-            // valid precedent for marking this Complete. Wiring the grant here would
-            // silently make every creature you control tap for colorless instead of
-            // any color, which is wrong game state (W5), not merely incomplete —
-            // deliberately left unauthored rather than shipped known_wrong.
+            // CR 613.1f: Layer 6 static ability — grants tap-for-any-color mana ability
+            // to each creature you control while this permanent is on the battlefield.
+            // PB-EF12 (EF-W-PB2-3): `any_color: true` ManaAbility grants now resolve to a
+            // real chosen colour (CR 605.3b/111.10a — the colour is chosen on the
+            // `Command::TapForMana` that activates the granted ability), not
+            // ManaColor::Colorless. Same grant pattern as Cryptolith Rite / Enduring
+            // Vitality.
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::Ability,
+                    modification: LayerModification::AddManaAbility(ManaAbility {
+                        produces: Default::default(),
+                        requires_tap: true,
+                        sacrifice_self: false,
+                        any_color: true,
+                        damage_to_controller: 0,
+                        ..Default::default()
+                    }),
+                    filter: EffectFilter::CreaturesYouControl,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
+                },
+            },
         ],
-        completeness: Completeness::partial(
-            "'Creatures you control have \"{T}: Add one mana of any color.\"' is blocked on a \
-             real engine defect, not a missing DSL primitive: handle_tap_for_mana \
-             (rules/mana.rs:337-365) stubs every any_color ManaAbility to ManaColor::Colorless, \
-             so the grant would ship wrong game state (always colorless mana) if authored. Needs \
-             interactive color choice at mana-ability resolution before this clause can be \
-             Complete. The other two clauses (look-at-top + cast-from-top) are already \
-             implemented.",
-        ),
         ..Default::default()
     }
 }

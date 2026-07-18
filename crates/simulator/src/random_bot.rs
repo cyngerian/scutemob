@@ -158,10 +158,12 @@ pub(crate) fn action_to_command(
         LegalAction::TapForMana {
             source,
             ability_index,
+            chosen_color,
         } => Command::TapForMana {
             player,
             source: *source,
             ability_index: *ability_index,
+            chosen_color: *chosen_color,
         },
         LegalAction::ActivateAbility {
             source,

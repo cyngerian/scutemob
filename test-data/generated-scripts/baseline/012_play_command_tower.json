@@ -124,8 +124,9 @@
           "targets": [],
           "mana_paid": {},
           "mana_source": [],
+          "chosen_color": "green",
           "cr_ref": "605.3",
-          "note": "CR 605.3: p1 taps Command Tower for mana (mana ability, no stack)."
+          "note": "CR 605.3/PB-EF12: p1 taps Command Tower for mana, choosing green (mana ability, no stack)."
         },
         {
           "type": "assert_state",

@@ -40,12 +40,16 @@ pub fn card() -> CardDefinition {
                 modes: None,
             },
         ],
-        completeness: Completeness::partial(
-            "Two issues: (1) blocked on mana-spend provenance tracking — no way to trigger on how \
-             produced mana is later spent, so the conditional scry is omitted; (2) DEVIATION: \
-             mana ability uses AddManaAnyColor, which is more permissive than 'any color in your \
-             commander's color identity' — it can produce colors outside the commander's \
-             identity. Consider known_wrong until the identity restriction is expressible.",
+        completeness: Completeness::known_wrong(
+            "Two issues, unchanged by PB-EF12: (1) blocked on mana-spend provenance tracking — no \
+             way to trigger on how produced mana is later spent, so the conditional scry is \
+             omitted; (2) the mana ability's colour choice is now real (PB-EF12 / EF-W-PB2-3 \
+             fixed the colorless-stub half), but it is still offered from all five colours, more \
+             permissive than 'any color in your commander's color identity' — the engine has no \
+             runtime mechanism to restrict the option set to the commander's identity (same gap \
+             as command_tower.rs). Reclassified partial -> known_wrong: with the colour channel \
+             now real, this card can produce a colour genuinely outside its printed legal set, \
+             which is wrong game state, not merely an omitted clause. Filed as OOS-EF12-1.",
         ),
         ..Default::default()
     }

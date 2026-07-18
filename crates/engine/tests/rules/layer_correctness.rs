@@ -301,6 +301,8 @@ fn test_w3lc_animated_land_summoning_sickness_blocks_mana() {
             player: p1(),
             source: land_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     );
 
@@ -345,6 +347,8 @@ fn test_w3lc_fervor_grants_haste_allows_mana_tap() {
             player: p1(),
             source: land_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     );
 
@@ -387,6 +391,8 @@ fn test_w3lc_non_animated_land_ignores_summoning_sickness() {
             player: p1(),
             source: land_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     );
 
@@ -453,6 +459,8 @@ fn test_w3lc_sacrifice_mana_uses_layer_resolved_types() {
             player: p1(),
             source: rock_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .expect("sacrifice-for-mana should succeed");

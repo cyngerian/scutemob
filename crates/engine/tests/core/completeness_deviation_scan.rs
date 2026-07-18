@@ -243,15 +243,17 @@ fn the_marker_detector_is_not_vacuous() {
         .into_iter()
         .filter(|(_, src)| has_incomplete_marker(src))
         .count();
-    // PB-EF9 (2026-07-18): threshold lowered 700 -> 690. olivia_voldaren and
-    // dragonlord_silumgar both flipped partial/known_wrong -> Complete (the
-    // EffectDuration::WhileYouControlSource primitive shipped), dropping the
-    // corpus's non-Complete count from 701 to 699. This is a genuine headline-number
+    // PB-EF12 (2026-07-18): threshold lowered 690 -> 672. 17 defs flipped
+    // known_wrong -> Complete this batch (`any_color: true` mana abilities now
+    // resolve to a real chosen colour via Command::TapForMana.chosen_color, closing
+    // EF-W-PB2-3 — see birds_of_paradise.rs and the sibling restores it points to),
+    // dropping the corpus's non-Complete count from 699 to 681 (verified directly
+    // against `all_cards()`, not estimated). This is a genuine headline-number
     // decrease from authoring work, not detector drift -- lower the floor with the
-    // same margin the previous threshold kept, rather than papering over it.
+    // same 9-count margin the previous threshold kept, rather than papering over it.
     assert!(
-        marked >= 690,
-        "marker detector matched only {marked} files; the corpus has 699 non-Complete defs. \
+        marked >= 672,
+        "marker detector matched only {marked} files; the corpus has 681 non-Complete defs. \
          MARKER_FRAGMENTS is broken and the gate would spuriously flag marked defs"
     );
 }

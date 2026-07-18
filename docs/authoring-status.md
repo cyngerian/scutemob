@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-18 20:06 UTC  
-**Git:** `50a83faf` on `feat/pb-ef11-low-yield-singletons-wheeldraw-greatest-discarded-sp`  
+**Generated:** 2026-07-18 21:11 UTC  
+**Git:** `e991b237` on `feat/pb-ef12-granted-anycolor-manaability-color-choice-ef-w-pb2-3`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -19,16 +19,16 @@ and what is intentionally NOT in it.**
 
 | Metric | Count | Δ since last run |
 | --- | ---: | ---: |
-| Card def files on disk | 1,798 | +2 |
+| Card def files on disk | 1,798 | · |
 | Authoring-plan target universe (snapshot 2026-03-10) | 1,636 | · |
-| Plan cards with a def file (any-face match) | 1,494 | +2 |
-| Plan cards still missing a def file | 142 | -2 |
+| Plan cards with a def file (any-face match) | 1,494 | · |
+| Plan cards still missing a def file | 142 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **111%** (1,815 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 61.2% | 1,100 | +2 |
-| With TODO markers | 544 | · |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 62.1% | 1,117 | · |
+| With TODO markers | 527 | · |
 | Empty `abilities: vec![]` placeholders | 154 | · |
-| Total TODO lines across all defs | 958 | · |
+| Total TODO lines across all defs | 957 | · |
 
 ## Authoring activity (git, by window)
 
@@ -66,7 +66,7 @@ are blocked on engine primitives.
 
 | Group | Auth / Total | % | Clean | TODO | Empty |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `combat-keyword` | 187 / 187 | 100% | 87 | 85 | 15 |
+| `combat-keyword` | 187 / 187 | 100% | 88 | 84 | 15 |
 | `draw` | 164 / 169 | 97% | 78 | 69 | 17 |
 | `token-create` | 148 / 155 | 95% | 82 | 50 | 16 |
 | `land-etb-tapped` | 138 / 138 | 100% | 116 | 22 | 0 |
@@ -74,18 +74,18 @@ are blocked on engine primitives.
 | `modal-choice` | 73 / 105 | 70% | 37 | 24 | 12 |
 | `mana-land` | 92 / 92 | 100% | 63 | 28 | 1 |
 | `body-only` | 60 / 70 | 86% | 32 | 12 | 16 |
-| `removal-destroy` | 56 / 56 | 100% | 34 | 18 | 4 |
+| `removal-destroy` | 56 / 56 | 100% | 35 | 17 | 4 |
 | `counters-plus` | 49 / 49 | 100% | 25 | 19 | 5 |
 | `land-fetch` | 45 / 45 | 100% | 27 | 14 | 4 |
 | `attack-trigger` | 16 / 34 | 47% | 12 | 2 | 2 |
 | `death-trigger` | 34 / 34 | 100% | 20 | 9 | 5 |
-| `mana-artifact` | 34 / 34 | 100% | 14 | 18 | 2 |
+| `mana-artifact` | 34 / 34 | 100% | 22 | 10 | 2 |
 | `activated-tap` | 9 / 27 | 33% | 8 | 0 | 1 |
 | `pump-buff` | 27 / 27 | 100% | 17 | 7 | 3 |
 | `cant-restriction` | 25 / 25 | 100% | 16 | 5 | 4 |
 | `removal-damage-target` | 23 / 23 | 100% | 10 | 11 | 2 |
 | `activated-sacrifice` | 8 / 19 | 42% | 6 | 1 | 1 |
-| `mana-creature` | 19 / 19 | 100% | 12 | 7 | 0 |
+| `mana-creature` | 19 / 19 | 100% | 14 | 5 | 0 |
 | `graveyard-recursion` | 18 / 18 | 100% | 8 | 6 | 4 |
 | `removal-damage-each` | 17 / 17 | 100% | 11 | 5 | 1 |
 | `counter` | 16 / 16 | 100% | 8 | 5 | 3 |
@@ -104,7 +104,7 @@ are blocked on engine primitives.
 | `lifedrain` | 6 / 6 | 100% | 3 | 1 | 2 |
 | `sacrifice-outlet` | 6 / 6 | 100% | 5 | 0 | 1 |
 | `lifegain` | 5 / 5 | 100% | 3 | 0 | 2 |
-| `mana-other` | 5 / 5 | 100% | 2 | 3 | 0 |
+| `mana-other` | 5 / 5 | 100% | 3 | 2 | 0 |
 | `removal-minus` | 4 / 4 | 100% | 2 | 1 | 1 |
 | `exile-play` | 0 / 1 | 0% | 0 | 0 | 0 |
 | `protection` | 1 / 1 | 100% | 0 | 1 | 0 |
@@ -192,7 +192,7 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 587 | · |
+| OTHER (unclassified) | 586 | · |
 | DSL gap (unspecified) | 122 | · |
 | attack trigger (self / generic) | 25 | · |
 | TriggerCondition::* missing variant | 17 | · |
@@ -222,7 +222,7 @@ _…and 27 more buckets totaling 46 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 587 
+Showing 12 of 586 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
@@ -231,10 +231,10 @@ deterministic (sorted by slug).
 abstergo_entertainment: // TODO: {3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card
 blood_tribute: // TODO: Kicker cost "tap a Vampire" is non-mana kicker.
 curse_of_opulence: // TODO: Gold token spec not a helper function.
-experimental_augury: // TODO: Interactive "choose 1 of 3" — M10 player choice. Approximated as
-goblin_king: // TODO: AllCreaturesWithSubtype includes Goblin King itself — "other" semantics
-jeskas_will: // TODO: Mode 2 needs impulse-draw (exile top 3, play this turn).
-marionette_apprentice: // ENGINE-BLOCKED: "Whenever another creature or artifact you control dies" — there is no
+experimental_augury: // TODO: Interactive top-3 selection deferred to M10.
+goblin_lackey: // TODO: "put a Goblin from hand onto battlefield" — needs MoveZone from
+jeskas_will: // TODO: "choose both if commander" conditional entwine.
+marionette_apprentice: // ENGINE-BLOCKED: "Whenever another creature or artifact you control is put into
 out_of_the_tombs: // TODO: Upkeep counter + mill scaling with counter count not expressible.
 ruthless_winnower: // TODO: "non-Elf creature" filter — SacrificePermanents has no subtype exclusion.
 song_of_freyalise: // TODO: Saga chapter III — +1/+1 counters on all creatures you control plus vigilance,

@@ -161,7 +161,14 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   single-target restriction, stricter than `TargetSpellOrAbilityWithSingleTarget`;
 ///   unblocks Misdirection). The closure's type count is unchanged;
 ///   `TargetRequirement`'s declared shape moved, so the digest moves.
-pub const PROTOCOL_VERSION: u32 = 17;
+/// - 18: PB-EF12 (2026-07-18) — `Command::TapForMana` (a wire frame) gains
+///   `chosen_color: Option<ManaColor>` (CR 605.3b/106.1b — a mana ability resolves
+///   immediately and never uses the stack, so the colour choice for an `any_color`
+///   ability's production is made on the activation command itself, not deferred;
+///   closes EF-W-PB2-3, the last item on the EF queue). `ManaColor` was already in
+///   the closure. The closure's type count is unchanged; `Command`'s declared shape
+///   moved, so the digest moves.
+pub const PROTOCOL_VERSION: u32 = 18;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -179,7 +186,7 @@ pub const PROTOCOL_VERSION: u32 = 17;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "a836605e96a0976d268ed2c37a76244b829b11a6dddd2e348a82a7b79e39976c";
+    "841e4b4130b2e2bfef5b190dc6dc57f18a2ee42a5484a652c2df690358cb115e";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -330,6 +337,12 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // PB-EF11 COMMIT 2 (2026-07-18): TargetRequirement gained
         // TargetSpellWithSingleTarget (see the `- 17:` History line above).
         fingerprint: "a836605e96a0976d268ed2c37a76244b829b11a6dddd2e348a82a7b79e39976c",
+    },
+    ProtocolEpoch {
+        version: 18,
+        // PB-EF12 (2026-07-18): Command::TapForMana gained chosen_color (see the
+        // `- 18:` History line above).
+        fingerprint: "841e4b4130b2e2bfef5b190dc6dc57f18a2ee42a5484a652c2df690358cb115e",
     },
 ];
 

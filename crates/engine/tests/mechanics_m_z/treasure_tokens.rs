@@ -138,8 +138,10 @@ fn test_treasure_token_has_mana_ability() {
 // ── Test 3: Sacrifice Treasure for mana ─────────────────────────────────────
 
 #[test]
-/// CR 605.1a / CR 111.10a — Activating Treasure's mana ability (ability_index: 0)
-/// taps then sacrifices the token and adds 1 colorless mana to the player's pool.
+/// CR 605.1a / CR 111.10a / PB-EF12 (CR 605.3b/106.1b) — Activating Treasure's mana
+/// ability (ability_index: 0) taps then sacrifices the token and adds 1 mana of the
+/// chosen color (here Green) to the player's pool. Colorless is not a legal choice
+/// for "any color" (CR 106.1b).
 fn test_treasure_sacrifice_for_mana() {
     let p1 = p(1);
     let state = GameStateBuilder::new()
@@ -159,15 +161,21 @@ fn test_treasure_sacrifice_for_mana() {
             player: p1,
             source: treasure_id,
             ability_index: 0,
+            chosen_color: Some(ManaColor::Green),
         },
     )
     .unwrap();
 
-    // Mana was added.
+    // Mana was added, in the chosen color (not colorless — CR 106.1b).
+    assert_eq!(
+        new_state.player(p1).unwrap().mana_pool.green,
+        1,
+        "Player should have 1 green mana (the chosen color)"
+    );
     assert_eq!(
         new_state.player(p1).unwrap().mana_pool.colorless,
-        1,
-        "Player should have 1 colorless mana"
+        0,
+        "CR 106.1b: colorless is not a color; 'any color' must never add colorless"
     );
 
     // PermanentTapped event was emitted.
@@ -192,18 +200,18 @@ fn test_treasure_sacrifice_for_mana() {
         "PermanentDestroyed event should be emitted when Treasure is sacrificed"
     );
 
-    // ManaAdded event was emitted.
+    // ManaAdded event was emitted, in the chosen color.
     assert!(
         events.iter().any(|e| matches!(
             e,
             GameEvent::ManaAdded {
                 player,
-                color: ManaColor::Colorless,
+                color: ManaColor::Green,
                 amount: 1,
                 ..
             } if *player == p1
         )),
-        "ManaAdded event should be emitted"
+        "ManaAdded event should be emitted with the chosen color (green)"
     );
 
     // Treasure is now in the graveyard (post-sacrifice, pre-SBA).
@@ -244,6 +252,7 @@ fn test_treasure_mana_resolves_immediately_no_stack() {
             player: p1,
             source: treasure_id,
             ability_index: 0,
+            chosen_color: Some(ManaColor::Green),
         },
     )
     .unwrap();
@@ -261,9 +270,9 @@ fn test_treasure_mana_resolves_immediately_no_stack() {
         "CR 605.5: Player retains priority after activating a mana ability"
     );
 
-    // Mana is in the pool.
+    // Mana is in the pool, in the chosen color.
     assert_eq!(
-        new_state.player(p1).unwrap().mana_pool.colorless,
+        new_state.player(p1).unwrap().mana_pool.green,
         1,
         "Mana should be in pool immediately after mana ability activation"
     );
@@ -273,7 +282,7 @@ fn test_treasure_mana_resolves_immediately_no_stack() {
 
 #[test]
 /// CR 605.3a — Multiple mana abilities can be activated in sequence.
-/// Three Treasures can each be sacrificed, yielding 3 colorless mana.
+/// Three Treasures can each be sacrificed, yielding 3 mana of the chosen color(s).
 fn test_treasure_sacrifice_multiple_in_sequence() {
     let p1 = p(1);
     let state = GameStateBuilder::new()
@@ -297,6 +306,7 @@ fn test_treasure_sacrifice_multiple_in_sequence() {
             player: p1,
             source: id_a,
             ability_index: 0,
+            chosen_color: Some(ManaColor::Green),
         },
     )
     .unwrap();
@@ -307,6 +317,7 @@ fn test_treasure_sacrifice_multiple_in_sequence() {
             player: p1,
             source: id_b,
             ability_index: 0,
+            chosen_color: Some(ManaColor::Green),
         },
     )
     .unwrap();
@@ -317,14 +328,15 @@ fn test_treasure_sacrifice_multiple_in_sequence() {
             player: p1,
             source: id_c,
             ability_index: 0,
+            chosen_color: Some(ManaColor::Green),
         },
     )
     .unwrap();
 
     assert_eq!(
-        s3.player(p1).unwrap().mana_pool.colorless,
+        s3.player(p1).unwrap().mana_pool.green,
         3,
-        "Sacrificing 3 Treasures should produce 3 colorless mana"
+        "Sacrificing 3 Treasures (each choosing green) should produce 3 green mana"
     );
 
     assert_eq!(
@@ -360,6 +372,7 @@ fn test_treasure_already_tapped_cannot_activate() {
             player: p1,
             source: treasure_id,
             ability_index: 0,
+            chosen_color: Some(ManaColor::Green),
         },
     );
 
@@ -414,6 +427,7 @@ fn test_treasure_not_affected_by_summoning_sickness() {
             player: p1,
             source: treasure_id,
             ability_index: 0,
+            chosen_color: Some(ManaColor::Green),
         },
     );
 
@@ -449,6 +463,7 @@ fn test_treasure_token_ceases_to_exist_after_sba() {
             player: p1,
             source: treasure_id,
             ability_index: 0,
+            chosen_color: Some(ManaColor::Green),
         },
     )
     .unwrap();
@@ -509,6 +524,7 @@ fn test_treasure_cannot_be_activated_by_opponent() {
             player: p2,
             source: treasure_id,
             ability_index: 0,
+            chosen_color: Some(ManaColor::Green),
         },
     );
 

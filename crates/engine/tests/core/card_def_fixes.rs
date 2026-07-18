@@ -257,6 +257,8 @@ fn test_dimir_guildgate_produces_each_printed_color() {
                 player: PlayerId(1),
                 source: land,
                 ability_index: index,
+
+                chosen_color: None,
             },
         )
         .unwrap_or_else(|e| panic!("TapForMana index {index} must be legal: {e:?}"));

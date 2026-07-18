@@ -537,6 +537,8 @@ fn test_caged_sun_doubles_chosen_color_land_mana() {
             player: p1,
             source: plains_id,
             ability_index,
+
+            chosen_color: None,
         },
     )
     .expect("TapForMana on Plains should succeed");
@@ -609,6 +611,8 @@ fn test_caged_sun_does_not_double_other_color_mana() {
             player: p1,
             source: mountain_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .expect("TapForMana on Mountain should succeed");

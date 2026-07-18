@@ -444,6 +444,12 @@ pub enum ScriptAction {
         /// Ignored for all other action types.
         #[serde(default)]
         method: Option<String>,
+        /// PB-EF12 (CR 605.3b / CR 106.1b): For `tap_for_mana` on an `any_color: true`
+        /// mana ability. One of "white", "blue", "black", "red", "green" (case-insensitive).
+        /// Required when the source's ability is any-color; `None` for fixed-colour sources.
+        /// Example: "green"
+        #[serde(default)]
+        chosen_color: Option<String>,
         cr_ref: Option<String>,
         note: Option<String>,
     },

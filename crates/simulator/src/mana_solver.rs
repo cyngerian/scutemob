@@ -77,10 +77,18 @@ pub fn solve_mana_payment(
             // None => can't pay this color.
             let idx = found?;
             sources[idx].tapped = true;
+            // PB-EF12 (CR 605.3b): an any_color source can satisfy any colour — choose
+            // the exact one needed here. A fixed-colour source carries no choice.
+            let chosen_color = if sources[idx].any_color {
+                Some(*color)
+            } else {
+                None
+            };
             commands.push(Command::TapForMana {
                 player,
                 source: sources[idx].object_id,
                 ability_index: sources[idx].ability_index,
+                chosen_color,
             });
             remaining.pay_colored(*color);
         }
@@ -95,10 +103,14 @@ pub fn solve_mana_payment(
         // None => no colorless source available; colored mana cannot pay {C} (CR 107.4c).
         let idx = found?;
         sources[idx].tapped = true;
+        // PB-EF12: an any_color source's `produces` is empty (CR 106.1b: colorless is
+        // not a legal "any color" choice), so it never matches the `contains(&Colorless)`
+        // filter above — this source is always fixed-colour, chosen_color is None.
         commands.push(Command::TapForMana {
             player,
             source: sources[idx].object_id,
             ability_index: sources[idx].ability_index,
+            chosen_color: None,
         });
         remaining.colorless -= 1;
     }
@@ -109,10 +121,18 @@ pub fn solve_mana_payment(
         // None => no untapped source left to pay the remaining generic cost.
         let idx = found?;
         sources[idx].tapped = true;
+        // PB-EF12: a generic pip can be paid with any colour, so an any_color source
+        // just needs *a* legal choice — deterministic White, mirroring legal_actions.rs.
+        let chosen_color = if sources[idx].any_color {
+            Some(ManaColor::White)
+        } else {
+            None
+        };
         commands.push(Command::TapForMana {
             player,
             source: sources[idx].object_id,
             ability_index: sources[idx].ability_index,
+            chosen_color,
         });
         remaining.generic -= 1;
     }

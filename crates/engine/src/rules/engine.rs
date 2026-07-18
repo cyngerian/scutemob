@@ -89,9 +89,11 @@ pub fn process_command(
             player,
             source,
             ability_index,
+            chosen_color,
         } => {
             validate_player_active(&state, player)?;
-            let events = mana::handle_tap_for_mana(&mut state, player, source, ability_index)?;
+            let events =
+                mana::handle_tap_for_mana(&mut state, player, source, ability_index, chosen_color)?;
             all_events.extend(events);
         }
         Command::PlayLand { player, card } => {

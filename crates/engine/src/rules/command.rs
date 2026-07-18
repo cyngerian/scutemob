@@ -8,7 +8,7 @@ use crate::state::game_object::ObjectId;
 use crate::state::player::PlayerId;
 use crate::state::replacement_effect::ReplacementId;
 use crate::state::targeting::Target;
-use crate::state::types::{AdditionalCost, AltCostKind, FaceDownKind, TurnFaceUpMethod};
+use crate::state::types::{AdditionalCost, AltCostKind, FaceDownKind, ManaColor, TurnFaceUpMethod};
 use serde::{Deserialize, Serialize};
 /// A player action submitted to the engine.
 ///
@@ -26,10 +26,21 @@ pub enum Command {
     /// Mana abilities do not use the stack and resolve immediately.
     /// `ability_index` is the index into `characteristics.mana_abilities`
     /// on the source object.
+    ///
+    /// `chosen_color` (PB-EF12, CR 605.3b/106.1b): a mana ability resolves immediately
+    /// and never uses the stack, so any colour choice for the mana it produces must be
+    /// made at activation, on this command. Required (`Some(c)`, `c` one of White, Blue,
+    /// Black, Red, Green — never `Colorless`, CR 106.1b) when the resolved ability has
+    /// `any_color: true` (CR 111.10a "add one mana of any color"); must be `None` for a
+    /// fixed-colour ability. `#[serde(default)]` so pre-PB-EF12 replay logs decode (as
+    /// `None`, which is only valid for fixed-colour abilities — an old log activating an
+    /// `any_color` source will fail to replay; none exist in the approved script corpus).
     TapForMana {
         player: PlayerId,
         source: ObjectId,
         ability_index: usize,
+        #[serde(default)]
+        chosen_color: Option<ManaColor>,
     },
     /// Play a land from hand to battlefield (CR 305.1).
     ///

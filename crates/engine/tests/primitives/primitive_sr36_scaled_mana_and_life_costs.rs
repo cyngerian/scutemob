@@ -146,6 +146,8 @@ fn gaea_cradle_zero_creatures_produces_zero_green() {
             player: p(1),
             source: cradle_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .expect("Gaea's Cradle activation should succeed with zero creatures");
@@ -186,6 +188,8 @@ fn gaea_cradle_three_creatures_produces_three_green() {
             player: p(1),
             source: cradle_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .expect("Gaea's Cradle activation should succeed");
@@ -241,6 +245,8 @@ fn gaea_cradle_scaled_amount_is_multiplied_by_a_mana_production_replacement() {
             player: p(1),
             source: cradle_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .expect("Gaea's Cradle activation should succeed");
@@ -284,6 +290,8 @@ fn elvish_archdruid_counts_only_elves() {
             player: p(1),
             source: archdruid_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .expect("Elvish Archdruid activation should succeed");
@@ -349,6 +357,8 @@ fn cabal_coffers_is_a_real_mana_ability() {
             player: p(1),
             source: coffers_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .expect("Cabal Coffers activation should succeed via TapForMana (CR 605.3b)");
@@ -791,6 +801,8 @@ fn cabal_stronghold_counts_only_basic_swamps() {
             player: p(1),
             source: id,
             ability_index: 1,
+
+            chosen_color: None,
         },
     )
     .expect("Cabal Stronghold's scaled arm should activate via TapForMana (CR 605.3b)");
@@ -872,6 +884,8 @@ fn crypt_of_agadeem_counts_only_black_creature_cards_in_graveyard() {
             player: p(1),
             source: id,
             ability_index: 1,
+
+            chosen_color: None,
         },
     )
     .expect("Crypt of Agadeem's scaled arm should activate via TapForMana (CR 605.3b)");

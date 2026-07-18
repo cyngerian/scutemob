@@ -38,14 +38,7 @@ pub fn card() -> CardDefinition {
                 modes: None,
             },
         ],
-        completeness: Completeness::known_wrong(
-            "CR 106.1b: '{T}, Sacrifice this creature: Add one mana of any color' adds one \
-             COLORLESS mana (probed: +1 colorless). SR-34 DID lower this to a real ManaAbility — \
-             sacrifice_self already existed on ManaAbility and only the matches!(cost, Cost::Tap) \
-             gate was blocking it, so the mechanism is now correct (stack empty, self sacrificed) \
-             — but the mana it produces is not one of the legal options 'any color' offers. \
-             Blocked on interactive/deterministic color choice for any_color mana.",
-        ),
+        // PB-EF12 (EF-W-PB2-3): un-marked, see birds_of_paradise.rs for the fix.
         ..Default::default()
     }
 }

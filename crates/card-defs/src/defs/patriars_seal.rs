@@ -52,14 +52,7 @@ pub fn card() -> CardDefinition {
                 modes: None,
             },
         ],
-        completeness: Completeness::known_wrong(
-            "Untap ability now correctly implemented (TargetCreatureWithFilter{legendary:true, \
-             controller:You}). Real blocker: the mana ability uses Effect::AddManaAnyColor, which \
-             is gated out of Complete by tests/core/effect_choose_gate.rs (SR-37/SF-11) — it \
-             always adds ManaColor::Colorless, not a chosen color, so 'Add one mana of any color' \
-             produces wrong game state. Needs the per-colour-ability rewire pattern \
-             (tainted_field.rs) once that primitive lands for artifacts.",
-        ),
+        // PB-EF12 (EF-W-PB2-3): un-marked, see birds_of_paradise.rs for the fix.
         ..Default::default()
     }
 }

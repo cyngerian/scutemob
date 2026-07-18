@@ -395,6 +395,10 @@ pub fn translate_player_action(
     // of) the pitch alternative cost. `None` for pitch spells with no ExileFromHand
     // component, or for all other action types.
     pitch_exile_card_name: Option<&str>,
+    // PB-EF12 (CR 605.3b / CR 106.1b): For `tap_for_mana` on an `any_color: true` mana
+    // ability. One of "white"/"blue"/"black"/"red"/"green" (case-insensitive). `None` for
+    // fixed-colour sources or all other action types.
+    chosen_color_name: Option<&str>,
     state: &GameState,
     players: &HashMap<String, PlayerId>,
 ) -> Option<Command> {
@@ -641,11 +645,24 @@ pub fn translate_player_action(
         }
         "tap_for_mana" => {
             let source_id = find_on_battlefield(state, player, card_name?)?;
+            // PB-EF12 (CR 605.3b/106.1b): parse the script's chosen_color string, if any.
+            // `None` when the script names no colour (fixed-colour source); the engine
+            // rejects a mismatched combination (any_color-without-colour or
+            // fixed-colour-with-colour) as an `InvalidCommand`.
+            let chosen_color = chosen_color_name.and_then(|name| match name.to_lowercase().as_str() {
+                "white" => Some(ManaColor::White),
+                "blue" => Some(ManaColor::Blue),
+                "black" => Some(ManaColor::Black),
+                "red" => Some(ManaColor::Red),
+                "green" => Some(ManaColor::Green),
+                _ => None,
+            });
             // Assume ability index 0 for basic mana abilities.
             Some(Command::TapForMana {
                 player,
                 source: source_id,
                 ability_index: 0,
+                chosen_color,
             })
         }
         "activate_ability" => {
@@ -3682,7 +3699,7 @@ struct ManaAbilityCost {
     exile_self_from_hand: bool,
 }
 /// SR-34 (CR 605.1a): decompose a `Cost` into the components a mana ability can pay
-/// through `Command::TapForMana { player, source, ability_index }`. Returns `None` if
+/// through `Command::TapForMana { player, source, ability_index, chosen_color }`. Returns `None` if
 /// any component needs a channel `TapForMana` does not have — a caller-supplied
 /// `ObjectId` (discard a specific card, sacrifice *another* permanent, remove a counter)
 /// — in which case the ability is not lowerable and stays a stack-using activated

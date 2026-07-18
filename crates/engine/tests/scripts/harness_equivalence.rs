@@ -454,6 +454,8 @@ impl Move {
                 player,
                 source: on_battlefield(state, player, land)?,
                 ability_index: 0,
+
+                chosen_color: None,
             }),
             Move::CastSpell { card, targets, .. } => {
                 Some(Command::CastSpell(Box::new(CastSpellData {
@@ -637,6 +639,7 @@ fn translate(
         None,  // sacrifice_card
         &[],   // exert
         None,  // pitch_exile_card
+        None,  // chosen_color
         state,
         players,
     )
