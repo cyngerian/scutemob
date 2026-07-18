@@ -1,12 +1,12 @@
 {
-  "generated": "2026-07-18 15:23 UTC",
-  "git_head": "1574aa17",
+  "generated": "2026-07-18 16:13 UTC",
+  "git_head": "104ef5ad",
   "total_files": 1792,
-  "total_todos": 964,
+  "total_todos": 961,
   "file_buckets": {
-    "clean": 1089,
-    "todo": 548,
-    "empty": 155
+    "clean": 1091,
+    "todo": 547,
+    "empty": 154
   },
   "todo_classes": {
     "OTHER (unclassified)": 591,
@@ -33,9 +33,9 @@
     "noncombat-damage prevent": 4,
     "EnchantTarget missing variant": 1,
     "equipment grants ability": 5,
-    "Cost::* missing variant": 16,
     "draw trigger": 3,
     "TargetFilter missing field": 7,
+    "Cost::* missing variant": 13,
     "can't-gain-life": 3,
     "valiant / becomes-target": 1,
     "ETB choice": 4,

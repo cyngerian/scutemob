@@ -63,7 +63,7 @@ fn test_pb_oos_lki_power_3_lba_variants_hash_pre_lba_fields() {
     // addition to the per-PB sweep files. If this assertion fails, update this
     // file's sentinel AND add a new history entry in state/hash.rs.
     assert_eq!(
-        HASH_SCHEMA_VERSION, 50u8,
+        HASH_SCHEMA_VERSION, 51u8,
         "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
     );
 

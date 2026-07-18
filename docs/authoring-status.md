@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-18 15:23 UTC  
-**Git:** `1574aa17` on `feat/pb-ef7-modal-abilitydefinitionactivated-ef-w-pb2-4`  
+**Generated:** 2026-07-18 16:13 UTC  
+**Git:** `104ef5ad` on `feat/pb-ef8-costexileselffromhand-activation-from-hand-ef-w-pb2-8`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,10 +25,10 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 148 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **111%** (1,809 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 60.8% | 1,089 | +2 |
-| With TODO markers | 548 | -2 |
-| Empty `abilities: vec![]` placeholders | 155 | · |
-| Total TODO lines across all defs | 964 | -1 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 60.9% | 1,091 | +2 |
+| With TODO markers | 547 | -1 |
+| Empty `abilities: vec![]` placeholders | 154 | -1 |
+| Total TODO lines across all defs | 961 | -3 |
 
 ## Authoring activity (git, by window)
 
@@ -70,7 +70,7 @@ are blocked on engine primitives.
 | `draw` | 164 / 169 | 97% | 78 | 69 | 17 |
 | `token-create` | 148 / 155 | 95% | 82 | 50 | 16 |
 | `land-etb-tapped` | 138 / 138 | 100% | 116 | 22 | 0 |
-| `other` | 108 / 131 | 82% | 68 | 32 | 8 |
+| `other` | 108 / 131 | 82% | 70 | 31 | 7 |
 | `modal-choice` | 72 / 105 | 69% | 36 | 24 | 12 |
 | `mana-land` | 92 / 92 | 100% | 63 | 28 | 1 |
 | `body-only` | 60 / 70 | 86% | 32 | 12 | 16 |
@@ -207,13 +207,13 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 591 | -1 |
+| OTHER (unclassified) | 591 | · |
 | DSL gap (unspecified) | 122 | · |
 | attack trigger (self / generic) | 25 | · |
 | TriggerCondition::* missing variant | 17 | · |
 | dynamic hexproof / protection | 17 | · |
-| Cost::* missing variant | 16 | · |
 | replacement effect missing | 14 | · |
+| Cost::* missing variant | 13 | -3 |
 | EffectAmount::* missing variant | 12 | · |
 | interactive / hidden-info choice | 11 | · |
 | sacrifice as cost | 11 | · |

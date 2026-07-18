@@ -119,22 +119,20 @@ pub fn handle_tap_for_mana(
     }
     // 2. Fetch a clone of the source object to avoid borrow conflicts.
     let obj = state.object(source)?.clone();
-    // 3. Validate source is on the battlefield.
-    if obj.zone != ZoneId::Battlefield {
-        return Err(GameStateError::ObjectNotOnBattlefield(source));
-    }
-    // 4. Validate player controls the source.
-    if obj.controller != player {
-        return Err(GameStateError::NotController {
-            player,
-            object_id: source,
-        });
-    }
-    // 5. Fetch the mana ability via layer-resolved characteristics.
+    // PB-EF8: the ability-fetch block (formerly step 5) must run BEFORE the
+    // zone/controller legality check, because the from-hand branch below keys on
+    // `ability.exile_self_from_hand`, which is not known until the ability is fetched.
+    // Nothing between the old step 2 and old step 5 mutates state (steps 3-4 were pure
+    // validation), so this reorder is behavior-preserving for the battlefield path.
+    //
+    // Fetch the mana ability via layer-resolved characteristics.
     // CR 613.1f: Use calc'd chars so granted abilities (Cryptolith Rite, Chromatic Lantern)
     // and ability-removal (Humility) both apply. W3-LC audit fix.
     // SR-14 IMPOSSIBLE: `source` was validated present via `state.object(source)?`
-    // above with no intervening zone change, so calc cannot be None here.
+    // above with no intervening zone change, so calc cannot be None here. This holds
+    // for a hand source too — `expect_characteristics` works off-battlefield (a hand
+    // card's `mana_abilities` are its base enriched list, since no layers apply
+    // off-battlefield), exactly as the existing graveyard-activated path relies on.
     let resolved_chars = crate::rules::layers::expect_characteristics(state, source);
     let ability = resolved_chars
         .mana_abilities
@@ -144,6 +142,35 @@ pub fn handle_tap_for_mana(
             index: ability_index,
         })?
         .clone();
+    // 3-4. Zone/controller legality (PB-EF8: branches on the ability, not a fixed rule).
+    if ability.exile_self_from_hand {
+        // CR 602.1/602.2/605.1a: a from-hand mana ability (Spirit Guides). The source
+        // must be in the activating player's hand (mirrors the Channel check in
+        // handle_activate_ability, abilities.rs — a hand card's controller is its
+        // owner, so check owner).
+        if obj.zone != ZoneId::Hand(player) {
+            return Err(GameStateError::InvalidCommand(
+                "from-hand mana ability can only be activated from hand (CR 602.2, 605.1a)".into(),
+            ));
+        }
+        if obj.owner != player {
+            return Err(GameStateError::InvalidCommand(
+                "you can only activate a from-hand mana ability on a card you own".into(),
+            ));
+        }
+    } else {
+        // 3. Validate source is on the battlefield.
+        if obj.zone != ZoneId::Battlefield {
+            return Err(GameStateError::ObjectNotOnBattlefield(source));
+        }
+        // 4. Validate player controls the source.
+        if obj.controller != player {
+            return Err(GameStateError::NotController {
+                player,
+                object_id: source,
+            });
+        }
+    }
     let mut events = Vec::new();
     // 5b. SR-34: cost legality check (CR 118.3, 119.4). Pure validation, no mutation —
     //     an unaffordable Signet/horizon-land activation touches nothing (CR 732 is free
@@ -322,6 +349,21 @@ pub fn handle_tap_for_mana(
                 pre_lba_power: pre_death_power_mana,
             });
         }
+    }
+    // 7c. PB-EF8 (CR 118 cost + CR 400.7): exile the source card from hand as the
+    //     activation cost. After the move `source` is a dead ObjectId; the card is a new
+    //     object in exile. This is the ability's exhaustion mechanism (it cannot be
+    //     activated twice — the card is no longer in hand). Mutually exclusive with
+    //     `sacrifice_self` (no card has both).
+    if ability.exile_self_from_hand {
+        let (new_exile_id, _) = state.move_object_to_zone(source, ZoneId::Exile)?;
+        events.push(GameEvent::ObjectExiled {
+            player,
+            object_id: source,
+            new_exile_id,
+            pre_lba_counters: imbl::OrdMap::new(), // hand card: no battlefield counters
+            pre_lba_power: None,                   // not a leaves-battlefield event; no LKI power
+        });
     }
     // 7b. Apply mana-production replacement effects (CR 106.12b).
     //     Only applies to mana abilities with {T} in cost (CR 106.12).

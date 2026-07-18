@@ -1,134 +1,172 @@
-# Primitive WIP: PB-EF7 — modal `AbilityDefinition::Activated { modes }` (EF-W-PB2-4)
+# Primitive WIP: PB-EF8 — `Cost::ExileSelfFromHand` (activation from hand) (EF-W-PB2-8)
 
-batch: PB-EF7
-title: Add `modes: Option<ModeSelection>` + per-mode targets to `AbilityDefinition::Activated` (and the runtime `ActivatedAbility`), mirroring the `Spell`/`Triggered` modal announce/validate/resolve path so "Choose one —" activated abilities resolve the CHOSEN mode (CR 601.2b mode choice at activation; CR 602.2 activation mirrors casting; CR 700.2 modal spells/abilities). The chosen mode rides the stack object (`StackObject.modes_chosen` already exists) and survives LKI.
-task: scutemob-108
-branch: feat/pb-ef7-modal-abilitydefinitionactivated-ef-w-pb2-4
+batch: PB-EF8
+title: Add `Cost::ExileSelfFromHand` (+ `ActivationZone::Hand`) so "Exile this card from your hand: Add {mana}" mana abilities activate from HAND, exile the card as the cost (CR 400.7 new object), produce mana stacklessly (CR 605.1a — no target, could add mana → it IS a mana ability), and do NOT reset `players_passed` (CR 605.5). Mirrors `Cost::DiscardSelf` (Channel, CR 702.34) but exiles instead of discards and the effect is mana rather than stack-using.
+task: scutemob-109
+branch: feat/pb-ef8-costexileselffromhand-activation-from-hand-ef-w-pb2-8
 started: 2026-07-18
-phase: done  # 2026-07-18 — plan→impl→review→fix complete. 2 flips (goblin_cratermaker, cankerbloom → Complete); umezawas_jitte stays known_wrong (OOS-EF7-1). PROTOCOL 11→12, HASH 49→50. Coverage 60.7%→60.8% (+2). 15 tests. Review 0 HIGH/2 MED/3 LOW all fixed. EF-W-PB2-4 closed. All gates green.
+phase: review  # implement done 2026-07-18 → memory/primitives/pb-plan-EF8.md; awaiting /implement-primitive review phase
+
+## Implement phase — DONE (2026-07-18, scutemob-109)
+
+- [x] Step 1a — `Cost::ExileSelfFromHand` added to `crates/card-types/src/cards/card_definition.rs` (Cost enum, after `Exert`)
+- [x] Step 1b — `ActivationZone::Hand` added (same file, after `Graveyard`)
+- [x] Step 2a — `ManaAbility.exile_self_from_hand: bool` added (`crates/card-types/src/state/game_object.rs`)
+- [x] Step 2b — `ActivationCost.exile_self_from_hand: bool` added (same file); also backfilled 3
+      pre-existing non-`..Default::default()` `ActivationCost` struct literals in
+      `card_definition.rs` (food/clue/blood token specs) that the plan did not enumerate
+- [x] Step 3a/3b/3c/3d — `replay_harness.rs`: `ManaAbilityCost.exile_self_from_hand`,
+      accepting match arm in `mana_ability_cost_components`, no-tap guard relaxed
+      (`!acc.requires_tap && !acc.exile_self_from_hand`), `mana_ability_lowering` carries the
+      flag onto `ManaAbility`, `flatten_cost_into` arm added
+- [x] Step 4 — `effects/mod.rs`: `Cost::ExileSelfFromHand` added to both `can_pay_optional_cost`
+      and `pay_optional_cost` exhaustive match unreachable-arm groups
+- [x] Step 5a/5b/5c/5d/5e — `rules/mana.rs` `handle_tap_for_mana`: ability-fetch moved above
+      zone/controller check; conditional from-hand-vs-battlefield legality branch; exile-cost
+      payment step (7c) with `GameEvent::ObjectExiled`; tap-gated steps correctly skipped;
+      priority/players_passed untouched (verified by test)
+- [x] Step 6 — hashing: `Cost::ExileSelfFromHand => 13u8`, `ActivationZone::Hand => 1u8`,
+      `ManaAbility.exile_self_from_hand`, `ActivationCost.exile_self_from_hand` all hashed
+- [x] Step 7 — version bumps, machine-forced values read from failing gates:
+      HASH_SCHEMA_VERSION 50→**51**, PROTOCOL_VERSION 12→**13**; decl/stream/protocol
+      fingerprints + FROZEN_HISTORY_PREFIX_DIGEST (both hash and protocol) updated; all
+      ~34 `HASH_SCHEMA_VERSION, 50` test sentinels bulk-updated to 51; `pb_ef7_modal_activated.rs`'s
+      `PROTOCOL_VERSION` sentinel updated 12→13
+- [x] Card defs — `simian_spirit_guide.rs` (inert→Complete), `elvish_spirit_guide.rs`
+      (known_wrong→Complete); both use `Cost::ExileSelfFromHand` + `activation_zone: Some(Hand)`,
+      completeness marker dropped (defaults Complete), no TODOs remain
+- [x] Tests — `crates/engine/tests/primitives/pb_ef8_exile_self_from_hand.rs` (7 tests),
+      registered via `mod pb_ef8_exile_self_from_hand;` in `tests/primitives/main.rs`; both
+      decoys proven non-vacuous by temporarily deleting each check and confirming failure,
+      then restoring (diffed byte-identical to pre-experiment)
+- [x] Gates: `cargo build --workspace` clean; `cargo test --all` all green (0 failures);
+      `cargo clippy --all-targets -- -D warnings` clean; `cargo fmt --check` clean (after
+      `cargo fmt`); `tools/check-defs-fmt.sh` clean (1792 defs)
 
 ## Source findings
-- memory/primitives/ef-batch-plan-2026-07-17.md — PB-EF7 section (line ~409); §1 table (EF-W-PB2-4, line 190)
-- memory/card-authoring/w-pb2-engine-findings-2026-07-17.md — EF-W-PB2-4 (line 90)
+- memory/primitives/ef-batch-plan-2026-07-17.md — PB-EF8 section (line ~448); §1 table (EF-W-PB2-8, line 191)
+- memory/card-authoring/w-pb2-roster-2026-07-17.md — EF-W-PB2-8 (line 85, 103, 134)
 
-## Corpus sweep (DONE 2026-07-18 by worker — all_cards() enumeration, NOT source grep)
-Enumerated every `AbilityDefinition::Activated` whose `effect` serde-tree contains `Effect::Choose`.
-Modal-activated cohort = **3**:
-| Card | current | modes | per-mode targets | verdict |
-| --- | --- | --- | --- | --- |
-| Goblin Cratermaker | known_wrong | 2 (deal 2 dmg to target creature / destroy target colorless nonland permanent) | YES — mode0 TargetCreature, mode1 colorless-nonland | **ELIGIBLE → Complete** (also fix colorless filter: `exclude_colors: {W,U,B,R,G}` + `non_land`) |
-| Cankerbloom | known_wrong | 3 (destroy target artifact / destroy target enchantment / proliferate) | YES — mode0 TargetArtifact, mode1 TargetEnchantment, mode2 NO target | **ELIGIBLE → Complete** |
-| Umezawa's Jitte | known_wrong | 3 (on the "remove a counter" ability) | YES | **INELIGIBLE** — second blocker: the counters trigger fires only on combat-damage-to-PLAYERS; oracle is "deals combat damage" (any recipient) → needs a new trigger variant. Stays known_wrong; update note + file OOS seed. |
+## Corpus sweep (DONE 2026-07-18 by worker — grep of oracle_text "Exile this card from your hand" + notes)
+Candidates with an exile-self-from-hand **mana** ability:
+| Card | current | ability | verdict |
+| --- | --- | --- | --- |
+| Simian Spirit Guide | `inert` | "Exile this card from your hand: Add {R}." | **ELIGIBLE → Complete** |
+| Elvish Spirit Guide | `known_wrong` | "Exile this card from your hand: Add {G}." (currently ships a FREE battlefield `Add {G}` — infinite mana) | **ELIGIBLE → Complete** |
 
-**Discounted ship: 2 flips** (Goblin Cratermaker + Cankerbloom). Both need PER-MODE targets, so this PB must mirror PB-AC4's `ModeSelection.mode_targets` machinery onto the activation path, not just simple mode selection.
+False positives (out of scope, verified):
+- `saw_it_coming` — "exile this card from your hand" is the **Foretell** keyword (CR 702.143), not a mana ability. Already Complete via `AbilityDefinition::Foretell`.
+- `chrome_mox` — Imprint ETB exile-from-hand (different primitive; still blocked, unrelated).
+- `gemstone_caverns` — "if you do, exile a card from your hand" is a Luck-counter ETB payload; its `{T}: Add {C}` is a battlefield ability. Unrelated.
+
+**Discounted ship: 2 flips** (Simian + Elvish Spirit Guide). Matches plan's ~2–3.
 
 ## Architecture recon (worker — verify + extend during plan)
-- `AbilityDefinition::Activated` — `crates/card-types/src/cards/card_definition.rs:285`. Add `modes: Option<ModeSelection>` (`#[serde(default)]`). Per-mode targets ride the EXISTING `ModeSelection.mode_targets: Option<Vec<Vec<TargetRequirement>>>` (card_definition.rs:3749) — no new field there.
-- `ModeSelection` — card_definition.rs:3716. Goblin Cratermaker = choose exactly 1 of 2; Cankerbloom = choose exactly 1 of 3.
-- Runtime `ActivatedAbility` struct — `crates/card-types/src/state/game_object.rs:352`. Add `modes: Option<ModeSelection>`.
-- `enrich_spec_from_def` — `crates/engine/src/testing/replay_harness.rs:2135` (the non-mana Activated loop, ~2136). Propagate `modes`.
-- `Command::ActivateAbility` — `crates/engine/src/rules/command.rs:67`. Add `modes_chosen: Vec<usize>` (`#[serde(default)]`). WIRE CHANGE → PROTOCOL bump. Dispatch site: `engine.rs:147`.
-- `handle_activate_ability` — `crates/engine/src/rules/abilities.rs:130`. Add: mode validation (CR 700.2a min/max; ascending-sort; dup rule per `allow_duplicate_modes`), and mode_targets-aware target announcement/validation. Study `casting.rs` modal path: `validated_modes_chosen` (~3487-3560), `mode_targets_active`/`spell_targets` split (~3620-3700), and the split helper referenced at casting.rs ~5908.
-- StackObject already carries `modes_chosen: Vec<usize>` (stack.rs:413) and `targets`. `StackObjectKind::ActivatedAbility` (stack.rs:584) is UNCHANGED — modes ride the outer StackObject, so TUI/replay-viewer exhaustive `StackObjectKind` matches need no new arm (still run `cargo build --workspace`).
-- Resolution — `crates/engine/src/rules/resolution.rs:1841` (`ActivatedAbility` arm). Replace `ability_effect` with the chosen mode effects from `ModeSelection` when `modes_chosen` non-empty, mirroring the Triggered modal path at resolution.rs:2009-2049 (single mode → that effect; multiple → `Effect::Sequence`).
-  **KEY HAZARD (SacrificeSelf cost):** Goblin Cratermaker + Cankerbloom both cost `Cost::SacrificeSelf`, so `state.objects.get(source)` is None at resolution and the CardDef must be looked up via a still-available handle. The ActivatedAbility arm already uses `embedded_effect` (captured at activation) for this exact reason (stack.rs:587). Decide: either (a) resolve the chosen modes into a concrete `embedded_effect` AT ACTIVATION and store that, or (b) embed the ModeSelection alongside and read `modes_chosen` at resolution. (a) is simpler and matches how sacrifice-cost activated abilities already capture their effect — planner picks and justifies. Whatever the choice, the `mode_targets` DeclaredTarget indices in the chosen mode effects must be LOCAL to that mode's target slice (as in the Spell path) — verify the target-context threading.
-- Hash — `crates/engine/src/state/hash.rs:6617` (`AbilityDefinition::Activated` arm) needs `modes` hashed; `ModeSelection` HashInto already exists (hash.rs:5780).
-- Wire bumps: PROTOCOL (Command::ActivateAbility.modes_chosen + Activated.modes reaches the Effect/DSL closure) and HASH (runtime ActivatedAbility.modes reaches GameState). Both machine-forced; read digests from FAILING gate output, never hand-guess. Read current consts from `rules/protocol.rs` (PROTOCOL_VERSION) and `state/hash.rs` (HASH_SCHEMA_VERSION).
+
+The two cards are **mana abilities** (no target, produce mana → CR 605.1a). They therefore must
+lower through `mana_ability_lowering` and activate through **`handle_tap_for_mana`** (mana.rs),
+NOT `handle_activate_ability`. That is the ONLY stackless path (CR 605.3b / 605.5). Getting this
+wrong (routing through the stack-using activated path) would hand opponents a priority window a
+mana ability must never grant — exactly the SR-33 defect.
+
+### Existing mirror to copy: `ActivationZone::Graveyard` (PB-35, Reassembling Skeleton)
+- `ActivationZone` enum — `card_definition.rs:4156` — currently only `Graveyard`. **Add `Hand`.**
+- The graveyard zone-legality branch is in `handle_activate_ability` (`abilities.rs:189-202`) —
+  but that is the STACK path (Reassembling Skeleton's effect is not mana). Our cards are mana, so
+  the analogous check must live in `handle_tap_for_mana`.
+
+### Cost enum & runtime cost structs
+- `Cost` enum — `card_definition.rs:1217`. Has `SacrificeSelf`, `ExileSelf` (battlefield exile,
+  CR 118.12), `DiscardSelf` (Channel, hand-discard). **Add `Cost::ExileSelfFromHand`** — self-exile
+  from HAND as an activation cost (the mana-ability analog of `DiscardSelf`).
+- Runtime `ActivationCost` struct (stack-path cost) — `game_object.rs:~288-340`. Has `sacrifice_self`,
+  `discard_self`, `exile_self`, `exert`, `life_cost`. **Add `exile_self_from_hand: bool`** (mirrors
+  `discard_self`) so the flatten function `crates/engine/src/testing/replay_harness.rs:~3989`
+  (`Cost::DiscardSelf => ac.discard_self = true`) stays exhaustive over `Cost`. (Our cards use the
+  mana path, not this struct, but the `Cost` match must handle the new variant.)
+- Runtime `ManaAbility` struct — `game_object.rs:172`. Has `requires_tap`, `sacrifice_self`,
+  `mana_cost`, `life_cost`, `scaled_amount`, `activation_condition`. **Add
+  `exile_self_from_hand: bool`** — the flag `handle_tap_for_mana` reads to switch to the
+  hand-zone-exile payment path.
+
+### Mana-ability lowering (`crates/engine/src/testing/replay_harness.rs`)
+- `mana_ability_cost_components` (line 3711) — walks the `Cost`. It currently **rejects**
+  `Cost::ExileSelf | ExileFromHand | DiscardSelf | ...` (line 3746-3748) because "TapForMana has no
+  payload for them." **For `ExileSelfFromHand` this is FALSE** — the source IS `self`, no extra
+  ObjectId payload is needed (identical to `SacrificeSelf`, which IS accepted). **Add a
+  `Cost::ExileSelfFromHand => acc.exile_self_from_hand = true` arm.**
+- **KEY HAZARD — the no-tap guard (line 3760):** `if !acc.requires_tap { return None; }`. A card in
+  HAND cannot tap (CR 302 — only permanents on the battlefield tap). Simian/Elvish have **no `{T}`**
+  in their cost. So this guard would reject them. **Relax it: a cost with `exile_self_from_hand`
+  is lowerable without `requires_tap`** (the SR-34 "decline no-tap cost" rule guarded against free
+  repeatable battlefield abilities — an exile-from-hand cost is inherently one-shot and self-consuming,
+  so the seam that rule closed does not apply). Justify against CR 605.1a in the plan.
+- `mana_ability_lowering` (line 3786) copies the components onto the `ManaAbility`. **Add
+  `ma.exile_self_from_hand = components.exile_self_from_hand;`**.
+- `try_as_tap_mana_ability` (line 3816) handles `Effect::AddMana` → `mana_pool_to_ability`. `Add {R}` /
+  `Add {G}` are single-color → already handled. No change needed there (but verify the `requires_tap`
+  it sets is overwritten by the components — it is, at line 3798).
+- `enrich_spec_from_def` mana-ability loop (~2117-2155) — calls `mana_ability_lowering`; propagates
+  the returned `ManaAbility` into `mana_abilities` and excludes it from `activated_abilities` (same
+  predicate). Verify the exclusion still fires for our cards.
+
+### `handle_tap_for_mana` (`crates/engine/src/rules/mana.rs:37`) — the core change
+Current flow: step 3 rejects `obj.zone != Battlefield`; step 4 rejects `obj.controller != player`;
+step 6 taps if `requires_tap`; step 7 pays `sacrifice_self` (moves source to graveyard, CR 400.7).
+**New branch when `ability.exile_self_from_hand`:**
+1. **Zone legality (replaces steps 3-4):** source must be in `ZoneId::Hand(owner)` and `obj.owner == player`
+   (a hand card's `controller` is the owner; use `owner`, mirroring the Channel/graveyard checks in
+   `handle_activate_ability` which check `obj.owner`). **Reject if on battlefield** — this is decoy A.
+   (Decoy B — a battlefield-only mana ability with source in hand — is already rejected by the
+   existing step-3 battlefield check, which stays the default for non-`exile_self_from_hand` abilities.)
+2. **Skip tap** (step 6 is gated on `requires_tap`, which is false — already correct). Also the
+   summoning-sickness / already-tapped checks live inside that gate, so they are correctly skipped.
+3. **Pay the exile cost** (analogous to step 7 `sacrifice_self`): move source to `ZoneId::Exile`
+   via `state.move_object_to_zone(source, ZoneId::Exile)` BEFORE producing mana. CR 400.7: the
+   card becomes a new object in exile; `source` is a dead ObjectId afterward. Emit an appropriate
+   event (check for an existing `GameEvent` exile/zone-change variant — mirror what `Cost::ExileSelf`
+   emits in `handle_activate_ability`).
+4. **Produce mana** (steps 8+) — unchanged; `requires_tap` is false so the mana-production
+   replacement (step 7b, gated on `requires_tap`) and the WhenTappedForMana trigger (step 10,
+   gated on `requires_tap`) are correctly **skipped** (CR 106.12 "tap for mana" — exiling from hand
+   is not tapping, so Nyxbloom/Mana Reflection do NOT multiply it, and Forbidden-Orchard-style
+   "whenever tapped for mana" triggers do NOT fire). Confirm this reading vs oracle/CR in the plan.
+5. **Priority retained, `players_passed` unchanged** (step 11 — already the invariant of this fn).
+
+### Hashing
+- `Cost::ExileSelfFromHand` — add a hash arm wherever `Cost` variants are hashed (grep `Cost::ExileSelf`
+  / `Cost::DiscardSelf` in `crates/engine/src/state/hash.rs`).
+- `ActivationZone::Hand` — hash arm next to `ActivationZone::Graveyard => 0u8` at `hash.rs:5352`
+  (use `1u8`).
+- `ManaAbility.exile_self_from_hand` and `ActivationCost.exile_self_from_hand` — add to their
+  `HashInto` impls.
+
+### Wire bumps (verify — read digests from FAILING gate output, never hand-guess)
+- **HASH_SCHEMA_VERSION**: the runtime `ManaAbility` / `ActivationCost` live inside `GameState`, so a
+  new bool field reaches the hash closure → HASH bump likely machine-forced. Read current from
+  `state/hash.rs`.
+- **PROTOCOL_VERSION / PROTOCOL_SCHEMA_FINGERPRINT**: `Cost` and `ActivationZone` are in the card DSL,
+  which is inside the SR-8 wire type closure (Characteristics → Effect → DSL). Adding a `Cost`
+  variant + `ActivationZone` variant is a wire-shape change → PROTOCOL bump likely machine-forced.
+  Read current from `rules/protocol.rs`. **Command::TapForMana is UNCHANGED** (no new payload — the
+  source-in-hand is identified by ObjectId exactly as a battlefield source is), so the wire *frame*
+  shape is unchanged; only the transitive DSL closure changes.
 
 ## COORDINATOR SCOPING DECISIONS (constraints for planner/runner)
-1. Scope = the 2 eligible flips + honest Jitte note (+ OOS seed for Jitte's trigger blocker). Do NOT attempt Jitte's trigger-variant work.
-2. Reuse `ModeSelection.mode_targets` — do NOT invent a parallel per-mode-target field on Activated.
-3. `Effect::Choose` stays a gated stub (effect_choose_gate). Flipped defs MUST use `modes: Some(ModeSelection)` and MUST NOT retain `Effect::Choose` anywhere (the gate walks the serde tree and will catch it).
-4. Decoy discipline: the pinning test MUST fail if the UNCHOSEN mode resolves. A decoy target only mode-1 could legally affect, with mode-0 chosen, must remain untouched after resolution. Also add the reverse (choose mode-1, mode-0's target untouched).
-5. Verify `matches_filter` actually honors `exclude_colors` before relying on it for Goblin Cratermaker's colorless filter (CLAUDE.md warns several TargetFilter fields are silently ignored). If NOT honored, that is a secondary in-scope fix OR Goblin Cratermaker stays partial with a truthful note — planner decides + justifies.
-6. LKI persistence: mode choice must survive an intervening state change between activation and resolution (add a test where something changes on the board between activation and resolution and the chosen mode still resolves).
-
-## PLAN RESOLUTIONS (2026-07-18)
-- **SacrificeSelf approach: (a) — resolve chosen mode into `embedded_effect` at activation.** resolution.rs:1841 is left UNCHANGED (recon correction: the WIP's "replace at resolution mirroring Triggered" is approach (b), NOT chosen). Both cards are choose-exactly-one, so the single chosen mode's `DeclaredTarget` LOCAL indices == global (one slice); `stack_obj.targets` holds that slice, `ctx.targets` at resolution is that slice. Multi-mode+mode_targets is hard-rejected (flag-don't-extend, mirrors casting Escalate+mode_targets reject).
-- **exclude_colors IS honored** (effects/mod.rs:8249, cast-time enforced per tests/rules/targeting.rs:966; doom_blade/shriekmaw/snuff_out ship it). Goblin Cratermaker colorless filter = pure def fix, no engine work.
-- **Wire bumps: PROTOCOL 11→12, HASH 49→50** (read exact digests from failing protocol_schema/hash_schema gates).
-- **Two corpus/test-wide mechanical surfaces flagged**: DSL `modes: None,` on ~600–800 def literals (brace-match script; do NOT sed `once_per_turn` — shared with Triggered); `modes_chosen: vec![],` on ~180 `Command::ActivateAbility` literals. Runtime `ActivatedAbility.modes` is Default-absorbed (low churn).
-
-## Steps (planner fills detail in pb-plan-EF7.md)
-plan_file: memory/primitives/pb-plan-EF7.md
-plan_complete: true
-
-## Implementation (DONE 2026-07-18, worker scutemob-108)
-
-- [x] Change 1 — DSL: `AbilityDefinition::Activated::modes: Option<ModeSelection>`
-      (`crates/card-types/src/cards/card_definition.rs`).
-- [x] Change 2 — runtime `ActivatedAbility::modes` (`crates/card-types/src/state/game_object.rs`).
-- [x] Change 3 — `Command::ActivateAbility::modes_chosen: Vec<usize>` (`crates/engine/src/rules/command.rs`).
-- [x] Change 4 — dispatch thread-through (`crates/engine/src/rules/engine.rs`).
-- [x] Change 5 — `enrich_spec_from_def` propagation (`crates/engine/src/testing/replay_harness.rs`).
-- [x] Change 6 — `handle_activate_ability` mode validation + per-mode target split + effect
-      bake (`crates/engine/src/rules/abilities.rs`) — approach (a), resolution.rs UNCHANGED
-      (confirmed: `ActivatedAbility` resolution arm untouched).
-- [x] Change 7 — hash arms (DSL + runtime) (`crates/engine/src/state/hash.rs`).
-- [x] Change 8 — corpus-wide `modes: None,` on 772 `AbilityDefinition::Activated {}` def
-      literals across 499 files (brace-matching Python script; 2 files hand-excluded and
-      hand-authored: goblin_cratermaker.rs, cankerbloom.rs). One extra fix:
-      `bootleggers_stash.rs` (a raw runtime `ActivatedAbility` literal via `AddActivatedAbility`).
-- [x] Change 9 — `modes_chosen: vec![],` on ~200 `Command::ActivateAbility {}` literals
-      (test files, `random_bot.rs`, `tui/input.rs`, `replay_harness.rs` translate site).
-- [x] Change 10 — `modes: None,` on test/engine-side `AbilityDefinition::Activated` /
-      `ActivatedAbility` literals not in card-defs (~53 files via brace-matching script
-      with pattern-vs-literal detection + function-return-type exclusion).
-- [x] Change 11 — exhaustive matches verified unchanged (`StackObjectKind` in
-      `stack_view.rs` / `view_model.rs`) — confirmed via `cargo build --workspace`.
-- [x] Wire bumps: PROTOCOL 11→12 (fingerprint `05eaa04b...`), HASH 49→50 (decl
-      `3812156d...`, stream `76ebf655...`) — both read from FAILING gate output, history
-      rows appended, frozen-prefix digests re-pinned.
-- [x] Card fixes: `goblin_cratermaker.rs` + `cankerbloom.rs` → `Completeness::Complete`
-      (real `modes: Some(ModeSelection)`, no `Effect::Choose` remaining).
-      `umezawas_jitte.rs` note rewritten + **OOS-EF7-1** filed
-      (`memory/card-authoring/w-pb2-engine-findings-2026-07-17.md`, EF-W-PB2-4 closed there too).
-- [x] Fixed collateral test: `effect_choose_gate::sr33_demoted_cards_carry_truthful_markers`
-      (Cankerbloom removed from the "must stay known_wrong" roster).
-- [x] Tests: `crates/engine/tests/primitives/pb_ef7_modal_activated.rs` (11 tests, all CR-cited),
-      registered in `tests/primitives/main.rs`. Non-vacuity verified by two canary breaks
-      (always-bake-mode-0; delete `exclude_colors`) — both reddened the expected tests, reverted.
-
-**Gates**: `cargo build --workspace` clean; `cargo test --all` 3416 passed / 0 failed;
-`cargo clippy --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean;
-`tools/check-defs-fmt.sh` clean.
-
-## Fix phase (DONE 2026-07-18, worker scutemob-108)
-
-Applied `memory/primitives/pb-review-EF7.md` findings (verdict: needs-fix, no HIGH,
-2 MEDIUM + 3 LOW; all addressed).
-
-- [x] MEDIUM 1 — `test_601_2b_modal_choice_survives_intervening_change` did not
-      discriminate approach (a) from a hypothetical re-derivation at resolution (the
-      old intervening change was an orthogonal p2 life bump). Rewritten: a SECOND
-      colorless nonland permanent (a clone of the original target's
-      characteristics via `test_util::add_object`) is added to the battlefield
-      AFTER activation but BEFORE resolution; asserts the frozen target is
-      destroyed and the new decoy survives. Non-vacuity proven by a canary that
-      made `resolve_effect_target_list_indexed`'s `DeclaredTarget` arm prefer the
-      live decoy over the frozen target — reddened as expected, reverted.
-- [x] MEDIUM 2 — added 3 synthetic-ability tests covering previously-unexercised
-      `handle_activate_ability` validation branches (`crates/engine/src/rules/abilities.rs:342-427`):
-      `test_700_2d_duplicate_mode_rejected_when_disallowed` (CR 700.2d),
-      `test_700_2a_mode_count_bounds_rejected` (min_modes/max_modes, both halves),
-      `test_700_2c_multi_mode_with_mode_targets_rejected` (the multi-mode +
-      `mode_targets` hard-reject — rewritten with real legal targets per chosen
-      mode so the guard, not a target-count mismatch, is what's on trial). Each
-      asserts no cost paid (`status.tapped` unchanged) via a pre-clone snapshot.
-      All 3 non-vacuity-proven by disabling the corresponding guard (`if false && …`),
-      confirming red, then reverting.
-- [x] LOW — added `test_700_2a_mode_with_no_legal_target_rejected` (optional finding
-      5): mode 1 with no target supplied and none legal on board is rejected, no
-      cost paid.
-- [x] LOW — `goblin_cratermaker.rs` oracle_text corrected to "This creature deals 2
-      damage to target creature." (verified against `cards.sqlite`); `completeness_deviation_scan`
-      still passes.
-- [x] LOW — `umezawas_jitte.rs` stale header comment + `TODO(PB-37)` rewritten to
-      reference PB-EF7 / OOS-EF7-1 and the real surviving blocker (combat-damage-to-
-      any-recipient trigger), without touching the `known_wrong` note itself.
-
-**Gates (fix phase)**: `cargo test -p mtg-engine --test primitives pb_ef7_modal_activated`
-15/15 passed; `cargo test --all` all green; `cargo clippy --all-targets -- -D warnings`
-clean; `cargo fmt --all -- --check` clean; `tools/check-defs-fmt.sh` clean (1792 defs).
-
-phase: done (pending coordinator review)
+1. **Scope = the 2 eligible flips** (Simian + Elvish Spirit Guide) + the recorded sweep. No other
+   cards. Do not widen to Chrome Mox / Gemstone Caverns / Foretell.
+2. **Path = mana-ability lowering → `handle_tap_for_mana` (stackless).** This is non-negotiable
+   (acceptance criterion 1, CR 605.1a/605.3b/605.5). Do NOT route these through the stack-using
+   `handle_activate_ability`.
+3. **Single source of truth for "this is a hand-exile cost" = `Cost::ExileSelfFromHand`** (mirrors how
+   `Cost::DiscardSelf` alone drives Channel's hand activation — no redundant `activation_zone` needed
+   to *drive* behavior). **Still add `ActivationZone::Hand`** to the enum (task asks for the concept;
+   keeps the enum symmetric and future-proofs a non-mana hand ability) and have the two defs carry
+   `activation_zone: Some(ActivationZone::Hand)` to document intent — but the engine's mana-lowering
+   and legality key off the **cost**, so there is no state to keep in sync. Planner: confirm this is
+   the cleanest design or propose better with CR justification.
+4. **Decoys must fail on exactly the zone check, both directions** (criterion 1): (A) same card on
+   battlefield cannot use the from-hand ability; (B) card in hand cannot activate a battlefield-only
+   mana ability. Plus CR 400.7 object-identity assertion across the exile.
+5. PROTOCOL/HASH bumps only if a gate machine-forces them; read the new digest from the failing gate,
+   justify each in the commit + here.

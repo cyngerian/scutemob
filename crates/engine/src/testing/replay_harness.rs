@@ -2277,6 +2277,7 @@ pub fn enrich_spec_from_def(
                     exert: false,
                     life_cost: 0,
                     sacrifice_exclude_self: false,
+                    exile_self_from_hand: false,
                 },
                 description: "Outlast (CR 702.107a)".to_string(),
                 effect: Some(Effect::AddCounter {
@@ -3678,6 +3679,7 @@ struct ManaAbilityCost {
     sacrifice_self: bool,
     mana_cost: Option<ManaCost>,
     life_cost: u32,
+    exile_self_from_hand: bool,
 }
 /// SR-34 (CR 605.1a): decompose a `Cost` into the components a mana ability can pay
 /// through `Command::TapForMana { player, source, ability_index }`. Returns `None` if
@@ -3734,6 +3736,13 @@ fn mana_ability_cost_components(cost: &Cost) -> Option<ManaAbilityCost> {
                 true
             }
             Cost::Sequence(costs) => costs.iter().all(|c| walk(c, acc)),
+            // PB-EF8 (CR 605.1a): a from-hand exile-self cost IS lowerable — the source
+            // is `self`, identified by `Command::TapForMana`'s ObjectId, exactly like
+            // the already-accepted `SacrificeSelf`. No caller-supplied payload needed.
+            Cost::ExileSelfFromHand => {
+                acc.exile_self_from_hand = true;
+                true
+            }
             // Not lowerable: needs a caller-supplied ObjectId (Sacrifice(filter),
             // RemoveCounter, DiscardCard) or is a hand/self-exile alt-cost shape
             // (DiscardSelf, ExileSelf, ExileFromHand, Forage, Exert) that
@@ -3753,11 +3762,21 @@ fn mana_ability_cost_components(cost: &Cost) -> Option<ManaAbilityCost> {
         sacrifice_self: false,
         mana_cost: None,
         life_cost: 0,
+        exile_self_from_hand: false,
     };
     if !walk(cost, &mut acc) {
         return None;
     }
-    if !acc.requires_tap {
+    // PB-EF8 (CR 605.1a / CR 400.7): relax the no-tap guard for an
+    // `exile_self_from_hand` cost. The SR-34 guard below declines a *no-tap* cost
+    // because such a cost has no exhaustion mechanism and would register a free,
+    // repeatable, stackless mana ability (Elvish/Simian Spirit Guide were the exact
+    // seam it closed). An `exile_self_from_hand` cost is inherently one-shot and
+    // self-consuming — the source leaves hand and becomes a dead ObjectId (CR 400.7),
+    // so it cannot be activated again — so the seam does not apply. This relaxation is
+    // scoped to *only* this flag: a `Cost::Mana`-only or `SacrificeSelf`-only no-tap
+    // cost (Food Chain) is still declined below.
+    if !acc.requires_tap && !acc.exile_self_from_hand {
         // SR-34 review Finding 2: decline to lower a no-tap cost. See the doc comment
         // above for the seam this leaves closed and how to re-open it deliberately.
         return None;
@@ -3799,6 +3818,7 @@ fn mana_ability_lowering(
     ma.sacrifice_self = components.sacrifice_self;
     ma.mana_cost = components.mana_cost;
     ma.life_cost = components.life_cost;
+    ma.exile_self_from_hand = components.exile_self_from_hand;
     // SR-37 / SF-10 (CR 605.1a + CR 602.5b): carry an "activate only if ..." restriction
     // into the ManaAbility. CR 605.1a keeps a conditioned ability a mana ability (so it is
     // still lowered), but the condition must be enforced at activation — `handle_tap_for_mana`
@@ -3993,6 +4013,7 @@ fn flatten_cost_into(cost: &Cost, ac: &mut ActivationCost) {
         // component and this walk is recursive (CR 118.3 / 119.4).
         Cost::PayLife(n) => ac.life_cost += *n,
         Cost::ExileFromHand { .. } => {} // pitch is a spell alt cost, not an activation cost
+        Cost::ExileSelfFromHand => ac.exile_self_from_hand = true,
         Cost::Exert => ac.exert = true,
         Cost::RemoveCounter { counter, count } => {
             ac.remove_counter_cost = Some((counter.clone(), *count));

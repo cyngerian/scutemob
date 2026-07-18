@@ -495,6 +495,7 @@ fn test_ward_triggers_for_activated_ability_targeting() {
             exert: false,
             life_cost: 0,
             sacrifice_exclude_self: false,
+            exile_self_from_hand: false,
         },
         description: "{T}: Destroy target creature".to_string(),
         effect: Some(Effect::DestroyPermanent {

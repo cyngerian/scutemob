@@ -78,6 +78,7 @@ fn equip_ability(generic_mana: u32) -> ActivatedAbility {
             exert: false,
             life_cost: 0,
             sacrifice_exclude_self: false,
+            exile_self_from_hand: false,
         },
         description: format!("Equip {{{}}}", generic_mana),
         effect: Some(Effect::AttachEquipment {

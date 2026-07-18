@@ -260,6 +260,7 @@ fn test_split_second_blocks_activated_abilities() {
                 exert: false,
                 life_cost: 0,
                 sacrifice_exclude_self: false,
+                exile_self_from_hand: false,
             },
             description: "{T}: Does something".to_string(),
             effect: None,

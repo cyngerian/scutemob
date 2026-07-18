@@ -1259,6 +1259,13 @@ pub enum Cost {
     /// designation is cleared (CR 701.43b: expires during that untap step regardless of
     /// how many times it was exerted before then).
     Exert,
+    /// CR 118 + CR 400.7 + CR 605.1a: exile the source card **from hand** as an
+    /// activation cost (PB-EF8). The from-hand mana-ability analog of `DiscardSelf`
+    /// (Channel, CR 702.34) — differs in that the card is exiled, not discarded, and
+    /// the effect is mana produced stacklessly. Drives mana-ability lowering
+    /// (`mana_ability_cost_components`) and the from-hand zone-legality branch in
+    /// `handle_tap_for_mana`; not a stack-path cost.
+    ExileSelfFromHand,
 }
 /// Required additional cost on a spell card definition (CR 118.8).
 ///
@@ -3891,6 +3898,7 @@ pub fn food_token_spec(count: u32) -> TokenSpec {
                 exert: false,
                 life_cost: 0,
                 sacrifice_exclude_self: false,
+                exile_self_from_hand: false,
             },
             description: "{2}, {T}, Sacrifice this token: You gain 3 life.".to_string(),
             effect: Some(Effect::GainLife {
@@ -3944,6 +3952,7 @@ pub fn clue_token_spec(count: u32) -> TokenSpec {
                 exert: false,
                 life_cost: 0,
                 sacrifice_exclude_self: false,
+                exile_self_from_hand: false,
             },
             description: "{2}, Sacrifice this token: Draw a card.".to_string(),
             effect: Some(Effect::DrawCards {
@@ -4000,6 +4009,7 @@ pub fn blood_token_spec(count: u32) -> TokenSpec {
                 exert: false,
                 life_cost: 0,
                 sacrifice_exclude_self: false,
+                exile_self_from_hand: false,
             },
             description: "{1}, {T}, Discard a card, Sacrifice this token: Draw a card.".to_string(),
             effect: Some(Effect::DrawCards {
@@ -4156,6 +4166,11 @@ pub enum TimingRestriction {
 pub enum ActivationZone {
     /// Ability can only be activated while the source is in its owner's graveyard.
     Graveyard,
+    /// CR 602.2 (PB-EF8): opt-in exception marker for a hand-activated ability.
+    /// Decorative for mana abilities (those are driven by `Cost::ExileSelfFromHand`);
+    /// reserved for a future non-mana hand-activated stack ability, analogous to
+    /// `Graveyard`.
+    Hand,
 }
 // ── Trigger Zone ──────────────────────────────────────────────────────────────
 /// Zone where a triggered ability monitors for events.
