@@ -1,87 +1,85 @@
-# Primitive WIP: PB-EF3b — granted keyword-triggers fire (Melee / Battle Cry / Annihilator)
+# Primitive WIP: PB-EF4 — TriggeringCreature as effect subject/source
 
-batch: PB-EF3b
-title: Synthesize the keyword-derived triggered ability when a trigger-keyword (Melee, Battle Cry, Annihilator) is granted by a continuous effect (LayerModification::AddKeyword), not only from printed keywords. Closes EF-W-MISS-3.
-task: scutemob-104
-branch: feat/pb-ef3b-granted-keyword-triggers-fire-meleebattle-cryannihil
+batch: PB-EF4
+title: Add EffectFilter::TriggeringCreature (continuous-effect subject = the just-triggered creature) and an optional source: Option<EffectTarget> on Effect::DealDamage (the triggering permanent as damage source, honoring its characteristics for lifelink/infect/prevention/doubling). Closes EF-W-PB2-6 (≡ EF-W-MISS-5) and EF-W-PB2-7.
+task: scutemob-105
+branch: feat/pb-ef4-triggeringcreature-as-effect-subjectsource-ef-w-pb2-6
 started: 2026-07-18
-phase: done
-plan_file: memory/primitives/pb-plan-EF3b.md
+phase: plan
+plan_file: memory/primitives/pb-plan-EF4.md
 
 ## Source findings
-- memory/card-authoring/w-miss-roster-2026-07-17.md — EF-W-MISS-3 (line 174: "Granted keyword-trigger is a silent no-op")
-- memory/primitives/ef-batch-plan-2026-07-17.md — PB-EF3b section (line 267)
+- memory/primitives/ef-batch-plan-2026-07-17.md — PB-EF4 section (line ~290), Cluster B (§1a)
+- memory/card-authoring/w-pb2-engine-findings-2026-07-17.md — EF-W-PB2-6 (line 101), EF-W-PB2-7 (line 115)
+- memory/card-authoring/w-miss-roster-2026-07-17.md — EF-W-MISS-5 (exact dedup of PB2-6)
 
-## Recon (done by coordinator/worker before planning) — VERIFY before implementing
+## Recon (done by coordinator before planning) — VERIFY before implementing
 
-### The bug
-- crates/engine/src/state/builder.rs synthesizes a derived TriggeredAbilityDef for each
-  PRINTED keyword: Annihilator (~478-505), Battle Cry (~506-539), Melee (~602-627). These land
-  in the object's base triggered_abilities.
-- crates/engine/src/rules/layers.rs:1165 LayerModification::AddKeyword(kw) does
-  chars.keywords.insert(kw) and NOTHING else. A granted trigger-keyword never gets a derived
-  TriggeredAbilityDef, so the trigger silently never fires. Static/evasion keywords (flying,
-  haste) work because they need no derived trigger.
+### Two gaps, one PB
+1. **EF-W-PB2-6 ≡ EF-W-MISS-5** — `EffectFilter` (crates/card-types/src/state/continuous_effect.rs:67)
+   has no `TriggeringCreature`. So "when a creature enters, IT gains <keyword> until end of turn"
+   (a continuous effect granted to the entering creature) is inexpressible. `EffectTarget` already
+   HAS `TriggeringCreature` (point effects), but `EffectFilter` (continuous) does not.
+2. **EF-W-PB2-7** — `Effect::DealDamage { target, amount }` (crates/card-types/src/cards/card_definition.rs:1330)
+   always sources from `ctx.source`. So "when another permanent enters, IT deals X damage" (entering
+   permanent as damage source) is inexpressible. Dragon Tempest is never a Dragon, so it misattributes
+   on 100% of firings (currently `inert`).
 
-### Keyword model = SET (crucial for no-double-fire)
-- Characteristics.keywords is OrdSet<KeywordAbility> (game_object.rs:768, card_definition.rs:3736).
-  Redundant instances collapse to ONE entry. So printed Melee + granted Melee = one Melee in
-  the set. CR 702.121b / 702.91b / 702.86b ("each instance triggers separately") is NOT
-  representable under this model -- reconcile to EXACTLY ONE derived trigger per trigger-keyword.
-  Consistent with how the engine already models keyword redundancy. Document as a known modeling
-  limitation; the no-double-fire decoy proves single fire.
+### Threading already exists (PB-EF3)
+- `EffectContext.triggering_creature_id: Option<ObjectId>` exists (effects/mod.rs:120), threaded
+  StackObject→EffectContext at resolution.rs:2109 / 2202. Set at abilities.rs:7930
+  (`stack_obj.triggering_creature_id = trigger.entering_object_id`). BUILD ON THIS — do not duplicate.
 
-### How triggers are collected (why appending to RESOLVED chars is the right layer)
-- collect_triggers_for_event (abilities.rs ~6112) reads expect_characteristics(state, obj_id)
-  (post-layers), iterates resolved_chars.triggered_abilities, pushes a PendingTrigger with
-  embedded_effect: trigger_def.effect.clone() and ability_index = idx-into-resolved.
-  => Appending the synthesized def to RESOLVED characteristics makes Battle Cry (ForEach) and
-     Annihilator (SacrificePermanents) resolve normally via their embedded effect. Melee has
-     effect: None and needs kind-tagging (below).
+### EffectFilter::TriggeringCreature resolution site
+- `EffectFilter::Source` is resolved to `SingleObject(ctx.source)` at `ApplyContinuousEffect` execution
+  time and also handled in layers.rs:653 (returns false in the static-registration matcher) and
+  replacement.rs:2058. The new `TriggeringCreature` variant should resolve to
+  `SingleObject(ctx.triggering_creature_id)` at the SAME ApplyContinuousEffect execution site (mirror
+  Source / DeclaredTarget). If triggering_creature_id is None, the continuous effect applies to nothing
+  (no panic). hash.rs (~1857) needs a new discriminant byte.
 
-### The Melee tagging hazard (raw vs resolved ability_index)
-- In GameEvent::AttackersDeclared (abilities.rs ~3652-3668) the Melee kind-tag reads RAW
-  obj.characteristics.triggered_abilities.get(t.ability_index) (via state.fizzle_object), but
-  t.ability_index indexes RESOLVED chars. For a granted-only Melee the synthesized def exists
-  only in resolved, so the raw lookup returns None -> tag skipped -> Melee fires as a plain
-  effect:None trigger and does nothing. FIX: switch the Melee tag (and audit the Myriad ~3590
-  and Provoke ~3613 tags for the same raw-read) to expect_characteristics(state, t.source).
-  For PRINTED keywords raw==resolved at that index, so no regression.
+### DealDamage source override
+- Executor: effects/mod.rs:271. Every damage-source read in this arm currently uses `ctx.source`:
+  apply_damage_doubling, apply_damage_prevention, damage_source_characteristics (infect/lifelink),
+  damage_source_controller (lifelink gain), and the `source:` field of DamageDealt/PoisonCountersGiven
+  events. Compute ONE `let damage_source_id = source.as_ref().map(|t| resolve to single ObjectId via
+  resolve_effect_target_list, first).unwrap_or(ctx.source)` at the top of the arm and thread it through
+  every one of those reads. `EffectTarget::TriggeringCreature` is already resolvable, so
+  `source: Some(EffectTarget::TriggeringCreature)` works out of the box.
+- `source: None` = existing behaviour (ctx.source). Full suite must prove no regression.
 
-### Proposed fix shape
-1. Extract shared helper derived_attack_trigger_for_keyword(kw: &KeywordAbility) ->
-   Option<TriggeredAbilityDef> returning the exact def builder.rs builds (Melee / BattleCry /
-   Annihilator(n); None otherwise). Call from builder.rs (printed) AND from layers reconciliation
-   (granted) so shapes never drift.
-2. Post-layer reconciliation in calculate_characteristics (layers.rs): after all layers applied,
-   for each trigger-keyword in final chars.keywords, if chars.triggered_abilities has no derived
-   def for it (identify by description prefix + effect signature), append
-   derived_attack_trigger_for_keyword(kw). Handles printed (present -> skip), granted-only
-   (absent -> append), printed+granted (present -> skip, no double). Humility/RemoveAllAbilities
-   clear keywords -> nothing appended -> correct.
-3. Fix the Melee (and audit Myriad/Provoke) tag reads to resolved chars.
-4. NO new DSL type, NO schema bump expected. PROVE it: if PROTOCOL_SCHEMA_FINGERPRINT / HASH
-   gates stay green with no version edit, no bump. Justify in writing if a bump proves necessary.
+### Blast radius
+- `Effect::DealDamage` is constructed at ~110 sites across 90 card-defs files + 4 in engine/card-types.
+  Adding a required `source` field means adding `source: None,` at every construction site AND updating
+  the executor match-arm pattern to bind `source`. Mechanical but large; must keep check-defs-fmt.sh green.
+- Wire: both changes reach the SR-8 fingerprint closure (EffectFilter variant + DealDamage shape) →
+  **PROTOCOL 8→9** forced. HASH: DealDamage/EffectFilter appear in the GameState hash closure via
+  Characteristics→Effect → likely **HASH 46→47** forced too. Let the machine gates force both; re-pin
+  PROTOCOL_SCHEMA_FINGERPRINT + sentinel hashes; append history rows.
 
-### Candidate cards (verify chain vs oracle via MCP -- feedback_verify_full_chain)
-- Neither adriana*.rs nor skyhunter*.rs exists yet -> author fresh, not flip.
-- Adriana, Captain of the Guard {3}{R}{W} Legendary Creature -- Human Knight, 4/4.
-  "Melee. Other creatures you control have melee." Printed Melee on self + unconditional
-  continuous anthem granting Melee to other creatures you control.
-- Skyhunter Strike Force {2}{W} Creature -- Cat Knight, 2/2. "Flying. Melee. Lieutenant --
-  As long as you control your commander, other creatures you control have melee." CHECK whether
-  a "control your commander" (Lieutenant) conditional-grant condition primitive exists. If not,
-  Skyhunter is BLOCKED on that condition -> truthfully mark, don't ship wrong.
-  (Olivia Crimson Bride out of scope -- bespoke trigger, not a keyword grant.)
+### Candidates (8, discounted ~4-5) — chain-verify each vs oracle via MCP (feedback_verify_full_chain)
+- dragon_tempest (BOTH halves — flip `inert`): "Whenever Dragon Tempest or another Dragon enters, that
+  creature deals X damage..." (DealDamage source=triggering) + "...and gains haste" (if flying → haste,
+  TriggeringCreature filter). VERIFY exact oracle.
+- scourge_of_valkas (flip): DealDamage source override (the "or another Dragon enters" half).
+- ogre_battledriver (flip): TriggeringCreature filter ("that creature gains haste, +2/+0 UEOT").
+- shared_animosity (verify — may be a ForEach count effect, not a TriggeringCreature filter — chain-verify!).
+- Atarka World Render, Fervent Charge, Goblin Piledriver, Muxus Goblin Grandee — chain-verify; several
+  may be OUT of scope (Goblin Piledriver is a self-pump P/T static; Muxus is a search/reveal — likely
+  NOT this primitive). Demote honestly where a clause is still inexpressible. NO gated-stub effects.
 
-## Steps (from plan pb-plan-EF3b.md — unchecked)
-- [x] Change 1: add shared helper `derived_attack_trigger_for_keyword` in builder.rs (verbatim defs)
-- [x] Change 2: route builder's 3 inline printed-keyword blocks through the helper
-- [x] Change 3: post-layer reconciliation in calculate_characteristics (L435→436), description-dedup
-- [x] Change 4: fix Melee + Myriad + Provoke tag reads raw→resolved (calculate_characteristics, None-tolerant)
-- [x] Change 5: confirm NO exhaustive-match sites (cargo build --workspace)
-- [x] Card: adriana_captain_of_the_guard.rs NEW → Complete (printed Melee + OtherCreaturesYouControl anthem)
-- [x] Card: skyhunter_strike_force.rs NEW → partial (Flying+Melee; Lieutenant omitted; OOS-EF3b-1)
-- [x] Tests: crates/engine/tests/primitives/pb_ef3b_granted_keyword_triggers.rs (+ mod line), 8 tests w/ CR + non-vacuity
-- [x] Prove NO schema bump (PROTOCOL/HASH untouched, gates green)
-- [x] File OOS-EF3b-1, OOS-EF3b-2
+## Phase log
+- 2026-07-18 plan: dispatched primitive-impl-planner.
+- 2026-07-18 plan DONE: `memory/primitives/pb-plan-EF4.md` written. Roster-recall TODO sweep found
+  2 forced adds beyond the 8-card brief (dreadhorde_invasion, warstorm_surge) → **7 ship** (was ~4-5
+  est): dragon_tempest (flip inert, BOTH primitives), scourge_of_valkas (flip partial, DealDamage
+  source), ogre_battledriver (flip inert, TriggeringCreature ×2), atarka_world_render (NEW),
+  fervent_charge (NEW), dreadhorde_invasion (flip partial, TriggeringCreature lifelink grant),
+  warstorm_surge (flip partial, DealDamage source + PowerOf(TriggeringCreature)). BLOCKED:
+  shared_animosity (count EffectAmount missing → file OOS-EF4-1), goblin_piledriver + muxus (OUT OF
+  SCOPE — self-attack Source / ETB reveal, neither PB-EF4 primitive is the blocker). terror_of_the_peaks
+  = deliberate contrast (source=ctx.source, keep source:None). Wire: PROTOCOL 8→9, HASH 46→47 (both
+  machine-forced). ~115 DealDamage construction sites need `source: None,` (3 override cards get
+  `Some(TriggeringCreature)`). serde(default) on source: YES (codebase convention; does NOT reduce
+  blast radius). Exhaustive-match compile-forced sites: layers.rs matches_filter, hash.rs EffectFilter
+  (disc 35) + Effect::DealDamage. Next: impl phase.
