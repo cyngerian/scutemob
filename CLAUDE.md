@@ -14,7 +14,7 @@
 > Detailed PB-by-PB handoffs, hazards, and seed inventories live in `memory/workstream-state.md`.
 > Worker sessions: append detail there, not here. CLAUDE.md tracks current snapshot only.
 
-- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage **1,071/1,782 = 60.1%** per `tools/authoring-report.py`; **EF queue ACTIVE (`memory/primitives/ef-batch-plan-2026-07-17.md`) — PB-EF1 SHIPPED `scutemob-99`, EF-13 Option A in flight `scutemob-101`**; **PB-AC chain COMPLETE — AC0..AC9 all shipped**; **marker sweep COMPLETE — `scutemob-88`**; **SR-33..38 chain COMPLETE**; **W-PB2 + W-EMPTY + W-MISS COMPLETE — `scutemob-95`/`96`/`97`**)
+- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage **1,070/1,782 = 60.0%** per `tools/authoring-report.py`; **EF queue ACTIVE (`memory/primitives/ef-batch-plan-2026-07-17.md`) — PB-EF1 SHIPPED `scutemob-99`, EF-13 RESOLVED Option A `scutemob-101`, PB-EF2 in flight `scutemob-102`**; **PB-AC chain COMPLETE — AC0..AC9 all shipped**; **marker sweep COMPLETE — `scutemob-88`**; **SR-33..38 chain COMPLETE**; **W-PB2 + W-EMPTY + W-MISS COMPLETE — `scutemob-95`/`96`/`97`**)
 - **Invariant #9 is machine-enforced (SR-2).** `CardDefinition.completeness` (`Complete` by
   Default) marks a def `Inert` / `Partial` / `KnownWrong`; `validate_deck` rejects any
   non-`Complete` card with `DeckViolation::IncompleteCard`. `CardRegistry::try_new` errors on
@@ -33,7 +33,7 @@
   accessors, gated on the `test-util` feature (self dev-dependency). **`cargo build
   --workspace` is the only gate that proves the seal** — `test --all` and `clippy
   --all-targets` enable `test-util` workspace-wide via feature unification. It is a CI step.
-- **Tests**: **3344 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
+- **Tests**: **3346 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
   — and `fmt` here means `cargo fmt --check` **plus** `tools/check-defs-fmt.sh`, which is the only one
   of the two that looks at the 1,748 card defs (SR-35)
 - **CI**: **LIVE and green** since 2026-07-10 (SR-1, merge `e9742dc2`) — single Ubuntu job (fmt + clippy + `build --workspace` + full tests) on push/PR to main + workflow_dispatch; rust-cache@v2, 45m timeout. **Toolchain pinned (SR-11, `scutemob-63`)**: `rust-toolchain.toml` pins exact stable `1.95.0` and CI reads that `channel` from the file (no more floating to latest stable), so local `clippy -D warnings` is an authoritative CI preview. SR remediation track: original SR-1..16 all DONE 2026-07-10; a 2026-07-11 re-audit of the remediated baseline filed **SR-17..SR-32**, all DONE 2026-07-14..16 (16/16 collected; full record: `docs/sr-remediation-plan.md`).
@@ -54,7 +54,12 @@
   Closed EF-W-PB2-1, EF-W-EMPTY-1, EF-W-MISS-2, marker EF-4/EF-5, OOS-TS-2. Coverage
   59.8% → **60.1%** (1,071/1,782). Same sitting: **swan_song demoted** Complete → known_wrong
   (`scutemob-100`, EF-W-MISS-1 — Bird minted for the wrong player; PB-EF2 fixes it).
-  **EF-13 decided: Option A** (reclassify + gate), dispatched as `scutemob-101`. Prior: **Marker sweep** (`scutemob-88`) — the AC8/AC9 follow-up both workers asked
+  **EF-13 RESOLVED — Option A shipped** (`scutemob-101`, merge `0096ca65`): the no-behaviour
+  `Partial` class enumerated from the compiled registry was **101** defs (drifted from the filed
+  105; 0 `KnownWrong` members), all flipped to `inert` with notes preserved;
+  `card_registry_gate` now forbids `Partial`/`KnownWrong` on a def where
+  `registers_no_behavior` is true, with its own non-vacuity canary. Headline clean coverage
+  unchanged (1,070 = 60.0%); buckets honest: todo 655→554, empty 57→158. Prior: **Marker sweep** (`scutemob-88`) — the AC8/AC9 follow-up both workers asked
   for. All **742** non-`Complete` markers audited against the current engine (29 agent batches,
   full coverage, 0 missing). **42% were wrong**: 208 `stale-blocker-shipped` (note cites a
   capability that now exists) + 100 `wrong-or-vague-note`; only 434 still valid. Applied: **13
@@ -274,10 +279,13 @@
   `memory/card-authoring/sr36-engine-findings-2026-07-17.md` (**SG-1 MEDIUM: the simulator's
   `LegalActionProvider` ignores `life_cost` — harmless while the cost was dropped, now it
   offers bots unpayable actions**).
-- **Last Updated**: 2026-07-18 (**PB-EF1 collected, `scutemob-99` merge `6202ab81`** — see "Last
-  shipped" above; 3344 tests, HASH 44 / PROTOCOL 6, coverage 60.1%. Also: swan_song demote
-  `scutemob-100` merge `615c4319`; EF-13 Option A dispatched as `scutemob-101`. Next per
-  `ef-batch-plan-2026-07-17.md`: PB-EF2 → PB-EF3 → PB-EF3b → capability batches EF4..EF12.)
+- **Last Updated**: 2026-07-18 (**EF-13 Option A collected, `scutemob-101` merge `0096ca65`** —
+  101 no-behaviour `partial` defs → `inert`, registry gate + canary added; 3346 tests, coverage
+  60.0% unchanged, buckets todo 554 / empty 158. Earlier same day: **PB-EF1 collected,
+  `scutemob-99` merge `6202ab81`** — see "Last shipped" above; HASH 44 / PROTOCOL 6. Also:
+  swan_song demote `scutemob-100` merge `615c4319`. In flight: **PB-EF2** (`scutemob-102`,
+  CreateToken recipient — un-demotes swan_song). Next per `ef-batch-plan-2026-07-17.md`:
+  PB-EF3 → PB-EF3b → capability batches EF4..EF12.)
   Earlier: 2026-07-17 (**EF triage collected, `scutemob-98` merge `ef82ae45`** — all 20
   post-wave findings (EF-W-PB2-1..8, EF-W-EMPTY-1, EF-W-MISS-1..10, EF-13) deduped and classified;
   **`memory/primitives/ef-batch-plan-2026-07-17.md` is the active engine-primitive queue**:
