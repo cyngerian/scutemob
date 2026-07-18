@@ -62,8 +62,10 @@ SCOPE (own SBA-removal reconcile site) — flag as follow-up.
       `cargo clippy --all-targets -- -D warnings` clean. `cargo fmt --check` +
       `tools/check-defs-fmt.sh` clean.
 
-phase: review  # implementation complete, awaiting /review (primitive-impl-reviewer -- not
-run by this runner per its brief). Follow-up flagged for coordinator: new OOS seed
-candidate — karrthus_tyrant_of_jund's Indefinite-duration GainControl never reverts at all
-(broader than OOS-EF9-1's WhileSourceOnBattlefield gap); also WhileSourceOnBattlefield
-gain-control reversion remains explicitly out of scope per the plan.
+phase: reviewed  # /review (primitive-impl-reviewer, Opus): engine fix clean & collectable;
+1 MEDIUM (doc-guidance only, fixed). karrthus_tyrant_of_jund is NOT a follow-up bug — its
+Indefinite duration is CORRECT (permanent control, CR 611.2a; Scryfall ruling: control
+"doesn't wear off during the cleanup step ... doesn't expire if Karrthus leaves"). Roster
+count of 2 (sarkhan_vol + zealous_conscripts) is correct. Misleading test doc comment
+corrected. NO karrthus OOS seed filed. Genuine deferral carried forward: WhileSourceOnBattlefield
+gain-control reversion (remaining half of OOS-EF9-1, different SBA-removal path).

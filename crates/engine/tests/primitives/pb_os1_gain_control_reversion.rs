@@ -96,15 +96,13 @@ fn collect_from_ability(ability: &AbilityDefinition, out: &mut Vec<EffectDuratio
 ///
 /// FINDING (deviation from the plan's preliminary roster): the registry walk shows only
 /// **2** cards in scope -- `sarkhan_vol` and `zealous_conscripts` -- NOT 3. The plan's
-/// listed third card, `karrthus_tyrant_of_jund`, models its "gain control ... for as long
-/// as you control [this]" ability with `EffectDuration::Indefinite` (see
-/// `karrthus_tyrant_of_jund.rs`'s own comment: "no stated duration"), not
-/// `UntilEndOfTurn`/`UntilYourNextTurn` -- so it is untouched by either expiry pass this
-/// PB fixes. Indefinite never reverts at all (a distinct, out-of-scope bug: karrthus's
-/// "for as long as" duration arguably belongs on `WhileYouControlSource`, matching
-/// Dragonlord Silumgar/Olivia Voldaren's modeling of the same oracle-text pattern -- but
-/// that is a card-def authoring judgment call, not this PB's engine fix, and is flagged
-/// as a follow-up rather than silently changed here).
+/// listed third card, `karrthus_tyrant_of_jund`, models its gain-control ability with
+/// `EffectDuration::Indefinite`, which is **correct and not a bug**: Karrthus's oracle has
+/// no "for as long as" clause -- it grants *permanent* control (CR 611.2a), and the
+/// Scryfall ruling confirms the control "lasts indefinitely ... doesn't wear off during
+/// the cleanup step, and it doesn't expire if Karrthus leaves the battlefield." A
+/// never-reverting `Indefinite` duration is the intended model; it is out of scope for
+/// this PB precisely because it should never be reverted by either expiry pass.
 #[test]
 fn pb_os1_gain_control_reversion_roster() {
     let mut affected: Vec<String> = Vec::new();
@@ -152,8 +150,8 @@ fn pb_os1_gain_control_reversion_roster() {
         "zealous_conscripts should be in the roster"
     );
     // karrthus_tyrant_of_jund is intentionally NOT asserted here -- see the FINDING in
-    // this test's doc comment. It uses EffectDuration::Indefinite, out of scope for
-    // this PB's fix.
+    // this test's doc comment. It uses EffectDuration::Indefinite (correct: permanent
+    // control, CR 611.2a), which is out of scope for this PB's fix by design.
     assert_eq!(
         affected.len(),
         2,
