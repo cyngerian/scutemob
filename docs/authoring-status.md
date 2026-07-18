@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-18 18:54 UTC  
-**Git:** `051887f2` on `feat/pb-ef10-sacrifice-driven-effectamount-runtime-maxcmc-if-you-`  
+**Generated:** 2026-07-18 20:06 UTC  
+**Git:** `50a83faf` on `feat/pb-ef11-low-yield-singletons-wheeldraw-greatest-discarded-sp`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -19,25 +19,25 @@ and what is intentionally NOT in it.**
 
 | Metric | Count | Δ since last run |
 | --- | ---: | ---: |
-| Card def files on disk | 1,796 | +4 |
+| Card def files on disk | 1,798 | +2 |
 | Authoring-plan target universe (snapshot 2026-03-10) | 1,636 | · |
-| Plan cards with a def file (any-face match) | 1,492 | +4 |
-| Plan cards still missing a def file | 144 | -4 |
+| Plan cards with a def file (any-face match) | 1,494 | +2 |
+| Plan cards still missing a def file | 142 | -2 |
 | Bonus defs (on disk, outside plan) | 321 | · |
-| Effective coverage vs plan target | **111%** (1,813 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 61.1% | 1,098 | +5 |
-| With TODO markers | 544 | -1 |
+| Effective coverage vs plan target | **111%** (1,815 / 1,636) | — |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 61.2% | 1,100 | +2 |
+| With TODO markers | 544 | · |
 | Empty `abilities: vec![]` placeholders | 154 | · |
-| Total TODO lines across all defs | 958 | -3 |
+| Total TODO lines across all defs | 958 | · |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 46 | 1,763 |
-| last 30 days | 46 | 2,937 |
-| last 90 days | 46 | 2,977 |
-| last 1 year | 1,819 | 3,360 |
+| last 7 days | 50 | 1,764 |
+| last 30 days | 50 | 2,938 |
+| last 90 days | 50 | 2,978 |
+| last 1 year | 1,823 | 3,361 |
 
 ## Bonus defs outside the plan
 
@@ -71,7 +71,7 @@ are blocked on engine primitives.
 | `token-create` | 148 / 155 | 95% | 82 | 50 | 16 |
 | `land-etb-tapped` | 138 / 138 | 100% | 116 | 22 | 0 |
 | `other` | 108 / 131 | 82% | 70 | 31 | 7 |
-| `modal-choice` | 72 / 105 | 69% | 36 | 24 | 12 |
+| `modal-choice` | 73 / 105 | 70% | 37 | 24 | 12 |
 | `mana-land` | 92 / 92 | 100% | 63 | 28 | 1 |
 | `body-only` | 60 / 70 | 86% | 32 | 12 | 16 |
 | `removal-destroy` | 56 / 56 | 100% | 34 | 18 | 4 |
@@ -97,7 +97,7 @@ are blocked on engine primitives.
 | `tutor` | 11 / 11 | 100% | 9 | 1 | 1 |
 | `removal-bounce` | 10 / 10 | 100% | 6 | 3 | 1 |
 | `static-enchantment` | 1 / 8 | 12% | 1 | 0 | 0 |
-| `discard-effect` | 3 / 7 | 43% | 3 | 0 | 0 |
+| `discard-effect` | 4 / 7 | 57% | 4 | 0 | 0 |
 | `scry-surveil` | 7 / 7 | 100% | 3 | 4 | 0 |
 | `aura` | 6 / 6 | 100% | 3 | 2 | 1 |
 | `etb-trigger` | 6 / 6 | 100% | 1 | 4 | 1 |
@@ -151,14 +151,6 @@ you which kind of next-step work would unblock the group.
 | Spore Frog | `spore_frog` | clean |
 | Whirlpool Warrior | `whirlpool_warrior` | clean |
 
-#### `discard-effect` — 3 / 7 (43%), authored split: 3 clean / 0 todo / 0 empty — **unwritten**
-
-| Card | Slug | Bucket |
-| --- | --- | --- |
-| Fateful Showdown | `fateful_showdown` | clean |
-| Tolarian Winds | `tolarian_winds` | clean |
-| Wheel of Fortune | `wheel_of_fortune` | clean |
-
 #### `untap-phase` — 6 / 13 (46%), authored split: 5 clean / 0 todo / 1 empty — **unwritten**
 
 | Card | Slug | Bucket |
@@ -200,7 +192,7 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 587 | -3 |
+| OTHER (unclassified) | 587 | · |
 | DSL gap (unspecified) | 122 | · |
 | attack trigger (self / generic) | 25 | · |
 | TriggerCondition::* missing variant | 17 | · |
@@ -265,6 +257,9 @@ tyvar_jubilant_brawler: // TODO: static — creatures you control can activate a
 ## Recent card-touching commits
 
 ```
+50a83faf scutemob-112: PB-EF11 COMMIT 2 — spell-only TargetSpellWithSingleTarget + Misdirection (PROTOCOL 17, HASH 55)
+135ef9e6 scutemob-112: PB-EF11 COMMIT 1 — WheelDraw::GreatestDiscarded + Windfall (PROTOCOL 16, HASH 54)
+9418011b scutemob-111: PB-EF10 COMMIT 3 — Condition::SacrificeFired + version bump (PROTOCOL 15, HASH 53)
 051887f2 scutemob-111: PB-EF10 COMMIT 2 — runtime search cap (max_cmc_amount + ManaValueOfSacrificedCreature)
 ad9755ff scutemob-111: PB-EF10 COMMIT 1 — SacrificedCreatureLki data-model migration + ToughnessOfSacrificedCreature
 eba28604 scutemob-110: PB-EF9 — EffectDuration::WhileYouControlSource (EF-W-PB2-5)
@@ -287,14 +282,11 @@ bfdda877 Merge branch 'main' into feat/pb-ef1-excludeself-enforcement-sweep-hono
 34ded5ee scutemob-100: demote swan_song Complete -> known_wrong (EF-W-MISS-1)
 60e9eb00 scutemob-99: PB-EF1 cards + exclude_self regression tests
 eb9d7e34 scutemob-97: W-MISS — author 33 missing-file cards Complete (coverage 59.0% -> 59.8%)
-205282d3 scutemob-96: W-EMPTY — author authorable empty-placeholder defs
-5321ebef scutemob-95: W-PB2 batch 5 — targeting/alt-cost/misc (8 Complete) + boggart demotion + test fixes
-7ee2a68d scutemob-95: W-PB2 batch 4 — triggers (10 Complete)
 ```
 
 ## Missing card-defs sidecar
 
-The full list of 144 plan cards still missing on disk is at 
+The full list of 142 plan cards still missing on disk is at 
 `docs/authoring-status-missing.txt` (tab-separated `group<TAB>name`, sorted by group). 
 Use it as a batch-author worklist.
 

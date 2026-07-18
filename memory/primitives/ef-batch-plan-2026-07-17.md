@@ -193,8 +193,8 @@ changes behaviour:
 | EF-W-PB2-3 | MED | granted `any_color` ManaAbility → real color choice (not `Colorless`) | elven_chorus (+ future granted-any-color) |
 | EF-W-MISS-6 | LOW* | ~~card-invokable `Effect::TransformSelf`~~ ✅ DONE (scutemob-106); Battle/Super Nova SPLIT → OOS-EF5-1/2 | 11 body-only DFCs + Invasion of Ikoria + Sephiroth |
 | EF-W-MISS-7 | LOW | `ToughnessOfSacrificedCreature`, runtime `max_cmc`, "if you do" sacrifice `Condition` | Momentous Fall, Birthing Ritual, Eldritch Evolution, Victimize |
-| EF-W-MISS-8 | LOW | `WheelDraw` "greatest number discarded" variant | Windfall |
-| EF-W-MISS-9 | LOW | spell-only single-target `TargetRequirement` | Misdirection |
+| EF-W-MISS-8 | LOW | ~~`WheelDraw` "greatest number discarded" variant~~ ✅ DONE (scutemob-112) | Windfall |
+| EF-W-MISS-9 | LOW | ~~spell-only single-target `TargetRequirement`~~ ✅ DONE (scutemob-112) | Misdirection |
 
 \* EF-W-MISS-6 is severity LOW but **the highest single-PB card yield** (13 candidates) —
 severity ≠ priority. It is a capability gap, sequenced by yield below.
@@ -511,10 +511,22 @@ demote is not a PB and should not wait in the queue.
   15 unit tests (3 decoys, all proven non-vacuous). Coverage delta: see
   `python3 tools/authoring-report.py` output in the collection report.
 
-### PB-EF11 — low-yield singletons  ·  capability (cleanup)
+### PB-EF11 — low-yield singletons  ·  capability (cleanup)  ·  ✅ DONE (`scutemob-112`, 2026-07-18)
 - **Findings**: EF-W-MISS-8 (`WheelDraw` "greatest discarded" — Windfall), EF-W-MISS-9
-  (spell-only single-target `TargetRequirement` — Misdirection).
+  (spell-only single-target `TargetRequirement` — Misdirection). **Both CLOSED.**
 - **Discounted ship**: **~2** (one card each). Bundle to amortize the PB overhead.
+- **Shipped: 2/2 as planned.** COMMIT 1 — `WheelDraw::GreatestDiscarded` (CR 121.1): the
+  `Effect::WheelHand` executor restructured into a two-pass dispose-all-then-draw-max branch
+  keyed on the draw variant (`ThatMany`/`Fixed` byte-identical); **Windfall** Complete.
+  PROTOCOL 15→16, HASH 53→54. COMMIT 2 — spell-only
+  `TargetRequirement::TargetSpellWithSingleTarget` (CR 115.7a/115.7b/115.10): validates
+  zone==Stack, kind ∈ {`Spell`, `MutatingCreatureSpell`}, exactly one declared target, +
+  self-target prevention; **Misdirection** Complete (Pitch alt cost — exile a blue card, no
+  life — + `Effect::ChangeTargets { must_change: true }`). PROTOCOL 16→17, HASH 54→55.
+  Two non-vacuous decoys per feature. Coverage 61.0% → **61.2%** (1,100/1,798; +2 Complete).
+  3466 tests. **Also folded in a pre-existing main-breakage fix** (9 `imbl`/`equivalent`
+  `.get(id)`→`.get(*id)` sites — fresh dep resolve picks `equivalent 1.0.2`; Cargo.lock is
+  untracked). /review: see `memory/primitives/pb-review-EF11.md`.
 
 ### PB-EF12 — granted `any_color` ManaAbility color choice  ·  capability (blocked on design)
 - **Findings**: EF-W-PB2-3.
@@ -541,7 +553,7 @@ demote is not a PB and should not wait in the queue.
 | **PB-EF8** ✅ DONE | capability | PB2-8 | **2 shipped** | PROTOCOL+HASH |
 | **PB-EF9** ✅ DONE | capability | PB2-5 | **2 shipped** | PROTOCOL+HASH |
 | **PB-EF10** ✅ DONE | capability | MISS-7 | **3 shipped + 2 forced-adds** | PROTOCOL+HASH |
-| PB-EF11 | capability | MISS-8, MISS-9 | ~2 | PROTOCOL |
+| **PB-EF11** ✅ DONE | capability | MISS-8, MISS-9 | **2 shipped** | PROTOCOL+HASH (×2) |
 | PB-EF12 | capability (gated) | PB2-3 | ~1–2 | maybe |
 
 **Total discounted ship across the queue: ~37–47 flips/authors** (from ~62 candidates),
