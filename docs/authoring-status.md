@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-18 05:16 UTC  
-**Git:** `60e9eb00` on `feat/pb-ef1-excludeself-enforcement-sweep-honor-the-field-at-ever`  
+**Generated:** 2026-07-18 05:28 UTC  
+**Git:** `bfdda877` on `feat/pb-ef1-excludeself-enforcement-sweep-honor-the-field-at-ever`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -19,16 +19,16 @@ and what is intentionally NOT in it.**
 
 | Metric | Count | Δ since last run |
 | --- | ---: | ---: |
-| Card def files on disk | 1,782 | +1 |
+| Card def files on disk | 1,782 | · |
 | Authoring-plan target universe (snapshot 2026-03-10) | 1,636 | · |
-| Plan cards with a def file (any-face match) | 1,476 | +1 |
-| Plan cards still missing a def file | 160 | -1 |
+| Plan cards with a def file (any-face match) | 1,476 | · |
+| Plan cards still missing a def file | 160 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **110%** (1,797 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 60.1% | 1,071 | +6 |
-| With TODO markers | 654 | -5 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 60.0% | 1,070 | -1 |
+| With TODO markers | 655 | +1 |
 | Empty `abilities: vec![]` placeholders | 57 | · |
-| Total TODO lines across all defs | 973 | -10 |
+| Total TODO lines across all defs | 973 | · |
 
 ## Authoring activity (git, by window)
 
@@ -200,7 +200,7 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 598 | -1 |
+| OTHER (unclassified) | 598 | · |
 | DSL gap (unspecified) | 123 | · |
 | attack trigger (self / generic) | 26 | · |
 | TriggerCondition::* missing variant | 17 | · |
@@ -208,7 +208,7 @@ the next thing to triage when the classifier table is grown.
 | Cost::* missing variant | 16 | · |
 | replacement effect missing | 14 | · |
 | EffectAmount::* missing variant | 12 | · |
-| sacrifice as cost | 11 | -6 |
+| sacrifice as cost | 11 | · |
 | combat-damage-to-player trigger | 10 | · |
 | interactive / hidden-info choice | 10 | · |
 | can't / must block-attack | 7 | · |
@@ -266,6 +266,8 @@ tyvar_jubilant_brawler: // TODO: static — creatures you control can activate a
 ## Recent card-touching commits
 
 ```
+bfdda877 Merge branch 'main' into feat/pb-ef1-excludeself-enforcement-sweep-honor-the-field-at-ever
+34ded5ee scutemob-100: demote swan_song Complete -> known_wrong (EF-W-MISS-1)
 60e9eb00 scutemob-99: PB-EF1 cards + exclude_self regression tests
 eb9d7e34 scutemob-97: W-MISS — author 33 missing-file cards Complete (coverage 59.0% -> 59.8%)
 205282d3 scutemob-96: W-EMPTY — author authorable empty-placeholder defs
@@ -289,8 +291,6 @@ e2b1eb02 scutemob-88: /review fixes — unwrap 8 notes, 2 kind corrections, gate
 1de82c7c scutemob-88: marker sweep — audit all 742 non-Complete markers vs current engine
 8ca8d2bc SR-10: migrate im 15.1 → imbl 7.0 (maintained fork)
 b6f748f8 SR-6: extract card-defs and card-types crates — compile isolation for 1,749 defs
-6c6d579e SR-2: mark 28 more known-wrong defs found by review (MEDIUM-1)
-98a7a6a7 SR-2: registry gate for invariant #9 — completeness markers + duplicate CardId detection
 ```
 
 ## Missing card-defs sidecar

@@ -32,7 +32,7 @@ use mtg_engine::testing::replay_harness::enrich_spec_from_def;
 use mtg_engine::{
     all_cards, card_name_to_id, process_command, AbilityDefinition, AttackTarget, CardId,
     CardRegistry, CardType, Command, CounterType, Effect, GameEvent, GameState, GameStateBuilder,
-    ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerId, Step, SubType, TypeLine, ZoneId,
+    ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerId, Step, SubType, Target, TypeLine, ZoneId,
     HASH_SCHEMA_VERSION,
 };
 
@@ -777,6 +777,78 @@ fn yawgmoth_cannot_sacrifice_itself() {
 }
 
 #[test]
+fn yawgmoth_sacrifices_another_creature_and_resolves() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let defs = all_defs();
+    // No mana needed — Yawgmoth's sacrifice ability costs Pay 1 life + Sacrifice.
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry())
+        .object(enrich(
+            p1,
+            "Yawgmoth, Thran Physician",
+            ZoneId::Battlefield,
+            &defs,
+        ))
+        .object(ObjectSpec::creature(p1, "Sac Victim", 1, 1).in_zone(ZoneId::Battlefield))
+        .object(ObjectSpec::creature(p2, "Counter Target", 3, 3).in_zone(ZoneId::Battlefield))
+        .object(ObjectSpec::card(p1, "Library Top").in_zone(ZoneId::Library(p1)))
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+    let yawg_id = find_obj(&state, "Yawgmoth, Thran Physician");
+    let victim_id = find_obj(&state, "Sac Victim");
+    let target_id = find_obj(&state, "Counter Target");
+    let idx = sac_ability_index(&state, yawg_id);
+    let hand_before = hand_size(&state, p1);
+
+    let (state, _) = process_command(
+        state,
+        Command::ActivateAbility {
+            player: p1,
+            source: yawg_id,
+            ability_index: idx,
+            targets: vec![Target::Object(target_id)],
+            discard_card: None,
+            sacrifice_target: Some(victim_id), // ANOTHER creature — legal
+            x_value: None,
+        },
+    )
+    .expect("Yawgmoth sacrificing another creature is legal");
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    assert!(
+        on_battlefield(&state, "Yawgmoth, Thran Physician"),
+        "Yawgmoth survives"
+    );
+    assert!(
+        in_graveyard(&state, "Sac Victim", p1),
+        "the other creature is sacrificed"
+    );
+    assert_eq!(
+        hand_size(&state, p1),
+        hand_before + 1,
+        "Yawgmoth draws a card on resolution"
+    );
+    // The -1/-1 counter landed on the target creature (up-to-one target).
+    assert_eq!(
+        state
+            .objects()
+            .get(&target_id)
+            .unwrap()
+            .counters
+            .get(&CounterType::MinusOneMinusOne)
+            .copied()
+            .unwrap_or(0),
+        1,
+        "a -1/-1 counter is placed on the chosen target"
+    );
+}
+
+#[test]
 fn commissar_cannot_sacrifice_itself() {
     let p1 = p(1);
     let p2 = p(2);
@@ -816,6 +888,61 @@ fn commissar_cannot_sacrifice_itself() {
         result.is_err(),
         "Commissar's '{{2}}, Sacrifice ANOTHER creature' cost must reject sacrificing herself"
     );
+}
+
+#[test]
+fn commissar_sacrifices_another_creature_and_resolves() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let defs = all_defs();
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry())
+        .object(enrich(
+            p1,
+            "Commissar Severina Raine",
+            ZoneId::Battlefield,
+            &defs,
+        ))
+        .object(ObjectSpec::creature(p1, "Guardsman", 1, 1).in_zone(ZoneId::Battlefield))
+        .object(ObjectSpec::card(p1, "Library Top").in_zone(ZoneId::Library(p1)))
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+    let commissar_id = find_obj(&state, "Commissar Severina Raine");
+    let guardsman_id = find_obj(&state, "Guardsman");
+    let idx = sac_ability_index(&state, commissar_id);
+    add_mana(&mut state, p1, &[(ManaColor::Colorless, 2)]);
+    let life_before = life(&state, p1);
+    let hand_before = hand_size(&state, p1);
+
+    let (state, _) = process_command(
+        state,
+        Command::ActivateAbility {
+            player: p1,
+            source: commissar_id,
+            ability_index: idx,
+            targets: vec![],
+            discard_card: None,
+            sacrifice_target: Some(guardsman_id), // ANOTHER creature — legal
+            x_value: None,
+        },
+    )
+    .expect("Commissar sacrificing another creature is legal");
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    assert!(
+        on_battlefield(&state, "Commissar Severina Raine"),
+        "Commissar survives"
+    );
+    assert!(
+        in_graveyard(&state, "Guardsman", p1),
+        "the other creature is sacrificed"
+    );
+    assert_eq!(life(&state, p1), life_before + 2, "You gain 2 life");
+    assert_eq!(hand_size(&state, p1), hand_before + 1, "and draw a card");
 }
 
 // ── Card-level: Korvold ETB sacrifices another permanent ─────────────────────

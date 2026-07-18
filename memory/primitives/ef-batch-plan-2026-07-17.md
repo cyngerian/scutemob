@@ -17,15 +17,14 @@ type: plan
 > 5→6**, machine-forced. Cards flipped Complete: éomer, izoni, korvold, yawgmoth,
 > commissar_severina_raine, + new copperhorn_scout (6). disciple_of_freyalise stayed
 > `partial` — a SECOND blocker surfaced: **new finding EF-EF1-A** below. Coverage
-> 59.8% → **60.1%** (1,065→1,071 clean). 3342 tests. See §5.
+> **60.0%** post-merge (1,070 clean of 1,782): PB-EF1 flipped/authored **+6** (éomer,
+> izoni, korvold, yawgmoth, commissar, copperhorn), and the scutemob-100 swan_song demote
+> merged in from main is **-1**, net +5 over the 1,065 pre-EF1 baseline. 3344 tests. See §5.
 >
-> **⚠ swan_song demote (EF-W-MISS-1) STILL NOT DONE — coordinator action outstanding.**
-> Verified 2026-07-18: `swan_song.rs` has NO `completeness` field, so it still ships
-> `Complete` while giving the Bird token to the caster instead of the countered spell's
-> controller — the live-wrong `Complete` def / invariant #9 violation the §2 "IMMEDIATE"
-> one-liner was meant to remove. It is **out of scope for PB-EF1** (scutemob-99, which is
-> the exclude_self sweep), so it was left untouched rather than folded in. **Coordinator:
-> apply the §2 demote before/with PB-EF2.**
+> **swan_song demote (EF-W-MISS-1) DONE by scutemob-100** (merge `615c4319`, out of band
+> from PB-EF1). `swan_song.rs` now ships `known_wrong`; the live-wrong `Complete` integrity
+> violation is removed. The real fix (token recipient) remains **PB-EF2**. This branch
+> merged main in to pick up that change so its coverage numbers are accurate.
 >
 > **Next dispatch: PB-EF2** (`CreateToken` recipient — fixes swan_song properly) per §2.
 
