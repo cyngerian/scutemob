@@ -162,7 +162,7 @@ fn enrich(
 #[test]
 fn test_ef1_hash_schema_version_live_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 50u8,
+        HASH_SCHEMA_VERSION, 51u8,
         "PB-EF1 added ActivationCost.sacrifice_exclude_self (HASH 43->44). Update this \
          sentinel and the state/hash.rs history block together; the authoritative check \
          is the SR-17 machine gate in tests/core/hash_schema.rs."

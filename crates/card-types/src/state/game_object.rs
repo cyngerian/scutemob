@@ -235,6 +235,13 @@ pub struct ManaAbility {
     /// threshold.
     #[serde(default)]
     pub activation_condition: Option<Box<crate::cards::card_definition::Condition>>,
+    /// PB-EF8 (CR 118 + CR 605.1a): if true, this mana ability is activated from the
+    /// owner's **hand** (not the battlefield), and its cost is exiling the source card
+    /// rather than tapping it. `handle_tap_for_mana` reads this flag to switch to the
+    /// from-hand exile-cost payment path (mirrors `sacrifice_self`). Lowered from
+    /// `Cost::ExileSelfFromHand` by `mana_ability_lowering`. Defaults `false`.
+    #[serde(default)]
+    pub exile_self_from_hand: bool,
 }
 impl ManaAbility {
     /// Convenience constructor: tap this permanent to add one mana of `color`.
@@ -343,6 +350,13 @@ pub struct ActivationCost {
     /// (`mana_ability_lowering` in `testing/replay_harness.rs`).
     #[serde(default)]
     pub life_cost: u32,
+    /// PB-EF8 (CR 118 + CR 400.7): True if activating this ability requires exiling
+    /// this card from hand as a cost (`Cost::ExileSelfFromHand`). Mirrors
+    /// `discard_self`; set by `flatten_cost_into` so the exhaustive `Cost` match stays
+    /// total. The mana path (`handle_tap_for_mana`) does not read this struct — it
+    /// exists so the stack-path flatten function handles the new `Cost` variant.
+    #[serde(default)]
+    pub exile_self_from_hand: bool,
 }
 /// A non-mana activated ability that uses the stack (CR 602).
 ///

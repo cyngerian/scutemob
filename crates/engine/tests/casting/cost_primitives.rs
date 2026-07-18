@@ -40,6 +40,7 @@ fn remove_counter_cost(counter: CounterType, count: u32) -> ActivationCost {
         exert: false,
         life_cost: 0,
         sacrifice_exclude_self: false,
+        exile_self_from_hand: false,
     }
 }
 
@@ -246,6 +247,7 @@ fn test_remove_counter_cost_in_sequence() {
                 exert: false,
                 life_cost: 0,
                 sacrifice_exclude_self: false,
+                exile_self_from_hand: false,
             },
             description: "{T}, Remove a +1/+1 counter: Gain 1 life.".to_string(),
             effect: Some(Effect::GainLife {

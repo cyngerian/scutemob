@@ -7909,6 +7909,7 @@ fn can_pay_optional_cost(
         | Cost::RemoveCounter { .. }
         | Cost::DiscardSelf
         | Cost::ExileFromHand { .. }
+        | Cost::ExileSelfFromHand
         | Cost::Exert => false,
     }
 }
@@ -7963,6 +7964,7 @@ fn pay_optional_cost(
         | Cost::RemoveCounter { .. }
         | Cost::DiscardSelf
         | Cost::ExileFromHand { .. }
+        | Cost::ExileSelfFromHand
         | Cost::Exert => {
             // Out of PB-AC2 scope -- can_pay_optional_cost never returns true for these,
             // so this arm is unreachable in practice.

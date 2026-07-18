@@ -592,6 +592,7 @@ fn test_hideaway_play_exiled_card() {
             exert: false,
             life_cost: 0,
             sacrifice_exclude_self: false,
+            exile_self_from_hand: false,
         },
         description: "{T}: Play the exiled card without paying its mana cost.".to_string(),
         effect: Some(Effect::Conditional {

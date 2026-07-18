@@ -386,7 +386,7 @@ fn test_pb_lki_power_hash_schema_version_and_determinism() {
 
     // Sub-assertion 1: HASH_SCHEMA_VERSION sentinel.
     assert_eq!(
-        HASH_SCHEMA_VERSION, 50u8,
+        HASH_SCHEMA_VERSION, 51u8,
         "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
     );
 

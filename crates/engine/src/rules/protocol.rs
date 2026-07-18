@@ -127,7 +127,15 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   abilities; EF-W-PB2-4). `ModeSelection` was already in the closure (via
 ///   `AbilityDefinition::Spell`/`Triggered`). The closure's type count is unchanged;
 ///   both `Command` and `AbilityDefinition`'s declared shapes moved, so the digest moves.
-pub const PROTOCOL_VERSION: u32 = 12;
+/// - 13: PB-EF8 (2026-07-18) — `Cost` (reachable via `AbilityDefinition::Activated.cost`)
+///   gains a new unit variant `ExileSelfFromHand` (CR 118 + CR 400.7 + CR 605.1a — a
+///   from-hand mana ability's exile-self activation cost, e.g. Simian/Elvish Spirit
+///   Guide), and `ActivationZone` (reachable via `AbilityDefinition::Activated.activation_zone`)
+///   gains a new unit variant `Hand` (CR 602.2 — decorative marker; the mana-lowering
+///   path keys off `Cost::ExileSelfFromHand` alone, not this field). The closure's type
+///   count is unchanged; both `Cost` and `ActivationZone`'s declared shapes moved, so the
+///   digest moves.
+pub const PROTOCOL_VERSION: u32 = 13;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -145,7 +153,7 @@ pub const PROTOCOL_VERSION: u32 = 12;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "05eaa04bf425a625415c58b3f44e6e75489c90deba14a80f7f99c91369a60cde";
+    "379fb0c4f791138a405b8b47f7efe629c9a870e026db99629da3b709ec83bafa";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -266,6 +274,12 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // PB-EF7 (2026-07-18): Command::ActivateAbility gained modes_chosen;
         // AbilityDefinition::Activated gained modes (see the `- 12:` History line above).
         fingerprint: "05eaa04bf425a625415c58b3f44e6e75489c90deba14a80f7f99c91369a60cde",
+    },
+    ProtocolEpoch {
+        version: 13,
+        // PB-EF8 (2026-07-18): Cost gained ExileSelfFromHand; ActivationZone gained
+        // Hand (see the `- 13:` History line above).
+        fingerprint: "379fb0c4f791138a405b8b47f7efe629c9a870e026db99629da3b709ec83bafa",
     },
 ];
 

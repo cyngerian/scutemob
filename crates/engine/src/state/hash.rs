@@ -445,7 +445,16 @@
 ///   the DSL arm and the `impl HashInto for ActivatedAbility` arm. `decl_fingerprint`
 ///   MOVES (both structs' declared shapes changed); `stream_fingerprint` moves per
 ///   the v40 mechanism.
-pub const HASH_SCHEMA_VERSION: u8 = 50;
+/// - 51: PB-EF8 (2026-07-18) — `ManaAbility` gains `exile_self_from_hand: bool` (CR
+///   118 + CR 605.1a — a from-hand mana ability's exile-self activation cost flag,
+///   e.g. Simian/Elvish Spirit Guide) and `ActivationCost` gains the same field (CR
+///   118 + CR 400.7 — the stack-path flatten function's `Cost` match must stay
+///   total). Fed to `HashInto` right after `activation_condition` on `ManaAbility`
+///   and right after `sacrifice_exclude_self` on `ActivationCost`. Two states
+///   differing only in either field must not hash identically. `decl_fingerprint`
+///   MOVES (a new `#[serde(default)]` field on each struct); `stream_fingerprint`
+///   moves per the v40 mechanism.
+pub const HASH_SCHEMA_VERSION: u8 = 51;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -625,6 +634,16 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // stream's first byte).
         decl_fingerprint: "3812156d90b4e4183b99651ad746afe80007d76fcec72f65f51334052fead97b",
         stream_fingerprint: "76ebf65581a2eb709149713a8ea42f0c44424a731294afc03ef70e27933eb554",
+    },
+    HashSchemaEpoch {
+        version: 51,
+        // PB-EF8 (2026-07-18): ManaAbility and ActivationCost both gained
+        // `exile_self_from_hand: bool` (see the `- 51:` History line above).
+        // decl_fingerprint moves (genuine struct-shape change on two structs);
+        // stream_fingerprint moves per the v40 mechanism (HASH_SCHEMA_VERSION is the
+        // stream's first byte).
+        decl_fingerprint: "796a5ec954a557a1d5a2013b2e300c69182604881a11065bf2f950d64003c385",
+        stream_fingerprint: "773885334e5a0b5c2885ffbcf523c7f1299e8263539feb342e2a7367c7f6bedd",
     },
 ];
 
@@ -1567,6 +1586,9 @@ impl HashInto for ManaAbility {
         // SR-37 (SF-10): two states differing only in a mana ability's activation
         // condition must not hash identically.
         self.activation_condition.hash_into(hasher);
+        // PB-EF8: two states differing only in whether this mana ability is a
+        // from-hand exile-self ability must not hash identically.
+        self.exile_self_from_hand.hash_into(hasher);
     }
 }
 impl HashInto for Characteristics {
@@ -2828,6 +2850,10 @@ impl HashInto for ActivationCost {
         // creature" vs "Sacrifice another creature") would produce identical hashes
         // (the PB-S H1 failure mode).
         self.sacrifice_exclude_self.hash_into(hasher);
+        // PB-EF8 (CR 118 + CR 400.7): exile_self_from_hand field. Must be present or
+        // two ActivationCosts differing only in this flag would produce identical
+        // hashes (the PB-S H1 failure mode).
+        self.exile_self_from_hand.hash_into(hasher);
     }
 }
 impl HashInto for ActivatedAbility {
@@ -5350,6 +5376,7 @@ impl HashInto for ActivationZone {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
             ActivationZone::Graveyard => 0u8.hash_into(hasher),
+            ActivationZone::Hand => 1u8.hash_into(hasher),
         }
     }
 }
@@ -5779,6 +5806,9 @@ impl HashInto for Cost {
             }
             // PB-AC5: CR 701.43 Exert as an activation cost.
             Cost::Exert => 12u8.hash_into(hasher),
+            // PB-EF8: CR 118 + CR 400.7 + CR 605.1a — exile self from hand as an
+            // activation cost (Spirit Guides).
+            Cost::ExileSelfFromHand => 13u8.hash_into(hasher),
         }
     }
 }

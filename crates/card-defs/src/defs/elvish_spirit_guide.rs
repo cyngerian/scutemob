@@ -1,9 +1,12 @@
 // Elvish Spirit Guide — {2}{G}, Creature — Elf Spirit 2/2
 // Exile this creature from your hand: Add {G}.
 //
-// TODO: Cost::ExileFromHand does not exist. The ability should be activatable
-// from hand (activation_zone: Some(Zone::Hand)) with exile-self as cost.
-// Approximated with activation_zone + Effect::Nothing.
+// PB-EF8: `Cost::ExileSelfFromHand` (CR 118 + CR 400.7 + CR 605.1a) lets this mana
+// ability activate from hand, exiling the source card as the cost, producing mana
+// stacklessly through `mana_ability_lowering` -> `handle_tap_for_mana`. Prior def
+// shipped a FREE, repeatable, battlefield-activated "Add {G}" (`Cost::Mana(default)`,
+// `activation_zone: None`) = unbounded infinite mana; replaced here with a faithful
+// one-shot, from-hand, stackless mana ability.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -16,37 +19,25 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: creature_types(&["Elf", "Spirit"]),
-        oracle_text: "Exile this card from your hand: Add {G}.".to_string(),
+        oracle_text: "Exile this creature from your hand: Add {G}.".to_string(),
         power: Some(2),
         toughness: Some(2),
-        abilities: vec![
-            // TODO: Cost::ExileFromHand not in DSL. Needs exile-self-from-hand cost
-            // + AddMana({G}) effect. activation_zone: Hand is correct but cost is wrong.
-            AbilityDefinition::Activated {
-                cost: Cost::Mana(ManaCost::default()),
-                effect: Effect::AddMana {
-                    player: PlayerTarget::Controller,
-                    mana: ManaPool {
-                        green: 1,
-                        ..Default::default()
-                    },
+        abilities: vec![AbilityDefinition::Activated {
+            cost: Cost::ExileSelfFromHand,
+            effect: Effect::AddMana {
+                player: PlayerTarget::Controller,
+                mana: ManaPool {
+                    green: 1,
+                    ..Default::default()
                 },
-                timing_restriction: None,
-                targets: vec![],
-                activation_condition: None,
-                activation_zone: None,
-                once_per_turn: false,
-                modes: None,
             },
-        ],
-        completeness: Completeness::known_wrong(
-            "Oracle: 'Exile this creature from your hand: Add {G}.' Hand activation is \
-             inexpressible — ActivationZone (card_definition.rs:4049) has only Graveyard. The def \
-             currently ships a FREE, repeatable, battlefield-activated 'Add {G}' (cost: \
-             Cost::Mana(default), activation_zone: None) = unbounded infinite mana. Blocked on \
-             ActivationZone::Hand + an exile-self-from-hand cost. Consider abilities: vec![] per \
-             W5 until then.",
-        ),
+            timing_restriction: None,
+            targets: vec![],
+            activation_condition: None,
+            activation_zone: Some(ActivationZone::Hand),
+            once_per_turn: false,
+            modes: None,
+        }],
         ..Default::default()
     }
 }
