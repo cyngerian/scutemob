@@ -41,7 +41,6 @@ fn in_graveyard(state: &GameState, name: &str, owner: PlayerId) -> bool {
         .any(|o| o.characteristics.name == name && o.zone == ZoneId::Graveyard(owner))
 }
 
-#[allow(dead_code)]
 fn on_battlefield(state: &GameState, name: &str) -> bool {
     state
         .objects()
@@ -409,5 +408,267 @@ fn test_momentous_fall_draws_power_gains_toughness() {
         life_after - life_before,
         4,
         "PB-EF10: Momentous Fall should gain 4 life (sacrificed creature's toughness)"
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Sub-gap 2: runtime search cap (max_cmc_amount + ManaValueOfSacrificedCreature)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// CR 202.3/608.2h — direct: ctx carries a sacrificed creature with mana_value=3;
+/// SearchLibrary filter max_cmc_amount = Sum(Fixed(2), ManaValueOfSacrificedCreature)
+/// (cap 5). Library has a MV-5 and a MV-6 creature. Assert MV-5 found, MV-6 not.
+#[test]
+fn test_search_max_cmc_amount_caps_by_runtime_value() {
+    use mtg_engine::effects::{execute_effect, EffectContext};
+    use mtg_engine::{Effect, ManaCost, PlayerTarget, TargetFilter, ZoneTarget};
+
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let mv5 = ObjectSpec::creature(p1, "Five Drop", 5, 5)
+        .with_card_id(CardId("five-drop".to_string()))
+        .with_mana_cost(ManaCost {
+            generic: 5,
+            ..Default::default()
+        })
+        .in_zone(ZoneId::Library(p1));
+    let mv6 = ObjectSpec::creature(p1, "Six Drop", 6, 6)
+        .with_card_id(CardId("six-drop".to_string()))
+        .with_mana_cost(ManaCost {
+            generic: 6,
+            ..Default::default()
+        })
+        .in_zone(ZoneId::Library(p1));
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(CardRegistry::new(vec![]))
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .object(mv5)
+        .object(mv6)
+        .build()
+        .unwrap();
+
+    let mut ctx = EffectContext::new(p1, ObjectId(9999), vec![]);
+    ctx.sacrificed_creature_lki = vec![mtg_engine::SacrificedCreatureLki {
+        power: 0,
+        toughness: 0,
+        mana_value: 3,
+    }];
+
+    let effect = Effect::SearchLibrary {
+        player: PlayerTarget::Controller,
+        filter: TargetFilter {
+            has_card_type: Some(mtg_engine::CardType::Creature),
+            max_cmc_amount: Some(Box::new(EffectAmount::Sum(
+                Box::new(EffectAmount::Fixed(2)),
+                Box::new(EffectAmount::ManaValueOfSacrificedCreature),
+            ))),
+            ..Default::default()
+        },
+        reveal: false,
+        destination: ZoneTarget::Battlefield { tapped: false },
+        shuffle_before_placing: false,
+        also_search_graveyard: false,
+    };
+
+    let _events = execute_effect(&mut state, &effect, &mut ctx);
+
+    assert!(
+        on_battlefield(&state, "Five Drop"),
+        "PB-EF10: MV-5 creature (cap = 2+3 = 5) should be found and placed"
+    );
+    assert!(
+        !on_battlefield(&state, "Six Drop"),
+        "PB-EF10: MV-6 creature exceeds the runtime cap (5) and should NOT be found"
+    );
+}
+
+/// DECOY: assert the found card is exactly MV-5 (= 2 + 3): fails if the `+2` is
+/// dropped (cap 3, MV-5 rejected) OR if the sac MV is dropped (cap 2, MV-5 rejected).
+/// Pins both summands.
+#[test]
+fn test_search_cap_uses_both_terms() {
+    use mtg_engine::effects::{execute_effect, EffectContext};
+    use mtg_engine::{Effect, ManaCost, PlayerTarget, TargetFilter, ZoneTarget};
+
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let mv5 = ObjectSpec::creature(p1, "Exactly Five", 5, 5)
+        .with_card_id(CardId("exactly-five".to_string()))
+        .with_mana_cost(ManaCost {
+            generic: 5,
+            ..Default::default()
+        })
+        .in_zone(ZoneId::Library(p1));
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(CardRegistry::new(vec![]))
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .object(mv5)
+        .build()
+        .unwrap();
+
+    let mut ctx = EffectContext::new(p1, ObjectId(9999), vec![]);
+    ctx.sacrificed_creature_lki = vec![mtg_engine::SacrificedCreatureLki {
+        power: 0,
+        toughness: 0,
+        mana_value: 3,
+    }];
+
+    let effect = Effect::SearchLibrary {
+        player: PlayerTarget::Controller,
+        filter: TargetFilter {
+            has_card_type: Some(mtg_engine::CardType::Creature),
+            max_cmc_amount: Some(Box::new(EffectAmount::Sum(
+                Box::new(EffectAmount::Fixed(2)),
+                Box::new(EffectAmount::ManaValueOfSacrificedCreature),
+            ))),
+            ..Default::default()
+        },
+        reveal: false,
+        destination: ZoneTarget::Battlefield { tapped: false },
+        shuffle_before_placing: false,
+        also_search_graveyard: false,
+    };
+
+    let _events = execute_effect(&mut state, &effect, &mut ctx);
+
+    assert!(
+        on_battlefield(&state, "Exactly Five"),
+        "DECOY: cap must be exactly 2+3=5 — if the +2 term or the sacrificed MV term \
+         is dropped, this MV-5 card would be wrongly rejected"
+    );
+}
+
+/// CR 608.2h — integration: Eldritch Evolution sacrifices an MV-2 creature (cap
+/// 2+2=4); a MV-4 creature is found and put onto the battlefield, a MV-5 is not,
+/// and Eldritch Evolution itself is exiled (not left in the graveyard).
+#[test]
+fn test_eldritch_evolution_finds_up_to_two_plus_sac_mv() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let p3 = p(3);
+    let p4 = p(4);
+    let players = [p1, p2, p3, p4];
+
+    use mtg_engine::CardDefinition;
+    use mtg_engine::{all_cards, card_name_to_id, enrich_spec_from_def, ManaCost};
+    use std::collections::HashMap;
+
+    let cards = all_cards();
+    let defs: HashMap<String, CardDefinition> =
+        cards.iter().map(|d| (d.name.clone(), d.clone())).collect();
+    let registry = CardRegistry::new(cards);
+
+    let evolution = enrich_spec_from_def(
+        ObjectSpec::card(p1, "Eldritch Evolution")
+            .in_zone(ZoneId::Hand(p1))
+            .with_card_id(card_name_to_id("Eldritch Evolution")),
+        &defs,
+    );
+
+    let sac_creature = ObjectSpec::creature(p1, "MV Two Sac", 2, 2)
+        .with_card_id(CardId("mv-two-sac".to_string()))
+        .with_mana_cost(ManaCost {
+            generic: 2,
+            ..Default::default()
+        })
+        .in_zone(ZoneId::Battlefield);
+
+    let mv4 = ObjectSpec::creature(p1, "MV Four Lib", 4, 4)
+        .with_card_id(CardId("mv-four-lib".to_string()))
+        .with_mana_cost(ManaCost {
+            generic: 4,
+            ..Default::default()
+        })
+        .in_zone(ZoneId::Library(p1));
+
+    let mv5 = ObjectSpec::creature(p1, "MV Five Lib", 5, 5)
+        .with_card_id(CardId("mv-five-lib".to_string()))
+        .with_mana_cost(ManaCost {
+            generic: 5,
+            ..Default::default()
+        })
+        .in_zone(ZoneId::Library(p1));
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p3)
+        .add_player(p4)
+        .with_registry(registry)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .object(evolution)
+        .object(sac_creature)
+        .object(mv4)
+        .object(mv5)
+        .build()
+        .unwrap();
+
+    if let Some(ps) = state.players_mut().get_mut(&p1) {
+        ps.mana_pool = ManaPool {
+            colorless: 1,
+            green: 2,
+            ..Default::default()
+        };
+    }
+
+    let evolution_id = find_obj(&state, "Eldritch Evolution");
+    let sac_id = find_obj(&state, "MV Two Sac");
+
+    let (state, _) = process_command(
+        state,
+        Command::CastSpell(Box::new(CastSpellData {
+            player: p1,
+            card: evolution_id,
+            targets: vec![],
+            modes_chosen: vec![],
+            x_value: 0,
+            kicker_times: 0,
+            additional_costs: vec![AdditionalCost::Sacrifice {
+                ids: vec![sac_id],
+                lki: vec![],
+            }],
+            alt_cost: None,
+            convoke_creatures: vec![],
+            improvise_artifacts: vec![],
+            delve_cards: vec![],
+            prototype: false,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+            face_down_kind: None,
+        })),
+    )
+    .expect("Cast Eldritch Evolution should succeed");
+
+    assert!(
+        in_graveyard(&state, "MV Two Sac", p1),
+        "CR 118.8: the MV-2 creature must be sacrificed as additional cost"
+    );
+
+    let state = drain_stack(state, &players);
+
+    assert!(
+        on_battlefield(&state, "MV Four Lib"),
+        "PB-EF10: MV-4 creature (cap = 2+2 = 4) should be found and placed"
+    );
+    assert!(
+        !on_battlefield(&state, "MV Five Lib"),
+        "PB-EF10: MV-5 creature exceeds the runtime cap (4) and should NOT be found"
+    );
+    assert!(
+        !in_graveyard(&state, "Eldritch Evolution", p1)
+            && !on_battlefield(&state, "Eldritch Evolution"),
+        "CR 707/self_exile_on_resolution: Eldritch Evolution should be exiled, not in \
+         the graveyard or battlefield"
     );
 }

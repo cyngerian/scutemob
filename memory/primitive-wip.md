@@ -23,6 +23,16 @@ phase: implement  # plan: memory/primitives/pb-plan-EF10.md (struct SacrificedCr
       distinct from OOS-EF10-1). momentous_fall.rs authored new, Complete. 4 unit tests in
       `pb_ef10_sacrifice_driven_amounts.rs` (incl. 1 decoy, proven non-vacuous by
       revert-and-rerun). `cargo build --workspace` clean.
+- [x] COMMIT 2 — sub-gap 2: `EffectAmount::ManaValueOfSacrificedCreature` (hash disc 23)
+      + `TargetFilter.max_cmc_amount: Option<Box<EffectAmount>>` (Box required — direct
+      `Option<EffectAmount>` created a recursive-type cycle via `EffectAmount::PermanentCount{filter:
+      TargetFilter}`; serde-default so none of the 99 existing `SearchLibrary` def files changed)
+      honored by the `SearchLibrary` executor (runtime cap resolved once per effect, ANDed with
+      the pre-existing static `max_cmc`). eldritch_evolution.rs authored new, Complete — also adds
+      an explicit `Effect::Shuffle` after the search (Harrow precedent) so "then shuffle" is fully
+      modeled, not just noted as a pre-existing gap. 3 more unit tests (incl. 1 decoy pinning both
+      Sum operands, proven non-vacuous by dropping the `+2` term and rerunning — 3 of 7 tests failed
+      as expected, then reverted). `cargo build --workspace` clean; 7/7 pb_ef10 tests green.
 
 ## Oracle text (verified via MCP 2026-07-18)
 - **Momentous Fall** {2}{G}{G} Instant — "As an additional cost to cast this spell, sacrifice a creature. You draw cards equal to the sacrificed creature's power, then you gain life equal to its toughness." Ruling: last known existence checked for power AND toughness. → sub-gap 1. PowerOfSacrificedCreature already exists (see greater_good.rs, lifes_legacy.rs); this needs the toughness twin. Cost-sacrifice path (already captures powers).

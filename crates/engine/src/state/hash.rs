@@ -5099,6 +5099,8 @@ impl HashInto for TargetFilter {
         self.is_tapped.hash_into(hasher);
         // PB-XA2: untapped-state runtime predicate (CR 701.21a).
         self.is_untapped.hash_into(hasher);
+        // PB-EF10: runtime-computed max mana value cap (CR 202.3/608.2h).
+        self.max_cmc_amount.hash_into(hasher);
     }
 }
 impl HashInto for TargetRequirement {
@@ -5369,6 +5371,9 @@ impl HashInto for EffectAmount {
             // PB-EF10 (discriminant 22) — CR 608.2b/608.2i: LKI toughness of the
             // first creature sacrificed as a cost/effect this resolution.
             EffectAmount::ToughnessOfSacrificedCreature => 22u8.hash_into(hasher),
+            // PB-EF10 (discriminant 23) — CR 608.2h/202.3: LKI mana value of the
+            // first creature sacrificed as a cost/effect this resolution.
+            EffectAmount::ManaValueOfSacrificedCreature => 23u8.hash_into(hasher),
         }
     }
 }

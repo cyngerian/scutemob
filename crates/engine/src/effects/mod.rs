@@ -2874,6 +2874,12 @@ fn execute_effect_inner(
         } => {
             // M9+: interactive card search. For M7, deterministic fallback:
             // find the first matching card (by ObjectId, ascending) in the library.
+            // PB-EF10 (CR 202.3/608.2h): resolve the runtime mana-value cap once,
+            // outside the per-player loop (it does not depend on `p`).
+            let runtime_cap: Option<i32> = filter
+                .max_cmc_amount
+                .as_ref()
+                .map(|a| resolve_amount(state, a, ctx));
             let players = resolve_player_target_list(state, player, ctx);
             for p in players {
                 // CR 701.23 / CR 614.1: Check search restriction replacements.
@@ -2895,6 +2901,17 @@ fn execute_effect_inner(
                         (in_lib || in_gy)
                             && matches_filter(&obj.characteristics, filter)
                             && check_has_counter_type(obj, filter)
+                            // PB-EF10: runtime mana-value cap — invisible to matches_filter
+                            // (which only sees Characteristics, not EffectContext). ANDs
+                            // with the static max_cmc already checked above.
+                            && runtime_cap.is_none_or(|cap| {
+                                obj.characteristics
+                                    .mana_cost
+                                    .as_ref()
+                                    .map(|c| c.mana_value() as i32)
+                                    .unwrap_or(0)
+                                    <= cap
+                            })
                     })
                     .map(|(id, _)| *id)
                     .collect();
@@ -7286,6 +7303,14 @@ pub(crate) fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &Eff
                 .map(|l| l.toughness)
                 .unwrap_or(0)
         }
+        // CR 608.2h/202.3: Read the LKI mana value of the first creature sacrificed
+        // as a cost/effect this resolution (PB-EF10 — Eldritch Evolution / Birthing
+        // Ritual: "where X is N plus the sacrificed creature's mana value").
+        EffectAmount::ManaValueOfSacrificedCreature => ctx
+            .sacrificed_creature_lki
+            .first()
+            .map(|l| l.mana_value as i32)
+            .unwrap_or(0),
         // CR 603.10a / CR 113.7a: Read counter count from LKI snapshot captured at
         // trigger-fire time. Returns 0 if no LKI was captured (variant misused on
         // a non-LBA trigger) or if the requested counter type is absent (source died

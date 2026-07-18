@@ -2706,6 +2706,15 @@ pub enum EffectAmount {
     /// Used by Momentous Fall: "you gain life equal to the sacrificed creature's
     /// toughness."
     ToughnessOfSacrificedCreature,
+    /// CR 608.2h/202.3 LKI: the mana value of the (first) creature sacrificed as a
+    /// cost or by a resolution-time effect (PB-EF10). Captured at sacrifice time
+    /// (BEFORE `move_object_to_zone`) and stored in
+    /// `EffectContext.sacrificed_creature_lki`. Returns 0 if no creature was sacrificed.
+    ///
+    /// Used by Eldritch Evolution / Birthing Ritual as the runtime term inside
+    /// `TargetFilter.max_cmc_amount` ("mana value X or less, where X is N plus the
+    /// sacrificed creature's mana value").
+    ManaValueOfSacrificedCreature,
     /// CR 603.10a / CR 113.7a: Counter count from last-known information (LKI).
     /// Used by WhenDies / WhenLeavesBattlefield triggers whose effect needs to know
     /// how many counters of a given type were on the source as it last existed on
@@ -2948,6 +2957,15 @@ pub struct TargetFilter {
     /// Used for "search for a card with mana value N or less" (Urza's Saga, Chord of Calling).
     #[serde(default)]
     pub max_cmc: Option<u32>,
+    /// Runtime-computed max mana value cap (inclusive). None = no runtime cap.
+    /// CR 202.3 / 608.2h. Resolved from `EffectContext` at execution — therefore ONLY
+    /// honored by the `Effect::SearchLibrary` executor (which has `ctx`), NOT by
+    /// `matches_filter` (which sees only `Characteristics`). Same "field the predicate
+    /// can't see" contract as `exclude_self` / `is_attacking`. Used for "mana value X or
+    /// less, where X = N + the sacrificed creature's mana value" (Eldritch Evolution,
+    /// Birthing Ritual). ANDs with the static `max_cmc` above if both are set.
+    #[serde(default)]
+    pub max_cmc_amount: Option<Box<EffectAmount>>,
     /// Min mana value (inclusive). None = no restriction.
     #[serde(default)]
     pub min_cmc: Option<u32>,
