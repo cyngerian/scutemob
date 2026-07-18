@@ -454,7 +454,14 @@
 ///   differing only in either field must not hash identically. `decl_fingerprint`
 ///   MOVES (a new `#[serde(default)]` field on each struct); `stream_fingerprint`
 ///   moves per the v40 mechanism.
-pub const HASH_SCHEMA_VERSION: u8 = 51;
+/// - 52: PB-EF9 (2026-07-18) — `EffectDuration` gains a new variant
+///   `WhileYouControlSource(PlayerId)` (CR 611.2b/c — "for as long as you control
+///   [source]", a continuous-effect duration for gain-control effects; discriminant
+///   5, next after `UntilYourNextTurn` = 4). Fed to `HashInto` in the new match arm
+///   right after `UntilYourNextTurn`. `decl_fingerprint` MOVES (the enum's declared
+///   shape changed — a new variant); `stream_fingerprint` moves per the v40
+///   mechanism (a new `HashInto` arm).
+pub const HASH_SCHEMA_VERSION: u8 = 52;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -644,6 +651,14 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // stream's first byte).
         decl_fingerprint: "796a5ec954a557a1d5a2013b2e300c69182604881a11065bf2f950d64003c385",
         stream_fingerprint: "773885334e5a0b5c2885ffbcf523c7f1299e8263539feb342e2a7367c7f6bedd",
+    },
+    HashSchemaEpoch {
+        version: 52,
+        // PB-EF9 (2026-07-18): EffectDuration gained WhileYouControlSource (see the
+        // `- 52:` History line above). decl_fingerprint moves (genuine enum-shape
+        // change); stream_fingerprint moves per the v40 mechanism.
+        decl_fingerprint: "0e8ef019079eb88c574f8cb08cdb0e421b0c319a8ec2b942ae94694c58126fee",
+        stream_fingerprint: "d90e8be93a121620e014738c8d1139a5198e31d25de40d89e56faba55f33421e",
     },
 ];
 
@@ -1912,6 +1927,11 @@ impl HashInto for EffectDuration {
             // CR 611.2b: UntilYourNextTurn — hash discriminant + player id.
             EffectDuration::UntilYourNextTurn(pid) => {
                 4u8.hash_into(hasher);
+                pid.hash_into(hasher);
+            }
+            // CR 611.2b/c: WhileYouControlSource — hash discriminant + "you" player id.
+            EffectDuration::WhileYouControlSource(pid) => {
+                5u8.hash_into(hasher);
                 pid.hash_into(hasher);
             }
         }

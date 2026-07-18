@@ -179,11 +179,11 @@ const BASELINE_STREAM_FINGERPRINT: &str =
 // tail.
 //
 // **FROZEN — do not edit except by appending to `HASH_SCHEMA_HISTORY`.**
-// PB-EF8 (2026-07-18): re-pinned on the 50→51 bump — version 50 became a
-// superseded row and joined the frozen prefix. Its bytes (the v50 fingerprints)
+// PB-EF9 (2026-07-18): re-pinned on the 51→52 bump — version 51 became a
+// superseded row and joined the frozen prefix. Its bytes (the v51 fingerprints)
 // are unchanged; the digest moved only because the prefix gained a member.
 const FROZEN_HISTORY_PREFIX_DIGEST: &str =
-    "c3cc539dfd115e4ea17713e3faa34bc480240f048a5992741a6b2078f985b305";
+    "c034c53bf920e7d39227566883d56351ef5ed0a7881a7417ac1fae8be89adccd";
 
 /// The workspace root: `crates/engine/` is two levels down from it.
 fn workspace_root() -> PathBuf {
@@ -1190,7 +1190,7 @@ fn frozen_prefix_is_pinned() {
 #[test]
 fn hash_schema_version_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 51,
+        HASH_SCHEMA_VERSION, 52,
         "HASH_SCHEMA_VERSION changed. Update this sentinel, append a HASH_SCHEMA_HISTORY row with \
          the new fingerprints, and add a `- N:` History line in state/hash.rs."
     );

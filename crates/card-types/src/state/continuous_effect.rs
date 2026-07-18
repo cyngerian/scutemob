@@ -61,6 +61,20 @@ pub enum EffectDuration {
     /// Effects with this duration are removed by `expire_until_next_turn_effects` in layers.rs
     /// which is called at the start of the untap step.
     UntilYourNextTurn(PlayerId),
+    /// Active for as long as the effect's creator controls the source permanent (CR 611.2b/c).
+    /// The `PlayerId` is "you" — captured at effect *creation* (the resolving spell/ability's
+    /// controller). Differs from `WhileSourceOnBattlefield` only under a control change of the
+    /// source: when the source's controller stops equalling this PlayerId, the effect ends
+    /// PERMANENTLY (CR 611.2c: the set of affected objects is fixed and the effect does not
+    /// resume if control later returns). Removal + control reversion is handled imperatively by
+    /// `expire_while_you_control_source_effects` (layers.rs); this arm of `is_effect_active`
+    /// therefore returns `true` (mirrors UntilYourNextTurn/UntilEndOfTurn, which are also
+    /// removed by an explicit pass rather than a live check).
+    ///
+    /// Placeholder convention: card DSL literals write `WhileYouControlSource(PlayerId(0))`;
+    /// the `Effect::GainControl` / `Effect::ApplyContinuousEffect` handlers replace `PlayerId(0)`
+    /// with `ctx.controller` at execution time (identical to `UntilYourNextTurn`).
+    WhileYouControlSource(PlayerId),
 }
 /// Which objects a continuous effect applies to.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

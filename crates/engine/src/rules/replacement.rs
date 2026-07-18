@@ -220,6 +220,14 @@ fn is_effect_active(
         EffectDuration::Indefinite => true,
         // CR 611.2b: Active until the specified player's next turn begins.
         EffectDuration::UntilYourNextTurn(_) => true,
+        // CR 611.2b/c (PB-EF9): no card today authors a *replacement* effect with this
+        // duration (only continuous effects, via GainControl/ApplyContinuousEffect) —
+        // this arm exists solely for exhaustiveness. Mirror the continuous-effect arm
+        // in layers.rs::is_effect_active: always "active" here; if a future replacement
+        // effect ever needs this duration, expiry must be added as its own one-shot
+        // pass (never a live control check), the same way
+        // `expire_while_you_control_source_effects` does for continuous effects.
+        EffectDuration::WhileYouControlSource(_) => true,
         // CR 702.95a: Active as long as both creatures are on the battlefield and paired.
         EffectDuration::WhilePaired(a, b) => {
             let a_ok = state

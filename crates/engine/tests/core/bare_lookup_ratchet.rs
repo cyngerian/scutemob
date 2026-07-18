@@ -97,7 +97,16 @@ const SWEPT_FILES: &[(&str, usize)] = &[
     ("src/rules/engine.rs", 22),
     ("src/rules/lands.rs", 3),
     // SR-25
-    ("src/rules/layers.rs", 51),
+    // PB-EF9 (2026-07-18): 51 → 54. Three new NONSWALLOW-shaped reads in
+    // `expire_while_you_control_source_effects` / `recompute_object_controller`: the
+    // source-existence check (`state.objects.get(&src).map(|o| ..).unwrap_or(true)` --
+    // CR 400.7, a departed source legitimately means "ended"), the owner lookup
+    // (`match state.objects.get(&object_id) { Some(o) => o.owner, None => return }` --
+    // a departed borrowed object has nothing to revert), and the final
+    // `state.objects.get_mut(&object_id)` controller write (same fizzle: nothing to
+    // write to if the object is gone). All three are one-shot expiry-pass reads with
+    // no downstream engine invariant depending on the object being live.
+    ("src/rules/layers.rs", 54),
     ("src/rules/commander.rs", 6),
     ("src/rules/miracle.rs", 2),
     ("src/rules/foretell.rs", 0),

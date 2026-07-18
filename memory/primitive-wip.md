@@ -1,172 +1,145 @@
-# Primitive WIP: PB-EF8 — `Cost::ExileSelfFromHand` (activation from hand) (EF-W-PB2-8)
+# Primitive WIP: PB-EF9 — `EffectDuration::WhileYouControlSource` (EF-W-PB2-5)
 
-batch: PB-EF8
-title: Add `Cost::ExileSelfFromHand` (+ `ActivationZone::Hand`) so "Exile this card from your hand: Add {mana}" mana abilities activate from HAND, exile the card as the cost (CR 400.7 new object), produce mana stacklessly (CR 605.1a — no target, could add mana → it IS a mana ability), and do NOT reset `players_passed` (CR 605.5). Mirrors `Cost::DiscardSelf` (Channel, CR 702.34) but exiles instead of discards and the effect is mana rather than stack-using.
-task: scutemob-109
-branch: feat/pb-ef8-costexileselffromhand-activation-from-hand-ef-w-pb2-8
+batch: EF9
+title: Add `EffectDuration::WhileYouControlSource` — a "for as long as you control [source]" continuous-effect duration (CR 611.2b/c) that differs from `WhileSourceOnBattlefield` ONLY under gain-control of the source. "You" = the effect creator's controller AT CREATION. Once the duration's condition stops being met the effect ends permanently and NEVER resumes even if control returns (CR 611.2c). Wire the placeholder-resolution to `ctx.controller` (mirror `UntilYourNextTurn(PlayerId)`), add its expiry/reversion in the continuous-effect machinery, flip olivia_voldaren's `{3}{B}{B}` gain-control half, sweep for similar borrow-a-creature effects.
+task: scutemob-110
+branch: feat/pb-ef9-effectdurationwhileyoucontrolsource-ef-w-pb2-5
 started: 2026-07-18
-phase: done  # 2026-07-18 — plan→impl→review→fix complete. Review: 0 HIGH / 0 MED / 1 LOW (elvish oracle_text "card"→"creature", fixed). 2 flips (simian_spirit_guide, elvish_spirit_guide → Complete). HASH 50→51, PROTOCOL 12→13. EF-W-PB2-8 closed. All gates green.
+phase: review  # implement phase COMPLETE 2026-07-18 (this session). Plan: memory/primitives/pb-plan-EF9.md. All 8 engine changes + 4 card-def fixes + 9 new tests (mutation-tested) + version bumps (PROTOCOL 13→14, HASH 51→52) done; all gates green (build --workspace, test --all, clippy -D warnings, fmt --check, check-defs-fmt.sh). Key finding: NO control-reversion existed in engine before this PB (WhileSourceOnBattlefield gain-control never reverted either); built imperatively via expire_while_you_control_source_effects + recompute_object_controller. OOS-EF9-1 filed for the latent UntilEndOfTurn/WhileSourceOnBattlefield never-reverts gap (deferred, not fixed here). Ready for /implement-primitive review phase.
 
-## Implement phase — DONE (2026-07-18, scutemob-109)
+## Engine changes — ALL DONE, `cargo build --workspace` clean
+- [x] Change 1: `EffectDuration::WhileYouControlSource(PlayerId)` variant — `crates/card-types/src/state/continuous_effect.rs`
+- [x] Change 2: `is_effect_active` arm (layers.rs) — returns `true` always; never a live control check
+- [x] Change 3: placeholder→controller resolution in `Effect::GainControl` AND `Effect::ApplyContinuousEffect` (effects/mod.rs); `Effect::ExchangeControl` left as a `// NOTE:` comment only (no card needs it)
+- [x] Change 4: `expire_while_you_control_source_effects` (layers.rs, new fn, after the other `expire_*` fns)
+- [x] Change 5: `recompute_object_controller` (layers.rs, new fn) — reapplies remaining active SetController effects in timestamp order
+- [x] Change 6: call site — `sba.rs::check_and_apply_sbas`, called once pre-loop
+- [x] Change 7: hashing — `hash.rs`, discriminant 5
+- [x] Change 8: exhaustive match sweep — `cargo build --workspace` found ONE extra site the plan's table missed: `crates/engine/src/rules/replacement.rs` L199-242 (a second, separate `is_effect_active` for *replacement* effects, not continuous effects). Added the same `=> true` arm there with a comment. replay-viewer/tui/simulator confirmed non-exhaustive (grep — simulator's only reference uses `matches!`, not an exhaustive match).
 
-- [x] Step 1a — `Cost::ExileSelfFromHand` added to `crates/card-types/src/cards/card_definition.rs` (Cost enum, after `Exert`)
-- [x] Step 1b — `ActivationZone::Hand` added (same file, after `Graveyard`)
-- [x] Step 2a — `ManaAbility.exile_self_from_hand: bool` added (`crates/card-types/src/state/game_object.rs`)
-- [x] Step 2b — `ActivationCost.exile_self_from_hand: bool` added (same file); also backfilled 3
-      pre-existing non-`..Default::default()` `ActivationCost` struct literals in
-      `card_definition.rs` (food/clue/blood token specs) that the plan did not enumerate
-- [x] Step 3a/3b/3c/3d — `replay_harness.rs`: `ManaAbilityCost.exile_self_from_hand`,
-      accepting match arm in `mana_ability_cost_components`, no-tap guard relaxed
-      (`!acc.requires_tap && !acc.exile_self_from_hand`), `mana_ability_lowering` carries the
-      flag onto `ManaAbility`, `flatten_cost_into` arm added
-- [x] Step 4 — `effects/mod.rs`: `Cost::ExileSelfFromHand` added to both `can_pay_optional_cost`
-      and `pay_optional_cost` exhaustive match unreachable-arm groups
-- [x] Step 5a/5b/5c/5d/5e — `rules/mana.rs` `handle_tap_for_mana`: ability-fetch moved above
-      zone/controller check; conditional from-hand-vs-battlefield legality branch; exile-cost
-      payment step (7c) with `GameEvent::ObjectExiled`; tap-gated steps correctly skipped;
-      priority/players_passed untouched (verified by test)
-- [x] Step 6 — hashing: `Cost::ExileSelfFromHand => 13u8`, `ActivationZone::Hand => 1u8`,
-      `ManaAbility.exile_self_from_hand`, `ActivationCost.exile_self_from_hand` all hashed
-- [x] Step 7 — version bumps, machine-forced values read from failing gates:
-      HASH_SCHEMA_VERSION 50→**51**, PROTOCOL_VERSION 12→**13**; decl/stream/protocol
-      fingerprints + FROZEN_HISTORY_PREFIX_DIGEST (both hash and protocol) updated; all
-      ~34 `HASH_SCHEMA_VERSION, 50` test sentinels bulk-updated to 51; `pb_ef7_modal_activated.rs`'s
-      `PROTOCOL_VERSION` sentinel updated 12→13
-- [x] Card defs — `simian_spirit_guide.rs` (inert→Complete), `elvish_spirit_guide.rs`
-      (known_wrong→Complete); both use `Cost::ExileSelfFromHand` + `activation_zone: Some(Hand)`,
-      completeness marker dropped (defaults Complete), no TODOs remain
-- [x] Tests — `crates/engine/tests/primitives/pb_ef8_exile_self_from_hand.rs` (7 tests),
-      registered via `mod pb_ef8_exile_self_from_hand;` in `tests/primitives/main.rs`; both
-      decoys proven non-vacuous by temporarily deleting each check and confirming failure,
-      then restoring (diffed byte-identical to pre-experiment)
-- [x] Gates: `cargo build --workspace` clean; `cargo test --all` all green (0 failures);
-      `cargo clippy --all-targets -- -D warnings` clean; `cargo fmt --check` clean (after
-      `cargo fmt`); `tools/check-defs-fmt.sh` clean (1792 defs)
+## Card def fixes — ALL DONE (`cargo check -p mtg-card-defs` clean)
+- [x] olivia_voldaren.rs → `Completeness::Complete` (primary flip)
+- [x] dragonlord_silumgar.rs → `known_wrong` → `Completeness::Complete`; stale "control correctly reverts when Silumgar leaves" note replaced with accurate text
+- [x] roil_elemental.rs → stays `partial`. Verdict: the "you may" optional wrapper is **NOT expressible** — confirmed `Effect::MayPayThenEffect` requires a real `Cost` (not a bare optional wrapper) and `Effect::MayPayOrElse` is a gated stub (SR-33) that never offers the choice; no `is_optional` flag on `AbilityDefinition::Triggered`. Did NOT author a mandatory GainControl. Note rewritten to name the optional-wrapper primitive gap as the sole residual blocker.
+- [x] kellogg_dangerous_mind.rs → stays `partial`. TODO + note refreshed: only remaining blocker is the Treasure-sacrifice-count cost (`Cost::Sacrifice` has no count field); deleted the stale "duration ARE available" aspirational wording, replaced with "available as of PB-EF9."
+- [x] TODO sweep (mandatory): `grep -rln "WhileYouControlSource\|for as long as you control" crates/card-defs/src/defs/*.rs` → 8 hits: the 4 above + 4 false positives (mirage_phalanx, silverblade_paladin, tandem_lookout, wingcrafter — all Soulbond `WhilePaired`, unrelated). Broader sweep on `gain control` + TODO/ENGINE-BLOCKED found 3 more control-stealing blockers on DIFFERENT primitives (captivating_vampire: count-of-subtype tap cost; hellkite_tyrant: "all artifacts" plural-target gap; emrakul_the_promised_end: gain control of a PLAYER not a permanent). None reference this primitive. No additional forced adds.
+
+## Tests — 9 new tests, `crates/engine/tests/primitives/pb_ef9_while_you_control_source.rs`, registered in `primitives/main.rs`
+All 9 pass. Mutation-tested (non-vacuity proof) for every guard: for each, applied the
+mutation, ran `cargo test --test primitives pb_ef9`, confirmed exactly the expected
+tests failed (and no others), then reverted and confirmed `md5sum
+crates/engine/src/rules/layers.rs` was byte-identical to the pre-mutation snapshot.
+1. Controller-mismatch check disabled (`ended` forced `false` when source exists) →
+   5 tests failed exactly as expected (`ends_when_opponent_gains_source`,
+   `does_not_resume`, `multiplayer`, `olivia_stolen`, DECOY's own sanity assertion).
+   `ends_when_source_leaves`, `phase_out`, `silumgar`, `olivia_dies` correctly still
+   passed (they don't exercise this branch).
+2. Permanent-removal step skipped (effect stays in `continuous_effects` after ending,
+   so `recompute_object_controller` still finds it "active" and never reverts) →
+   8 of 9 tests failed; only `survives_source_phase_out` stayed green (nothing "ends"
+   in that scenario, so there is nothing to remove and no reversion to observe).
+3. CR 702.26e phase-out guard: reinstated the `WhileSourceOnBattlefield`-style
+   `is_phased_in()` check → exactly 1 test failed
+   (`survives_source_phase_out`), all other 8 stayed green.
+4. CR 400.7 source-gone handling: `unwrap_or(true)` → `unwrap_or(false)` → exactly 3
+   tests failed (`ends_when_source_leaves`, `olivia_dies`, `silumgar`), all other 6
+   stayed green.
+`layers.rs` md5 before any mutation: `6c3c44cbc29d994eea637d8c8f46a2f8`; after all four
+mutate/restore cycles: identical.
+
+## Version bumps — MACHINE-FORCED, all values read from failing-gate output (never guessed)
+- `PROTOCOL_VERSION`: 13 → 14. `PROTOCOL_SCHEMA_FINGERPRINT` set to
+  `b94f90e1c6d7f4193385489f6f6d541dbb764534eab09593584f99361ea828d7` (read from
+  `protocol_schema_fingerprint_is_pinned` failure). Appended `ProtocolEpoch { version: 14, .. }`
+  to `PROTOCOL_HISTORY` (never edited an existing row). `protocol_version_sentinel` → 14.
+  `FROZEN_HISTORY_PREFIX_DIGEST` re-pinned to `648f47c35743fb50f826ba32ab25cabc1bdb73471eb6f7ca8c7b31593c96e343`
+  (read from `frozen_prefix_is_pinned` failure, since version 13 joined the frozen prefix).
+- `HASH_SCHEMA_VERSION`: 51 → 52. Appended `HashSchemaEpoch { version: 52, .. }` to
+  `HASH_SCHEMA_HISTORY` with `decl_fingerprint =
+  0e8ef019079eb88c574f8cb08cdb0e421b0c319a8ec2b942ae94694c58126fee` and `stream_fingerprint =
+  d90e8be93a121620e014738c8d1139a5198e31d25de40d89e56faba55f33421e` (both read from
+  `declaration_fingerprint_is_pinned` / `stream_fingerprint_is_pinned` failures — used a
+  placeholder-row-first technique to surface them, since `current_epoch()` panics outright if
+  no row exists yet for the new version). `hash_schema_version_sentinel` → 52.
+  `FROZEN_HISTORY_PREFIX_DIGEST` (hash_schema.rs) re-pinned to
+  `c034c53bf920e7d39227566883d56351ef5ed0a7881a7417ac1fae8be89adccd`.
+- Scattered sentinels: grepped whole tree for `HASH_SCHEMA_VERSION, 51u8` (32 files, 33
+  occurrences incl. one file with 2) and `PROTOCOL_VERSION, 13` (1 file,
+  `pb_ef7_modal_activated.rs`) — all bumped to `52u8` / `14` respectively. Relative-math
+  usages (`PROTOCOL_VERSION - 1`, `HASH_SCHEMA_VERSION.wrapping_sub(1)` in
+  `protocol_roundtrip.rs`) do not need editing — verified they reference the constant, not a
+  literal.
+- `docs/mtg-engine-protocol-versioning.md`: checked, has no per-version row table (no
+  "N→N+1"-style rows) — the plan's conditional step does not apply, no edit made.
+- Two unplanned test-file fixes surfaced by the full suite (both consequences of legitimate
+  card flips / new engine code, not bugs):
+  - `bare_lookup_ratchet` ceiling for `src/rules/layers.rs`: 51 → 54 (3 new NONSWALLOW-shaped
+    bare `.objects.get[_mut]` reads in the new expire/recompute functions, each with a
+    documented CR 400.7 fizzle rationale in the ratchet's own comment).
+  - `completeness_deviation_scan::the_marker_detector_is_not_vacuous` threshold: `marked >= 700`
+    → `marked >= 690` (olivia + silumgar's flip to Complete legitimately dropped the corpus's
+    non-Complete count from 701 to 699, crossing the old floor; lowered with the same margin
+    the old threshold kept, comment cites this PB).
+
+## Gates — ALL GREEN
+- `cargo check -p mtg-engine` clean
+- `cargo build --workspace` clean
+- `cargo test --all` clean (0 failures across every target; card_defs_fmt + check-defs-fmt.sh
+  both pass)
+- `cargo clippy --all-targets -- -D warnings` clean
+- `cargo fmt --all -- --check` clean (ran `cargo fmt --all` once to fix 3 wrapping diffs in the
+  new test file, then re-verified `--check` exits 0)
+- `tools/check-defs-fmt.sh` clean (also ran with `--fix` once, which reformatted
+  kellogg_dangerous_mind.rs and roil_elemental.rs — line-wrap only, no semantic change,
+  verified by re-reading both files)
+- `python3 tools/authoring-report.py` regenerated: clean 1,091/1,792 (60.9%) →
+  1,093/1,792 (61.0%), +2 exactly matching the two flips
+
+## OOS-EF9-1 (filed, NOT fixed here)
+Latent gap: `Effect::GainControl` with `WhileSourceOnBattlefield` (pre-flip usage elsewhere)
+and with `UntilEndOfTurn` never reverts `obj.controller` when the continuous effect is
+removed — the effect disappears from `continuous_effects` but control silently persists.
+Roster: sarkhan_vol.rs, zealous_conscripts.rs, karrthus_tyrant_of_jund.rs (all `UntilEndOfTurn`
+gain-control, shipped Complete). Also: `test_gain_control_until_eot_expires` in
+primitive_pb32.rs is vacuous with respect to control reversion — it asserts the effect is
+removed but never asserts `obj.controller` reverts. The `recompute_object_controller` helper
+built in this PB (layers.rs) is exactly what a follow-up PB would wire into
+`expire_end_of_turn_effects`'s removal path to close this. Deferred — out of scope here.
 
 ## Source findings
-- memory/primitives/ef-batch-plan-2026-07-17.md — PB-EF8 section (line ~448); §1 table (EF-W-PB2-8, line 191)
-- memory/card-authoring/w-pb2-roster-2026-07-17.md — EF-W-PB2-8 (line 85, 103, 134)
+- memory/primitives/ef-batch-plan-2026-07-17.md — PB-EF9 section (~line 479); §1 table (EF-W-PB2-5, line 192)
+- memory/card-authoring/w-pb2-roster-2026-07-17.md — EF-W-PB2-5 (line 101)
+- memory/card-authoring/w-pb2-engine-findings-2026-07-17.md — EF-W-PB2-5 (line 137, full writeup)
 
-## Corpus sweep (DONE 2026-07-18 by worker — grep of oracle_text "Exile this card from your hand" + notes)
-Candidates with an exile-self-from-hand **mana** ability:
-| Card | current | ability | verdict |
-| --- | --- | --- | --- |
-| Simian Spirit Guide | `inert` | "Exile this card from your hand: Add {R}." | **ELIGIBLE → Complete** |
-| Elvish Spirit Guide | `known_wrong` | "Exile this card from your hand: Add {G}." (currently ships a FREE battlefield `Add {G}` — infinite mana) | **ELIGIBLE → Complete** |
+## Recon (coordinator/worker, 2026-07-18) — hand to planner
+- `EffectDuration` enum: `crates/card-types/src/state/continuous_effect.rs` L44-68. Variants:
+  WhileSourceOnBattlefield, UntilEndOfTurn, Indefinite, WhilePaired(ObjectId,ObjectId),
+  UntilYourNextTurn(PlayerId). Note the existing payload-carrying precedent.
+- `is_effect_active` (the live activity check per layer recompute): `crates/engine/src/rules/layers.rs:501`.
+  `WhileSourceOnBattlefield` arm at L503: source on battlefield + phased in.
+- `Effect::GainControl` handler: `crates/engine/src/effects/mod.rs:5356`. Builds a Layer-2
+  `SetController(ctx.controller)` ContinuousEffect with `source: Some(ctx.source)`, `duration: *duration`,
+  and imperatively writes `obj.controller = controller`. NOTE: olivia is authored via GainControl, NOT
+  ApplyContinuousEffect.
+- `UntilYourNextTurn` placeholder→controller resolution pattern: `effects/mod.rs:3147-3157`
+  (card DSL uses `PlayerId(0)` placeholder; resolved to `ctx.controller` at effect creation). MIRROR THIS.
+- Hashing of `EffectDuration`: `crates/engine/src/state/hash.rs:1903`.
+- **OPEN QUESTION for planner** (verify via RA/CR): control reversion mechanism. `calculate_characteristics`
+  treats `LayerModification::SetController` as a NO-OP (`layers.rs:1094`, "controller lives on GameObject");
+  `obj.controller` is written imperatively in the GainControl handler and there is NO layer-based
+  control-reconcile loop found. So determine EXACTLY how/where an ending `WhileSourceOnBattlefield`
+  control effect reverts `obj.controller` today (search around `is_effect_active` callers, SBA, priority,
+  move_object_to_zone cleanup, `state/mod.rs:1555` GC). The new duration's expiry must revert control the
+  SAME way, and must PERMANENTLY remove the effect so it can never resume.
+- olivia_voldaren def: `crates/card-defs/src/defs/olivia_voldaren.rs` — currently `partial`, `{3}{B}{B}`
+  uses `EffectDuration::WhileSourceOnBattlefield`.
 
-False positives (out of scope, verified):
-- `saw_it_coming` — "exile this card from your hand" is the **Foretell** keyword (CR 702.143), not a mana ability. Already Complete via `AbilityDefinition::Foretell`.
-- `chrome_mox` — Imprint ETB exile-from-hand (different primitive; still blocked, unrelated).
-- `gemstone_caverns` — "if you do, exile a card from your hand" is a Luck-counter ETB payload; its `{T}: Add {C}` is a battlefield ability. Unrelated.
-
-**Discounted ship: 2 flips** (Simian + Elvish Spirit Guide). Matches plan's ~2–3.
-
-## Architecture recon (worker — verify + extend during plan)
-
-The two cards are **mana abilities** (no target, produce mana → CR 605.1a). They therefore must
-lower through `mana_ability_lowering` and activate through **`handle_tap_for_mana`** (mana.rs),
-NOT `handle_activate_ability`. That is the ONLY stackless path (CR 605.3b / 605.5). Getting this
-wrong (routing through the stack-using activated path) would hand opponents a priority window a
-mana ability must never grant — exactly the SR-33 defect.
-
-### Existing mirror to copy: `ActivationZone::Graveyard` (PB-35, Reassembling Skeleton)
-- `ActivationZone` enum — `card_definition.rs:4156` — currently only `Graveyard`. **Add `Hand`.**
-- The graveyard zone-legality branch is in `handle_activate_ability` (`abilities.rs:189-202`) —
-  but that is the STACK path (Reassembling Skeleton's effect is not mana). Our cards are mana, so
-  the analogous check must live in `handle_tap_for_mana`.
-
-### Cost enum & runtime cost structs
-- `Cost` enum — `card_definition.rs:1217`. Has `SacrificeSelf`, `ExileSelf` (battlefield exile,
-  CR 118.12), `DiscardSelf` (Channel, hand-discard). **Add `Cost::ExileSelfFromHand`** — self-exile
-  from HAND as an activation cost (the mana-ability analog of `DiscardSelf`).
-- Runtime `ActivationCost` struct (stack-path cost) — `game_object.rs:~288-340`. Has `sacrifice_self`,
-  `discard_self`, `exile_self`, `exert`, `life_cost`. **Add `exile_self_from_hand: bool`** (mirrors
-  `discard_self`) so the flatten function `crates/engine/src/testing/replay_harness.rs:~3989`
-  (`Cost::DiscardSelf => ac.discard_self = true`) stays exhaustive over `Cost`. (Our cards use the
-  mana path, not this struct, but the `Cost` match must handle the new variant.)
-- Runtime `ManaAbility` struct — `game_object.rs:172`. Has `requires_tap`, `sacrifice_self`,
-  `mana_cost`, `life_cost`, `scaled_amount`, `activation_condition`. **Add
-  `exile_self_from_hand: bool`** — the flag `handle_tap_for_mana` reads to switch to the
-  hand-zone-exile payment path.
-
-### Mana-ability lowering (`crates/engine/src/testing/replay_harness.rs`)
-- `mana_ability_cost_components` (line 3711) — walks the `Cost`. It currently **rejects**
-  `Cost::ExileSelf | ExileFromHand | DiscardSelf | ...` (line 3746-3748) because "TapForMana has no
-  payload for them." **For `ExileSelfFromHand` this is FALSE** — the source IS `self`, no extra
-  ObjectId payload is needed (identical to `SacrificeSelf`, which IS accepted). **Add a
-  `Cost::ExileSelfFromHand => acc.exile_self_from_hand = true` arm.**
-- **KEY HAZARD — the no-tap guard (line 3760):** `if !acc.requires_tap { return None; }`. A card in
-  HAND cannot tap (CR 302 — only permanents on the battlefield tap). Simian/Elvish have **no `{T}`**
-  in their cost. So this guard would reject them. **Relax it: a cost with `exile_self_from_hand`
-  is lowerable without `requires_tap`** (the SR-34 "decline no-tap cost" rule guarded against free
-  repeatable battlefield abilities — an exile-from-hand cost is inherently one-shot and self-consuming,
-  so the seam that rule closed does not apply). Justify against CR 605.1a in the plan.
-- `mana_ability_lowering` (line 3786) copies the components onto the `ManaAbility`. **Add
-  `ma.exile_self_from_hand = components.exile_self_from_hand;`**.
-- `try_as_tap_mana_ability` (line 3816) handles `Effect::AddMana` → `mana_pool_to_ability`. `Add {R}` /
-  `Add {G}` are single-color → already handled. No change needed there (but verify the `requires_tap`
-  it sets is overwritten by the components — it is, at line 3798).
-- `enrich_spec_from_def` mana-ability loop (~2117-2155) — calls `mana_ability_lowering`; propagates
-  the returned `ManaAbility` into `mana_abilities` and excludes it from `activated_abilities` (same
-  predicate). Verify the exclusion still fires for our cards.
-
-### `handle_tap_for_mana` (`crates/engine/src/rules/mana.rs:37`) — the core change
-Current flow: step 3 rejects `obj.zone != Battlefield`; step 4 rejects `obj.controller != player`;
-step 6 taps if `requires_tap`; step 7 pays `sacrifice_self` (moves source to graveyard, CR 400.7).
-**New branch when `ability.exile_self_from_hand`:**
-1. **Zone legality (replaces steps 3-4):** source must be in `ZoneId::Hand(owner)` and `obj.owner == player`
-   (a hand card's `controller` is the owner; use `owner`, mirroring the Channel/graveyard checks in
-   `handle_activate_ability` which check `obj.owner`). **Reject if on battlefield** — this is decoy A.
-   (Decoy B — a battlefield-only mana ability with source in hand — is already rejected by the
-   existing step-3 battlefield check, which stays the default for non-`exile_self_from_hand` abilities.)
-2. **Skip tap** (step 6 is gated on `requires_tap`, which is false — already correct). Also the
-   summoning-sickness / already-tapped checks live inside that gate, so they are correctly skipped.
-3. **Pay the exile cost** (analogous to step 7 `sacrifice_self`): move source to `ZoneId::Exile`
-   via `state.move_object_to_zone(source, ZoneId::Exile)` BEFORE producing mana. CR 400.7: the
-   card becomes a new object in exile; `source` is a dead ObjectId afterward. Emit an appropriate
-   event (check for an existing `GameEvent` exile/zone-change variant — mirror what `Cost::ExileSelf`
-   emits in `handle_activate_ability`).
-4. **Produce mana** (steps 8+) — unchanged; `requires_tap` is false so the mana-production
-   replacement (step 7b, gated on `requires_tap`) and the WhenTappedForMana trigger (step 10,
-   gated on `requires_tap`) are correctly **skipped** (CR 106.12 "tap for mana" — exiling from hand
-   is not tapping, so Nyxbloom/Mana Reflection do NOT multiply it, and Forbidden-Orchard-style
-   "whenever tapped for mana" triggers do NOT fire). Confirm this reading vs oracle/CR in the plan.
-5. **Priority retained, `players_passed` unchanged** (step 11 — already the invariant of this fn).
-
-### Hashing
-- `Cost::ExileSelfFromHand` — add a hash arm wherever `Cost` variants are hashed (grep `Cost::ExileSelf`
-  / `Cost::DiscardSelf` in `crates/engine/src/state/hash.rs`).
-- `ActivationZone::Hand` — hash arm next to `ActivationZone::Graveyard => 0u8` at `hash.rs:5352`
-  (use `1u8`).
-- `ManaAbility.exile_self_from_hand` and `ActivationCost.exile_self_from_hand` — add to their
-  `HashInto` impls.
-
-### Wire bumps (verify — read digests from FAILING gate output, never hand-guess)
-- **HASH_SCHEMA_VERSION**: the runtime `ManaAbility` / `ActivationCost` live inside `GameState`, so a
-  new bool field reaches the hash closure → HASH bump likely machine-forced. Read current from
-  `state/hash.rs`.
-- **PROTOCOL_VERSION / PROTOCOL_SCHEMA_FINGERPRINT**: `Cost` and `ActivationZone` are in the card DSL,
-  which is inside the SR-8 wire type closure (Characteristics → Effect → DSL). Adding a `Cost`
-  variant + `ActivationZone` variant is a wire-shape change → PROTOCOL bump likely machine-forced.
-  Read current from `rules/protocol.rs`. **Command::TapForMana is UNCHANGED** (no new payload — the
-  source-in-hand is identified by ObjectId exactly as a battlefield source is), so the wire *frame*
-  shape is unchanged; only the transitive DSL closure changes.
-
-## COORDINATOR SCOPING DECISIONS (constraints for planner/runner)
-1. **Scope = the 2 eligible flips** (Simian + Elvish Spirit Guide) + the recorded sweep. No other
-   cards. Do not widen to Chrome Mox / Gemstone Caverns / Foretell.
-2. **Path = mana-ability lowering → `handle_tap_for_mana` (stackless).** This is non-negotiable
-   (acceptance criterion 1, CR 605.1a/605.3b/605.5). Do NOT route these through the stack-using
-   `handle_activate_ability`.
-3. **Single source of truth for "this is a hand-exile cost" = `Cost::ExileSelfFromHand`** (mirrors how
-   `Cost::DiscardSelf` alone drives Channel's hand activation — no redundant `activation_zone` needed
-   to *drive* behavior). **Still add `ActivationZone::Hand`** to the enum (task asks for the concept;
-   keeps the enum symmetric and future-proofs a non-mana hand ability) and have the two defs carry
-   `activation_zone: Some(ActivationZone::Hand)` to document intent — but the engine's mana-lowering
-   and legality key off the **cost**, so there is no state to keep in sync. Planner: confirm this is
-   the cleanest design or propose better with CR justification.
-4. **Decoys must fail on exactly the zone check, both directions** (criterion 1): (A) same card on
-   battlefield cannot use the from-hand ability; (B) card in hand cannot activate a battlefield-only
-   mana ability. Plus CR 400.7 object-identity assertion across the exile.
-5. PROTOCOL/HASH bumps only if a gate machine-forces them; read the new digest from the failing gate,
-   justify each in the commit + here.
+## Design constraints (must hold)
+1. "You" is captured at creation (ctx.controller), stored in the variant payload (placeholder `PlayerId(0)`
+   in DSL → resolved at creation), analogous to `UntilYourNextTurn(PlayerId)`.
+2. Ends when creator no longer controls source (source left battlefield OR control of source changed away).
+3. **Never resumes**: a pure live re-eval in `is_effect_active` is INSUFFICIENT/WRONG on its own —
+   if control returns, live re-eval would revive it. Must permanently remove the effect the first time
+   the condition fails (an `expire_*`-style pass), reverting the borrowed permanent's control.
+4. Wire change (new enum variant reachable from the SR-8 protocol closure via Effect/Characteristics) →
+   bump PROTOCOL_VERSION and HASH_SCHEMA_VERSION only if machine-forced; justify.

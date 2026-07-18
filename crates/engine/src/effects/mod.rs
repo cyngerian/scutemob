@@ -3147,9 +3147,17 @@ fn execute_effect_inner(
             // CR 611.2a: Resolve UntilYourNextTurn placeholder to the actual controller.
             // Card defs use PlayerId(0) as a placeholder; replace with ctx.controller so
             // the effect expires at the correct player's next turn.
+            // CR 611.2c: WhileYouControlSource's "you" is likewise fixed to the
+            // creator at creation. Card DSL literals use PlayerId(0) as a
+            // placeholder; resolve it here alongside UntilYourNextTurn.
             let resolved_duration = match effect_def.duration {
                 crate::state::continuous_effect::EffectDuration::UntilYourNextTurn(_) => {
                     crate::state::continuous_effect::EffectDuration::UntilYourNextTurn(
+                        ctx.controller,
+                    )
+                }
+                crate::state::continuous_effect::EffectDuration::WhileYouControlSource(_) => {
+                    crate::state::continuous_effect::EffectDuration::WhileYouControlSource(
                         ctx.controller,
                     )
                 }
@@ -5356,6 +5364,18 @@ fn execute_effect_inner(
         Effect::GainControl { target, duration } => {
             let targets = resolve_effect_target_list(state, target, ctx);
             let controller = ctx.controller;
+            // CR 611.2c: "you" in WhileYouControlSource is fixed to the creator at
+            // creation. Card DSL literals use PlayerId(0) as a placeholder; resolve
+            // it to ctx.controller here (mirrors the UntilYourNextTurn pattern in
+            // the ApplyContinuousEffect handler above).
+            let resolved_duration = match *duration {
+                crate::state::continuous_effect::EffectDuration::WhileYouControlSource(_) => {
+                    crate::state::continuous_effect::EffectDuration::WhileYouControlSource(
+                        controller,
+                    )
+                }
+                other => other,
+            };
             for resolved in targets {
                 if let ResolvedTarget::Object(obj_id) = resolved {
                     let id_inner = state.next_object_id().0;
@@ -5370,7 +5390,7 @@ fn execute_effect_inner(
                                 controller,
                             ),
                         filter: crate::state::continuous_effect::EffectFilter::SingleObject(obj_id),
-                        duration: *duration,
+                        duration: resolved_duration,
                         is_cda: false,
                         timestamp: ts,
                         condition: None,
@@ -5384,6 +5404,10 @@ fn execute_effect_inner(
             }
         }
         // CR 701.12b: Exchange control of two permanents.
+        // NOTE (PB-EF9): no current card authors WhileYouControlSource through
+        // ExchangeControl, so its `duration: *duration` below does not resolve the
+        // PlayerId(0) placeholder. If a future card needs that combination, add the
+        // same resolution arm used in GainControl/ApplyContinuousEffect above.
         Effect::ExchangeControl {
             target_a,
             target_b,

@@ -243,9 +243,15 @@ fn the_marker_detector_is_not_vacuous() {
         .into_iter()
         .filter(|(_, src)| has_incomplete_marker(src))
         .count();
+    // PB-EF9 (2026-07-18): threshold lowered 700 -> 690. olivia_voldaren and
+    // dragonlord_silumgar both flipped partial/known_wrong -> Complete (the
+    // EffectDuration::WhileYouControlSource primitive shipped), dropping the
+    // corpus's non-Complete count from 701 to 699. This is a genuine headline-number
+    // decrease from authoring work, not detector drift -- lower the floor with the
+    // same margin the previous threshold kept, rather than papering over it.
     assert!(
-        marked >= 700,
-        "marker detector matched only {marked} files; the corpus has 742 non-Complete defs. \
+        marked >= 690,
+        "marker detector matched only {marked} files; the corpus has 699 non-Complete defs. \
          MARKER_FRAGMENTS is broken and the gate would spuriously flag marked defs"
     );
 }

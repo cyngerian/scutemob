@@ -64,6 +64,15 @@ static SUBTYPE_FORTIFICATION: std::sync::LazyLock<SubType> =
 /// ensures that "when this dies" triggers on token creatures are correctly queued
 /// before SBA 704.5d removes the token from `state.objects` in the following pass.
 pub fn check_and_apply_sbas(state: &mut GameState) -> Vec<GameEvent> {
+    // CR 611.2b/c (PB-EF9): expire WhileYouControlSource effects whose creator no
+    // longer controls the source, reverting the borrowed permanent's control. Control
+    // never changes as a *result* of an SBA (no SBA changes control), so a single
+    // pre-loop call catches the post-resolution state; a reverted control feeds the
+    // SBA fixpoint that follows (e.g. an aura now on an illegal object). This must NOT
+    // sit inside `apply_sbas_once`'s returned-events path -- there is no `GameEvent`
+    // for a control change, and gating the loop's termination on it would be wrong
+    // even if there were.
+    super::layers::expire_while_you_control_source_effects(state);
     let mut all_events = Vec::new();
     loop {
         let events = apply_sbas_once(state);

@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-18 16:23 UTC  
-**Git:** `a7ae66ce` on `feat/pb-ef8-costexileselffromhand-activation-from-hand-ef-w-pb2-8`  
+**Generated:** 2026-07-18 17:27 UTC  
+**Git:** `4fa6b6f2` on `feat/pb-ef9-effectdurationwhileyoucontrolsource-ef-w-pb2-5`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,8 +25,8 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 148 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **111%** (1,809 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 60.9% | 1,091 | · |
-| With TODO markers | 547 | · |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 61.0% | 1,093 | +2 |
+| With TODO markers | 545 | -2 |
 | Empty `abilities: vec![]` placeholders | 154 | · |
 | Total TODO lines across all defs | 961 | · |
 
@@ -66,7 +66,7 @@ are blocked on engine primitives.
 
 | Group | Auth / Total | % | Clean | TODO | Empty |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `combat-keyword` | 187 / 187 | 100% | 86 | 86 | 15 |
+| `combat-keyword` | 187 / 187 | 100% | 87 | 85 | 15 |
 | `draw` | 164 / 169 | 97% | 78 | 69 | 17 |
 | `token-create` | 148 / 155 | 95% | 82 | 50 | 16 |
 | `land-etb-tapped` | 138 / 138 | 100% | 116 | 22 | 0 |
@@ -75,7 +75,7 @@ are blocked on engine primitives.
 | `mana-land` | 92 / 92 | 100% | 63 | 28 | 1 |
 | `body-only` | 60 / 70 | 86% | 32 | 12 | 16 |
 | `removal-destroy` | 56 / 56 | 100% | 34 | 18 | 4 |
-| `counters-plus` | 49 / 49 | 100% | 24 | 20 | 5 |
+| `counters-plus` | 49 / 49 | 100% | 25 | 19 | 5 |
 | `land-fetch` | 45 / 45 | 100% | 27 | 14 | 4 |
 | `attack-trigger` | 16 / 34 | 47% | 12 | 2 | 2 |
 | `death-trigger` | 34 / 34 | 100% | 20 | 9 | 5 |
@@ -207,7 +207,7 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 591 | · |
+| OTHER (unclassified) | 590 | -1 |
 | DSL gap (unspecified) | 122 | · |
 | attack trigger (self / generic) | 25 | · |
 | TriggerCondition::* missing variant | 17 | · |
@@ -233,11 +233,11 @@ the next thing to triage when the classifier table is grown.
 | CDA / dynamic P/T | 4 | · |
 | devotion | 4 | · |
 
-_…and 27 more buckets totaling 45 lines._
+_…and 27 more buckets totaling 46 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 591 
+Showing 12 of 590 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
@@ -247,8 +247,8 @@ abstergo_entertainment: // TODO: {3}, {T}, Exile Abstergo Entertainment: Return 
 bloodchief_ascension: // TODO: Both abilities are complex — end-step conditional counter placement needs
 deep_gnome_terramancer: // TODO: "lands enter under opponent's control without being played" trigger condition
 experimental_augury: // TODO: Interactive "choose 1 of 3" — M10 player choice. Approximated as
-goblin_lackey: // TODO: "put a Goblin from hand onto battlefield" — needs MoveZone from
-jeskas_will: // TODO: "choose both if commander" conditional entwine.
+goblin_king: // TODO: AllCreaturesWithSubtype includes Goblin King itself — "other" semantics
+jeskas_will: // TODO: Mode 2 needs impulse-draw (exile top 3, play this turn).
 marionette_apprentice: // ENGINE-BLOCKED: "Whenever another creature or artifact you control is put into
 otharri_suns_glory: // TODO: "{2}{R}{W}, Tap an untapped Rebel you control: Return this card from your
 ruthless_technomancer: // ENGINE-BLOCKED: see module comment -- ETB optional-sacrifice-for-Treasure
@@ -259,13 +259,12 @@ tymna_the_weaver: // ENGINE-BLOCKED: the life payment and draw count both scale 
 
 ## ⚠ Completeness-marker drift
 
-8 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
+7 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
 
 - `ashnods_altar` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `boggart_shenanigans` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `delver_of_secrets` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `disciple_of_freyalise` — marked partial but has no TODO / ENGINE-BLOCKED comment
-- `olivia_voldaren` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `phyrexian_tower` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `temple_of_the_dragon_queen` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `thaumatic_compass` — marked partial but has no TODO / ENGINE-BLOCKED comment
