@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // {2}{W}{B}, {T}: Creatures you control gain deathtouch and lifelink until end of turn.
             AbilityDefinition::Activated {
@@ -64,6 +65,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         ..Default::default()

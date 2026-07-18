@@ -104,7 +104,7 @@ fn combat_with_blocker(blocker_id: ObjectId, attacker_id: ObjectId) -> CombatSta
 #[test]
 fn test_pb_hash_schema_version_live_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 49u8,
+        HASH_SCHEMA_VERSION, 50u8,
         "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
     );
 }
@@ -234,6 +234,7 @@ fn blocking_creature_target_ability(name: &str) -> CardDefinition {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         }],
         ..Default::default()
     }
@@ -271,6 +272,7 @@ fn tapped_creature_target_ability(name: &str) -> CardDefinition {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         }],
         ..Default::default()
     }
@@ -308,6 +310,7 @@ fn untapped_creature_target_ability(name: &str) -> CardDefinition {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         }],
         ..Default::default()
     }
@@ -357,6 +360,7 @@ fn test_pbxa2_activated_target_is_blocking_non_blocker_rejected() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -416,6 +420,7 @@ fn test_pbxa2_activated_target_is_blocking_blocker_accepted() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -468,6 +473,7 @@ fn test_pbxa2_activated_target_is_tapped_untapped_rejected() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -530,6 +536,7 @@ fn test_pbxa2_activated_target_is_tapped_tapped_accepted() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -590,6 +597,7 @@ fn test_pbxa2_activated_target_is_untapped_tapped_rejected() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -643,6 +651,7 @@ fn test_pbxa2_activated_target_is_untapped_untapped_accepted() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -692,6 +701,7 @@ fn attacking_or_blocking_target_ability(name: &str) -> CardDefinition {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         }],
         ..Default::default()
     }
@@ -741,6 +751,7 @@ fn test_pbxa2_activated_target_attacking_or_blocking_accepts_attacker() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -799,6 +810,7 @@ fn test_pbxa2_activated_target_attacking_or_blocking_accepts_blocker() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -858,6 +870,7 @@ fn test_pbxa2_activated_target_attacking_or_blocking_rejects_non_combatant() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -1193,6 +1206,7 @@ fn test_pbxa2_graveyard_target_with_runtime_fields_rejects() {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             }],
             ..Default::default()
         }
@@ -1243,6 +1257,7 @@ fn test_pbxa2_graveyard_target_with_runtime_fields_rejects() {
                 discard_card: None,
                 sacrifice_target: None,
                 x_value: None,
+                modes_chosen: vec![],
             },
         );
 
@@ -1300,6 +1315,7 @@ fn test_pbxa2_graveyard_target_with_runtime_fields_rejects() {
                 discard_card: None,
                 sacrifice_target: None,
                 x_value: None,
+                modes_chosen: vec![],
             },
         );
 
@@ -1359,6 +1375,7 @@ fn test_pbxa2_graveyard_target_with_runtime_fields_rejects() {
                 discard_card: None,
                 sacrifice_target: None,
                 x_value: None,
+                modes_chosen: vec![],
             },
         );
 

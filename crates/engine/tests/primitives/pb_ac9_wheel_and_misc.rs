@@ -124,7 +124,7 @@ fn setup_hand_and_library(hand_n: usize, library_n: usize) -> GameState {
 #[test]
 fn test_pb_ac9_hash_schema_version_live_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 49u8,
+        HASH_SCHEMA_VERSION, 50u8,
         "PB-AC9 bumped HASH_SCHEMA_VERSION 35->36 (Effect::WheelHand disc 91, \
          Effect::SetNoMaximumHandSize disc 92, PlayerState.no_max_hand_size_permanent). \
          If you bumped again, update this test."

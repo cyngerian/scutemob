@@ -65,6 +65,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         completeness: Completeness::partial("'with two or more creatures' condition not in DSL"),

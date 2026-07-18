@@ -101,6 +101,7 @@ fn equip_ability(generic_mana: u32) -> ActivatedAbility {
         activation_condition: None,
         activation_zone: None,
         once_per_turn: false,
+        modes: None,
     }
 }
 
@@ -622,6 +623,7 @@ fn test_living_weapon_equip_to_other_creature_germ_dies() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("ActivateAbility (Equip) failed: {:?}", e));

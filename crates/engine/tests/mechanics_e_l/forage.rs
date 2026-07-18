@@ -107,6 +107,7 @@ fn forager_creature(owner: PlayerId) -> ObjectSpec {
 
         activation_zone: None,
         once_per_turn: false,
+        modes: None,
     })
 }
 
@@ -139,6 +140,7 @@ fn forage_only_creature(owner: PlayerId) -> ObjectSpec {
 
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         },
     )
 }
@@ -188,6 +190,7 @@ fn test_forage_sacrifice_food() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .expect("forage activate with Food available should succeed");
@@ -266,6 +269,7 @@ fn test_forage_exile_three_from_graveyard() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .expect("forage activate with 3 graveyard cards should succeed (no Food needed)");
@@ -341,6 +345,7 @@ fn test_forage_insufficient_resources() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -382,6 +387,7 @@ fn test_forage_requires_mana_cost_too() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -430,6 +436,7 @@ fn test_forage_food_is_artifact_subtype_not_just_token() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .expect("ruling 2024-11-08: non-token Food artifact should qualify for forage");
@@ -483,6 +490,7 @@ fn test_forage_non_food_artifact_rejected() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -528,6 +536,7 @@ fn test_forage_prefers_food_when_both_available() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .expect("forage with both options available should succeed");

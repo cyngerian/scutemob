@@ -487,6 +487,7 @@ impl Move {
                 discard_card: None,
                 sacrifice_target: None,
                 x_value: None,
+                modes_chosen: vec![],
             }),
             Move::DeclareAttackers { attackers, .. } => {
                 let mut pairs = Vec::new();

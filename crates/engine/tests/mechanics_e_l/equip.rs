@@ -88,6 +88,7 @@ fn equip_ability(generic_mana: u32) -> ActivatedAbility {
         activation_condition: None,
         activation_zone: None,
         once_per_turn: false,
+        modes: None,
     }
 }
 
@@ -138,6 +139,7 @@ fn test_equip_basic_attaches_to_creature() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -215,6 +217,7 @@ fn test_equip_sorcery_speed_only() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -271,6 +274,7 @@ fn test_equip_sorcery_speed_not_active_player() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -397,6 +401,7 @@ fn test_equip_sorcery_speed_stack_not_empty() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -460,6 +465,7 @@ fn test_equip_target_opponent_creature_rejected_at_activation() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -533,6 +539,7 @@ fn test_equip_reequip_detaches_from_previous() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -626,6 +633,7 @@ fn test_equip_cannot_equip_self() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -704,6 +712,7 @@ fn test_equip_already_attached_to_same_target_no_op() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -794,6 +803,7 @@ fn test_equip_pays_mana_cost() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -866,6 +876,7 @@ fn test_equip_insufficient_mana_rejected() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -926,6 +937,7 @@ fn test_equip_protection_blocks_targeting() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -984,6 +996,7 @@ fn test_equip_fizzles_if_target_not_on_battlefield() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -1057,6 +1070,7 @@ fn test_equip_zero_cost_succeeds() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -1174,6 +1188,7 @@ fn test_equip_grants_keywords_via_layer_system() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -1315,6 +1330,7 @@ fn test_reequip_retimestamps_continuous_effects_layer_order_flip() {
                 discard_card: None,
                 sacrifice_target: None,
                 x_value: None,
+                modes_chosen: vec![],
             },
         )
         .unwrap();

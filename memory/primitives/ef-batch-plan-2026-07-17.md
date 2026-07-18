@@ -406,7 +406,38 @@ demote is not a PB and should not wait in the queue.
 - **Candidates (4)**: shaman_of_the_pack (flip `partial`), raiders_wake, forbidden_orchard, ajani_sleeper_agent.
 - **Discounted ship**: **~3.**
 
-### PB-EF7 — modal `AbilityDefinition::Activated { modes }`  ·  capability
+### PB-EF7 — modal `AbilityDefinition::Activated { modes }`  ·  capability  ·  ✅ DONE (scutemob-108)
+> **SHIPPED 2026-07-18. EF-W-PB2-4 CLOSED.** Added `modes: Option<ModeSelection>` to
+> `AbilityDefinition::Activated` (DSL) and the runtime `ActivatedAbility`, plus
+> `modes_chosen: Vec<usize>` to `Command::ActivateAbility`. `handle_activate_ability` now
+> validates the mode choice (CR 601.2b via 602.2b: range / min-max / no-duplicate-per-700.2d /
+> ascending-sort) and splits per-mode target announcement via the existing PB-AC4
+> `ModeSelection.mode_targets` + `validate_targets_positional` — **all before any cost is paid**
+> (CR 602.2 illegal-activation rewind). **Approach (a): the chosen mode's effect is baked into
+> `embedded_effect` at activation** (both eligible cards cost `SacrificeSelf`, so the source is
+> gone at resolution, CR 400.7) — `resolution.rs` is UNCHANGED, and the mode is frozen so no
+> intervening board change can re-derive it (LKI). Multi-mode + `mode_targets` is hard-rejected
+> (flag-don't-extend, mirrors casting's Escalate+mode_targets reject). Corpus sweep re-derived the
+> cohort from `all_cards()` (activated abilities on the gated `Effect::Choose`) = **3**:
+> **goblin_cratermaker** (known_wrong→**Complete**; 2 modes, colorless filter as
+> `exclude_colors:{WUBRG}`+`non_land`, confirmed honored by `matches_filter`) and **cankerbloom**
+> (known_wrong→**Complete**; 3 modes, Proliferate mode has an EMPTY target slice per CR 700.2c so
+> it no longer demands an artifact+enchantment on the board). **umezawas_jitte stays
+> `known_wrong`** — modal is now expressible but a **second, distinct blocker survives** (its
+> counter trigger fires only on combat-damage-to-players; oracle is "deals combat damage" to any
+> recipient) → filed **OOS-EF7-1** (`w-pb2-engine-findings-2026-07-17.md`). Mechanical surface:
+> 774 `AbilityDefinition::Activated` def literals got `modes: None,` (brace-matched, no
+> `once_per_turn` corruption) + ~289 test/engine `modes_chosen`/`modes` backfills. Wire bump:
+> **PROTOCOL 11→12, HASH 49→50**, both machine-forced (Command frame + DSL `modes` reach the SR-8
+> fingerprint; runtime `ActivatedAbility.modes` reaches the GameState hash), re-pinned from
+> failing-gate output, history rows appended. **15 tests** in `pb_ef7_modal_activated.rs` (fwd +
+> reverse mode decoys, exclude_colors decoy, LKI discriminator with a second colorless permanent
+> added mid-resolution, invalid-index / non-modal / duplicate / min-max-bounds / multi-mode+
+> mode_targets / unchoosable-mode-no-legal-target rejections, per-card mode tests, version
+> sentinels), all proven non-vacuous. **Review**: 0 HIGH, 2 MEDIUM (both test-quality: LKI
+> discriminator + validation-branch coverage), 3 LOW — all fixed. Coverage **60.7% → 60.8%**
+> (1,087 → 1,089 clean of 1,792; +2 = the 2 flips). Plan/review:
+> `memory/primitives/pb-plan-EF7.md` / `pb-review-EF7.md`.
 - **Findings**: EF-W-PB2-4.
 - **Fix**: add `modes: Option<ModeSelection>` + `mode_targets` to `Activated`, mirror the
   `Spell`/`Triggered` modal announce/validate/resolve path. Wire change → PROTOCOL bump.
@@ -461,7 +492,7 @@ demote is not a PB and should not wait in the queue.
 | **PB-EF4** ✅ DONE | capability | PB2-6≡MISS-5, PB2-7 | **7 shipped** | PROTOCOL+HASH |
 | **PB-EF5** ✅ DONE | capability | MISS-6 | **2 shipped** | PROTOCOL+HASH |
 | **PB-EF6** ✅ DONE | capability | PB2-2 | **3 flips + fell_specter fix** | PROTOCOL+HASH |
-| PB-EF7 | capability | PB2-4 | ~2–4 | PROTOCOL |
+| **PB-EF7** ✅ DONE | capability | PB2-4 | **2 shipped** | PROTOCOL+HASH |
 | PB-EF8 | capability | PB2-8 | ~2–3 | maybe |
 | PB-EF9 | capability | PB2-5 | ~1–2 | maybe |
 | PB-EF10 | capability | MISS-7 | ~3 | maybe |

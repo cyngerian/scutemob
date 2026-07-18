@@ -33,6 +33,7 @@ fn activate(
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
 }
@@ -60,6 +61,7 @@ fn conditioned_artifact() -> ObjectSpec {
 
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         })
 }
 
@@ -157,6 +159,7 @@ fn test_activation_condition_changes_dynamically() {
 
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         });
 
     let state = GameStateBuilder::new()
@@ -205,6 +208,7 @@ fn test_activation_condition_changes_dynamically() {
 
                     activation_zone: None,
                     once_per_turn: false,
+                    modes: None,
                 }),
         )
         .object(ObjectSpec::creature(p(1), "New Bear", 2, 2).in_zone(ZoneId::Battlefield))

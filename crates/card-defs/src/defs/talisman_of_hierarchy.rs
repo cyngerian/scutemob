@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // {T}: Add {W}. This artifact deals 1 damage to you.
             AbilityDefinition::Activated {
@@ -44,6 +45,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // {T}: Add {B}. This artifact deals 1 damage to you.
             AbilityDefinition::Activated {
@@ -64,6 +66,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         ..Default::default()

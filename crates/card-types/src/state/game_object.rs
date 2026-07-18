@@ -385,6 +385,11 @@ pub struct ActivatedAbility {
     /// `AbilityDefinition::Activated::once_per_turn` in `enrich_spec_from_def`.
     #[serde(default)]
     pub once_per_turn: bool,
+    /// CR 700.2a: Modal activated ability. Propagated from
+    /// `AbilityDefinition::Activated::modes` by `enrich_spec_from_def`. Read by
+    /// `handle_activate_ability` to validate `modes_chosen` and slice per-mode targets.
+    #[serde(default)]
+    pub modes: Option<crate::cards::card_definition::ModeSelection>,
 }
 /// Trigger event patterns for triggered abilities (CR 603).
 ///

@@ -43,6 +43,7 @@ fn tap_ability(description: &str) -> ActivatedAbility {
         activation_condition: None,
         activation_zone: None,
         once_per_turn: false,
+        modes: None,
     }
 }
 
@@ -70,6 +71,7 @@ fn tap_and_pay_ability(description: &str, mana: ManaCost) -> ActivatedAbility {
         activation_condition: None,
         activation_zone: None,
         once_per_turn: false,
+        modes: None,
     }
 }
 
@@ -146,6 +148,7 @@ fn test_activate_ability_tap_places_on_stack() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -217,6 +220,7 @@ fn test_activate_ability_tap_cost_taps_source() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -266,6 +270,7 @@ fn test_activate_ability_pays_mana_cost() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -320,6 +325,7 @@ fn test_activate_ability_not_priority_holder_fails() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
     assert!(matches!(
@@ -365,6 +371,7 @@ fn test_activate_ability_wrong_controller_fails() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
     assert!(matches!(result, Err(GameStateError::NotController { .. })));
@@ -403,6 +410,7 @@ fn test_activate_ability_invalid_index_fails() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
     assert!(matches!(
@@ -445,6 +453,7 @@ fn test_activate_ability_already_tapped_fails() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
     assert!(matches!(
@@ -495,6 +504,7 @@ fn test_activate_ability_insufficient_mana_fails() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
     assert!(matches!(result, Err(GameStateError::InsufficientMana)));
@@ -542,6 +552,7 @@ fn test_activated_ability_resolves_after_all_pass() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -1079,6 +1090,7 @@ fn test_sacrifice_as_cost_full_flow_draw_card() {
 
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -1113,6 +1125,7 @@ fn test_sacrifice_as_cost_full_flow_draw_card() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -1213,6 +1226,7 @@ fn test_sacrifice_filter_creature_valid() {
 
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -1249,6 +1263,7 @@ fn test_sacrifice_filter_creature_valid() {
             discard_card: None,
             sacrifice_target: Some(creature_id),
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -1304,6 +1319,7 @@ fn test_sacrifice_filter_creature_rejects_artifact() {
 
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -1340,6 +1356,7 @@ fn test_sacrifice_filter_creature_rejects_artifact() {
             discard_card: None,
             sacrifice_target: Some(artifact_id),
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -1382,6 +1399,7 @@ fn test_sacrifice_filter_rejects_opponent_creature() {
 
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -1419,6 +1437,7 @@ fn test_sacrifice_filter_rejects_opponent_creature() {
             discard_card: None,
             sacrifice_target: Some(opp_creature_id),
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -1460,6 +1479,7 @@ fn test_sacrifice_filter_missing_target_errors() {
 
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -1487,6 +1507,7 @@ fn test_sacrifice_filter_missing_target_errors() {
             discard_card: None,
             sacrifice_target: None, // no target provided — should fail
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -1823,6 +1844,7 @@ fn test_dies_trigger_fires_on_sacrifice() {
 
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         })
         .with_triggered_ability(dies_trigger("When ~ dies (CR 700.4)"))
         .in_zone(ZoneId::Battlefield);
@@ -1853,6 +1875,7 @@ fn test_dies_trigger_fires_on_sacrifice() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();

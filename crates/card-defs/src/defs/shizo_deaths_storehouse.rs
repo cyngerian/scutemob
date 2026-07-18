@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // {B}, {T}: Target legendary creature gains fear until end of turn (CR 702.36).
             AbilityDefinition::Activated {
@@ -51,6 +52,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         completeness: Completeness::Complete,

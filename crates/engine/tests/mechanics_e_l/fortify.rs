@@ -86,6 +86,7 @@ fn fortify_ability(generic_mana: u32) -> ActivatedAbility {
         activation_condition: None,
         activation_zone: None,
         once_per_turn: false,
+        modes: None,
     }
 }
 
@@ -137,6 +138,7 @@ fn test_fortify_basic_attaches_to_land() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -215,6 +217,7 @@ fn test_fortify_sorcery_speed_only() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -272,6 +275,7 @@ fn test_fortify_target_must_be_land() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -330,6 +334,7 @@ fn test_fortify_requires_controller_ownership() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -402,6 +407,7 @@ fn test_fortify_moves_between_lands() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -582,6 +588,7 @@ fn test_fortify_static_ability_grants_to_land() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();

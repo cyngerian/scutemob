@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // {T}: Add {W} or {B}. Activate only if you control a Swamp.
             // The "or" is modeled as two separate activated abilities, one per color;
@@ -39,6 +40,7 @@ pub fn card() -> CardDefinition {
                 )])),
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // Second color option: {B}
             AbilityDefinition::Activated {
@@ -54,6 +56,7 @@ pub fn card() -> CardDefinition {
                 )])),
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         ..Default::default()

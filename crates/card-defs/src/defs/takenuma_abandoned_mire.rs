@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // Channel — {3}{B}, Discard this card: Mill 3, then return creature/planeswalker
             // from graveyard to hand. Deterministic fallback picks highest-ObjectId matching card.
@@ -60,6 +61,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         // CR 602.2b + 601.2f: Channel ability (index 0) costs {1} less per legendary creature.

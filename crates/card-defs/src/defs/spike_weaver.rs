@@ -60,6 +60,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // CR 615.1: {1}, Remove a +1/+1 counter: Prevent all combat damage this turn.
             AbilityDefinition::Activated {
@@ -79,6 +80,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         ..Default::default()

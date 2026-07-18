@@ -32,6 +32,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // TODO: Activated — {T}: Put a +1/+1 counter on each green creature that entered this turn.
         ],

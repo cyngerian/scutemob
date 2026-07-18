@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // TODO: {1}, {T}: Put a storage counter on this land.
             // DSL gap: no Effect::AddCounter targeting self with CounterType::Storage.

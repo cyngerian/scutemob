@@ -674,6 +674,9 @@ pub fn translate_player_action(
                 discard_card: discard_card_id,
                 sacrifice_target: sacrifice_target_id,
                 x_value: if x_value > 0 { Some(x_value) } else { None },
+                // CR 700.2a/601.2b: mode indices chosen for a modal activated ability
+                // (PB-EF7). Empty = non-modal, or auto-select mode 0.
+                modes_chosen: modes_chosen.clone(),
             })
         }
         // CR 606: Activate a loyalty ability on a planeswalker.
@@ -2141,7 +2144,7 @@ pub fn enrich_spec_from_def(
             activation_condition,
             activation_zone,
             once_per_turn,
-            ..
+            modes,
         } = ability
         {
             // Skip every ability the loop above registered as a ManaAbility (SR-34: no
@@ -2169,6 +2172,8 @@ pub fn enrich_spec_from_def(
                     activation_zone: activation_zone.clone(),
                     // CR 602.5b: Propagate once-per-turn restriction.
                     once_per_turn: *once_per_turn,
+                    // CR 700.2a: Propagate modal structure for modal activated abilities.
+                    modes: modes.clone(),
                 };
                 spec = spec.with_activated_ability(ab);
             }
@@ -2230,6 +2235,7 @@ pub fn enrich_spec_from_def(
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             };
             spec = spec.with_activated_ability(attach_ab);
             // Ability 2: Unattach from the equipped creature (sorcery speed).
@@ -2246,6 +2252,7 @@ pub fn enrich_spec_from_def(
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             };
             spec = spec.with_activated_ability(detach_ab);
         }
@@ -2281,6 +2288,7 @@ pub fn enrich_spec_from_def(
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             };
             spec = spec.with_activated_ability(ab);
         }

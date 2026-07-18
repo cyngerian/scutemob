@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // {2}, {T}, Sacrifice this land: Return target artifact card from your GY to hand.
             AbilityDefinition::Activated {
@@ -51,6 +52,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         ..Default::default()

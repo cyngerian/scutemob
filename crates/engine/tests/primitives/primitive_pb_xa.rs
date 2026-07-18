@@ -90,7 +90,7 @@ fn combat_with_attacker(attacking_player: PlayerId, attacker_id: ObjectId) -> Co
 #[test]
 fn test_pb_hash_schema_version_live_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 49u8,
+        HASH_SCHEMA_VERSION, 50u8,
         "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
     );
 }
@@ -148,6 +148,7 @@ fn attacking_creature_target_ability(name: &str) -> CardDefinition {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         }],
         ..Default::default()
     }
@@ -194,6 +195,7 @@ fn test_pbxa_activated_target_creature_not_attacking_rejected() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -249,6 +251,7 @@ fn test_pbxa_activated_target_creature_attacking_accepted() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -295,6 +298,7 @@ fn attacking_permanent_target_ability(name: &str) -> CardDefinition {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         }],
         ..Default::default()
     }
@@ -337,6 +341,7 @@ fn test_pbxa_activated_target_permanent_not_attacking_rejected() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -390,6 +395,7 @@ fn test_pbxa_activated_target_permanent_attacking_accepted() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -441,6 +447,7 @@ fn test_pbxa_graveyard_target_with_is_attacking_always_rejected() {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         }],
         ..Default::default()
     };
@@ -486,6 +493,7 @@ fn test_pbxa_graveyard_target_with_is_attacking_always_rejected() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 

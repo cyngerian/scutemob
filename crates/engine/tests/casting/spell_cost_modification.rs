@@ -1816,6 +1816,7 @@ fn test_activated_ability_self_cost_reduction_per_legendary() {
 
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         });
 
     // 2 legendary creatures controlled by p1.
@@ -1857,6 +1858,7 @@ fn test_activated_ability_self_cost_reduction_per_legendary() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .expect("CR 602.2b: ability should cost 2 generic with 2 legendary creatures");
@@ -1906,6 +1908,7 @@ fn test_activated_ability_self_cost_reduction_floor_zero() {
 
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         });
 
     // 10 legendary creatures — would reduce by 10 but cost is only 3.
@@ -1945,6 +1948,7 @@ fn test_activated_ability_self_cost_reduction_floor_zero() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .expect("CR 601.2f: cost should floor at {0}, not go negative");
@@ -1995,6 +1999,7 @@ fn test_activated_ability_self_cost_reduction_vampires() {
 
         activation_zone: None,
         once_per_turn: false,
+        modes: None,
     };
     // Blood token ability at index 1 — costs {5} generic (tap as part of cost).
     let blood_ab = ActivatedAbility {
@@ -2014,6 +2019,7 @@ fn test_activated_ability_self_cost_reduction_vampires() {
 
         activation_zone: None,
         once_per_turn: false,
+        modes: None,
     };
 
     let estate = ObjectSpec::card(p1, "Estate Test")
@@ -2063,6 +2069,7 @@ fn test_activated_ability_self_cost_reduction_vampires() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .expect("CR 602.2b: Blood token ability should cost {2} with 3 Vampires");

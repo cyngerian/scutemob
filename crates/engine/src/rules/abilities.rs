@@ -136,6 +136,7 @@ pub fn handle_activate_ability(
     discard_card: Option<ObjectId>,
     sacrifice_target: Option<ObjectId>,
     x_value: Option<u32>,
+    mut modes_chosen: Vec<usize>,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     // CR 602.2: Activating requires priority.
     if state.turn.priority_holder != Some(player) {
@@ -305,7 +306,7 @@ pub fn handle_activate_ability(
     // Clone the cost, effect, and target requirements before mutating state.
     // Effect must be captured now in case sacrifice-as-cost removes the source object.
     // CR 613.1f: Use layer-resolved activated abilities (Humility removes them).
-    let (ability_cost, embedded_effect, target_requirements, is_once_per_turn) = {
+    let (ability_cost, mut embedded_effect, target_requirements, is_once_per_turn, ability_modes) = {
         state.object(source)?;
         let resolved = crate::rules::layers::expect_characteristics(state, source);
         let ab = resolved
@@ -322,19 +323,145 @@ pub fn handle_activate_ability(
             ab.effect.clone(),
             ab.targets.clone(),
             ab.once_per_turn,
+            ab.modes.clone(),
         )
     };
+    // CR 700.2a/700.2d (PB-EF7): Validate explicit mode choices for a modal activated
+    // ability. Mirrors the Spell modal validation in casting.rs (`validated_modes_chosen`),
+    // performed BEFORE any cost payment so an illegal mode/target choice never spends mana
+    // or a sacrifice (CR 602.2 -- an illegal activation rewinds to before it started).
+    let validated_modes_chosen: Vec<usize> = if !modes_chosen.is_empty() {
+        match &ability_modes {
+            None => {
+                return Err(GameStateError::InvalidCommand(
+                    "modes_chosen specified but this ability has no modal structure (CR 700.2a)"
+                        .into(),
+                ));
+            }
+            Some(ms) => {
+                // CR 700.2a: Each chosen index must be within range.
+                for &idx in &modes_chosen {
+                    if idx >= ms.modes.len() {
+                        return Err(GameStateError::InvalidCommand(format!(
+                            "mode index {} is out of range (ability has {} modes) (CR 700.2a)",
+                            idx,
+                            ms.modes.len()
+                        )));
+                    }
+                }
+                // CR 700.2d: Duplicate modes are only allowed when allow_duplicate_modes is set.
+                if !ms.allow_duplicate_modes {
+                    let mut seen = std::collections::HashSet::new();
+                    for &idx in &modes_chosen {
+                        if !seen.insert(idx) {
+                            return Err(GameStateError::InvalidCommand(format!(
+                                "mode index {} chosen more than once; use allow_duplicate_modes: true to allow (CR 700.2d)",
+                                idx
+                            )));
+                        }
+                    }
+                }
+                // CR 700.2a: Count must be between min_modes and max_modes.
+                let chosen_count = modes_chosen.len();
+                if chosen_count < ms.min_modes {
+                    return Err(GameStateError::InvalidCommand(format!(
+                        "must choose at least {} mode(s); only {} chosen (CR 700.2a)",
+                        ms.min_modes, chosen_count
+                    )));
+                }
+                if chosen_count > ms.max_modes {
+                    return Err(GameStateError::InvalidCommand(format!(
+                        "may choose at most {} mode(s); {} chosen (CR 700.2a)",
+                        ms.max_modes, chosen_count
+                    )));
+                }
+                // CR 700.2a: modes always execute in ascending printed order.
+                modes_chosen.sort_unstable();
+                modes_chosen
+            }
+        }
+    } else if let Some(ms) = &ability_modes {
+        // Empty modes_chosen on a modal ability -> auto-select mode 0 (backward
+        // compat / bots), mirroring the Spell/Triggered modal fallback.
+        if !ms.modes.is_empty() {
+            vec![0]
+        } else {
+            vec![]
+        }
+    } else {
+        // Non-modal ability.
+        vec![]
+    };
+    // CR 700.2c/700.2f (PB-EF7, mirrors PB-AC4): If the ability has per-mode target
+    // requirements (`ModeSelection.mode_targets` is `Some`), targets are announced/
+    // validated ONLY for the chosen mode's requirements -- not the flat union of every
+    // mode's targets. `validated_modes_chosen` already incorporates the auto-select-
+    // mode-0 fallback above, so no separate indices recomputation is needed here (unlike
+    // the Spell path in casting.rs, which computes cast-time indices before validated_modes_chosen
+    // exists in its final form).
+    let mode_targets_active: Option<Vec<crate::cards::card_definition::TargetRequirement>> =
+        ability_modes.as_ref().and_then(|ms| {
+            ms.mode_targets.as_ref().map(|mt| {
+                debug_assert_eq!(
+                    mt.len(),
+                    ms.modes.len(),
+                    "ModeSelection.mode_targets.len() ({}) must equal modes.len() ({}) \
+                     (CR 700.2c author invariant)",
+                    mt.len(),
+                    ms.modes.len()
+                );
+                validated_modes_chosen
+                    .iter()
+                    .flat_map(|&idx| mt.get(idx).cloned().unwrap_or_default())
+                    .collect::<Vec<crate::cards::card_definition::TargetRequirement>>()
+            })
+        });
+    // CR 700.2c: Multiple modes chosen combined with per-mode targets is not a supported
+    // combination (mirrors the Escalate+mode_targets hard-reject in casting.rs) -- a flat
+    // Sequence of chosen-mode effects would break each mode's LOCAL target-slice indexing.
+    // No PB-EF7-scoped card hits this branch (both flipped cards are choose-exactly-one).
+    if mode_targets_active.is_some() && validated_modes_chosen.len() > 1 {
+        return Err(GameStateError::InvalidCommand(
+            "multiple modes chosen combined with ModeSelection.mode_targets is not supported (CR 700.2c/700.2a)".into(),
+        ));
+    }
     // CR 601.2c: General target validation for activated abilities.
     // If the ability declares TargetRequirements, validate each target against them
     // BEFORE spending any costs (so mana is not wasted on illegal activations).
-    if !target_requirements.is_empty() {
-        let source_chars =
-            crate::rules::layers::calculate_characteristics(state, source).or_else(|| {
-                state
-                    .objects
-                    .get(&source)
-                    .map(|o| o.characteristics.clone())
-            });
+    let target_source_chars = crate::rules::layers::calculate_characteristics(state, source)
+        .or_else(|| {
+            state
+                .objects
+                .get(&source)
+                .map(|o| o.characteristics.clone())
+        });
+    if let Some(active_reqs) = &mode_targets_active {
+        // CR 700.2c/700.2f: per-mode target validation is POSITIONAL (declaration order
+        // must match `active_reqs` order), mirroring the Spell modal path in casting.rs.
+        if !target_requirements.is_empty() {
+            return Err(GameStateError::InvalidCommand(
+                "modal activated ability has both a flat targets list and ModeSelection.mode_targets set; only one may be used (CR 700.2c author invariant)".into(),
+            ));
+        }
+        if active_reqs.iter().any(|r| {
+            matches!(
+                r,
+                crate::cards::card_definition::TargetRequirement::UpToN { .. }
+            )
+        }) {
+            return Err(GameStateError::InvalidCommand(
+                "ModeSelection.mode_targets may not contain UpToN (variable-count per-mode targets are unsupported) (CR 700.2c)".into(),
+            ));
+        }
+        crate::rules::casting::validate_targets_positional(
+            state,
+            &targets,
+            active_reqs,
+            player,
+            target_source_chars.as_ref(),
+            Some(source),
+        )?;
+    } else if !target_requirements.is_empty() {
         // PB-XS: thread the activating object's id through validation so
         // `TargetFilter.exclude_self` (CR 109.1 / 601.2c — "another target X")
         // can reject self-targeting on activated abilities (Samut, Ezuri, etc.).
@@ -345,9 +472,32 @@ pub fn handle_activate_ability(
             &targets,
             &target_requirements,
             player,
-            source_chars.as_ref(),
+            target_source_chars.as_ref(),
             source,
         )?;
+    }
+    // CR 700.2a (PB-EF7): Bake the chosen mode(s) into a concrete effect NOW, at
+    // activation time -- not at resolution. Both eligible cards (Goblin Cratermaker,
+    // Cankerbloom) cost `Cost::SacrificeSelf`, so at resolution `state.objects.get(source)`
+    // is `None` (CR 400.7) and only a captured `embedded_effect` survives. This mirrors how
+    // sacrifice-cost activated abilities already capture their effect at activation
+    // (see the module doc / gotchas). The chosen mode's `DeclaredTarget` indices are LOCAL
+    // to its target slice; because only one mode is chosen for both eligible cards, local
+    // == global and `stack_obj.targets` (set below) IS that single slice.
+    if let Some(ms) = &ability_modes {
+        if !validated_modes_chosen.is_empty() {
+            embedded_effect = if validated_modes_chosen.len() == 1 {
+                ms.modes.get(validated_modes_chosen[0]).cloned()
+            } else {
+                // mode_targets_active.is_some() + len() > 1 was already hard-rejected above.
+                Some(crate::cards::card_definition::Effect::Sequence(
+                    validated_modes_chosen
+                        .iter()
+                        .filter_map(|&idx| ms.modes.get(idx).cloned())
+                        .collect(),
+                ))
+            };
+        }
     }
     // CR 702.6a / CR 601.2c: Equip abilities can only target "a creature you control."
     // Validate target type and controller BEFORE spending any costs, so that mana is
@@ -1117,6 +1267,9 @@ pub fn handle_activate_ability(
         },
     );
     stack_obj.targets = spell_targets;
+    // CR 700.2a (PB-EF7): Record the chosen mode(s) on the stack object for LKI/replay/hash
+    // observability, even though approach (a) already baked them into `embedded_effect`.
+    stack_obj.modes_chosen = validated_modes_chosen;
     // CR 107.3k: Propagate x_value so effects using EffectAmount::XValue resolve correctly.
     stack_obj.x_value = x_value.unwrap_or(0);
     // PB-P: Carry captured LKI powers of cost-sacrificed creatures forward to resolution,

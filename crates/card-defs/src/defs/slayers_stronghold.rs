@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // {R}{W}, {T}: Target creature gets +2/+0 and gains vigilance and haste until EOT.
             AbilityDefinition::Activated {
@@ -62,6 +63,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         ..Default::default()

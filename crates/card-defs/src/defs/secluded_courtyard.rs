@@ -39,6 +39,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // {T}: Add one mana of any color (restricted to chosen creature type spells)
             // Note: "or activate an ability of a creature source of the chosen type" is
@@ -54,6 +55,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         completeness: Completeness::known_wrong(

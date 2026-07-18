@@ -119,6 +119,7 @@ fn battlements_def() -> CardDefinition {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         }],
         power: None,
         toughness: None,
@@ -224,6 +225,7 @@ fn test_meld_basic_exile_and_enter() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .expect("meld activation should succeed");
@@ -262,6 +264,7 @@ fn test_meld_characteristics_from_back_face() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -323,6 +326,7 @@ fn test_meld_fails_partner_not_present() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -372,6 +376,7 @@ fn test_meld_fails_different_controller() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -401,6 +406,7 @@ fn test_meld_zone_change_splitting() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -481,6 +487,7 @@ fn test_meld_component_tracking() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();

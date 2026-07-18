@@ -1072,6 +1072,8 @@ mod tests {
                 ..Default::default()
             },
             description: format!("Pay {life} life: do nothing"),
+            modes: None,
+
             ..Default::default()
         }
     }

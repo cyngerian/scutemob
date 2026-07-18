@@ -89,6 +89,7 @@ fn blood_spec(owner: PlayerId, name: &str) -> ObjectSpec {
 
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         })
         .token()
 }
@@ -256,6 +257,7 @@ fn test_blood_token_activation_basic() {
             discard_card: Some(dummy_id),
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -350,6 +352,7 @@ fn test_blood_token_discard_is_cost() {
             discard_card: Some(dummy_id),
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -424,6 +427,7 @@ fn test_blood_token_uses_stack() {
             discard_card: Some(discard_id),
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -470,6 +474,7 @@ fn test_blood_token_activation_no_mana() {
             discard_card: Some(dummy_id),
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -526,6 +531,7 @@ fn test_blood_token_activation_already_tapped() {
             discard_card: Some(dummy_id),
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -579,6 +585,7 @@ fn test_blood_token_activation_no_cards_in_hand() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -632,6 +639,7 @@ fn test_blood_token_sba_ceases_to_exist() {
             discard_card: Some(dummy_id),
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -728,6 +736,7 @@ fn test_blood_token_not_affected_by_summoning_sickness() {
             discard_card: Some(dummy_id),
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -780,6 +789,7 @@ fn test_blood_token_only_controller_can_activate() {
             discard_card: Some(dummy_id),
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -888,6 +898,7 @@ fn test_blood_token_activation_sacrifice_removes_from_battlefield() {
             discard_card: Some(dummy_id),
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -940,6 +951,7 @@ fn test_blood_token_discard_must_be_from_hand() {
             discard_card: Some(grave_card_id),
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 

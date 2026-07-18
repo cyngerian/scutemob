@@ -39,6 +39,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // TODO: mana-spend exile trigger + cast-from-exile activated ability
         ],

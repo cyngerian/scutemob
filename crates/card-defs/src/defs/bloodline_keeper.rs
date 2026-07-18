@@ -54,6 +54,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // CR 701.27a/602.5b: "{B}: Transform this creature. Activate only if you
             // control five or more Vampires." (PB-EF5)
@@ -74,6 +75,7 @@ pub fn card() -> CardDefinition {
                 }),
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         color_indicator: None,
@@ -110,6 +112,7 @@ pub fn card() -> CardDefinition {
                     activation_condition: None,
                     activation_zone: None,
                     once_per_turn: false,
+                    modes: None,
                 },
             ],
             color_indicator: None,

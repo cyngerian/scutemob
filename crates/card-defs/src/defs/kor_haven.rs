@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // CR 615.1: {1}{W},{T}: Prevent all combat damage dealt BY target attacking creature.
             AbilityDefinition::Activated {
@@ -46,6 +47,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         completeness: Completeness::Complete,

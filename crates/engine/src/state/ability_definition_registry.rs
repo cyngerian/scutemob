@@ -403,6 +403,7 @@ pub fn all_ability_definitions() -> Vec<AbilityDefinition> {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         },
         A::Triggered {
             trigger_condition: TriggerCondition::WhenEntersBattlefield,

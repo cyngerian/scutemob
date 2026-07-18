@@ -39,6 +39,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // {T}: Add one mana of any color. Spend this mana only to cast a creature
             // spell of the chosen type.
@@ -53,6 +54,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // TODO: "and that spell can't be countered" — uncounterability rider on the
             // mana restriction is not yet expressible. Requires linking mana source to

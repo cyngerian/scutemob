@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // {R/W}, {T}: Add {R}{R}, {R}{W}, or {W}{W}
             // CR 605.1a: filter land mana ability. Simplified to 1{R}+1{W} (middle option).
@@ -42,6 +43,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         completeness: Completeness::known_wrong(

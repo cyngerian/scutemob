@@ -51,6 +51,7 @@ fn targeted_activated_ability_valid_creature_target() {
 
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -88,6 +89,7 @@ fn targeted_activated_ability_valid_creature_target() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
     assert!(
@@ -128,6 +130,7 @@ fn targeted_activated_ability_rejects_non_creature() {
 
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -165,6 +168,7 @@ fn targeted_activated_ability_rejects_non_creature() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
     assert!(
@@ -207,6 +211,7 @@ fn targeted_activated_ability_target_player() {
 
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -234,6 +239,7 @@ fn targeted_activated_ability_target_player() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
     assert!(
@@ -274,6 +280,7 @@ fn activated_ability_no_targets_backward_compatible() {
 
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -301,6 +308,7 @@ fn activated_ability_no_targets_backward_compatible() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
     assert!(
@@ -477,6 +485,7 @@ fn targeted_activated_ability_rejects_player_for_creature_requirement() {
 
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -505,6 +514,7 @@ fn targeted_activated_ability_rejects_player_for_creature_requirement() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
     assert!(
@@ -546,6 +556,7 @@ fn targeted_activated_ability_rejects_wrong_target_count() {
 
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -574,6 +585,7 @@ fn targeted_activated_ability_rejects_wrong_target_count() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
     assert!(

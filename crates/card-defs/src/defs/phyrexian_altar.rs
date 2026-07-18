@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         }],
         completeness: Completeness::known_wrong(
             "CR 106.1b: 'Sacrifice a creature: Add one mana of any color' adds one COLORLESS mana \

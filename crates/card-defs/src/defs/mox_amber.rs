@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         }],
         completeness: Completeness::known_wrong(
             "SF-11 (CR 106.1a/106.1b): this card's \"any color\" mana resolves to one COLORLESS \

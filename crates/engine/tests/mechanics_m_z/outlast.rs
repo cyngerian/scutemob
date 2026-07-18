@@ -98,6 +98,7 @@ fn outlast_ability(mana: ManaCost) -> ActivatedAbility {
         activation_condition: None,
         activation_zone: None,
         once_per_turn: false,
+        modes: None,
     }
 }
 
@@ -168,6 +169,7 @@ fn test_outlast_basic_adds_counter() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -256,6 +258,7 @@ fn test_outlast_sorcery_speed_restriction() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -312,6 +315,7 @@ fn test_outlast_summoning_sickness_prevents_activation() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -349,6 +353,7 @@ fn test_outlast_requires_mana() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -391,6 +396,7 @@ fn test_outlast_already_tapped() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -433,6 +439,7 @@ fn test_outlast_stacks_counters() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -470,6 +477,7 @@ fn test_outlast_stacks_counters() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -523,6 +531,7 @@ fn test_outlast_not_a_cast() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();

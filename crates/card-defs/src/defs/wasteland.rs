@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // {T}, Sacrifice this land: Destroy target nonbasic land.
             AbilityDefinition::Activated {
@@ -39,6 +40,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         completeness: Completeness::Complete,

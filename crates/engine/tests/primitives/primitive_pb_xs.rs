@@ -66,7 +66,7 @@ fn single_def(def: CardDefinition) -> (HashMap<String, CardDefinition>, Arc<Card
 #[test]
 fn test_pbxs_hash_schema_version_matches_live_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 49u8,
+        HASH_SCHEMA_VERSION, 50u8,
         "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
     );
 }
@@ -151,6 +151,7 @@ fn fight_self_creature(name: &str) -> CardDefinition {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         }],
         ..Default::default()
     }
@@ -191,6 +192,7 @@ fn test_pbxs_activated_target_self_is_rejected() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -240,6 +242,7 @@ fn test_pbxs_activated_target_another_creature_is_accepted() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -290,6 +293,7 @@ fn test_pbxs_activated_target_permanent_exclude_self_rejects_source() {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         }],
         ..Default::default()
     };
@@ -323,6 +327,7 @@ fn test_pbxs_activated_target_permanent_exclude_self_rejects_source() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
     assert!(
@@ -385,6 +390,7 @@ fn test_pbxs_graveyard_filter_excludes_source() {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         }],
         ..Default::default()
     };
@@ -439,6 +445,7 @@ fn test_pbxs_graveyard_filter_excludes_source() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
     assert!(
@@ -461,6 +468,7 @@ fn test_pbxs_graveyard_filter_excludes_source() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
     assert!(

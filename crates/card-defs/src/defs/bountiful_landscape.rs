@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // {T}, Sacrifice: Search for basic Forest, Island, or Mountain.
             // has_subtypes with OR semantics + basic: true matches basic lands with
@@ -61,6 +62,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // Cycling {G}{U}{R}
             AbilityDefinition::Keyword(KeywordAbility::Cycling),

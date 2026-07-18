@@ -138,6 +138,7 @@ fn test_animated_artifact_sacrifice_self_emits_creature_died() {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         });
 
     // Witness: another permanent with "whenever a creature dies" trigger.
@@ -179,6 +180,7 @@ fn test_animated_artifact_sacrifice_self_emits_creature_died() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .expect("ActivateAbility with sacrifice_self should succeed");
@@ -255,6 +257,7 @@ fn test_animated_artifact_sacrifice_filter_emits_creature_died() {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         });
 
     // The sacrificed permanent: a plain artifact animated into a creature by the Layer 4 effect.
@@ -299,6 +302,7 @@ fn test_animated_artifact_sacrifice_filter_emits_creature_died() {
             discard_card: None,
             sacrifice_target: Some(fodder_id),
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .expect("ActivateAbility with sacrifice_filter should succeed");

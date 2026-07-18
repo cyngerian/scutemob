@@ -29,6 +29,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // {R}, {T}: Target creature gains haste until end of turn.
             AbilityDefinition::Activated {
@@ -55,6 +56,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // {3}{R}{R}, {T}: Meld with Hanweir Garrison (CR 701.42a / CR 712.4a)
             AbilityDefinition::Activated {
@@ -72,6 +74,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         meld_pair: Some(MeldPair {

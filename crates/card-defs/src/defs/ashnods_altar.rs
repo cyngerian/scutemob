@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         }],
         completeness: Completeness::partial(
             "CR 605.1a/605.3b: 'Sacrifice a creature: Add {C}{C}' is a mana ability (no target, \

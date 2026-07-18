@@ -77,6 +77,7 @@ pub fn card() -> CardDefinition {
                     activation_condition: None,
                     activation_zone: None,
                     once_per_turn: false,
+                    modes: None,
                 },
                 AbilityDefinition::Activated {
                     cost: Cost::Tap,
@@ -96,6 +97,7 @@ pub fn card() -> CardDefinition {
                     activation_condition: None,
                     activation_zone: None,
                     once_per_turn: false,
+                    modes: None,
                 },
             ],
             color_indicator: None,

@@ -40,6 +40,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: Some(Condition::YouAttackedThisTurn),
                 activation_zone: Some(ActivationZone::Graveyard),
                 once_per_turn: false,
+                modes: None,
             },
         ],
         ..Default::default()

@@ -36,6 +36,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // TODO: Activated — {B}, {T}: Target creature connives X (where X = creatures died this turn).
         ],

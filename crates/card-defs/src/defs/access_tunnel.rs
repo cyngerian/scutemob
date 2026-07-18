@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // {3}, {T}: Target creature with power 3 or less can't be blocked this turn.
             AbilityDefinition::Activated {
@@ -52,6 +53,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         ..Default::default()

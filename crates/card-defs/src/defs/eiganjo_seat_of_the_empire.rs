@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // PB-XA2: "target attacking or blocking creature" — filter applies OR semantics
             // when both is_attacking and is_blocking are set (see `passes_combat_role` in
@@ -50,6 +51,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         // CR 602.2b + 601.2f: Channel ability (index 0) costs {1} less per legendary creature.

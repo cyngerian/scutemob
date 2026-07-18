@@ -191,6 +191,8 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
                         discard_card: None,
                         sacrifice_target: None,
                         x_value: None,
+                        // PB-EF7: TUI doesn't yet prompt for mode choice; empty auto-selects mode 0.
+                        modes_chosen: Vec::new(),
                     };
                     app.execute_command(cmd)?;
                 } else {

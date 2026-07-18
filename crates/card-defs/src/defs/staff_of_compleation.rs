@@ -35,6 +35,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // {T}, Pay 2 life: Add one mana of any color.
             AbilityDefinition::Activated {
@@ -47,6 +48,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // {T}, Pay 3 life: Proliferate.
             AbilityDefinition::Activated {
@@ -57,6 +59,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // {T}, Pay 4 life: Draw a card.
             AbilityDefinition::Activated {
@@ -70,6 +73,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // {5}: Untap Staff of Compleation.
             AbilityDefinition::Activated {
@@ -85,6 +89,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         completeness: Completeness::known_wrong(
