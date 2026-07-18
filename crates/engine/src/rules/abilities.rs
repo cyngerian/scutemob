@@ -3588,11 +3588,14 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     // `PendingTriggerKind::Myriad` so flush_pending_triggers creates a
                     // KeywordTrigger (Myriad) stack object (not a plain TriggeredAbility).
                     for t in &mut triggers[pre_len..] {
-                        // CR 113.7a: the trigger source may have left this batch; use LKI.
-                        if let Some(obj) = state.fizzle_object(t.source) {
-                            if let Some(ta) =
-                                obj.characteristics.triggered_abilities.get(t.ability_index)
-                            {
+                        // PB-EF3b: read layer-RESOLVED characteristics, not raw base, since
+                        // `t.ability_index` indexes resolved `triggered_abilities` (a granted
+                        // trigger-keyword's derived def only exists there). Still None-tolerant
+                        // (CR 113.7a: the trigger source may have left this batch).
+                        if let Some(chars) =
+                            crate::rules::layers::calculate_characteristics(state, t.source)
+                        {
+                            if let Some(ta) = chars.triggered_abilities.get(t.ability_index) {
                                 if ta.effect.is_none() && ta.description.starts_with("Myriad") {
                                     t.kind = PendingTriggerKind::Myriad;
                                 }
@@ -3611,11 +3614,14 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     // successive triggers from the same attacker pick different creatures.
                     let mut provoke_targets_used: Vec<ObjectId> = Vec::new();
                     for t in &mut triggers[pre_len..] {
-                        // CR 113.7a: the trigger source may have left this batch; use LKI.
-                        if let Some(obj) = state.fizzle_object(t.source) {
-                            if let Some(ta) =
-                                obj.characteristics.triggered_abilities.get(t.ability_index)
-                            {
+                        // PB-EF3b: read layer-RESOLVED characteristics, not raw base, since
+                        // `t.ability_index` indexes resolved `triggered_abilities` (a granted
+                        // trigger-keyword's derived def only exists there). Still None-tolerant
+                        // (CR 113.7a: the trigger source may have left this batch).
+                        if let Some(chars) =
+                            crate::rules::layers::calculate_characteristics(state, t.source)
+                        {
+                            if let Some(ta) = chars.triggered_abilities.get(t.ability_index) {
                                 if ta.description.starts_with("Provoke") {
                                     t.kind = PendingTriggerKind::Provoke;
                                     // Select target: first creature controlled by defending player
@@ -3655,11 +3661,16 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     // Rampage which needs an N value, Melee always gives +1/+1 per
                     // opponent attacked -- no parameter to carry.
                     for t in &mut triggers[pre_len..] {
-                        // CR 113.7a: the trigger source may have left this batch; use LKI.
-                        if let Some(obj) = state.fizzle_object(t.source) {
-                            if let Some(ta) =
-                                obj.characteristics.triggered_abilities.get(t.ability_index)
-                            {
+                        // PB-EF3b (load-bearing fix for granted Melee, e.g. Adriana's anthem):
+                        // read layer-RESOLVED characteristics, not raw base, since
+                        // `t.ability_index` indexes resolved `triggered_abilities` (a granted
+                        // Melee's derived def only exists there — see
+                        // layers::calculate_characteristics reconciliation). Still None-tolerant
+                        // (CR 113.7a: the trigger source may have left this batch).
+                        if let Some(chars) =
+                            crate::rules::layers::calculate_characteristics(state, t.source)
+                        {
+                            if let Some(ta) = chars.triggered_abilities.get(t.ability_index) {
                                 if ta.effect.is_none() && ta.description.starts_with("Melee") {
                                     t.kind = PendingTriggerKind::Melee;
                                 }

@@ -493,3 +493,51 @@ player must be **captured into the registered `ContinuousEffectDef` instance** a
   (`is_blocking`/`is_tapped` target predicates — same "predicate can't see the field" shape
   as PB-EF1; consider a combined "TargetFilter runtime predicates" PB), OOS-XS-3
   (`LayerModification::AddSubtype`, needed by olivia_voldaren's `{1}{R}` half alongside PB-EF9).
+
+---
+
+## 7. New findings filed by PB-EF3b (scutemob-104)
+
+### OOS-EF3b-1 (capability) — "you control your commander" (Lieutenant) continuous-grant condition
+Lieutenant-style abilities ("As long as you control your commander, [static effect]") need a
+condition on a continuous-effect grant (`ContinuousEffectDef.condition`) that evaluates
+"the effect's controller currently controls their commander." No such condition exists:
+`Condition` (card_definition.rs) has no commander variant, and `TargetFilter` has no
+`is_commander` field, so `Condition::YouControlPermanent(filter)` cannot express it either
+(a `TargetFilter` can't identify "is a commander," only printed characteristics).
+
+- **Instance**: `skyhunter_strike_force.rs` (PB-EF3b) — "Lieutenant — As long as you control
+  your commander, other creatures you control have melee." Authored `partial`: Flying +
+  printed Melee modeled and correct, the Lieutenant anthem omitted (not modeled wrong).
+- **Also blocks**: any other Lieutenant-keyword card (the keyword recurs across multiple
+  printings) and any other "as long as you control your commander" static-ability card.
+- **Fix shape**: add a `Condition::YouControlYourCommander` (or a `CommanderControlled` flag
+  on `TargetFilter`) that `is_effect_active` / the static-registration path can check against
+  the effect's controller's `commander_ids` + battlefield presence. Small, isolated addition;
+  likely no PROTOCOL bump if modeled as a new `Condition` variant reusing existing wire shape
+  (verify at plan time — `Condition` is inside the SR-8 closure).
+- **Verified**: PB-EF3b recon 2026-07-18 — `Condition` and `TargetFilter` enums audited,
+  neither expresses "is my commander."
+
+### OOS-EF3b-2 (capability) — extend `derived_attack_trigger_for_keyword` to the full builder-synthesized keyword-trigger set
+PB-EF3b's shared helper (`state::builder::derived_attack_trigger_for_keyword`) and the
+`layers::calculate_characteristics` reconciliation it feeds only cover the three keywords
+briefed in scope: Melee, Battle Cry, Annihilator N. `builder.rs`'s `for kw in
+spec.keywords.iter()` loop synthesizes derived `TriggeredAbilityDef`s for several more
+trigger-bearing keywords inline — Dethrone, Training, Enlist, Persist, Undying, and others —
+none of which get a granted-keyword reconciliation. A future card granting one of these
+(e.g. "Other creatures you control have dethrone") would repeat EF-W-MISS-3's silent no-op.
+
+- **Also affects the Myriad/Provoke tag-read fix** (PB-EF3b Change 4): the raw→resolved read
+  switch is defense-in-depth for these two (harmless for printed keywords, correct index for
+  any future granted instance) but a *granted* Myriad/Provoke still produces no derived
+  trigger at all today, because the helper doesn't synthesize one for them.
+- **Fix shape**: widen the `match kw` in `derived_attack_trigger_for_keyword` to cover the
+  remaining keywords whose derived defs are already built inline in `builder.rs`'s loop,
+  moving each into the shared helper the same way PB-EF3b did for the first three. No new
+  DSL/wire type — purely consolidating existing per-keyword `TriggeredAbilityDef` literals
+  behind the one helper. Straightforward extension PB once a card actually needs one of these
+  keywords granted.
+- **Verified**: PB-EF3b implementation 2026-07-18 — `builder.rs` loop enumerated; Dethrone
+  (~line 548 pre-batch), Training, Enlist, Persist, Undying, and others remain inline,
+  untouched by this batch's helper extraction (deliberately, per plan scope).
