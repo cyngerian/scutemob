@@ -1,5 +1,14 @@
 # W-MISS roster — the authorable missing-file cards
 
+> **UPDATE 2026-07-18 (PB-EF3, `scutemob-103`):** the two engine gaps this wave demoted for
+> — EF-W-MISS-10 (targeted attack trigger) and EF-W-MISS-4 (defending-player target) — are now
+> CLOSED. Shipped Complete: **Ojutai, Soul of Winter** (`ojutai_soul_of_winter.rs`), **Hellrider**
+> (flip), **Raid Bombardment** (new). Still blocked on *other, distinct* primitives (not this
+> wave's two gaps): Silumgar (continuous defending-player-scoped -1/-1 → filed **OOS-EF3-1**),
+> Brutal Hordechief (force-block + attacker-chosen blocks), Norn's Decree + Karazikar (multi-gap),
+> Cunning Rhetoric (defender-side "opponent attacks you" trigger). See
+> `memory/card-authoring/w-miss-engine-findings-2026-07-17.md` EF-W-MISS-4/10 (marked CLOSED).
+
 **Task**: `scutemob-97` — W-MISS (campaign plan §3).
 **Date**: 2026-07-17.
 **Source of truth**: `docs/authoring-status-missing.txt` (regenerated at HEAD `ab42a198`;

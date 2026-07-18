@@ -55,6 +55,46 @@ type: plan
 > (3344 + 8 new + 2 from the un-retired/gate-driven baseline shift). This clears PB-EF2;
 > next per queue order below: PB-EF3 → PB-EF3b → capability batches EF4..EF12.
 
+> **STATUS UPDATE (2026-07-18, scutemob-103): PB-EF3 SHIPPED.** Both correctness halves landed.
+> **(A) EF-W-MISS-10 (HIGH) CLOSED** — `enrich_spec_from_def` now forwards each card-def
+> `AbilityDefinition::Triggered { targets, .. }` into the runtime `TriggeredAbilityDef.targets`
+> across **all 30** enrich blocks (was hardcoded `targets: vec![]`), and the auto-target fallback
+> in `flush_pending_triggers` is guarded by trigger kind: `PendingTriggerKind::Normal` treats the
+> runtime `triggered_abilities[idx].targets` as authoritative (no fall-through), `CardDefETB` keeps
+> the `def.abilities.get(idx)` raw-index lookup. A regression sweep found 4 pre-existing sites
+> mis-tagged `Normal` while raw-indexing `def.abilities` (WhenYouCastThisSpell, WhenExertedAsAttacks,
+> the WhenDealsCombatDamageToPlayer carddef fallback = the Throat Slitter path, WheneverRingTemptsYou)
+> and reclassified them to `CardDefETB` (their correct kind). **(B) EF-W-MISS-4 (MED) CLOSED** —
+> added `EffectTarget::AttackTarget` (the player *or planeswalker* the triggering attacker is
+> attacking; Player→ResolvedTarget::Player, Planeswalker present→Object, Planeswalker gone→fizzle per
+> CR 506.4c, resolved **lazily** from live `state.combat.attackers[triggering_creature_id]` with a
+> captured `ctx.defending_player` fallback only when the attacker itself has left combat, CR 113.7a)
+> and `PlayerTarget::DefendingPlayer` (the defending player only, CR 508.4 — planeswalker's
+> controller). The defending player is captured per-attacker at `AttackersDeclared` into the EXISTING
+> `PendingTrigger.defending_player_id` (no new PendingTrigger field / no shape churn) and threaded to
+> new `StackObject.defending_player` → new `EffectContext.defending_player`. Substituting
+> EachOpponent/Controller (wrong in 4-player) is avoided — each per-attacker trigger carries its own
+> defender. Wire bump necessary: **PROTOCOL 7→8** (enum variants in the SR-8 fingerprint closure),
+> **HASH 45→46** (`StackObject.defending_player` in the GameState hash closure), both machine-forced,
+> history rows appended. **Cards shipped (3, honest discount from the ~5-6 estimate):**
+> `ojutai_soul_of_winter.rs` (new, MISS-10 — the card W-MISS authored/reviewed/removed unshipped),
+> `hellrider.rs` (flip partial→Complete, TODO removed), `raid_bombardment.rs` (new). **5 candidates
+> stayed blocked with real, distinct blockers** (NOT authored partial): Silumgar (defending-player-
+> scoped *continuous* -1/-1 needs a locked `EffectFilter::CreaturesControlledBy` — **filed OOS-EF3-1**
+> below), Brutal Hordechief (ability 2 "opponents block if able + you choose blocks" inexpressible),
+> Norn's Decree + Karazikar (multiple distinct trigger gaps each), Cunning Rhetoric (a *defender-side*
+> "opponent attacks you" trigger + play-from-exile — different primitive, not a defending-player
+> target at all). Note: "Dragonlord Ojutai" was a mis-listed candidate — it's a combat-damage trigger
+> with no target, not a MISS-10 card. **Review**: 0 HIGH; 2 MEDIUM + 3 LOW, **all 5 fixed before
+> collect** (MED-1: AttackTarget wrongly redirected to pw controller instead of fizzling on CR 506.4c
+> — fixed to lazy live-combat resolution; MED-2: B1 tagged *every* attack trigger with
+> `defending_player_id`, giving non-targeted effects like Utvara/Dromoka a spurious stack target that
+> wrongly fizzled the ability if the defender left — fixed by gating the annihilator/afflict shortcut
+> to `SelfAttacks*`/`SelfBecomesBlocked` events only). No further wire bump from the fixes.
+> Coverage **60.1% → 60.2%** (1,072 → 1,075 clean of 1,783 → 1,785). **3364 tests** (was 3354). This
+> clears the correctness group. Next per queue order: **PB-EF4** (TriggeringCreature as effect
+> subject/source).
+
 **Purpose.** The card-authoring waves W-PB2 (`scutemob-95`), W-EMPTY (`scutemob-96`),
 and W-MISS (`scutemob-97`) filed 19 engine findings, and the marker sweep
 (`scutemob-88`) left EF-13 deferred for a coordinator decision. This plan consolidates
@@ -312,7 +352,7 @@ demote is not a PB and should not wait in the queue.
 | *(demote swan_song)* | integrity | EF-W-MISS-1 | — | none (marker) |
 | **PB-EF1** ✅ DONE | correctness | PB2-1, EMPTY-1, MISS-2 (+EF-4/5, OOS-TS-2) | **6 shipped** | HASH+PROTOCOL |
 | PB-EF2 | correctness | MISS-1 | ~2 | PROTOCOL+HASH |
-| PB-EF3 | correctness+cap | MISS-10, MISS-4 | ~5–6 | PROTOCOL (MISS-4) |
+| **PB-EF3** ✅ DONE | correctness+cap | MISS-10, MISS-4 | **3 shipped** | PROTOCOL+HASH |
 | PB-EF3b | correctness | MISS-3 | ~2 | none |
 | PB-EF4 | capability | PB2-6≡MISS-5, PB2-7 | ~4–5 | PROTOCOL |
 | PB-EF5 | capability | MISS-6 | ~7–9 | PROTOCOL |
@@ -406,6 +446,35 @@ power" **optional** effect would resolve X = 0.
   "for each power" effect.
 - **Verified**: source read 2026-07-18 — `sacrifice_permanents_for_player` takes no `ctx`
   and does not touch `sacrificed_creature_powers`; only `handle_activate_ability` does.
+
+---
+
+## 6. New finding filed by PB-EF3 (scutemob-103)
+
+### OOS-EF3-1 (capability) — defending-player-scoped *continuous* effect (locked EffectFilter)
+`PlayerTarget::DefendingPlayer` (added by PB-EF3) covers *point* effects scoped to the
+defending player (life loss, damage, draw). It does **not** cover a *continuous* effect whose
+affected set is "creatures the defending player controls", because a `ContinuousEffectDef` is
+evaluated by the layer system independently of the resolving `EffectContext` — the defending
+player must be **captured into the registered `ContinuousEffectDef` instance** at creation
+(an `EffectFilter::CreaturesControlledBy(PlayerId)`-style *locked* filter), not read from
+`ctx` at layer-application time.
+
+- **Instance**: `silumgar_the_drifting_death.rs` — "Whenever a Dragon you control attacks,
+  creatures **defending player controls** get -1/-1 until end of turn." The -1/-1 is a
+  one-shot continuous effect (`ApplyContinuousEffect { ContinuousEffectDef { filter, .. } }`)
+  whose `filter` must resolve to the defending player's creatures. Left unauthored (not
+  `partial`) by PB-EF3; this is its real, distinct blocker.
+- **Also unblocks**: Karazikar's "tap target creature **that player** controls and goad it"
+  needs the same defending-player-scoped *target filter* (a target-selection sibling), plus
+  goad — a related but separate gap.
+- **Fix shape**: add an `EffectFilter::CreaturesControlledBy(PlayerId)` (or a
+  `DefendingPlayer`-locked filter variant) that a continuous-effect builder can stamp with the
+  captured defending player at creation. New DSL/wire type → PROTOCOL bump. Medium-size;
+  candidate to fold into a future "defending-player-scoped set" PB alongside Karazikar's target
+  filter + goad.
+- **Verified**: PB-EF3 review 2026-07-18 — `EffectFilter` has no defending-player scope and a
+  continuous effect cannot read the resolving `EffectContext`.
 
 ---
 

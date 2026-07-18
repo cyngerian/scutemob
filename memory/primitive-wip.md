@@ -5,7 +5,7 @@ title: (A) EF-W-MISS-10 forward DSL targets in attack-trigger enrich + fix regis
 task: scutemob-103
 branch: feat/pb-ef3-attack-trigger-target-fidelity-defending-player-targe
 started: 2026-07-18
-phase: fix
+phase: done
 plan_file: memory/primitives/pb-plan-EF3.md
 
 ## Steps (from plan — unchecked)
