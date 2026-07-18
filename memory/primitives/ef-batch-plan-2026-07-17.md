@@ -189,7 +189,7 @@ changes behaviour:
 | EF-W-MISS-4 | MED | "defending player / planeswalker" target for attack triggers | hellrider, Brutal Hordechief, Raid Bombardment, Norn's Decree, Karazikar, Silumgar, Cunning Rhetoric |
 | EF-W-PB2-4 | MED | modal `AbilityDefinition::Activated { modes }` | goblin_cratermaker + modal-activated cohort |
 | ~~EF-W-PB2-8~~ ✅ CLOSED (scutemob-109) | MED | `Cost::ExileSelfFromHand` (+ `activation_zone: Hand`) | simian_spirit_guide + elvish_spirit_guide → Complete |
-| EF-W-PB2-5 | MED | `EffectDuration::WhileYouControlSource` | olivia_voldaren + gain-control lends |
+| ~~EF-W-PB2-5~~ ✅ CLOSED (scutemob-110) | MED | `EffectDuration::WhileYouControlSource` | olivia_voldaren + dragonlord_silumgar → Complete |
 | EF-W-PB2-3 | MED | granted `any_color` ManaAbility → real color choice (not `Colorless`) | elven_chorus (+ future granted-any-color) |
 | EF-W-MISS-6 | LOW* | ~~card-invokable `Effect::TransformSelf`~~ ✅ DONE (scutemob-106); Battle/Super Nova SPLIT → OOS-EF5-1/2 | 11 body-only DFCs + Invasion of Ikoria + Sephiroth |
 | EF-W-MISS-7 | LOW | `ToughnessOfSacrificedCreature`, runtime `max_cmc`, "if you do" sacrifice `Condition` | Momentous Fall, Birthing Ritual, Eldritch Evolution, Victimize |
@@ -476,12 +476,20 @@ demote is not a PB and should not wait in the queue.
 - **Candidates**: simian_spirit_guide (flip `partial`) + other pitch-for-mana / activate-from-hand cards.
 - **Discounted ship**: **~2–3** → **2 shipped.**
 
-### PB-EF9 — `EffectDuration::WhileYouControlSource`  ·  capability
-- **Findings**: EF-W-PB2-5.
-- **Fix**: add the duration variant + its continuous-effect expiry check (differs from
-  `WhileSourceOnBattlefield` only under gain-control of the source).
-- **Candidates**: olivia_voldaren (flip `partial`, gain-control half) + similar borrow-a-creature lands.
-- **Discounted ship**: **~1–2.**
+### PB-EF9 — `EffectDuration::WhileYouControlSource`  ·  capability ✅ DONE (scutemob-110, 2026-07-18)
+- **Findings**: EF-W-PB2-5. ✅ CLOSED.
+- **Shipped**: `EffectDuration::WhileYouControlSource(PlayerId)` (CR 611.2b/c) + one-shot expiry
+  (`expire_while_you_control_source_effects`, per-iteration in `check_and_apply_sbas`) +
+  `recompute_object_controller`. Never-resumes enforced by permanent removal (not a live check);
+  phased-out source stays controlled (CR 702.26e). **Discovery: no control-reversion existed in the
+  engine at all** (WhileSourceOnBattlefield/UntilEndOfTurn gain-control never reverted) — this PB
+  built it. PROTOCOL 13→14, HASH 51→52.
+- **Yield: 2 shipped** — olivia_voldaren + dragonlord_silumgar → Complete. roil_elemental stays
+  partial (optional "you may" wrapper inexpressible — MayPayOrElse stub / MayPayThenEffect auto-pays);
+  kellogg_dangerous_mind stays partial (sacrifice-N-of-subtype cost). **OOS-EF9-1 filed** (latent
+  never-reverts gap: WhileSourceOnBattlefield + UntilEndOfTurn gain-control — sarkhan_vol,
+  zealous_conscripts, karrthus_tyrant_of_jund; `test_gain_control_until_eot_expires` is vacuous re:
+  reversion). Coverage 60.9% → **61.0%** (1093/1792).
 
 ### PB-EF10 — sacrifice-driven `EffectAmount` / runtime `max_cmc`  ·  capability
 - **Findings**: EF-W-MISS-7 (three sub-gaps).
@@ -519,7 +527,7 @@ demote is not a PB and should not wait in the queue.
 | **PB-EF6** ✅ DONE | capability | PB2-2 | **3 flips + fell_specter fix** | PROTOCOL+HASH |
 | **PB-EF7** ✅ DONE | capability | PB2-4 | **2 shipped** | PROTOCOL+HASH |
 | **PB-EF8** ✅ DONE | capability | PB2-8 | **2 shipped** | PROTOCOL+HASH |
-| PB-EF9 | capability | PB2-5 | ~1–2 | maybe |
+| **PB-EF9** ✅ DONE | capability | PB2-5 | **2 shipped** | PROTOCOL+HASH |
 | PB-EF10 | capability | MISS-7 | ~3 | maybe |
 | PB-EF11 | capability | MISS-8, MISS-9 | ~2 | PROTOCOL |
 | PB-EF12 | capability (gated) | PB2-3 | ~1–2 | maybe |
@@ -877,3 +885,23 @@ enrich blocks, but the mana-trigger dispatch path was not in that sweep.
   forbidden_orchard's token-recipient once EF-W-PB2-3 (AddManaAnyColor) is also resolved.
 - **Verified**: PB-EF6 impl 2026-07-18 — the recipient wiring was attempted, root-caused, and
   reverted; the surviving-blocker marker on `forbidden_orchard.rs` records the full dispatch chain.
+
+## 11. New finding filed by PB-EF9 (scutemob-110)
+
+### OOS-EF9-1 (correctness, pre-existing) — `WhileSourceOnBattlefield` / `UntilEndOfTurn` gain-control never reverts control
+`Effect::GainControl` writes `obj.controller` imperatively and pushes a Layer-2 `SetController`
+continuous effect, but `calculate_characteristics` treats `SetController` as a **no-op** (control
+lives on `GameObject`, not `Characteristics`) and there is **no reconcile loop**. The `expire_*`
+passes for `UntilEndOfTurn`/`UntilYourNextTurn` `retain` the effect out of `continuous_effects` but
+**never touch `obj.controller`**. So a `WhileSourceOnBattlefield` gain-control (before the PB-EF9
+flip) and every `UntilEndOfTurn` gain-control **keeps the borrowed permanent under the borrower's
+control forever** after the effect should have ended — legal-but-wrong for any such def shipped
+`Complete`.
+- **Instances**: `sarkhan_vol.rs`, `zealous_conscripts.rs`, `karrthus_tyrant_of_jund.rs` (Threaten-
+  style `UntilEndOfTurn` steals — the borrowed creature should return at cleanup and does not).
+- **Vacuous test**: `test_gain_control_until_eot_expires` (`primitives/primitive_pb32.rs`) asserts the
+  *effect* is removed but NOT that control reverts — it passes while the bug is live.
+- **Fix shape (already built by PB-EF9)**: wire `recompute_object_controller` into
+  `expire_end_of_turn_effects` (and the until-next-turn pass) for removed `SetController` effects,
+  exactly as PB-EF9 does for `WhileYouControlSource`. Deferred here because it changes existing
+  Threaten behavior and touches golden scripts/tests — a follow-up micro-PB with the helper in place.

@@ -64,17 +64,29 @@ static SUBTYPE_FORTIFICATION: std::sync::LazyLock<SubType> =
 /// ensures that "when this dies" triggers on token creatures are correctly queued
 /// before SBA 704.5d removes the token from `state.objects` in the following pass.
 pub fn check_and_apply_sbas(state: &mut GameState) -> Vec<GameEvent> {
-    // CR 611.2b/c (PB-EF9): expire WhileYouControlSource effects whose creator no
-    // longer controls the source, reverting the borrowed permanent's control. Control
-    // never changes as a *result* of an SBA (no SBA changes control), so a single
-    // pre-loop call catches the post-resolution state; a reverted control feeds the
-    // SBA fixpoint that follows (e.g. an aura now on an illegal object). This must NOT
-    // sit inside `apply_sbas_once`'s returned-events path -- there is no `GameEvent`
-    // for a control change, and gating the loop's termination on it would be wrong
-    // even if there were.
-    super::layers::expire_while_you_control_source_effects(state);
     let mut all_events = Vec::new();
     loop {
+        // CR 611.2b/c (PB-EF9, MEDIUM fix from review): expire WhileYouControlSource
+        // effects whose creator no longer controls the source, reverting the
+        // borrowed permanent's control. This runs at the TOP OF EACH LOOP
+        // ITERATION, not just once pre-loop: a single pre-loop call misses the
+        // case where the source leaves *during* the SBA fixpoint itself -- e.g.
+        // Olivia Voldaren dying to lethal combat damage / 0 toughness is SBA
+        // 704.5g, which fires inside `apply_sbas_once`, one or more passes *after*
+        // a pre-loop-only call would have already run. Re-checking every iteration
+        // catches that same pass: the source's zone flips to Graveyard in pass N,
+        // and the top-of-loop expiry in pass N+1 sees it and reverts control before
+        // that iteration's `apply_sbas_once` runs, so any consequent SBA (e.g. an
+        // aura now on an illegal object) is observed in the same fixpoint.
+        //
+        // This cannot loop forever: `expire_while_you_control_source_effects` is a
+        // one-shot, idempotent pass (CR 611.2c -- ended effects are PERMANENTLY
+        // removed, never re-added), so a steady-state iteration where nothing new
+        // has ended is a no-op every time it runs. Termination still keys
+        // exclusively off `apply_sbas_once` returning an empty `Vec<GameEvent>`
+        // below -- there is no `GameEvent` for a control change, and this call
+        // must NOT (and does not) gate the loop's break condition itself.
+        super::layers::expire_while_you_control_source_effects(state);
         let events = apply_sbas_once(state);
         if events.is_empty() {
             break;

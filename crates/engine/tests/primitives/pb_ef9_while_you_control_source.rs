@@ -377,6 +377,65 @@ fn test_while_you_control_source_ends_when_source_leaves() {
     );
 }
 
+/// CR 611.2b / 704.5g -- the source dying as a STATE-BASED ACTION (lethal marked
+/// damage) inside a single `check_and_apply_sbas` call must revert control within
+/// that SAME call, not lag to a subsequent one. This is the review's MEDIUM finding:
+/// the expiry pass must run at the top of every SBA loop iteration, not just once
+/// pre-loop, because the source-death SBA fires *inside* the loop.
+#[test]
+fn test_while_you_control_source_reverts_when_source_dies_via_sba() {
+    let p1 = p(1);
+    let p2 = p(2);
+    // Source enters already marked with lethal damage, so it dies on the very
+    // first SBA pass inside the single `check_and_apply_sbas` call below.
+    let source = ObjectSpec::creature(p1, "Source", 2, 2)
+        .with_damage(2)
+        .in_zone(ZoneId::Battlefield);
+    let borrowed = ObjectSpec::creature(p2, "Borrowed", 3, 3).in_zone(ZoneId::Battlefield);
+
+    let mut state = GameStateBuilder::four_player()
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .object(source)
+        .object(borrowed)
+        .build()
+        .unwrap();
+
+    let source_id = find_obj(&state, "Source");
+    let borrowed_id = find_obj(&state, "Borrowed");
+
+    borrow_via_source(&mut state, 960, source_id, borrowed_id, p1, 960);
+    assert_eq!(
+        state.objects().get(&borrowed_id).unwrap().controller,
+        p1,
+        "p1 should control the borrowed creature before the source dies"
+    );
+
+    // ONE call: the source's lethal damage triggers SBA 704.5g inside this same
+    // call, moving it to the graveyard. Reversion must be observable by the time
+    // this single call returns -- not require a second `check_and_apply_sbas`.
+    check_and_apply_sbas(&mut state);
+
+    assert!(
+        !state
+            .objects()
+            .values()
+            .any(|o| o.characteristics.name == "Source" && o.zone == ZoneId::Battlefield),
+        "test invariant: the source must have actually died via SBA within this call"
+    );
+    assert_eq!(
+        state.objects().get(&borrowed_id).unwrap().controller,
+        p2,
+        "CR 611.2b/704.5g: the borrowed creature must revert to its owner (p2) within \
+         the SAME check_and_apply_sbas call that killed the source via SBA -- reversion \
+         must not lag to a subsequent call"
+    );
+    assert!(
+        !has_control_effect(&state, 960),
+        "the WhileYouControlSource effect must be removed in the same call"
+    );
+}
+
 /// CR 702.26e -- a phased-out source is STILL controlled by its controller. The
 /// borrowed permanent must NOT revert while the source is merely phased out.
 #[test]

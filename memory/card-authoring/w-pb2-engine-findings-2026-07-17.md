@@ -134,7 +134,19 @@ this card can be `Complete`. Out of scope for PB-EF7 (scoped to the 2 eligible f
 per the coordinator's scoping decision). `umezawas_jitte.rs`'s marker note was rewritten to
 cite this as the real surviving blocker.
 
-## EF-W-PB2-5 — no "while you control source" `EffectDuration` (MEDIUM)
+## EF-W-PB2-5 — no "while you control source" `EffectDuration` (MEDIUM) — ✅ CLOSED (PB-EF9, scutemob-110, 2026-07-18)
+> `EffectDuration::WhileYouControlSource(PlayerId)` added (CR 611.2b/c). "You" fixed to
+> `ctx.controller` at creation (PlayerId(0) placeholder, mirroring UntilYourNextTurn). Termination
+> is a one-shot permanent removal (`expire_while_you_control_source_effects`, run per-iteration in
+> `check_and_apply_sbas`) so it NEVER resumes; control reverts via `recompute_object_controller`
+> (reapplies remaining SetController effects in timestamp order). Phased-out source stays controlled
+> (CR 702.26e — `is_phased_in()` deliberately not checked). **Discovery: no control-reversion existed
+> in the engine at all** — WhileSourceOnBattlefield/UntilEndOfTurn gain-control never reverted either;
+> this PB builds it. olivia_voldaren + dragonlord_silumgar flipped → Complete; roil_elemental stays
+> partial (optional "you may" wrapper inexpressible); kellogg stays partial (sacrifice-N cost).
+> OOS-EF9-1 filed for the latent WhileSourceOnBattlefield/UntilEndOfTurn never-reverts gap.
+> PROTOCOL 13→14, HASH 51→52.
+
 
 `continuous_effect.rs` L44–64 — `EffectDuration` has `WhileSourceOnBattlefield` but no variant for
 "for as long as you control [source]". The two differ under gain-control.

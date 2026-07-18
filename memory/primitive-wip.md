@@ -5,7 +5,71 @@ title: Add `EffectDuration::WhileYouControlSource` — a "for as long as you con
 task: scutemob-110
 branch: feat/pb-ef9-effectdurationwhileyoucontrolsource-ef-w-pb2-5
 started: 2026-07-18
-phase: review  # implement phase COMPLETE 2026-07-18 (this session). Plan: memory/primitives/pb-plan-EF9.md. All 8 engine changes + 4 card-def fixes + 9 new tests (mutation-tested) + version bumps (PROTOCOL 13→14, HASH 51→52) done; all gates green (build --workspace, test --all, clippy -D warnings, fmt --check, check-defs-fmt.sh). Key finding: NO control-reversion existed in engine before this PB (WhileSourceOnBattlefield gain-control never reverted either); built imperatively via expire_while_you_control_source_effects + recompute_object_controller. OOS-EF9-1 filed for the latent UntilEndOfTurn/WhileSourceOnBattlefield never-reverts gap (deferred, not fixed here). Ready for /implement-primitive review phase.
+phase: fix-complete  # review: memory/primitives/pb-review-EF9.md (0 HIGH, 1 MEDIUM, 2 LOW). MEDIUM fixed this session (see "Fix phase" section below): expire_while_you_control_source_effects moved to top-of-loop in check_and_apply_sbas so control reverts within the SAME call that kills the source via SBA (704.5g), not lagging to the next call. New regression test added + mutation-tested. LOW #1 (SingleObject-only reversion) addressed with a documentation NOTE per review's own "no fix required, note for next author" instruction. LOW #2 (olivia target-Vampire filter) needs no change per review. All gates re-run green; HASH/PROTOCOL unchanged (52/14) as expected — this was an internal call-site move, not a wire change. implement phase COMPLETE 2026-07-18 (this session). Plan: memory/primitives/pb-plan-EF9.md. All 8 engine changes + 4 card-def fixes + 10 tests (mutation-tested) + version bumps (PROTOCOL 13→14, HASH 51→52) done. Key finding: NO control-reversion existed in engine before this PB (WhileSourceOnBattlefield gain-control never reverted either); built imperatively via expire_while_you_control_source_effects + recompute_object_controller. OOS-EF9-1 filed for the latent UntilEndOfTurn/WhileSourceOnBattlefield never-reverts gap (deferred, not fixed here). Ready for collection.
+
+## Fix phase (2026-07-18, this session) — applied review findings from `pb-review-EF9.md`
+
+**MEDIUM (sba.rs:75) — FIXED.** Control reversion lagged when the source left the
+battlefield via a state-based action (the canonical exit for Olivia/Silumgar: dying
+to combat damage or 0 toughness). The old placement called
+`expire_while_you_control_source_effects` exactly once, *before* the SBA fixpoint
+loop; a source dying *inside* that loop (SBA 704.5g) was not observed until the
+*next* `check_and_apply_sbas` call — an observably-wrong priority window where the
+borrower still controlled a permanent it should have lost.
+
+**Fix applied exactly as specified**: moved the
+`expire_while_you_control_source_effects(state)` call from once-pre-loop to the
+**top of every loop iteration** in `crates/engine/src/rules/sba.rs::check_and_apply_sbas`
+(before `apply_sbas_once`). Rewrote the CR comment block in place to explain: (a) why
+top-of-loop placement is required (the source-death SBA fires *inside* the loop,
+one+ passes after a pre-loop-only call would have run), (b) why it cannot loop
+forever (the expiry pass is one-shot/idempotent — CR 611.2c permanently removes
+ended effects, never re-adds them — so a steady-state iteration is a no-op), and (c)
+that termination still keys exclusively off `apply_sbas_once`'s returned events,
+never off this call.
+
+**New regression test**: `test_while_you_control_source_reverts_when_source_dies_via_sba`
+(CR 611.2b/704.5g) in `crates/engine/tests/primitives/pb_ef9_while_you_control_source.rs`.
+Source enters already marked with lethal damage (`.with_damage(2)` on a 2/2), so it
+dies to SBA 704.5g on the very first pass inside a single `check_and_apply_sbas`
+call; asserts (1) the source actually died within that call (test invariant), (2)
+the borrowed creature reverts to its owner within that SAME call, (3) the
+`WhileYouControlSource` effect is gone. **Proven non-vacuous**: temporarily reverted
+`sba.rs` to the pre-loop-only placement (pre-fix behavior), re-ran
+`cargo test --test primitives pb_ef9` — exactly this one new test failed (9/10
+passed, the new one FAILED with the borrowed creature still under p1 instead of
+reverting to p2), all 9 pre-existing tests stayed green. Restored the fix;
+`md5sum crates/engine/src/rules/sba.rs` after restore = `5bd445c0ec00b0e381590d3a7022feaf`,
+byte-identical to the pre-mutation snapshot taken right after the fix was first
+applied. Full suite re-run: 10/10 pb_ef9 tests green.
+
+**LOW #1 (layers.rs:1754, no fix required) — documentation NOTE added.** Per the
+review's own instruction ("Fix: none required now; note for the next author"), added
+a `// NOTE:` at the `EffectFilter::SingleObject` collection site in
+`expire_while_you_control_source_effects` explaining that only `SingleObject` reverts
+control today (true for every current card, all authored via `GainControl`), and
+that a future `WhileYouControlSource` effect built via `ApplyContinuousEffect` with a
+broader filter (`AllPermanents`, `CreaturesYouControl`, etc.) would be removed in
+Step 2 but NOT reverted in Step 3 — flagging where to extend if that ever happens.
+
+**LOW #2 (olivia_voldaren.rs "target Vampire" → creature filter) — no change.** Per
+the review, this is practically correct (all Vampire permanents are creatures) and
+needs no fix.
+
+**Version bumps: NONE.** This is a pure internal call-site move (same function,
+same effect, different loop position) — no field/variant/serde shape changed on any
+wire type or `GameState`-reachable type. Confirmed by re-running the full suite: no
+`protocol_schema`/`hash_schema` test reddened. `PROTOCOL_VERSION` stays **14**,
+`HASH_SCHEMA_VERSION` stays **52**.
+
+**Gates re-run after the fix — all green:**
+- `cargo build --workspace` — clean
+- `cargo test --all` — 0 failures, **3437** total passed (3436 baseline + 1 new
+  regression test)
+- `cargo clippy --all-targets -- -D warnings` — clean
+- `cargo fmt --all -- --check` — clean
+- `tools/check-defs-fmt.sh` — clean, 1792 defs checked (unaffected by this fix; no
+  card def touched)
 
 ## Engine changes — ALL DONE, `cargo build --workspace` clean
 - [x] Change 1: `EffectDuration::WhileYouControlSource(PlayerId)` variant — `crates/card-types/src/state/continuous_effect.rs`

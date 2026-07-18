@@ -1751,6 +1751,15 @@ pub fn expire_while_you_control_source_effects(state: &mut GameState) {
         };
         if ended {
             ended_ids.push(e.id);
+            // NOTE (LOW, PB-EF9 review): only `EffectFilter::SingleObject` reverts
+            // control here. Every card authored today (GainControl) always produces
+            // a `SingleObject` filter, so this is not a live gap -- but a future
+            // `WhileYouControlSource` effect built via `ApplyContinuousEffect` with a
+            // broader filter (e.g. `AllPermanents`, `CreaturesYouControl`) would have
+            // its effect correctly removed in Step 2 below, yet none of the objects
+            // it applied to would have their `controller` reverted (Step 3 never
+            // sees them). If you add such a card, extend this match to resolve the
+            // broader filter's matching object ids here too.
             if let EffectFilter::SingleObject(obj_id) = e.filter {
                 affected.push(obj_id);
             }
