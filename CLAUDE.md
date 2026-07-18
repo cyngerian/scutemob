@@ -14,7 +14,7 @@
 > Detailed PB-by-PB handoffs, hazards, and seed inventories live in `memory/workstream-state.md`.
 > Worker sessions: append detail there, not here. CLAUDE.md tracks current snapshot only.
 
-- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage **1,019/1,748 = 58.3%** per `tools/authoring-report.py`; **PB-AC chain COMPLETE — AC0..AC9 all shipped**; **marker sweep COMPLETE — `scutemob-88`**)
+- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage **1,030/1,748 = 58.9%** per `tools/authoring-report.py`; **PB-AC chain COMPLETE — AC0..AC9 all shipped**; **marker sweep COMPLETE — `scutemob-88`**; **SR-33..38 chain COMPLETE**; **W-PB2 COMPLETE — `scutemob-95`**)
 - **Invariant #9 is machine-enforced (SR-2).** `CardDefinition.completeness` (`Complete` by
   Default) marks a def `Inert` / `Partial` / `KnownWrong`; `validate_deck` rejects any
   non-`Complete` card with `DeckViolation::IncompleteCard`. `CardRegistry::try_new` errors on
@@ -259,7 +259,12 @@
   `memory/card-authoring/sr36-engine-findings-2026-07-17.md` (**SG-1 MEDIUM: the simulator's
   `LegalActionProvider` ignores `life_cost` — harmless while the cost was dropped, now it
   offers bots unpayable actions**).
-- **Last Updated**: 2026-07-17 (**SR-38 collected, `scutemob-94` merge `ac65216a`** — simulator
+- **Last Updated**: 2026-07-17 (**W-PB2 collected, `scutemob-95` merge `7c8cdeff`** — 57 cards
+  from the marker-sweep worklist authored in 5 reviewed batches: **47 Complete** (coverage 56.2% →
+  **58.9%**, new high), 10 truthfully marked with their real blocker; 8 engine findings filed as
+  EF-W-PB2-1..8 in `memory/card-authoring/w-pb2-roster-2026-07-17.md`; no gated stub effects used;
+  3330 tests. Next per campaign plan §3: W-EMPTY (~110 empty-placeholder cards) / W-MISS (~115
+  missing-file cards), or triage EF-W-PB2 findings first. Earlier: **SR-38 collected, `scutemob-94` merge `ac65216a`** — simulator
   `StubProvider` now gates `TapForMana`/`ActivateAbility` suggestions on `life_cost` vs
   `life_total` (CR 119.4b short-circuit), mirroring the engine's own checks — a bot can no longer
   suggest an activation the engine rejects; SG-2's non-Controller refusal pinned by test; SG-3's
