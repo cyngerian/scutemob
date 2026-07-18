@@ -5,7 +5,7 @@ title: Synthesize the keyword-derived triggered ability when a trigger-keyword (
 task: scutemob-104
 branch: feat/pb-ef3b-granted-keyword-triggers-fire-meleebattle-cryannihil
 started: 2026-07-18
-phase: implement
+phase: review
 plan_file: memory/primitives/pb-plan-EF3b.md
 
 ## Source findings

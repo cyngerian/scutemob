@@ -541,3 +541,24 @@ none of which get a granted-keyword reconciliation. A future card granting one o
 - **Verified**: PB-EF3b implementation 2026-07-18 — `builder.rs` loop enumerated; Dethrone
   (~line 548 pre-batch), Training, Enlist, Persist, Undying, and others remain inline,
   untouched by this batch's helper extraction (deliberately, per plan scope).
+
+### OOS-EF3b-3 (correctness, pre-existing) — `RemoveKeyword` leaves a stale derived trigger
+`LayerModification::RemoveKeyword(kw)` (`layers.rs` ~L1207) executes only
+`chars.keywords.remove(kw)`. For a **printed** trigger-keyword the derived `TriggeredAbilityDef`
+lives in base `chars.triggered_abilities` (built by `builder.rs`), and `RemoveKeyword` never
+touches that vec — so `collect_triggers_for_event` (reading resolved chars) still finds and fires
+the trigger after the keyword was supposedly removed (e.g. a printed Melee still pumps after
+`RemoveKeyword(Melee)`). **Pre-existing** — true for every printed trigger-keyword before PB-EF3b,
+not introduced or worsened by it; surfaced by the reviewer because PB-EF3b formalizes the
+keyword→derived-trigger relationship. `RemoveAllAbilities` is unaffected (it clears
+`triggered_abilities` too, ~L1204), which is why the Humility path is correct; the asymmetry is
+only in the single-keyword `RemoveKeyword` path.
+
+- **Fix shape**: either (a) have `RemoveKeyword(kw)` also drop any `triggered_abilities` entry
+  whose description matches `derived_attack_trigger_for_keyword(kw)`, or (b) drive the PB-EF3b
+  reconciliation from keyword presence in **both** directions (rebuild derived triggers from the
+  final keyword set rather than append-only). Option (b) composes with OOS-EF3b-2. No wire/DSL type.
+- **Test gaps to add when fixed** (reviewer Finding 3, additive): a Melee-**token** case
+  (`make_token` now benefits from the PB-EF3b reconciliation — currently an unasserted bonus), a
+  planeswalker-attack Melee case, and a `RemoveKeyword`-after-grant case (this finding).
+- **Verified**: PB-EF3b review 2026-07-18 (`memory/primitives/pb-review-EF3b.md` Finding 2).
