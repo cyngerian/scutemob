@@ -259,7 +259,12 @@
   `memory/card-authoring/sr36-engine-findings-2026-07-17.md` (**SG-1 MEDIUM: the simulator's
   `LegalActionProvider` ignores `life_cost` — harmless while the cost was dropped, now it
   offers bots unpayable actions**).
-- **Last Updated**: 2026-07-17 (**W-MISS collected, `scutemob-97` merge `9cec7673`** — the ~115
+- **Last Updated**: 2026-07-17 (**EF triage collected, `scutemob-98` merge `ef82ae45`** — all 20
+  post-wave findings (EF-W-PB2-1..8, EF-W-EMPTY-1, EF-W-MISS-1..10, EF-13) deduped and classified;
+  **`memory/primitives/ef-batch-plan-2026-07-17.md` is the active engine-primitive queue**:
+  correctness-first PB-EF1..EF12 with discounted yields, first dispatch **PB-EF1** + the
+  swan_song demote; EF-13 options A/B/C await user decision (plan §3). Campaign plan §0
+  repointed. Earlier: **W-MISS collected, `scutemob-97` merge `9cec7673`** — the ~115
   estimate re-derived to **35/194 authorable** (157 blocked with per-card blockers, 2
   false-missing); **33 authored Complete** in 3 reviewed batches, 2 honest mid-wave demotions
   (Ojutai: targeted attack-trigger drops its target; Misdirection: single-target restriction
