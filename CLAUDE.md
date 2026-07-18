@@ -14,7 +14,7 @@
 > Detailed PB-by-PB handoffs, hazards, and seed inventories live in `memory/workstream-state.md`.
 > Worker sessions: append detail there, not here. CLAUDE.md tracks current snapshot only.
 
-- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage **1,087/1,792 = 60.7%** per `tools/authoring-report.py`; **EF queue ACTIVE (`memory/primitives/ef-batch-plan-2026-07-17.md`) — PB-EF1..EF6 + EF-13 SHIPPED (`scutemob-99`/`101`..`107`); PB-EF7 in flight `scutemob-108`**; **PB-AC chain COMPLETE — AC0..AC9 all shipped**; **marker sweep COMPLETE — `scutemob-88`**; **SR-33..38 chain COMPLETE**; **W-PB2 + W-EMPTY + W-MISS COMPLETE — `scutemob-95`/`96`/`97`**)
+- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage **1,089/1,792 = 60.8%** per `tools/authoring-report.py`; **EF queue ACTIVE (`memory/primitives/ef-batch-plan-2026-07-17.md`) — PB-EF1..EF7 + EF-13 SHIPPED (`scutemob-99`/`101`..`108`); PB-EF8 in flight `scutemob-109`; remaining EF9/EF10/EF11/EF12**; **PB-AC chain COMPLETE — AC0..AC9 all shipped**; **marker sweep COMPLETE — `scutemob-88`**; **SR-33..38 chain COMPLETE**; **W-PB2 + W-EMPTY + W-MISS COMPLETE — `scutemob-95`/`96`/`97`**)
 - **Invariant #9 is machine-enforced (SR-2).** `CardDefinition.completeness` (`Complete` by
   Default) marks a def `Inert` / `Partial` / `KnownWrong`; `validate_deck` rejects any
   non-`Complete` card with `DeckViolation::IncompleteCard`. `CardRegistry::try_new` errors on
@@ -279,7 +279,14 @@
   `memory/card-authoring/sr36-engine-findings-2026-07-17.md` (**SG-1 MEDIUM: the simulator's
   `LegalActionProvider` ignores `life_cost` — harmless while the cost was dropped, now it
   offers bots unpayable actions**).
-- **Last Updated**: 2026-07-18 (**PB-EF6 collected, `scutemob-107` merge `359c824d`** —
+- **Last Updated**: 2026-07-18 (**PB-EF7 collected, `scutemob-108` merge `104ef5ad`** — modal
+  `AbilityDefinition::Activated`: `modes: Option<ModeSelection>` + `modes_chosen` on
+  `Command::ActivateAbility`, validated in `handle_activate_ability` (CR 700.2a/d) with per-mode
+  target splitting; corpus sweep sized the cohort at **3** — goblin_cratermaker + cankerbloom
+  Complete, Umezawa's Jitte stays known_wrong on a real second blocker (combat-damage-to-player
+  trigger variant). Coverage 60.7% → **60.8%** (1,089/1,792); /review 4/4, 1 LOW fixed (vacuous
+  snapshot assertions dropped). In flight: **PB-EF8** (`scutemob-109`, ExileSelfFromHand).
+  Earlier: **PB-EF6 collected, `scutemob-107` merge `359c824d`** —
   `TargetRequirement::TargetOpponent` with caster-threaded opponent-only validation
   (CR 102.2/102.3/601.2c) and no self-fallback in either auto-picker (CR 603.3d). 3 flips
   Complete (shaman_of_the_pack, raiders_wake, vengeful_bloodwitch — a roster recall) + a
