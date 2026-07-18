@@ -2474,6 +2474,16 @@ pub enum EffectTarget {
     /// Used by Helm of the Host ("create a token that's a copy of equipped creature").
     /// If the source is not an Equipment or is not attached to anything, resolves to empty.
     EquippedCreature,
+    /// CR 508.4 / CR 506.4c: The player or planeswalker the triggering attacker is/was
+    /// attacking. Resolves to `ResolvedTarget::Player` for a player defender, or
+    /// `ResolvedTarget::Object` for a planeswalker defender. Looked up lazily at
+    /// resolution time from `state.combat.attackers[ctx.triggering_creature_id]`, with
+    /// `ctx.defending_player` (captured at dispatch, CR 113.7a) as the Player fallback if
+    /// the attacker has left combat; resolves to empty if neither is available (e.g. the
+    /// attacked planeswalker was removed — CR 506.4c, the attacker now attacks nothing).
+    /// Used by "deals N damage to the player or planeswalker it's attacking" (Hellrider,
+    /// Raid Bombardment).
+    AttackTarget,
 }
 /// How an effect identifies a player.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -2514,6 +2524,12 @@ pub enum PlayerTarget {
     /// Resolved from `EffectContext::triggering_creature_id`'s controller, falling back
     /// to `triggering_player`, then `controller`.
     ControllerOfTriggeringObject,
+    /// CR 508.4: The defending player — the player attacked, or the controller of the
+    /// attacked planeswalker. Captured at attack-trigger dispatch time (CR 113.7a) into
+    /// `PendingTrigger::defending_player_id`, threaded through `StackObject.defending_player`
+    /// to `EffectContext::defending_player`. Used by "defending player loses N life"-style
+    /// effects (e.g. Brutal Hordechief) and companion to `EffectTarget::AttackTarget`.
+    DefendingPlayer,
 }
 /// How an effect produces a numeric value.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

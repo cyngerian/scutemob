@@ -279,6 +279,7 @@ pub fn handle_activate_ability(
                 lki_counters: None,
                 lki_power: None,
                 countered_spell_controller: None,
+                defending_player: None,
             };
             if !crate::effects::check_condition(state, condition, &ctx) {
                 return Err(GameStateError::InvalidCommand(
@@ -3457,12 +3458,20 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 {
                                     // Push the cast-trigger using the stack object as source.
                                     // Condition check (if any) is deferred to resolution.
+                                    // PB-EF3 A2 (CR 601.2c/603.3d): `idx` here is a raw index
+                                    // into `def.abilities` (this trigger is never lowered into
+                                    // runtime `characteristics.triggered_abilities` — it fires
+                                    // directly from the spell's CardDef, see comment above).
+                                    // CardDefETB kind makes the raw-index/card-registry lookup
+                                    // authoritative for both effect AND target selection (Elder
+                                    // Deep Fiend's "tap up to four target permanents" needs its
+                                    // declared `targets` to survive auto-target selection).
                                     triggers.push(PendingTrigger {
                                         ability_index: idx,
                                         ..PendingTrigger::blank(
                                             *source_object_id,
                                             caster,
-                                            PendingTriggerKind::Normal,
+                                            PendingTriggerKind::CardDefETB,
                                         )
                                     });
                                 }
@@ -3750,16 +3759,22 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             })
                                             .collect();
                                         for ability_idx in carddef_indices {
+                                            // PB-EF3 A2 (CR 601.2c/603.3d): `ability_idx` is a
+                                            // raw index into `def.abilities` (not converted to
+                                            // runtime `characteristics.triggered_abilities` --
+                                            // see comment above). CardDefETB kind keeps the
+                                            // raw-index/card-registry lookup authoritative for
+                                            // both effect and target selection.
                                             triggers.push(PendingTrigger {
                                                 ability_index: ability_idx,
                                                 controller,
-                                                kind: PendingTriggerKind::Normal,
+                                                kind: PendingTriggerKind::CardDefETB,
                                                 triggering_event: Some(TriggerEvent::SelfAttacks),
                                                 entering_object_id: Some(source_id),
                                                 ..PendingTrigger::blank(
                                                     source_id,
                                                     controller,
-                                                    PendingTriggerKind::Normal,
+                                                    PendingTriggerKind::CardDefETB,
                                                 )
                                             });
                                         }
@@ -3878,7 +3893,15 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // The attacking creature's ObjectId is passed as `entering_object` so that
                 // collect_triggers_for_event can check controller match for controller_you filtering
                 // (using entering_obj.controller == trigger_source.controller).
-                for (attacker_id, _) in attackers {
+                //
+                // PB-EF3 B1 (CR 508.4/113.7a): capture the defending player at dispatch time
+                // into `defending_player_id` -- the same field/pattern SelfAttacks uses above
+                // (line ~3573). This is threaded through PendingTrigger -> StackObject ->
+                // EffectContext so `PlayerTarget::DefendingPlayer` and the Player-target case
+                // of `EffectTarget::AttackTarget` resolve to the correct defender even if the
+                // attacker later leaves combat (CR 506.4) before the trigger resolves.
+                for (attacker_id, attack_target) in attackers {
+                    let pre_len = triggers.len();
                     collect_triggers_for_event(
                         state,
                         &mut triggers,
@@ -3886,6 +3909,15 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         None,
                         Some(*attacker_id),
                     );
+                    let defending_player = match attack_target {
+                        crate::state::combat::AttackTarget::Player(pid) => Some(*pid),
+                        crate::state::combat::AttackTarget::Planeswalker(pw_id) => {
+                            state.objects.get(pw_id).map(|obj| obj.controller)
+                        }
+                    };
+                    for t in &mut triggers[pre_len..] {
+                        t.defending_player_id = defending_player;
+                    }
                 }
                 // CR 702.83a/b: Exalted — "Whenever a creature you control attacks alone."
                 // If exactly one creature is declared as an attacker, fire exalted triggers
@@ -4668,8 +4700,11 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         // triggers from AbilityDefinition::Triggered. These are not converted
                         // to runtime TriggeredAbilityDef (that only happens in enrich_spec_from_def
                         // for tests), so we collect them here from the card registry.
-                        // The PendingTriggerKind::Normal path looks them up at resolution via
-                        // the card registry fallback (resolution.rs line ~1862).
+                        // The PendingTriggerKind::CardDefETB path looks them up at resolution via
+                        // the card registry fallback (resolution.rs line ~1862) -- these triggers
+                        // were reclassified from Normal to CardDefETB by PB-EF3's A2 fix, since
+                        // `ability_index` here is a raw index into `def.abilities`, not the
+                        // runtime `characteristics.triggered_abilities` vec that `Normal` uses.
                         if let CombatDamageTarget::Player(damaged_pid) = &assignment.target {
                             // CR 113.7a: the damage source may have left the battlefield; use LKI.
                             if let Some(src_obj) = state.fizzle_object(assignment.source) {
@@ -4695,6 +4730,16 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             })
                                             .collect();
                                         for ability_idx in carddef_indices {
+                                            // PB-EF3 A2 (CR 601.2c/603.3d): `ability_idx` is a
+                                            // raw index into `def.abilities` (this trigger is
+                                            // never lowered into runtime
+                                            // `characteristics.triggered_abilities` -- see
+                                            // comment above). CardDefETB kind keeps the
+                                            // raw-index/card-registry lookup authoritative for
+                                            // both effect and target selection (Throat Slitter's
+                                            // "destroy target nonblack creature that player
+                                            // controls" needs its declared `targets` to survive
+                                            // auto-target selection -- EF-W-MISS-10).
                                             triggers.push(PendingTrigger {
                                                 ability_index: ability_idx,
                                                 triggering_event: Some(
@@ -4706,7 +4751,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                                 ..PendingTrigger::blank(
                                                     source_id,
                                                     controller,
-                                                    PendingTriggerKind::Normal,
+                                                    PendingTriggerKind::CardDefETB,
                                                 )
                                             });
                                         }
@@ -5548,12 +5593,17 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             ..
                         } = ability
                         {
+                            // PB-EF3 A2 (CR 601.2c/603.3d): `idx` is a raw index into
+                            // `def.abilities` (not converted to runtime
+                            // `characteristics.triggered_abilities`). CardDefETB kind keeps
+                            // the raw-index/card-registry lookup authoritative for both
+                            // effect and target selection.
                             triggers.push(PendingTrigger {
                                 ability_index: idx,
                                 ..PendingTrigger::blank(
                                     obj_id,
                                     *tempted_player,
-                                    crate::state::stubs::PendingTriggerKind::Normal,
+                                    crate::state::stubs::PendingTriggerKind::CardDefETB,
                                 )
                             });
                         }
@@ -6631,6 +6681,43 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
         // is set as Target::Player at index 0 so DeclaredTarget { index: 0 } resolves
         // to the specific opponent who cast the spell (e.g. Rhystic Study resolution).
         //
+        // PB-EF3 (CR 601.2c/603.3d): a real CardDef-declared TargetRequirement takes
+        // priority over the `defending_player_id` / `exalted_attacker_id` single-slot
+        // shortcuts below. Those shortcuts exist for triggers whose effect resolves via
+        // an implicit DeclaredTarget{0} and which never declare a real target
+        // requirement (annihilator, dethrone, training all carry `targets: vec![]`).
+        // Since PB-EF3 B1 now tags EVERY `AnyCreatureYouControlAttacks` trigger with
+        // `defending_player_id` (not just annihilator-style ones), a card with a real
+        // declared target (e.g. Ojutai, Soul of Winter's "tap target nonland permanent")
+        // must not have that target silently replaced by the defending player. This is a
+        // cheap presence check (not the full auto-select below); does not change behavior
+        // for any existing trigger, since every current defending_player_id/exalted_attacker_id
+        // user declares `targets: vec![]`.
+        let has_ability_targets = matches!(
+            trigger.kind,
+            PendingTriggerKind::Normal | PendingTriggerKind::CardDefETB
+        ) && state.objects.get(&trigger.source).is_some_and(|obj| {
+            if trigger.kind == PendingTriggerKind::Normal {
+                obj.characteristics
+                    .triggered_abilities
+                    .get(trigger.ability_index)
+                    .is_some_and(|ab| !ab.targets.is_empty())
+            } else {
+                obj.card_id
+                    .as_ref()
+                    .and_then(|cid| state.card_registry.get(cid.clone()))
+                    .and_then(|def| def.abilities.get(trigger.ability_index))
+                    .is_some_and(|abil| {
+                        matches!(
+                            abil,
+                            crate::cards::card_definition::AbilityDefinition::Triggered {
+                                targets,
+                                ..
+                            } if !targets.is_empty()
+                        )
+                    })
+            }
+        });
         // Returns None if a required target cannot be satisfied (trigger skipped per CR 603.3d).
         let trigger_targets_opt: Option<Vec<SpellTarget>> = if let Some(tsid) =
             trigger.targeting_stack_id
@@ -6644,7 +6731,39 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 target: Target::Player(pid),
                 zone_at_cast: None,
             }])
-        } else if let Some(dp) = trigger.defending_player_id {
+        } else if let Some(dp) = trigger
+            .defending_player_id
+            .filter(|_| !has_ability_targets)
+            .filter(|_| {
+                // PB-EF3 fix (review Finding 2): this shortcut exists ONLY for the
+                // annihilator/dethrone/training/afflict keyword-derived triggers,
+                // whose CardDef-generated effects read the defending player via
+                // `PlayerTarget::DeclaredTarget { index: 0 }` (annihilator's
+                // SacrificePermanents, afflict's LoseLife) or simply had it tagged
+                // for consistency (dethrone/training put a counter on the source
+                // and never read index 0). B1 (PB-EF3) now tags EVERY
+                // `AnyCreatureYouControlAttacks` trigger with `defending_player_id`
+                // too, but those triggers' effects (token creation, life gain,
+                // `EffectTarget::AttackTarget` damage — Utvara Hellkite, Dromoka,
+                // Hellrider, Raid Bombardment) never consume `DeclaredTarget{0}`:
+                // they read `ctx.defending_player` directly via
+                // `PlayerTarget::DefendingPlayer` / `EffectTarget::AttackTarget`,
+                // which do not depend on `stack_obj.targets`. Setting a spurious
+                // `Target::Player(dp)` on their stack object wrongly fizzles the
+                // WHOLE (non-targeted) ability if `dp` leaves the game before it
+                // resolves — CR 608.2b's "all targets illegal" fizzle applies only
+                // to a targeted ability. Restrict the shortcut to the four
+                // keyword-family trigger events so the new AttackTarget/
+                // DefendingPlayer-based cards are unaffected.
+                matches!(
+                    trigger.triggering_event,
+                    Some(TriggerEvent::SelfAttacks)
+                        | Some(TriggerEvent::SelfAttacksPlayerWithMostLife)
+                        | Some(TriggerEvent::SelfAttacksWithGreaterPowerAlly)
+                        | Some(TriggerEvent::SelfBecomesBlocked)
+                )
+            })
+        {
             // CR 702.86a / CR 508.5: Annihilator triggers carry the defending player ID.
             // Set as Target::Player at index 0 so PlayerTarget::DeclaredTarget { index: 0 }
             // resolves to the correct defending player for the SacrificePermanents effect.
@@ -6652,7 +6771,9 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 target: Target::Player(dp),
                 zone_at_cast: None,
             }])
-        } else if let Some(attacker_id) = trigger.exalted_attacker_id {
+        } else if let Some(attacker_id) =
+            trigger.exalted_attacker_id.filter(|_| !has_ability_targets)
+        {
             // CR 702.83a: Exalted triggers carry the lone attacker's ObjectId.
             // Set it as Target::Object at index 0 so CEFilter::DeclaredTarget { index: 0 }
             // resolves to the attacking creature (not the exalted source permanent).
@@ -6686,28 +6807,25 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
             let ability_targets: Vec<crate::cards::card_definition::TargetRequirement> = {
                 let obj = state.objects.get(&trigger.source);
                 if let Some(obj) = obj {
-                    let from_runtime = if trigger.kind == PendingTriggerKind::Normal {
+                    if trigger.kind == PendingTriggerKind::Normal {
+                        // PB-EF3 A2 (CR 601.2c/603.3d): `trigger.ability_index` for a
+                        // Normal-kind trigger indexes the runtime
+                        // `characteristics.triggered_abilities` vec, NOT `def.abilities`
+                        // (see A1 comment / EF-W-MISS-10). The two vecs are built in
+                        // different orders (e.g. keywords aren't triggered abilities),
+                        // so falling through to `def.abilities.get(ability_index)` here
+                        // silently returns the wrong ability's targets. After A1 forwards
+                        // `targets` in every enrich block, the runtime vec is authoritative
+                        // — return it even when empty; do NOT fall through.
                         obj.characteristics
                             .triggered_abilities
                             .get(trigger.ability_index)
-                            .and_then(|ab| {
-                                // PB-D fix: TriggeredAbilityDef carries a `targets` field
-                                // (CR 601.2c). Return it when non-empty so that runtime
-                                // triggers added via ObjectSpec::with_triggered_ability (or
-                                // enrich_spec_from_def) participate in auto-target selection.
-                                // Falls through to card-registry fallback when empty (the
-                                // common case for triggers authored without targets).
-                                if ab.targets.is_empty() {
-                                    None
-                                } else {
-                                    Some(ab.targets.clone())
-                                }
-                            })
+                            .map(|ab| ab.targets.clone())
+                            .unwrap_or_default()
                     } else {
-                        None
-                    };
-                    from_runtime.unwrap_or_else(|| {
-                        // Card registry fallback: look up ability by index.
+                        // CardDefETB: `ability_index` correctly indexes `def.abilities`
+                        // here (see builder at ~6438/6504 above), so the raw-index
+                        // registry lookup is safe and remains the sole source.
                         obj.card_id
                             .as_ref()
                             .and_then(|cid| state.card_registry.get(cid.clone()))
@@ -6720,7 +6838,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                                 _ => None,
                             })
                             .unwrap_or_default()
-                    })
+                    }
                 } else {
                     vec![]
                 }
@@ -7799,6 +7917,10 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
             stack_obj.combat_damage_amount = trigger.combat_damage_amount;
             // The entering_object_id carries the dealing creature for per-creature triggers.
             stack_obj.triggering_creature_id = trigger.entering_object_id;
+            // CR 508.4: Propagate the defending player captured at attack-trigger dispatch
+            // (PB-EF3 B1) from PendingTrigger to StackObject so resolution.rs can build
+            // EffectContext.defending_player.
+            stack_obj.defending_player = trigger.defending_player_id;
             // CR 603.10a / CR 113.7a: Propagate LKI counter snapshot from PendingTrigger
             // to StackObject so resolution.rs can build EffectContext.lki_counters.
             stack_obj.lki_counters = trigger.lki_counters.clone();

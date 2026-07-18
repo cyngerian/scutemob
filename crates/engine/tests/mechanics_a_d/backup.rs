@@ -902,6 +902,7 @@ fn test_backup_another_creature_gets_counters_and_abilities() {
         sacrificed_creature_powers: vec![],
         lki_counters: imbl::OrdMap::new(),
         lki_power: None,
+        defending_player: None,
     };
     state.stack_objects_mut().push_back(backup_trigger);
 

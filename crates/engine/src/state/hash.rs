@@ -411,7 +411,14 @@
 ///   `decl_fingerprint` MOVES (a new `#[serde(default)]` field on `TokenSpec` plus two
 ///   new enum variants on `PlayerTarget`); `stream_fingerprint` moves per the v40
 ///   mechanism.
-pub const HASH_SCHEMA_VERSION: u8 = 45;
+/// - 46: PB-EF3 (2026-07-18) — `StackObject` gains `defending_player: Option<PlayerId>`
+///   (CR 508.4 — the defending player captured at attack-trigger dispatch, EF-W-MISS-4).
+///   `EffectTarget` gains `AttackTarget` (discriminant 11) and `PlayerTarget` gains
+///   `DefendingPlayer` (discriminant 10). Fed to `HashInto` right after
+///   `StackObject::lki_power`. `decl_fingerprint` MOVES (a new `#[serde(default)]` field
+///   on `StackObject` plus two new enum variants); `stream_fingerprint` moves per the v40
+///   mechanism.
+pub const HASH_SCHEMA_VERSION: u8 = 46;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -545,6 +552,15 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // stream's first byte).
         decl_fingerprint: "739a945b925c591f7befa507be0bb2730a1eabda6549e7fad5d23abd3fb80479",
         stream_fingerprint: "ae1f49d79c9a98b67f0c5453bebade1b9babe9f4ca41bc27d7b0bb0d6e5f5421",
+    },
+    HashSchemaEpoch {
+        version: 46,
+        // PB-EF3 (2026-07-18): StackObject gained defending_player; EffectTarget gained
+        // AttackTarget; PlayerTarget gained DefendingPlayer (see the `- 46:` History line
+        // above). decl_fingerprint moves (genuine struct-shape change); stream_fingerprint
+        // moves per the v40 mechanism (HASH_SCHEMA_VERSION is the stream's first byte).
+        decl_fingerprint: "8c119749cb68fcf21de50d599905e528ed0553e557723899b97138e1cdb1889a",
+        stream_fingerprint: "efdd9423170f1cd9d902a083e15011653ffd5c867c159769bddda94fd8ae81fd",
     },
 ];
 
@@ -3632,6 +3648,8 @@ impl HashInto for StackObject {
         }
         // CR 603.10a: LKI power snapshot for SourcePowerAtLastKnownInformation.
         self.lki_power.hash_into(hasher);
+        // CR 508.4: defending player captured at attack-trigger dispatch (PB-EF3 B1/B2).
+        self.defending_player.hash_into(hasher);
         // Note: StackObject retains its own individual boolean fields for now (separate from
         // the GameObject.cast_alt_cost consolidation) to minimize blast radius of this refactor.
     }
@@ -5050,6 +5068,8 @@ impl HashInto for EffectTarget {
             EffectTarget::TriggeringCreature => 9u8.hash_into(hasher),
             // PB-33: The creature the source Equipment is attached to — discriminant 10
             EffectTarget::EquippedCreature => 10u8.hash_into(hasher),
+            // PB-EF3: AttackTarget — the player/planeswalker the attacker is/was attacking — discriminant 11
+            EffectTarget::AttackTarget => 11u8.hash_into(hasher),
         }
     }
 }
@@ -5079,6 +5099,8 @@ impl HashInto for PlayerTarget {
             PlayerTarget::ControllerOfCounteredSpell => 8u8.hash_into(hasher),
             // PB-EF2: ControllerOfTriggeringObject — discriminant 9
             PlayerTarget::ControllerOfTriggeringObject => 9u8.hash_into(hasher),
+            // PB-EF3: DefendingPlayer — discriminant 10
+            PlayerTarget::DefendingPlayer => 10u8.hash_into(hasher),
         }
     }
 }

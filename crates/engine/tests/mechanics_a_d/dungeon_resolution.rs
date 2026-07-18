@@ -354,6 +354,7 @@ fn test_sba_704_5t_waits_for_room_ability() {
         sacrificed_creature_powers: vec![],
         lki_counters: imbl::OrdMap::new(),
         lki_power: None,
+        defending_player: None,
     };
     state.stack_objects_mut().push_back(room_so);
 

@@ -46,7 +46,15 @@ trigger never fires. Blocks Adriana, Skyhunter Strike Force (Lieutenant). Static
 (flying/haste) grant fine; only trigger-bearing keywords are affected. Fix: synthesize the
 keyword-derived triggered ability when a keyword is added by a continuous effect.
 
-## EF-W-MISS-4 (MEDIUM): no "defending player" target for attack triggers (Hellrider gap)
+## EF-W-MISS-4 (MEDIUM): no "defending player" target for attack triggers (Hellrider gap) — ✅ CLOSED by PB-EF3 (`scutemob-103`, 2026-07-18)
+> Added `EffectTarget::AttackTarget` (player or planeswalker the attacker is attacking) and
+> `PlayerTarget::DefendingPlayer` (defending player only, CR 508.4). Defending player captured
+> per-attacker at `AttackersDeclared` into `PendingTrigger.defending_player_id`, threaded to
+> `StackObject`/`EffectContext`; substituting EachOpponent/Controller correctly avoided. Shipped
+> `hellrider.rs` (flip) + `raid_bombardment.rs` (new). Silumgar's continuous-effect variant filed
+> as OOS-EF3-1 (needs a locked `EffectFilter::CreaturesControlledBy`); Brutal Hordechief / Norn's
+> Decree / Karazikar / Cunning Rhetoric stay blocked on other, distinct primitives.
+
 No `PlayerTarget`/`EffectTarget` resolves to the specific player (or planeswalker) the
 triggering attacker is attacking. Substituting `EachOpponent`/`Controller` is wrong in
 4-player Commander. Keeps `hellrider.rs` partial; blocks Brutal Hordechief, Raid Bombardment,
@@ -85,7 +93,15 @@ Misdirection needs "target spell **with a single target**". The only single-targ
 cannot be authored Complete without over-permissive cast legality. Fix: a spell-only
 single-target `TargetRequirement`, or a target-count predicate on the spell filter.
 
-## EF-W-MISS-10 (HIGH): targeted `WheneverCreatureYouControlAttacks` drops its target
+## EF-W-MISS-10 (HIGH): targeted `WheneverCreatureYouControlAttacks` drops its target — ✅ CLOSED by PB-EF3 (`scutemob-103`, 2026-07-18)
+> `enrich_spec_from_def` now forwards each card-def `AbilityDefinition::Triggered { targets }`
+> into the runtime `TriggeredAbilityDef.targets` (all 30 enrich blocks; was hardcoded `vec![]`),
+> and the auto-target fallback is kind-guarded: `Normal` treats the runtime `triggered_abilities`
+> vec as authoritative, `CardDefETB` keeps the `def.abilities` raw-index. Fixed 4 pre-existing
+> sites mis-tagged `Normal` while raw-indexing `def.abilities` (incl. the Throat Slitter path).
+> Shipped `ojutai_soul_of_winter.rs` (the card removed unshipped in W-MISS). Note: "Dragonlord
+> Ojutai" was a mis-listed candidate (combat-damage trigger, no target — not this finding).
+
 The *targeted* variant of the attack trigger has never worked. `enrich_spec_from_def`
 converts `WheneverCreatureYouControlAttacks` to a runtime `TriggeredAbilityDef` with
 **hardcoded `targets: vec![]`** (`crates/engine/src/testing/replay_harness.rs:3011`),

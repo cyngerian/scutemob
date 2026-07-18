@@ -2107,6 +2107,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             ctx.damaged_player = stack_obj.damaged_player;
                             ctx.combat_damage_amount = stack_obj.combat_damage_amount;
                             ctx.triggering_creature_id = stack_obj.triggering_creature_id;
+                            // CR 508.4 (PB-EF3): Propagate the defending player captured at
+                            // attack-trigger dispatch from StackObject.
+                            ctx.defending_player = stack_obj.defending_player;
                             // CR 603.10a / CR 113.7a: Propagate LKI counter snapshot for
                             // EffectAmount::CounterCountAtLastKnownInformation.
                             ctx.lki_counters = if stack_obj.lki_counters.is_empty() {
@@ -2197,6 +2200,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         ctx.damaged_player = stack_obj.damaged_player;
                         ctx.combat_damage_amount = stack_obj.combat_damage_amount;
                         ctx.triggering_creature_id = stack_obj.triggering_creature_id;
+                        // CR 508.4 (PB-EF3): Propagate the defending player captured at
+                        // attack-trigger dispatch from StackObject.
+                        ctx.defending_player = stack_obj.defending_player;
                         // CR 603.10a / CR 113.7a: Propagate LKI counter snapshot for
                         // EffectAmount::CounterCountAtLastKnownInformation.
                         ctx.lki_counters = if stack_obj.lki_counters.is_empty() {

@@ -248,6 +248,7 @@ pub fn copy_spell_on_stack(
         // CR 603.10a: Copies do not inherit LKI counter snapshots.
         lki_counters: imbl::OrdMap::new(),
         lki_power: None,
+        defending_player: None,
     };
     // Push the copy onto the stack (above the original).
     state.stack_objects.push_back(copy);
@@ -442,6 +443,7 @@ pub fn resolve_cascade(
                 // CR 603.10a: Cascade free-casts have no LKI counter snapshot.
                 lki_counters: imbl::OrdMap::new(),
                 lki_power: None,
+                defending_player: None,
             };
             state.stack_objects.push_back(stack_obj);
             // CR 702.85c: cascade triggers "whenever you cast" — increment spells_cast_this_turn.
@@ -657,6 +659,7 @@ pub fn resolve_discover(
                 // CR 603.10a: Discover free-casts have no LKI counter snapshot.
                 lki_counters: imbl::OrdMap::new(),
                 lki_power: None,
+                defending_player: None,
             };
             state.stack_objects.push_back(stack_obj);
             // Discover free-cast triggers "whenever you cast a spell".

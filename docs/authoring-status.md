@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-18 06:21 UTC  
-**Git:** `0096ca65` on `feat/pb-ef2-createtoken-player-scoped-recipient-fix-swansong-toke`  
+**Generated:** 2026-07-18 08:37 UTC  
+**Git:** `e9ec859b` on `feat/pb-ef3-attack-trigger-target-fidelity-defending-player-targe`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -19,25 +19,25 @@ and what is intentionally NOT in it.**
 
 | Metric | Count | Δ since last run |
 | --- | ---: | ---: |
-| Card def files on disk | 1,783 | +1 |
+| Card def files on disk | 1,785 | +2 |
 | Authoring-plan target universe (snapshot 2026-03-10) | 1,636 | · |
-| Plan cards with a def file (any-face match) | 1,477 | +1 |
-| Plan cards still missing a def file | 159 | -1 |
+| Plan cards with a def file (any-face match) | 1,479 | +2 |
+| Plan cards still missing a def file | 157 | -2 |
 | Bonus defs (on disk, outside plan) | 321 | · |
-| Effective coverage vs plan target | **110%** (1,798 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 60.1% | 1,072 | +2 |
-| With TODO markers | 553 | -1 |
+| Effective coverage vs plan target | **110%** (1,800 / 1,636) | — |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 60.2% | 1,075 | +3 |
+| With TODO markers | 552 | -1 |
 | Empty `abilities: vec![]` placeholders | 158 | · |
-| Total TODO lines across all defs | 973 | · |
+| Total TODO lines across all defs | 972 | -1 |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 34 | 1,744 |
-| last 30 days | 34 | 2,918 |
-| last 90 days | 34 | 2,958 |
-| last 1 year | 1,807 | 3,341 |
+| last 7 days | 37 | 1,744 |
+| last 30 days | 37 | 2,918 |
+| last 90 days | 37 | 2,958 |
+| last 1 year | 1,810 | 3,341 |
 
 ## Bonus defs outside the plan
 
@@ -77,7 +77,7 @@ are blocked on engine primitives.
 | `removal-destroy` | 56 / 56 | 100% | 33 | 19 | 4 |
 | `counters-plus` | 49 / 49 | 100% | 24 | 20 | 5 |
 | `land-fetch` | 45 / 45 | 100% | 27 | 14 | 4 |
-| `attack-trigger` | 10 / 34 | 29% | 6 | 2 | 2 |
+| `attack-trigger` | 12 / 34 | 35% | 9 | 1 | 2 |
 | `death-trigger` | 34 / 34 | 100% | 19 | 10 | 5 |
 | `mana-artifact` | 34 / 34 | 100% | 14 | 18 | 2 |
 | `activated-tap` | 9 / 27 | 33% | 8 | 0 | 1 |
@@ -124,21 +124,6 @@ you which kind of next-step work would unblock the group.
 | --- | --- | --- |
 | Flux Channeler | `flux_channeler` | clean |
 
-#### `attack-trigger` — 10 / 34 (29%), authored split: 6 clean / 2 todo / 2 empty — **unwritten**
-
-| Card | Slug | Bucket |
-| --- | --- | --- |
-| Aurelia, the Warleader | `aurelia_the_warleader` | clean |
-| Copperhorn Scout | `copperhorn_scout` | clean |
-| Etali, Primal Storm | `etali_primal_storm` | empty |
-| Goblin Wardriver | `goblin_wardriver` | clean |
-| Hellrider | `hellrider` | todo |
-| Rhys the Exiled | `rhys_the_exiled` | clean |
-| Sanctum Seeker | `sanctum_seeker` | clean |
-| Shared Animosity | `shared_animosity` | empty |
-| Six | `six` | todo |
-| Triumphant Adventurer | `triumphant_adventurer` | clean |
-
 #### `activated-tap` — 9 / 27 (33%), authored split: 8 clean / 0 todo / 1 empty — **unwritten**
 
 | Card | Slug | Bucket |
@@ -159,6 +144,23 @@ you which kind of next-step work would unblock the group.
 | --- | --- | --- |
 | Culling the Weak | `culling_the_weak` | clean |
 | Life's Legacy | `lifes_legacy` | clean |
+
+#### `attack-trigger` — 12 / 34 (35%), authored split: 9 clean / 1 todo / 2 empty — **unwritten**
+
+| Card | Slug | Bucket |
+| --- | --- | --- |
+| Aurelia, the Warleader | `aurelia_the_warleader` | clean |
+| Copperhorn Scout | `copperhorn_scout` | clean |
+| Etali, Primal Storm | `etali_primal_storm` | empty |
+| Goblin Wardriver | `goblin_wardriver` | clean |
+| Hellrider | `hellrider` | clean |
+| Ojutai, Soul of Winter | `ojutai_soul_of_winter` | clean |
+| Raid Bombardment | `raid_bombardment` | clean |
+| Rhys the Exiled | `rhys_the_exiled` | clean |
+| Sanctum Seeker | `sanctum_seeker` | clean |
+| Shared Animosity | `shared_animosity` | empty |
+| Six | `six` | todo |
+| Triumphant Adventurer | `triumphant_adventurer` | clean |
 
 #### `activated-sacrifice` — 8 / 19 (42%), authored split: 6 clean / 1 todo / 1 empty — **unwritten**
 
@@ -202,7 +204,7 @@ the next thing to triage when the classifier table is grown.
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
 | OTHER (unclassified) | 598 | · |
-| DSL gap (unspecified) | 123 | · |
+| DSL gap (unspecified) | 122 | -1 |
 | attack trigger (self / generic) | 26 | · |
 | TriggerCondition::* missing variant | 17 | · |
 | dynamic hexproof / protection | 17 | · |
@@ -266,6 +268,8 @@ tyvar_jubilant_brawler: // TODO: static — creatures you control can activate a
 ## Recent card-touching commits
 
 ```
+86aa9cca scutemob-103: PB-EF3 cards — Ojutai Soul of Winter, Hellrider, Raid Bombardment
+6f2b299d scutemob-102: PB-EF2 — CreateToken player-scoped recipient (EF-W-MISS-1)
 38fa59c3 scutemob-101: EF-13 (Option A) — reclassify 101 no-behaviour Partial defs to Inert
 bfdda877 Merge branch 'main' into feat/pb-ef1-excludeself-enforcement-sweep-honor-the-field-at-ever
 34ded5ee scutemob-100: demote swan_song Complete -> known_wrong (EF-W-MISS-1)
@@ -289,13 +293,11 @@ b0290d2c scutemob-90: SR-34 §9 — un-demote the 3 horizon lands, extend the SR
 a25f87c8 scutemob-89: card review fixes — dimir_guildgate stale comment + oracle text; SF-6
 5dcca855 scutemob-89: SR-33 — dual/tri lands produce every printed colour; gate the Choose stub
 e2b1eb02 scutemob-88: /review fixes — unwrap 8 notes, 2 kind corrections, gate nit, EF-13
-1de82c7c scutemob-88: marker sweep — audit all 742 non-Complete markers vs current engine
-8ca8d2bc SR-10: migrate im 15.1 → imbl 7.0 (maintained fork)
 ```
 
 ## Missing card-defs sidecar
 
-The full list of 159 plan cards still missing on disk is at 
+The full list of 157 plan cards still missing on disk is at 
 `docs/authoring-status-missing.txt` (tab-separated `group<TAB>name`, sorted by group). 
 Use it as a batch-author worklist.
 

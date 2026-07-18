@@ -405,6 +405,7 @@ fn test_loyalty_needs_empty_stack_cr606_3() {
             sacrificed_creature_powers: vec![],
             lki_counters: imbl::OrdMap::new(),
             lki_power: None,
+            defending_player: None,
         });
 
     let result = rules::process_command(

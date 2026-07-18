@@ -1,6 +1,6 @@
 # Authoring plan — cards still missing on disk
-# Generated: 2026-07-18 06:21 UTC  Git: 0096ca65  Plan snapshot: 2026-03-10
-# Format: <group>\t<card name>   (159 cards)
+# Generated: 2026-07-18 08:37 UTC  Git: e9ec859b  Plan snapshot: 2026-03-10
+# Format: <group>\t<card name>   (157 cards)
 
 activated-sacrifice	Chatterfang, Squirrel General
 activated-sacrifice	Dark-Dweller Oracle
@@ -45,9 +45,7 @@ attack-trigger	Kozilek, Butcher of Truth
 attack-trigger	Lightning Runner
 attack-trigger	Muxus, Goblin Grandee
 attack-trigger	Norn's Decree
-attack-trigger	Ojutai, Soul of Winter
 attack-trigger	Olivia, Crimson Bride
-attack-trigger	Raid Bombardment
 attack-trigger	Raiyuu, Storm's Edge
 attack-trigger	Savage Ventmaw
 attack-trigger	Silumgar, the Drifting Death

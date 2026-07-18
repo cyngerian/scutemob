@@ -4580,6 +4580,7 @@ pub fn handle_cast_spell(
         sacrificed_creature_powers: vec![],
         lki_counters: imbl::OrdMap::new(),
         lki_power: None,
+        defending_player: None,
     };
     state.stack_objects.push_back(stack_obj);
     // CR 702.103b: When cast bestowed, apply the type transformation to the source
@@ -7912,6 +7913,7 @@ mod tests {
             sacrificed_creature_powers: vec![],
             lki_counters: imbl::OrdMap::new(),
             lki_power: None,
+            defending_player: None,
         }
     }
 
