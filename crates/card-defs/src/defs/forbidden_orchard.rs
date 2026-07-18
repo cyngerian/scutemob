@@ -30,19 +30,35 @@ pub fn card() -> CardDefinition {
             // This trigger has a target, so it is NOT a mana ability (CR 605.5a) — it goes
             // on the stack normally. The trigger fires from the mana ability activation.
             //
-            // PB-EF6 fixed BOTH target-side defects: (1) targets uses TargetOpponent (was
-            // TargetPlayer, self-targetable); (2) TokenSpec.recipient routes the token to the
-            // declared target opponent (PB-EF2; was defaulting to Controller, inverting the
-            // card's drawback into an upside).
+            // PB-EF6 (2026-07-18): TargetRequirement::TargetOpponent now exists, and
+            // TokenSpec.recipient (PB-EF2) can route the token to a declared target.
+            // NOT wired here: `fire_mana_triggered_abilities` (rules/mana.rs) queues this
+            // trigger as PendingTriggerKind::Normal with `ability_index` set to the RAW
+            // index into `def.abilities`, but the flush_pending_triggers auto-target
+            // picker for Normal-kind triggers reads `characteristics.triggered_abilities`
+            // — which `enrich_spec_from_def` never populates for
+            // `TriggerCondition::WhenTappedForMana` (unlike WhenEntersBattlefield /
+            // WheneverCreatureDies / etc., which get a runtime TriggeredAbilityDef
+            // conversion). So `targets` on THIS trigger is dead: the auto-picker always
+            // sees an empty target list, and any effect referencing `DeclaredTarget{0}`
+            // (a token recipient or otherwise) silently resolves to nothing. Proven
+            // empirically: wiring `recipient: PlayerTarget::DeclaredTarget{index:0}` here
+            // made `mana_triggers::test_mana_trigger_forbidden_orchard` create 0 Spirits
+            // instead of the pre-existing (wrong-recipient) 1. New engine finding, not
+            // fixed here (out of PB-EF6 scope — a mana.rs/enrich_spec_from_def dispatch
+            // gap, orthogonal to both EF-W-PB2-2 and EF-W-PB2-3).
             //
-            // STILL BLOCKED: Effect::AddManaAnyColor (the {T} mana ability above) always adds
-            // Colorless instead of a chosen color — EF-W-PB2-3, still open. That is the sole
-            // remaining reason this def is not Complete.
+            // TODO: token-for-target-opponent DSL gap. CreateToken creates tokens for the
+            // controller; there is no working DSL path for "target player creates a
+            // token" on a WhenTappedForMana trigger specifically (see above). As a
+            // deterministic approximation, this creates the Spirit for the controller
+            // (wrong beneficiary).
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenTappedForMana {
                     source_filter: ManaSourceFilter::This,
                 },
+                // Approximation: Spirit token for controller (should be for target opponent).
                 effect: Effect::CreateToken {
                     spec: TokenSpec {
                         name: "Spirit".to_string(),
@@ -52,7 +68,6 @@ pub fn card() -> CardDefinition {
                         card_types: [CardType::Creature].iter().copied().collect(),
                         subtypes: [SubType("Spirit".into())].iter().cloned().collect(),
                         count: EffectAmount::Fixed(1),
-                        recipient: PlayerTarget::DeclaredTarget { index: 0 },
                         ..Default::default()
                     },
                 },
@@ -63,10 +78,18 @@ pub fn card() -> CardDefinition {
             },
         ],
         completeness: Completeness::known_wrong(
-            "sole remaining blocker (EF-W-PB2-3): the {T} mana ability's Effect::AddManaAnyColor \
-             always adds Colorless instead of a color the caster chooses — wrong game state on \
-             the mana side. The target-side defects (self-targetable, token minted for the wrong \
-             player) were fixed by PB-EF6 (TargetOpponent) + PB-EF2 (TokenSpec.recipient).",
+            "oracle says 'target opponent creates a 1/1 colorless Spirit'; the def creates the \
+             Spirit for Forbidden Orchard's OWN controller, inverting the card's drawback into an \
+             upside. This is NOT a simple recipient-wiring gap (PB-EF6 checked): the \
+             WhenTappedForMana trigger is queued by rules/mana.rs::fire_mana_triggered_abilities \
+             as PendingTriggerKind::Normal with a raw def.abilities index, but the auto-target \
+             picker for Normal-kind triggers reads characteristics.triggered_abilities, which is \
+             never populated for WhenTappedForMana by enrich_spec_from_def -- so this trigger's \
+             `targets` field is unreachable and TokenSpec.recipient has nothing to read (proven: \
+             wiring it produced 0 tokens, not a mis-targeted one). Real blockers: (1) the \
+             WhenTappedForMana auto-target dispatch gap above (new finding, not filed as \
+             EF-W-PB2-2/3), and (2) Effect::AddManaAnyColor on the mana ability always adds \
+             Colorless instead of a chosen color (EF-W-PB2-3, still open).",
         ),
         ..Default::default()
     }

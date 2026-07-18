@@ -22,8 +22,8 @@ pub fn card() -> CardDefinition {
             // CR 603.10a: "Whenever this creature or another creature you control dies,
             // target opponent loses 1 life and you gain 1 life."
             // PB-23: controller_you filter applied via DeathTriggerFilter.
-            // PB-EF6: "target opponent" is TargetRequirement::TargetOpponent (exact, not
-            // approximated — the auto-picker excludes the controller, CR 603.3d).
+            // PB-EF6: "target opponent" is TargetRequirement::TargetOpponent, an exact
+            // match for the oracle text (the auto-picker excludes the controller, CR 603.3d).
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureDies {
