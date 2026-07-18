@@ -5,7 +5,7 @@ title: Three independent sub-gaps from EF-W-MISS-7 (could be micro-PBs; ship as 
 task: scutemob-111
 branch: feat/pb-ef10-sacrifice-driven-effectamount-runtime-maxcmc-if-you-
 started: 2026-07-18
-phase: implement-complete  # plan: memory/primitives/pb-plan-EF10.md (struct SacrificedCreatureLki; max_cmc_amount on TargetFilter avoids 99-def edit; CR 608.2c/608.2h not 717; Momentous Fall/Eldritch Evolution/Victimize→Complete, Birthing Ritual→inert + OOS-EF10-1; PROTOCOL 14→15, HASH 52→53)
+phase: fix-complete  # review: memory/primitives/pb-review-EF10.md (0H/0M/2L); both LOW fixed commit bcf9eb8a (redundant expect_characteristics dropped; MoveZone-tapped regression test added). 3453 tests. Ready for collection. plan: memory/primitives/pb-plan-EF10.md (struct SacrificedCreatureLki; max_cmc_amount on TargetFilter avoids 99-def edit; CR 608.2c/608.2h not 717; Momentous Fall/Eldritch Evolution/Victimize→Complete, Birthing Ritual→inert + OOS-EF10-1; PROTOCOL 14→15, HASH 52→53)
 
 ## Progress
 
