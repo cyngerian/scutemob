@@ -1,6 +1,6 @@
 # Authoring plan — cards still missing on disk
-# Generated: 2026-07-18 17:27 UTC  Git: 4fa6b6f2  Plan snapshot: 2026-03-10
-# Format: <group>\t<card name>   (148 cards)
+# Generated: 2026-07-18 18:54 UTC  Git: 051887f2  Plan snapshot: 2026-03-10
+# Format: <group>\t<card name>   (144 cards)
 
 activated-sacrifice	Chatterfang, Squirrel General
 activated-sacrifice	Dark-Dweller Oracle
@@ -125,10 +125,6 @@ other	Steelshaper's Gift
 other	Time Spiral
 other	Treasure Nabber
 other	Utopia Sprawl
-sacrifice-outlet	Birthing Ritual
-sacrifice-outlet	Eldritch Evolution
-sacrifice-outlet	Momentous Fall
-sacrifice-outlet	Victimize
 static-enchantment	Arcane Adaptation
 static-enchantment	Candlekeep Inspiration
 static-enchantment	Door of Destinies

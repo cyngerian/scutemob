@@ -4255,7 +4255,10 @@ pub fn handle_cast_spell(
             if let crate::state::types::AdditionalCost::Sacrifice { ids, lki } = ac {
                 if ids.contains(&sac_id) {
                     if lki.len() != ids.len() {
-                        lki.resize(ids.len(), crate::state::types::SacrificedCreatureLki::default());
+                        lki.resize(
+                            ids.len(),
+                            crate::state::types::SacrificedCreatureLki::default(),
+                        );
                     }
                     if let Some(pos) = ids.iter().position(|id| *id == sac_id) {
                         lki[pos] = sac_lki.clone();

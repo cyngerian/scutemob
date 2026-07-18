@@ -461,7 +461,25 @@
 ///   right after `UntilYourNextTurn`. `decl_fingerprint` MOVES (the enum's declared
 ///   shape changed — a new variant); `stream_fingerprint` moves per the v40
 ///   mechanism (a new `HashInto` arm).
-pub const HASH_SCHEMA_VERSION: u8 = 52;
+/// - 53: PB-EF10 (2026-07-18) — `SacrificedCreatureLki { power, toughness, mana_value }`
+///   (a new struct) replaces `AdditionalCost::Sacrifice`'s `lki_powers: Vec<i32>` field
+///   with `lki: Vec<SacrificedCreatureLki>`, and `StackObject`/`EffectContext` follow
+///   the same rename+reshape (CR 608.2b/608.2h/608.2i — sacrifice LKI now carries
+///   power/toughness/mana value atomically). `EffectAmount` gains two new variants,
+///   `ToughnessOfSacrificedCreature` (discriminant 22) and
+///   `ManaValueOfSacrificedCreature` (discriminant 23). `TargetFilter` gains
+///   `max_cmc_amount: Option<Box<EffectAmount>>` (CR 202.3/608.2h — a runtime search
+///   cap). `Condition` gains `SacrificeFired` (discriminant 48, CR 608.2c/608.2h —
+///   "if you do"). Fed to `HashInto`: the new `impl HashInto for SacrificedCreatureLki`
+///   (power/toughness/mana_value each hashed); `AdditionalCost::Sacrifice` and
+///   `StackObject::sacrificed_creature_lki` hash the reshaped vec; `EffectAmount`'s two
+///   new discriminants; `TargetFilter::max_cmc_amount` hashed right after
+///   `is_untapped`; `Condition::SacrificeFired` hashed right after
+///   `OpponentControlsMoreLandsThanYou`. `EffectContext.sacrifice_fired` is NOT hashed
+///   (transient per-resolution scratch, same as `sacrificed_creature_lki`'s sibling
+///   fields). `decl_fingerprint` MOVES (multiple struct/enum declared-shape changes);
+///   `stream_fingerprint` moves per the v40 mechanism (new `HashInto` arms/fields).
+pub const HASH_SCHEMA_VERSION: u8 = 53;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -659,6 +677,17 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // change); stream_fingerprint moves per the v40 mechanism.
         decl_fingerprint: "0e8ef019079eb88c574f8cb08cdb0e421b0c319a8ec2b942ae94694c58126fee",
         stream_fingerprint: "d90e8be93a121620e014738c8d1139a5198e31d25de40d89e56faba55f33421e",
+    },
+    HashSchemaEpoch {
+        version: 53,
+        // PB-EF10 (2026-07-18): SacrificedCreatureLki struct + reshaped
+        // AdditionalCost::Sacrifice/StackObject/EffectContext; EffectAmount gained
+        // ToughnessOfSacrificedCreature/ManaValueOfSacrificedCreature; TargetFilter
+        // gained max_cmc_amount; Condition gained SacrificeFired (see the `- 53:`
+        // History line above). decl_fingerprint moves (multiple struct/enum-shape
+        // changes); stream_fingerprint moves per the v40 mechanism.
+        decl_fingerprint: "3ff461aaba75d1d7470c6aadee1b140d98e49358fde7a94e70318007150db5a1",
+        stream_fingerprint: "1e0e8de7fa26f3aebf77c2a698f193558cf7c50f07009ff73d78858e74001a58",
     },
 ];
 
@@ -5791,6 +5820,8 @@ impl HashInto for Condition {
             Condition::SpellMastery => 46u8.hash_into(hasher),
             // PB-AC6: "if an opponent controls more lands than you" (discriminant 47)
             Condition::OpponentControlsMoreLandsThanYou => 47u8.hash_into(hasher),
+            // PB-EF10: "if you do" — SacrificeFired (discriminant 48)
+            Condition::SacrificeFired => 48u8.hash_into(hasher),
         }
     }
 }

@@ -48,8 +48,7 @@ pub use state::{
     PhyrexianMana, PlayFromGraveyardPermission, PlayFromTopFilter, PlayFromTopPermission,
     PlayerBuilder, PlayerFilter, PlayerId, PlayerState, ProtectionQuality, ReplacementEffect,
     ReplacementId, ReplacementModification, ReplacementTrigger, SacrificedCreatureLki, SpellTarget,
-    StackObject,
-    StackObjectKind, Step, SubType, SuperType, Target, TriggerData, TriggerDoubler,
+    StackObject, StackObjectKind, Step, SubType, SuperType, Target, TriggerData, TriggerDoubler,
     TriggerDoublerFilter, TriggerEvent, TriggeredAbilityDef, TurnFaceUpMethod, TurnState,
     UpkeepCostKind, Zone, ZoneId, ZoneType,
 };

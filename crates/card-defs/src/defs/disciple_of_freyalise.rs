@@ -98,8 +98,8 @@ pub fn card() -> CardDefinition {
              its power') is NOT implemented. PB-EF1 (scutemob-99) closed the original blocker — \
              the optional-cost sacrifice path now honors TargetFilter.exclude_self (CR 109.1), so \
              'another' is enforceable. The SURVIVING blocker: \
-             EffectAmount::PowerOfSacrificedCreature reads ctx.sacrificed_creature_lki, \
-             populated only at the activated-ability sacrifice-cost site — the MayPayThenEffect \
+             EffectAmount::PowerOfSacrificedCreature reads ctx.sacrificed_creature_lki, populated \
+             only at the activated-ability sacrifice-cost site — the MayPayThenEffect \
              optional-cost path (sacrifice_permanents_for_player) never captures the sacrificed \
              creature's power into ctx, so X would resolve to 0. Filed as PB-EF1 follow-up \
              EF-EF1-A. Not shipped (W5 policy: wrong game state, not a missing clause).",

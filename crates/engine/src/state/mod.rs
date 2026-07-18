@@ -47,9 +47,8 @@ pub use mtg_card_types::state::{
     PlayerFilter, PlayerId, PlayerState, ProtectionQuality, ReplacementEffect, ReplacementId,
     ReplacementModification, ReplacementTrigger, RoomDef, RoomIndex, SacrificeFilter,
     SacrificedCreatureLki, SpellTarget, StackObject, StackObjectKind, SubType, SuperType, Target,
-    TriggerData, TriggerDoubler,
-    TriggerDoublerFilter, TriggerEvent, TriggeredAbilityDef, TurnFaceUpMethod, UpkeepCostKind,
-    Zone, ZoneId, ZoneType,
+    TriggerData, TriggerDoubler, TriggerDoublerFilter, TriggerEvent, TriggeredAbilityDef,
+    TurnFaceUpMethod, UpkeepCostKind, Zone, ZoneId, ZoneType,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

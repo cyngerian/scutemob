@@ -135,7 +135,7 @@ pub struct EffectContext {
     pub sacrificed_creature_lki: Vec<crate::state::types::SacrificedCreatureLki>,
     /// CR 608.2c/608.2h: transient, per-resolution flag — true iff an
     /// `Effect::SacrificePermanents` earlier in THIS resolution actually sacrificed
-    /// >= 1 permanent. Read by `Condition::SacrificeFired` ("if you do", PB-EF10).
+    /// at least one permanent. Read by `Condition::SacrificeFired` ("if you do", PB-EF10).
     /// Not hashed, not serialized — runtime resolution scratch only, same as
     /// `sacrificed_creature_lki`'s sibling fields on this struct.
     pub sacrifice_fired: bool,
@@ -2763,6 +2763,19 @@ fn execute_effect_inner(
                         .unwrap_or_default();
                     let dest = resolve_zone_target(to, state, ctx);
                     if let Some((new_id, _)) = state.fizzle_move_object_to_zone(id, dest) {
+                        // PB-EF10 fix (pre-existing gap, found while authoring Victimize):
+                        // `move_object_to_zone` always resets a new object to
+                        // `ObjectStatus::default()` (untapped); `ZoneTarget::Battlefield {
+                        // tapped }` was never applied here, unlike the sibling SearchLibrary
+                        // executor (matched_tapped, ~line 4819). Any "return ~ to the
+                        // battlefield tapped" MoveZone (Victimize, reanimation-tapped
+                        // effects) silently entered untapped. Mirror the SearchLibrary
+                        // pattern: apply the destination's tapped flag right after the move.
+                        if let Some(tapped) = dest_tapped(to) {
+                            if let Some(new_obj) = state.expect_object_mut(new_id) {
+                                new_obj.status.tapped = tapped;
+                            }
+                        }
                         // Apply controller override for "under your control" effects (e.g. Reanimate).
                         // move_object_to_zone always resets controller to owner; override after.
                         if let Some(override_player_target) = controller_override {
@@ -3391,11 +3404,30 @@ fn execute_effect_inner(
         } => {
             let player_ids = resolve_player_target_list(state, player, ctx);
             let n = resolve_amount(state, count, ctx).max(0) as usize;
+            // PB-EF10 (CR 608.2c/608.2h): collect the LKI of everything actually
+            // sacrificed across all target players in this resolution, so a
+            // following `Condition::SacrificeFired` ("if you do") can gate on it.
+            let mut sacrificed: Vec<crate::state::types::SacrificedCreatureLki> = vec![];
             for pid in player_ids {
                 // PB-EF1 (CR 109.1): pass the ability source so a `filter.exclude_self`
                 // ("sacrifice another permanent", e.g. Korvold) excludes it.
-                sacrifice_permanents_for_player(state, pid, n, filter, Some(ctx.source), events);
+                let lki = sacrifice_permanents_for_player(
+                    state,
+                    pid,
+                    n,
+                    filter,
+                    Some(ctx.source),
+                    events,
+                );
+                sacrificed.extend(lki);
             }
+            // CR 608.2c/608.2h: "if you do" refers to THIS sacrifice instruction —
+            // overwrite (not append), reflecting the most-recent SacrificePermanents
+            // in the resolution. Sufficient for single-sacrifice cards (Victimize,
+            // Birthing Ritual); a card with two sacrifices + two "if you do" clauses
+            // would need per-clause tracking (documented limitation, not over-engineered).
+            ctx.sacrifice_fired = !sacrificed.is_empty();
+            ctx.sacrificed_creature_lki = sacrificed;
         }
         // CR 104.2b / CR 104.1: the controller wins the game.
         //
@@ -7288,21 +7320,19 @@ pub(crate) fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &Eff
         // Returns 0 defensively if no creature was sacrificed (ctx.sacrificed_creature_lki
         // is empty), so a card author mistakenly using this variant without a sacrifice cost
         // gets a deterministic 0, not a panic.
-        EffectAmount::PowerOfSacrificedCreature => {
-            ctx.sacrificed_creature_lki
-                .first()
-                .map(|l| l.power)
-                .unwrap_or(0)
-        }
+        EffectAmount::PowerOfSacrificedCreature => ctx
+            .sacrificed_creature_lki
+            .first()
+            .map(|l| l.power)
+            .unwrap_or(0),
         // CR 608.2b/608.2i: Read the LKI toughness of the first creature sacrificed as
         // a cost/effect this resolution (PB-EF10 — Momentous Fall: "gain life equal to
         // its toughness"). Same defensive-0 contract as PowerOfSacrificedCreature.
-        EffectAmount::ToughnessOfSacrificedCreature => {
-            ctx.sacrificed_creature_lki
-                .first()
-                .map(|l| l.toughness)
-                .unwrap_or(0)
-        }
+        EffectAmount::ToughnessOfSacrificedCreature => ctx
+            .sacrificed_creature_lki
+            .first()
+            .map(|l| l.toughness)
+            .unwrap_or(0),
         // CR 608.2h/202.3: Read the LKI mana value of the first creature sacrificed
         // as a cost/effect this resolution (PB-EF10 — Eldritch Evolution / Birthing
         // Ritual: "where X is N plus the sacrificed creature's mana value").
@@ -7747,6 +7777,13 @@ fn eligible_sacrifice_targets(
 /// Shared by `Effect::SacrificePermanents` and the PB-AC2 optional-cost "sacrifice
 /// a permanent" path (`try_pay_optional_cost`) so dies triggers and replacement
 /// effects apply identically in both paths.
+///
+/// Returns the LKI (power/toughness/mana value, CR 608.2b/608.2h/608.2i) of each
+/// permanent that was ACTUALLY sacrificed (i.e. the zone move completed via the
+/// `Redirect` or `Proceed` arms below) — NOT permanents deferred to
+/// `ChoiceRequired`. Consumed by `Effect::SacrificePermanents` (PB-EF10) to
+/// populate `EffectContext.sacrificed_creature_lki` / `sacrifice_fired` for "if you
+/// do" gating (Victimize, Birthing Ritual).
 fn sacrifice_permanents_for_player(
     state: &mut GameState,
     pid: PlayerId,
@@ -7756,7 +7793,8 @@ fn sacrifice_permanents_for_player(
     // with `exclude_self` (a "sacrifice another" clause) can exclude it.
     source: Option<ObjectId>,
     events: &mut Vec<GameEvent>,
-) {
+) -> Vec<crate::state::types::SacrificedCreatureLki> {
+    let mut sacrificed_lki: Vec<crate::state::types::SacrificedCreatureLki> = vec![];
     let mut controlled = eligible_sacrifice_targets(state, pid, filter, source);
     controlled.sort_unstable();
     let to_sacrifice = controlled.into_iter().take(n).collect::<Vec<_>>();
@@ -7770,6 +7808,7 @@ fn sacrifice_permanents_for_player(
             pre_death_counters,
             pre_death_power,
             sac_perm_pre_chars,
+            lki_this_creature,
         ) = match state.fizzle_object(id) {
             Some(obj) => {
                 let pre_chars_opt = crate::rules::layers::calculate_characteristics(state, id);
@@ -7777,6 +7816,18 @@ fn sacrifice_permanents_for_player(
                     .clone()
                     .unwrap_or_else(|| obj.characteristics.clone());
                 let lki_power = chars.power;
+                // CR 608.2h/608.2i (PB-EF10): capture the full LKI (power/toughness/mana
+                // value) BEFORE the zone move, atomically alongside the pre-existing
+                // power-only capture.
+                let lki = crate::state::types::SacrificedCreatureLki {
+                    power: chars.power.unwrap_or(0),
+                    toughness: chars.toughness.unwrap_or(0),
+                    mana_value: chars
+                        .mana_cost
+                        .as_ref()
+                        .map(|c| c.mana_value())
+                        .unwrap_or(0),
+                };
                 (
                     chars.card_types,
                     obj.owner,
@@ -7786,6 +7837,7 @@ fn sacrifice_permanents_for_player(
                     // CR 603.10a: capture layer-resolved power before zone move.
                     lki_power,
                     pre_chars_opt,
+                    lki,
                 )
             }
             None => continue,
@@ -7807,6 +7859,10 @@ fn sacrifice_permanents_for_player(
             } => {
                 events.extend(repl_events);
                 if let Some((new_id, _old)) = state.expect_move_object_to_zone(id, dest) {
+                    // PB-EF10 (CR 608.2b/608.2h/608.2i): the zone move succeeded — this
+                    // permanent WAS sacrificed (possibly redirected elsewhere by a
+                    // replacement effect), so its LKI counts toward "if you do".
+                    sacrificed_lki.push(lki_this_creature.clone());
                     match dest {
                         ZoneId::Exile => {
                             events.push(GameEvent::ObjectExiled {
@@ -7881,6 +7937,8 @@ fn sacrifice_permanents_for_player(
                 if let Some((new_id, _old)) =
                     state.expect_move_object_to_zone(id, ZoneId::Graveyard(owner))
                 {
+                    // PB-EF10 (CR 608.2b/608.2h/608.2i): the zone move succeeded.
+                    sacrificed_lki.push(lki_this_creature.clone());
                     if card_types.contains(&CardType::Creature) {
                         events.push(GameEvent::CreatureDied {
                             object_id: id,
@@ -7910,6 +7968,7 @@ fn sacrifice_permanents_for_player(
             }
         }
     }
+    sacrificed_lki
 }
 // ── PB-AC2: optional-cost (beneficial-pay) helper ──────────────────────────────
 /// CR 118.12 / 118.8: check whether `pid` can pay `cost` right now, without mutating
@@ -8022,7 +8081,20 @@ fn pay_optional_cost(
         }
         Cost::DiscardCard => discard_cards(state, pid, 1, events),
         Cost::Sacrifice(filter) => {
-            sacrifice_permanents_for_player(state, pid, 1, &Some(filter.clone()), source, events)
+            // NOTE (EF-EF1-A, deferred per PB-EF10 Step 3.4): the optional-cost path
+            // does not thread the returned LKI into `ctx` — that would require
+            // widening this function's signature (and `try_pay_optional_cost`'s) to
+            // return `Vec<SacrificedCreatureLki>` for every cost kind. Left as the
+            // documented EF-EF1-A follow-up rather than risking the mandatory-cost
+            // core of this batch. `disciple_of_freyalise` stays partial.
+            let _ = sacrifice_permanents_for_player(
+                state,
+                pid,
+                1,
+                &Some(filter.clone()),
+                source,
+                events,
+            );
         }
         Cost::Sequence(costs) => {
             for c in costs {
@@ -8826,6 +8898,11 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                 .iter()
                 .any(|(pid, ps)| *pid != ctx.controller && !ps.has_lost && count_lands(*pid) > mine)
         }
+        // CR 608.2c/608.2h (PB-EF10): "if you do" — true iff the most recent
+        // Effect::SacrificePermanents in this resolution actually sacrificed >= 1
+        // permanent. See ctx.sacrifice_fired's doc comment for the per-resolution
+        // scoping caveat.
+        Condition::SacrificeFired => ctx.sacrifice_fired,
     }
 }
 /// Evaluate a condition in a static ability context (no EffectContext available).

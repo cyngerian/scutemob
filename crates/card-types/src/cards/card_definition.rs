@@ -3750,6 +3750,15 @@ pub enum Condition {
     /// controls strictly more lands than the controller. Land counts use layer-resolved
     /// types (`calculate_characteristics`) and exclude phased-out permanents.
     OpponentControlsMoreLandsThanYou,
+    /// CR 608.2c/608.2h: "if you do" — true iff an `Effect::SacrificePermanents`
+    /// earlier in THIS resolution actually sacrificed >= 1 permanent
+    /// (`ctx.sacrifice_fired`, PB-EF10). Pair it with `Effect::Conditional` after
+    /// `Effect::SacrificePermanents` (Victimize, Birthing Ritual).
+    ///
+    /// NOTE: for an OPTIONAL "you may sacrifice; if you do, X" use
+    /// `Effect::MayPayThenEffect { cost: Cost::Sacrifice(..), then: X }` instead —
+    /// the `then` arm is the implicit "if you do" and needs no Condition.
+    SacrificeFired,
 }
 // ── Mode Selection ────────────────────────────────────────────────────────────
 /// Modal spells/abilities: choose N of M modes (CR 700.2).

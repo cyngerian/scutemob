@@ -1,15 +1,15 @@
 {
-  "generated": "2026-07-18 17:27 UTC",
-  "git_head": "4fa6b6f2",
-  "total_files": 1792,
-  "total_todos": 961,
+  "generated": "2026-07-18 18:54 UTC",
+  "git_head": "051887f2",
+  "total_files": 1796,
+  "total_todos": 958,
   "file_buckets": {
-    "clean": 1093,
-    "todo": 545,
+    "clean": 1098,
+    "todo": 544,
     "empty": 154
   },
   "todo_classes": {
-    "OTHER (unclassified)": 590,
+    "OTHER (unclassified)": 587,
     "replacement effect missing": 14,
     "TriggerCondition::* missing variant": 17,
     "attack trigger (self / generic)": 25,
@@ -64,8 +64,8 @@
   },
   "plan": {
     "total": 1636,
-    "authored": 1488,
-    "missing": 148,
+    "authored": 1492,
+    "missing": 144,
     "extras": 321
   }
 }

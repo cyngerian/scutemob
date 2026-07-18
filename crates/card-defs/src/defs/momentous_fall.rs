@@ -23,8 +23,8 @@ pub fn card() -> CardDefinition {
         }),
         types: types(&[CardType::Instant]),
         oracle_text: "As an additional cost to cast this spell, sacrifice a creature.\nYou draw \
-                      cards equal to the sacrificed creature's power, then you gain life equal \
-                      to its toughness."
+                      cards equal to the sacrificed creature's power, then you gain life equal to \
+                      its toughness."
             .to_string(),
         // CR 118.8: Mandatory sacrifice of a creature as additional cost.
         spell_additional_costs: vec![SpellAdditionalCost::SacrificeCreature],

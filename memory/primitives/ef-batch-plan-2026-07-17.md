@@ -491,13 +491,25 @@ demote is not a PB and should not wait in the queue.
   zealous_conscripts, karrthus_tyrant_of_jund; `test_gain_control_until_eot_expires` is vacuous re:
   reversion). Coverage 60.9% → **61.0%** (1093/1792).
 
-### PB-EF10 — sacrifice-driven `EffectAmount` / runtime `max_cmc`  ·  capability
-- **Findings**: EF-W-MISS-7 (three sub-gaps).
-- **Fix**: `EffectAmount::ToughnessOfSacrificedCreature`; runtime-computed `max_cmc` on
-  `SearchLibrary` (`N + sacrificed MV`); a `Condition` reporting whether a resolution-time
-  `SacrificePermanents` fired ("if you do").
-- **Candidates (4)**: Momentous Fall, Birthing Ritual, Eldritch Evolution, Victimize.
-- **Discounted ship**: **~3.** (Three independent sub-gaps — could be micro-PBs.)
+### PB-EF10 — sacrifice-driven `EffectAmount` / runtime `max_cmc`  ·  capability ✅ DONE (scutemob-111, 2026-07-18)
+- **Findings**: EF-W-MISS-7 (three sub-gaps). ✅ CLOSED.
+- **Shipped**: `EffectAmount::ToughnessOfSacrificedCreature` (disc 22) +
+  `EffectAmount::ManaValueOfSacrificedCreature` (disc 23) + `TargetFilter.max_cmc_amount:
+  Option<Box<EffectAmount>>` (runtime "or less" search cap, honored by `SearchLibrary` only) +
+  `Condition::SacrificeFired` (disc 48, CR 608.2c/608.2h "if you do"). Single data-model
+  migration backs all three: `SacrificedCreatureLki { power, toughness, mana_value }` replaces
+  the old `Vec<i32>` powers carrier on `EffectContext`/`StackObject`/`AdditionalCost::Sacrifice`.
+  `sacrifice_permanents_for_player` now returns the LKI of everything actually sacrificed.
+  **Bonus fix** (found while authoring Victimize): `Effect::MoveZone` never applied
+  `ZoneTarget::Battlefield { tapped }` — fixed to mirror the sibling `SearchLibrary` pattern.
+  PROTOCOL 14→15, HASH 52→53.
+- **Yield: 3 shipped** (Momentous Fall, Eldritch Evolution, Victimize) **+ 2 unlisted forced-adds**
+  from the mandatory TODO sweep (Miren, the Moaning Well; Diamond Valley — both sub-gap-1 only).
+  Birthing Ritual stays inert (OOS-EF10-1: the "look at top 7 / place one / bottom-random" dig has
+  no primitive). Birthing Pod stays blocked on a distinct gap (needs EXACT mana value, not "or
+  less" — noted, not fixed). **OOS-EF10-1 filed** (`w-miss-engine-findings-2026-07-17.md`).
+  15 unit tests (3 decoys, all proven non-vacuous). Coverage delta: see
+  `python3 tools/authoring-report.py` output in the collection report.
 
 ### PB-EF11 — low-yield singletons  ·  capability (cleanup)
 - **Findings**: EF-W-MISS-8 (`WheelDraw` "greatest discarded" — Windfall), EF-W-MISS-9
@@ -528,7 +540,7 @@ demote is not a PB and should not wait in the queue.
 | **PB-EF7** ✅ DONE | capability | PB2-4 | **2 shipped** | PROTOCOL+HASH |
 | **PB-EF8** ✅ DONE | capability | PB2-8 | **2 shipped** | PROTOCOL+HASH |
 | **PB-EF9** ✅ DONE | capability | PB2-5 | **2 shipped** | PROTOCOL+HASH |
-| PB-EF10 | capability | MISS-7 | ~3 | maybe |
+| **PB-EF10** ✅ DONE | capability | MISS-7 | **3 shipped + 2 forced-adds** | PROTOCOL+HASH |
 | PB-EF11 | capability | MISS-8, MISS-9 | ~2 | PROTOCOL |
 | PB-EF12 | capability (gated) | PB2-3 | ~1–2 | maybe |
 
@@ -905,3 +917,31 @@ control forever** after the effect should have ended — legal-but-wrong for any
   `expire_end_of_turn_effects` (and the until-next-turn pass) for removed `SetController` effects,
   exactly as PB-EF9 does for `WhileYouControlSource`. Deferred here because it changes existing
   Threaten behavior and touches golden scripts/tests — a follow-up micro-PB with the helper in place.
+
+## 12. New finding filed by PB-EF10 (scutemob-111)
+
+### OOS-EF10-1 (capability) — no "look at top N, place one, rest to bottom random" primitive
+"Look at the top seven cards of your library. Then you may sacrifice a creature. If you do, you
+may put a creature card with mana value X or less from among those cards onto the battlefield...
+Put the rest on the bottom of your library in a random order" (Birthing Ritual) has no `Effect`
+primitive. `SearchLibrary` searches the **whole library**, not a looked-at top-N subset, and has
+no bottom-randomize destination — using it would ship wrong game state (ignores both the top-7
+scoping and the bottom-random remainder), which is exactly the class of error W5/W-MISS policy
+forbids. All three of Birthing Ritual's OTHER mechanics (end-step trigger, "if you control a
+creature" intervening-if, optional sacrifice, runtime MV cap = 1 + sacrificed creature's mana
+value) are expressible after PB-EF10 — this dig is the only remaining blocker.
+- **Instance**: `birthing_ritual.rs` (authored `inert` — `abilities: vec![]`, since the only
+  mechanic the card has is fully gated on this primitive).
+- **Fix shape**: a new `Effect::LookAtTopThenPlace { count: EffectAmount, filter: TargetFilter,
+  destination: ZoneTarget, rest_to: BottomRandomOrder | Graveyard, optional: bool }` that (a)
+  scopes candidates to the looked-at top N (not the whole library, unlike `SearchLibrary`), (b)
+  honors a runtime `max_cmc_amount` (already exists on `TargetFilter` as of PB-EF10), (c) places
+  at most one matching card, (d) sends the remainder to the bottom in a randomized
+  (deterministic-by-ObjectId in M7, non-deterministic in M10+) order. Likely reusable for other
+  impulse-style "look at N, take one, rest bottomed" cards beyond Birthing Ritual.
+- **Also noted, distinct blocker, not filed as a new seed**: `birthing_pod.rs` needs mana value
+  **equal to** 1 + the sacrificed creature's MV, not "N or less" — `TargetFilter.max_cmc_amount`
+  is an upper-bound cap and would wrongly accept cheaper creatures too. A paired
+  `min_cmc_amount: Option<Box<EffectAmount>>` (same runtime-resolution mechanism) or a dedicated
+  exact-match runtime filter would close it; small, but out of this PB's declared scope
+  (`Implement-phase default-to-defer`, `memory/conventions.md`).
