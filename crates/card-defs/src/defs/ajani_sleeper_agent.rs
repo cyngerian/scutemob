@@ -61,9 +61,6 @@ pub fn card() -> CardDefinition {
                 // on any spell cast by the controller (instants, sorceries, etc. also
                 // trigger it). Known DSL gap — MEDIUM severity per PB-22 S6 review.
                 //
-                // TODO: Target should be TargetRequirement::TargetOpponent (i.e., only
-                // opponents may be chosen). TargetRequirement has no Opponent variant;
-                // TargetPlayer allows targeting oneself. Known DSL gap — MEDIUM severity.
                 effect: Effect::CreateEmblem {
                     triggered_abilities: vec![TriggeredAbilityDef {
                         counter_filter: None,
@@ -83,8 +80,8 @@ pub fn card() -> CardDefinition {
                         death_filter: None,
                         combat_damage_filter: None,
                         triggering_creature_filter: None,
-                        // TODO: Should be TargetOpponent; TargetPlayer is an approximation.
-                        targets: vec![TargetRequirement::TargetPlayer],
+                        // PB-EF6: opponent-only target (was TargetPlayer, self-targetable).
+                        targets: vec![TargetRequirement::TargetOpponent],
                     }],
                     static_effects: vec![],
                     play_from_graveyard: None,
@@ -101,10 +98,9 @@ pub fn card() -> CardDefinition {
         completeness: Completeness::known_wrong(
             "the +1 and -3 loyalty abilities are activatable no-ops (Effect::Sequence(vec![])) — \
              activating them gains loyalty and does nothing. The -6 emblem lacks the \
-             creature/planeswalker spell filter (TriggeredAbilityDef has no spell_type_filter), \
-             fires on AnySpellCast rather than the controller's casts, and targets any player \
-             rather than an opponent. Compleated (2 fewer loyalty if Phyrexian life was paid) is \
-             also unimplemented.",
+             creature/planeswalker spell filter (TriggeredAbilityDef has no spell_type_filter) \
+             and fires on AnySpellCast rather than the controller's casts. Compleated (2 fewer \
+             loyalty if Phyrexian life was paid) is also unimplemented.",
         ),
         ..Default::default()
     }

@@ -26,7 +26,9 @@ pub fn card() -> CardDefinition {
                 // TODO: Kicker cost "tap a Vampire" is non-mana kicker.
                 // TODO: "if kicked, gain life equal to life lost" needs conditional.
                 effect: Effect::Nothing,
-                targets: vec![TargetRequirement::TargetPlayer],
+                // PB-EF6: target-fixed to TargetOpponent (was TargetPlayer). Real blocker is
+                // still the missing HalfLife amount, not the target.
+                targets: vec![TargetRequirement::TargetOpponent],
                 modes: None,
                 cant_be_countered: false,
             },
