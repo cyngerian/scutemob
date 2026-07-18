@@ -21,6 +21,7 @@ mod pb_ac8_restrictions_and_wingame;
 mod pb_ac9_wheel_and_misc;
 mod pb_ef1_exclude_self_enforcement;
 mod pb_ef2_create_token_recipient;
+mod pb_ef3_attack_trigger_targets;
 mod pb_k_land_drops;
 mod pb_l_landfall;
 mod pbd_damaged_player_filter;
