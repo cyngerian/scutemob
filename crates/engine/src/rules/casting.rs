@@ -4224,20 +4224,15 @@ pub fn handle_cast_spell(
                 sac_obj.counters.clone(),
             )
         };
-        // CR 608.2b: Capture the LKI power of the sacrificed creature BEFORE the zone move.
-        // After move_object_to_zone, the OLD sac_id is dead (CR 400.7) and the NEW graveyard
-        // object's calculate_characteristics has lost battlefield-gated layer effects (BASELINE-LKI-01).
-        // Only a captured integer (snapshot before zone change) is correct (CAPTURE-BY-VALUE).
-        let sac_lki_power: i32 = {
-            // SR-14: sac_id was verified present via `state.object(sac_id)?` above; the zone
-            // move that invalidates it happens below, so it is still present here.
-            let chars = expect_characteristics(state, sac_id);
-            chars.power.unwrap_or(0)
-        };
-        // CR 608.2h/608.2i: Capture the full LKI (power/toughness/mana value) of the
+        // CR 608.2b/608.2h/608.2i: Capture the full LKI (power/toughness/mana value) of the
         // sacrificed creature BEFORE the zone move (PB-EF10: Momentous Fall/Eldritch
         // Evolution read toughness/mana value in addition to power).
+        // After move_object_to_zone, the OLD sac_id is dead (CR 400.7) and the NEW graveyard
+        // object's calculate_characteristics has lost battlefield-gated layer effects (BASELINE-LKI-01).
+        // Only a captured snapshot (before zone change) is correct (CAPTURE-BY-VALUE).
         let sac_lki: crate::state::types::SacrificedCreatureLki = {
+            // SR-14: sac_id was verified present via `state.object(sac_id)?` above; the zone
+            // move that invalidates it happens below, so it is still present here.
             let chars = expect_characteristics(state, sac_id);
             crate::state::types::SacrificedCreatureLki {
                 power: chars.power.unwrap_or(0),
@@ -4249,6 +4244,8 @@ pub fn handle_cast_spell(
                     .unwrap_or(0),
             }
         };
+        // Reuse the captured power for the LKI-power event snapshot below (no second layer calc).
+        let sac_lki_power: i32 = sac_lki.power;
         // Patch the lki field of the AdditionalCost::Sacrifice entry in additional_costs
         // so that at resolution time, ctx.sacrificed_creature_lki is populated correctly.
         for ac in additional_costs.iter_mut() {

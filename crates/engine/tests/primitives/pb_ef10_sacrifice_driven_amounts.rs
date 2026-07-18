@@ -1269,3 +1269,75 @@ fn test_pb_ef10_version_sentinels() {
         "HASH_SCHEMA_VERSION should be 53 after PB-EF10"
     );
 }
+
+/// PB-EF10 review LOW #2 (regression pin): `Effect::MoveZone` must honor
+/// `ZoneTarget::Battlefield { tapped }` — the `dest_tapped()` application was
+/// previously wired only into the `SearchLibrary` matched-card path and never
+/// called from `MoveZone`, so any "return ~ to the battlefield tapped" effect
+/// silently entered untapped. This is Victimize's return path AND shipped-Complete
+/// `reassembling_skeleton` ("Return this card from your graveyard to the battlefield
+/// **tapped**"). Isolated here so a future refactor that drops `dest_tapped` from
+/// `MoveZone` fails independently of Victimize's other logic. CR 400.7: the moved
+/// card is a NEW object on the battlefield.
+#[test]
+fn test_move_zone_returns_to_battlefield_tapped() {
+    use mtg_engine::effects::{execute_effect, EffectContext};
+    use mtg_engine::{CardEffectTarget, Effect, ZoneTarget};
+
+    // Assert both flag values so the test is non-vacuous: `tapped: true` must tap and
+    // `tapped: false` must NOT — a `MoveZone` that ignores `dest_tapped` fails the
+    // first assertion (enters untapped despite `tapped: true`).
+    for want_tapped in [true, false] {
+        let p1 = p(1);
+        let p2 = p(2);
+
+        let skeleton = ObjectSpec::creature(p1, "Tapped Return Test", 1, 1)
+            .with_card_id(CardId("tapped-return-test".to_string()))
+            .in_zone(ZoneId::Graveyard(p1));
+
+        let mut state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .with_registry(CardRegistry::new(vec![]))
+            .active_player(p1)
+            .at_step(Step::PreCombatMain)
+            .object(skeleton)
+            .build()
+            .unwrap();
+
+        let gy_id = find_obj(&state, "Tapped Return Test");
+
+        // `EffectTarget::Source` resolves to `ctx.source` — mirror reassembling_skeleton,
+        // which returns itself from the graveyard.
+        let mut ctx = EffectContext::new(p1, gy_id, vec![]);
+        let effect = Effect::MoveZone {
+            target: CardEffectTarget::Source,
+            to: ZoneTarget::Battlefield {
+                tapped: want_tapped,
+            },
+            controller_override: None,
+        };
+        let _events = execute_effect(&mut state, &effect, &mut ctx);
+
+        assert!(
+            on_battlefield(&state, "Tapped Return Test"),
+            "MoveZone should have returned the card to the battlefield"
+        );
+
+        // CR 400.7: find the NEW battlefield object by name.
+        let tapped = state
+            .objects()
+            .iter()
+            .find(|(_, o)| {
+                o.characteristics.name == "Tapped Return Test" && o.zone == ZoneId::Battlefield
+            })
+            .map(|(_, o)| o.status.tapped)
+            .expect("returned object should be on the battlefield");
+
+        assert_eq!(
+            tapped, want_tapped,
+            "MoveZone must apply ZoneTarget::Battlefield {{ tapped: {want_tapped} }} \
+             (dest_tapped); got tapped={tapped}"
+        );
+    }
+}
