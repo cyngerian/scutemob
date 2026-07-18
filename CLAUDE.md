@@ -14,7 +14,7 @@
 > Detailed PB-by-PB handoffs, hazards, and seed inventories live in `memory/workstream-state.md`.
 > Worker sessions: append detail there, not here. CLAUDE.md tracks current snapshot only.
 
-- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage **1,089/1,792 = 60.8%** per `tools/authoring-report.py`; **EF queue ACTIVE (`memory/primitives/ef-batch-plan-2026-07-17.md`) — PB-EF1..EF7 + EF-13 SHIPPED (`scutemob-99`/`101`..`108`); PB-EF8 in flight `scutemob-109`; remaining EF9/EF10/EF11/EF12**; **PB-AC chain COMPLETE — AC0..AC9 all shipped**; **marker sweep COMPLETE — `scutemob-88`**; **SR-33..38 chain COMPLETE**; **W-PB2 + W-EMPTY + W-MISS COMPLETE — `scutemob-95`/`96`/`97`**)
+- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage **1,091/1,792 = 60.9%** per `tools/authoring-report.py`; **EF queue ACTIVE (`memory/primitives/ef-batch-plan-2026-07-17.md`) — PB-EF1..EF8 + EF-13 SHIPPED (`scutemob-99`/`101`..`109`); PB-EF9 in flight `scutemob-110`; remaining EF10/EF11/EF12**; **PB-AC chain COMPLETE — AC0..AC9 all shipped**; **marker sweep COMPLETE — `scutemob-88`**; **SR-33..38 chain COMPLETE**; **W-PB2 + W-EMPTY + W-MISS COMPLETE — `scutemob-95`/`96`/`97`**)
 - **Invariant #9 is machine-enforced (SR-2).** `CardDefinition.completeness` (`Complete` by
   Default) marks a def `Inert` / `Partial` / `KnownWrong`; `validate_deck` rejects any
   non-`Complete` card with `DeckViolation::IncompleteCard`. `CardRegistry::try_new` errors on
@@ -279,7 +279,12 @@
   `memory/card-authoring/sr36-engine-findings-2026-07-17.md` (**SG-1 MEDIUM: the simulator's
   `LegalActionProvider` ignores `life_cost` — harmless while the cost was dropped, now it
   offers bots unpayable actions**).
-- **Last Updated**: 2026-07-18 (**PB-EF7 collected, `scutemob-108` merge `104ef5ad`** — modal
+- **Last Updated**: 2026-07-18 (**PB-EF8 collected, `scutemob-109` merge `4fa6b6f2`** —
+  `Cost::ExileSelfFromHand` + hand-zone activation through the mana-ability lowering path;
+  **2 flips Complete** (simian_spirit_guide, elvish_spirit_guide); EF-W-PB2-8 closed. Coverage
+  **60.9%** (1,091/1,792); **PROTOCOL 12→13, HASH 50→51** (EF7 had taken 11→12/49→50); /review
+  0H/0M/1L fixed. In flight: **PB-EF9** (`scutemob-110`, WhileYouControlSource duration).
+  Earlier: **PB-EF7 collected, `scutemob-108` merge `104ef5ad`** — modal
   `AbilityDefinition::Activated`: `modes: Option<ModeSelection>` + `modes_chosen` on
   `Command::ActivateAbility`, validated in `handle_activate_ability` (CR 700.2a/d) with per-mode
   target splitting; corpus sweep sized the cohort at **3** — goblin_cratermaker + cankerbloom
