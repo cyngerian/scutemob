@@ -1,7 +1,7 @@
 ---
 title: Cleanup Retention Policy
 status: active
-last_updated: 2026-04-12
+last_updated: 2026-07-18
 ---
 
 # Cleanup Retention Policy
@@ -33,7 +33,7 @@ future cleanup pass with explicit oversight approval per item.
 | `memory/` | Active project memory: gotchas, conventions, decisions, workstream state, WIP files | `gotchas-rules.md`, `primitive-wip.md` |
 | `memory/abilities/` | **Untouchable corpus** | Used as research corpus by `ability-impl-planner` / `ability-impl-runner` |
 | `memory/primitives/` | **Untouchable corpus** | Used as research corpus by `primitive-impl-planner` / `primitive-impl-reviewer` |
-| `memory/card-authoring/review-*.md` | **Untouchable corpus** (glob-protected) | Globbed by `card-fix-applicator` |
+| `memory/card-authoring/*review*.md` | **Untouchable corpus** (glob-protected; widened from `review-*.md` 2026-07-18, scutemob-121 — covers `w-*-review*`/`f4-*review*` review content; `card-fix-applicator` itself still globs only `review-*.md`) | Globbed by `card-fix-applicator` |
 | `memory/archive/<year>-<month>/` | Closed session artifacts with no active inbound references | `etb-trigger-fix-plan.md`, `w3-low-s*-review.md` |
 | `memory/cleanup/` | Cleanup pass deliverables: runtime reference maps, dry-run plans | `runtime-reference-map-YYYY-MM-DD.md`, `cleanup-plan-YYYY-MM-DD.md` |
 | `.claude/` | Agent + skill definitions, settings, hooks | All agent `.md` + skill `SKILL.md` files |
@@ -45,12 +45,19 @@ These rules apply to every cleanup pass forever, until oversight explicitly
 retires the agent that uses the corpus:
 
 - **`memory/abilities/`** is used by `ability-impl-planner` (parent reference,
-  "study similar abilities") and `ability-impl-runner` (glob). Untouchable.
+  "study similar abilities") and `ability-impl-runner` (glob). **Distillation pass
+  approved 2026-07-18** (DOC-8 ruling (c)+(b), scutemob-124, `memory/decisions.md`):
+  W1 closed 2026-03 and nothing has globbed this corpus since — a content-distillation
+  pass (extract patterns into gotchas/conventions, then archive) is authorized as its
+  own project. Untouchable until that pass executes.
 - **`memory/primitives/`** is used by `primitive-impl-planner` and
   `primitive-impl-reviewer` as a research corpus for sibling PB plans and
-  reviews. Untouchable.
-- **`memory/card-authoring/review-*.md`** is globbed by `card-fix-applicator`.
-  Untouchable until that agent is retired. Other files in
+  reviews. Untouchable — reconfirmed 2026-07-18 (scutemob-124): demonstrably live,
+  the OS retriage cited pb-plan-AC7/AC8 the same week.
+- **`memory/card-authoring/*review*.md`** is protected (widened from `review-*.md`
+  2026-07-18 — the `w-*-review*`/`f4-*review*` files are review content and were
+  unprotected by the old prefix glob; `card-fix-applicator` itself globs only
+  `review-*.md` and is unchanged). Untouchable until that agent is retired. Other files in
   `memory/card-authoring/` (named hard references like `consolidated-fix-list.md`,
   `dsl-gap-audit-v2.md`, `triage-summary.md`) are managed individually.
 - **`crates/card-defs/src/defs/`** is parent-referenced from every card

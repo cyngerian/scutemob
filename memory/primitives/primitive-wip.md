@@ -1,3 +1,4 @@
+<!-- STALE DUPLICATE (frozen at PB-AC9, 2026-07). The LIVE WIP file is memory/primitive-wip.md — /implement-primitive repointed there 2026-07-18 (scutemob-121). -->
 ---
 pb: PB-AC9
 title: Misc & mana (final AC-chain batch)
