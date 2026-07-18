@@ -2874,7 +2874,7 @@ pub enum TargetRequirement {
         inner: Box<TargetRequirement>,
     },
     /// "target opponent" — a player who is an opponent of the source's controller
-    /// (CR 102.3/102.4: opponent = any player not on your team; no teams model exists,
+    /// (CR 102.2/102.3: opponent = any player not on your team; no teams model exists,
     /// so opponent = any player other than the controller). Validated at declaration
     /// time (CR 601.2c) — a self-target is illegal. For triggered abilities the auto-
     /// target picker selects the first active opponent, or removes the trigger if the

@@ -1,6 +1,6 @@
 //! PB-EF6 (scutemob-107): `TargetRequirement::TargetOpponent` (EF-W-PB2-2).
 //!
-//! CR 102.3/102.4 (opponent definition — no teams model, so opponent = any player
+//! CR 102.2/102.3 (opponent definition — no teams model, so opponent = any player
 //! other than the controller), CR 115.1 / 601.2c (targeting / declaration-time
 //! restriction), CR 603.3d (trigger removed from the stack if no legal target
 //! exists — the auto-target picker must NOT fall back to the controller).
@@ -372,7 +372,9 @@ fn test_shaman_of_the_pack_etb_targets_opponent_loses_life() {
         );
     }
 
-    // -- 2 other Elves: total Elves = 3 (2 others + itself) -> 3 life lost. --
+    // -- 2 other Elves (P1-controlled) + 1 Elf on the OPPONENT's side: total
+    // Elves-you-control = 3 (2 others + itself); P2's own Elf must NOT count
+    // (proves `controller: You`, not `Any` -- LOW-2 / review Finding 2). --
     {
         let registry = CardRegistry::new(vec![def.clone()]);
         let state = GameStateBuilder::new()
@@ -391,6 +393,10 @@ fn test_shaman_of_the_pack_etb_targets_opponent_loses_life() {
             )
             .object(
                 ObjectSpec::creature(p1, "Other Elf B", 1, 1)
+                    .with_subtypes(vec![SubType("Elf".to_string())]),
+            )
+            .object(
+                ObjectSpec::creature(p2, "Opponent's Elf", 1, 1)
                     .with_subtypes(vec![SubType("Elf".to_string())]),
             )
             .player_mana(
@@ -418,7 +424,8 @@ fn test_shaman_of_the_pack_etb_targets_opponent_loses_life() {
         assert_eq!(
             life(&state, p2),
             p2_life_before - 3,
-            "2 other Elves + Shaman itself = 3: opponent must lose exactly 3 life"
+            "2 P1-controlled other Elves + Shaman itself = 3: opponent must lose exactly 3 \
+             life -- the opponent's OWN Elf must be excluded (controller: You, not Any)"
         );
     }
 }
@@ -716,5 +723,57 @@ fn test_target_opponent_trigger_no_opponent_removed_from_stack() {
         life(&state, p1),
         p1_life_before,
         "P1 must not lose life -- the trigger must not have targeted the controller"
+    );
+}
+
+// ── Test 9: object target rejected -- a player requirement can't take an object ─
+
+/// CR 601.2c — a player-targeting requirement cannot be satisfied by an object
+/// target. `validate_object_satisfies_requirement`'s exhaustive `valid` match
+/// (casting.rs) has `TargetPlayer | TargetOpponent => false`; this test exercises
+/// that arm at runtime rather than relying solely on compile-time exhaustiveness.
+#[test]
+fn test_target_opponent_rejects_object_target() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let p3 = p(3);
+    let p4 = p(4);
+
+    let spell_def = opponent_target_test_spell();
+    let registry: Arc<CardRegistry> = CardRegistry::new(vec![spell_def.clone()]);
+
+    let spell = ObjectSpec::card(p1, "EF6 Target Opponent Test Spell")
+        .in_zone(ZoneId::Hand(p1))
+        .with_card_id(spell_def.card_id.clone());
+    let creature =
+        ObjectSpec::creature(p2, "Bystander Creature", 2, 2).in_zone(ZoneId::Battlefield);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p3)
+        .add_player(p4)
+        .with_registry(registry)
+        .player_mana(
+            p1,
+            ManaPool {
+                colorless: 1,
+                ..ManaPool::default()
+            },
+        )
+        .object(spell)
+        .object(creature)
+        .build()
+        .expect("GameStateBuilder::build must succeed");
+
+    let spell_id = find_obj(&state, "EF6 Target Opponent Test Spell");
+    let creature_id = find_obj(&state, "Bystander Creature");
+
+    let result = cast_spell(state, p1, spell_id, vec![Target::Object(creature_id)]);
+    assert!(
+        matches!(result, Err(GameStateError::InvalidTarget(_))),
+        "CR 601.2c: an object target must be rejected for TargetOpponent (a player \
+         requirement), got: {:?}",
+        result.map(|_| ())
     );
 }
