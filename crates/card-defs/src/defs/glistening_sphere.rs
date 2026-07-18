@@ -64,12 +64,14 @@ pub fn card() -> CardDefinition {
             },
         ],
         completeness: Completeness::known_wrong(
-            "SR-33: the Corrupted ability adds ONE colorless mana, not three of a chosen colour. \
+            "PB-EF12 (EF-W-PB2-3): the plain {T}: Add-one-mana-of-any-colour ability now resolves \
+             to a real chosen colour (it lowers into a real any_color ManaAbility, served by \
+             Command::TapForMana.chosen_color). Remaining blocker (unrelated, unfixed): the \
+             Corrupted ability adds ONE colorless mana, not three of a chosen colour. \
              `Effect::AddManaChoice { count: Fixed(3) }` ignores `count` entirely and adds a \
-             single {C} (effects/mod.rs, the arm it shares with AddManaAnyColor), so this is \
-             wrong on both the amount and the colour. Needs a colour list plus count support on \
-             the variant. The plain {T}: Add-one-mana-of-any-colour ability is fine \
-             (AddManaAnyColor lowers into a real any_color ManaAbility).",
+             single {C} (effects/mod.rs) — a stack-using ability, not the ManaAbility path this \
+             PB fixed — so this is wrong on both the amount and the colour. Needs a colour list \
+             plus count support on the variant.",
         ),
         ..Default::default()
     }

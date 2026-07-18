@@ -159,8 +159,9 @@
           "targets": [],
           "mana_paid": {},
           "mana_source": [],
+          "chosen_color": "green",
           "cr_ref": "605.3",
-          "note": "CR 605.3: p1 taps Arcane Signet for mana. Mana ability resolves immediately."
+          "note": "CR 605.3/PB-EF12: p1 taps Arcane Signet for mana, choosing green. Mana ability resolves immediately."
         },
         {
           "type": "assert_state",

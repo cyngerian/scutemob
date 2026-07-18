@@ -164,6 +164,8 @@ fn signet_tap_for_mana_pays_generic_and_produces_two() {
             player: p(1),
             source: signet,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .expect("Boros Signet activation should succeed with {1} available (CR 118.3a)");
@@ -246,6 +248,8 @@ fn signet_tap_for_mana_does_not_use_the_stack() {
             player: p(1),
             source: signet,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .expect("activation should succeed");
@@ -272,6 +276,8 @@ fn signet_with_empty_pool_is_insufficient_mana() {
             player: p(1),
             source: signet,
             ability_index: 0,
+
+            chosen_color: None,
         },
     );
 
@@ -315,6 +321,8 @@ fn horizon_land_pays_life_and_at_exactly_one_life_is_legal() {
             player: p(1),
             source: land,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .expect("paying exactly 1 life at 1 life must be legal (CR 119.4: '>=', not '>')");
@@ -364,6 +372,8 @@ fn horizon_land_at_zero_life_cannot_pay() {
             player: p(1),
             source: land,
             ability_index: 0,
+
+            chosen_color: None,
         },
     );
 
@@ -413,7 +423,9 @@ fn zero_life_cost_ability_is_legal_at_negative_life() {
             player: p(1),
             source: forest,
             ability_index: 0,
-        },
+
+            chosen_color: None,
+            },
     )
     .expect("a life_cost:0 mana ability must activate at any life total, including negative (CR 119.4b)");
 
@@ -454,6 +466,8 @@ fn mana_ability_funds_a_spell_in_the_same_priority_window() {
             player: p(1),
             source: mountain_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .expect("tap Mountain for {R}");
@@ -469,6 +483,8 @@ fn mana_ability_funds_a_spell_in_the_same_priority_window() {
             player: p(1),
             source: signet_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .expect("Boros Signet's {1} is paid from the {R} the Mountain just added (CR 605.3a)");
@@ -518,6 +534,8 @@ fn signet_mana_cost_can_be_paid_from_another_mana_ability() {
             player: p(1),
             source: mountain_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .expect("tap Mountain for {R} in the first Command");
@@ -529,6 +547,8 @@ fn signet_mana_cost_can_be_paid_from_another_mana_ability() {
             player: p(1),
             source: signet_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .expect("the Signet's {1} is already sitting in the pool from the prior Command");
@@ -695,6 +715,8 @@ fn composite_cost_mana_source_is_multiplied_by_a_mana_production_replacement() {
             player: p(1),
             source: signet_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .expect("Boros Signet activation should succeed");
@@ -778,6 +800,8 @@ fn composite_cost_mana_source_fires_a_when_tapped_for_mana_trigger() {
             player: p(1),
             source: land,
             ability_index: 0, // Fiery Islet's {U} arm — still a Land per CR 106.12a
+
+            chosen_color: None,
         },
     )
     .expect("Fiery Islet activation should succeed");
@@ -1141,6 +1165,8 @@ fn sr34_certified_defs_produce_exactly_their_printed_mana() {
                 player: p(1),
                 source,
                 ability_index: 0,
+
+                chosen_color: None,
             },
         )
         .unwrap_or_else(|e| panic!("{name} TapForMana should succeed: {e:?}"));
@@ -1203,12 +1229,14 @@ fn sr34_roster_markers_match_the_reconciliation() {
         "Phyrexian Tower",
         "Temple of the Dragon Queen",
     ];
+    // PB-EF12 (2026-07-18, EF-W-PB2-3): Mana Confluence, Staff of Compleation, and
+    // Goldhound removed from this roster. All three were known_wrong solely on the
+    // any_color-mana-produces-Colorless defect (CR 106.1b) this batch fixed — their
+    // any_color: true ManaAbility now resolves to a real chosen colour via
+    // Command::TapForMana.chosen_color, so they are Complete. See birds_of_paradise.rs.
     let known_wrong = [
-        "Mana Confluence",
-        "Staff of Compleation",
         "Voldaren Estate",
         "Phyrexian Altar",
-        "Goldhound",
         "Druids' Repository",
         "Gemstone Array",
         "Three Tree City",

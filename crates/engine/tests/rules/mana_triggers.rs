@@ -120,6 +120,8 @@ fn test_mana_trigger_land_adds_extra_mana() {
             player: p1,
             source: forest_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .unwrap();
@@ -188,6 +190,8 @@ fn test_mana_trigger_swamp_subtype_filter() {
             player: p1,
             source: swamp_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .unwrap();
@@ -205,6 +209,8 @@ fn test_mana_trigger_swamp_subtype_filter() {
             player: p1,
             source: forest_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .unwrap();
@@ -267,6 +273,8 @@ fn test_mana_trigger_creature_filter() {
             player: p1,
             source: elves_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .unwrap();
@@ -284,6 +292,8 @@ fn test_mana_trigger_creature_filter() {
             player: p1,
             source: forest_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .unwrap();
@@ -351,6 +361,8 @@ fn test_mana_trigger_enchanted_land() {
             player: p1,
             source: forest_a_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .unwrap();
@@ -368,6 +380,8 @@ fn test_mana_trigger_enchanted_land() {
             player: p1,
             source: forest_b_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .unwrap();
@@ -420,6 +434,8 @@ fn test_mana_multiplier_double() {
             player: p1,
             source: forest_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .unwrap();
@@ -482,6 +498,8 @@ fn test_mana_multiplier_triple() {
             player: p1,
             source: forest_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .unwrap();
@@ -535,6 +553,8 @@ fn test_mana_multiplier_stacks_multiplicatively() {
             player: p1,
             source: forest_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .unwrap();
@@ -603,6 +623,8 @@ fn test_mana_multiplier_does_not_affect_triggered_mana() {
             player: p1,
             source: forest_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .unwrap();
@@ -674,6 +696,8 @@ fn test_zendikar_resurgent_registered_on_battlefield() {
             player: p1,
             source: forest_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .unwrap();
@@ -745,6 +769,8 @@ fn test_mana_trigger_only_fires_on_tap_abilities() {
             player: p1,
             source: forest_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .unwrap();
@@ -804,7 +830,7 @@ fn test_mana_trigger_forbidden_orchard() {
         .map(|o| o.id)
         .unwrap();
 
-    // Tap Forbidden Orchard for mana (AddManaAnyColor — produces white as first color).
+    // Tap Forbidden Orchard for mana (any_color — PB-EF12: choose a real colour).
     // This should: (a) add mana to p1's pool, and (b) queue a PendingTrigger for the
     // Spirit token trigger (NOT immediately resolve it).
     let (state, _tap_events) = process_command(
@@ -813,6 +839,7 @@ fn test_mana_trigger_forbidden_orchard() {
             player: p1,
             source: orchard_id,
             ability_index: 0,
+            chosen_color: Some(ManaColor::White),
         },
     )
     .unwrap();
@@ -911,6 +938,8 @@ fn test_sac_land_fires_when_tapped_for_mana() {
             player: p1,
             source: vein_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .unwrap();
@@ -995,6 +1024,8 @@ fn test_caged_sun_applies_to_sacrificed_land() {
             player: p1,
             source: vein_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .unwrap();

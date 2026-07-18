@@ -79,18 +79,19 @@ pub fn card() -> CardDefinition {
             },
         ],
         completeness: Completeness::known_wrong(
-            "oracle says 'target opponent creates a 1/1 colorless Spirit'; the def creates the \
-             Spirit for Forbidden Orchard's OWN controller, inverting the card's drawback into an \
-             upside. This is NOT a simple recipient-wiring gap (PB-EF6 checked): the \
-             WhenTappedForMana trigger is queued by rules/mana.rs::fire_mana_triggered_abilities \
-             as PendingTriggerKind::Normal with a raw def.abilities index, but the auto-target \
-             picker for Normal-kind triggers reads characteristics.triggered_abilities, which is \
-             never populated for WhenTappedForMana by enrich_spec_from_def -- so this trigger's \
-             `targets` field is unreachable and TokenSpec.recipient has nothing to read (proven: \
-             wiring it produced 0 tokens, not a mis-targeted one). Real blockers: (1) the \
-             WhenTappedForMana auto-target dispatch gap above (new finding, not filed as \
-             EF-W-PB2-2/3), and (2) Effect::AddManaAnyColor on the mana ability always adds \
-             Colorless instead of a chosen color (EF-W-PB2-3, still open).",
+            "PB-EF12 (EF-W-PB2-3) fixed the mana ability's colour-choice stub — it now resolves \
+             to a real chosen colour instead of ManaColor::Colorless. Remaining blocker \
+             (unrelated to colour, unfixed): oracle says 'target opponent creates a 1/1 colorless \
+             Spirit'; the def creates the Spirit for Forbidden Orchard's OWN controller, \
+             inverting the card's drawback into an upside. This is NOT a simple recipient-wiring \
+             gap (PB-EF6 checked): the WhenTappedForMana trigger is queued by \
+             rules/mana.rs::fire_mana_triggered_abilities as PendingTriggerKind::Normal with a \
+             raw def.abilities index, but the auto-target picker for Normal-kind triggers reads \
+             characteristics.triggered_abilities, which is never populated for WhenTappedForMana \
+             by enrich_spec_from_def -- so this trigger's `targets` field is unreachable and \
+             TokenSpec.recipient has nothing to read (proven: wiring it produced 0 tokens, not a \
+             mis-targeted one). The WhenTappedForMana auto-target dispatch gap is a distinct, \
+             unfiled engine finding.",
         ),
         ..Default::default()
     }

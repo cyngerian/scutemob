@@ -3,7 +3,7 @@
   "metadata": {
     "id": "script_stack_073",
     "name": "Strike It Rich creates Treasure token; token tapped and sacrificed for mana",
-    "description": "p1 casts Strike It Rich ({R} Sorcery), it resolves and creates a Treasure token on the battlefield per CR 111.10a. p1 then activates the Treasure's mana ability ({T}, Sacrifice this token: Add one mana of any color) by issuing a tap_for_mana command. The mana ability resolves immediately without using the stack (CR 605.3b). The Treasure token is tapped and sacrificed as a cost (CR 602.2c), moving to the graveyard, then ceasing to exist as a state-based action (CR 111.7). One colorless mana is added to p1's pool (any-color defaults to colorless per engine implementation).",
+    "description": "p1 casts Strike It Rich ({R} Sorcery), it resolves and creates a Treasure token on the battlefield per CR 111.10a. p1 then activates the Treasure's mana ability ({T}, Sacrifice this token: Add one mana of any color) by issuing a tap_for_mana command, choosing green. The mana ability resolves immediately without using the stack (CR 605.3b). The Treasure token is tapped and sacrificed as a cost (CR 602.2c), moving to the graveyard, then ceasing to exist as a state-based action (CR 111.7). One green mana (the chosen colour, PB-EF12) is added to p1's pool.",
     "cr_sections_tested": [
       "111.10a",
       "111.1",
@@ -29,7 +29,7 @@
     "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
-    "generation_notes": "Strike It Rich is a Sorcery (not Instant) costing {R} (verified via MCP lookup_card). Its only effect is CreateToken with treasure_token_spec(1) per definitions.rs:2307-2314. The Treasure token has a mana ability (sacrifice_self: true, any_color: true, requires_tap: true) per ManaAbility::treasure() — CR 111.10a: '{T}, Sacrifice this token: Add one mana of any color.' Because this is a mana ability (CR 605.1a: no target, adds mana, not loyalty), it does NOT go on the stack and cannot be countered (CR 605.3b). The sacrifice is a cost paid at activation time (CR 602.2c), so the token is in the graveyard before any mana is added. The token then ceases to exist as a state-based action (CR 111.7 / 704.5d: tokens in non-battlefield zones cease to exist). The engine currently defaults 'any color' to colorless (consistent with AddManaAnyColor in effects/mod.rs and the ability-plan), so mana_pool ends with colorless: 1. The tap_for_mana action targets the Treasure token on the battlefield (ability_index 0 = the single mana ability). Strike It Rich then goes to p1's graveyard (cast normally, not via flashback, so it goes to graveyard not exile). Sorcery timing: p1 is active player in precombat main phase with an empty stack — valid sorcery window per CR 307.1.",
+    "generation_notes": "Strike It Rich is a Sorcery (not Instant) costing {R} (verified via MCP lookup_card). Its only effect is CreateToken with treasure_token_spec(1) per definitions.rs:2307-2314. The Treasure token has a mana ability (sacrifice_self: true, any_color: true, requires_tap: true) per ManaAbility::treasure() — CR 111.10a: '{T}, Sacrifice this token: Add one mana of any color.' Because this is a mana ability (CR 605.1a: no target, adds mana, not loyalty), it does NOT go on the stack and cannot be countered (CR 605.3b). The sacrifice is a cost paid at activation time (CR 602.2c), so the token is in the graveyard before any mana is added. The token then ceases to exist as a state-based action (CR 111.7 / 704.5d: tokens in non-battlefield zones cease to exist). PB-EF12: the colour choice rides Command::TapForMana.chosen_color (CR 605.3b — a mana ability resolves immediately, so the choice is made at activation, not deferred); this script chooses green, so mana_pool ends with green: 1 (colorless is not a legal choice for 'any color', CR 106.1b). The tap_for_mana action targets the Treasure token on the battlefield (ability_index 0 = the single mana ability). Strike It Rich then goes to p1's graveyard (cast normally, not via flashback, so it goes to graveyard not exile). Sorcery timing: p1 is active player in precombat main phase with an empty stack — valid sorcery window per CR 307.1.",
     "disputes": []
   },
   "initial_state": {
@@ -188,8 +188,9 @@
           "targets": [],
           "mana_paid": {},
           "mana_source": [],
+          "chosen_color": "green",
           "cr_ref": "605.3b",
-          "note": "CR 605.3b: Treasure's '{T}, Sacrifice this token: Add one mana of any color' is a mana ability (CR 605.1a: no target, adds mana, not loyalty). It does NOT go on the stack and resolves immediately. Sacrifice is a cost paid at activation (CR 602.2c): Treasure moves to graveyard before mana is added. Engine defaults 'any color' to colorless."
+          "note": "CR 605.3b/PB-EF12: Treasure's '{T}, Sacrifice this token: Add one mana of any color' is a mana ability (CR 605.1a: no target, adds mana, not loyalty). It does NOT go on the stack and resolves immediately. Sacrifice is a cost paid at activation (CR 602.2c): Treasure moves to graveyard before mana is added. p1 chooses green (CR 106.1b: colorless is not a legal choice for 'any color')."
         },
         {
           "type": "sba_check",
@@ -208,12 +209,12 @@
         },
         {
           "type": "assert_state",
-          "description": "Final state: Treasure token sacrificed and gone; p1 has 1 colorless mana in pool",
+          "description": "Final state: Treasure token sacrificed and gone; p1 has 1 green mana in pool",
           "assertions": {
             "zones.battlefield.p1.count": 1,
-            "players.p1.mana_pool.colorless": 1
+            "players.p1.mana_pool.green": 1
           },
-          "note": "Battlefield has only Mountain remaining (Treasure token was sacrificed as cost and then ceased to exist per SBA). p1 mana pool has 1 colorless mana from Treasure activation. Any-color mana defaults to colorless in the engine per ability-plan-treasure-tokens.md Decision 3 / mana.rs implementation."
+          "note": "Battlefield has only Mountain remaining (Treasure token was sacrificed as cost and then ceased to exist per SBA). p1 mana pool has 1 green mana from Treasure activation (PB-EF12: the chosen colour, not colorless — CR 106.1b)."
         }
       ]
     }

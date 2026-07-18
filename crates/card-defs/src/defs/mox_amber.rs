@@ -25,11 +25,13 @@ pub fn card() -> CardDefinition {
             modes: None,
         }],
         completeness: Completeness::known_wrong(
-            "SF-11 (CR 106.1a/106.1b): this card's \"any color\" mana resolves to one COLORLESS \
-             mana (Effect::AddManaAnyColor family; effects/mod.rs and handle_tap_for_mana step 8 \
-             both add ManaColor::Colorless). Colorless is a mana TYPE, not a color, so {C} is \
-             outside the option set \"any color\" offers — wrong game state, not an omitted \
-             clause. Un-mark when a color channel for any-color mana lands (SR-37 / scutemob-93).",
+            "PB-EF12 (EF-W-PB2-3) fixed the colour-choice stub — `any_color: true` mana abilities \
+             now resolve to a real chosen colour instead of ManaColor::Colorless (CR \
+             111.10a/605.3b). Real remaining blocker: the choice must be restricted to the set of \
+             colors among legendary creatures and planeswalkers the controller controls, which \
+             the engine cannot compute at mana-activation time (same class of gap as \
+             command_tower.rs's commander-color-identity restriction, just a different colour \
+             set). Filed as OOS-EF12-1.",
         ),
         ..Default::default()
     }

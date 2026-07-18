@@ -22,6 +22,7 @@ mod pb_ac9_wheel_and_misc;
 mod pb_ef10_sacrifice_driven_amounts;
 mod pb_ef11_spell_single_target;
 mod pb_ef11_wheel_greatest_discarded;
+mod pb_ef12_any_color_choice;
 mod pb_ef1_exclude_self_enforcement;
 mod pb_ef2_create_token_recipient;
 mod pb_ef3_attack_trigger_targets;

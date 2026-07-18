@@ -138,6 +138,8 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
                         player: app.human_player,
                         source: *obj_id,
                         ability_index: *ability_index,
+
+                        chosen_color: None,
                     };
                     app.execute_command(cmd)?;
                 } else {

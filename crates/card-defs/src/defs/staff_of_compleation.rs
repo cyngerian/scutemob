@@ -92,19 +92,7 @@ pub fn card() -> CardDefinition {
                 modes: None,
             },
         ],
-        completeness: Completeness::known_wrong(
-            "CR 106.1b: '{T}, Pay 2 life: Add one mana of any color' adds one COLORLESS mana \
-             (life IS paid correctly: probed 40 -> 38); colorless is not a color, so this is \
-             wrong state (SF-11, memory/card-authoring/sr34-engine-findings-2026-07-17.md — \
-             Effect::AddManaAnyColor produces ManaColor::Colorless on both the mana-ability and \
-             stack paths). SF-9 (the OTHER three abilities paying no life at all) was fixed by \
-             SR-36/scutemob-92: '{T}, Pay 3 life: Proliferate' now probes at life 40 -> 37 and \
-             '{T}, Pay 4 life: Draw a card' at 40 -> 36 (see \
-             tests/primitives/primitive_sr36_scaled_mana_and_life_costs.rs). The '{T}, Pay 1 \
-             life: Destroy target permanent you own' ability also now pays (same fix, not \
-             separately probed — it needs a target, same as before). Remaining blocker is the \
-             colour bug above only.",
-        ),
+        // PB-EF12 (EF-W-PB2-3): un-marked, see birds_of_paradise.rs for the fix.
         ..Default::default()
     }
 }

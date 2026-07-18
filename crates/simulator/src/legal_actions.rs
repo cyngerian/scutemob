@@ -7,8 +7,8 @@
 
 use mtg_engine::{
     AbilityDefinition, AttackTarget, CardType, CounterType, EffectDuration, FaceDownKind,
-    FlashGrantFilter, GameRestriction, GameState, KeywordAbility, ManaCost, ObjectId, PlayerId,
-    Step, TurnFaceUpMethod, ZoneId,
+    FlashGrantFilter, GameRestriction, GameState, KeywordAbility, ManaColor, ManaCost, ObjectId,
+    PlayerId, Step, TurnFaceUpMethod, ZoneId,
 };
 
 /// A legal action a player may take at this moment.
@@ -26,6 +26,11 @@ pub enum LegalAction {
     TapForMana {
         source: ObjectId,
         ability_index: usize,
+        /// PB-EF12 (CR 605.3b/106.1b/111.10a): the colour to choose if the ability is
+        /// `any_color: true`. `None` for a fixed-colour ability. When `Some`, always a
+        /// concrete legal colour (never `Colorless`) — a bot must never suggest a colour
+        /// the engine rejects (SR-38 precedent).
+        chosen_color: Option<ManaColor>,
     },
     ActivateAbility {
         source: ObjectId,
@@ -305,9 +310,19 @@ impl LegalActionProvider for StubProvider {
                     if ability.life_cost > 0 && life_total < ability.life_cost as i32 {
                         continue;
                     }
+                    // PB-EF12: an any_color ability requires a chosen_color on the
+                    // activation Command (CR 605.3b — the choice is made at
+                    // activation, never deferred). Deterministic WUBRG order, first
+                    // legal = White, mirroring `mana_solver.rs`'s pick.
+                    let chosen_color = if ability.any_color {
+                        Some(ManaColor::White)
+                    } else {
+                        None
+                    };
                     actions.push(LegalAction::TapForMana {
                         source: obj.id,
                         ability_index: idx,
+                        chosen_color,
                     });
                 }
             }
@@ -1195,6 +1210,64 @@ mod tests {
                 |a| matches!(a, LegalAction::ActivateAbility { source, .. } if *source == act_id)
             ),
             "life_cost 0 activated ability must be offered even at negative life"
+        );
+    }
+
+    /// PB-EF12 (CR 605.3b/106.1b/111.10a, SR-38 precedent): the provider must never offer a
+    /// `TapForMana` for an `any_color: true` source without a concrete legal `chosen_color`
+    /// (never `None`, never `Colorless`) — the engine now rejects both. Proves the offered
+    /// action is engine-legal by actually executing it via `process_command`.
+    #[test]
+    fn provider_offers_a_concrete_legal_chosen_color_for_any_color_sources() {
+        let mut any_color_ability = mtg_engine::ManaAbility::tap_for(mtg_engine::ManaColor::White);
+        any_color_ability.any_color = true;
+        any_color_ability.produces = Default::default();
+
+        let state = GameStateBuilder::new()
+            .add_player(PlayerId(1))
+            .add_player(PlayerId(2))
+            .active_player(PlayerId(1))
+            .object(
+                ObjectSpec::artifact(PlayerId(1), "Any Color Rock")
+                    .in_zone(ZoneId::Battlefield)
+                    .with_mana_ability(any_color_ability),
+            )
+            .build()
+            .expect("state builds");
+
+        let actions = StubProvider.legal_actions(&state, PlayerId(1));
+        let rock_id = id_of(&state, "Any Color Rock");
+        let tap_action = actions
+            .iter()
+            .find(|a| matches!(a, LegalAction::TapForMana { source, .. } if *source == rock_id))
+            .expect("any_color source must be offered");
+
+        let LegalAction::TapForMana { chosen_color, .. } = tap_action else {
+            unreachable!("matched by discriminant above");
+        };
+        assert!(
+            chosen_color.is_some(),
+            "an any_color ability must be offered with Some(chosen_color), never None (the \
+             engine rejects None for an any_color ability)"
+        );
+        assert_ne!(
+            *chosen_color,
+            Some(mtg_engine::ManaColor::Colorless),
+            "CR 106.1b: colorless is not a legal choice for 'any color' — the engine rejects it"
+        );
+
+        // Prove it end-to-end: the emitted Command must actually be accepted by the engine.
+        let cmd = mtg_engine::Command::TapForMana {
+            player: PlayerId(1),
+            source: rock_id,
+            ability_index: 0,
+            chosen_color: *chosen_color,
+        };
+        let result = mtg_engine::process_command(state, cmd);
+        assert!(
+            result.is_ok(),
+            "the provider's offered TapForMana must be engine-legal: {:?}",
+            result.err()
         );
     }
 }

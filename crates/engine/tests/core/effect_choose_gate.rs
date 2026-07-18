@@ -163,44 +163,113 @@ fn no_complete_def_uses_the_add_mana_choice_stub() {
     );
 }
 
-/// SR-37 / SF-11 (CR 106.1a/106.1b): a `Complete` def may not contain `Effect::AddManaAnyColor`,
-/// `Effect::AddManaAnyColorRestricted`, or `Effect::AddManaOfAnyColorAmount`. All three add
-/// **colorless** mana today — `ManaColor::Colorless` — regardless of the "any color" they
-/// print. Colorless is a mana *type*, not a colour, so producing `{C}` for "add one mana of
-/// any color" is not a degraded choice; it is outside the legal option set.
+/// PB-EF12 (CR 106.1a/106.1b/605.3b) narrowed this gate: `Effect::AddManaAnyColor` is no
+/// longer a blanket stub. A `any_color: true` `ManaAbility` (a `Cost::Tap`-family ability
+/// `try_as_tap_mana_ability` lowers) now resolves to a real chosen colour via
+/// `Command::TapForMana.chosen_color`, validated + rejected-on-Colorless by
+/// `handle_tap_for_mana` — that is **served**, not a stub, and a `Complete` def using it is
+/// fine. What remains genuinely stubbed:
 ///
-/// This is the fourth+fifth+sixth members of the stub family that
-/// [`no_complete_def_uses_the_add_mana_choice_stub`] guards, split into their own gate only
-/// because the failure message and the fix ("author one ability per colour, or wait for a
-/// colour channel and mark `known_wrong` until then") differ. Both execution paths were
-/// probed empirically for Mana Confluence, Goldhound, and Phyrexian Altar
-/// (`memory/card-authoring/sr34-engine-findings-2026-07-17.md`, SF-11): `handle_tap_for_mana`
-/// step 8 (the `any_color: true` `ManaAbility` path) and each effect's stack-resolution arm
-/// both add exactly one `ManaColor::Colorless`.
+/// - `Effect::AddManaAnyColorRestricted` / `Effect::AddManaOfAnyColorAmount` — never lowered
+///   by `try_as_tap_mana_ability` (no restriction-list / dynamic-amount channel on
+///   `ManaAbility`), so both variants still resolve through `execute_effect` and still add
+///   `ManaColor::Colorless` unconditionally. **Always flagged**, regardless of registration.
+/// - A plain `Effect::AddManaAnyColor` that is **not served** — the ability sits on a
+///   triggered/ETB effect, a spell effect, or an activation cost `mana_ability_cost_components`
+///   refuses (sacrifice-a-DIFFERENT-permanent via `Cost::Sacrifice(filter)`,
+///   `Cost::RemoveCounter`, …) — none of these lower into a `ManaAbility`, so they still
+///   resolve through `execute_effect` and still add `ManaColor::Colorless`. Detected via
+///   [`registers_any_color_mana_ability`]: **flagged iff the def registers zero** `any_color`
+///   mana abilities (so every occurrence of `AddManaAnyColor` in the def is a stub, not a
+///   served tap ability).
 ///
-/// **Delete this gate when a colour channel for `any_color` mana lands** (a way to record and
-/// honour the player's colour choice); at that point the variants stop being stubs.
+/// **Known hole (documented, not closed)**: a def with BOTH a served tap `any_color` ability
+/// AND a separate unserved `AddManaAnyColor` (e.g. on a triggered ability) would pass this
+/// gate, because `registers_any_color_mana_ability` only asks "does the def register at least
+/// one", not "does every occurrence resolve through a served path". No such def exists in the
+/// corpus today (checked: every def using `AddManaAnyColor` on more than one clause either
+/// serves all of them or none — see the restore/held-back rosters in
+/// `memory/primitives/pb-review-EF12.md`); `no_complete_def_has_a_mixed_served_and_unserved_any_color_stub`
+/// asserts the corpus currently has no such case.
 #[test]
 fn no_complete_def_uses_an_any_color_mana_stub() {
+    let defs = defs_map();
     let offenders: Vec<String> = all_cards()
         .into_iter()
+        .filter(|d| d.completeness.is_complete())
         .filter(|d| {
-            d.completeness.is_complete()
-                && (def_uses(d, "AddManaAnyColor")
-                    || def_uses(d, "AddManaAnyColorRestricted")
-                    || def_uses(d, "AddManaOfAnyColorAmount"))
+            let always_flag =
+                def_uses(d, "AddManaAnyColorRestricted") || def_uses(d, "AddManaOfAnyColorAmount");
+            if always_flag {
+                return true;
+            }
+            def_uses(d, "AddManaAnyColor") && !registers_any_color_mana_ability(d, &defs)
         })
         .map(|d| d.name)
         .collect();
 
     assert!(
         offenders.is_empty(),
-        "`Effect::AddManaAnyColor` / `AddManaAnyColorRestricted` / `AddManaOfAnyColorAmount` \
-         add one **colorless** mana (effects/mod.rs; and `handle_tap_for_mana` step 8 for the \
-         `any_color: true` ManaAbility path) — colorless is a mana type, not a colour \
-         (CR 106.1a/106.1b), so they cannot express \"one mana of any color\". Author one \
-         activated ability per colour, or mark the def `Completeness::known_wrong(\"...\")` \
-         until a colour channel for any-color mana lands (SF-11). Offenders: {offenders:?}"
+        "`Effect::AddManaAnyColorRestricted` / `Effect::AddManaOfAnyColorAmount` add one \
+         **colorless** mana unconditionally (effects/mod.rs) — colorless is a mana type, not a \
+         colour (CR 106.1a/106.1b), and neither is lowered into a real `ManaAbility` by \
+         `try_as_tap_mana_ability`, so PB-EF12's colour channel never reaches them. A plain \
+         `Effect::AddManaAnyColor` that registers no `any_color` mana ability (a triggered/ETB \
+         effect, or an activation cost `try_as_tap_mana_ability` cannot lower) is the same \
+         defect — still unserved, still adds Colorless. Author one activated ability per \
+         colour, wire the ability so it lowers into a `ManaAbility` (Cost::Tap family), or mark \
+         the def `Completeness::known_wrong(\"...\")`. Offenders: {offenders:?}"
+    );
+}
+
+/// Counts how many times `key` appears anywhere in the value tree as an object key
+/// (unlike [`contains_key`], which only asks whether it appears at all). Used to detect
+/// a def with more than one `AddManaAnyColor` occurrence.
+fn count_key_occurrences(v: &serde_json::Value, key: &str) -> usize {
+    match v {
+        serde_json::Value::Object(map) => map
+            .iter()
+            .map(|(k, child)| (if k == key { 1 } else { 0 }) + count_key_occurrences(child, key))
+            .sum(),
+        serde_json::Value::Array(items) => {
+            items.iter().map(|i| count_key_occurrences(i, key)).sum()
+        }
+        _ => 0,
+    }
+}
+
+/// Documents and pins the known hole in [`no_complete_def_uses_an_any_color_mana_stub`]: a
+/// `Complete` def with a served `any_color` tap ability AND a second, unserved
+/// `Effect::AddManaAnyColor` occurrence elsewhere (e.g. a triggered ability) would pass that
+/// gate, because it only checks "does the def register at least one served any_color
+/// ability", not "does every AddManaAnyColor occurrence resolve through a served path".
+///
+/// Asserts the corpus has no such def today: a served (`registers_any_color_mana_ability`)
+/// `Complete` def must have **exactly one** `AddManaAnyColor` occurrence in its whole effect
+/// tree — if it had two, the second could be an unserved stub hiding behind the first's
+/// coverage. If this test starts failing, the gate above needs a per-occurrence check
+/// (count servable abilities vs. count occurrences), not a "does it have ≥1" check.
+#[test]
+fn no_complete_def_has_a_mixed_served_and_unserved_any_color_stub() {
+    let defs = defs_map();
+    let offenders: Vec<String> = all_cards()
+        .into_iter()
+        .filter(|d| {
+            d.completeness.is_complete()
+                && registers_any_color_mana_ability(d, &defs)
+                && count_key_occurrences(
+                    &serde_json::to_value(d).expect("serializes"),
+                    "AddManaAnyColor",
+                ) > 1
+        })
+        .map(|d| d.name)
+        .collect();
+
+    assert!(
+        offenders.is_empty(),
+        "these Complete defs mix a served any_color tap ability with a second \
+         AddManaAnyColor occurrence elsewhere — the coarse gate above would miss an unserved \
+         second occurrence. Needs the stronger per-occurrence check: {offenders:?}"
     );
 }
 
@@ -312,6 +381,106 @@ fn stub_gates_are_not_vacuous() {
             "a plain AddMana def must not be flagged for {key}"
         );
     }
+}
+
+/// PB-EF12 non-vacuity: `no_complete_def_uses_an_any_color_mana_stub` was narrowed from
+/// "flag every AddManaAnyColor occurrence" to "flag only unserved ones". Prove both
+/// directions of that narrowing, not just that the key-detection primitive still works.
+#[test]
+fn served_vs_unserved_any_color_gate_logic_is_not_vacuous() {
+    let any_color_effect = Effect::AddManaAnyColor {
+        player: PlayerTarget::Controller,
+    };
+
+    // Served: a Cost::Tap activated ability lowers into a real any_color ManaAbility
+    // (try_as_tap_mana_ability). Must NOT be flagged.
+    let served = CardDefinition {
+        name: "EF12 Served Any Color Probe".to_string(),
+        oracle_text: "{T}: Add one mana of any color.".to_string(),
+        types: TypeLine {
+            supertypes: Default::default(),
+            card_types: [mtg_engine::state::CardType::Artifact]
+                .iter()
+                .copied()
+                .collect(),
+            subtypes: Default::default(),
+        },
+        abilities: vec![AbilityDefinition::Activated {
+            cost: Cost::Tap,
+            effect: any_color_effect.clone(),
+            timing_restriction: None,
+            targets: vec![],
+            activation_condition: None,
+            activation_zone: None,
+            once_per_turn: false,
+            modes: None,
+        }],
+        ..Default::default()
+    };
+    let mut served_defs = defs_map();
+    served_defs.insert(served.name.clone(), served.clone());
+    assert!(
+        registers_any_color_mana_ability(&served, &served_defs),
+        "a Cost::Tap AddManaAnyColor ability must register as a served any_color ManaAbility"
+    );
+    assert!(
+        !def_uses(&served, "AddManaAnyColor")
+            || registers_any_color_mana_ability(&served, &served_defs),
+        "a served plain AddManaAnyColor must NOT be flagged by the refined gate"
+    );
+
+    // Unserved: a Triggered ability's effect never lowers into a ManaAbility at all —
+    // it stays a stack-resolution stub that still adds Colorless. Must BE flagged.
+    let unserved = CardDefinition {
+        name: "EF12 Unserved Any Color Probe".to_string(),
+        oracle_text: "Whenever this enters, add one mana of any color.".to_string(),
+        types: TypeLine {
+            supertypes: Default::default(),
+            card_types: [mtg_engine::state::CardType::Creature]
+                .iter()
+                .copied()
+                .collect(),
+            subtypes: Default::default(),
+        },
+        abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
+            trigger_condition:
+                mtg_engine::cards::card_definition::TriggerCondition::WhenEntersBattlefield,
+            effect: any_color_effect,
+            intervening_if: None,
+            targets: vec![],
+            modes: None,
+            trigger_zone: None,
+        }],
+        ..Default::default()
+    };
+    let mut unserved_defs = defs_map();
+    unserved_defs.insert(unserved.name.clone(), unserved.clone());
+    assert!(
+        !registers_any_color_mana_ability(&unserved, &unserved_defs),
+        "a triggered-ability AddManaAnyColor must NOT register as a served any_color ManaAbility"
+    );
+    assert!(
+        def_uses(&unserved, "AddManaAnyColor")
+            && !registers_any_color_mana_ability(&unserved, &unserved_defs),
+        "an unserved plain AddManaAnyColor (triggered effect) must still BE flagged by the \
+         refined gate — the narrowing must not have gone blind to the real stub case"
+    );
+
+    // Real-corpus positive: Birds of Paradise is Complete, served, and must not appear in
+    // the live gate's offender list.
+    let defs = defs_map();
+    let bop = defs
+        .get("Birds of Paradise")
+        .expect("Birds of Paradise has a def");
+    assert!(
+        bop.completeness.is_complete(),
+        "Birds of Paradise should be Complete post-PB-EF12"
+    );
+    assert!(
+        registers_any_color_mana_ability(bop, &defs),
+        "Birds of Paradise must register a served any_color mana ability"
+    );
 }
 
 // ── Lands produce every colour they print ─────────────────────────────────────
@@ -509,18 +678,48 @@ fn registered_colors(
         // was `.filter(|ma| ma.scaled_amount.is_none())`, which dropped the colour too and so
         // would have passed a scaled ability registering an outright WRONG colour.
         .flat_map(|ma| {
-            // SR-37 / SF-12: an `any_color: true` ManaAbility carries an empty `produces`
-            // (probed: Mana Confluence reports `produces={} any_color=true`) but actually
-            // adds one `ManaColor::Colorless` — `handle_tap_for_mana` step 8. Report that,
-            // so the gate sees the {C} an "any color" land really makes rather than an
-            // empty set that passes vacuously (SF-11/SF-12).
+            // PB-EF12 (CR 111.10a/605.3b): an `any_color: true` ManaAbility carries an
+            // empty `produces` (the marker is only meaningful for fixed-colour
+            // abilities) but now really can add any of the five colours — the choice
+            // rides `Command::TapForMana.chosen_color`, validated + resolved by
+            // `handle_tap_for_mana` (Colorless is rejected, CR 106.1b). Report the true
+            // option set (all five), not the pre-PB-EF12 always-Colorless production, so
+            // a plain "any color" land's printed and registered sets now match instead of
+            // permanently mismatching by construction.
             let mut cs: Vec<ManaColor> = ma.produces.keys().copied().collect();
             if ma.any_color {
-                cs.push(ManaColor::Colorless);
+                cs.extend([
+                    ManaColor::White,
+                    ManaColor::Blue,
+                    ManaColor::Black,
+                    ManaColor::Red,
+                    ManaColor::Green,
+                ]);
             }
             cs
         })
         .collect()
+}
+
+/// True if `def` registers at least one `any_color: true` mana ability (i.e. the
+/// "any color" clause is served through `Command::TapForMana.chosen_color` — PB-EF12 —
+/// rather than being an unserved stack-resolution stub). Used by
+/// [`no_complete_def_uses_an_any_color_mana_stub`] to distinguish a served plain
+/// `Effect::AddManaAnyColor` (a `Cost::Tap`-family ability, lowered by
+/// `try_as_tap_mana_ability`) from an unserved one (a triggered/ETB effect, a
+/// non-tap-cost sacrifice-a-different-permanent cost, or `Cost::RemoveCounter` — none of
+/// these lower into a `ManaAbility`, so they still resolve through `execute_effect` and
+/// still add `ManaColor::Colorless`, per `memory/primitives/pb-plan-EF12.md`'s "NOT the
+/// ManaAbility path" list).
+fn registers_any_color_mana_ability(
+    def: &CardDefinition,
+    defs: &HashMap<String, CardDefinition>,
+) -> bool {
+    let spec = enrich_spec_from_def(
+        ObjectSpec::card(PlayerId(1), &def.name).in_zone(ZoneId::Battlefield),
+        defs,
+    );
+    spec.mana_abilities.iter().any(|ma| ma.any_color)
 }
 
 fn defs_map() -> HashMap<String, CardDefinition> {
@@ -579,20 +778,23 @@ fn every_complete_land_registers_each_printed_tap_mana_color() {
     );
 }
 
-/// SR-37 / SF-12 non-vacuity: prove `every_complete_land_registers_each_printed_tap_mana_color`
-/// is no longer structurally blind to an "any color" land. Command Tower prints "Add one mana
-/// of any color" and registers an `any_color: true` `ManaAbility` that produces `{C}`. The
-/// parser must now see all five printed colours, and `registered_colors` must report the
-/// `{Colorless}` actually produced — so the gate's `missing`/`invented` sets are both
-/// non-empty and it *would* flag this card were it `Complete`. (It is not: SF-11 demoted it
-/// to `known_wrong`, so the live gate skips it — this test exercises the machinery directly,
-/// bypassing the completeness scope.)
+/// PB-EF12 rewrite (CR 605.3b/106.1b/111.10a) of the SF-12 non-vacuity test.
+///
+/// **New correct behaviour**: Mana Confluence prints "Add one mana of any color" (plain,
+/// unrestricted — PB-EF12 restored it to `Complete` once the colour choice became real) and
+/// registers an `any_color: true` `ManaAbility`. `registered_colors` now maps that to the
+/// true five-colour option set (not the pre-PB-EF12 always-`{Colorless}` production), so
+/// `printed == registered == {W,U,B,R,G}` and the gate's `missing`/`invented` sets are both
+/// empty — a real "any color" land now genuinely matches what it prints, rather than being
+/// skipped as `known_wrong` or permanently mismatching by construction.
+///
+/// **The parser is still not blind**: a synthetic decoy def prints "Add one mana of any
+/// color" but (bug simulation) registers only a single fixed colour — this must still be
+/// caught as a `missing`/`invented` mismatch, proving the gate is not simply "always pass any
+/// def with the any-color phrasing" now.
 #[test]
 fn land_color_gate_is_not_blind_to_any_color_lands() {
     let defs = defs_map();
-    let def = defs.get("Command Tower").expect("Command Tower has a def");
-
-    let printed = printed_tap_mana_colors(&def.oracle_text);
     let all_five: BTreeSet<ManaColor> = [
         ManaColor::White,
         ManaColor::Blue,
@@ -602,30 +804,78 @@ fn land_color_gate_is_not_blind_to_any_color_lands() {
     ]
     .into_iter()
     .collect();
+
+    // New correct behaviour: a real, served, unrestricted any-color land.
+    let def = defs
+        .get("Mana Confluence")
+        .expect("Mana Confluence has a def");
+    assert!(
+        def.completeness.is_complete(),
+        "Mana Confluence should be Complete post-PB-EF12 (EF-W-PB2-3)"
+    );
+    let printed = printed_tap_mana_colors(&def.oracle_text);
     assert_eq!(
         printed, all_five,
         "\"Add one mana of any color\" must parse to all five colours, not empty (SF-12)"
     );
-
     let registered = registered_colors(def, &defs);
     assert_eq!(
-        registered,
-        [ManaColor::Colorless].into_iter().collect::<BTreeSet<_>>(),
-        "an any_color ManaAbility must register the {{C}} it actually produces (SF-12), not \
-         an empty set that would pass vacuously"
-    );
-
-    // The gate's two difference sets — both non-empty means the card is caught, not skipped.
-    let missing: BTreeSet<_> = printed.difference(&registered).collect();
-    let invented: BTreeSet<_> = registered.difference(&printed).collect();
-    assert_eq!(
-        missing.len(),
-        5,
-        "all five printed colours are unproducible — the gate must report them missing"
+        registered, all_five,
+        "PB-EF12: an any_color ManaAbility must register the real five-colour option set it \
+         can now produce, not the pre-fix {{Colorless}} marker"
     );
     assert!(
-        invented.contains(&&ManaColor::Colorless),
-        "the {{C}} it really makes must show as invented"
+        printed.difference(&registered).next().is_none()
+            && registered.difference(&printed).next().is_none(),
+        "a plain, unrestricted any-color land's printed and registered colours must now match \
+         exactly (this is the fix — the gate must not report a spurious mismatch)"
+    );
+
+    // The parser must still catch a genuine mismatch: synthetic decoy prints "any color"
+    // but only registers Green (a fixed-colour bug, not an any_color ability at all).
+    let mut defs2 = defs_map();
+    let decoy = CardDefinition {
+        name: "EF12 Decoy Any Color Land".to_string(),
+        oracle_text: "{T}: Add one mana of any color.".to_string(),
+        types: TypeLine {
+            supertypes: Default::default(),
+            card_types: [mtg_engine::state::CardType::Land]
+                .iter()
+                .copied()
+                .collect(),
+            subtypes: Default::default(),
+        },
+        abilities: vec![AbilityDefinition::Activated {
+            cost: Cost::Tap,
+            effect: Effect::AddMana {
+                player: PlayerTarget::Controller,
+                mana: mtg_engine::cards::helpers::mana_pool(0, 0, 0, 0, 1, 0),
+            },
+            timing_restriction: None,
+            targets: vec![],
+            activation_condition: None,
+            activation_zone: None,
+            once_per_turn: false,
+            modes: None,
+        }],
+        ..Default::default()
+    };
+    defs2.insert(decoy.name.clone(), decoy.clone());
+    let decoy_printed = printed_tap_mana_colors(&decoy.oracle_text);
+    let decoy_registered = registered_colors(&decoy, &defs2);
+    assert_eq!(
+        decoy_printed, all_five,
+        "decoy still prints all five colours"
+    );
+    assert_eq!(
+        decoy_registered,
+        [ManaColor::Green].into_iter().collect::<BTreeSet<_>>(),
+        "decoy's fixed-colour (non-any_color) ability registers only Green"
+    );
+    assert_ne!(
+        decoy_printed, decoy_registered,
+        "a card claiming any-color but registering only one fixed colour must still be caught \
+         as a mismatch — the gate is not vacuously true for any any-color-phrased card"
     );
 }
 
@@ -794,6 +1044,8 @@ fn tap_for_mana_produces_each_printed_color_without_using_the_stack() {
                 player: PlayerId(1),
                 source: land,
                 ability_index: index,
+
+                chosen_color: None,
             },
         )
         .unwrap_or_else(|e| panic!("TapForMana index {index} should be legal: {e:?}"));
@@ -838,6 +1090,8 @@ fn tap_for_mana_rejects_an_out_of_range_ability_index() {
                 player: PlayerId(1),
                 source: land,
                 ability_index: 2,
+
+                chosen_color: None,
             },
         )
         .is_err(),

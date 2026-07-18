@@ -881,6 +881,8 @@ fn test_restriction_stony_silence_blocks_artifact_mana_ability() {
             player: p2(),
             source: sol_ring,
             ability_index: 0,
+
+            chosen_color: None,
         },
     );
     assert!(
@@ -930,6 +932,8 @@ fn test_restriction_stony_silence_does_not_block_land_mana_ability() {
             player: p2(),
             source: forest,
             ability_index: 0,
+
+            chosen_color: None,
         },
     );
     assert!(

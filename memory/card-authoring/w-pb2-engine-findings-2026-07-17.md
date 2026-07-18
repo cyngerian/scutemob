@@ -64,7 +64,52 @@ Stays `partial`. Also unblocks the 3 sibling defs above.
 opponents of the source's controller, CR 115.x). A PB-sized task, out of scope for a
 card-authoring wave.
 
-## EF-W-PB2-3 — granted `any_color` ManaAbility stubs to `Colorless` (MEDIUM)
+## EF-W-PB2-3 — granted `any_color` ManaAbility stubs to `Colorless` (MEDIUM) — ✅ CLOSED (PB-EF12, scutemob-114, 2026-07-18)
+
+> **CLOSED 2026-07-18 — closes the EF queue.** `Command::TapForMana` gained
+> `chosen_color: Option<ManaColor>` (CR 605.3b: a mana ability resolves immediately and
+> never uses the stack, so the colour choice for `any_color: true` production is made on
+> the activation Command itself, not deferred). `handle_tap_for_mana` validates it —
+> `any_color == true` requires `Some(c)` with `c` one of White/Blue/Black/Red/Green
+> (`Some(Colorless)` rejected, CR 106.1b; `None` rejected, no silent default);
+> `any_color == false` requires `None` — and threads the resolved colour into both the
+> mana-production-replacement preview (step 7b) and the pool addition (step 8). The fix is
+> uniform across intrinsic AND granted `any_color` abilities (Cryptolith Rite,
+> Paradise Mantle, Elven Chorus, Enduring Vitality) since both resolve through the same
+> `ManaAbility` dispatch. **17 defs flipped known_wrong → Complete**: birds_of_paradise,
+> chromatic_lantern, city_of_brass, darksteel_ingot, decanter_of_endless_water,
+> dragons_hoard, dragonstorm_globe, elvish_harbinger, goldhound, mana_confluence,
+> mox_jasper, mox_opal, ornithopter_of_paradise, patchwork_banner, patriars_seal,
+> staff_of_compleation (16 restores, verified programmatically per-card against
+> `mana_ability_lowering`'s `targets.is_empty()` + cost-shape gates, not eyeballed — this
+> caught a wrong eyeballed restore of `deathrite_shaman.rs`, reverted: its ability has a
+> TARGET, so CR 605.1a disqualifies it from mana-ability status regardless of the
+> `AddManaAnyColor` payload) + `elven_chorus.rs` (the named instance — the grant is now
+> wired, its only remaining clause). **5 defs held back on a real second blocker**, notes
+> rewritten to name it precisely: `command_tower`, `arcane_signet`, `commanders_sphere`,
+> `path_of_ancestry` (all: unrestricted 5-colour choice vs. printed commander-colour-identity
+> restriction, which the engine has no runtime mechanism to enforce — `compute_color_identity`
+> is deck-build-only), `mox_amber` (same class, restricted to legendary-creatures-you-control
+> colours). `forbidden_orchard` / `glistening_sphere` notes rewritten to drop the now-fixed
+> colour clause and keep only their real remaining blockers (WhenTappedForMana auto-target
+> dispatch gap; the separate `AddManaChoice`-stubbed Corrupted ability). Gate refined:
+> `effect_choose_gate.rs`'s `no_complete_def_uses_an_any_color_mana_stub` now flags only
+> UNSERVED `AddManaAnyColor` (a def registering zero real `any_color` mana abilities) —
+> `AddManaAnyColorRestricted`/`AddManaOfAnyColorAmount` still always flagged (never lowered);
+> `registered_colors` maps `any_color` → the true WUBRG option set; new non-vacuity coverage
+> for both directions plus a documented, corpus-verified-absent hole
+> (`no_complete_def_has_a_mixed_served_and_unserved_any_color_stub`). Simulator
+> (`legal_actions.rs`/`mana_solver.rs`/`random_bot.rs`) emits a concrete engine-legal
+> `chosen_color` (deterministic WUBRG order / the exact pip needed), never `None` or
+> `Colorless`, for any_color sources (SR-38 precedent). **PROTOCOL 17→18** (`Command` is a
+> wire frame; `HASH_SCHEMA_VERSION` unchanged — `Command` is off the `GameState` hash
+> closure). Filed **OOS-EF12-1**: the unserved `any_color`-family (restricted/amount
+> variants; a plain `AddManaAnyColor` on a triggered/ETB effect or a
+> non-tap-lowerable activation cost; the commander-color-identity / legendary-colours
+> restriction on the 5 held-back cards) still stubs to Colorless or is over-permissive —
+> needs a resolution-time colour channel (for the stack-resolved family) or a
+> colour-subset restriction mechanism (for the identity-restricted family). Plan/review:
+> `memory/primitives/pb-plan-EF12.md` / `pb-review-EF12.md`.
 
 `rules/mana.rs` `handle_tap_for_mana` (L337–365) — a `ManaAbility { any_color: true }` (whether
 intrinsic or granted via `LayerModification::AddManaAbility`) unconditionally adds

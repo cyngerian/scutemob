@@ -341,6 +341,8 @@ fn test_tap_for_mana_adds_to_pool() {
             player: PlayerId(1),
             source: land_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .unwrap();
@@ -384,6 +386,8 @@ fn test_tap_for_mana_taps_permanent() {
             player: PlayerId(1),
             source: land_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .unwrap();
@@ -422,6 +426,8 @@ fn test_tap_already_tapped_land_fails() {
             player: PlayerId(1),
             source: land_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     );
 
@@ -455,6 +461,8 @@ fn test_tap_for_mana_opponent_land_fails() {
             player: PlayerId(1),
             source: land_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     );
 
@@ -486,6 +494,8 @@ fn test_tap_for_mana_player_retains_priority() {
             player: PlayerId(1),
             source: land_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .unwrap();
@@ -528,6 +538,8 @@ fn test_tap_multiple_lands_accumulates_mana() {
             player: PlayerId(1),
             source: id0,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .unwrap();
@@ -537,6 +549,8 @@ fn test_tap_multiple_lands_accumulates_mana() {
             player: PlayerId(1),
             source: id1,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .unwrap();
@@ -546,6 +560,8 @@ fn test_tap_multiple_lands_accumulates_mana() {
             player: PlayerId(1),
             source: id2,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .unwrap();
@@ -647,6 +663,8 @@ fn test_tap_for_mana_invalid_ability_index_fails() {
             player: PlayerId(1),
             source: land_id,
             ability_index: 5, // out of range
+
+            chosen_color: None,
         },
     );
 
@@ -681,6 +699,8 @@ fn test_tap_for_mana_non_battlefield_fails() {
             player: PlayerId(1),
             source: land_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     );
 

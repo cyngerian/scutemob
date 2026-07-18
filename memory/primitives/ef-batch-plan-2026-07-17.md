@@ -528,14 +528,46 @@ demote is not a PB and should not wait in the queue.
   `.get(id)`→`.get(*id)` sites — fresh dep resolve picks `equivalent 1.0.2`; Cargo.lock is
   untracked). /review: see `memory/primitives/pb-review-EF11.md`.
 
-### PB-EF12 — granted `any_color` ManaAbility color choice  ·  capability (blocked on design)
-- **Findings**: EF-W-PB2-3.
-- **Blocker**: needs the same interactive/deterministic color-choice mechanism the gated
-  `Effect::AddManaAnyColor` family needs (SR-37 fixed only the Effect path). **Do not
-  dispatch until the color-choice design lands** — otherwise it re-introduces the
-  `Colorless` stub on the granted path.
-- **Candidates**: elven_chorus (flip `partial`) + future granted-any-color grants.
-- **Discounted ship**: **~1–2**, gated behind a color-choice design decision.
+### PB-EF12 — granted `any_color` ManaAbility color choice  ·  capability  ·  ✅ DONE (scutemob-114, 2026-07-18) — **CLOSES THE EF QUEUE**
+> **SHIPPED 2026-07-18. EF-W-PB2-3 CLOSED. THE EF QUEUE IS COMPLETE.** The colour choice rides the
+> activation Command (coordinator decision, `memory/decisions.md` 2026-07-18, CR 605.3b — a mana
+> ability never uses the stack, so the choice is made at activation): `Command::TapForMana` gains
+> `chosen_color: Option<ManaColor>` (`#[serde(default)]`), validated in `handle_tap_for_mana` against
+> the offered set — for an `any_color: true` ManaAbility it must be `Some(c)` with `c ∈ WUBRG`;
+> `Some(Colorless)` is rejected (CR 106.1b — colorless is a type, not a colour) and `None` is rejected
+> (**no silent Colorless default** — the SR-37 stub eliminated); a fixed-colour ability rejects any
+> `Some(_)`. The chosen colour flows into both the step-7b mana-replacement preview (so Caged Sun names
+> the real colour) and the step-8 pool addition. This serves BOTH the intrinsic tap path (Command
+> Tower-shape lands/rocks whose `AddManaAnyColor` lowers via `try_as_tap_mana_ability`) AND the
+> **granted** path (`LayerModification::AddManaAbility(any_color:true)` for creatures you control —
+> Cryptolith Rite / Citanul Hierophants / Paradise Mantle / Bootleggers Stash were shipping `Complete`
+> while silently producing colorless, a latent bug no gate caught; now correct). **No HASH bump**
+> (`Command` is not in the GameState hash closure; colour lands in `ManaPool`, already per-colour) —
+> **PROTOCOL 17→18** only, machine-forced, fingerprint re-pinned, history row appended. 106 existing
+> `TapForMana` literals backfilled `chosen_color: None`; simulator (`legal_actions.rs`/`mana_solver.rs`/
+> `random_bot.rs`) + script harness emit a concrete engine-legal colour (SR-38 precedent), pinned by a
+> new simulator legality test. **Yield: elven_chorus flipped Complete (grant wired) + 16 restored to
+> Complete** (birds_of_paradise, chromatic_lantern, city_of_brass, darksteel_ingot,
+> decanter_of_endless_water, dragons_hoard, dragonstorm_globe, elvish_harbinger, goldhound,
+> mana_confluence, mox_jasper, mox_opal, ornithopter_of_paradise, patchwork_banner, patriars_seal,
+> staff_of_compleation) — **17 total**. **7 held back on real second blockers** with rewritten notes
+> (command_tower/arcane_signet/commanders_sphere/path_of_ancestry/mox_amber — commander-colour-identity
+> restriction, unenforceable at runtime; forbidden_orchard/glistening_sphere — unrelated blockers); one
+> eyeballed restore (deathrite_shaman) was reverted after the refined gate caught it (targeted ability,
+> CR 605.1a disqualifies it from mana-ability status). **Gate refinement** (`effect_choose_gate.rs`):
+> `registered_colors` maps `any_color`→all five WUBRG (was `{Colorless}`);
+> `no_complete_def_uses_an_any_color_mana_stub` narrowed to flag only UNSERVED usages (restricted/amount
+> variants always; plain `AddManaAnyColor` iff the def registers no `any_color` mana ability), with the
+> served-vs-unserved logic pinned non-vacuously and the "mixed served+unserved" hole documented +
+> asserted-absent. **OOS-EF12-1 filed** (the unserved any-color family: `AddManaAnyColorRestricted`,
+> `AddManaOfAnyColorAmount`, `AddManaChoice`, plain `AddManaAnyColor` on spell/triggered/sacrifice-other
+> costs — still Colorless; plus the commander-colour-identity restriction on Command Tower et al.).
+> 7 new primitive tests (`pb_ef12_any_color_choice.rs`, decoys empirically non-vacuous) + 2 gate tests +
+> 1 simulator test. **3476 tests** (was 3453). Coverage **61.1% → 62.1%** (1,098 → 1,117 clean of
+> 1,796 → 1,798). Plan/review: `memory/primitives/pb-plan-EF12.md` / `pb-review-EF12.md`.
+- **Findings**: EF-W-PB2-3 — CLOSED.
+- **Discounted ship**: **17 shipped** (est. was ~1–2; the family re-examination surfaced 16 restorable
+  demoted rocks/lands beyond the named elven_chorus flip).
 
 ### Queue summary
 
@@ -554,7 +586,13 @@ demote is not a PB and should not wait in the queue.
 | **PB-EF9** ✅ DONE | capability | PB2-5 | **2 shipped** | PROTOCOL+HASH |
 | **PB-EF10** ✅ DONE | capability | MISS-7 | **3 shipped + 2 forced-adds** | PROTOCOL+HASH |
 | **PB-EF11** ✅ DONE | capability | MISS-8, MISS-9 | **2 shipped** | PROTOCOL+HASH (×2) |
-| PB-EF12 | capability (gated) | PB2-3 | ~1–2 | maybe |
+| **PB-EF12** ✅ DONE | capability | PB2-3 | **17 shipped** | PROTOCOL only |
+
+> **✅ THE EF QUEUE IS COMPLETE (2026-07-18, scutemob-114).** All 20 findings (EF-W-PB2-1..8,
+> EF-W-EMPTY-1, EF-W-MISS-1..10) + EF-13 are closed; every PB-EF1..EF12 shipped. Remaining
+> any-color work is deferred as OOS-EF12-1 (unserved `AddManaAnyColor` family + commander-colour-
+> identity restriction). Next campaign work is cohort-backfill authoring behind the shipped
+> primitives, not further EF primitives.
 
 **Total discounted ship across the queue: ~37–47 flips/authors** (from ~62 candidates),
 consistent with the campaign's measured primitive-batch rate. **Correctness batches

@@ -106,6 +106,8 @@ fn simian_activates_from_hand_and_exiles_the_source() {
             player: p(1),
             source,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .expect("Simian Spirit Guide should activate from hand (CR 605.1a)");
@@ -156,6 +158,8 @@ fn elvish_activates_from_hand_adds_green() {
             player: p(1),
             source,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .expect("Elvish Spirit Guide should activate from hand (CR 605.1a)");
@@ -188,6 +192,8 @@ fn from_hand_mana_ability_does_not_reset_priority_or_players_passed() {
             player: p(1),
             source,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .expect("activation should succeed");
@@ -228,6 +234,8 @@ fn decoy_a_same_card_on_battlefield_cannot_use_from_hand_ability() {
             player: p(1),
             source,
             ability_index: 0,
+
+            chosen_color: None,
         },
     );
 
@@ -263,6 +271,8 @@ fn decoy_b_battlefield_only_mana_ability_cannot_be_activated_from_hand() {
             player: p(1),
             source,
             ability_index: 0,
+
+            chosen_color: None,
         },
     );
 

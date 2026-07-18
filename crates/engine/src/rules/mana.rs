@@ -39,6 +39,7 @@ pub fn handle_tap_for_mana(
     player: PlayerId,
     source: ObjectId,
     ability_index: usize,
+    chosen_color: Option<ManaColor>,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     // 1. Validate player has priority (CR 605.3b).
     if state.turn.priority_holder != Some(player) {
@@ -142,6 +143,39 @@ pub fn handle_tap_for_mana(
             index: ability_index,
         })?
         .clone();
+    // 2b. PB-EF12 (CR 605.3b / CR 106.1b): a mana ability resolves immediately and never
+    //     uses the stack, so any colour choice for `any_color: true` production must be
+    //     supplied on THIS command, not deferred to a stack-based choice. Pure validation,
+    //     before any mutation. `Colorless` is a mana TYPE, not a colour (CR 106.1b) — it is
+    //     outside the legal option set for "add one mana of any color" (CR 111.10a) and is
+    //     rejected, same as omitting the choice entirely.
+    let resolved_color: Option<ManaColor> = if ability.any_color {
+        match chosen_color {
+            Some(ManaColor::Colorless) => {
+                return Err(GameStateError::InvalidCommand(
+                    "colorless is not a color; an any-color mana ability must choose one of \
+                     White, Blue, Black, Red, or Green (CR 106.1b, CR 111.10a)"
+                        .into(),
+                ));
+            }
+            Some(c) => Some(c),
+            None => {
+                return Err(GameStateError::InvalidCommand(
+                    "an any-color mana ability requires a chosen_color on TapForMana — mana \
+                     abilities never use the stack (CR 605.3b), so the color choice is made \
+                     at activation, not deferred"
+                        .into(),
+                ));
+            }
+        }
+    } else {
+        if chosen_color.is_some() {
+            return Err(GameStateError::InvalidCommand(
+                "chosen_color was supplied for a fixed-colour mana ability".into(),
+            ));
+        }
+        None
+    };
     // 3-4. Zone/controller legality (PB-EF8: branches on the ability, not a fixed rule).
     if ability.exile_self_from_hand {
         // CR 602.1/602.2/605.1a: a from-hand mana ability (Spirit Guides). The source
@@ -377,7 +411,11 @@ pub fn handle_tap_for_mana(
         // real count, not the marker.
         let mut base_preview: Vec<(ManaColor, u32)> = Vec::new();
         if ability.any_color {
-            base_preview.push((ManaColor::Colorless, 1));
+            // PB-EF12: preview the chosen colour (not Colorless) so a colour-filter mana
+            // replacement (e.g. Caged Sun naming a colour) matches the real choice.
+            let color =
+                resolved_color.expect("validated above: any_color ability requires Some(c)");
+            base_preview.push((color, 1));
         } else {
             for (color, amount) in &ability.produces {
                 let amount = resolved_scaled_amount.unwrap_or(*amount);
@@ -389,22 +427,22 @@ pub fn handle_tap_for_mana(
         (1u32, Vec::new())
     };
     // 8. Add produced mana to the player's pool (multiplied by replacement effects).
-    //    CR 111.10a: `any_color` produces 1 mana of any color.
-    //    Simplified: colorless until interactive color choice is implemented
-    //    (consistent with Effect::AddManaAnyColor in effects/mod.rs).
+    //    CR 111.10a: `any_color` produces 1 mana of any color, chosen at activation
+    //    (PB-EF12; validated + resolved above as `resolved_color`).
     let mut mana_produced: Vec<(ManaColor, u32)> = Vec::new();
     if ability.any_color {
         // CR 111.10a: "Add one mana of any color."
+        let color = resolved_color.expect("validated above: any_color ability requires Some(c)");
         let amount = mana_multiplier;
         let player_state = state.player_mut(player)?;
-        player_state.mana_pool.add(ManaColor::Colorless, amount);
+        player_state.mana_pool.add(color, amount);
         events.push(GameEvent::ManaAdded {
             player,
-            color: ManaColor::Colorless,
+            color,
             amount,
             source: Some(source),
         });
-        mana_produced.push((ManaColor::Colorless, amount));
+        mana_produced.push((color, amount));
     } else {
         let player_state = state.player_mut(player)?;
         for (color, base_amount) in &ability.produces {

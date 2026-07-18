@@ -182,6 +182,7 @@ fn test_granted_mana_ability_taps_and_produces_mana() {
             player: p1(),
             source: bear_id,
             ability_index: 0,
+            chosen_color: Some(ManaColor::Blue),
         },
     )
     .expect("TapForMana via granted ability should succeed (CR 605.1a)");
@@ -319,6 +320,7 @@ fn test_two_cryptolith_rites_grant_two_abilities_but_one_tap() {
             player: p1(),
             source: bear_id,
             ability_index: 0,
+            chosen_color: Some(ManaColor::Blue),
         },
     )
     .expect("first TapForMana should succeed");
@@ -335,6 +337,7 @@ fn test_two_cryptolith_rites_grant_two_abilities_but_one_tap() {
             player: p1(),
             source: bear_id,
             ability_index: 1,
+            chosen_color: Some(ManaColor::Blue),
         },
     );
     assert!(
@@ -555,6 +558,8 @@ fn test_granted_mana_ability_respects_summoning_sickness() {
             player: p1(),
             source: creature_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     );
     assert!(

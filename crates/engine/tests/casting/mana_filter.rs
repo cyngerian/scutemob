@@ -129,6 +129,8 @@ fn test_filter_land_produces_two_mana_fetid_heath() {
             player: p(1),
             source: land_id,
             ability_index: 1,
+
+            chosen_color: None,
         },
     )
     .expect("filter land activation should succeed (CR 605.1a)");
@@ -199,6 +201,8 @@ fn test_filter_land_tap_required() {
             player: p(1),
             source: land_id,
             ability_index: 1, // the filter ability
+
+            chosen_color: None,
         },
     );
 
@@ -239,6 +243,8 @@ fn test_all_filter_lands_produce_correct_colors() {
                 player: p(1),
                 source: land_id,
                 ability_index: 1, // the filter ability
+
+                chosen_color: None,
             },
         )
         .unwrap_or_else(|e| panic!("activating {} filter ability should succeed: {:?}", name, e));
@@ -347,6 +353,8 @@ fn test_add_mana_scaled_registered_as_mana_ability() {
             player: p(1),
             source: land_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     )
     .expect("Gaea's Cradle activation should succeed");
@@ -411,6 +419,8 @@ fn test_add_mana_scaled_orphan_fix_all_cards() {
                 player: p(1),
                 source: id,
                 ability_index: 0,
+
+                chosen_color: None,
             },
         )
         .expect("Elvish Archdruid activation should succeed");
@@ -446,6 +456,8 @@ fn test_add_mana_scaled_orphan_fix_all_cards() {
                 player: p(1),
                 source: id,
                 ability_index: 0,
+
+                chosen_color: None,
             },
         )
         .expect("Priest of Titania activation should succeed");
@@ -479,6 +491,8 @@ fn test_add_mana_scaled_orphan_fix_all_cards() {
                 player: p(1),
                 source: id,
                 ability_index: 0,
+
+                chosen_color: None,
             },
         )
         .expect("Marwyn activation should succeed");
@@ -512,6 +526,8 @@ fn test_add_mana_scaled_orphan_fix_all_cards() {
                 player: p(1),
                 source: id,
                 ability_index: 0,
+
+                chosen_color: None,
             },
         )
         .expect("Circle of Dreams Druid activation should succeed");
@@ -544,6 +560,8 @@ fn test_add_mana_scaled_orphan_fix_all_cards() {
                 player: p(1),
                 source: id,
                 ability_index: 0,
+
+                chosen_color: None,
             },
         )
         .expect("Gaea's Cradle activation should succeed");
@@ -581,6 +599,8 @@ fn test_add_mana_scaled_orphan_fix_all_cards() {
                 player: p(1),
                 source: id,
                 ability_index: 0,
+
+                chosen_color: None,
             },
         )
         .expect("Howlsquad Heavy activation should succeed");

@@ -506,6 +506,8 @@ fn test_split_second_allows_mana_abilities() {
             player: p2,
             source: forest_id,
             ability_index: 0,
+
+            chosen_color: None,
         },
     );
 
