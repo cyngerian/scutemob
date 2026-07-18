@@ -1,9 +1,24 @@
 # Workstream Coordination Plan
 
-> **Purpose**: Coordinate parallel workstreams to avoid dependency conflicts,
-> minimize context-switching overhead, and maintain a clear path to playable.
+> # 🗄️ HISTORICAL / SUPERSEDED — frozen 2026-03-08
 >
-> **Load this file** at the start of any session to orient on which workstream to advance.
+> **The four-workstream (W1–W6) model this doc describes is retired.** Do **not** load this
+> file to decide what to work on — its status column and "path to playable" are from March
+> and no longer reflect reality (W1 abilities complete, the campaign is now card-authoring +
+> primitive queues).
+>
+> **What to read instead:**
+> - **What to work on next** → `CLAUDE.md` **"Current State"** (active milestone + active
+>   queue) and the ranked queue `memory/primitives/oos-retriage-plan-2026-07-18.md`.
+> - **Card-authoring campaign** → `memory/card-authoring/campaign-plan-2026-05-16.md`.
+> - **Session protocol** → `/start` → `/dispatch`/`/task` → `/eot` (the `/start-session`/
+>   `/end-session`/`/start-work` flow named below no longer exists).
+>
+> _(Superseded per ESM task scutemob-118 / `memory/doc-audit-2026-07-18.md` F2. Retained as a
+> historical record of the workstream era.)_
+
+> **Purpose** (historical): Coordinate parallel workstreams to avoid dependency conflicts,
+> minimize context-switching overhead, and maintain a clear path to playable.
 >
 > **Strategic review (2026-03-07)**: `docs/mtg-engine-strategic-review.md` restructures
 > the path forward. Key impacts on workstreams:

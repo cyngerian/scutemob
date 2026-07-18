@@ -1,5 +1,21 @@
 # Card Authoring Operations Plan
 
+> # 🗄️ HISTORICAL / SUPERSEDED — 2026-03-21 runbook
+>
+> **This March runbook's task list and "Status: ACTIVE" header describe a campaign phase that
+> has since been reorganized — treat its checkboxes and numbering as a historical record, not
+> the live plan.** Card authoring is now driven by the recalibrated campaign plan.
+>
+> **Current successors:**
+> - **Active card-authoring campaign** → `memory/card-authoring/campaign-plan-2026-05-16.md`
+>   (§0 recalibration authoritative).
+> - **Live card-def health / coverage** → `docs/authoring-status.md` (generated & self-dating).
+>
+> The "Authoring Order and Engine Risk Assessment" section is still cited by the Card Authoring
+> Wave Process in `CLAUDE.md`; that ordering reference remains valid.
+>
+> _(Superseded per ESM task scutemob-118 / `memory/doc-audit-2026-07-18.md` F2.)_
+
 > **Purpose**: Operational runbook for completing all 1,743 card definitions with zero TODOs
 > and zero wrong game state. Covers triage, fix, authoring, and audit phases.
 >

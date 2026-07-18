@@ -1,5 +1,20 @@
 # Primitive-First Card Plan
 
+> # 🗄️ HISTORICAL — March 2026 plan, superseded
+>
+> **This is a March primitive/card plan; its "## Current State" numbers (718 defs, 58% TODOs,
+> PB-0..22 as the plan) are frozen historical data — do not read them as current.** The
+> primitive pipeline it kicked off has long since moved past PB-22 through the named-letter,
+> EF, and OS chains.
+>
+> **Current successors:**
+> - **Active primitive queue** → `memory/primitives/oos-retriage-plan-2026-07-18.md`.
+> - **Card-authoring campaign** → `memory/card-authoring/campaign-plan-2026-05-16.md`
+>   (§0 recalibration authoritative).
+> - **Live card-def health / coverage** → `docs/authoring-status.md` (generated).
+>
+> _(Superseded per ESM task scutemob-118 / `memory/doc-audit-2026-07-18.md` F2.)_
+
 > **Replaces** the wave-based authoring approach in `test-data/test-cards/AUTHORING_PLAN.md`.
 > Each batch implements a DSL primitive in the engine, then immediately fixes/authors all
 > cards it unblocks. No card is authored until its required primitives exist.
