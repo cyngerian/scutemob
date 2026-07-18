@@ -27,6 +27,7 @@
 //! already dispatches `AnyCreatureYouControlAttacks` end to end.
 
 use mtg_engine::rules::abilities::{check_triggers, flush_pending_triggers};
+use mtg_engine::state::test_util;
 use mtg_engine::{
     all_cards, calculate_characteristics, process_command, AttackTarget, CardContinuousEffectDef,
     CardDefinition, CardEffectTarget, CardRegistry, Command, ETBTriggerFilter, Effect,
@@ -316,6 +317,53 @@ fn test_ef4_dealdamage_source_none_default_path_unchanged() {
             .any(|e| matches!(e, GameEvent::LifeGained { .. })),
         "PB-EF4 regression: with source: None, damage is sourced from ctx.source (the \
          enchantment, no Lifelink) -- the entering creature's own Lifelink must NOT apply"
+    );
+}
+
+// ── Regression: departed triggering creature still reads LKI (review LOW #1) ────
+
+/// CR 113.7a / 608.2m (SR-13 pattern) -- `Effect::DealDamage.source: Some(TriggeringCreature)`
+/// must fall back to the departed creature's LKI-readable id, not `ctx.source` (the ability's
+/// host), when the triggering creature has already left the battlefield before its own
+/// trigger resolves (e.g. destroyed in response). `resolve_effect_target_list` gates
+/// `EffectTarget::TriggeringCreature` on `state.objects.contains_key`, so a live resolve
+/// returns no object in that case -- the override must not silently mis-attribute the damage
+/// to the Reactive Enchantment (which has no Lifelink of its own).
+///
+/// Non-vacuity (verified by temporary revert): reverting the `damage_source_id` fallback to
+/// `unwrap_or(ctx.source)` directly (skipping the `ctx.triggering_creature_id` step) makes the
+/// lifelink check read the Reactive Enchantment instead -- no `LifeGained` event fires, and
+/// this test reddens.
+#[test]
+fn test_ef4_dealdamage_source_departed_triggering_creature_reads_lki() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let (mut state, entering_id) =
+        build_source_override_state(Some(CardEffectTarget::TriggeringCreature));
+
+    enter_battlefield(&mut state, entering_id, p1);
+
+    // Simulate the entering creature being destroyed in response to its own trigger.
+    // CR 400.7: this retires `entering_id` and assigns a new ObjectId in the graveyard --
+    // exactly the "already left the battlefield" case the fix targets. The trigger's
+    // `triggering_creature_id` was already captured onto the stack object before this move,
+    // so the departed id is still what the DealDamage effect will try to resolve against.
+    test_util::move_object_to_zone(&mut state, entering_id, ZoneId::Graveyard(p1))
+        .expect("move to graveyard should succeed");
+    assert!(
+        state.objects().get(&entering_id).is_none(),
+        "precondition: entering_id must be retired (CR 400.7) before the trigger resolves"
+    );
+
+    let (_state, events) = drain_stack(state, &[p1, p2]);
+
+    assert!(
+        events.iter().any(
+            |e| matches!(e, GameEvent::LifeGained { player, amount } if *player == p1 && *amount == 3)
+        ),
+        "PB-EF4 review fix: the departed triggering creature's Lifelink should still apply via \
+         LKI (damage_source_id falls back to ctx.triggering_creature_id, not ctx.source, when \
+         the creature has already left the battlefield)"
     );
 }
 

@@ -5,7 +5,7 @@ title: Add EffectFilter::TriggeringCreature (continuous-effect subject = the jus
 task: scutemob-105
 branch: feat/pb-ef4-triggeringcreature-as-effect-subjectsource-ef-w-pb2-6
 started: 2026-07-18
-phase: review
+phase: fix
 plan_file: memory/primitives/pb-plan-EF4.md
 
 ## Source findings
@@ -137,3 +137,32 @@ plan_file: memory/primitives/pb-plan-EF4.md
     "let the compiler close the set" backstop anticipated).
   - Next: review phase (formal OOS-EF4-1 filing, if not already sufficiently captured by the
     rewritten shared_animosity.rs completeness note, is a reviewer call).
+- 2026-07-18 fix DONE (scutemob-105): applied both LOW findings from `pb-review-EF4.md`.
+  - LOW #1 (`effects/mod.rs:291-308`): `damage_source_id` now falls back to
+    `ctx.triggering_creature_id` (via `.or(...)`, not `.or_else` — clippy
+    `unnecessary_lazy_evaluations`) when `source == Some(EffectTarget::TriggeringCreature)`
+    and `resolve_effect_target_list` returns no live object (the triggering creature already
+    left). `ctx.source` remains the last-resort fallback for every other case, and `source:
+    None` is untouched. Added a focused regression test,
+    `test_ef4_dealdamage_source_departed_triggering_creature_reads_lki` (new section in
+    `pb_ef4_triggering_creature_subject_source.rs`): builds the same P1-lifelinker /
+    P2-reactive-enchantment scenario as decoy 2, but moves the entering creature to the
+    graveyard via `state::test_util::move_object_to_zone` (CR 400.7, retires the id) *before*
+    draining the stack — the stack object's `triggering_creature_id` was already captured at
+    trigger-creation time, so this exercises exactly the "already left before resolution"
+    path. Non-vacuity verified by temporary revert (`git stash` on `effects/mod.rs` alone):
+    test reddens without the fix, passes with it restored.
+  - LOW #2 (`dragon_tempest.rs`, `scourge_of_valkas.rs`): removed the redundant
+    `has_card_type: Some(CardType::Creature)` from both "number of Dragons you control"
+    `PermanentCount` filters, leaving `has_subtype: Dragon` + `controller: Controller` as the
+    review recommended. No behavior change on any realistic board (Dragon implies creature);
+    both cards' existing integration tests still pass unmodified.
+  - Gates: `cargo build --workspace` clean; `cargo test --all` **3383 passed / 0 failed**
+    (3382 + 1 new regression test); `cargo clippy --all-targets -- -D warnings` clean (one
+    `unnecessary_lazy_evaluations` self-inflicted during the fix, resolved by switching
+    `.or_else(|| ...)` to `.or(...)`); `cargo fmt --check` clean; `tools/check-defs-fmt.sh`
+    clean (1789 defs).
+  - Wire: confirmed `PROTOCOL_VERSION` stays 9 and `HASH_SCHEMA_VERSION` stays 47 (both files
+    show zero git diff) — these are behavior-only fixes, no wire/schema shape change, no
+    re-pin needed. No card-hash sentinel test failed, so no sentinel hashes were touched.
+  - Fix phase complete: both LOW findings closed, no HIGH/MEDIUM outstanding from the review.

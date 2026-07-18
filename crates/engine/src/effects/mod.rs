@@ -279,9 +279,15 @@ fn execute_effect_inner(
                 return;
             }
             // CR 119.3: resolve the damage source. Default = ctx.source (source: None).
-            // Some(t): use the first resolved Object as the source; if it resolves to no
-            // object (e.g. TriggeringCreature already left, CR 113.7a), fall back to
-            // ctx.source.
+            // Some(t): use the first resolved Object as the source. `resolve_effect_target_list`
+            // gates EffectTarget::TriggeringCreature on `state.objects.contains_key`, so if that
+            // creature already left (e.g. sacrificed in response), it resolves to no object.
+            // In that case, fall back to the raw ctx.triggering_creature_id rather than
+            // ctx.source: it's still LKI-readable, so damage_source_characteristics /
+            // damage_source_controller correctly read the departed creature's last-known
+            // lifelink/deathtouch/infect (CR 113.7a / 608.2m, SR-13) instead of misattributing
+            // to the enchantment/permanent that granted the trigger. Only genuinely-unresolvable
+            // cases (no triggering creature at all) fall through to ctx.source.
             let damage_source_id = source
                 .as_ref()
                 .and_then(|t| {
@@ -290,6 +296,11 @@ fn execute_effect_inner(
                         .find_map(|r| match r {
                             ResolvedTarget::Object(id) => Some(id),
                             ResolvedTarget::Player(_) => None,
+                        })
+                        .or(if matches!(t, EffectTarget::TriggeringCreature) {
+                            ctx.triggering_creature_id
+                        } else {
+                            None
                         })
                 })
                 .unwrap_or(ctx.source);

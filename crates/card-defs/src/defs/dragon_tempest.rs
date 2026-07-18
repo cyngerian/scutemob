@@ -75,7 +75,6 @@ pub fn card() -> CardDefinition {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     amount: EffectAmount::PermanentCount {
                         filter: TargetFilter {
-                            has_card_type: Some(CardType::Creature),
                             has_subtype: Some(SubType("Dragon".to_string())),
                             ..Default::default()
                         },
