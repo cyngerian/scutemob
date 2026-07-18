@@ -5,7 +5,24 @@ title: Add `TargetRequirement::TargetOpponent` — an opponent-restricted player
 task: scutemob-107
 branch: feat/pb-ef6-targetrequirementtargetopponent-ef-w-pb2-2
 started: 2026-07-18
-phase: implement
+phase: review
+## Card def / test / wire-bump steps (2026-07-18)
+- [x] 3 clean flips → Complete: shaman_of_the_pack (ETB authored: LoseLife + EffectAmount::PermanentCount{Elf,You} + TargetOpponent), raiders_wake (Raid ability authored: AtBeginningOfYourEndStep + Condition::YouAttackedThisTurn + DiscardCards + TargetOpponent), vengeful_bloodwitch (TargetPlayer→TargetOpponent, known_wrong marker removed)
+- [x] fell_specter corrected (ETB TargetPlayer→TargetOpponent), stays Complete
+- [x] blood_tribute target-fixed (TargetOpponent), stays partial (HalfLife blocker)
+- [x] blessed_alliance mode-2 idx3 target-fixed (TargetOpponent), idx0 kept TargetPlayer, stays partial (Escalate/mode_targets blocker)
+- [x] forbidden_orchard: targets fixed to TargetOpponent; TokenSpec.recipient wiring ATTEMPTED then REVERTED (new engine finding — WhenTappedForMana Normal-kind triggers don't populate characteristics.triggered_abilities, so targets/recipient are dead on this dispatch path; broke mana_triggers::test_mana_trigger_forbidden_orchard, caught + fixed). Marker rewritten to cite both blockers precisely. Stays known_wrong.
+- [x] ajani_sleeper_agent emblem target-fixed (TargetOpponent), stale TODO comments removed, marker's "targets any player" clause dropped. Stays known_wrong.
+- [x] flare_of_malice left untouched
+- [x] No remaining TargetOpponent-blocker TODO/ENGINE-BLOCKED comments in the 4 Complete defs (shaman/raiders_wake/vengeful_bloodwitch/fell_specter); the 5 non-Complete defs correctly still carry their real (non-TargetOpponent) blocker TODOs
+- [x] New test module `pb_ef6_target_opponent.rs` (8 tests) registered in primitives/main.rs — all pass
+- [x] Decoys proven non-vacuous by temporary breakage + revert: (1) casting.rs self-rejection arm forced to `Ok` unconditionally → reddened test_target_opponent_spell_accepts_opponent_rejects_self_4p AND test_target_opponent_decoy_self_must_be_rejected; (2) abilities.rs outer picker given a `.or(Some(trigger.controller))` self-fallback → reddened test_target_opponent_trigger_no_opponent_removed_from_stack. Both reverted, suite re-verified green.
+- [x] PROTOCOL 10→11 (fingerprint 07e51466..., frozen-prefix re-pinned to 971517e8...), HASH 48→49 (decl 0f8e380b..., stream d3f8ecb0..., frozen-prefix re-pinned to ae92dcee...) — all 4 digests read from the FAILING gate output, never hand-guessed. History rows appended (never edited). 31 scattered HASH_SCHEMA_VERSION sentinels bulk-bumped 48u8→49u8.
+- [x] `cargo test --all` green (all groups, 0 failures)
+- [x] `cargo clippy --all-targets -- -D warnings` clean
+- [x] `cargo build --workspace` clean
+- [x] `cargo fmt --check` clean; `tools/check-defs-fmt.sh` clean (had to fix a card_defs_fmt::completeness_deviation_scan hit on vengeful_bloodwitch's "approximat" wording)
+- [ ] /review — coordinator's job, not run here
 ## Engine steps (2026-07-18)
 - [x] Step 1: `TargetRequirement::TargetOpponent` unit variant added, card_definition.rs (after UpToN)
 - [x] Step 2: hash.rs discriminant 18 arm added (exhaustive match)
