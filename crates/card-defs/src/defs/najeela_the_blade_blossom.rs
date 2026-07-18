@@ -39,7 +39,7 @@ pub fn card() -> CardDefinition {
             // variant exists). Per W5 policy this single ability cannot be partially authored;
             // stays fully blocked until the additional-combat-phase timing gate exists.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "'Whenever a Warrior attacks' requires a creature-type-filtered attack trigger \
              (WheneverCreatureWithSubtypeAttacks) that...",
         ),

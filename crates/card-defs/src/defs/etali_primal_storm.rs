@@ -29,7 +29,7 @@ pub fn card() -> CardDefinition {
             // any number of those exiled cards for free. The multi-player exile + conditional
             // free cast from among recently exiled cards is not expressible in the current DSL.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "DSL gap — the WhenAttacks trigger exiles the top card of EACH player's library \
              (ForEach over EachPlayer with...",
         ),

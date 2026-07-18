@@ -25,7 +25,7 @@ pub fn card() -> CardDefinition {
             // power or toughness <= 1. Needs a power-or-toughness conditional
             // EffectFilter (existing filters check power only, not "power OR toughness").
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "Static grant of CantBeBlocked to creatures you control with power or toughness <= 1. \
              Needs a power-or-toughness...",
         ),

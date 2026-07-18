@@ -34,7 +34,7 @@ pub fn card() -> CardDefinition {
             // TODO: ETB choose-two modal ability grant (no ChooseAbility ETB in DSL)
             // TODO: Conditional +2/+2 static requiring count_threshold filter
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "Blocked: 'As this enters, choose two abilities from among first strike, vigilance, \
              and lifelink' — no as-enters ability-choice replacement and no layer grant keyed to \
              a chosen ability set. The +2/+2 conditional static IS now expressible \

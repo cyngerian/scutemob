@@ -32,7 +32,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — "another creature you control dies" trigger with controller
             // filter + experience counter grant + end step trigger with MV comparison.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "Blocked on two specifics: (1) no effect grants a counter to a player \
              (Effect::AddCounter targets permanents; CounterType::Experience and \
              EffectAmount::PlayerCounterCount exist but there is no way to add one); (2) no \

@@ -27,7 +27,7 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(2),
         abilities: vec![],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "No Cost variant exists for 'exile this card from your hand' as an activation cost. \
              Cost::ExileFromHand{color} (card_definition.rs:1247) is the unrelated pitch alt-cost \
              mechanic (Force of Will family) — it exiles a card from hand to help pay for casting \

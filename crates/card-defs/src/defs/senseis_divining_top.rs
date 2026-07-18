@@ -25,7 +25,7 @@ pub fn card() -> CardDefinition {
             // TODO: {1}: Look at top 3 and rearrange — no rearrange-top-of-library effect in DSL.
             // TODO: {T}: Draw a card then put self on top of library — no PutSelfOnTopOfLibrary effect.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "{1} 'look at the top three cards, then put them back in any order' is omitted — no \
              rearrange-top-of-library effect (Effect::Scry's deterministic fallback bottoms \
              cards, which is a different card). The {T} ability is NOT blocked and should be \

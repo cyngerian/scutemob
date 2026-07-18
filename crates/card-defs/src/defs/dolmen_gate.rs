@@ -26,7 +26,7 @@ pub fn card() -> CardDefinition {
             // DSL gap: ReplacementModification::PreventCombatDamageTo { filter: attacking_you_control }
             // needed. Omitted per W5 policy.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "Effect::PreventAllCombatDamage prevents ALL combat damage (attacker and defender). \
              Oracle says 'to attacking creatures...",
         ),

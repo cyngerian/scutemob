@@ -24,7 +24,7 @@ pub fn card() -> CardDefinition {
             // ETB → sacrifice self → search for basic Forest/Plains/Island tapped + gain 1 life.
             // Requires a reflexive trigger mechanism. Omitted per W5 policy.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "Reflexive trigger pattern ('When you do, ...') is not expressible in the current \
              DSL. The ETB causes sacrifice-self...",
         ),

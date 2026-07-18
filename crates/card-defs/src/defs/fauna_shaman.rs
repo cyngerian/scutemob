@@ -25,7 +25,7 @@ pub fn card() -> CardDefinition {
             // TODO: {G}, {T}, Discard a creature card: search for creature card, put into hand
             //   (Cost enum lacks DiscardCardWithType(TargetFilter) variant)
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "{G}, {T}, Discard a creature card: search for creature card, put into hand (Cost \
              enum lacks...",
         ),

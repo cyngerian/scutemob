@@ -23,7 +23,7 @@ pub fn card() -> CardDefinition {
             // TODO: Tap an untapped creature you control: Tap target artifact, creature, or land.
             //   (Cost enum lacks TapAnotherCreature variant)
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "Tap an untapped creature you control: Tap target artifact, creature, or land. (Cost \
              enum lacks TapAnotherCreature...",
         ),

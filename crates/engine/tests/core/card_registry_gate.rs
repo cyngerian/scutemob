@@ -212,6 +212,99 @@ fn inert_gate_is_not_vacuous() {
 }
 
 #[test]
+/// The kind↔shape gate (EF-13): a def that registers no behaviour is `Inert` by the
+/// `Completeness` taxonomy. `Partial` ("some clauses are implemented and at least one is
+/// not") and `KnownWrong` ("every clause is implemented, but one deviates") both assert
+/// that behaviour *is* implemented — which a def registering zero behaviour contradicts.
+/// So a no-behaviour def marked `Partial`/`KnownWrong` is mis-classified; it is `Inert`.
+///
+/// This gate exists because the marker corpus drifted into exactly this state: 101 defs
+/// were marked `Partial` while `registers_no_behavior` was true for them, misreporting the
+/// campaign's `todo`/`empty` buckets (EF-13; original finding
+/// `memory/card-authoring/marker-sweep-engine-findings-2026-07-16.md`). They were
+/// reclassified `Partial`→`Inert`; this keeps the class from re-forming.
+///
+/// **`KnownWrong` is gated too, not just `Partial`.** A `KnownWrong` def claims *every*
+/// clause is implemented, so a no-behaviour `KnownWrong` is even more contradictory than a
+/// `Partial` one, and there is no legitimate no-behaviour `KnownWrong` def — implementing
+/// zero clauses cannot also mean implementing all of them. Verified against the compiled
+/// registry at reclassification time (`all_cards()` + `registers_no_behavior`): **zero**
+/// `KnownWrong` defs register no behaviour, so including `KnownWrong` rejects no real
+/// member. Enumerate this class from `all_cards()`, never source text — the regex
+/// `abilities:\s*vec!\[\s*\]` also matches `mana_abilities: vec![]` (the recurring corpus
+/// trap), which is why a source scan undercounts.
+fn test_no_behavior_defs_are_inert_not_partial_or_known_wrong() {
+    let offenders: Vec<(String, &'static str)> = all_cards()
+        .iter()
+        .filter(|d| {
+            registers_no_behavior(d)
+                && matches!(
+                    d.completeness,
+                    Completeness::Partial(_) | Completeness::KnownWrong(_)
+                )
+        })
+        .map(|d| (d.name.clone(), d.completeness.kind()))
+        .collect();
+
+    assert!(
+        offenders.is_empty(),
+        "these defs register no behaviour but are marked Partial/KnownWrong — both claim a \
+         clause IS implemented, so by the taxonomy they are Inert. Change the marker to \
+         `Completeness::inert(...)`: {offenders:?}"
+    );
+}
+
+#[test]
+/// Non-vacuity for [`test_no_behavior_defs_are_inert_not_partial_or_known_wrong`].
+///
+/// The gate above is green partly because EF-13 emptied its target class, so a
+/// corpus-only assertion would keep passing even if the predicate silently stopped
+/// distinguishing the shapes it is meant to reject (an SR lesson: a gate that cannot fail
+/// is not a gate). Pin the predicate directly against a synthetic corpus: a no-behaviour
+/// def marked `Partial` — and one marked `KnownWrong` — must both be flagged, while the
+/// same def marked `Inert` or `Complete` must not be.
+fn no_behavior_kind_gate_is_not_vacuous() {
+    let base = {
+        let mut d = artifact("canary", "Canary");
+        d.oracle_text = "Do a thing.".to_string();
+        d
+    };
+    assert!(
+        registers_no_behavior(&base),
+        "the canary must register no behaviour, or this proof tests nothing"
+    );
+
+    let is_flagged = |c: Completeness| {
+        let mut d = base.clone();
+        d.completeness = c;
+        registers_no_behavior(&d)
+            && matches!(
+                d.completeness,
+                Completeness::Partial(_) | Completeness::KnownWrong(_)
+            )
+    };
+
+    // Rejected shapes: the gate fires.
+    assert!(
+        is_flagged(Completeness::partial("x")),
+        "a no-behaviour Partial def must be flagged by the gate"
+    );
+    assert!(
+        is_flagged(Completeness::known_wrong("x")),
+        "a no-behaviour KnownWrong def must be flagged by the gate"
+    );
+    // Allowed shapes: the gate stays silent.
+    assert!(
+        !is_flagged(Completeness::inert("x")),
+        "a no-behaviour Inert def is correctly classified and must NOT be flagged"
+    );
+    assert!(
+        !is_flagged(Completeness::Complete),
+        "a Complete def must NOT be flagged"
+    );
+}
+
+#[test]
 /// A vanilla card (no printed rules text, e.g. Memnite) is complete with zero
 /// abilities. The inert guard above must not force a marker onto it.
 fn test_vanilla_definitions_stay_complete() {

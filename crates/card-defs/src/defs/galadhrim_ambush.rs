@@ -27,7 +27,7 @@ pub fn card() -> CardDefinition {
             // authoring only the token-creation half (which would silently drop the
             // prevention clause the card's text promises).
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "'Prevent all combat damage that would be dealt this turn by non-Elf creatures' — a \
              filtered (subtype-exclusion)...",
         ),

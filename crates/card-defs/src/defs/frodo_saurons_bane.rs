@@ -72,7 +72,7 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "{W/B}{W/B} ability — if Frodo is a Citizen, change subtype to Halfling Scout, set \
              base P/T to 2/3, and grant lifelink...",
         ),

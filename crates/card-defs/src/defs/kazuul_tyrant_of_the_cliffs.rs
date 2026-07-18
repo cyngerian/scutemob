@@ -39,7 +39,7 @@ pub fn card() -> CardDefinition {
             //    attacking creature" — the payer cannot be addressed. The or_else (create a
             //    3/3 red Ogre) is itself expressible once the payer can be resolved.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "ENGINE-BLOCKED. Two genuine gaps: 1. No TriggerCondition for 'whenever a creature an \
              opponent controls attacks.'...",
         ),

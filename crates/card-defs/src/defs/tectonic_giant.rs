@@ -39,7 +39,7 @@ pub fn card() -> CardDefinition {
             // dropped, the player is forced into mode 0 and loses a choice the oracle grants.
             // A partial modal ability is worse than an absent one (W6 policy).
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "mode 1 ('Exile the top two cards of your library. Choose one of them. Until the end \
              of your next turn, you may play...",
         ),

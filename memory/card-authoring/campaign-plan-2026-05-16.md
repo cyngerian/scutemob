@@ -62,9 +62,18 @@ engine-primitive queue is now **`memory/primitives/ef-batch-plan-2026-07-17.md`*
 (`scutemob-98`) — it consolidates the 19 EF findings those waves filed + EF-13 into an
 ordered, deduped, correctness-first PB queue. **Recommended first dispatch: PB-EF1**
 (`exclude_self` enforcement sweep), preceded by the coordinator one-liner demoting
-`swan_song` (EF-W-MISS-1, the one live-wrong `Complete` def). EF-13 (105 mis-typed
-markers) is a coordinator decision presented in that plan's §3. The PB-first + cohort-
-backfill rhythm below still holds; the EF batch plan is where the PB definitions now live.
+`swan_song` (EF-W-MISS-1, the one live-wrong `Complete` def). ~~EF-13 (105 mis-typed
+markers) is a coordinator decision presented in that plan's §3.~~ **EF-13 RESOLVED
+(Option A, `scutemob-101`, 2026-07-18):** the no-behaviour `Partial` class — enumerated
+from the compiled registry (`all_cards()` + `card_registry_gate::registers_no_behavior`)
+as **101 defs** (down from 105 at the marker sweep; PB-EF1 and the W-* waves flipped a
+few) — was reclassified `Partial→Inert`, and `card_registry_gate` now machine-forbids
+`Partial`/`KnownWrong` on any def where `registers_no_behavior` is true so the class
+cannot re-form. **Reporting shift** (deliberate, per Option A): `todo` 655→554,
+`empty` 57→158 (both ±101). **Clean-coverage headline unchanged: 1,070 = 60.0%** — no
+def's behaviour changed, no `Complete` def moved. No HASH/PROTOCOL bump (marker-only).
+The PB-first + cohort-backfill rhythm below still holds; the EF batch plan is where the
+PB definitions now live.
 
 ---
 

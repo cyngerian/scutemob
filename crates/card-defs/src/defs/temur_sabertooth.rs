@@ -27,7 +27,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // ENGINE-BLOCKED: see module comment — bounce-as-cost has no Cost variant.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "out of PB-AC2 scope: PB-AC2's `Effect::MayPayThenEffect` only wraps `Cost` \
              variants...",
         ),

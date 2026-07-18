@@ -25,7 +25,7 @@ pub fn card() -> CardDefinition {
             //   Also requires EffectAmount::LifeGainedThisEvent to cap the X cost,
             //   and a Cost::PayUpToX variant. Multiple DSL gaps. Omitted per W5 policy.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "Blocked on (a) no EffectAmount carries the amount of life gained by the triggering \
              event, (b) no Cost::PayUpToX(cap) variant, (c) 'you may pay' has no interactive \
              expression. The WheneverYouGainLife trigger DOES exist and is fully wired — that \

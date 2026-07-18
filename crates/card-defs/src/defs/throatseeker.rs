@@ -24,7 +24,7 @@ pub fn card() -> CardDefinition {
             // requiring creature-type filter (Ninja) and combat-state filter (unblocked attacker).
             // DSL gap: no such filter combination exists in ContinuousEffectDef.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "Blocked on an 'unblocked attacking' combat-state EffectFilter. \
              EffectFilter::AttackingCreaturesYouControlWithSubtype covers 'attacking Ninjas you \
              control' but there is no unblocked-attacker variant, and blocked status is a runtime \

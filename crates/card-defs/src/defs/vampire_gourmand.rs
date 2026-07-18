@@ -33,7 +33,7 @@ pub fn card() -> CardDefinition {
             // ENGINE-BLOCKED: see module comment -- blocked on missing "another
             // creature" (exclude-self) sacrifice-cost semantics.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "PB-AC2's Effect::MayPayThenEffect (CR 118.12) can express the 'may sacrifice -> then \
              draw + evasion' shape, and the...",
         ),

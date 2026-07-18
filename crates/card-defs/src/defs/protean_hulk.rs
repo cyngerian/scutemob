@@ -24,7 +24,7 @@ pub fn card() -> CardDefinition {
             // SearchLibrary finds one card; "any number with total MV 6 or less" needs
             // multi-card search with cumulative cost tracking (M10 player choice).
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "DSL gap — death trigger + multi-card search with total MV constraint. SearchLibrary \
              finds one card; 'any number with...",
         ),

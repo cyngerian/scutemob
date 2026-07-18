@@ -31,7 +31,7 @@ pub fn card() -> CardDefinition {
             // WheneverYouAttack trigger condition is now available but the effect requires
             // type-addition + granting triggered abilities which aren't in the DSL.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "'Whenever you attack' effect (type change + grant trigger to target) not expressible \
              in DSL. WheneverYouAttack trigger...",
         ),

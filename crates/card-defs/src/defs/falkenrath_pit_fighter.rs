@@ -23,7 +23,7 @@ pub fn card() -> CardDefinition {
             //   says sacrifice any Vampire, not specifically self). Removed to avoid
             //   wrong game state.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "Blocked on activation condition 'only if an opponent lost life this turn' — no \
              Condition::OpponentLostLifeThisTurn (the tracking exists for AltCostKind::Spectacle \
              but is not exposed as a Condition). The cost itself ({1}{R}, Cost::DiscardCard, \

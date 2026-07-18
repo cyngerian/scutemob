@@ -25,7 +25,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — multi-type target filter (artifact/creature/planeswalker)
             // and "its controller" token creation not expressible.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "Sole blocker: token recipient. 'Its controller creates a 2/2 blue Bird token' — \
              Effect::CreateToken/TokenSpec has no player field, so tokens always go to \
              ctx.controller; in multiplayer the token would go to the caster instead of the \

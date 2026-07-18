@@ -36,7 +36,7 @@ pub fn card() -> CardDefinition {
             // DSL gap: ApplyContinuousEffect with GrantKeyword(Indestructible) to
             // EffectFilter::CreatureTokensYouControl does not exist.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "'Whenever you attack with this creature and/or your commander, for each opponent, \
              create a 1/1 red Goblin creature...",
         ),

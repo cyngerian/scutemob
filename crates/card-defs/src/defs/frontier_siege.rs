@@ -30,7 +30,7 @@ pub fn card() -> CardDefinition {
             //   Effect::Fight is now available (PB-21), but the modal ETB choice and the
             //   "whenever creature with flying ETB" conditional trigger pattern remain blocking gaps.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "As-enters mode choice ('choose Khans or Dragons') is the sole blocker — \
              ReplacementModification has ChooseCreatureType/ChooseColor but no mode-selection \
              variant, and no Condition reads a chosen mode. Both modes' bodies are otherwise \

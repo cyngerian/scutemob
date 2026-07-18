@@ -20,7 +20,7 @@ pub fn card() -> CardDefinition {
             // TODO: Cost::TapCreatureYouControl — tapping another creature as a cost
             // is not in the DSL (Cost enum lacks TapCreature variant).
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "Cost::TapCreatureYouControl — tapping another creature as a cost is not in the DSL \
              (Cost enum lacks TapCreature variant)",
         ),

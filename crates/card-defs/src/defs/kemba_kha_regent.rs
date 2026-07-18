@@ -26,7 +26,7 @@ pub fn card() -> CardDefinition {
             // TODO: AtBeginningOfYourUpkeep trigger that creates N tokens where N = count of
             // Equipment attached to self. EffectAmount::CountAttachedEquipment not in DSL.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "AtBeginningOfYourUpkeep trigger that creates N tokens where N = count of Equipment \
              attached to self....",
         ),

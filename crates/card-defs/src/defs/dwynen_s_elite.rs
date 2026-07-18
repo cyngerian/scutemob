@@ -24,7 +24,7 @@ pub fn card() -> CardDefinition {
             // without the condition would create a token even without another Elf,
             // which is wrong behavior. Using TODO per W5 policy.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "Blocked on the 'another' exclusion, not on subtype counting. 'When this creature \
              enters, if you control ANOTHER Elf' — Condition::ControlCreatureWithSubtype \
              (card_definition.rs:3536) and Condition::YouControlNOrMoreWithFilter (:3571) both \

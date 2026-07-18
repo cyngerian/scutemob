@@ -24,7 +24,7 @@ pub fn card() -> CardDefinition {
             // creature), "if you can't" fallback to self-sacrifice. Re-implement all
             // three statics (+1/+1, flying, indestructible) once the upkeep trigger works.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "All abilities stripped per W5 policy — +1/+1, flying, and indestructible to all \
              creatures with NO downside is wrong...",
         ),

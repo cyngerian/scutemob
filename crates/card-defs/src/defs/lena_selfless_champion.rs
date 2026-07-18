@@ -33,7 +33,7 @@ pub fn card() -> CardDefinition {
             //   power less than Lena's power — requires dynamic power comparison in filter.
             //   DSL lacks this conditional filter. W5 policy: omitted.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "ETB 'for each nontoken creature you control': EffectAmount::PermanentCount exists \
              but TargetFilter::is_nontoken is silently ignored by matches_filter, and \
              PermanentCount (effects/mod.rs:6749) never checks it — tokens would be counted. \
