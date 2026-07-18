@@ -67,8 +67,10 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
                 modes: None,
             },
-            // CR 613.1b: {3}{B}{B}: Gain control of target Vampire for as long as you control
-            // Olivia Voldaren (WhileSourceOnBattlefield approximation).
+            // CR 613.1b / 611.2b/c: {3}{B}{B}: Gain control of target Vampire for as long as
+            // you control Olivia Voldaren. EffectDuration::WhileYouControlSource(PlayerId(0))
+            // is the placeholder form; Effect::GainControl resolves PlayerId(0) to the
+            // activating player's controller at execution time (PB-EF9).
             AbilityDefinition::Activated {
                 cost: Cost::Mana(ManaCost {
                     generic: 3,
@@ -77,7 +79,7 @@ pub fn card() -> CardDefinition {
                 }),
                 effect: Effect::GainControl {
                     target: EffectTarget::DeclaredTarget { index: 0 },
-                    duration: EffectDuration::WhileSourceOnBattlefield,
+                    duration: EffectDuration::WhileYouControlSource(PlayerId(0)),
                 },
                 timing_restriction: None,
                 targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
@@ -90,16 +92,7 @@ pub fn card() -> CardDefinition {
                 modes: None,
             },
         ],
-        completeness: Completeness::partial(
-            "The {1}{R} ability is fully correct (1 damage to another target creature, it becomes \
-             a Vampire in addition, +1/+1 counter on Olivia). The {3}{B}{B} gain-control ability \
-             approximates \"for as long as you control Olivia Voldaren\" with \
-             EffectDuration::WhileSourceOnBattlefield — no EffectDuration variant expresses \
-             \"while you control source\" (continuous_effect.rs L44-64), so the borrowed creature \
-             would NOT return if an opponent gains control of Olivia while she stays on the \
-             battlefield (wrong game state under gain-control). Blocked on a missing duration \
-             primitive — W-PB2 engine finding EF-W-PB2-5.",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

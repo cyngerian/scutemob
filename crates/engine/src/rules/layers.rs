@@ -516,6 +516,13 @@ pub fn is_effect_active(state: &GameState, effect: &ContinuousEffect) -> bool {
         // CR 611.2b: Active until the specified player's next turn begins.
         // Removal is handled by expire_until_next_turn_effects at the untap step.
         EffectDuration::UntilYourNextTurn(_) => true,
+        // CR 611.2b/c: activity/removal is handled imperatively by
+        // expire_while_you_control_source_effects (one-shot, never resumes). Mirror
+        // UntilYourNextTurn: always "active" here; the expiry pass owns termination.
+        // Do NOT put a live control check here -- that would let the effect resume,
+        // violating CR 611.2c. (`SetController` is a layer no-op anyway, so this arm
+        // never affects characteristics.)
+        EffectDuration::WhileYouControlSource(_) => true,
         // CR 702.95a: Active as long as both creatures are on the battlefield,
         // phased in, and still have their paired_with pointing at each other.
         EffectDuration::WhilePaired(a, b) => {
@@ -1687,6 +1694,131 @@ pub fn expire_until_next_turn_effects(state: &mut GameState, active_player: Play
         if let Some(obj) = state.expect_object_mut(id) {
             obj.triggered_abilities_fired_this_turn = imbl::OrdSet::new();
         }
+    }
+}
+
+// ── WhileYouControlSource expiry (PB-EF9) ────────────────────────────────────
+
+/// Expire `EffectDuration::WhileYouControlSource` continuous effects whose creator no
+/// longer controls the source permanent, and revert control of the borrowed object
+/// (CR 611.2b/c, 702.26e).
+///
+/// This is a one-shot imperative pass: once an effect is removed here, it is never
+/// re-added, so the borrowed permanent never resumes under its borrower even if control
+/// of the source later returns (CR 611.2c — "the set of objects [the effect] affects is
+/// determined when that continuous effect begins. After that point, the set won't
+/// change."). `is_effect_active`'s arm for this duration always returns `true` for
+/// exactly this reason: termination is owned solely by this function, never by a live
+/// re-evaluation.
+///
+/// CR 702.26e: a phased-out source is STILL controlled by its controller — this check
+/// deliberately does NOT test `is_phased_in()` (unlike the `WhileSourceOnBattlefield`
+/// arm of `is_effect_active`, which treats a phased-out source as inactive). A borrower
+/// does not lose a stolen permanent just because the source phases out.
+///
+/// CR 400.7: if the source object no longer resolves (it left the battlefield and is a
+/// new object in its new zone), the effect has ended.
+///
+/// Call-site assumption: control of a source only changes through effect resolution or
+/// the source leaving the battlefield, and both paths are immediately followed by
+/// `sba::check_and_apply_sbas`. This pass is called once at the top of
+/// `check_and_apply_sbas`, before the SBA fixpoint loop, so it observes every
+/// post-resolution state. If a future feature ever changes control of a permanent
+/// outside a resolution/SBA boundary, this pass would lag behind it.
+///
+/// No `GameEvent` variant exists today for "control changed"/"control reverted" (grep
+/// confirmed), so this function returns nothing rather than `Vec<GameEvent>`. If such an
+/// event is ever added, wire it through the caller the same way SBA events are (extend
+/// `all_events` and run `abilities::check_triggers` on it).
+pub fn expire_while_you_control_source_effects(state: &mut GameState) {
+    // Step 1: find ended effects and the objects they affect.
+    let mut ended_ids: Vec<crate::state::continuous_effect::EffectId> = Vec::new();
+    let mut affected: Vec<ObjectId> = Vec::new();
+    for e in state.continuous_effects.iter() {
+        let pid = match e.duration {
+            EffectDuration::WhileYouControlSource(pid) => pid,
+            _ => continue,
+        };
+        let ended = match e.source {
+            Some(src) => state
+                .objects
+                .get(&src)
+                // CR 702.26e: phased-out source is STILL controlled -- do NOT check
+                // is_phased_in() here.
+                .map(|o| !(o.zone == ZoneId::Battlefield && o.controller == pid))
+                .unwrap_or(true), // source object gone (CR 400.7 new id) -> ended
+            None => false,
+        };
+        if ended {
+            ended_ids.push(e.id);
+            // NOTE (LOW, PB-EF9 review): only `EffectFilter::SingleObject` reverts
+            // control here. Every card authored today (GainControl) always produces
+            // a `SingleObject` filter, so this is not a live gap -- but a future
+            // `WhileYouControlSource` effect built via `ApplyContinuousEffect` with a
+            // broader filter (e.g. `AllPermanents`, `CreaturesYouControl`) would have
+            // its effect correctly removed in Step 2 below, yet none of the objects
+            // it applied to would have their `controller` reverted (Step 3 never
+            // sees them). If you add such a card, extend this match to resolve the
+            // broader filter's matching object ids here too.
+            if let EffectFilter::SingleObject(obj_id) = e.filter {
+                affected.push(obj_id);
+            }
+        }
+    }
+    if ended_ids.is_empty() {
+        return;
+    }
+    // Step 2: PERMANENTLY remove the ended effects (CR 611.2c -- never resumes).
+    let keep: imbl::Vector<ContinuousEffect> = state
+        .continuous_effects
+        .iter()
+        .filter(|e| !ended_ids.contains(&e.id))
+        .cloned()
+        .collect();
+    state.continuous_effects = keep;
+    // Step 3: revert control of each affected object.
+    for obj_id in affected {
+        recompute_object_controller(state, obj_id);
+    }
+}
+
+/// Recompute an object's controller from its owner plus any still-active Layer-2
+/// `SetController` continuous effects, applied in timestamp order (CR 613.7).
+///
+/// This is a minimal single-object Layer-2 application rather than a full layer
+/// recalculation. In the common case (no other control effect on this object) it
+/// reverts the object to its owner; if the object is under a *second* still-active
+/// control effect, this correctly keeps that one instead of blindly snapping to the
+/// owner (stacked-control correctness).
+///
+/// The just-removed `WhileYouControlSource` effect must already be gone from
+/// `state.continuous_effects` before this runs (see
+/// `expire_while_you_control_source_effects`), so it is excluded here automatically.
+fn recompute_object_controller(state: &mut GameState, object_id: ObjectId) {
+    let owner = match state.objects.get(&object_id) {
+        Some(o) => o.owner,
+        None => return,
+    };
+    let mut active: Vec<ContinuousEffect> = state
+        .continuous_effects
+        .iter()
+        .filter(|e| {
+            e.layer == EffectLayer::Control
+                && e.filter == EffectFilter::SingleObject(object_id)
+                && matches!(e.modification, LayerModification::SetController(_))
+        })
+        .filter(|e| is_effect_active(state, e))
+        .cloned()
+        .collect();
+    active.sort_by_key(|e| e.timestamp);
+    let mut controller = owner;
+    for e in &active {
+        if let LayerModification::SetController(p) = e.modification {
+            controller = p;
+        }
+    }
+    if let Some(obj) = state.objects.get_mut(&object_id) {
+        obj.controller = controller;
     }
 }
 

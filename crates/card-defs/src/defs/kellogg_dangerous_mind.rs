@@ -5,9 +5,11 @@
 // Kellogg. Activate only as a sorcery.
 //
 // TODO: "Sacrifice five Treasures: Gain control of target creature for as long as you
-// control Kellogg." — GainControl with duration "for as long as you control this" is not
-// expressible in DSL (no EffectDuration::WhileYouControlSource or GainControl Effect).
-// Cost::Sacrifice(N) for a specific count of a subtype also not in DSL.
+// control Kellogg." — PB-EF9 shipped EffectDuration::WhileYouControlSource, so the
+// GainControl + duration half of this ability IS now expressible (Dragonlord Silumgar /
+// Olivia Voldaren pattern). The SURVIVING blocker is the cost: Cost::Sacrifice(TargetFilter)
+// has no count field, so "sacrifice five Treasures" (a specific count of a subtype as an
+// activation cost) is still not expressible in the DSL.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -52,8 +54,9 @@ pub fn card() -> CardDefinition {
         completeness: Completeness::partial(
             "'Sacrifice five Treasures:' — Cost::Sacrifice(TargetFilter) has no count field; \
              sacrificing N permanents of a subtype as an activation cost is not expressible. \
-             (GainControl + 'for as long as you control this' duration ARE available — Dragonlord \
-             Silumgar pattern.)",
+             (GainControl + 'for as long as you control this' duration ARE available as of PB-EF9 \
+             — EffectDuration::WhileYouControlSource, Dragonlord Silumgar / Olivia Voldaren \
+             pattern. The Treasure-sacrifice-count cost is the only remaining blocker.)",
         ),
         ..Default::default()
     }

@@ -135,7 +135,13 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   path keys off `Cost::ExileSelfFromHand` alone, not this field). The closure's type
 ///   count is unchanged; both `Cost` and `ActivationZone`'s declared shapes moved, so the
 ///   digest moves.
-pub const PROTOCOL_VERSION: u32 = 13;
+/// - 14: PB-EF9 (2026-07-18) — `EffectDuration` (reachable via `Effect::GainControl` /
+///   `Effect::ApplyContinuousEffect(ContinuousEffectDef)` → the card DSL closure) gains
+///   a new variant `WhileYouControlSource(PlayerId)` (CR 611.2b/c — "for as long as you
+///   control [source]", a continuous-effect duration for gain-control effects; Olivia
+///   Voldaren, Dragonlord Silumgar). The closure's type count is unchanged;
+///   `EffectDuration`'s declared shape moved, so the digest moves.
+pub const PROTOCOL_VERSION: u32 = 14;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -153,7 +159,7 @@ pub const PROTOCOL_VERSION: u32 = 13;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "379fb0c4f791138a405b8b47f7efe629c9a870e026db99629da3b709ec83bafa";
+    "b94f90e1c6d7f4193385489f6f6d541dbb764534eab09593584f99361ea828d7";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -280,6 +286,12 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // PB-EF8 (2026-07-18): Cost gained ExileSelfFromHand; ActivationZone gained
         // Hand (see the `- 13:` History line above).
         fingerprint: "379fb0c4f791138a405b8b47f7efe629c9a870e026db99629da3b709ec83bafa",
+    },
+    ProtocolEpoch {
+        version: 14,
+        // PB-EF9 (2026-07-18): EffectDuration gained WhileYouControlSource (see the
+        // `- 14:` History line above).
+        fingerprint: "b94f90e1c6d7f4193385489f6f6d541dbb764534eab09593584f99361ea828d7",
     },
 ];
 
