@@ -14,7 +14,7 @@
 > Detailed PB-by-PB handoffs, hazards, and seed inventories live in `memory/workstream-state.md`.
 > Worker sessions: append detail there, not here. CLAUDE.md tracks current snapshot only.
 
-- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage **1,091/1,792 = 60.9%** per `tools/authoring-report.py`; **EF queue ACTIVE (`memory/primitives/ef-batch-plan-2026-07-17.md`) — PB-EF1..EF8 + EF-13 SHIPPED (`scutemob-99`/`101`..`109`); PB-EF9 in flight `scutemob-110`; remaining EF10/EF11/EF12**; **PB-AC chain COMPLETE — AC0..AC9 all shipped**; **marker sweep COMPLETE — `scutemob-88`**; **SR-33..38 chain COMPLETE**; **W-PB2 + W-EMPTY + W-MISS COMPLETE — `scutemob-95`/`96`/`97`**)
+- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage **1,093/1,792 = 61.0%** per `tools/authoring-report.py`; **EF queue ACTIVE (`memory/primitives/ef-batch-plan-2026-07-17.md`) — PB-EF1..EF9 + EF-13 SHIPPED (`scutemob-99`/`101`..`110`); PB-EF10 in flight `scutemob-111`; remaining EF11/EF12**; **PB-AC chain COMPLETE — AC0..AC9 all shipped**; **marker sweep COMPLETE — `scutemob-88`**; **SR-33..38 chain COMPLETE**; **W-PB2 + W-EMPTY + W-MISS COMPLETE — `scutemob-95`/`96`/`97`**)
 - **Invariant #9 is machine-enforced (SR-2).** `CardDefinition.completeness` (`Complete` by
   Default) marks a def `Inert` / `Partial` / `KnownWrong`; `validate_deck` rejects any
   non-`Complete` card with `DeckViolation::IncompleteCard`. `CardRegistry::try_new` errors on
@@ -33,7 +33,7 @@
   accessors, gated on the `test-util` feature (self dev-dependency). **`cargo build
   --workspace` is the only gate that proves the seal** — `test --all` and `clippy
   --all-targets` enable `test-util` workspace-wide via feature unification. It is a CI step.
-- **Tests**: **3396 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
+- **Tests**: **3437 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
   — and `fmt` here means `cargo fmt --check` **plus** `tools/check-defs-fmt.sh`, which is the only one
   of the two that looks at the 1,748 card defs (SR-35)
 - **CI**: **LIVE and green** since 2026-07-10 (SR-1, merge `e9742dc2`) — single Ubuntu job (fmt + clippy + `build --workspace` + full tests) on push/PR to main + workflow_dispatch; rust-cache@v2, 45m timeout. **Toolchain pinned (SR-11, `scutemob-63`)**: `rust-toolchain.toml` pins exact stable `1.95.0` and CI reads that `channel` from the file (no more floating to latest stable), so local `clippy -D warnings` is an authoritative CI preview. SR remediation track: original SR-1..16 all DONE 2026-07-10; a 2026-07-11 re-audit of the remediated baseline filed **SR-17..SR-32**, all DONE 2026-07-14..16 (16/16 collected; full record: `docs/sr-remediation-plan.md`).
@@ -279,7 +279,17 @@
   `memory/card-authoring/sr36-engine-findings-2026-07-17.md` (**SG-1 MEDIUM: the simulator's
   `LegalActionProvider` ignores `life_cost` — harmless while the cost was dropped, now it
   offers bots unpayable actions**).
-- **Last Updated**: 2026-07-18 (**PB-EF8 collected, `scutemob-109` merge `4fa6b6f2`** —
+- **Last Updated**: 2026-07-18 (**PB-EF9 collected, `scutemob-110` merge `abb92654`** —
+  `EffectDuration::WhileYouControlSource(PlayerId)` (CR 611.2b/c): "you" captured at creation,
+  one-shot `expire_while_you_control_source_effects` **never resumes** (live re-eval would
+  wrongly revive on regaining control); the planner found the engine had **no control-reversion
+  at all** — this PB built it (`recompute_object_controller`), and the latent
+  never-reverts gap on other durations is filed as **OOS-EF9-1**. olivia_voldaren +
+  dragonlord_silumgar Complete; roil_elemental/kellogg honestly partial. Tests incl. phase-out
+  (CR 702.26e), source-dies-via-SBA, and a decoy proving `WhileSourceOnBattlefield` stays
+  active in the same steal scenario. Coverage **61.0%** (1,093/1,792); 3437 tests; **PROTOCOL
+  13→14, HASH 51→52**; review 0H/1M(fixed)/2L. In flight: **PB-EF10** (`scutemob-111`,
+  sacrifice-driven amounts / runtime max_cmc / if-you-do). Earlier: **PB-EF8 collected, `scutemob-109` merge `4fa6b6f2`** —
   `Cost::ExileSelfFromHand` + hand-zone activation through the mana-ability lowering path;
   **2 flips Complete** (simian_spirit_guide, elvish_spirit_guide); EF-W-PB2-8 closed. Coverage
   **60.9%** (1,091/1,792); **PROTOCOL 12→13, HASH 50→51** (EF7 had taken 11→12/49→50); /review
