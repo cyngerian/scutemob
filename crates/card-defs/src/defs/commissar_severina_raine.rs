@@ -27,18 +27,68 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
-            // TODO: "Each opponent loses X where X = other attacking creatures" —
-            //   EffectAmount lacks AttackingCreatureCount. Attack trigger exists.
-            // TODO: "Sacrifice another creature" — Cost::SacrificeOther not in DSL.
+            // Leading from the Front — Whenever Commissar Severina Raine attacks, each
+            // opponent loses X life, where X is the number of OTHER attacking creatures.
+            // CR 508.1: AttackingCreatureCount honors filter.exclude_self (effects/mod.rs),
+            // so Commissar herself is excluded from the count.
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::WhenAttacks,
+                effect: Effect::LoseLife {
+                    player: PlayerTarget::EachOpponent,
+                    amount: EffectAmount::AttackingCreatureCount {
+                        controller: PlayerTarget::EachPlayer,
+                        filter: Some(TargetFilter {
+                            exclude_self: true,
+                            ..Default::default()
+                        }),
+                    },
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
+            // Summary Execution — {2}, Sacrifice another creature: You gain 2 life and
+            // draw a card.
+            // PB-EF1 (CR 109.1): "Sacrifice ANOTHER creature" — Cost::Sacrifice carries
+            // TargetFilter.exclude_self, lowered onto ActivationCost.sacrifice_exclude_self
+            // and enforced in handle_activate_ability, so Commissar cannot pay by sacrificing
+            // herself.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost {
+                        generic: 2,
+                        ..Default::default()
+                    }),
+                    Cost::Sacrifice(TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        controller: TargetController::You,
+                        exclude_self: true,
+                        ..Default::default()
+                    }),
+                ]),
+                effect: Effect::Sequence(vec![
+                    Effect::GainLife {
+                        player: PlayerTarget::Controller,
+                        amount: EffectAmount::Fixed(2),
+                    },
+                    Effect::DrawCards {
+                        player: PlayerTarget::Controller,
+                        count: EffectAmount::Fixed(1),
+                    },
+                ]),
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+                activation_zone: None,
+                once_per_turn: false,
+            },
         ],
-        completeness: Completeness::partial(
-            "Attack trigger is authorable now — EffectAmount::AttackingCreatureCount { \
-             controller: EachOpponent-scoped, filter: exclude_self } shipped in PB-AC3 \
-             (card_definition.rs:2697) and its doc names this card. Still blocked: '{2}, \
-             Sacrifice another creature' — Cost::Sacrifice(TargetFilter) drops `exclude_self` \
-             when lowered to SacrificeFilter (replay_harness.rs:3743), so 'another' cannot be \
-             enforced.",
-        ),
+        // PB-EF1 (scutemob-99): both clauses authored. The attack trigger uses
+        // AttackingCreatureCount with exclude_self ("other attacking creatures"); the
+        // "{2}, Sacrifice another creature" cost is enforced via
+        // ActivationCost.sacrifice_exclude_self (CR 109.1). Complete.
         ..Default::default()
     }
 }

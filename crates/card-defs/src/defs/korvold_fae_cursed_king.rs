@@ -3,8 +3,8 @@
 // Whenever Korvold enters or attacks, sacrifice another permanent.
 // Whenever you sacrifice a permanent, put a +1/+1 counter on Korvold and draw a card.
 //
-// TODO: "Sacrifice another permanent" on ETB/attack — forced sacrifice not expressible.
-// TODO: "Whenever you sacrifice a permanent" trigger not in DSL.
+// PB-EF1 (scutemob-99): the enters/attacks "sacrifice another permanent" is now
+// expressible — Effect::SacrificePermanents honors TargetFilter.exclude_self (CR 109.1).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -31,7 +31,47 @@ pub fn card() -> CardDefinition {
         toughness: Some(4),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: "Sacrifice another permanent" on ETB/attack — forced sacrifice not expressible.
+            // "Whenever Korvold enters or attacks, sacrifice another permanent."
+            // Split into two separate triggers (there is no combined enters-or-attacks
+            // TriggerCondition); each is an exact translation of one half of the clause.
+            // PB-EF1 (CR 109.1): "another permanent" — Effect::SacrificePermanents now honors
+            // TargetFilter.exclude_self (source ObjectId threaded into eligible_sacrifice_targets),
+            // so Korvold cannot sacrifice itself. Forced (not "may").
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                effect: Effect::SacrificePermanents {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(1),
+                    filter: Some(TargetFilter {
+                        controller: TargetController::You,
+                        exclude_self: true,
+                        ..Default::default()
+                    }),
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                // CR 508.1: "Whenever Korvold attacks".
+                trigger_condition: TriggerCondition::WhenAttacks,
+                effect: Effect::SacrificePermanents {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(1),
+                    filter: Some(TargetFilter {
+                        controller: TargetController::You,
+                        exclude_self: true,
+                        ..Default::default()
+                    }),
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
             // Whenever you sacrifice a permanent, put +1/+1 counter on Korvold and draw a card.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
@@ -57,13 +97,10 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial(
-            "'Whenever Korvold enters or attacks, sacrifice another permanent.' — \
-             Effect::SacrificePermanents exists but `TargetFilter::exclude_self` is NOT honored \
-             by `eligible_sacrifice_targets` (effects/mod.rs:7346), so the CR 109.1 'another' \
-             restriction cannot be enforced; Korvold could sacrifice itself. The 'whenever you \
-             sacrifice' half IS implemented.",
-        ),
+        // PB-EF1 (scutemob-99): Effect::SacrificePermanents now honors
+        // TargetFilter.exclude_self (source threaded into eligible_sacrifice_targets, CR
+        // 109.1), so the "another permanent" restriction is enforced. Both the enters/attacks
+        // forced sacrifice and the "whenever you sacrifice" reward are implemented. Complete.
         ..Default::default()
     }
 }

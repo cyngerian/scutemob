@@ -3,10 +3,10 @@
 // for each creature card in your graveyard.
 // {B}{G}, Sacrifice another creature: You gain 1 life and draw a card.
 //
-// TODO (PB-TS OOS seed): The second activated ability "{B}{G}, Sacrifice another creature:
-//   You gain 1 life and draw a card" requires ActivationCost::SacrificeAnotherCreature —
-//   a "sacrifice another creature" cost variant distinct from sacrifice_self/sacrifice_filter.
-//   Appended to memory/primitives/pb-retriage-CC.md as an OOS seed by PB-TS runner 2026-04-30.
+// PB-EF1 (scutemob-99, closes OOS-TS-2): the "sacrifice another creature" cost is now
+// expressible — Cost::Sacrifice(TargetFilter.exclude_self) lowers onto
+// ActivationCost.sacrifice_exclude_self and is enforced in handle_activate_ability
+// (CR 109.1). Both abilities implemented; Complete.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -73,15 +73,42 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 trigger_zone: None,
             },
-            // TODO (OOS — pb-retriage-CC.md seed added 2026-04-30):
-            //   {B}{G}, Sacrifice another creature: You gain 1 life and draw a card.
-            //   Blocked on ActivationCost variant for "sacrifice another creature"
-            //   (sacrifice-other, distinct from sacrifice_self which sacrifices the source).
+            // {B}{G}, Sacrifice another creature: You gain 1 life and draw a card.
+            // PB-EF1 (CR 109.1): "Sacrifice ANOTHER creature" — the sacrifice cost carries
+            // TargetFilter.exclude_self, lowered onto ActivationCost.sacrifice_exclude_self
+            // and enforced in handle_activate_ability, so Izoni cannot pay by sacrificing
+            // itself.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Mana(ManaCost {
+                        black: 1,
+                        green: 1,
+                        ..Default::default()
+                    }),
+                    Cost::Sacrifice(TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        controller: TargetController::You,
+                        exclude_self: true,
+                        ..Default::default()
+                    }),
+                ]),
+                effect: Effect::Sequence(vec![
+                    Effect::GainLife {
+                        player: PlayerTarget::Controller,
+                        amount: EffectAmount::Fixed(1),
+                    },
+                    Effect::DrawCards {
+                        player: PlayerTarget::Controller,
+                        count: EffectAmount::Fixed(1),
+                    },
+                ]),
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+                activation_zone: None,
+                once_per_turn: false,
+            },
         ],
-        completeness: Completeness::partial(
-            "(PB-TS OOS seed): The second activated ability '{B}{G}, Sacrifice another creature: \
-             You gain 1 life and draw a card'...",
-        ),
         ..Default::default()
     }
 }

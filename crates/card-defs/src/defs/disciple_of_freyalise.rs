@@ -7,8 +7,8 @@
 //
 // Back face is fully authorable (mirrors Blood Crypt / Revitalizing Repast) and is
 // implemented below. The front-face ETB trigger is NOT implemented — see the
-// `completeness` note: the "another creature" restriction cannot currently be
-// enforced by any sacrifice primitive.
+// `completeness` note. PB-EF1 closed the "another creature" blocker; the surviving
+// blocker is that PowerOfSacrificedCreature is not captured in the optional-cost path.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -27,30 +27,23 @@ pub fn card() -> CardDefinition {
         power: Some(3),
         toughness: Some(3),
         abilities: vec![
-            // TODO: "When this creature enters, you may sacrifice another creature. If
-            // you do, you gain X life and draw X cards, where X is that creature's
-            // power." Would be Effect::MayPayThenEffect { cost:
-            // Cost::Sacrifice(TargetFilter { has_card_type: Some(Creature), exclude_self:
-            // true, .. }), payer: Controller, then: Sequence[GainLife{PowerOfSacrificed
-            // Creature}, DrawCards{PowerOfSacrificedCreature}] }, but CONFIRMED (source
-            // read 2026-07-17): `TargetFilter::exclude_self` is structurally unenforceable
-            // here. `Cost::Sacrifice` payment (both the mandatory and `pay_optional_cost`
-            // paths used by `MayPayThenEffect`) resolves eligible targets via
-            // `eligible_sacrifice_targets` (effects/mod.rs:7346), which filters through
-            // `matches_filter(chars: &Characteristics, filter: &TargetFilter)`
-            // (effects/mod.rs:7941) — that function receives no ObjectId, so it has no way
-            // to compare a candidate against `ctx.source` and can never honor
-            // `exclude_self`. This means an implementation using this cost would let the
-            // controller sacrifice Disciple of Freyalise itself to pay for its own
-            // trigger, which oracle text ("another creature") forbids — wrong game state,
-            // not merely a missing clause (W5 policy: do not ship this).
+            // "When this creature enters, you may sacrifice another creature. If you do,
+            // you gain X life and draw X cards, where X is that creature's power."
             //
-            // Same confirmed gap blocks Commissar Severina Raine's "Sacrifice another
-            // creature" activated cost and Korvold, Fae-Cursed King's "sacrifice another
-            // permanent" ETB/attack trigger (see those defs). Fix needs either an
-            // ObjectId-aware `matches_filter`/`eligible_sacrifice_targets`, or a dedicated
-            // `Cost::SacrificeOther` variant that excludes the ability's source by
-            // construction.
+            // PB-EF1 (scutemob-99) CLOSED the exclude_self blocker: the optional-cost
+            // sacrifice path (MayPayThenEffect → pay_optional_cost → eligible_sacrifice_targets)
+            // now threads the ability source and honors TargetFilter.exclude_self (CR 109.1),
+            // so "another creature" IS enforceable. BUT a SECOND blocker was found and this
+            // card is NOT shipped:
+            //
+            //   EffectAmount::PowerOfSacrificedCreature reads ctx.sacrificed_creature_powers
+            //   (effects/mod.rs), which is populated ONLY at the *activated-ability* sacrifice
+            //   cost site (handle_activate_ability pushes sacrificed_lki_powers). The
+            //   optional-cost path used by MayPayThenEffect (sacrifice_permanents_for_player)
+            //   does NOT capture the sacrificed creature's power into ctx, so "gain X / draw X
+            //   where X = that creature's power" would resolve X = 0 — wrong game state, not a
+            //   missing clause (W5 policy: do not ship). Filed as PB-EF1 follow-up finding
+            //   EF-EF1-A (see memory/primitives/ef-batch-plan-2026-07-17.md).
         ],
         color_indicator: None,
         back_face: Some(CardFace {
@@ -100,17 +93,15 @@ pub fn card() -> CardDefinition {
         self_shuffle_on_resolution: false,
         completeness: Completeness::partial(
             "Back face (Garden of Freyalise) is fully implemented and correct. Front-face ETB \
-             ('you may sacrifice another creature') is NOT implemented: CONFIRMED (source read \
-             2026-07-17) that `TargetFilter::exclude_self` cannot be enforced by \
-             `Cost::Sacrifice` in either the mandatory or `pay_optional_cost` (MayPayThenEffect) \
-             path — `eligible_sacrifice_targets` (effects/mod.rs:7346) filters via \
-             `matches_filter(chars, filter)` (effects/mod.rs:7941), which takes no ObjectId and \
-             so cannot compare a candidate against ctx.source. Implementing this trigger today \
-             would let the controller sacrifice Disciple of Freyalise itself, contradicting \
-             oracle text ('another creature') — wrong game state per W5 policy, not shipped. Same \
-             confirmed gap blocks commissar_severina_raine.rs and korvold_fae_cursed_king.rs. \
-             Needs an ObjectId-aware exclude_self check in the sacrifice-cost path, or a \
-             dedicated Cost::SacrificeOther variant.",
+             ('you may sacrifice another creature; if you do, gain X life and draw X cards, X = \
+             its power') is NOT implemented. PB-EF1 (scutemob-99) closed the original blocker — \
+             the optional-cost sacrifice path now honors TargetFilter.exclude_self (CR 109.1), so \
+             'another' is enforceable. The SURVIVING blocker: \
+             EffectAmount::PowerOfSacrificedCreature reads ctx.sacrificed_creature_powers, \
+             populated only at the activated-ability sacrifice-cost site — the MayPayThenEffect \
+             optional-cost path (sacrifice_permanents_for_player) never captures the sacrificed \
+             creature's power into ctx, so X would resolve to 0. Filed as PB-EF1 follow-up \
+             EF-EF1-A. Not shipped (W5 policy: wrong game state, not a missing clause).",
         ),
     }
 }

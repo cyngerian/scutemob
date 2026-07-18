@@ -79,17 +79,9 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::known_wrong(
-            "Enters with ONE too many +1/+1 counters. The def is correct (EntersWithCounters, \
-             count = PermanentCount{ has_subtype: Human, controller: You, exclude_self: true }), \
-             but the engine's PermanentCount resolver (effects/mod.rs:6749) does not honor \
-             `exclude_self` — unlike the sibling AttackingCreatureCount (:7032) and \
-             TappedCreatureCount (:7066) resolvers, which apply `obj.id != ctx.source`. Since the \
-             self-ETB replacement resolves with ctx.source = Éomer AFTER Éomer is on the \
-             battlefield (a Human you control), it counts itself: a 2/2 with no other Humans \
-             enters as a 3/3. Blocker filed as W-PB2 engine finding EF-W-PB2-1 (one-line fix). \
-             DoubleStrike + the two-target ETB (BecomeMonarch + DealDamage PowerOf) are correct.",
-        ),
+        // PB-EF1 (scutemob-99): the PermanentCount resolver now honors `exclude_self`
+        // (effects/mod.rs, CR 109.1), so "for each OTHER Human you control" no longer
+        // counts Éomer itself. A 2/2 with no other Humans enters as a 2/2. Complete.
         ..Default::default()
     }
 }

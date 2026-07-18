@@ -19,6 +19,7 @@ mod pb_ac7_card_integration;
 mod pb_ac7_type_change_ability_removal;
 mod pb_ac8_restrictions_and_wingame;
 mod pb_ac9_wheel_and_misc;
+mod pb_ef1_exclude_self_enforcement;
 mod pb_k_land_drops;
 mod pb_l_landfall;
 mod pbd_damaged_player_filter;

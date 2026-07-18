@@ -4,8 +4,8 @@
 // creature and draw a card.
 // {B}{B}, Discard a card: Proliferate.
 //
-// TODO: "Sacrifice another creature" — Cost::SacrificeOtherCreature not in DSL.
-//   Leaving the sacrifice ability with TODO.
+// PB-EF1 (scutemob-99): "Sacrifice another creature" cost is now expressible via
+// Cost::Sacrifice(TargetFilter.exclude_self) → ActivationCost.sacrifice_exclude_self.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -32,8 +32,42 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::ProtectionFrom(
                 ProtectionQuality::FromSubType(SubType("Human".to_string())),
             )),
-            // TODO: "Pay 1 life, Sacrifice another creature" — Cost lacks
-            //   SacrificeOtherCreature. Full ability not expressible.
+            // Pay 1 life, Sacrifice another creature: Put a -1/-1 counter on up to one
+            // target creature and draw a card.
+            // PB-EF1 (CR 109.1): "Sacrifice ANOTHER creature" — Cost::Sacrifice carries
+            // TargetFilter.exclude_self, lowered onto ActivationCost.sacrifice_exclude_self
+            // and enforced in handle_activate_ability. Cost::PayLife shipped in SR-36
+            // (ActivationCost.life_cost). "up to one target" = TargetRequirement::UpToN.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::PayLife(1),
+                    Cost::Sacrifice(TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        controller: TargetController::You,
+                        exclude_self: true,
+                        ..Default::default()
+                    }),
+                ]),
+                effect: Effect::Sequence(vec![
+                    Effect::AddCounter {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                        counter: CounterType::MinusOneMinusOne,
+                        count: 1,
+                    },
+                    Effect::DrawCards {
+                        player: PlayerTarget::Controller,
+                        count: EffectAmount::Fixed(1),
+                    },
+                ]),
+                timing_restriction: None,
+                targets: vec![TargetRequirement::UpToN {
+                    count: 1,
+                    inner: Box::new(TargetRequirement::TargetCreature),
+                }],
+                activation_condition: None,
+                activation_zone: None,
+                once_per_turn: false,
+            },
             // {B}{B}, Discard a card: Proliferate.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
@@ -51,19 +85,11 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial(
-            "The 'Pay 1 life, Sacrifice another creature: Put a -1/-1 counter on up to one target \
-             creature and draw a card' ability is unauthored. Two of its three former blockers \
-             are gone: Cost::Sacrifice(TargetFilter) exists (card_definition.rs, enforced in \
-             abilities.rs), and Cost::PayLife IS now representable — SR-36 (scutemob-92) added \
-             ActivationCost::life_cost and a payment step to handle_activate_ability (CR \
-             118.3/119.4), so it is no longer silently dropped. The surviving blocker is the \
-             'another': handle_activate_ability's sacrifice_filter path validates zone, \
-             controller, can't-be-sacrificed and the type filter, but never that sacrifice_target \
-             != source — so 'sacrifice ANOTHER creature' would let Yawgmoth pay by sacrificing \
-             itself (CR 602.2). Authoring it now would ship wrong game state, not a missing \
-             clause.",
-        ),
+        // PB-EF1 (scutemob-99): the last blocker — the "another" restriction on the
+        // sacrifice cost — is closed. ActivationCost.sacrifice_exclude_self (lowered from
+        // Cost::Sacrifice's TargetFilter.exclude_self) is enforced in handle_activate_ability
+        // (CR 109.1), so Yawgmoth cannot pay by sacrificing itself. Both activated abilities
+        // and Protection from Humans are implemented. Complete.
         ..Default::default()
     }
 }
