@@ -5,7 +5,7 @@ title: Two independent singletons bundled to amortize PB overhead; ship as two c
 task: scutemob-112
 branch: feat/pb-ef11-low-yield-singletons-wheeldraw-greatest-discarded-sp
 started: 2026-07-18
-phase: implement
+phase: done  # 0H/0M/2L (pb-review-EF11.md); LOW-1 fixed (0a057cc0), LOW-2 pre-existing out-of-scope. Gates green, 3466 tests. PROTOCOL 17, HASH 55.
 
 ## Recon (worker, pre-plan)
 - WheelDraw enum: crates/card-types/src/cards/card_definition.rs:2462 (ThatMany, Fixed(u32)).
@@ -30,15 +30,31 @@ phase: implement
   `crates/engine/tests/primitives/pb_ef11_wheel_greatest_discarded.rs` (6 tests: all-draw-max,
   non-vacuous decoy, empty-hands, hash-discriminant, windfall card-def integration, version
   sentinel), registered in `primitives/main.rs`.
-- [ ] implement F2 (spell-only single-target + misdirection)
-- [x] wire bumps (COMMIT 1 only) — HASH_SCHEMA_VERSION 53->54, PROTOCOL_VERSION 15->16, both
+- [x] implement F2 (spell-only single-target + misdirection) — COMMIT 2 done.
+  `TargetRequirement::TargetSpellWithSingleTarget` added (card_definition.rs); validation
+  early-return block in `validate_object_satisfies_requirement` (casting.rs) mirrors the
+  `TargetSpellOrAbilityWithSingleTarget` block plus an `is_spell` kind check
+  (`StackObjectKind::Spell | MutatingCreatureSpell`); 3 exhaustive-match arms added
+  (hash.rs discriminant 19, casting.rs `valid` match, abilities.rs battlefield auto-target
+  match) — `cargo build --workspace` confirmed no further sites missed. `misdirection.rs`
+  authored Complete (AltCastAbility Pitch, no life component + Spell/ChangeTargets). Tests:
+  internal precision test in casting.rs's own `#[cfg(test)] mod tests` (self-targeting +
+  kind-check, direct private-fn call, mirrors the sibling variant's test) plus external
+  `crates/engine/tests/primitives/pb_ef11_spell_single_target.rs` (6 tests: accepts, two
+  DECOYs — count check and kind check, both verified non-vacuous by reverting each guard —
+  self-prevention via live CastSpell, hash-discriminant, Misdirection retarget integration),
+  registered in `primitives/main.rs`.
+- [x] wire bumps (COMMIT 1) — HASH_SCHEMA_VERSION 53->54, PROTOCOL_VERSION 15->16, both
   fingerprints recomputed from the failing schema tests (never hand-authored), history rows +
   FROZEN_HISTORY_PREFIX_DIGEST re-pinned in both `state/hash.rs`/`tests/core/hash_schema.rs` and
   `rules/protocol.rs`/`tests/core/protocol_schema.rs`. All ~30 scattered
   `assert_eq!(HASH_SCHEMA_VERSION, 53u8)` / `assert_eq!(PROTOCOL_VERSION, 15)` sentinels bumped
-  across the test suite (grep-verified zero stragglers). F2 will bump again (54->55, 16->17) in
-  COMMIT 2, per the plan's per-commit-bump policy.
-- [ ] review (F2 not yet implemented; COMMIT 1 stands on its own gates below)
+  across the test suite (grep-verified zero stragglers).
+- [x] wire bumps (COMMIT 2) — HASH_SCHEMA_VERSION 54->55, PROTOCOL_VERSION 16->17, likewise
+  recomputed from the failing schema tests, history rows + FROZEN_HISTORY_PREFIX_DIGEST
+  re-pinned. All ~35 scattered `HASH_SCHEMA_VERSION, 54u8` / `PROTOCOL_VERSION, 16` sentinels
+  bumped across the test suite (grep-verified zero stragglers).
+- [ ] review (COMMIT 2 implementation complete; not yet reviewed)
 - [x] gates + docs (COMMIT 1) — `cargo build --workspace`, `cargo test --all` (all green, 0
   failed), `cargo clippy --all-targets -- -D warnings` (clean), `cargo fmt --check` +
   `tools/check-defs-fmt.sh` (clean). **Deviation from plan**: found and fixed a pre-existing
@@ -52,3 +68,9 @@ phase: implement
   `effects/mod.rs`, `state/mod.rs`, and 6 test files (`conditional_statics.rs`,
   `static_grants.rs`, `count_based_scaling.rs`, `graveyard_targeting.rs` x2, `offspring.rs` x2,
   `squad.rs`). Out of scope for PB-EF11 but required to get any gate green at all.
+- [x] gates + docs (COMMIT 2) — `cargo build --workspace`, `cargo test --all` (all green, 0
+  failed, 44 files changed), `cargo clippy --all-targets -- -D warnings` (clean), `cargo fmt
+  --check` + `tools/check-defs-fmt.sh` (clean; `tools/check-defs-fmt.sh --fix` reformatted
+  `misdirection.rs`'s wrapped oracle_text string, then `cargo fmt` reformatted a let-else in
+  the new test file — both re-verified green after). Both PB-EF11 commits are shipped; this
+  closes the batch pending review.
