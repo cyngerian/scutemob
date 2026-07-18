@@ -25,7 +25,7 @@ pub fn card() -> CardDefinition {
             //   Amount of damage = number of creatures sacrificed (dynamic variable).
             //   Cannot be expressed without SacrificeAnyNumber cost + EffectAmount::SacrificedCount.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "'Sacrifice any number of creatures' — no Cost::SacrificeAnyNumber or \
              Effect::SacrificeAnyNumberFor { filter: creature }...",
         ),

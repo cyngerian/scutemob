@@ -21,7 +21,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // TODO: Prevention effect + variable token count based on damage prevented not in DSL
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "Blocked on EffectAmount for 'damage prevented this way' — no variant reports the \
              amount a prevention shield absorbed (CombatDamageDealt measures damage dealt). \
              Prevention itself IS expressible (Effect::PreventAllCombatDamage).",

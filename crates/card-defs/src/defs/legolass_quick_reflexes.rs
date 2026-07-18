@@ -24,7 +24,7 @@ pub fn card() -> CardDefinition {
             // (untap + grant hexproof/reach until EOT + temporary tap trigger) is not
             // expressible. Card left uncastable per W5 policy to avoid do-nothing behavior.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "DSL gap — untap + grant hexproof/reach + temporary 'whenever tapped' triggered \
              ability not expressible in the DSL. Only...",
         ),

@@ -26,7 +26,7 @@ pub fn card() -> CardDefinition {
             // to express a count that scales with the number of creatures that died this
             // turn. A fixed count of 1 would produce wrong game state, so leaving empty.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "'Create a Treasure token for each creature that died this turn.' DSL gap: \
              EffectAmount::CreaturesThatDiedThisTurn does...",
         ),

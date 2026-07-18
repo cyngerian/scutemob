@@ -23,7 +23,7 @@ pub fn card() -> CardDefinition {
             // TODO: "Tap, Sacrifice two other creatures" cost — sacrificing self instead of
             //   two others is wrong game state. Complex multi-target effect not expressible.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "Blocked on the effect, not the cost: 'any number of target players' has no \
              variable-count player TargetRequirement, and 'each sacrifices a creature of their \
              choice' needs per-player interactive choice. Cost::Sacrifice(TargetFilter) + \

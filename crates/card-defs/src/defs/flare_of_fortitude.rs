@@ -24,7 +24,7 @@ pub fn card() -> CardDefinition {
             // you control gain hexproof and indestructible.
             // DSL gap: no "life total can't change" effect; no mass hexproof+indestructible grant.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "Alt cost — sacrifice a nontoken white creature (not PB-4 activated cost) Needs \
              AltCostKind::SacrificeCreature variant...",
         ),

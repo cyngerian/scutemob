@@ -33,7 +33,7 @@ pub fn card() -> CardDefinition {
             // TODO: Trigger doubling for low-power creatures — needs a power-filtered
             // TriggerDoubler variant.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "Power-conditional blocking restriction — 'can't be blocked by creatures with power 3 \
              or greater' applies only to your...",
         ),

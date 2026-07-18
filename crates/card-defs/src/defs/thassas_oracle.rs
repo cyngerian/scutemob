@@ -38,7 +38,7 @@ pub fn card() -> CardDefinition {
             // TODO: Win condition — if devotion >= library size, you win. Effect::WinGame exists
             //   (PB-AC8) but there is no Condition comparing devotion to library size yet.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "'Look at top X cards where X = devotion to blue, put up to one on top, rest on \
              bottom' — no...",
         ),

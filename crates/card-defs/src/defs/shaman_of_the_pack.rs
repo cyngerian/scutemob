@@ -34,7 +34,7 @@ pub fn card() -> CardDefinition {
             // bare TargetPlayer would let the caster illegally self-target (KI-1). Omitted to
             // avoid wrong game state; blocker is the missing target requirement, not the count.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "ETB target-loses-life is un-shippable: the count is expressible via \
              EffectAmount::PermanentCount{ has_subtype: Elf, controller: You }, but 'target \
              OPPONENT' has no TargetRequirement variant (only unqualified TargetPlayer, which \

@@ -22,7 +22,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             // TODO: Token replacement effect — "instead create one of each" not in DSL
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "Token replacement effect — 'instead create one of each' not in DSL",
         ),
         ..Default::default()

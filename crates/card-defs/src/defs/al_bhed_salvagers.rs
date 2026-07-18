@@ -22,7 +22,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — "this creature or another creature or artifact you control dies"
             // trigger with controller filter + multi-type filter (creature OR artifact).
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "DSL gap — 'this creature or another creature or artifact you control dies' trigger \
              with controller filter + multi-type...",
         ),

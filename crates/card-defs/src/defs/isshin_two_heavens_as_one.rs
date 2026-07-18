@@ -29,7 +29,7 @@ pub fn card() -> CardDefinition {
             // similar to Panharmonicon but for attack triggers rather than ETB triggers.
             // No such LayerModification or TriggerDoublerFilter variant exists in the current DSL.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "DSL gap — Isshin's ability doubles attack-triggered abilities of permanents you \
              control. This requires a static...",
         ),

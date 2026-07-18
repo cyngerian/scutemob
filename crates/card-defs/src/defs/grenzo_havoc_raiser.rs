@@ -30,7 +30,7 @@ pub fn card() -> CardDefinition {
             // Mode 1 (Goad) works but needs per-creature trigger + target from damaged player.
             // Mode 2 (impulse-draw from opponent) needs PlayExiledCard from opponent's library.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "Blocked: TargetFilter has no 'controlled by the damaged player' constraint for mode \
              1's Goad target, and mode 2 needs exile-from-opponent's-library + PlayExiledCard \
              with spend-mana-as-any-color. (The combat-damage trigger, modal triggers, Goad and \

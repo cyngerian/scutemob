@@ -21,7 +21,7 @@ pub fn card() -> CardDefinition {
             // TODO: {T}, Sacrifice a creature: Gain life = sacrificed creature's toughness.
             // Requires EffectAmount::SacrificedCreatureToughness which does not exist in the DSL.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "'gain life equal to the sacrificed creature's toughness' requires \
              EffectAmount::SacrificedCreatureToughness (dynamic...",
         ),

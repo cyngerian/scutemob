@@ -28,7 +28,7 @@ pub fn card() -> CardDefinition {
             // 2. "Players can't cast noncreature spells from graveyards or exile" —
             //    needs GameRestriction::CantCastNoncreatureFromGraveyardOrExile.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "Two static restrictions not in DSL: 1. 'Permanent cards in graveyards can't enter \
              the battlefield' — needs...",
         ),

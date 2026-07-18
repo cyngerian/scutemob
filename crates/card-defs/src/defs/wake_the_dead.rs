@@ -29,7 +29,7 @@ pub fn card() -> CardDefinition {
             //    triggered sacrifice is not expressible in the DSL.
             // Empty per W5 policy.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "Blocked on (a) TimingRestriction has only SorcerySpeed/AnyTime — 'cast only during \
              combat on an opponent's turn' is inexpressible; (b) X target creature cards — no \
              variable-count targeting; (c) 'sacrifice those creatures at the beginning of the \

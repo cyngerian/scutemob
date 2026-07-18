@@ -20,7 +20,7 @@ pub fn card() -> CardDefinition {
             // Implementing with Cost::DiscardCard produces wrong game state (allows discarding
             // non-creature cards). Per W5 policy, the ability is omitted.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "'Discard a creature card' — Cost::DiscardCard discards any card (no filter). A \
              filtered discard cost...",
         ),

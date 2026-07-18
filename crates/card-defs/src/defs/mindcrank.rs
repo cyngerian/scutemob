@@ -24,7 +24,7 @@ pub fn card() -> CardDefinition {
             // Also needs EffectAmount::TriggeringAmount for "that many cards".
             // W5: partial implementation would fire wrong effects — omitted.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "TriggerCondition::WheneverOpponentLosesLife does not exist in the DSL. The trigger \
              fires for each opponent who loses...",
         ),

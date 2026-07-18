@@ -23,7 +23,7 @@ pub fn card() -> CardDefinition {
             // you control). DSL lacks a triggered condition with subtype + nontoken + controller
             // filter. Per W5 policy, leaving empty to avoid wrong game state.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "WheneverCreatureDies now supports controller/exclude_self/nontoken_only/filter \
              (card_definition.rs:3048-3062) — the note's claimed gap is gone. Remaining: 'you may \
              create' has no correct expression (Effect::Choose is non-interactive), and the \

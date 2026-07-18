@@ -26,7 +26,7 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — "move any number of +1/+1 counters" requires counter
             // movement with player choice (M10 player choice).
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "Blocked on the upkeep ability: 'move any number of +1/+1 counters from this creature \
              onto other creatures' has no Effect expression (no counter-move-with-player-choice \
              primitive; AddCounter/RemoveCounter/Proliferate do not compose to it), and both \

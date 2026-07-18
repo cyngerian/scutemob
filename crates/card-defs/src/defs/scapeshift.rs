@@ -28,7 +28,7 @@ pub fn card() -> CardDefinition {
             // and EffectAmount::NumberSacrificed (or similar) to cap the SearchLibrary count.
             // Neither primitive exists in the current DSL.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "'Sacrifice any number of lands' as a spell cost is not expressible in the DSL. There \
              is no...",
         ),

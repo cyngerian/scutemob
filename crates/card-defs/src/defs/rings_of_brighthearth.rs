@@ -23,7 +23,7 @@ pub fn card() -> CardDefinition {
             // TODO: whenever you activate a non-mana ability, may pay {2} to copy it
             //   (no TriggerCondition::WheneverYouActivateNonManaAbility + Effect::CopyAbilityOnStack)
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "whenever you activate a non-mana ability, may pay {2} to copy it (no...",
         ),
         ..Default::default()

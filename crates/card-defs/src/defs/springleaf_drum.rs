@@ -21,7 +21,7 @@ pub fn card() -> CardDefinition {
             // TODO: {T}, Tap an untapped creature you control: Add one mana of any color.
             //   (Cost enum lacks TapAnotherUntappedCreature variant)
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "{T}, Tap an untapped creature you control: Add one mana of any color. (Cost enum \
              lacks TapAnotherUntappedCreature...",
         ),

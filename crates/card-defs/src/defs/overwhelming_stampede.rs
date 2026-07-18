@@ -21,7 +21,7 @@ pub fn card() -> CardDefinition {
             // of turn, where X = greatest power among your creatures.
             // DSL gap: no dynamic X value based on max power among permanents you control.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "Spell effect — grant trample and +X/+X to all creatures you control until end of \
              turn, where X = greatest power among...",
         ),

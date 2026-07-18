@@ -26,7 +26,7 @@ pub fn card() -> CardDefinition {
             //   DSL gap: no LayerModification or GameRestriction to cap draws per turn.
             //   Requires new engine primitive. Omitted per W5 policy.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "'Each player can't draw more than one card each turn' — a static restriction on draw \
              count per turn. No...",
         ),

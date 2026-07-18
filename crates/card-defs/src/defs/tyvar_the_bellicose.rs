@@ -33,7 +33,7 @@ pub fn card() -> CardDefinition {
             // with deathtouch grant to the attacking Elves only.
             // TODO: DSL gap — granting triggered abilities to creatures (mana ability trigger).
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "DSL gap — 'Whenever one or more Elves you control attack' batch trigger with \
              deathtouch grant to the attacking Elves...",
         ),

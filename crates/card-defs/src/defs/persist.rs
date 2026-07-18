@@ -22,7 +22,7 @@ pub fn card() -> CardDefinition {
             // nonlegendary restriction produces wrong game state (targets legendary creatures).
             // Per W5 policy, the ability is omitted. Needs TargetFilter::non_legendary: bool.
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "'target nonlegendary creature card' — TargetFilter has no non_legendary field (only \
              `legendary: bool` for the positive...",
         ),

@@ -22,7 +22,7 @@ pub fn card() -> CardDefinition {
             // effect or chosen_subtype field on GameObject. The static grant of Fear
             // depends on the chosen type (Layer 6).
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "'As this enters, choose a creature type' IS expressible \
              (ReplacementModification::ChooseCreatureType, as used by cavern_of_souls.rs:17-24; \
              chosen type is read back via EffectFilter's *OfChosenType variants). Real remaining \

@@ -23,7 +23,7 @@ pub fn card() -> CardDefinition {
             // Temur: cast-trigger mill 4 (approximable with WheneverYouCastSpell trigger).
             // Sultai: play lands from graveyard (BLOCKED — no PlayerPermission for this).
         ],
-        completeness: Completeness::partial(
+        completeness: Completeness::inert(
             "As-enters mode choice ('choose Temur or Sultai') is the sole blocker — \
              ReplacementModification has ChooseCreatureType/ChooseColor but no mode-selection \
              variant, and no Condition reads a chosen mode. Both mode bodies are expressible \
