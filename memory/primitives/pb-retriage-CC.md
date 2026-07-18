@@ -432,7 +432,13 @@ Undergrowth ETB trigger; the activated ability is left as a TODO.
 ActivationCost::sacrifice_filter excluding the source). Appended to OOS seeds 2026-04-29 by
 PB-TS runner.
 
-### OOS-TS-3: CreateTokenAndAttachSource missing replacement-effect call
+### OOS-TS-3: CreateTokenAndAttachSource missing replacement-effect call — ✅ RESOLVED (PB-AC9, scutemob-52)
+
+> **RESOLVED 2026-07-18 (verified by scutemob-115 retriage).** `Effect::CreateTokenAndAttachSource`'s
+> executor now calls `crate::rules::replacement::apply_token_creation_replacement`
+> (`effects/mod.rs:862`), so Doubling Season / Parallel Lives / Anointed Procession double the Germ
+> token. Closed by PB-AC9's 13-site token-doubling completeness rewire (Living Weapon was one of the
+> 13). Chain verified: executor arm reads the replacement boundary post-`resolve_amount`.
 
 **Card**: Living Weapon permanents (e.g., Batterskull, Kaldra Compleat)
 **Gap**: `Effect::CreateTokenAndAttachSource` currently does NOT call
@@ -445,7 +451,13 @@ inside `CreateTokenAndAttachSource`'s dispatch arm (mirroring `CreateToken`).
 **Blocked on**: Engine fix in `effects/mod.rs` `Effect::CreateTokenAndAttachSource` arm; small
 isolated change, no new primitives required.
 
-### OOS-TS-4: Pre-death counter snapshot primitive
+### OOS-TS-4: Pre-death counter snapshot primitive — ✅ RESOLVED (PB-LKI-CC)
+
+> **RESOLVED 2026-07-18 (verified by scutemob-115 retriage).** `EffectAmount::CounterCountAtLastKnownInformation`
+> exists and `chasm_skulker.rs` death trigger uses it (`crates/card-defs/src/defs/chasm_skulker.rs:57`);
+> the pre-death counter snapshot is threaded through `PendingTrigger.lki_counters` /
+> `StackObject.lki_counters` / `EffectContext.lki_counters` (path (a) from the two options below).
+> Toothy retroactively fixed by the same primitive.
 
 **Cards**: Chasm Skulker, Toothy Imaginary Friend (and any future "when [permanent] dies, ...
 where X is the number of [counter] counters on it" patterns)
@@ -608,7 +620,13 @@ add disc 19 variant, add resolve_amount arm reading `ctx.lki_toughness`.
 **Yield**: 0 confirmed in current pool. File as preventive seed.
 **Status**: Filed by PB-LKI-Power planner 2026-05-13.
 
-### OOS-LKI-Power-2: ReplacementModification::EntersWith(EffectAmount) — Master Biomancer
+### OOS-LKI-Power-2: ReplacementModification::EntersWith(EffectAmount) — Master Biomancer — ✅ RESOLVED (PB-EWC + PB-EAT)
+
+> **RESOLVED 2026-07-18 (verified by scutemob-115 retriage).** `ReplacementModification::EntersWithCounters`
+> now takes `count: Box<EffectAmount>` (widened by PB-EWC); `master_biomancer.rs` reads
+> `count: Box::new(EffectAmount::PowerOf(EffectTarget::Source))` and the type-grant half
+> (OOS-EWC-1) is served by `EntersAsAdditionalType` (PB-EAT). The def carries **no completeness
+> marker → `Complete`**. Both halves of Master Biomancer chain-verified live.
 
 **Cards**: Master Biomancer ("Each other creature you control enters with a number
 of +1/+1 counters on it equal to Biomancer's power"), and any future card with
@@ -718,7 +736,12 @@ replacement family.
 `master_biomancer.rs` as a TODO referencing this seed.
 **References**: pb-plan-EWC; CR 614.1c.
 
-### OOS-EWC-2: EntersWithCounters dynamic count — Golgari Grave-Troll
+### OOS-EWC-2: EntersWithCounters dynamic count — Golgari Grave-Troll — ✅ RESOLVED (authored 2026-05-15)
+
+> **RESOLVED 2026-07-18 (verified by scutemob-115 retriage).** `golgari_grave_troll.rs` exists,
+> authored with self-ETB `EntersWithCounters { count: CardCount(Graveyard, creature filter) }`, and
+> carries **no completeness marker → `Complete`**. Pure card-authoring follow-up landed; no engine
+> gap remained after PB-EWC.
 
 **Cards**: Golgari Grave-Troll ("This creature enters with a +1/+1 counter on
 it for each creature card in your graveyard"). Self-ETB; count = count of
@@ -834,7 +857,14 @@ target side). Could ship as PB-XA ("eXclude / Attacking / runtime predicates").
 **References**: `crates/engine/src/cards/defs/thousand_faced_shadow.rs`;
 `TargetFilter.is_attacking` doc comment in `card_definition.rs:2600`.
 
-### OOS-XS-3: Olivia Voldaren {1}{R} multi-effect activated ability
+### OOS-XS-3: Olivia Voldaren {1}{R} multi-effect activated ability — ✅ RESOLVED (AddSubtypes + PB-EF9)
+
+> **RESOLVED 2026-07-18 (verified by scutemob-115 retriage).** The blocker ("`LayerModification::AddSubtype`
+> does not exist") no longer holds: `LayerModification::AddSubtypes(OrdSet<SubType>)` exists
+> (`layers.rs:1127`, with SetTypeLine/SetCreatureTypes dependency handling), and
+> `olivia_voldaren.rs` uses it for the `{1}{R}` "becomes a Vampire in addition to its other types"
+> clause (`:46`). The def is **`Completeness::Complete`** (the `{3}{B}{B}` gain-control half was
+> also finished by PB-EF9's `WhileYouControlSource`). Full chain live.
 
 **Cards**: Olivia Voldaren ("{1}{R}: Olivia Voldaren deals 1 damage to
 another target creature. That creature becomes a Vampire in addition to its
