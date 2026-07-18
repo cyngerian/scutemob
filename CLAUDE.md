@@ -14,7 +14,7 @@
 > Detailed PB-by-PB handoffs, hazards, and seed inventories live in `memory/workstream-state.md`.
 > Worker sessions: append detail there, not here. CLAUDE.md tracks current snapshot only.
 
-- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage **1,065/1,781 = 59.8%** per `tools/authoring-report.py`; **PB-AC chain COMPLETE — AC0..AC9 all shipped**; **marker sweep COMPLETE — `scutemob-88`**; **SR-33..38 chain COMPLETE**; **W-PB2 + W-EMPTY + W-MISS COMPLETE — `scutemob-95`/`96`/`97`**)
+- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage **1,071/1,782 = 60.1%** per `tools/authoring-report.py`; **EF queue ACTIVE (`memory/primitives/ef-batch-plan-2026-07-17.md`) — PB-EF1 SHIPPED `scutemob-99`, EF-13 Option A in flight `scutemob-101`**; **PB-AC chain COMPLETE — AC0..AC9 all shipped**; **marker sweep COMPLETE — `scutemob-88`**; **SR-33..38 chain COMPLETE**; **W-PB2 + W-EMPTY + W-MISS COMPLETE — `scutemob-95`/`96`/`97`**)
 - **Invariant #9 is machine-enforced (SR-2).** `CardDefinition.completeness` (`Complete` by
   Default) marks a def `Inert` / `Partial` / `KnownWrong`; `validate_deck` rejects any
   non-`Complete` card with `DeckViolation::IncompleteCard`. `CardRegistry::try_new` errors on
@@ -33,13 +33,28 @@
   accessors, gated on the `test-util` feature (self dev-dependency). **`cargo build
   --workspace` is the only gate that proves the seal** — `test --all` and `clippy
   --all-targets` enable `test-util` workspace-wide via feature unification. It is a CI step.
-- **Tests**: **3330 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
+- **Tests**: **3344 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
   — and `fmt` here means `cargo fmt --check` **plus** `tools/check-defs-fmt.sh`, which is the only one
   of the two that looks at the 1,748 card defs (SR-35)
 - **CI**: **LIVE and green** since 2026-07-10 (SR-1, merge `e9742dc2`) — single Ubuntu job (fmt + clippy + `build --workspace` + full tests) on push/PR to main + workflow_dispatch; rust-cache@v2, 45m timeout. **Toolchain pinned (SR-11, `scutemob-63`)**: `rust-toolchain.toml` pins exact stable `1.95.0` and CI reads that `channel` from the file (no more floating to latest stable), so local `clippy -D warnings` is an authoritative CI preview. SR remediation track: original SR-1..16 all DONE 2026-07-10; a 2026-07-11 re-audit of the remediated baseline filed **SR-17..SR-32**, all DONE 2026-07-14..16 (16/16 collected; full record: `docs/sr-remediation-plan.md`).
 - **Abilities**: ~199 validated; 42/42 P1; 17/17 P2; 40/40 P3; 95/95 P4 implemented (9 permanent-n/a; 1 deferred: Banding)
 - **Primitives**: PB-0..PB-37 + named-letter chain (PB-A/B/E/J/M/S/X/Q/Q4/N/D/P/L/T/SFT/CC-{W,B,C,A}/TS/LKI-CC/CD/LKI-Power/EWC/XS/XS-E/XA/EAT/XA2/EWC-D) all DONE. PB-Q2/Q3/Q5 reserved.
-- **Last shipped**: **Marker sweep** (`scutemob-88`) — the AC8/AC9 follow-up both workers asked
+- **Last shipped**: **PB-EF1 — `exclude_self` enforcement sweep** (`scutemob-99`, merge `6202ab81`) —
+  first batch off the EF queue. Five executor sites that matched a `TargetFilter` without a threaded
+  source ObjectId silently ignored `exclude_self` (`PermanentCount` amount resolver, sacrifice
+  cost + `SacrificePermanents` effect paths via `eligible_sacrifice_targets`, `UntapAll`,
+  `YouControlNOrMoreWithFilter`, `SacrificeOther`); all five now honor it, each pinned by a decoy
+  test that fails on exactly that field. One wire change proved necessary after all:
+  the activated-cost path lowers to a lossy `SacrificeFilter`, so "sacrifice ANOTHER creature"
+  (Izoni, Yawgmoth) needed `ActivationCost.sacrifice_exclude_self` — **HASH 43→44, PROTOCOL 5→6**
+  (Nantuko-Husk-style "sacrifice a creature" bars a default-exclude). 6 cards flipped/authored
+  Complete (éomer, Izoni, Korvold, Yawgmoth, Commissar Severina Raine, Copperhorn Scout);
+  disciple_of_freyalise stayed partial with a real second blocker filed as **EF-EF1-A**
+  (`PowerOfSacrificedCreature` not populated in the `MayPayThenEffect` optional-cost path).
+  Closed EF-W-PB2-1, EF-W-EMPTY-1, EF-W-MISS-2, marker EF-4/EF-5, OOS-TS-2. Coverage
+  59.8% → **60.1%** (1,071/1,782). Same sitting: **swan_song demoted** Complete → known_wrong
+  (`scutemob-100`, EF-W-MISS-1 — Bird minted for the wrong player; PB-EF2 fixes it).
+  **EF-13 decided: Option A** (reclassify + gate), dispatched as `scutemob-101`. Prior: **Marker sweep** (`scutemob-88`) — the AC8/AC9 follow-up both workers asked
   for. All **742** non-`Complete` markers audited against the current engine (29 agent batches,
   full coverage, 0 missing). **42% were wrong**: 208 `stale-blocker-shipped` (note cites a
   capability that now exists) + 100 `wrong-or-vague-note`; only 434 still valid. Applied: **13
@@ -259,7 +274,11 @@
   `memory/card-authoring/sr36-engine-findings-2026-07-17.md` (**SG-1 MEDIUM: the simulator's
   `LegalActionProvider` ignores `life_cost` — harmless while the cost was dropped, now it
   offers bots unpayable actions**).
-- **Last Updated**: 2026-07-17 (**EF triage collected, `scutemob-98` merge `ef82ae45`** — all 20
+- **Last Updated**: 2026-07-18 (**PB-EF1 collected, `scutemob-99` merge `6202ab81`** — see "Last
+  shipped" above; 3344 tests, HASH 44 / PROTOCOL 6, coverage 60.1%. Also: swan_song demote
+  `scutemob-100` merge `615c4319`; EF-13 Option A dispatched as `scutemob-101`. Next per
+  `ef-batch-plan-2026-07-17.md`: PB-EF2 → PB-EF3 → PB-EF3b → capability batches EF4..EF12.)
+  Earlier: 2026-07-17 (**EF triage collected, `scutemob-98` merge `ef82ae45`** — all 20
   post-wave findings (EF-W-PB2-1..8, EF-W-EMPTY-1, EF-W-MISS-1..10, EF-13) deduped and classified;
   **`memory/primitives/ef-batch-plan-2026-07-17.md` is the active engine-primitive queue**:
   correctness-first PB-EF1..EF12 with discounted yields, first dispatch **PB-EF1** + the
