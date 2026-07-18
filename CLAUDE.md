@@ -14,7 +14,7 @@
 > Detailed PB-by-PB handoffs, hazards, and seed inventories live in `memory/workstream-state.md`.
 > Worker sessions: append detail there, not here. CLAUDE.md tracks current snapshot only.
 
-- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage **1,081/1,786 = 60.5%** per `tools/authoring-report.py`; **EF queue ACTIVE (`memory/primitives/ef-batch-plan-2026-07-17.md`) — PB-EF1..EF4 + EF-13 SHIPPED (`scutemob-99`/`101`..`105`, correctness group complete); PB-EF5 in flight `scutemob-106`**; **PB-AC chain COMPLETE — AC0..AC9 all shipped**; **marker sweep COMPLETE — `scutemob-88`**; **SR-33..38 chain COMPLETE**; **W-PB2 + W-EMPTY + W-MISS COMPLETE — `scutemob-95`/`96`/`97`**)
+- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage **1,084/1,792 = 60.5%** per `tools/authoring-report.py`; **EF queue ACTIVE (`memory/primitives/ef-batch-plan-2026-07-17.md`) — PB-EF1..EF5 + EF-13 SHIPPED (`scutemob-99`/`101`..`106`); PB-EF6 in flight `scutemob-107`**; **PB-AC chain COMPLETE — AC0..AC9 all shipped**; **marker sweep COMPLETE — `scutemob-88`**; **SR-33..38 chain COMPLETE**; **W-PB2 + W-EMPTY + W-MISS COMPLETE — `scutemob-95`/`96`/`97`**)
 - **Invariant #9 is machine-enforced (SR-2).** `CardDefinition.completeness` (`Complete` by
   Default) marks a def `Inert` / `Partial` / `KnownWrong`; `validate_deck` rejects any
   non-`Complete` card with `DeckViolation::IncompleteCard`. `CardRegistry::try_new` errors on
@@ -33,7 +33,7 @@
   accessors, gated on the `test-util` feature (self dev-dependency). **`cargo build
   --workspace` is the only gate that proves the seal** — `test --all` and `clippy
   --all-targets` enable `test-util` workspace-wide via feature unification. It is a CI step.
-- **Tests**: **3383 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
+- **Tests**: **3396 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
   — and `fmt` here means `cargo fmt --check` **plus** `tools/check-defs-fmt.sh`, which is the only one
   of the two that looks at the 1,748 card defs (SR-35)
 - **CI**: **LIVE and green** since 2026-07-10 (SR-1, merge `e9742dc2`) — single Ubuntu job (fmt + clippy + `build --workspace` + full tests) on push/PR to main + workflow_dispatch; rust-cache@v2, 45m timeout. **Toolchain pinned (SR-11, `scutemob-63`)**: `rust-toolchain.toml` pins exact stable `1.95.0` and CI reads that `channel` from the file (no more floating to latest stable), so local `clippy -D warnings` is an authoritative CI preview. SR remediation track: original SR-1..16 all DONE 2026-07-10; a 2026-07-11 re-audit of the remediated baseline filed **SR-17..SR-32**, all DONE 2026-07-14..16 (16/16 collected; full record: `docs/sr-remediation-plan.md`).
@@ -279,7 +279,17 @@
   `memory/card-authoring/sr36-engine-findings-2026-07-17.md` (**SG-1 MEDIUM: the simulator's
   `LegalActionProvider` ignores `life_cost` — harmless while the cost was dropped, now it
   offers bots unpayable actions**).
-- **Last Updated**: 2026-07-18 (**PB-EF4 collected, `scutemob-105` merge `26421364`** —
+- **Last Updated**: 2026-07-18 (**PB-EF5 collected, `scutemob-106` merge `111c4513`** —
+  `Effect::TransformSelf` shipped through the existing DFC machinery (CR 701.28/712.8);
+  **honest yield well under the plan's ~7–9**: 2 new Complete (docent_of_perfection,
+  bloodline_keeper) + delver_of_secrets **integrity-demoted** (shipped Complete but never
+  transformed) + 2 partial (thaumatic_compass, growing_rites); 8 of the "11 body-only DFCs"
+  were double-blocked by distinct out-of-scope primitives. **Battle + Sephiroth split out with
+  justification** (CR 310 is a full card-type subsystem; bare enum would be legal-but-wrong) →
+  seeds **OOS-EF5-1..4** filed. /review caught a legal-but-wrong def (thaumatic_compass
+  fabricated a Spires ability — fixed+demoted+pinned) and 2 reviewer HIGH/MED were overturned
+  against cards.sqlite. Coverage **60.5%** (1,084/1,792); 3396 tests; **PROTOCOL 9→10,
+  HASH 47→48**. In flight: **PB-EF6** (`scutemob-107`, TargetOpponent). Earlier: **PB-EF4 collected, `scutemob-105` merge `26421364`** —
   `EffectFilter::TriggeringCreature` + `Effect::DealDamage.source` override; **7 cards
   Complete** (dragon_tempest, scourge_of_valkas, ogre_battledriver, Atarka, Fervent Charge,
   Goblin Piledriver, Muxus — beat the ~4–5 estimate); shared_animosity inert (**OOS-EF4-1**
