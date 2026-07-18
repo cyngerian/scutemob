@@ -115,7 +115,12 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   source DFC in place; used by an on-card triggered/activated/conditional effect,
 ///   distinct from the existing `Command::Transform`). The closure's type count is
 ///   unchanged; `Effect`'s declared shape moved, so the digest moves.
-pub const PROTOCOL_VERSION: u32 = 10;
+/// - 11: PB-EF6 (2026-07-18) — `TargetRequirement` (reachable via
+///   `AbilityDefinition.targets` / `Effect`) gains a new unit variant `TargetOpponent`
+///   (CR 102.3/102.4/115.1/601.2c/603.3d — "target opponent", an opponent-restricted
+///   player target; EF-W-PB2-2). The closure's type count is unchanged;
+///   `TargetRequirement`'s declared shape moved, so the digest moves.
+pub const PROTOCOL_VERSION: u32 = 11;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -133,7 +138,7 @@ pub const PROTOCOL_VERSION: u32 = 10;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "ec3ccb9e5c1cbdc834c86d6fbbc5d8ee6914e1fe1ef44eeee26d078bbea3d618";
+    "07e514663c1b64b1831d2aaf0ee95c3e6bf62a3a1ff0b15dd3ca4316a022e739";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -242,6 +247,12 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // PB-EF5 (2026-07-18): Effect gained TransformSelf (see the `- 10:` History
         // line above).
         fingerprint: "ec3ccb9e5c1cbdc834c86d6fbbc5d8ee6914e1fe1ef44eeee26d078bbea3d618",
+    },
+    ProtocolEpoch {
+        version: 11,
+        // PB-EF6 (2026-07-18): TargetRequirement gained TargetOpponent (see the `- 11:`
+        // History line above).
+        fingerprint: "07e514663c1b64b1831d2aaf0ee95c3e6bf62a3a1ff0b15dd3ca4316a022e739",
     },
 ];
 
