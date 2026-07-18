@@ -7358,6 +7358,9 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                                             TargetRequirement::TargetSpellOrAbilityWithSingleTarget => {
                                                 false
                                             }
+                                            // TargetSpellWithSingleTarget targets stack
+                                            // objects (spells only), not battlefield permanents.
+                                            TargetRequirement::TargetSpellWithSingleTarget => false,
                                             // CR 601.2c / 115.1b: UpToN delegates to inner.
                                             TargetRequirement::UpToN { inner, .. } => {
                                                 let is_creature =

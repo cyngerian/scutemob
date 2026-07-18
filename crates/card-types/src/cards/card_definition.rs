@@ -2466,6 +2466,11 @@ pub enum WheelDraw {
     /// Draw a fixed number regardless of hand size. (Wheel of Fortune / Echo of
     /// Eons = 7.)
     Fixed(u32),
+    /// CR 121.1: draw a number equal to the GREATEST number of cards any affected
+    /// player disposed of this way (each player's pre-disposal hand size). A shared
+    /// value across all affected players; computable only after every player has
+    /// disposed. (Windfall.)
+    GreatestDiscarded,
 }
 // ── Effect Targets ────────────────────────────────────────────────────────────
 /// Where a delayed trigger returns an exiled object to (CR 610.3).
@@ -2877,6 +2882,14 @@ pub enum TargetRequirement {
     /// Bolt Bend and Untimely Malfunction mode 1. The targeting spell itself is
     /// excluded as a valid target (prevents self-targeting loops).
     TargetSpellOrAbilityWithSingleTarget,
+    /// "target spell with a single target" (CR 115.7a/115.7b, spell-only).
+    ///
+    /// Like `TargetSpellOrAbilityWithSingleTarget` but the target stack object must be
+    /// a SPELL (`StackObjectKind::Spell`/`MutatingCreatureSpell`), not an activated or
+    /// loyalty ability. Validates zone==Stack, kind==spell, exactly one declared target,
+    /// and applies the same self-target prevention (CR 115.10 ruling: a spell can't be
+    /// made to target itself). Used by Misdirection.
+    TargetSpellWithSingleTarget,
     /// "up to N target [inner]" (CR 601.2c).
     ///
     /// The player chooses how many targets to declare (0 to `count`, inclusive). Each

@@ -479,7 +479,21 @@
 ///   (transient per-resolution scratch, same as `sacrificed_creature_lki`'s sibling
 ///   fields). `decl_fingerprint` MOVES (multiple struct/enum declared-shape changes);
 ///   `stream_fingerprint` moves per the v40 mechanism (new `HashInto` arms/fields).
-pub const HASH_SCHEMA_VERSION: u8 = 53;
+/// - 54: PB-EF11 COMMIT 1 (2026-07-18) — `WheelDraw` gains a new unit variant
+///   `GreatestDiscarded` (CR 121.1 — a wheel-draw count equal to the greatest number
+///   of cards any affected player disposed of this way, a value shared across all
+///   affected players; unblocks Windfall). Fed to `HashInto` as
+///   `WheelDraw::GreatestDiscarded => 2u8.hash_into(hasher)`, discriminant 2 after
+///   `Fixed`=1. `decl_fingerprint` MOVES (the enum's declared shape changed — a new
+///   variant); `stream_fingerprint` moves per the v40 mechanism (a new `HashInto` arm).
+/// - 55: PB-EF11 COMMIT 2 (2026-07-18) — `TargetRequirement` gains a new unit variant
+///   `TargetSpellWithSingleTarget` (CR 115.7a/115.7b — a spell-ONLY single-target
+///   restriction, stricter than `TargetSpellOrAbilityWithSingleTarget`; unblocks
+///   Misdirection). Fed to `HashInto` as `TargetRequirement::TargetSpellWithSingleTarget
+///   => 19u8.hash_into(hasher)`, discriminant 19 after `TargetOpponent`=18.
+///   `decl_fingerprint` MOVES (the enum's declared shape changed — a new variant);
+///   `stream_fingerprint` moves per the v40 mechanism (a new `HashInto` arm).
+pub const HASH_SCHEMA_VERSION: u8 = 55;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -688,6 +702,23 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // changes); stream_fingerprint moves per the v40 mechanism.
         decl_fingerprint: "3ff461aaba75d1d7470c6aadee1b140d98e49358fde7a94e70318007150db5a1",
         stream_fingerprint: "1e0e8de7fa26f3aebf77c2a698f193558cf7c50f07009ff73d78858e74001a58",
+    },
+    HashSchemaEpoch {
+        version: 54,
+        // PB-EF11 COMMIT 1 (2026-07-18): WheelDraw gained GreatestDiscarded (see the
+        // `- 54:` History line above). decl_fingerprint moves (genuine enum-shape
+        // change); stream_fingerprint moves per the v40 mechanism.
+        decl_fingerprint: "de2e11f38ecd337c82b89c5bae49da13e0c51155daf70430b0965489f9153636",
+        stream_fingerprint: "2bfbb9a1c601a10b09ea94d702d66380f70e3c590ce757f18e7abfd6d651a162",
+    },
+    HashSchemaEpoch {
+        version: 55,
+        // PB-EF11 COMMIT 2 (2026-07-18): TargetRequirement gained
+        // TargetSpellWithSingleTarget (see the `- 55:` History line above).
+        // decl_fingerprint moves (genuine enum-shape change); stream_fingerprint moves
+        // per the v40 mechanism.
+        decl_fingerprint: "9b983aaa133cbff0946e4a135fa5de2618b99e25de04d75fe19c1d8429a1c2f8",
+        stream_fingerprint: "ad965c6475550f53446281c921656eaf068c623a28295c4e2d1e2f62b83d9987",
     },
 ];
 
@@ -5178,6 +5209,8 @@ impl HashInto for TargetRequirement {
             }
             // PB-EF6: TargetOpponent -- CR 102.3 / 601.2c (discriminant 18)
             TargetRequirement::TargetOpponent => 18u8.hash_into(hasher),
+            // PB-EF11: TargetSpellWithSingleTarget -- CR 115.7a/115.7b (discriminant 19)
+            TargetRequirement::TargetSpellWithSingleTarget => 19u8.hash_into(hasher),
         }
     }
 }
@@ -6725,6 +6758,7 @@ impl HashInto for WheelDraw {
                 1u8.hash_into(hasher);
                 k.hash_into(hasher);
             }
+            WheelDraw::GreatestDiscarded => 2u8.hash_into(hasher),
         }
     }
 }

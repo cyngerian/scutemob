@@ -6192,6 +6192,45 @@ fn validate_object_satisfies_requirement(
         }
         return Ok(());
     }
+    // CR 115.7a/115.7b: "target spell with a single target" — spell-only.
+    if matches!(req, TargetRequirement::TargetSpellWithSingleTarget) {
+        if obj.zone != ZoneId::Stack {
+            return Err(GameStateError::InvalidTarget(format!(
+                "object {:?} is not on the stack",
+                id
+            )));
+        }
+        if let Some(self_oid) = self_id {
+            if id == self_oid {
+                return Err(GameStateError::InvalidTarget(format!(
+                    "spell {:?} cannot target itself (self-targeting prevention)",
+                    id
+                )));
+            }
+        }
+        let stack_obj = state.stack_objects.iter().find(|so| so.id == id);
+        // Spell-only: reject activated/loyalty abilities and non-spell stack objects.
+        let is_spell = stack_obj.is_some_and(|so| {
+            matches!(
+                so.kind,
+                StackObjectKind::Spell { .. } | StackObjectKind::MutatingCreatureSpell { .. }
+            )
+        });
+        if !is_spell {
+            return Err(GameStateError::InvalidTarget(format!(
+                "stack object {:?} is not a spell (TargetSpellWithSingleTarget is spell-only)",
+                id
+            )));
+        }
+        let target_count = stack_obj.map(|so| so.targets.len()).unwrap_or(0);
+        if target_count != 1 {
+            return Err(GameStateError::InvalidTarget(format!(
+                "stack object {:?} has {} targets, need exactly 1 for TargetSpellWithSingleTarget",
+                id, target_count
+            )));
+        }
+        return Ok(());
+    }
     // Use calculate_characteristics to respect continuous effects (CR 613).
     // SR-14: id was fetched present via `state.objects.get(&id).ok_or(...)?` at the top of this
     // fn with no intervening zone change, so its characteristics are never absent.
@@ -6384,6 +6423,8 @@ fn validate_object_satisfies_requirement(
         TargetRequirement::TargetSpell | TargetRequirement::TargetSpellWithFilter(_) => false,
         // TargetSpellOrAbilityWithSingleTarget handled above via early return.
         TargetRequirement::TargetSpellOrAbilityWithSingleTarget => false,
+        // TargetSpellWithSingleTarget handled above via early return.
+        TargetRequirement::TargetSpellWithSingleTarget => false,
         // CR 601.2c / 115.1b: UpToN delegates validation to inner requirement.
         // This arm is reached during the greedy-consume peek-validate in validate_targets_inner
         // and when the UpToN requirement is mapped to a target for full validation.
@@ -8023,6 +8064,137 @@ mod tests {
             result_other.is_ok(),
             "different self_id should not block targeting: {:?}",
             result_other
+        );
+    }
+
+    /// CR 115.7a/115.7b/115.10 -- PB-EF11 COMMIT 2: `TargetSpellWithSingleTarget`
+    /// self-targeting prevention AND spell-only kind check, exercised directly
+    /// (private-fn precision test; mirrors the sibling
+    /// `TargetSpellOrAbilityWithSingleTarget` test above). The external
+    /// `crates/engine/tests/primitives/pb_ef11_spell_single_target.rs` covers the
+    /// same requirement through the public `Command::CastSpell` pipeline for the
+    /// accepts/decoy/hash/integration cases; this test pins the two branches that
+    /// pipeline cannot isolate (self_id-specific rejection message, and rejection
+    /// of a non-spell stack object with exactly one target).
+    #[test]
+    fn test_target_spell_with_single_target_self_and_kind_check() {
+        // Build a state with a card in ZoneId::Stack (simulating Misdirection's
+        // target already resolving on the stack).
+        let mut state = GameStateBuilder::new()
+            .add_player(p(1))
+            .add_player(p(2))
+            .object(ObjectSpec::card(p(1), "Misdirection Target").in_zone(ZoneId::Stack))
+            .at_step(Step::PreCombatMain)
+            .active_player(p(1))
+            .build()
+            .unwrap();
+
+        let spell_id = state
+            .objects
+            .iter()
+            .find(|(_, obj)| obj.zone == ZoneId::Stack)
+            .map(|(id, _)| *id)
+            .expect("expected a stack object");
+
+        let stack_entry = make_test_stack_spell(
+            spell_id,
+            p(1),
+            vec![SpellTarget {
+                target: Target::Player(p(2)),
+                zone_at_cast: None,
+            }],
+        );
+        state.stack_objects.push_back(stack_entry);
+
+        let req = TargetRequirement::TargetSpellWithSingleTarget;
+
+        // Without self_id: a single-target SPELL on the stack is a valid target.
+        let result_no_self =
+            validate_object_satisfies_requirement(&state, spell_id, &req, p(1), None);
+        assert!(
+            result_no_self.is_ok(),
+            "without self_id, single-target spell is a valid target: {:?}",
+            result_no_self
+        );
+
+        // With self_id == spell_id: self-targeting is rejected (CR 115.10).
+        let result_self =
+            validate_object_satisfies_requirement(&state, spell_id, &req, p(1), Some(spell_id));
+        assert!(
+            result_self.is_err(),
+            "self-targeting must be rejected for TargetSpellWithSingleTarget"
+        );
+        let err_msg = format!("{:?}", result_self.unwrap_err());
+        assert!(
+            err_msg.contains("self-targeting"),
+            "error should mention self-targeting, got: {}",
+            err_msg
+        );
+
+        // Spell-only kind check: an ACTIVATED ABILITY on the stack with exactly one
+        // declared target must be REJECTED (this is the sole difference from
+        // TargetSpellOrAbilityWithSingleTarget). ActivatedAbility targets validate
+        // against the ability's own StackObject id, which itself must satisfy
+        // `obj.zone == ZoneId::Stack` for the (spell-only) requirement to even reach
+        // the kind check -- so a second builder object is placed directly in
+        // ZoneId::Stack to stand in for the ability's own stack presence (avoids a
+        // bare `.objects.get(` lookup; SR-25 ratchet).
+        let mut ability_state = GameStateBuilder::new()
+            .add_player(p(1))
+            .add_player(p(2))
+            .object(ObjectSpec::card(p(1), "Ability Source").in_zone(ZoneId::Battlefield))
+            .object(ObjectSpec::card(p(1), "Ability Stack Marker").in_zone(ZoneId::Stack))
+            .at_step(Step::PreCombatMain)
+            .active_player(p(1))
+            .build()
+            .unwrap();
+        let source_id = ability_state
+            .objects
+            .iter()
+            .find(|(_, obj)| obj.zone == ZoneId::Battlefield)
+            .map(|(id, _)| *id)
+            .expect("expected a battlefield object");
+        let ability_stack_id = ability_state
+            .objects
+            .iter()
+            .find(|(_, obj)| obj.zone == ZoneId::Stack)
+            .map(|(id, _)| *id)
+            .expect("expected a stack object");
+        let ability_entry = StackObject {
+            kind: StackObjectKind::ActivatedAbility {
+                source_object: source_id,
+                ability_index: 0,
+                embedded_effect: None,
+            },
+            ..make_test_stack_spell(
+                ability_stack_id,
+                p(1),
+                vec![SpellTarget {
+                    target: Target::Player(p(2)),
+                    zone_at_cast: None,
+                }],
+            )
+        };
+        ability_state.stack_objects.push_back(ability_entry);
+
+        let result_ability = validate_object_satisfies_requirement(
+            &ability_state,
+            ability_stack_id,
+            &req,
+            p(1),
+            None,
+        );
+        assert!(
+            result_ability.is_err(),
+            "DECOY: an ActivatedAbility with exactly 1 target must be REJECTED by \
+             TargetSpellWithSingleTarget (spell-only) -- got: {:?}",
+            result_ability
+        );
+        let ability_err_msg = format!("{:?}", result_ability.unwrap_err());
+        assert!(
+            ability_err_msg.contains("is not a spell"),
+            "error should mention the spell-only restriction, got: {}",
+            ability_err_msg
         );
     }
 }

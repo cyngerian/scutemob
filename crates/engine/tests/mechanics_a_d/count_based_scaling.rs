@@ -31,7 +31,7 @@ fn find_on_battlefield(state: &mtg_engine::GameState, name: &str) -> ObjectId {
         .find(|id| {
             state
                 .objects()
-                .get(id)
+                .get(*id)
                 .map(|o| o.characteristics.name == name)
                 .unwrap_or(false)
         })

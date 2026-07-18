@@ -149,7 +149,19 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   the closure) gains `max_cmc_amount: Option<Box<EffectAmount>>` (CR 202.3/608.2h —
 ///   a runtime-computed search cap). The closure's type count is unchanged; both types'
 ///   declared shapes moved, so the digest moves.
-pub const PROTOCOL_VERSION: u32 = 15;
+/// - 16: PB-EF11 COMMIT 1 (2026-07-18) — `WheelDraw` (reachable via
+///   `Effect::WheelHand` → the wire closure) gains a new unit variant
+///   `GreatestDiscarded` (CR 121.1 — a wheel-draw count equal to the greatest number
+///   of cards any affected player disposed of this way; unblocks Windfall). The
+///   closure's type count is unchanged; `WheelDraw`'s declared shape moved, so the
+///   digest moves.
+/// - 17: PB-EF11 COMMIT 2 (2026-07-18) — `TargetRequirement` (reachable via
+///   `AbilityDefinition.targets` / `Effect` → the wire closure) gains a new unit
+///   variant `TargetSpellWithSingleTarget` (CR 115.7a/115.7b — a spell-ONLY
+///   single-target restriction, stricter than `TargetSpellOrAbilityWithSingleTarget`;
+///   unblocks Misdirection). The closure's type count is unchanged;
+///   `TargetRequirement`'s declared shape moved, so the digest moves.
+pub const PROTOCOL_VERSION: u32 = 17;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -167,7 +179,7 @@ pub const PROTOCOL_VERSION: u32 = 15;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "814403943d8b2a3185bb73f5b8d2658f7f39f92f00c93d9feed08f7ecb785d1d";
+    "a836605e96a0976d268ed2c37a76244b829b11a6dddd2e348a82a7b79e39976c";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -306,6 +318,18 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // PB-EF10 (2026-07-18): AdditionalCost::Sacrifice reshaped lki_powers -> lki;
         // TargetFilter gained max_cmc_amount (see the `- 15:` History line above).
         fingerprint: "814403943d8b2a3185bb73f5b8d2658f7f39f92f00c93d9feed08f7ecb785d1d",
+    },
+    ProtocolEpoch {
+        version: 16,
+        // PB-EF11 COMMIT 1 (2026-07-18): WheelDraw gained GreatestDiscarded (see the
+        // `- 16:` History line above).
+        fingerprint: "6748164f0b5b0e79d5ab8e729bac142851a7c9bb1b2c320b0e7d57a8f0cf82aa",
+    },
+    ProtocolEpoch {
+        version: 17,
+        // PB-EF11 COMMIT 2 (2026-07-18): TargetRequirement gained
+        // TargetSpellWithSingleTarget (see the `- 17:` History line above).
+        fingerprint: "a836605e96a0976d268ed2c37a76244b829b11a6dddd2e348a82a7b79e39976c",
     },
 ];
 

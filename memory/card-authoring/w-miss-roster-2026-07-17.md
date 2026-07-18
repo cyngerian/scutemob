@@ -48,6 +48,8 @@ another large slice.
 >   only single-target restriction (`TargetRequirement::TargetSpellOrAbilityWithSingleTarget`)
 >   also legalizes targeting *abilities*, and `TargetFilter` has no single-target-count field
 >   — either option is over-permissive (wrong cast legality). See EF-W-MISS-9.
+>   **✅ RESTORED to Complete by PB-EF11 (`scutemob-112`, 2026-07-18)** — spell-only
+>   `TargetRequirement::TargetSpellWithSingleTarget` added; Misdirection authored Complete.
 > - **Ojutai, Soul of Winter** — authored + reviewed, then removed: the *targeted* variant of
 >   `WheneverCreatureYouControlAttacks` silently drops its target (`enrich_spec_from_def`
 >   hardcodes `targets: vec![]`), so the tap/detain resolves against nothing. Batch-2 review
@@ -133,7 +135,7 @@ missing-count delta reads correctly.)
 | Omnath, Locus of the Roil | `avenger_of_zendikar.rs`, `omnath_locus_of_rage.rs` | ETB `DealDamage{TargetAny, PermanentCount{Elemental}}`; landfall → `Sequence[AddCounter, Conditional{YouControlNOrMore{8 lands} → DrawCards}]` (**verify combined targeted-landfall shape at review**) |
 | Touch the Spirit Realm | `brutal_cathar.rs`, `boseiju_who_endures.rs` | ETB `ExileWithDelayedReturn{UpToN 1, WhenSourceLeaves}`; Channel = activated `Cost::Sequence[{1}{W}, DiscardSelf]` → exile at next end step (**verify Channel-from-hand + UpToN targeting at review**) |
 | Ramunap.. see above | | |
-| ~~Misdirection~~ **DEMOTED→blocked** | `force_of_will.rs`, `bolt_bend.rs` | single-target restriction inexpressible (EF-W-MISS-9); not authored |
+| Misdirection **✅ Complete (PB-EF11, `scutemob-112`)** | `force_of_will.rs`, `bolt_bend.rs` | was DEMOTED→blocked (single-target restriction inexpressible, EF-W-MISS-9); restored via spell-only `TargetRequirement::TargetSpellWithSingleTarget` |
 | Flux Channeler | `venerated_rotpriest.rs`, `tezzerets_gambit.rs` | `WheneverYouCastSpell{noncreature_only:true}` → `Effect::Proliferate` |
 | Dragonmaster Outcast | `simic_ascendancy.rs`, `murmuring_mystic.rs` | `AtBeginningOfYourUpkeep` + `intervening_if: YouControlNOrMore{6 lands}` → `CreateToken` (5/5 Dragon flying) |
 | Revel in Riches | `hellkite_tyrant.rs`, `simic_ascendancy.rs` | `WheneverCreatureDies{controller: opponent}` → `CreateToken(Treasure)`; upkeep + `intervening_if: YouControlNOrMore{10 Treasure}` → `Effect::WinGame` |
@@ -237,7 +239,7 @@ Pact, Demonic Consultation, Mitotic Manipulation, Kindred Summons, Gempalm Incin
 
 ### Zone / GY-return / replacement / other
 Life from the Loam (GY→hand return), Faith's Reward (this-turn provenance), Necropotence,
-Memory Jar, Windfall (`WheelDraw` "greatest discarded"), Plaguecrafter (sac-else-discard
+Memory Jar, ~~Windfall (`WheelDraw` "greatest discarded")~~ **✅ Complete (PB-EF11, `scutemob-112`)**, Plaguecrafter (sac-else-discard
 fallback), Kozilek (GY-only shuffle), Morality Shift (GY↔library exchange), New Blood
 (text-change), Deepglow Skate (counter-doubling), Time Spiral (untap up-to-six lands),
 Captain Howler (delayed trigger on a creature), Unshakable Tail, Ranger-Captain of Eos

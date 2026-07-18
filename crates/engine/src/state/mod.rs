@@ -1807,7 +1807,7 @@ impl GameState {
             .iter()
             .filter(|id| {
                 self.players
-                    .get(id)
+                    .get(*id)
                     .map(|p| !p.has_lost && !p.has_conceded)
                     .unwrap_or(false)
             })

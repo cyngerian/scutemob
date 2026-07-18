@@ -1,6 +1,6 @@
 # Authoring plan — cards still missing on disk
-# Generated: 2026-07-18 18:54 UTC  Git: 051887f2  Plan snapshot: 2026-03-10
-# Format: <group>\t<card name>   (144 cards)
+# Generated: 2026-07-18 20:06 UTC  Git: 50a83faf  Plan snapshot: 2026-03-10
+# Format: <group>\t<card name>   (142 cards)
 
 activated-sacrifice	Chatterfang, Squirrel General
 activated-sacrifice	Dark-Dweller Oracle
@@ -62,7 +62,6 @@ body-only	Westvale Abbey
 discard-effect	Insidious Dreams
 discard-effect	Necropotence
 discard-effect	Plaguecrafter
-discard-effect	Windfall
 draw	Captain Howler, Sea Scourge
 draw	Gempalm Incinerator
 draw	Karazikar, the Eye Tyrant
@@ -86,7 +85,6 @@ modal-choice	Leonin Shikari
 modal-choice	Lim-Dûl's Vault
 modal-choice	Majestic Genesis
 modal-choice	Mana Echoes
-modal-choice	Misdirection
 modal-choice	Mitotic Manipulation
 modal-choice	Mystic Reflection
 modal-choice	Narset's Reversal

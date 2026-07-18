@@ -1260,12 +1260,12 @@ fn test_sacrificed_creature_lki_struct_hash() {
 #[test]
 fn test_pb_ef10_version_sentinels() {
     assert_eq!(
-        PROTOCOL_VERSION, 15,
+        PROTOCOL_VERSION, 17,
         "PROTOCOL_VERSION should be 15 after PB-EF10 (TargetFilter.max_cmc_amount / \
          AdditionalCost::Sacrifice reshape)"
     );
     assert_eq!(
-        HASH_SCHEMA_VERSION, 53u8,
+        HASH_SCHEMA_VERSION, 55u8,
         "HASH_SCHEMA_VERSION should be 53 after PB-EF10"
     );
 }

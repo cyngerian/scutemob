@@ -335,7 +335,13 @@ fn test_offspring_token_is_1_1() {
     // Find the token (is_token == true).
     let token_id = all_warriors
         .iter()
-        .find(|id| state.objects().get(id).map(|o| o.is_token).unwrap_or(false))
+        .find(|id| {
+            state
+                .objects()
+                .get(*id)
+                .map(|o| o.is_token)
+                .unwrap_or(false)
+        })
         .copied()
         .expect("CR 702.175a: exactly one token should exist");
 
@@ -345,7 +351,7 @@ fn test_offspring_token_is_1_1() {
         .find(|id| {
             state
                 .objects()
-                .get(id)
+                .get(*id)
                 .map(|o| !o.is_token)
                 .unwrap_or(false)
         })

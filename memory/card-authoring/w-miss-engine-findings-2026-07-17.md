@@ -129,17 +129,30 @@ ability — `KeywordAbility::Transform`'s behaviour is carried only by the exter
 - No `Condition` reporting whether a resolution-time `SacrificePermanents` fired ("if you do")
   — Victimize.
 
-## EF-W-MISS-8 (LOW): `WheelDraw` lacks a "greatest number discarded" variant
-`WheelDraw` has only `ThatMany` (own hand size) and `Fixed(n)`. Windfall draws "equal to the
-greatest number of cards any player discarded this way" — not representable. Blocks Windfall
-(Wheel of Fortune / Tolarian Winds / Fateful Showdown, which use `ThatMany`/`Fixed`, are fine).
+## EF-W-MISS-8 (LOW): `WheelDraw` lacks a "greatest number discarded" variant — ✅ CLOSED by PB-EF11 (`scutemob-112`, 2026-07-18)
+> `WheelDraw::GreatestDiscarded` added (CR 121.1). The `Effect::WheelHand` executor was
+> restructured into a two-pass branch keyed on the draw variant: `GreatestDiscarded` disposes
+> every affected player first (recording each player's pre-disposal hand size), computes the
+> max, then has every affected player draw that max; `ThatMany`/`Fixed` retain their original
+> single-pass behavior byte-identically. Windfall authored Complete. PROTOCOL 15→16, HASH 53→54.
 
-## EF-W-MISS-9 (LOW): no spells-only single-target restriction
-Misdirection needs "target spell **with a single target**". The only single-target
-`TargetRequirement` (`TargetSpellOrAbilityWithSingleTarget`) also permits abilities, and
-`TargetFilter` has no target-count field to narrow `TargetSpellWithFilter`. So Misdirection
-cannot be authored Complete without over-permissive cast legality. Fix: a spell-only
-single-target `TargetRequirement`, or a target-count predicate on the spell filter.
+`WheelDraw` had only `ThatMany` (own hand size) and `Fixed(n)`. Windfall draws "equal to the
+greatest number of cards any player discarded this way" — not representable. Blocked Windfall
+(Wheel of Fortune / Tolarian Winds / Fateful Showdown, which use `ThatMany`/`Fixed`, were fine).
+
+## EF-W-MISS-9 (LOW): no spells-only single-target restriction — ✅ CLOSED by PB-EF11 (`scutemob-112`, 2026-07-18)
+> `TargetRequirement::TargetSpellWithSingleTarget` added — spell-only (rejects
+> activated/loyalty abilities via a `StackObjectKind::Spell | MutatingCreatureSpell` kind check),
+> exactly-one-target, with the same self-target prevention as `TargetSpellOrAbilityWithSingleTarget`
+> (CR 115.7a/115.7b/115.10). Misdirection authored Complete: Pitch alt cost (exile a blue card,
+> no life) + `Effect::ChangeTargets { must_change: true }` (Bolt Bend precedent). Two non-vacuous
+> decoys pin the count check and the kind check independently. PROTOCOL 16→17, HASH 54→55.
+
+Misdirection needed "target spell **with a single target**". The only single-target
+`TargetRequirement` (`TargetSpellOrAbilityWithSingleTarget`) also permitted abilities, and
+`TargetFilter` had no target-count field to narrow `TargetSpellWithFilter`. So Misdirection
+could not be authored Complete without over-permissive cast legality. Fixed via a spell-only
+single-target `TargetRequirement`.
 
 ## EF-W-MISS-10 (HIGH): targeted `WheneverCreatureYouControlAttacks` drops its target — ✅ CLOSED by PB-EF3 (`scutemob-103`, 2026-07-18)
 > `enrich_spec_from_def` now forwards each card-def `AbilityDefinition::Triggered { targets }`
