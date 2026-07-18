@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-18 01:10 UTC  
-**Git:** `bcb82db2` on `feat/w-empty-author-the-110-authorable-empty-placeholder-card-def`  
+**Generated:** 2026-07-18 01:53 UTC  
+**Git:** `bcf93348` on `feat/w-miss-author-the-authorable-missing-file-cards-campaign-pla`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -19,16 +19,16 @@ and what is intentionally NOT in it.**
 
 | Metric | Count | Δ since last run |
 | --- | ---: | ---: |
-| Card def files on disk | 1,748 | · |
+| Card def files on disk | 1,781 | +33 |
 | Authoring-plan target universe (snapshot 2026-03-10) | 1,636 | · |
-| Plan cards with a def file (any-face match) | 1,442 | · |
-| Plan cards still missing a def file | 194 | · |
+| Plan cards with a def file (any-face match) | 1,475 | +33 |
+| Plan cards still missing a def file | 161 | -33 |
 | Bonus defs (on disk, outside plan) | 321 | · |
-| Effective coverage vs plan target | **108%** (1,763 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 59.0% | 1,032 | +2 |
-| With TODO markers | 659 | +1 |
-| Empty `abilities: vec![]` placeholders | 57 | -3 |
-| Total TODO lines across all defs | 983 | +1 |
+| Effective coverage vs plan target | **110%** (1,796 / 1,636) | — |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 59.8% | 1,065 | +33 |
+| With TODO markers | 659 | · |
+| Empty `abilities: vec![]` placeholders | 57 | · |
+| Total TODO lines across all defs | 983 | · |
 
 ## Authoring activity (git, by window)
 
@@ -67,42 +67,42 @@ are blocked on engine primitives.
 | Group | Auth / Total | % | Clean | TODO | Empty |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | `combat-keyword` | 187 / 187 | 100% | 82 | 97 | 8 |
-| `draw` | 163 / 169 | 96% | 73 | 79 | 11 |
-| `token-create` | 145 / 155 | 94% | 79 | 66 | 0 |
+| `draw` | 164 / 169 | 97% | 74 | 79 | 11 |
+| `token-create` | 148 / 155 | 95% | 82 | 66 | 0 |
 | `land-etb-tapped` | 138 / 138 | 100% | 116 | 22 | 0 |
 | `other` | 108 / 131 | 82% | 67 | 41 | 0 |
-| `modal-choice` | 68 / 105 | 65% | 32 | 36 | 0 |
+| `modal-choice` | 72 / 105 | 69% | 36 | 36 | 0 |
 | `mana-land` | 92 / 92 | 100% | 63 | 28 | 1 |
 | `body-only` | 55 / 70 | 79% | 29 | 12 | 14 |
 | `removal-destroy` | 56 / 56 | 100% | 33 | 21 | 2 |
 | `counters-plus` | 49 / 49 | 100% | 24 | 24 | 1 |
 | `land-fetch` | 45 / 45 | 100% | 27 | 17 | 1 |
-| `attack-trigger` | 6 / 34 | 18% | 2 | 4 | 0 |
+| `attack-trigger` | 9 / 34 | 26% | 5 | 4 | 0 |
 | `death-trigger` | 34 / 34 | 100% | 19 | 14 | 1 |
 | `mana-artifact` | 34 / 34 | 100% | 14 | 18 | 2 |
-| `activated-tap` | 2 / 27 | 7% | 1 | 1 | 0 |
+| `activated-tap` | 9 / 27 | 33% | 8 | 1 | 0 |
 | `pump-buff` | 27 / 27 | 100% | 17 | 10 | 0 |
 | `cant-restriction` | 25 / 25 | 100% | 16 | 9 | 0 |
 | `removal-damage-target` | 23 / 23 | 100% | 9 | 13 | 1 |
-| `activated-sacrifice` | 3 / 19 | 16% | 1 | 2 | 0 |
+| `activated-sacrifice` | 7 / 19 | 37% | 5 | 2 | 0 |
 | `mana-creature` | 19 / 19 | 100% | 12 | 7 | 0 |
 | `graveyard-recursion` | 18 / 18 | 100% | 8 | 10 | 0 |
 | `removal-damage-each` | 17 / 17 | 100% | 11 | 6 | 0 |
 | `counter` | 16 / 16 | 100% | 8 | 5 | 3 |
-| `removal-exile` | 13 / 14 | 93% | 4 | 5 | 4 |
-| `untap-phase` | 1 / 13 | 8% | 0 | 0 | 1 |
+| `removal-exile` | 14 / 14 | 100% | 5 | 5 | 4 |
+| `untap-phase` | 6 / 13 | 46% | 5 | 0 | 1 |
 | `cost-reduction` | 12 / 12 | 100% | 12 | 0 | 0 |
 | `opponent-punish` | 12 / 12 | 100% | 4 | 8 | 0 |
 | `equipment` | 11 / 11 | 100% | 6 | 5 | 0 |
 | `tutor` | 11 / 11 | 100% | 9 | 1 | 1 |
 | `removal-bounce` | 10 / 10 | 100% | 6 | 3 | 1 |
-| `static-enchantment` | 0 / 8 | 0% | 0 | 0 | 0 |
-| `discard-effect` | 0 / 7 | 0% | 0 | 0 | 0 |
+| `static-enchantment` | 1 / 8 | 12% | 1 | 0 | 0 |
+| `discard-effect` | 3 / 7 | 43% | 3 | 0 | 0 |
 | `scry-surveil` | 7 / 7 | 100% | 3 | 4 | 0 |
 | `aura` | 6 / 6 | 100% | 3 | 2 | 1 |
 | `etb-trigger` | 6 / 6 | 100% | 1 | 5 | 0 |
 | `lifedrain` | 6 / 6 | 100% | 3 | 1 | 2 |
-| `sacrifice-outlet` | 1 / 6 | 17% | 1 | 0 | 0 |
+| `sacrifice-outlet` | 2 / 6 | 33% | 2 | 0 | 0 |
 | `lifegain` | 5 / 5 | 100% | 3 | 0 | 2 |
 | `mana-other` | 5 / 5 | 100% | 2 | 3 | 0 |
 | `removal-minus` | 4 / 4 | 100% | 2 | 1 | 1 |
@@ -118,47 +118,77 @@ with their quality bucket. If most are `todo` or `empty`, the group is
 the group is just **unwritten** (need authoring effort). This split tells 
 you which kind of next-step work would unblock the group.
 
-#### `discard-effect` — 0 / 7 (0%), authored split: 0 clean / 0 todo / 0 empty — **unwritten**
-
-#### `static-enchantment` — 0 / 8 (0%), authored split: 0 clean / 0 todo / 0 empty — **unwritten**
-
-#### `activated-tap` — 2 / 27 (7%), authored split: 1 clean / 1 todo / 0 empty — **unwritten**
+#### `static-enchantment` — 1 / 8 (12%), authored split: 1 clean / 0 todo / 0 empty — **unwritten**
 
 | Card | Slug | Bucket |
 | --- | --- | --- |
+| Flux Channeler | `flux_channeler` | clean |
+
+#### `attack-trigger` — 9 / 34 (26%), authored split: 5 clean / 4 todo / 0 empty — **unwritten**
+
+| Card | Slug | Bucket |
+| --- | --- | --- |
+| Aurelia, the Warleader | `aurelia_the_warleader` | clean |
+| Etali, Primal Storm | `etali_primal_storm` | todo |
+| Goblin Wardriver | `goblin_wardriver` | clean |
+| Hellrider | `hellrider` | todo |
+| Rhys the Exiled | `rhys_the_exiled` | clean |
+| Sanctum Seeker | `sanctum_seeker` | clean |
+| Shared Animosity | `shared_animosity` | todo |
+| Six | `six` | todo |
+| Triumphant Adventurer | `triumphant_adventurer` | clean |
+
+#### `activated-tap` — 9 / 27 (33%), authored split: 8 clean / 1 todo / 0 empty — **unwritten**
+
+| Card | Slug | Bucket |
+| --- | --- | --- |
+| Arbor Elf | `arbor_elf` | clean |
+| Contagion Clasp | `contagion_clasp` | clean |
 | Fauna Shaman | `fauna_shaman` | todo |
 | Maze of Ith | `maze_of_ith` | clean |
+| Moggcatcher | `moggcatcher` | clean |
+| Sakura-Tribe Scout | `sakura_tribe_scout` | clean |
+| Skyshroud Poacher | `skyshroud_poacher` | clean |
+| Timberwatch Elf | `timberwatch_elf` | clean |
+| Wellwisher | `wellwisher` | clean |
 
-#### `untap-phase` — 1 / 13 (8%), authored split: 0 clean / 0 todo / 1 empty — **engine-blocked**
+#### `sacrifice-outlet` — 2 / 6 (33%), authored split: 2 clean / 0 todo / 0 empty — **unwritten**
 
 | Card | Slug | Bucket |
 | --- | --- | --- |
-| Seedborn Muse | `seedborn_muse` | empty |
+| Culling the Weak | `culling_the_weak` | clean |
+| Life's Legacy | `lifes_legacy` | clean |
 
-#### `activated-sacrifice` — 3 / 19 (16%), authored split: 1 clean / 2 todo / 0 empty — **engine-blocked**
+#### `activated-sacrifice` — 7 / 19 (37%), authored split: 5 clean / 2 todo / 0 empty — **unwritten**
 
 | Card | Slug | Bucket |
 | --- | --- | --- |
 | Altar of Dementia | `altar_of_dementia` | clean |
 | Birthing Pod | `birthing_pod` | todo |
 | Bolas's Citadel | `bolass_citadel` | todo |
+| Goblin Chirurgeon | `goblin_chirurgeon` | clean |
+| Goblin Lookout | `goblin_lookout` | clean |
+| Spore Frog | `spore_frog` | clean |
+| Whirlpool Warrior | `whirlpool_warrior` | clean |
 
-#### `sacrifice-outlet` — 1 / 6 (17%), authored split: 1 clean / 0 todo / 0 empty — **unwritten**
-
-| Card | Slug | Bucket |
-| --- | --- | --- |
-| Life's Legacy | `lifes_legacy` | clean |
-
-#### `attack-trigger` — 6 / 34 (18%), authored split: 2 clean / 4 todo / 0 empty — **engine-blocked**
+#### `discard-effect` — 3 / 7 (43%), authored split: 3 clean / 0 todo / 0 empty — **unwritten**
 
 | Card | Slug | Bucket |
 | --- | --- | --- |
-| Aurelia, the Warleader | `aurelia_the_warleader` | clean |
-| Etali, Primal Storm | `etali_primal_storm` | todo |
-| Hellrider | `hellrider` | todo |
-| Sanctum Seeker | `sanctum_seeker` | clean |
-| Shared Animosity | `shared_animosity` | todo |
-| Six | `six` | todo |
+| Fateful Showdown | `fateful_showdown` | clean |
+| Tolarian Winds | `tolarian_winds` | clean |
+| Wheel of Fortune | `wheel_of_fortune` | clean |
+
+#### `untap-phase` — 6 / 13 (46%), authored split: 5 clean / 0 todo / 1 empty — **unwritten**
+
+| Card | Slug | Bucket |
+| --- | --- | --- |
+| Aggravated Assault | `aggravated_assault` | clean |
+| Hyrax Tower Scout | `hyrax_tower_scout` | clean |
+| Mobilize | `mobilize` | clean |
+| Seedborn Muse | `seedborn_muse` | empty |
+| Vitalize | `vitalize` | clean |
+| Wilderness Reclamation | `wilderness_reclamation` | clean |
 
 ## TODO classification (top 25)
 
@@ -174,7 +204,7 @@ the next thing to triage when the classifier table is grown.
 | attack trigger (self / generic) | 26 | · |
 | TriggerCondition::* missing variant | 17 | · |
 | dynamic hexproof / protection | 17 | · |
-| sacrifice as cost | 17 | +1 |
+| sacrifice as cost | 17 | · |
 | Cost::* missing variant | 16 | · |
 | replacement effect missing | 14 | · |
 | EffectAmount::* missing variant | 12 | · |
@@ -234,6 +264,7 @@ tyvar_jubilant_brawler: // TODO: static — creatures you control can activate a
 ## Recent card-touching commits
 
 ```
+205282d3 scutemob-96: W-EMPTY — author authorable empty-placeholder defs
 5321ebef scutemob-95: W-PB2 batch 5 — targeting/alt-cost/misc (8 Complete) + boggart demotion + test fixes
 7ee2a68d scutemob-95: W-PB2 batch 4 — triggers (10 Complete)
 e7e304b8 scutemob-95: W-PB2 batch 3 — dynamic P/T + static grants (9 Complete)
@@ -258,12 +289,11 @@ b6f748f8 SR-6: extract card-defs and card-types crates — compile isolation for
 98a7a6a7 SR-2: registry gate for invariant #9 — completeness markers + duplicate CardId detection
 b9397215 W6-cards: PB-AC9 backfill HIGH — Reforge the Soul stale Miracle marker
 52a2b6f2 W6-prim: PB-AC9 — WheelHand + SetNoMaximumHandSize + token-doubling completeness
-91885e98 W6-prim: PB-AC8 review fixes — 2 MEDIUM + 2 LOW closed
 ```
 
 ## Missing card-defs sidecar
 
-The full list of 194 plan cards still missing on disk is at 
+The full list of 161 plan cards still missing on disk is at 
 `docs/authoring-status-missing.txt` (tab-separated `group<TAB>name`, sorted by group). 
 Use it as a batch-author worklist.
 
