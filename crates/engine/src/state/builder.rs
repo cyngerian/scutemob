@@ -475,67 +475,11 @@ impl GameStateBuilder {
                         }),
                     });
                 }
-                // CR 702.86a: Annihilator N — "Whenever this creature attacks, defending
-                // player sacrifices N permanents."
-                // Each keyword instance generates one TriggeredAbilityDef (CR 702.86b).
-                // The effect targets the defending player (DeclaredTarget { index: 0 }),
-                // which is resolved at flush time via PendingTrigger.defending_player_id.
-                if let KeywordAbility::Annihilator(n) = kw {
-                    triggered_abilities.push(TriggeredAbilityDef {
-                        counter_filter: None,
-                        counter_on_self: false,
-                        once_per_turn: false,
-                        etb_filter: None,
-                        death_filter: None,
-                        combat_damage_filter: None,
-                        triggering_creature_filter: None,
-                        targets: vec![],
-                        trigger_on: TriggerEvent::SelfAttacks,
-                        intervening_if: None,
-                        description: format!(
-                            "Annihilator {n} (CR 702.86a): Whenever this creature attacks, \
-                             defending player sacrifices {n} permanents."
-                        ),
-                        effect: Some(Effect::SacrificePermanents {
-                            player: PlayerTarget::DeclaredTarget { index: 0 },
-                            count: EffectAmount::Fixed(*n as i32),
-                            filter: None,
-                        }),
-                    });
-                }
-                // CR 702.91a: Battle Cry — "Whenever this creature attacks, each
-                // other attacking creature gets +1/+0 until end of turn."
-                // Each keyword instance generates one TriggeredAbilityDef (CR 702.91b).
-                // The ForEach iterates over all other attacking creatures at resolution
-                // time and applies a +1/+0 ModifyPower continuous effect to each.
-                if matches!(kw, KeywordAbility::BattleCry) {
-                    triggered_abilities.push(TriggeredAbilityDef {
-                        counter_filter: None,
-                        counter_on_self: false,
-                        once_per_turn: false,
-                        etb_filter: None,
-                        death_filter: None,
-                        combat_damage_filter: None,
-                        triggering_creature_filter: None,
-                        targets: vec![],
-                        trigger_on: TriggerEvent::SelfAttacks,
-                        intervening_if: None,
-                        description: "Battle Cry (CR 702.91a): Whenever this creature attacks, \
-                                      each other attacking creature gets +1/+0 until end of turn."
-                            .to_string(),
-                        effect: Some(Effect::ForEach {
-                            over: ForEachTarget::EachOtherAttackingCreature,
-                            effect: Box::new(Effect::ApplyContinuousEffect {
-                                effect_def: Box::new(ContinuousEffectDef {
-                                    layer: EffectLayer::PtModify,
-                                    modification: LayerModification::ModifyPower(1),
-                                    filter: CEFilter::DeclaredTarget { index: 0 },
-                                    duration: CEDuration::UntilEndOfTurn,
-                                    condition: None,
-                                }),
-                            }),
-                        }),
-                    });
+                // CR 702.86a/702.91a: Annihilator N / Battle Cry — derived via the
+                // shared helper (also used by layers::calculate_characteristics for
+                // granted-keyword reconciliation, PB-EF3b).
+                if let Some(def) = derived_attack_trigger_for_keyword(kw) {
+                    triggered_abilities.push(def);
                 }
                 // CR 702.105a: Dethrone -- "Whenever this creature attacks the player
                 // with the most life or tied for most life, put a +1/+1 counter on
@@ -599,32 +543,9 @@ impl GameStateBuilder {
                         }),
                     });
                 }
-                // CR 702.121a: Melee -- "Whenever this creature attacks, it gets
-                // +1/+1 until end of turn for each opponent you attacked with a
-                // creature this combat."
-                // Each keyword instance generates one TriggeredAbilityDef (CR 702.121b).
-                // The effect is None because resolution is handled by the custom
-                // KeywordTrigger (Melee) StackObjectKind -- the bonus is computed at resolution
-                // time from combat state (ruling 2016-08-23).
-                if matches!(kw, KeywordAbility::Melee) {
-                    triggered_abilities.push(TriggeredAbilityDef {
-                        counter_filter: None,
-                        counter_on_self: false,
-                        once_per_turn: false,
-                        etb_filter: None,
-                        death_filter: None,
-                        combat_damage_filter: None,
-                        triggering_creature_filter: None,
-                        targets: vec![],
-                        trigger_on: TriggerEvent::SelfAttacks,
-                        intervening_if: None,
-                        description: "Melee (CR 702.121a): Whenever this creature attacks, it \
-                                      gets +1/+1 until end of turn for each opponent you \
-                                      attacked with a creature this combat."
-                            .to_string(),
-                        effect: None, // Custom resolution via KeywordTrigger (Melee)
-                    });
-                }
+                // CR 702.121a: Melee — derived via the shared helper above
+                // (derived_attack_trigger_for_keyword handles Annihilator/BattleCry/
+                // Melee in one call per keyword).
                 // CR 702.154a: Enlist -- "As this creature attacks, you may tap up to
                 // one untapped creature [...]. When you do, this creature gets +X/+0
                 // until end of turn, where X is the tapped creature's power."
@@ -1173,6 +1094,85 @@ impl GameStateBuilder {
             state.add_object(object, zone)?;
         }
         Ok(state)
+    }
+}
+/// CR 702.86a / 702.91a / 702.121a: the derived `TriggeredAbilityDef` for a
+/// trigger-bearing attack keyword. Single source of truth shared by `builder.rs`
+/// (printed keywords) and `layers::calculate_characteristics` (granted keywords)
+/// so the two never drift. Returns `None` for keywords that need no derived
+/// attack trigger. Descriptions are load-bearing: the layer reconciliation
+/// dedups by exact description equality, and the AttackersDeclared Melee tag
+/// matches on `description.starts_with("Melee")`.
+pub(crate) fn derived_attack_trigger_for_keyword(
+    kw: &KeywordAbility,
+) -> Option<TriggeredAbilityDef> {
+    match kw {
+        KeywordAbility::Annihilator(n) => Some(TriggeredAbilityDef {
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
+            etb_filter: None,
+            death_filter: None,
+            combat_damage_filter: None,
+            triggering_creature_filter: None,
+            targets: vec![],
+            trigger_on: TriggerEvent::SelfAttacks,
+            intervening_if: None,
+            description: format!(
+                "Annihilator {n} (CR 702.86a): Whenever this creature attacks, \
+                 defending player sacrifices {n} permanents."
+            ),
+            effect: Some(Effect::SacrificePermanents {
+                player: PlayerTarget::DeclaredTarget { index: 0 },
+                count: EffectAmount::Fixed(*n as i32),
+                filter: None,
+            }),
+        }),
+        KeywordAbility::BattleCry => Some(TriggeredAbilityDef {
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
+            etb_filter: None,
+            death_filter: None,
+            combat_damage_filter: None,
+            triggering_creature_filter: None,
+            targets: vec![],
+            trigger_on: TriggerEvent::SelfAttacks,
+            intervening_if: None,
+            description: "Battle Cry (CR 702.91a): Whenever this creature attacks, \
+                          each other attacking creature gets +1/+0 until end of turn."
+                .to_string(),
+            effect: Some(Effect::ForEach {
+                over: ForEachTarget::EachOtherAttackingCreature,
+                effect: Box::new(Effect::ApplyContinuousEffect {
+                    effect_def: Box::new(ContinuousEffectDef {
+                        layer: EffectLayer::PtModify,
+                        modification: LayerModification::ModifyPower(1),
+                        filter: CEFilter::DeclaredTarget { index: 0 },
+                        duration: CEDuration::UntilEndOfTurn,
+                        condition: None,
+                    }),
+                }),
+            }),
+        }),
+        KeywordAbility::Melee => Some(TriggeredAbilityDef {
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
+            etb_filter: None,
+            death_filter: None,
+            combat_damage_filter: None,
+            triggering_creature_filter: None,
+            targets: vec![],
+            trigger_on: TriggerEvent::SelfAttacks,
+            intervening_if: None,
+            description: "Melee (CR 702.121a): Whenever this creature attacks, it \
+                          gets +1/+1 until end of turn for each opponent you \
+                          attacked with a creature this combat."
+                .to_string(),
+            effect: None, // Custom resolution via KeywordTrigger (Melee)
+        }),
+        _ => None,
     }
 }
 /// Register replacement effects for commander zone changes (CR 903.9b).

@@ -174,7 +174,7 @@ changes behaviour:
 | --- | --- | --- | --- |
 | EF-W-MISS-1 | HIGH | `swan_song` gives the Bird to the caster, not the countered spell's controller | **YES** — swan_song has no `completeness` field → defaults `Complete` |
 | EF-W-MISS-10 | HIGH | targeted `WheneverCreatureYouControlAttacks` drops its target (`enrich` hardcodes `targets: vec![]`) | No — all shipped users pass empty targets; Ojutai/Soul of Winter were *removed*, not shipped |
-| EF-W-MISS-3 | MED | granted keyword-triggers (Melee/Battle Cry/Annihilator via `AddKeyword`) are silent no-ops (static keywords grant fine; only trigger-bearing keywords) | No — no Complete def grants a trigger-keyword to others yet |
+| EF-W-MISS-3 ✅ CLOSED (scutemob-104) | MED | granted keyword-triggers (Melee/Battle Cry/Annihilator via `AddKeyword`) are silent no-ops (static keywords grant fine; only trigger-bearing keywords) | FIXED by PB-EF3b — `layers::calculate_characteristics` now synthesizes the derived trigger from post-layers keywords via the shared `derived_attack_trigger_for_keyword` helper; Adriana authored Complete exercises it |
 | EF-W-PB2-1 | MED | `PermanentCount` ignores `exclude_self` (éomer +1 too many) | No — éomer ships `known_wrong` (honestly marked) |
 | EF-W-EMPTY-1 | MED | sacrifice cost/effect path ignores `exclude_self` (can sac the source itself) | No — disciple/korvold ship `partial` |
 | EF-W-MISS-2 | MED | `UntapAll` ignores `exclude_self` | No |
@@ -264,8 +264,19 @@ demote is not a PB and should not wait in the queue.
   is *correct-in-4-player* (substituting EachOpponent/Controller is wrong in Commander).
 - **Note**: MISS-10 and MISS-4 are separable if the PB proves too large; MISS-10 (bug) goes first.
 
-### PB-EF3b — granted keyword-triggers fire  ·  CORRECTNESS
-- **Findings**: EF-W-MISS-3.
+### PB-EF3b — granted keyword-triggers fire  ·  CORRECTNESS  ·  ✅ DONE (scutemob-104, merge pending)
+> **SHIPPED 2026-07-18.** EF-W-MISS-3 CLOSED. Shared helper `derived_attack_trigger_for_keyword`
+> (single source of truth for the printed path in `builder.rs` + the granted path in
+> `layers::calculate_characteristics`); post-layer reconciliation appends the derived trigger for
+> each trigger-keyword in the final (post-layers) keyword set not already present, deduped by exact
+> description → printed+granted collapse to one entry (OrdSet model; CR 702.121b/91b/86b "each
+> instance triggers separately" is not representable — documented limitation, decoy-pinned). Melee/
+> Myriad/Provoke kind-tags in `AttackersDeclared` switched raw→resolved read. **Adriana Complete
+> (+1 clean coverage)**; **Skyhunter partial** (Lieutenant "control your commander" grant condition
+> unrepresentable → OOS-EF3b-1). 8 tests, all decoys non-vacuous. **No PROTOCOL/HASH bump** (synthesis
+> lands only in computed `Characteristics`). Filed OOS-EF3b-2 (extend helper to full keyword-trigger
+> set) + OOS-EF3b-3 (pre-existing `RemoveKeyword` stale-trigger asymmetry). Coverage 60.1% → **60.2%**.
+- **Findings**: EF-W-MISS-3 ✅ CLOSED.
 - **Fix**: synthesize the keyword-derived triggered ability (Melee / Battle Cry / Annihilator)
   when a keyword is added by a continuous effect, not only from **printed** keywords in
   `builder.rs`. Today `LayerModification::AddKeyword` inserts into `keywords` but the derived
@@ -353,7 +364,7 @@ demote is not a PB and should not wait in the queue.
 | **PB-EF1** ✅ DONE | correctness | PB2-1, EMPTY-1, MISS-2 (+EF-4/5, OOS-TS-2) | **6 shipped** | HASH+PROTOCOL |
 | PB-EF2 | correctness | MISS-1 | ~2 | PROTOCOL+HASH |
 | **PB-EF3** ✅ DONE | correctness+cap | MISS-10, MISS-4 | **3 shipped** | PROTOCOL+HASH |
-| PB-EF3b | correctness | MISS-3 | ~2 | none |
+| **PB-EF3b** ✅ DONE | correctness | MISS-3 | **1 Complete (Adriana) + 1 partial (Skyhunter)** | none |
 | PB-EF4 | capability | PB2-6≡MISS-5, PB2-7 | ~4–5 | PROTOCOL |
 | PB-EF5 | capability | MISS-6 | ~7–9 | PROTOCOL |
 | PB-EF6 | capability | PB2-2 | ~3 | PROTOCOL |
@@ -493,3 +504,72 @@ player must be **captured into the registered `ContinuousEffectDef` instance** a
   (`is_blocking`/`is_tapped` target predicates — same "predicate can't see the field" shape
   as PB-EF1; consider a combined "TargetFilter runtime predicates" PB), OOS-XS-3
   (`LayerModification::AddSubtype`, needed by olivia_voldaren's `{1}{R}` half alongside PB-EF9).
+
+---
+
+## 7. New findings filed by PB-EF3b (scutemob-104)
+
+### OOS-EF3b-1 (capability) — "you control your commander" (Lieutenant) continuous-grant condition
+Lieutenant-style abilities ("As long as you control your commander, [static effect]") need a
+condition on a continuous-effect grant (`ContinuousEffectDef.condition`) that evaluates
+"the effect's controller currently controls their commander." No such condition exists:
+`Condition` (card_definition.rs) has no commander variant, and `TargetFilter` has no
+`is_commander` field, so `Condition::YouControlPermanent(filter)` cannot express it either
+(a `TargetFilter` can't identify "is a commander," only printed characteristics).
+
+- **Instance**: `skyhunter_strike_force.rs` (PB-EF3b) — "Lieutenant — As long as you control
+  your commander, other creatures you control have melee." Authored `partial`: Flying +
+  printed Melee modeled and correct, the Lieutenant anthem omitted (not modeled wrong).
+- **Also blocks**: any other Lieutenant-keyword card (the keyword recurs across multiple
+  printings) and any other "as long as you control your commander" static-ability card.
+- **Fix shape**: add a `Condition::YouControlYourCommander` (or a `CommanderControlled` flag
+  on `TargetFilter`) that `is_effect_active` / the static-registration path can check against
+  the effect's controller's `commander_ids` + battlefield presence. Small, isolated addition;
+  likely no PROTOCOL bump if modeled as a new `Condition` variant reusing existing wire shape
+  (verify at plan time — `Condition` is inside the SR-8 closure).
+- **Verified**: PB-EF3b recon 2026-07-18 — `Condition` and `TargetFilter` enums audited,
+  neither expresses "is my commander."
+
+### OOS-EF3b-2 (capability) — extend `derived_attack_trigger_for_keyword` to the full builder-synthesized keyword-trigger set
+PB-EF3b's shared helper (`state::builder::derived_attack_trigger_for_keyword`) and the
+`layers::calculate_characteristics` reconciliation it feeds only cover the three keywords
+briefed in scope: Melee, Battle Cry, Annihilator N. `builder.rs`'s `for kw in
+spec.keywords.iter()` loop synthesizes derived `TriggeredAbilityDef`s for several more
+trigger-bearing keywords inline — Dethrone, Training, Enlist, Persist, Undying, and others —
+none of which get a granted-keyword reconciliation. A future card granting one of these
+(e.g. "Other creatures you control have dethrone") would repeat EF-W-MISS-3's silent no-op.
+
+- **Also affects the Myriad/Provoke tag-read fix** (PB-EF3b Change 4): the raw→resolved read
+  switch is defense-in-depth for these two (harmless for printed keywords, correct index for
+  any future granted instance) but a *granted* Myriad/Provoke still produces no derived
+  trigger at all today, because the helper doesn't synthesize one for them.
+- **Fix shape**: widen the `match kw` in `derived_attack_trigger_for_keyword` to cover the
+  remaining keywords whose derived defs are already built inline in `builder.rs`'s loop,
+  moving each into the shared helper the same way PB-EF3b did for the first three. No new
+  DSL/wire type — purely consolidating existing per-keyword `TriggeredAbilityDef` literals
+  behind the one helper. Straightforward extension PB once a card actually needs one of these
+  keywords granted.
+- **Verified**: PB-EF3b implementation 2026-07-18 — `builder.rs` loop enumerated; Dethrone
+  (~line 548 pre-batch), Training, Enlist, Persist, Undying, and others remain inline,
+  untouched by this batch's helper extraction (deliberately, per plan scope).
+
+### OOS-EF3b-3 (correctness, pre-existing) — `RemoveKeyword` leaves a stale derived trigger
+`LayerModification::RemoveKeyword(kw)` (`layers.rs` ~L1207) executes only
+`chars.keywords.remove(kw)`. For a **printed** trigger-keyword the derived `TriggeredAbilityDef`
+lives in base `chars.triggered_abilities` (built by `builder.rs`), and `RemoveKeyword` never
+touches that vec — so `collect_triggers_for_event` (reading resolved chars) still finds and fires
+the trigger after the keyword was supposedly removed (e.g. a printed Melee still pumps after
+`RemoveKeyword(Melee)`). **Pre-existing** — true for every printed trigger-keyword before PB-EF3b,
+not introduced or worsened by it; surfaced by the reviewer because PB-EF3b formalizes the
+keyword→derived-trigger relationship. `RemoveAllAbilities` is unaffected (it clears
+`triggered_abilities` too, ~L1204), which is why the Humility path is correct; the asymmetry is
+only in the single-keyword `RemoveKeyword` path.
+
+- **Fix shape**: either (a) have `RemoveKeyword(kw)` also drop any `triggered_abilities` entry
+  whose description matches `derived_attack_trigger_for_keyword(kw)`, or (b) drive the PB-EF3b
+  reconciliation from keyword presence in **both** directions (rebuild derived triggers from the
+  final keyword set rather than append-only). Option (b) composes with OOS-EF3b-2. No wire/DSL type.
+- **Test gaps to add when fixed** (reviewer Finding 3, additive): a Melee-**token** case
+  (`make_token` now benefits from the PB-EF3b reconciliation — currently an unasserted bonus), a
+  planeswalker-attack Melee case, and a `RemoveKeyword`-after-grant case (this finding).
+- **Verified**: PB-EF3b review 2026-07-18 (`memory/primitives/pb-review-EF3b.md` Finding 2).

@@ -433,6 +433,30 @@ pub fn calculate_characteristics(
             }
         }
     }
+    // PB-EF3b (CR 702.86a/702.91a/702.121a, 613.1f): a trigger-bearing keyword GRANTED by a
+    // continuous effect (LayerModification::AddKeyword) inserts into `chars.keywords` but carries
+    // no derived TriggeredAbilityDef, so its trigger would be a silent no-op. Synthesize it here,
+    // AFTER all layers (incl. Layer 6 add/remove) and merge integration, so the derived trigger
+    // exists in the RESOLVED characteristics that collect_triggers_for_event reads.
+    //
+    // Keyword model is a SET (OrdSet), so printed+granted collapse to one entry (CR 702.x.b "each
+    // instance triggers separately" is not representable — known limitation). Dedup by exact
+    // description equality against the shared helper's output so a PRINTED derived def (already in
+    // base chars via builder.rs) is not duplicated. Humility/RemoveAllAbilities empties
+    // chars.keywords, so nothing is appended (correct). These are SelfAttacks triggers only — no
+    // ETB / Panharmonicon interaction.
+    let kws: Vec<KeywordAbility> = chars.keywords.iter().cloned().collect();
+    for kw in kws {
+        if let Some(def) = crate::state::builder::derived_attack_trigger_for_keyword(&kw) {
+            let already = chars
+                .triggered_abilities
+                .iter()
+                .any(|t| t.description == def.description);
+            if !already {
+                chars.triggered_abilities.push(def);
+            }
+        }
+    }
     Some(chars)
 }
 

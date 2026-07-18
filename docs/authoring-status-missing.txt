@@ -1,6 +1,6 @@
 # Authoring plan — cards still missing on disk
-# Generated: 2026-07-18 08:37 UTC  Git: e9ec859b  Plan snapshot: 2026-03-10
-# Format: <group>\t<card name>   (157 cards)
+# Generated: 2026-07-18 09:46 UTC  Git: 22acde6b  Plan snapshot: 2026-03-10
+# Format: <group>\t<card name>   (155 cards)
 
 activated-sacrifice	Chatterfang, Squirrel General
 activated-sacrifice	Dark-Dweller Oracle
@@ -31,7 +31,6 @@ activated-tap	Scroll Rack
 activated-tap	Stoneforge Mystic
 activated-tap	The Chain Veil
 activated-tap	Wirewood Channeler
-attack-trigger	Adriana, Captain of the Guard
 attack-trigger	Atarka, World Render
 attack-trigger	Brutal Hordechief
 attack-trigger	Caustic Bronco
@@ -49,7 +48,6 @@ attack-trigger	Olivia, Crimson Bride
 attack-trigger	Raiyuu, Storm's Edge
 attack-trigger	Savage Ventmaw
 attack-trigger	Silumgar, the Drifting Death
-attack-trigger	Skyhunter Strike Force
 attack-trigger	Thrakkus the Butcher
 attack-trigger	Trench Behemoth
 attack-trigger	Winota, Joiner of Forces

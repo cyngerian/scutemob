@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-18 08:37 UTC  
-**Git:** `e9ec859b` on `feat/pb-ef3-attack-trigger-target-fidelity-defending-player-targe`  
+**Generated:** 2026-07-18 09:46 UTC  
+**Git:** `22acde6b` on `feat/pb-ef3b-granted-keyword-triggers-fire-meleebattle-cryannihil`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -19,25 +19,25 @@ and what is intentionally NOT in it.**
 
 | Metric | Count | Δ since last run |
 | --- | ---: | ---: |
-| Card def files on disk | 1,785 | +2 |
+| Card def files on disk | 1,787 | +2 |
 | Authoring-plan target universe (snapshot 2026-03-10) | 1,636 | · |
-| Plan cards with a def file (any-face match) | 1,479 | +2 |
-| Plan cards still missing a def file | 157 | -2 |
+| Plan cards with a def file (any-face match) | 1,481 | +2 |
+| Plan cards still missing a def file | 155 | -2 |
 | Bonus defs (on disk, outside plan) | 321 | · |
-| Effective coverage vs plan target | **110%** (1,800 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 60.2% | 1,075 | +3 |
-| With TODO markers | 552 | -1 |
+| Effective coverage vs plan target | **110%** (1,802 / 1,636) | — |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 60.2% | 1,076 | +1 |
+| With TODO markers | 553 | +1 |
 | Empty `abilities: vec![]` placeholders | 158 | · |
-| Total TODO lines across all defs | 972 | -1 |
+| Total TODO lines across all defs | 973 | +1 |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 37 | 1,744 |
-| last 30 days | 37 | 2,918 |
-| last 90 days | 37 | 2,958 |
-| last 1 year | 1,810 | 3,341 |
+| last 7 days | 39 | 1,744 |
+| last 30 days | 39 | 2,918 |
+| last 90 days | 39 | 2,958 |
+| last 1 year | 1,812 | 3,341 |
 
 ## Bonus defs outside the plan
 
@@ -77,7 +77,7 @@ are blocked on engine primitives.
 | `removal-destroy` | 56 / 56 | 100% | 33 | 19 | 4 |
 | `counters-plus` | 49 / 49 | 100% | 24 | 20 | 5 |
 | `land-fetch` | 45 / 45 | 100% | 27 | 14 | 4 |
-| `attack-trigger` | 12 / 34 | 35% | 9 | 1 | 2 |
+| `attack-trigger` | 14 / 34 | 41% | 10 | 2 | 2 |
 | `death-trigger` | 34 / 34 | 100% | 19 | 10 | 5 |
 | `mana-artifact` | 34 / 34 | 100% | 14 | 18 | 2 |
 | `activated-tap` | 9 / 27 | 33% | 8 | 0 | 1 |
@@ -145,10 +145,11 @@ you which kind of next-step work would unblock the group.
 | Culling the Weak | `culling_the_weak` | clean |
 | Life's Legacy | `lifes_legacy` | clean |
 
-#### `attack-trigger` — 12 / 34 (35%), authored split: 9 clean / 1 todo / 2 empty — **unwritten**
+#### `attack-trigger` — 14 / 34 (41%), authored split: 10 clean / 2 todo / 2 empty — **unwritten**
 
 | Card | Slug | Bucket |
 | --- | --- | --- |
+| Adriana, Captain of the Guard | `adriana_captain_of_the_guard` | clean |
 | Aurelia, the Warleader | `aurelia_the_warleader` | clean |
 | Copperhorn Scout | `copperhorn_scout` | clean |
 | Etali, Primal Storm | `etali_primal_storm` | empty |
@@ -160,6 +161,7 @@ you which kind of next-step work would unblock the group.
 | Sanctum Seeker | `sanctum_seeker` | clean |
 | Shared Animosity | `shared_animosity` | empty |
 | Six | `six` | todo |
+| Skyhunter Strike Force | `skyhunter_strike_force` | todo |
 | Triumphant Adventurer | `triumphant_adventurer` | clean |
 
 #### `activated-sacrifice` — 8 / 19 (42%), authored split: 6 clean / 1 todo / 1 empty — **unwritten**
@@ -203,8 +205,8 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 598 | · |
-| DSL gap (unspecified) | 122 | -1 |
+| OTHER (unclassified) | 599 | +1 |
+| DSL gap (unspecified) | 122 | · |
 | attack trigger (self / generic) | 26 | · |
 | TriggerCondition::* missing variant | 17 | · |
 | dynamic hexproof / protection | 17 | · |
@@ -233,7 +235,7 @@ _…and 28 more buckets totaling 46 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 598 
+Showing 12 of 599 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
@@ -246,8 +248,8 @@ experimental_augury: // TODO: Interactive "choose 1 of 3" — M10 player choice.
 goblin_lackey: // TODO: "put a Goblin from hand onto battlefield" — needs MoveZone from
 joraga_treespeaker: // TODO: Level up mechanic not in DSL — no LevelUp keyword or level-based ability gating.
 marisi_breaker_of_the_coil: // TODO: "goad each creature that player controls" — ForEach over DamagedPlayer's creatures
-otharri_suns_glory: // TODO: "{2}{R}{W}, Tap an untapped Rebel you control: Return this card from your
-roiling_dragonstorm: // TODO: "When a Dragon you control enters, return this to hand" —
+out_of_the_tombs: // TODO: Upkeep counter + mill scaling with counter count not expressible.
+ruthless_technomancer: // ENGINE-BLOCKED (activated ability): "{2}{B}, Sacrifice X artifacts: Return target
 song_of_freyalise: // TODO: Saga chapter I/II — grant `{T}: Add one mana of any color` to creatures you
 teferi_temporal_archmage: // TODO: Emblem creation for "activate loyalty at instant speed" not in DSL.
 tyvar_jubilant_brawler: // TODO: static — creatures you control can activate abilities as though they had haste
@@ -268,6 +270,7 @@ tyvar_jubilant_brawler: // TODO: static — creatures you control can activate a
 ## Recent card-touching commits
 
 ```
+43e73b32 scutemob-104: PB-EF3b — granted keyword-triggers fire (Melee/Battle Cry/Annihilator)
 86aa9cca scutemob-103: PB-EF3 cards — Ojutai Soul of Winter, Hellrider, Raid Bombardment
 6f2b299d scutemob-102: PB-EF2 — CreateToken player-scoped recipient (EF-W-MISS-1)
 38fa59c3 scutemob-101: EF-13 (Option A) — reclassify 101 no-behaviour Partial defs to Inert
@@ -292,12 +295,11 @@ b0290d2c scutemob-90: SR-34 §9 — un-demote the 3 horizon lands, extend the SR
 104bd5e3 scutemob-89: review fixes — gate AddManaChoice (3rd stub), correct 3 wrong findings, fmt
 a25f87c8 scutemob-89: card review fixes — dimir_guildgate stale comment + oracle text; SF-6
 5dcca855 scutemob-89: SR-33 — dual/tri lands produce every printed colour; gate the Choose stub
-e2b1eb02 scutemob-88: /review fixes — unwrap 8 notes, 2 kind corrections, gate nit, EF-13
 ```
 
 ## Missing card-defs sidecar
 
-The full list of 157 plan cards still missing on disk is at 
+The full list of 155 plan cards still missing on disk is at 
 `docs/authoring-status-missing.txt` (tab-separated `group<TAB>name`, sorted by group). 
 Use it as a batch-author worklist.
 
