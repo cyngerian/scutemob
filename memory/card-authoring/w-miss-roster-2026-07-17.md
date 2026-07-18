@@ -171,9 +171,14 @@ Atarka World Render (double strike EOT), Fervent Charge (+2/+2 EOT), Goblin Pile
 Brutal Hordechief, Raid Bombardment, Silumgar the Drifting Death (defending-player creature
 filter), Norn's Decree, Cunning Rhetoric, Karazikar the Eye Tyrant.
 
-### Granted keyword-trigger is a silent no-op (`AddKeyword` never synthesizes the trigger)
-Adriana Captain of the Guard (grant Melee), Skyhunter Strike Force (Lieutenant grant Melee +
-no "control your commander" condition), Olivia Crimson Bride (grants a bespoke trigger).
+### Granted keyword-trigger is a silent no-op (`AddKeyword` never synthesizes the trigger) — ✅ CLOSED (EF-W-MISS-3, PB-EF3b / scutemob-104, 2026-07-18)
+FIXED: `layers::calculate_characteristics` now synthesizes the derived Melee/Battle Cry/Annihilator
+trigger from post-layers keywords (shared `derived_attack_trigger_for_keyword` helper). **Adriana
+Captain of the Guard** authored Complete (grant Melee — exercises the fix). **Skyhunter Strike Force**
+authored partial: Flying + printed Melee modeled; the Lieutenant grant ("As long as you control your
+commander …") is unrepresentable — no "control your commander" condition primitive → OOS-EF3b-1.
+**Olivia Crimson Bride** remains out of scope (grants a *bespoke* trigger, not a keyword — not fixed
+by this PB; still genuinely blocked).
 
 ### `MayPayOrElse` gated / optional-pay attack triggers
 Frenzied Goblin, Hellkite Charger, Lightning Runner (+ energy), Formidable Speaker (ETB
