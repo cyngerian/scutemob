@@ -1,168 +1,134 @@
-# Primitive WIP: PB-EF4 — TriggeringCreature as effect subject/source
+# Primitive WIP: PB-EF5 — card-invokable self-transform + CardType::Battle (EF-W-MISS-6)
 
-batch: PB-EF4
-title: Add EffectFilter::TriggeringCreature (continuous-effect subject = the just-triggered creature) and an optional source: Option<EffectTarget> on Effect::DealDamage (the triggering permanent as damage source, honoring its characteristics for lifelink/infect/prevention/doubling). Closes EF-W-PB2-6 (≡ EF-W-MISS-5) and EF-W-PB2-7.
-task: scutemob-105
-branch: feat/pb-ef4-triggeringcreature-as-effect-subjectsource-ef-w-pb2-6
+batch: PB-EF5
+title: Add Effect::TransformSelf so a triggered/activated/conditional ability can flip its own source DFC through the existing Transform/DFC machinery (CR 701.27/701.28/712). Highest single-PB card yield (11 body-only DFCs). Battle (Invasion of Ikoria) and Sephiroth "Super Nova" SPLIT OUT with justification + filed seeds.
+task: scutemob-106
+branch: feat/pb-ef5-card-invokable-self-transform-cardtypebattle-ef-w-mis
 started: 2026-07-18
-phase: done
-plan_file: memory/primitives/pb-plan-EF4.md
+phase: implement
+plan_file: memory/primitives/pb-plan-EF5.md
 
 ## Source findings
-- memory/primitives/ef-batch-plan-2026-07-17.md — PB-EF4 section (line ~290), Cluster B (§1a)
-- memory/card-authoring/w-pb2-engine-findings-2026-07-17.md — EF-W-PB2-6 (line 101), EF-W-PB2-7 (line 115)
-- memory/card-authoring/w-miss-roster-2026-07-17.md — EF-W-MISS-5 (exact dedup of PB2-6)
+- memory/primitives/ef-batch-plan-2026-07-17.md — PB-EF5 section (line ~330), §1 table (EF-W-MISS-6 line 194)
+- memory/card-authoring/w-miss-roster-2026-07-17.md — "Card-invokable self-transform effect missing" (line 187)
 
-## Recon (done by coordinator before planning) — VERIFY before implementing
+## COORDINATOR SCOPING DECISIONS (made during recon — constraints for planner/runner)
 
-### Two gaps, one PB
-1. **EF-W-PB2-6 ≡ EF-W-MISS-5** — `EffectFilter` (crates/card-types/src/state/continuous_effect.rs:67)
-   has no `TriggeringCreature`. So "when a creature enters, IT gains <keyword> until end of turn"
-   (a continuous effect granted to the entering creature) is inexpressible. `EffectTarget` already
-   HAS `TriggeringCreature` (point effects), but `EffectFilter` (continuous) does not.
-2. **EF-W-PB2-7** — `Effect::DealDamage { target, amount }` (crates/card-types/src/cards/card_definition.rs:1330)
-   always sources from `ctx.source`. So "when another permanent enters, IT deals X damage" (entering
-   permanent as damage source) is inexpressible. Dragon Tempest is never a Dragon, so it misattributes
-   on 100% of firings (currently `inert`).
+### DECISION 1 — Ship `Effect::TransformSelf` (the core, highest-yield deliverable)
+Unit variant on `Effect` (mirrors `Effect::Meld` at card_definition.rs:2061 — no target field).
+Flips `ctx.source` through the SAME machinery as `Command::Transform` / `handle_transform`
+(engine.rs:1062). **Reuse, do not fork.** Refactor the core flip out of `handle_transform`
+into a shared helper (e.g. `transform_object(state, object_id) -> Result<Vec<GameEvent>>`)
+that BOTH the Command path and the new Effect executor call, so CR 701.27c/d/g + daybound/
+nightbound + meld-pair guards + PermanentTransformed event + SBA check live in one place.
 
-### Threading already exists (PB-EF3)
-- `EffectContext.triggering_creature_id: Option<ObjectId>` exists (effects/mod.rs:120), threaded
-  StackObject→EffectContext at resolution.rs:2109 / 2202. Set at abilities.rs:7930
-  (`stack_obj.triggering_creature_id = trigger.entering_object_id`). BUILD ON THIS — do not duplicate.
+CR rules the executor MUST honor (verified via MCP):
+- **CR 701.27c** — non-DFC → nothing happens (already in handle_transform).
+- **CR 701.27d** — back face is instant/sorcery → nothing happens (already there).
+- **CR 701.27e/701.28e/701.27f** — **once-per-instruction**: "an activated or triggered
+  ability of a permanent … tries to transform it, the permanent does so only if it hasn't
+  transformed or converted since the ability was put onto the stack." The task calls this
+  "712.8 once-per-instruction" but the actual rule is **701.27f/701.28e**. Guard: track
+  whether the source has already transformed during THIS resolving ability/instruction and
+  ignore a second TransformSelf. `obj.last_transform_timestamp` already exists — use it
+  against the resolving ability's start-of-resolution timestamp, OR a per-execution
+  already-transformed set threaded in EffectContext. Planner to pick the cleanest.
+- **CR 701.28f / daybound-nightbound** — handle_transform REJECTS daybound/nightbound via
+  Command (they only flip via their keyword system). For an on-card TransformSelf effect the
+  same rule applies: none of the 11 body-only DFC candidates are daybound/nightbound, so
+  TransformSelf may keep the same rejection (or no-op) for them. Planner: confirm no
+  candidate is daybound/nightbound; keep the guard.
 
-### EffectFilter::TriggeringCreature resolution site
-- `EffectFilter::Source` is resolved to `SingleObject(ctx.source)` at `ApplyContinuousEffect` execution
-  time and also handled in layers.rs:653 (returns false in the static-registration matcher) and
-  replacement.rs:2058. The new `TriggeringCreature` variant should resolve to
-  `SingleObject(ctx.triggering_creature_id)` at the SAME ApplyContinuousEffect execution site (mirror
-  Source / DeclaredTarget). If triggering_creature_id is None, the continuous effect applies to nothing
-  (no panic). hash.rs (~1857) needs a new discriminant byte.
+Wire: new `Effect` variant reaches the SR-8 fingerprint closure (Characteristics→Effect) →
+**PROTOCOL 9→10 forced**; Effect is in the GameState hash closure → **HASH 47→48 forced**.
+Let the machine gates force both; re-pin PROTOCOL_SCHEMA_FINGERPRINT + sentinel hashes;
+append history rows. (Current: PROTOCOL_VERSION=9 @ protocol.rs:113, HASH_SCHEMA_VERSION=47
+@ hash.rs:430.)
 
-### DealDamage source override
-- Executor: effects/mod.rs:271. Every damage-source read in this arm currently uses `ctx.source`:
-  apply_damage_doubling, apply_damage_prevention, damage_source_characteristics (infect/lifelink),
-  damage_source_controller (lifelink gain), and the `source:` field of DamageDealt/PoisonCountersGiven
-  events. Compute ONE `let damage_source_id = source.as_ref().map(|t| resolve to single ObjectId via
-  resolve_effect_target_list, first).unwrap_or(ctx.source)` at the top of the arm and thread it through
-  every one of those reads. `EffectTarget::TriggeringCreature` is already resolvable, so
-  `source: Some(EffectTarget::TriggeringCreature)` works out of the box.
-- `source: None` = existing behaviour (ctx.source). Full suite must prove no regression.
+**TransformNamed: DO NOT ADD.** None of the 11 body-only DFCs transform a *named other*
+permanent — every one self-transforms. Speculative variant forbidden (task says "verify
+from oracle before adding speculative variants").
 
-### Blast radius
-- `Effect::DealDamage` is constructed at ~110 sites across 90 card-defs files + 4 in engine/card-types.
-  Adding a required `source` field means adding `source: None,` at every construction site AND updating
-  the executor match-arm pattern to bind `source`. Mechanical but large; must keep check-defs-fmt.sh green.
-- Wire: both changes reach the SR-8 fingerprint closure (EffectFilter variant + DealDamage shape) →
-  **PROTOCOL 8→9** forced. HASH: DealDamage/EffectFilter appear in the GameState hash closure via
-  Characteristics→Effect → likely **HASH 46→47** forced too. Let the machine gates force both; re-pin
-  PROTOCOL_SCHEMA_FINGERPRINT + sentinel hashes; append history rows.
+### DECISION 2 — CardType::Battle: SPLIT OUT (file seed, do NOT ship)
+CR 310 (looked up in full) makes Battle a whole card-type subsystem:
+- 310.4b defense counters enter-replacement; 310.6 damage removes defense counters;
+- 310.5/508 attackable in combat; 310.8/310.10 protector designation as an SBA (opponent
+  chosen at ETB, protector-change SBAs); 310.7 zero-defense → graveyard SBA;
+- 310.11b Siege intrinsic "when last defense counter removed, exile + cast transformed."
+Shipping a bare `CardType::Battle` enum variant WITHOUT this machinery would produce a
+legal-but-wrong Complete def (invariant #9 violation; W6 policy forbids wrong game state).
+Invasion of Ikoria // Zilortha stays **blocked / truthfully-marked**. File **OOS-EF5-1**
+(dedicated Battle/Siege PB: card type + defense counters + combat attackability + protector
+SBA + defeat cast-transformed). Task explicitly permits: "full siege combat semantics beyond
+that card may be split out with justification" and "a partial ship of the DFC cohort with
+Battle split out is acceptable if justified in a task comment."
 
-### Candidates (8, discounted ~4-5) — chain-verify each vs oracle via MCP (feedback_verify_full_chain)
-- dragon_tempest (BOTH halves — flip `inert`): "Whenever Dragon Tempest or another Dragon enters, that
-  creature deals X damage..." (DealDamage source=triggering) + "...and gains haste" (if flying → haste,
-  TriggeringCreature filter). VERIFY exact oracle.
-- scourge_of_valkas (flip): DealDamage source override (the "or another Dragon enters" half).
-- ogre_battledriver (flip): TriggeringCreature filter ("that creature gains haste, +2/+0 UEOT").
-- shared_animosity (verify — may be a ForEach count effect, not a TriggeringCreature filter — chain-verify!).
-- Atarka World Render, Fervent Charge, Goblin Piledriver, Muxus Goblin Grandee — chain-verify; several
-  may be OUT of scope (Goblin Piledriver is a self-pump P/T static; Muxus is a search/reveal — likely
-  NOT this primitive). Demote honestly where a clause is still inexpressible. NO gated-stub effects.
+### DECISION 3 — Sephiroth "Super Nova": SPLIT OUT (file seed, do NOT ship)
+`lookup_card "Sephiroth, Fallen Hero"` = plain legendary creature, NO Super Nova, NO
+transform (irrelevant to this PB). The "Super Nova" Sephiroth is the FF-set DFC
+(Sephiroth, One-Winged Angel) whose back-face Super Nova is a bespoke keyword action —
+its own engine project, not a body-only-DFC flip. File **OOS-EF5-2**. Task: "drop with
+justification if it is its own engine project."
 
-## Phase log
-- 2026-07-18 plan: dispatched primitive-impl-planner.
-- 2026-07-18 plan DONE: `memory/primitives/pb-plan-EF4.md` written. Roster-recall TODO sweep found
-  2 forced adds beyond the 8-card brief (dreadhorde_invasion, warstorm_surge) → **7 ship** (was ~4-5
-  est): dragon_tempest (flip inert, BOTH primitives), scourge_of_valkas (flip partial, DealDamage
-  source), ogre_battledriver (flip inert, TriggeringCreature ×2), atarka_world_render (NEW),
-  fervent_charge (NEW), dreadhorde_invasion (flip partial, TriggeringCreature lifelink grant),
-  warstorm_surge (flip partial, DealDamage source + PowerOf(TriggeringCreature)). BLOCKED:
-  shared_animosity (count EffectAmount missing → file OOS-EF4-1), goblin_piledriver + muxus (OUT OF
-  SCOPE — self-attack Source / ETB reveal, neither PB-EF4 primitive is the blocker). terror_of_the_peaks
-  = deliberate contrast (source=ctx.source, keep source:None). Wire: PROTOCOL 8→9, HASH 46→47 (both
-  machine-forced). ~115 DealDamage construction sites need `source: None,` (3 override cards get
-  `Some(TriggeringCreature)`). serde(default) on source: YES (codebase convention; does NOT reduce
-  blast radius). Exhaustive-match compile-forced sites: layers.rs matches_filter, hash.rs EffectFilter
-  (disc 35) + Effect::DealDamage. Next: impl phase.
-- 2026-07-18 implement DONE (scutemob-105).
-  - Change 1: `EffectFilter::TriggeringCreature` added (`continuous_effect.rs`, after `Source`).
-  - Change 2: resolved at `ApplyContinuousEffect` executor (`effects/mod.rs`) →
-    `SingleObject(ctx.triggering_creature_id)` / `None => return`.
-  - Change 3: `matches_filter` (layers.rs) → `TriggeringCreature => false` (compile-forced,
-    confirmed).
-  - Change 4: hash.rs `HashInto for EffectFilter` → disc 35 (confirmed last-used was 34).
-  - Change 5: `Effect::DealDamage.source: Option<EffectTarget>` added with `#[serde(default)]`.
-  - Change 6: `damage_source_id` computed once, threaded through all 12 `ctx.source` reads in the
-    executor arm (plan said 11; actual count 12 incl. both Player and Object branches — extra
-    site was a second `damage_source_controller` call already counted in the plan's list, just
-    off-by-one in the enumeration, not a missed site).
-  - Change 7: hash.rs `HashInto for Effect` DealDamage arm binds+hashes `source`.
-  - Change 8: bulk sed `source: None,` across 90 files / 110 sites in `card-defs` (confirmed exact
-    count matched plan) + 1 hand-edit in `replay_harness.rs` (turned out to be a match PATTERN, not
-    a construction — added `..` instead of a field, since the pain-land match doesn't bind
-    `source`). `cargo build --workspace` was clean after; found +1 unanticipated class: ~30
-    `Effect::DealDamage` sites inside `crates/engine/tests/` (not in the plan's site count, which
-    only covered card-defs/engine-src/card-types) — bulk-sed'd those too via `cargo test --all
-    --no-run` as the backstop, exactly as the plan's Change 8 step 4 anticipated ("let the
-    compiler close the set").
-  - 3 override cards hand-edited: scourge_of_valkas, warstorm_surge, dragon_tempest (Dragon half)
-    → `source: Some(EffectTarget::TriggeringCreature)`.
-  - Chain-verified all 7 oracle texts against `.scryfall-cache/oracle-cards.json` (no MCP tool
-    access in this session — used the raw Scryfall cache directly). All matched the plan exactly.
-  - 7 cards shipped Complete: dragon_tempest, scourge_of_valkas, ogre_battledriver (flips);
-    atarka_world_render, fervent_charge (new); dreadhorde_invasion, warstorm_surge (flips).
-    shared_animosity stays `inert` — note rewritten (was half-stale: TriggeringCreature gap is now
-    closed, only the count-`EffectAmount` gap remains) and now cites OOS-EF4-1 explicitly.
-    goblin_piledriver / muxus NOT created. terror_of_the_peaks untouched (no DealDamage
-    construction in that file at all, so the bulk sed never touched it).
-  - Wire bumps: PROTOCOL 8→9 (fingerprint `9bf63ef2...`, history row appended, sentinel + FROZEN
-    prefix digest re-pinned from failing-test output). HASH 46→47 (decl `35e95651...`, stream
-    `64546a7b...`, history row appended, FROZEN prefix digest re-pinned). Both driven by the
-    failing gates per convention, never guessed.
-  - Tests: new file `crates/engine/tests/primitives/pb_ef4_triggering_creature_subject_source.rs`
-    (10 tests: 2 required decoys + 7 card-integration, plus 1 extra split for scourge's two
-    scenarios), registered in `primitives/main.rs`. Both required decoys' non-vacuity verified by
-    temporary revert (confirmed red, then restored) — decoy 1 (swap filter to
-    `CreaturesYouControl`) and decoy 2 (revert `damage_source_id` threading to bare `ctx.source`).
-    One test-authoring bug found and fixed along the way: the Scourge-of-Valkas "self vs. another
-    Dragon" test originally pre-placed BOTH Scourge and the second Dragon before either "entered",
-    which double-counted Dragons for the self-ETB scenario (PermanentCount saw both, not just
-    Scourge) — fixed by splitting into two independent scoped setups (self-only, then
-    self+second-dragon-enters).
-  - Gates: `cargo build --workspace` clean; `cargo test --all` 3382 passed / 0 failed;
-    `cargo clippy --all-targets -- -D warnings` clean; `cargo fmt --check` clean;
-    `tools/check-defs-fmt.sh` clean (1789 defs). No remaining TODO/partial/known-wrong markers on
-    the 7 shipped cards.
-  - No deviations from the plan beyond the two documented above (replay_harness pattern-not-
-    construction; the ~30 test-file DealDamage sites the plan's count didn't include but its own
-    "let the compiler close the set" backstop anticipated).
-  - Next: review phase (formal OOS-EF4-1 filing, if not already sufficiently captured by the
-    rewritten shared_animosity.rs completeness note, is a reviewer call).
-- 2026-07-18 fix DONE (scutemob-105): applied both LOW findings from `pb-review-EF4.md`.
-  - LOW #1 (`effects/mod.rs:291-308`): `damage_source_id` now falls back to
-    `ctx.triggering_creature_id` (via `.or(...)`, not `.or_else` — clippy
-    `unnecessary_lazy_evaluations`) when `source == Some(EffectTarget::TriggeringCreature)`
-    and `resolve_effect_target_list` returns no live object (the triggering creature already
-    left). `ctx.source` remains the last-resort fallback for every other case, and `source:
-    None` is untouched. Added a focused regression test,
-    `test_ef4_dealdamage_source_departed_triggering_creature_reads_lki` (new section in
-    `pb_ef4_triggering_creature_subject_source.rs`): builds the same P1-lifelinker /
-    P2-reactive-enchantment scenario as decoy 2, but moves the entering creature to the
-    graveyard via `state::test_util::move_object_to_zone` (CR 400.7, retires the id) *before*
-    draining the stack — the stack object's `triggering_creature_id` was already captured at
-    trigger-creation time, so this exercises exactly the "already left before resolution"
-    path. Non-vacuity verified by temporary revert (`git stash` on `effects/mod.rs` alone):
-    test reddens without the fix, passes with it restored.
-  - LOW #2 (`dragon_tempest.rs`, `scourge_of_valkas.rs`): removed the redundant
-    `has_card_type: Some(CardType::Creature)` from both "number of Dragons you control"
-    `PermanentCount` filters, leaving `has_subtype: Dragon` + `controller: Controller` as the
-    review recommended. No behavior change on any realistic board (Dragon implies creature);
-    both cards' existing integration tests still pass unmodified.
-  - Gates: `cargo build --workspace` clean; `cargo test --all` **3383 passed / 0 failed**
-    (3382 + 1 new regression test); `cargo clippy --all-targets -- -D warnings` clean (one
-    `unnecessary_lazy_evaluations` self-inflicted during the fix, resolved by switching
-    `.or_else(|| ...)` to `.or(...)`); `cargo fmt --check` clean; `tools/check-defs-fmt.sh`
-    clean (1789 defs).
-  - Wire: confirmed `PROTOCOL_VERSION` stays 9 and `HASH_SCHEMA_VERSION` stays 47 (both files
-    show zero git diff) — these are behavior-only fixes, no wire/schema shape change, no
-    re-pin needed. No card-hash sentinel test failed, so no sentinel hashes were touched.
-  - Fix phase complete: both LOW findings closed, no HIGH/MEDIUM outstanding from the review.
+## Candidates — the 11 body-only DFCs (chain-verify EACH vs oracle via MCP; demote honestly)
+Most have a SECOND blocker beyond TransformSelf (a flip *condition*). Runner must verify the
+condition primitive EXISTS before flipping Complete; else mark partial with the real blocker.
+Files present: `delver_of_secrets.rs` (currently Complete but flip UNWIRED — needs
+TransformSelf + top-of-library-type reveal condition; likely a double-blocker → verify),
+`thaumatic_compass.rs`. Missing (author new): bloodline_keeper, docent_of_perfection,
+edgar_charmed_groom, fable_of_the_mirror_breaker, grist_voracious_larva, growing_rites_of_itlimoc,
+legions_landing, nicol_bolas_the_ravager, westvale_abbey.
+
+Likely-clean with TransformSelf + existing primitives: westvale_abbey ({5},{T},Sac 5
+creatures → transform — activated, sac cost), nicol_bolas_the_ravager ({4}{U}{B}{R}: exile+
+return transformed — NOTE: "return transformed" is a different mechanism than in-place flip;
+verify), growing_rites_of_itlimoc (end-step intervening-if creature count), legions_landing
+(attack-with-3+ trigger). Likely double-blocked (stay partial): delver (top-of-library
+reveal), fable_of_the_mirror_breaker (Saga chapter-III exile+return transformed), edgar
+(dies-return-transformed), grist (enters-as-creature oddity), docent/bloodline (count
+intervening-if — verify count-condition primitive exists).
+
+Discounted ship: **~5-8 flips** (task said ~7-9; realistic lower given double-blockers).
+
+## Exhaustive-match reminders (verify `cargo build --workspace` after impl)
+- replay-viewer view_model.rs + TUI stack_view.rs: match StackObjectKind/KeywordAbility —
+  a new *Effect* variant does NOT touch those, but any new StackObjectKind would. Confirm.
+- hash.rs: new Effect discriminant byte.
+- effects/mod.rs executor match arm for Effect::TransformSelf.
+
+## Gates
+cargo build --workspace; cargo test --all; cargo clippy --all-targets -- -D warnings;
+cargo fmt --check + tools/check-defs-fmt.sh.
+
+## Progress (runner)
+- [x] Engine Change 1: `Effect::TransformSelf` unit variant added (card_definition.rs, after Meld).
+- [x] Engine Change 2: `transform_permanent_in_place` extracted from `handle_transform`
+      (engine.rs); `handle_transform` delegates, Command::Transform behavior preserved
+      (daybound/nightbound Err still happens before the helper is ever called). Helper
+      uses `fizzle_object`/`fizzle_object_mut` (CR 400.7) instead of bare lookups —
+      collapsed a redundant re-lookup along the way; bare_lookup_ratchet ceiling for
+      engine.rs tightened 24→22.
+- [x] Engine Change 3: `EffectContext.source_transformed_this_resolution: bool` added +
+      all struct-literal sites updated (effects/mod.rs ::new/::new_with_kicker/2×ForEach
+      inner_ctx/condition-delegation literal; rules/abilities.rs activation_condition
+      literal — a 6th site not listed in the plan, found by cargo check; 2 test-file
+      literals: primitive_pb37.rs, both fixed).
+- [x] Engine Change 4: `Effect::TransformSelf` executor arm added in effects/mod.rs
+      (after the Meld arm), with the once-per-instruction latch gated on an actual
+      `PermanentTransformed` event.
+- [x] Engine Change 5: hash discriminant `Effect::TransformSelf => 93u8` added in hash.rs
+      (93 confirmed as next-unused by scanning the whole Effect arm — max was 92,
+      SetNoMaximumHandSize).
+- [x] Engine Change 6: `cargo build --workspace` confirms no other exhaustive match
+      needed touching (view_model.rs / stack_view.rs untouched, as predicted).
+- [x] Wire bumps: PROTOCOL_VERSION 9→10 + fingerprint re-pinned
+      (ec3ccb9e5c1cbdc834c86d6fbbc5d8ee6914e1fe1ef44eeee26d078bbea3d618) + history row +
+      FROZEN_HISTORY_PREFIX_DIGEST re-pinned in protocol_schema.rs. HASH_SCHEMA_VERSION
+      47→48 + decl/stream fingerprints re-pinned + history row + FROZEN prefix re-pinned
+      in hash_schema.rs. All `assert_eq!(HASH_SCHEMA_VERSION, 47)` sentinels bumped to 48
+      (bulk sed across 30 test files).
+- [ ] Card defs: thaumatic_compass flip Complete, docent_of_perfection author Complete,
+      delver_of_secrets demote partial.
+- [ ] Tests: crates/engine/tests/mechanics_m_z/pb_ef5_transform_self.rs (+ mod line).
+- [ ] Seeds OOS-EF5-1/2/3/4 filed into ef-batch-plan-2026-07-17.md.
+- [ ] Final gates: build --workspace, test --all, clippy, fmt + check-defs-fmt.sh.

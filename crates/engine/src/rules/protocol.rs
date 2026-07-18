@@ -110,7 +110,12 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   PB, but `EffectFilter` is off the wire closure — it lives inside `GameState`'s
 ///   `continuous_effects`, not `Command`/`GameEvent` — so that half is a HASH_SCHEMA_VERSION
 ///   bump only, not a PROTOCOL_VERSION one.)
-pub const PROTOCOL_VERSION: u32 = 9;
+/// - 10: PB-EF5 (2026-07-18) — `Effect` (already in the closure) gains a new unit
+///   variant `TransformSelf` (CR 701.27a/f, 712.18 — flip the resolving ability's own
+///   source DFC in place; used by an on-card triggered/activated/conditional effect,
+///   distinct from the existing `Command::Transform`). The closure's type count is
+///   unchanged; `Effect`'s declared shape moved, so the digest moves.
+pub const PROTOCOL_VERSION: u32 = 10;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -128,7 +133,7 @@ pub const PROTOCOL_VERSION: u32 = 9;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "9bf63ef25ae621acf53155feaa21f01131d35fc7ad6db34b04e35900cb825ac5";
+    "ec3ccb9e5c1cbdc834c86d6fbbc5d8ee6914e1fe1ef44eeee26d078bbea3d618";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -231,6 +236,12 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // PB-EF4 (2026-07-18): Effect::DealDamage gained source: Option<EffectTarget>
         // (see the `- 9:` History line above).
         fingerprint: "9bf63ef25ae621acf53155feaa21f01131d35fc7ad6db34b04e35900cb825ac5",
+    },
+    ProtocolEpoch {
+        version: 10,
+        // PB-EF5 (2026-07-18): Effect gained TransformSelf (see the `- 10:` History
+        // line above).
+        fingerprint: "ec3ccb9e5c1cbdc834c86d6fbbc5d8ee6914e1fe1ef44eeee26d078bbea3d618",
     },
 ];
 

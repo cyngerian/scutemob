@@ -89,7 +89,12 @@ const SWEPT_FILES: &[(&str, usize)] = &[
     ("src/rules/turn_actions.rs", 7),
     ("src/rules/mana.rs", 7),
     ("src/rules/copy.rs", 4),
-    ("src/rules/engine.rs", 24),
+    // PB-EF5 (2026-07-18): 24 → 22. `transform_permanent_in_place` (extracted from
+    // handle_transform's tail) uses `fizzle_object`/`fizzle_object_mut` (CR 400.7 --
+    // the source may have left its zone) instead of bare `.objects.get[_mut]`, and
+    // collapses the old duplicate `.objects.get` re-read (used only to re-check
+    // `is_transformed`) into a single upfront snapshot.
+    ("src/rules/engine.rs", 22),
     ("src/rules/lands.rs", 3),
     // SR-25
     ("src/rules/layers.rs", 51),

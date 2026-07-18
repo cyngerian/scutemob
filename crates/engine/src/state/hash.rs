@@ -427,7 +427,12 @@
 ///   `HashInto` right after `DealDamage::amount`. `decl_fingerprint` MOVES (a new enum
 ///   variant on `EffectFilter` plus a new `#[serde(default)]` field on `Effect`);
 ///   `stream_fingerprint` moves per the v40 mechanism.
-pub const HASH_SCHEMA_VERSION: u8 = 47;
+/// - 48: PB-EF5 (2026-07-18) — `Effect` gains a new unit variant `TransformSelf`
+///   (discriminant 93, CR 701.27a/f / 712.18 — flip the resolving ability's own
+///   source DFC in place). Fed to `HashInto` as `Effect::TransformSelf =>
+///   93u8.hash_into(hasher)`. `decl_fingerprint` MOVES (a new enum variant);
+///   `stream_fingerprint` moves per the v40 mechanism.
+pub const HASH_SCHEMA_VERSION: u8 = 48;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -579,6 +584,15 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // per the v40 mechanism (HASH_SCHEMA_VERSION is the stream's first byte).
         decl_fingerprint: "35e9565193241759e7124f96581359be436b7800e2f1516c9e29db218f3d9150",
         stream_fingerprint: "64546a7bcaa082b886f3f761b25aba1bcba0d7331b643e936e2a476790f864b3",
+    },
+    HashSchemaEpoch {
+        version: 48,
+        // PB-EF5 (2026-07-18): Effect gained TransformSelf (see the `- 48:` History
+        // line above). decl_fingerprint moves (genuine enum-shape change);
+        // stream_fingerprint moves per the v40 mechanism (HASH_SCHEMA_VERSION is the
+        // stream's first byte).
+        decl_fingerprint: "76ed7940d97108ebaf63468cb9435c52fe16852a58ab3d373bfc916f87886862",
+        stream_fingerprint: "b9d05e90299b79ed58b871590abd6d0087434c28eeff0017d4622b1219b8c269",
     },
 ];
 
@@ -6553,6 +6567,8 @@ impl HashInto for Effect {
                 92u8.hash_into(hasher);
                 player.hash_into(hasher);
             }
+            // PB-EF5: TransformSelf (discriminant 93) — CR 701.27a/f, 712.18.
+            Effect::TransformSelf => 93u8.hash_into(hasher),
         }
     }
 }

@@ -2059,6 +2059,18 @@ pub enum Effect {
     /// CR 701.42c: If the pair cannot be melded (partner not present, different
     /// controllers, etc.), nothing happens — both stay in their current zone.
     Meld,
+    /// CR 701.27a/f, 712.18: Flip the resolving ability's own source (`ctx.source`)
+    /// double-faced permanent to its other face, in place — same `ObjectId`,
+    /// counters/damage/Auras persist (CR 712.18: transforming doesn't create a new
+    /// object).
+    ///
+    /// CR 701.27c: if the source isn't a DFC, nothing happens.
+    /// CR 701.27d: if the back face is an instant or sorcery, nothing happens.
+    /// CR 701.27f / 701.28e: once-per-instruction — if an activated or triggered
+    /// ability of a permanent tries to transform it, the permanent does so only if
+    /// it hasn't transformed or converted since the ability was put onto the stack.
+    /// A second `TransformSelf` in the same resolving ability/instruction is ignored.
+    TransformSelf,
     /// CR 701.14a: Two creatures fight each other. Each deals damage equal to
     /// its power to the other creature simultaneously.
     ///

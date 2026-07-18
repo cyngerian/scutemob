@@ -690,7 +690,7 @@ fn test_ac4_hash_distinguishes_mode_targets() {
     use mtg_engine::state::hash::HashInto;
 
     assert_eq!(
-        HASH_SCHEMA_VERSION, 47u8,
+        HASH_SCHEMA_VERSION, 48u8,
         "PB-AC4 bumped HASH_SCHEMA_VERSION 30->31 (ModeSelection.mode_targets, CR 700.2c/700.2f). \
          If you bumped again, update this test and state/hash.rs history."
     );
