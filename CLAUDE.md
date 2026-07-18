@@ -14,7 +14,7 @@
 > Detailed PB-by-PB handoffs, hazards, and seed inventories live in `memory/workstream-state.md`.
 > Worker sessions: append detail there, not here. CLAUDE.md tracks current snapshot only.
 
-- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage **1,070/1,782 = 60.0%** per `tools/authoring-report.py`; **EF queue ACTIVE (`memory/primitives/ef-batch-plan-2026-07-17.md`) — PB-EF1 SHIPPED `scutemob-99`, EF-13 RESOLVED Option A `scutemob-101`, PB-EF2 in flight `scutemob-102`**; **PB-AC chain COMPLETE — AC0..AC9 all shipped**; **marker sweep COMPLETE — `scutemob-88`**; **SR-33..38 chain COMPLETE**; **W-PB2 + W-EMPTY + W-MISS COMPLETE — `scutemob-95`/`96`/`97`**)
+- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage **1,072/1,783 = 60.1%** per `tools/authoring-report.py`; **EF queue ACTIVE (`memory/primitives/ef-batch-plan-2026-07-17.md`) — PB-EF1 `scutemob-99` + EF-13 Option A `scutemob-101` + PB-EF2 `scutemob-102` SHIPPED; PB-EF3 in flight `scutemob-103`**; **PB-AC chain COMPLETE — AC0..AC9 all shipped**; **marker sweep COMPLETE — `scutemob-88`**; **SR-33..38 chain COMPLETE**; **W-PB2 + W-EMPTY + W-MISS COMPLETE — `scutemob-95`/`96`/`97`**)
 - **Invariant #9 is machine-enforced (SR-2).** `CardDefinition.completeness` (`Complete` by
   Default) marks a def `Inert` / `Partial` / `KnownWrong`; `validate_deck` rejects any
   non-`Complete` card with `DeckViolation::IncompleteCard`. `CardRegistry::try_new` errors on
@@ -33,7 +33,7 @@
   accessors, gated on the `test-util` feature (self dev-dependency). **`cargo build
   --workspace` is the only gate that proves the seal** — `test --all` and `clippy
   --all-targets` enable `test-util` workspace-wide via feature unification. It is a CI step.
-- **Tests**: **3346 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
+- **Tests**: **3355 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
   — and `fmt` here means `cargo fmt --check` **plus** `tools/check-defs-fmt.sh`, which is the only one
   of the two that looks at the 1,748 card defs (SR-35)
 - **CI**: **LIVE and green** since 2026-07-10 (SR-1, merge `e9742dc2`) — single Ubuntu job (fmt + clippy + `build --workspace` + full tests) on push/PR to main + workflow_dispatch; rust-cache@v2, 45m timeout. **Toolchain pinned (SR-11, `scutemob-63`)**: `rust-toolchain.toml` pins exact stable `1.95.0` and CI reads that `channel` from the file (no more floating to latest stable), so local `clippy -D warnings` is an authoritative CI preview. SR remediation track: original SR-1..16 all DONE 2026-07-10; a 2026-07-11 re-audit of the remediated baseline filed **SR-17..SR-32**, all DONE 2026-07-14..16 (16/16 collected; full record: `docs/sr-remediation-plan.md`).
@@ -279,7 +279,16 @@
   `memory/card-authoring/sr36-engine-findings-2026-07-17.md` (**SG-1 MEDIUM: the simulator's
   `LegalActionProvider` ignores `life_cost` — harmless while the cost was dropped, now it
   offers bots unpayable actions**).
-- **Last Updated**: 2026-07-18 (**EF-13 Option A collected, `scutemob-101` merge `0096ca65`** —
+- **Last Updated**: 2026-07-18 (**PB-EF2 collected, `scutemob-102` merge `3a489f59`** —
+  `TokenSpec.recipient: PlayerTarget` (default `Controller`; all 201 existing construction sites
+  unchanged) + `PlayerTarget::ControllerOfCounteredSpell`/`ControllerOfTriggeringObject`; token
+  doubling applies per-recipient (CR 614.1, forward+reverse decoys). swan_song
+  known_wrong→**Complete** (review HIGH also fixed its over-broad `TargetSpell` →
+  `TargetSpellWithFilter`); An Offer You Can't Refuse authored Complete. Script
+  `tokens/001` **un-retired** (approved again); pre-existing wrong-owner assertion in
+  `stack/045` fixed. EF-W-MISS-1 closed. Coverage 60.0% → **60.1%** (1,072/1,783); 3355 tests;
+  **PROTOCOL 6→7, HASH 44→45**. In flight: **PB-EF3** (`scutemob-103`, attack-trigger target
+  fidelity + defending-player target). Earlier: **EF-13 Option A collected, `scutemob-101` merge `0096ca65`** —
   101 no-behaviour `partial` defs → `inert`, registry gate + canary added; 3346 tests, coverage
   60.0% unchanged, buckets todo 554 / empty 158. Earlier same day: **PB-EF1 collected,
   `scutemob-99` merge `6202ab81`** — see "Last shipped" above; HASH 44 / PROTOCOL 6. Also:
