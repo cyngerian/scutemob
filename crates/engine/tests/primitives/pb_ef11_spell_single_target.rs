@@ -244,12 +244,18 @@ fn test_spell_single_target_accepts_single_target_spell() {
                 e
             )
         });
+    // CR 400.7: casting mints new ObjectIds (the card moves Hand->Stack with a fresh id,
+    // and the StackObject itself gets another fresh id), so the original hand-card
+    // `test_spell_id` is dead. The successful cast — hence a passing target validation —
+    // is proven by the `unwrap_or_else(panic)` above. As a non-vacuous sanity check, a NEW
+    // spell entry (one that is not the pre-placed `other_id` the spell targeted) is now on
+    // the stack: before the cast only `other_id` was there.
     assert!(
         state
             .stack_objects()
             .iter()
-            .any(|s| s.id == test_spell_id || matches!(s.kind, StackObjectKind::Spell { .. })),
-        "the test spell must be on the stack after a successful cast"
+            .any(|s| s.id != other_id && matches!(s.kind, StackObjectKind::Spell { .. })),
+        "a newly cast spell must be on the stack after a successful cast"
     );
 }
 
