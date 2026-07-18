@@ -1,36 +1,57 @@
-# Primitive WIP: PB-EF2 — CreateToken player-scoped recipient (EF-W-MISS-1)
+# Primitive WIP: PB-EF3 — attack-trigger target fidelity + defending-player target
 
-batch: PB-EF2
-title: `TokenSpec.recipient: PlayerTarget` (default Controller) + PlayerTarget::ControllerOfCounteredSpell / ControllerOfTriggeringObject — fix swan_song "its controller creates"
-task: scutemob-102
-branch: feat/pb-ef2-createtoken-player-scoped-recipient-fix-swansong-toke
+batch: PB-EF3
+title: (A) EF-W-MISS-10 forward DSL targets in attack-trigger enrich + fix registry fallback; (B) EF-W-MISS-4 add a "defending player" PlayerTarget/EffectTarget (CR 508.1/506.2) correct in 4-player Commander
+task: scutemob-103
+branch: feat/pb-ef3-attack-trigger-target-fidelity-defending-player-targe
 started: 2026-07-18
-phase: done
-plan_file: memory/primitives/pb-plan-EF2.md
+phase: implement
+plan_file: memory/primitives/pb-plan-EF3.md
 
-## Design decision (read before coding)
-Recipient lives on **TokenSpec** (the `Effect::CreateToken` payload), NOT as a sibling field on
-the Effect variant — this keeps all 201 existing construction sites literally unchanged
-(`..Default::default()`/helpers), which is AC 4861's binding "all existing users unchanged"
-constraint. Semantically justified: TokenSpec is "everything needed to create a token." Full
-rationale + deviation note in the plan.
+## Steps (from plan — unchecked)
+- [x] A1 — forward `targets` in ALL `AbilityDefinition::Triggered` enrich blocks (replay_harness.rs); attack block ~3012 primary. Done: all 30 `if let AbilityDefinition::Triggered { ... }` blocks (lines 2293-3457, `crates/engine/src/testing/replay_harness.rs`) now destructure `targets` and forward `targets.clone()` instead of hardcoding `targets: vec![]`. 3 blocks (WhenDies, WhenDealsCombatDamageToPlayer, WhenBecomesTarget) already forwarded targets pre-PB; the other 27 fixed. Compiles clean (`cargo check -p mtg-engine --features test-util`).
+- [x] A2 — guard registry fallback: Normal → runtime authoritative; CardDefETB → def raw-index (abilities.rs ~6686-6727). Done: rewrote the `ability_targets` block in `flush_pending_triggers` (abilities.rs) so `PendingTriggerKind::Normal` reads `obj.characteristics.triggered_abilities.get(trigger.ability_index).targets` unconditionally (no fallthrough), and `CardDefETB` reads `def.abilities.get(trigger.ability_index)` unconditionally. Regression sweep found 4 pre-existing sites that pushed `PendingTriggerKind::Normal` with a **raw `def.abilities` index** (never lowered via `enrich_spec_from_def`, by design — same pattern as the graveyard-trigger `CardDefETB` sites): WhenYouCastThisSpell (~3452), WhenExertedAsAttacks (~3739), the WhenDealsCombatDamageToPlayer carddef fallback (~4667, the Throat Slitter regression), and WheneverRingTemptsYou (~5545). Reclassified all 4 from `Normal` to `PendingTriggerKind::CardDefETB` — the kind whose established contract is exactly "ability_index indexes CardDef::abilities, always resolve via card registry" (mirrors Bloodghast's graveyard-trigger construction at ~6512). This is a correctness fix, not scope creep: A2's stated Normal/CardDefETB split was already violated by these 4 sites; they were "getting away with it" only because the pre-A2 fallback masked the mis-tagging. Regressions found and fixed: `test_mutate_gemrazer_trigger_queued_after_merge` (mutate.rs) — added an opponent artifact to the test setup so Gemrazer's "destroy target artifact/enchantment an opponent controls" trigger has a legal target (was passing vacuously before, since the target was silently dropped); `test_throat_slitter_end_to_end_precision_fix` (pbd_damaged_player_filter.rs) — fixed by the CardDefETB reclassification, no test changes needed; `ring_tempts_you::test_whenever_ring_tempts_you_trigger` — updated its `PendingTriggerKind::Normal` assertion to `CardDefETB` (the correct, now-accurate kind) with an explanatory comment; golden script `test-data/generated-scripts/combat/192_mutate_gemrazer.json` — rewrote to add P2's Arcane Signet as the legal target, updated the resolution steps to show it destroyed, and resolved both stale disputes (documenting the PB-EF3 fix). Full suite green, `cargo check -p mtg-engine --features test-util` clean.
+- [ ] B1 — capture defending player at attack-trigger dispatch into PendingTrigger.defending_player_id (abilities.rs ~3873-3889)
+- [ ] B2 — thread defending_player_id → StackObject.defending_player → EffectContext.defending_player (stack.rs, abilities.rs flush, resolution.rs, effects/mod.rs)
+- [ ] B3 — add EffectTarget::AttackTarget + PlayerTarget::DefendingPlayer (card_definition.rs)
+- [ ] B4 — resolve arms in resolve_player_target_list + resolve_effect_target_list_indexed (effects/mod.rs)
+- [ ] B5 — hash StackObject.defending_player (hash.rs)
+- [ ] C — exhaustive-match arms compiler names; PROTOCOL 7→8 + HASH 45→46 (machine-forced)
+- [ ] Cards — ojutai_soul_of_winter.rs (new), hellrider.rs (flip), raid_bombardment.rs (new); OOS-EF3-1 filed for Silumgar; others documented-blocked
+- [ ] Tests — crates/engine/tests/primitives/pb_ef3_attack_trigger_targets.rs (+ mod line in main.rs)
 
-## Steps (unchecked)
-- [x] Step 1 — PlayerTarget::ControllerOfCounteredSpell + ControllerOfTriggeringObject variants added to `crates/card-types/src/cards/card_definition.rs`
-- [x] Step 2 — TokenSpec.recipient field (last field, `#[serde(default)]`) + `impl Default for PlayerTarget` + updated `impl Default for TokenSpec`; `mtg-card-types` and `mtg-card-defs` compile clean (all 160 sites use `..Default::default()`/helpers)
-- [x] Step 3 — EffectContext.countered_spell_controller added (effects/mod.rs); set in Effect::CounterSpell arm right after `pos` resolves, before `cant_be_countered` continue; initialized `None` in `new`/`new_with_kicker` + all 5 raw struct literals (2x ForEach inner_ctx, check_condition delegate ctx, abilities.rs activation-condition ctx) — `cargo check -p mtg-engine` found and confirmed all sites
-- [x] Step 4 — resolve_player_target_list arms added for ControllerOfCounteredSpell/ControllerOfTriggeringObject; also added matching arms to the two single-player match sites (Manifest, Cloak) that `cargo check` surfaced as non-exhaustive (not called out by name in the plan but required for compilation) + PlayerTarget hash match in state/hash.rs
-- [x] Step 5 — CreateToken executor rewritten to loop over `resolve_player_target_list(state, &spec.recipient, ctx)`; `apply_token_creation_replacement` now keyed per-recipient; CreateTokenAndAttachSource left on ctx.controller with an explanatory comment. `cargo check --workspace` clean (no replay-viewer/TUI match arms needed — no new StackObjectKind/KeywordAbility variants added).
-- [x] Step 6 — hash TokenSpec.recipient + PlayerTarget variants (discriminants 8/9); PROTOCOL 6→7, fingerprint c52ed4e2…, FROZEN_HISTORY_PREFIX_DIGEST re-pinned; HASH 44→45, decl_fingerprint 5da8e891…, stream_fingerprint ae1f49d7…, FROZEN prefix re-pinned; 30 sentinel files bulk sed'd 44→45; also raised `bare_lookup_ratchet` ceiling for effects/mod.rs 100→105 (5 new NONSWALLOW predicate reads — surfaced by `cargo test --test core`, not called out in the plan but required)
-- [x] Step 7 — swan_song → Complete: `recipient: PlayerTarget::ControllerOfCounteredSpell,` added, `completeness: Completeness::known_wrong(...)` line deleted
-- [x] Step 8 — authored `crates/card-defs/src/defs/an_offer_you_cant_refuse.rs` (Complete), filename confirmed against `slugify()` in `tools/authoring-report.py` (apostrophe deleted)
-- [x] Step 9 — tests: `crates/engine/tests/primitives/pb_ef2_create_token_recipient.rs` (8 tests: hash sentinel, swan_song happy path, swan_song decoy, An Offer happy+decoy+mana-ability, default-recipient-unchanged, ControllerOfTriggeringObject resolves, 2x doubling-keyed-to-recipient); `mod` line added to `tests/primitives/main.rs`; also fixed a missed raw `EffectContext {}` literal in `tests/primitives/primitive_pb37.rs` (only surfaced by `cargo test`, not `cargo check -p mtg-engine`). All 8 pass; manually verified all 7 recipient-sensitive tests FAIL when `recipients` is hardcoded back to `vec![ctx.controller]` (temporary revert + restore), confirming none are vacuous.
-- [x] Step 10 — bookkeeping: `memory/primitives/ef-batch-plan-2026-07-17.md` (STATUS UPDATE block,
-  EF-W-MISS-1 closed), `memory/card-authoring/w-miss-roster-2026-07-17.md` and
-  `w-miss-engine-findings-2026-07-17.md` (EF-W-MISS-1 marked ✅ CLOSED). Un-retired
-  `test-data/generated-scripts/tokens/001_swan_song_creates_bird.json` (its assertion was
-  already correct). Also found and fixed a SEPARATE pre-existing bug in an already-`approved`
-  script, `test-data/generated-scripts/stack/045_swan_song_counters_damnation.json`, which
-  asserted the Bird onto `zones.battlefield.p2` (the exact shape of the pre-fix bug) — not
-  called out in the plan, surfaced by `cargo test --all`. `python3 tools/authoring-report.py`:
-  coverage 60.0% → 60.1% (1,070 → 1,072 clean / 1,782 → 1,783 total; +2 clean).
+## Source findings
+- memory/card-authoring/w-miss-engine-findings-2026-07-17.md — EF-W-MISS-4 (line 49), EF-W-MISS-10 (line 88)
+- memory/primitives/ef-batch-plan-2026-07-17.md — PB-EF3 section (line 217)
+
+## Known facts (recon done by coordinator/worker before planning)
+- **MISS-10 enrich sites**: `crates/engine/src/testing/replay_harness.rs` ~2991-3014 — the
+  `WheneverCreatureYouControlAttacks` enrich loop hardcodes `targets: vec![]` (line ~3012),
+  dropping the DSL `AbilityDefinition::Triggered { .. }` targets. (There may be a matching
+  `add_triggered_ability`/`build.rs`-generated path; verify both enrich and the builder.rs path.)
+- **MISS-10 fallback**: `crates/engine/src/rules/abilities.rs` ~6709-6723 — the registry
+  fallback `def.abilities.get(trigger.ability_index)` raw-indexes `def.abilities` but
+  `trigger.ability_index` indexes the runtime `triggered_abilities` vec, so it matches the
+  wrong ability. The `from_runtime` path (~6689-6705) already returns `ab.targets` when
+  non-empty — so forwarding targets in enrich makes `from_runtime` succeed; the fallback fix
+  is defense-in-depth / for the non-enriched path.
+- **AbilityDefinition::Triggered** has a `targets` field (card_definition.rs:315).
+- **PlayerTarget** enum: card_definition.rs:2480 (has Controller/EachPlayer/EachOpponent/
+  DeclaredTarget/ControllerOf/OwnerOf/TriggeringPlayer/DamagedPlayer/ControllerOfCounteredSpell/
+  ControllerOfTriggeringObject). **EffectTarget** enum: card_definition.rs:2446.
+- **Defender data**: `CombatState.attackers: OrdMap<ObjectId, AttackTarget>` (card-types/src/state/combat.rs:30);
+  `AttackTarget::Player(pid)` | `Planeswalker(pw_id)`. Defending player = the Player, or the
+  controller of the Planeswalker (CR 508.4/506.4b). Attack trigger dispatch: abilities.rs ~3881
+  (per-attacker `collect_triggers_for_event(AnyCreatureYouControlAttacks)`).
+- **Wire**: PROTOCOL currently 7, HASH 45. Adding a PlayerTarget/EffectTarget variant is a
+  card-DSL change inside the SR-8 fingerprint closure → PROTOCOL bump forced by
+  tests/protocol_schema.rs; HASH bump if the type is also in the GameState hash closure
+  (PlayerTarget/EffectTarget likely reachable via Characteristics→Effect). Machine-forced.
+
+## Candidates (9, discounted ~5-6)
+- MISS-10 (re-author/flip): Ojutai (Dragonlord Ojutai), Soul of Winter
+- MISS-4 (flip/author): hellrider, Brutal Hordechief, Raid Bombardment, Norn's Decree,
+  Karazikar the Blind Jailer, Silumgar the Drifting Death, Cunning Rhetoric
+- Verify EACH full chain vs oracle text (MCP authoritative) per feedback_verify_full_chain;
+  demote honestly if a clause is inexpressible. MISS-10 and MISS-4 are separable if too large
+  (ship MISS-10 first, file the rest) — but attempt both.

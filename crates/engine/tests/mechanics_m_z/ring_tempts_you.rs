@@ -897,12 +897,19 @@ fn test_whenever_ring_tempts_you_trigger() {
     // We call it directly here to verify the dispatch is wired correctly.
     let pending = mtg_engine::rules::abilities::check_triggers(&state, &events);
 
+    // PB-EF3 A2 (CR 601.2c/603.3d): WheneverRingTemptsYou is collected directly from the
+    // card registry using a raw `def.abilities` index (never lowered into runtime
+    // `characteristics.triggered_abilities`), so it is queued as `CardDefETB` — the kind
+    // whose contract is "ability_index indexes CardDef::abilities, always resolve via the
+    // card registry." This keeps declared `targets` (if any) authoritative at auto-target
+    // selection instead of being silently dropped.
     let trigger_queued = pending.iter().any(|t| {
-        t.controller == p1 && matches!(t.kind, mtg_engine::state::stubs::PendingTriggerKind::Normal)
+        t.controller == p1
+            && matches!(t.kind, mtg_engine::state::stubs::PendingTriggerKind::CardDefETB)
     });
     assert!(
         trigger_queued,
-        "CR 701.54d: a Normal PendingTrigger should be queued for WheneverRingTemptsYou ability (found {} pending triggers)",
+        "CR 701.54d: a CardDefETB PendingTrigger should be queued for WheneverRingTemptsYou ability (found {} pending triggers)",
         pending.len()
     );
 }

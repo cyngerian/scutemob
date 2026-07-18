@@ -973,12 +973,24 @@ fn test_mutate_gemrazer_trigger_queued_after_merge() {
     wolf.power = Some(2);
     wolf.toughness = Some(3);
 
+    // PB-EF3 A1/A2 (CR 601.2c/603.3d): Gemrazer's "whenever this creature mutates"
+    // trigger declares a target (an artifact or enchantment an opponent controls) —
+    // that target is now correctly forwarded to the runtime trigger and required for
+    // auto-target selection. Without a legal candidate on the battlefield, the
+    // trigger has no legal target and is correctly skipped, never reaching the
+    // stack. Give the opponent a token artifact so the trigger has a legal target.
+    let opponent_artifact = ObjectSpec::card(p2, "Opponent Artifact")
+        .in_zone(ZoneId::Battlefield)
+        .with_card_id(CardId("mock-opponent-artifact".to_string()))
+        .with_types(vec![CardType::Artifact]);
+
     let mut state = GameStateBuilder::new()
         .add_player(p1)
         .add_player(p2)
         .with_registry(registry)
         .object(gemrazer_spec)
         .object(wolf)
+        .object(opponent_artifact)
         .active_player(p1)
         .at_step(Step::PreCombatMain)
         .build()

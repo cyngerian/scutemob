@@ -3457,12 +3457,20 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 {
                                     // Push the cast-trigger using the stack object as source.
                                     // Condition check (if any) is deferred to resolution.
+                                    // PB-EF3 A2 (CR 601.2c/603.3d): `idx` here is a raw index
+                                    // into `def.abilities` (this trigger is never lowered into
+                                    // runtime `characteristics.triggered_abilities` — it fires
+                                    // directly from the spell's CardDef, see comment above).
+                                    // CardDefETB kind makes the raw-index/card-registry lookup
+                                    // authoritative for both effect AND target selection (Elder
+                                    // Deep Fiend's "tap up to four target permanents" needs its
+                                    // declared `targets` to survive auto-target selection).
                                     triggers.push(PendingTrigger {
                                         ability_index: idx,
                                         ..PendingTrigger::blank(
                                             *source_object_id,
                                             caster,
-                                            PendingTriggerKind::Normal,
+                                            PendingTriggerKind::CardDefETB,
                                         )
                                     });
                                 }
@@ -3750,16 +3758,22 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             })
                                             .collect();
                                         for ability_idx in carddef_indices {
+                                            // PB-EF3 A2 (CR 601.2c/603.3d): `ability_idx` is a
+                                            // raw index into `def.abilities` (not converted to
+                                            // runtime `characteristics.triggered_abilities` --
+                                            // see comment above). CardDefETB kind keeps the
+                                            // raw-index/card-registry lookup authoritative for
+                                            // both effect and target selection.
                                             triggers.push(PendingTrigger {
                                                 ability_index: ability_idx,
                                                 controller,
-                                                kind: PendingTriggerKind::Normal,
+                                                kind: PendingTriggerKind::CardDefETB,
                                                 triggering_event: Some(TriggerEvent::SelfAttacks),
                                                 entering_object_id: Some(source_id),
                                                 ..PendingTrigger::blank(
                                                     source_id,
                                                     controller,
-                                                    PendingTriggerKind::Normal,
+                                                    PendingTriggerKind::CardDefETB,
                                                 )
                                             });
                                         }
@@ -4695,6 +4709,16 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             })
                                             .collect();
                                         for ability_idx in carddef_indices {
+                                            // PB-EF3 A2 (CR 601.2c/603.3d): `ability_idx` is a
+                                            // raw index into `def.abilities` (this trigger is
+                                            // never lowered into runtime
+                                            // `characteristics.triggered_abilities` -- see
+                                            // comment above). CardDefETB kind keeps the
+                                            // raw-index/card-registry lookup authoritative for
+                                            // both effect and target selection (Throat Slitter's
+                                            // "destroy target nonblack creature that player
+                                            // controls" needs its declared `targets` to survive
+                                            // auto-target selection -- EF-W-MISS-10).
                                             triggers.push(PendingTrigger {
                                                 ability_index: ability_idx,
                                                 triggering_event: Some(
@@ -4706,7 +4730,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                                 ..PendingTrigger::blank(
                                                     source_id,
                                                     controller,
-                                                    PendingTriggerKind::Normal,
+                                                    PendingTriggerKind::CardDefETB,
                                                 )
                                             });
                                         }
@@ -5548,12 +5572,17 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             ..
                         } = ability
                         {
+                            // PB-EF3 A2 (CR 601.2c/603.3d): `idx` is a raw index into
+                            // `def.abilities` (not converted to runtime
+                            // `characteristics.triggered_abilities`). CardDefETB kind keeps
+                            // the raw-index/card-registry lookup authoritative for both
+                            // effect and target selection.
                             triggers.push(PendingTrigger {
                                 ability_index: idx,
                                 ..PendingTrigger::blank(
                                     obj_id,
                                     *tempted_player,
-                                    crate::state::stubs::PendingTriggerKind::Normal,
+                                    crate::state::stubs::PendingTriggerKind::CardDefETB,
                                 )
                             });
                         }
@@ -6686,28 +6715,25 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
             let ability_targets: Vec<crate::cards::card_definition::TargetRequirement> = {
                 let obj = state.objects.get(&trigger.source);
                 if let Some(obj) = obj {
-                    let from_runtime = if trigger.kind == PendingTriggerKind::Normal {
+                    if trigger.kind == PendingTriggerKind::Normal {
+                        // PB-EF3 A2 (CR 601.2c/603.3d): `trigger.ability_index` for a
+                        // Normal-kind trigger indexes the runtime
+                        // `characteristics.triggered_abilities` vec, NOT `def.abilities`
+                        // (see A1 comment / EF-W-MISS-10). The two vecs are built in
+                        // different orders (e.g. keywords aren't triggered abilities),
+                        // so falling through to `def.abilities.get(ability_index)` here
+                        // silently returns the wrong ability's targets. After A1 forwards
+                        // `targets` in every enrich block, the runtime vec is authoritative
+                        // — return it even when empty; do NOT fall through.
                         obj.characteristics
                             .triggered_abilities
                             .get(trigger.ability_index)
-                            .and_then(|ab| {
-                                // PB-D fix: TriggeredAbilityDef carries a `targets` field
-                                // (CR 601.2c). Return it when non-empty so that runtime
-                                // triggers added via ObjectSpec::with_triggered_ability (or
-                                // enrich_spec_from_def) participate in auto-target selection.
-                                // Falls through to card-registry fallback when empty (the
-                                // common case for triggers authored without targets).
-                                if ab.targets.is_empty() {
-                                    None
-                                } else {
-                                    Some(ab.targets.clone())
-                                }
-                            })
+                            .map(|ab| ab.targets.clone())
+                            .unwrap_or_default()
                     } else {
-                        None
-                    };
-                    from_runtime.unwrap_or_else(|| {
-                        // Card registry fallback: look up ability by index.
+                        // CardDefETB: `ability_index` correctly indexes `def.abilities`
+                        // here (see builder at ~6438/6504 above), so the raw-index
+                        // registry lookup is safe and remains the sole source.
                         obj.card_id
                             .as_ref()
                             .and_then(|cid| state.card_registry.get(cid.clone()))
@@ -6720,7 +6746,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                                 _ => None,
                             })
                             .unwrap_or_default()
-                    })
+                    }
                 } else {
                     vec![]
                 }

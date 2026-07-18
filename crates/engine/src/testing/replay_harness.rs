@@ -2332,6 +2332,7 @@ pub fn enrich_spec_from_def(
             trigger_condition: TriggerCondition::WhenAttacks,
             effect,
             modes,
+            targets,
             ..
         } = ability
         {
@@ -2351,7 +2352,7 @@ pub fn enrich_spec_from_def(
                 triggering_creature_filter: None,
                 trigger_on: TriggerEvent::SelfAttacks,
                 intervening_if: None,
-                targets: vec![],
+                targets: targets.clone(),
                 description: "Whenever ~ attacks (CR 508.3a)".to_string(),
                 effect: Some(resolved_effect),
             });
@@ -2364,6 +2365,7 @@ pub fn enrich_spec_from_def(
         if let AbilityDefinition::Triggered {
             trigger_condition: TriggerCondition::WhenBlocks,
             effect,
+            targets,
             ..
         } = ability
         {
@@ -2377,7 +2379,7 @@ pub fn enrich_spec_from_def(
                 triggering_creature_filter: None,
                 trigger_on: TriggerEvent::SelfBlocks,
                 intervening_if: None,
-                targets: vec![],
+                targets: targets.clone(),
                 description: "Whenever ~ blocks (CR 509.1)".to_string(),
                 effect: Some(effect.clone()),
             });
@@ -2427,6 +2429,7 @@ pub fn enrich_spec_from_def(
         if let AbilityDefinition::Triggered {
             trigger_condition: TriggerCondition::WhenDealtDamage,
             effect,
+            targets,
             ..
         } = ability
         {
@@ -2440,7 +2443,7 @@ pub fn enrich_spec_from_def(
                 triggering_creature_filter: None,
                 trigger_on: TriggerEvent::SelfIsDealtDamage,
                 intervening_if: None,
-                targets: vec![],
+                targets: targets.clone(),
                 description: "Enrage -- Whenever this creature is dealt damage (CR 207.2c)"
                     .to_string(),
                 effect: Some(effect.clone()),
@@ -2460,6 +2463,7 @@ pub fn enrich_spec_from_def(
                     noncreature_only,
                 },
             effect,
+            targets,
             ..
         } = ability
         {
@@ -2487,7 +2491,7 @@ pub fn enrich_spec_from_def(
                 triggering_creature_filter: spell_filter,
                 trigger_on: TriggerEvent::OpponentCastsSpell,
                 intervening_if: None,
-                targets: vec![],
+                targets: targets.clone(),
                 description: "Whenever an opponent casts a spell (CR 603.2)".to_string(),
                 effect: Some(effect.clone()),
             });
@@ -2500,6 +2504,7 @@ pub fn enrich_spec_from_def(
         if let AbilityDefinition::Triggered {
             trigger_condition: TriggerCondition::WheneverYouSurveil,
             effect,
+            targets,
             ..
         } = ability
         {
@@ -2513,7 +2518,7 @@ pub fn enrich_spec_from_def(
                 triggering_creature_filter: None,
                 trigger_on: TriggerEvent::ControllerSurveils,
                 intervening_if: None,
-                targets: vec![],
+                targets: targets.clone(),
                 description: "Whenever you surveil (CR 701.25d)".to_string(),
                 effect: Some(effect.clone()),
             });
@@ -2527,6 +2532,7 @@ pub fn enrich_spec_from_def(
         if let AbilityDefinition::Triggered {
             trigger_condition: TriggerCondition::WhenConnives,
             effect,
+            targets,
             ..
         } = ability
         {
@@ -2540,7 +2546,7 @@ pub fn enrich_spec_from_def(
                 triggering_creature_filter: None,
                 trigger_on: TriggerEvent::SourceConnives,
                 intervening_if: None,
-                targets: vec![],
+                targets: targets.clone(),
                 description: "Whenever this creature connives (CR 701.50b)".to_string(),
                 effect: Some(effect.clone()),
             });
@@ -2553,6 +2559,7 @@ pub fn enrich_spec_from_def(
         if let AbilityDefinition::Triggered {
             trigger_condition: TriggerCondition::WheneverYouInvestigate,
             effect,
+            targets,
             ..
         } = ability
         {
@@ -2566,7 +2573,7 @@ pub fn enrich_spec_from_def(
                 triggering_creature_filter: None,
                 trigger_on: TriggerEvent::ControllerInvestigates,
                 intervening_if: None,
-                targets: vec![],
+                targets: targets.clone(),
                 description: "Whenever you investigate (CR 701.16a)".to_string(),
                 effect: Some(effect.clone()),
             });
@@ -2595,6 +2602,7 @@ pub fn enrich_spec_from_def(
                     ..
                 },
             effect,
+            targets,
             ..
         } = ability
         {
@@ -2628,7 +2636,7 @@ pub fn enrich_spec_from_def(
                 triggering_creature_filter: spell_filter,
                 trigger_on: TriggerEvent::ControllerCastsSpell,
                 intervening_if: None,
-                targets: vec![],
+                targets: targets.clone(),
                 description: "Whenever you cast a spell (CR 603.2)".to_string(),
                 effect: Some(effect.clone()),
             });
@@ -2657,6 +2665,7 @@ pub fn enrich_spec_from_def(
                     exclude_self,
                 },
             effect,
+            targets,
             ..
         } = ability
         {
@@ -2704,7 +2713,7 @@ pub fn enrich_spec_from_def(
                 // creature_only / controller_you / exclude_self / color_filter /
                 // card_type_filter. Mirrors the death-trigger conversion. CR 603.2.
                 triggering_creature_filter: filter.clone(),
-                targets: vec![],
+                targets: targets.clone(),
             });
         }
     }
@@ -2747,6 +2756,7 @@ pub fn enrich_spec_from_def(
                 },
             effect,
             trigger_zone,
+            targets,
             ..
         } = ability
         {
@@ -2810,7 +2820,7 @@ pub fn enrich_spec_from_def(
                 death_filter: None,
                 combat_damage_filter: None,
                 triggering_creature_filter: None,
-                targets: vec![],
+                targets: targets.clone(),
             });
         }
     }
@@ -2821,6 +2831,7 @@ pub fn enrich_spec_from_def(
         if let AbilityDefinition::Triggered {
             trigger_condition: TriggerCondition::WhenMutates,
             effect,
+            targets,
             ..
         } = ability
         {
@@ -2834,7 +2845,7 @@ pub fn enrich_spec_from_def(
                 triggering_creature_filter: None,
                 trigger_on: TriggerEvent::SelfMutates,
                 intervening_if: None,
-                targets: vec![],
+                targets: targets.clone(),
                 description: "Whenever this creature mutates (CR 702.140d)".to_string(),
                 effect: Some(effect.clone()),
             });
@@ -2847,6 +2858,7 @@ pub fn enrich_spec_from_def(
         if let AbilityDefinition::Triggered {
             trigger_condition: TriggerCondition::WhenSelfBecomesTapped,
             effect,
+            targets,
             ..
         } = ability
         {
@@ -2860,7 +2872,7 @@ pub fn enrich_spec_from_def(
                 triggering_creature_filter: None,
                 trigger_on: TriggerEvent::SelfBecomesTapped,
                 intervening_if: None,
-                targets: vec![],
+                targets: targets.clone(),
                 description: "Whenever this permanent becomes tapped".to_string(),
                 effect: Some(effect.clone()),
             });
@@ -2876,6 +2888,7 @@ pub fn enrich_spec_from_def(
             trigger_condition: TriggerCondition::WheneverPermanentUntaps { filter },
             effect,
             once_per_turn,
+            targets,
             ..
         } = ability
         {
@@ -2889,7 +2902,7 @@ pub fn enrich_spec_from_def(
                 triggering_creature_filter: filter.clone(),
                 trigger_on: TriggerEvent::AnyPermanentUntaps,
                 intervening_if: None,
-                targets: vec![],
+                targets: targets.clone(),
                 description: "Whenever a permanent becomes untapped (CR 502.3/603.2e)".to_string(),
                 effect: Some(effect.clone()),
             });
@@ -2911,6 +2924,7 @@ pub fn enrich_spec_from_def(
                 },
             effect,
             once_per_turn,
+            targets,
             ..
         } = ability
         {
@@ -2924,7 +2938,7 @@ pub fn enrich_spec_from_def(
                 triggering_creature_filter: filter.clone(),
                 trigger_on: TriggerEvent::CounterPlaced,
                 intervening_if: None,
-                targets: vec![],
+                targets: targets.clone(),
                 description:
                     "Whenever one or more counters are put on a permanent (CR 122.6/122.7)"
                         .to_string(),
@@ -2954,6 +2968,7 @@ pub fn enrich_spec_from_def(
                 },
             effect,
             once_per_turn,
+            targets,
             ..
         } = ability
         {
@@ -2978,7 +2993,7 @@ pub fn enrich_spec_from_def(
                 combat_damage_filter: None,
                 // PB-N: forward the DSL subtype/color filter to the runtime field (CR 603.10a)
                 triggering_creature_filter: filter.clone(),
-                targets: vec![],
+                targets: targets.clone(),
             });
         }
     }
@@ -2993,6 +3008,7 @@ pub fn enrich_spec_from_def(
             // PB-N: WheneverCreatureYouControlAttacks changed from unit to struct variant
             trigger_condition: TriggerCondition::WheneverCreatureYouControlAttacks { filter },
             effect,
+            targets,
             ..
         } = ability
         {
@@ -3009,7 +3025,9 @@ pub fn enrich_spec_from_def(
                 combat_damage_filter: None,
                 // PB-N: forward the DSL subtype/color filter to the runtime field (CR 508.1m)
                 triggering_creature_filter: filter.clone(),
-                targets: vec![],
+                // PB-EF3 A1: forward the DSL declared targets (CR 601.2c) instead of
+                // dropping them — see abilities.rs A2 for the matching fallback fix.
+                targets: targets.clone(),
             });
         }
     }
@@ -3024,6 +3042,7 @@ pub fn enrich_spec_from_def(
             trigger_condition:
                 TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer { filter },
             effect,
+            targets,
             ..
         } = ability
         {
@@ -3041,7 +3060,7 @@ pub fn enrich_spec_from_def(
                 death_filter: None,
                 combat_damage_filter: filter.clone(),
                 triggering_creature_filter: None,
-                targets: vec![],
+                targets: targets.clone(),
             });
         }
     }
@@ -3052,6 +3071,7 @@ pub fn enrich_spec_from_def(
             trigger_condition:
                 TriggerCondition::WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer { filter },
             effect,
+            targets,
             ..
         } = ability
         {
@@ -3069,7 +3089,7 @@ pub fn enrich_spec_from_def(
                 death_filter: None,
                 combat_damage_filter: filter.clone(),
                 triggering_creature_filter: None,
-                targets: vec![],
+                targets: targets.clone(),
             });
         }
     }
@@ -3078,6 +3098,7 @@ pub fn enrich_spec_from_def(
         if let AbilityDefinition::Triggered {
             trigger_condition: TriggerCondition::WhenEquippedCreatureDealsCombatDamageToPlayer,
             effect,
+            targets,
             ..
         } = ability
         {
@@ -3095,7 +3116,7 @@ pub fn enrich_spec_from_def(
                 death_filter: None,
                 combat_damage_filter: None,
                 triggering_creature_filter: None,
-                targets: vec![],
+                targets: targets.clone(),
             });
         }
     }
@@ -3104,6 +3125,7 @@ pub fn enrich_spec_from_def(
         if let AbilityDefinition::Triggered {
             trigger_condition: TriggerCondition::WhenEnchantedCreatureDealsDamageToPlayer { .. },
             effect,
+            targets,
             ..
         } = ability
         {
@@ -3120,7 +3142,7 @@ pub fn enrich_spec_from_def(
                 death_filter: None,
                 combat_damage_filter: None,
                 triggering_creature_filter: None,
-                targets: vec![],
+                targets: targets.clone(),
             });
         }
     }
@@ -3130,6 +3152,7 @@ pub fn enrich_spec_from_def(
         if let AbilityDefinition::Triggered {
             trigger_condition: TriggerCondition::WhenAnyCreatureDealsCombatDamageToOpponent,
             effect,
+            targets,
             ..
         } = ability
         {
@@ -3147,7 +3170,7 @@ pub fn enrich_spec_from_def(
                 death_filter: None,
                 combat_damage_filter: None,
                 triggering_creature_filter: None,
-                targets: vec![],
+                targets: targets.clone(),
             });
         }
     }
@@ -3156,6 +3179,7 @@ pub fn enrich_spec_from_def(
         if let AbilityDefinition::Triggered {
             trigger_condition: TriggerCondition::WheneverYouDiscard,
             effect,
+            targets,
             ..
         } = ability
         {
@@ -3171,7 +3195,7 @@ pub fn enrich_spec_from_def(
                 death_filter: None,
                 combat_damage_filter: None,
                 triggering_creature_filter: None,
-                targets: vec![],
+                targets: targets.clone(),
             });
         }
     }
@@ -3180,6 +3204,7 @@ pub fn enrich_spec_from_def(
         if let AbilityDefinition::Triggered {
             trigger_condition: TriggerCondition::WheneverOpponentDiscards,
             effect,
+            targets,
             ..
         } = ability
         {
@@ -3195,7 +3220,7 @@ pub fn enrich_spec_from_def(
                 death_filter: None,
                 combat_damage_filter: None,
                 triggering_creature_filter: None,
-                targets: vec![],
+                targets: targets.clone(),
             });
         }
     }
@@ -3204,6 +3229,7 @@ pub fn enrich_spec_from_def(
         if let AbilityDefinition::Triggered {
             trigger_condition: TriggerCondition::WheneverOpponentPlaysLand,
             effect,
+            targets,
             ..
         } = ability
         {
@@ -3217,7 +3243,7 @@ pub fn enrich_spec_from_def(
                 death_filter: None,
                 combat_damage_filter: None,
                 triggering_creature_filter: None,
-                targets: vec![],
+                targets: targets.clone(),
                 description: "Whenever an opponent plays a land (CR 305.1)".to_string(),
                 effect: Some(effect.clone()),
             });
@@ -3230,6 +3256,7 @@ pub fn enrich_spec_from_def(
         if let AbilityDefinition::Triggered {
             trigger_condition: TriggerCondition::WheneverYouSacrifice { .. },
             effect,
+            targets,
             ..
         } = ability
         {
@@ -3245,7 +3272,7 @@ pub fn enrich_spec_from_def(
                 death_filter: None,
                 combat_damage_filter: None,
                 triggering_creature_filter: None,
-                targets: vec![],
+                targets: targets.clone(),
             });
         }
     }
@@ -3254,6 +3281,7 @@ pub fn enrich_spec_from_def(
         if let AbilityDefinition::Triggered {
             trigger_condition: TriggerCondition::WheneverYouAttack,
             effect,
+            targets,
             ..
         } = ability
         {
@@ -3269,7 +3297,7 @@ pub fn enrich_spec_from_def(
                 death_filter: None,
                 combat_damage_filter: None,
                 triggering_creature_filter: None,
-                targets: vec![],
+                targets: targets.clone(),
             });
         }
     }
@@ -3278,6 +3306,7 @@ pub fn enrich_spec_from_def(
         if let AbilityDefinition::Triggered {
             trigger_condition: TriggerCondition::WhenLeavesBattlefield,
             effect,
+            targets,
             ..
         } = ability
         {
@@ -3293,7 +3322,7 @@ pub fn enrich_spec_from_def(
                 death_filter: None,
                 combat_damage_filter: None,
                 triggering_creature_filter: None,
-                targets: vec![],
+                targets: targets.clone(),
             });
         }
     }
@@ -3303,6 +3332,7 @@ pub fn enrich_spec_from_def(
         if let AbilityDefinition::Triggered {
             trigger_condition: TriggerCondition::WheneverYouDrawACard,
             effect,
+            targets,
             ..
         } = ability
         {
@@ -3318,7 +3348,7 @@ pub fn enrich_spec_from_def(
                 death_filter: None,
                 combat_damage_filter: None,
                 triggering_creature_filter: None,
-                targets: vec![],
+                targets: targets.clone(),
             });
         }
     }
@@ -3329,6 +3359,7 @@ pub fn enrich_spec_from_def(
         if let AbilityDefinition::Triggered {
             trigger_condition: TriggerCondition::WheneverPlayerDrawsCard { player_filter },
             effect,
+            targets,
             ..
         } = ability
         {
@@ -3354,7 +3385,7 @@ pub fn enrich_spec_from_def(
                 death_filter: None,
                 combat_damage_filter: None,
                 triggering_creature_filter: None,
-                targets: vec![],
+                targets: targets.clone(),
             });
         }
     }
@@ -3364,6 +3395,7 @@ pub fn enrich_spec_from_def(
         if let AbilityDefinition::Triggered {
             trigger_condition: TriggerCondition::WheneverYouGainLife,
             effect,
+            targets,
             ..
         } = ability
         {
@@ -3379,7 +3411,7 @@ pub fn enrich_spec_from_def(
                 death_filter: None,
                 combat_damage_filter: None,
                 triggering_creature_filter: None,
-                targets: vec![],
+                targets: targets.clone(),
             });
         }
     }
