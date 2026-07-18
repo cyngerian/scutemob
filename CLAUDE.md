@@ -14,7 +14,7 @@
 > Detailed PB-by-PB handoffs, hazards, and seed inventories live in `memory/workstream-state.md`.
 > Worker sessions: append detail there, not here. CLAUDE.md tracks current snapshot only.
 
-- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage **1,117/1,798 = 62.1%** per `tools/authoring-report.py`; **EF queue COMPLETE — all of PB-EF1..EF12 + EF-13 Option A SHIPPED in one day (`scutemob-99`, `101`..`112`, `114`; plus swan_song demote `100` and Cargo.lock chore `113`); all 20 EF findings closed; new OOS seeds filed: OOS-EF3-1, OOS-EF3b-1, OOS-EF4-1, OOS-EF5-1..4, OOS-EF6-1, OOS-EF9-1, OOS-EF10-1, EF-EF1-A**; **PB-AC chain COMPLETE — AC0..AC9 all shipped**; **marker sweep COMPLETE — `scutemob-88`**; **SR-33..38 chain COMPLETE**; **W-PB2 + W-EMPTY + W-MISS COMPLETE — `scutemob-95`/`96`/`97`**; **OOS retriage COMPLETE — `scutemob-115`; ACTIVE QUEUE: `memory/primitives/oos-retriage-plan-2026-07-18.md` PB-OS1..OS11 (correctness-first, ~19-22 discounted flips); first dispatch PB-OS1 (gain-control never reverts, OOS-EF9-1 — 3 legal-but-wrong `Complete` defs)**)
+- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage **1,117/1,798 = 62.1%** per `tools/authoring-report.py`; **EF queue COMPLETE — all of PB-EF1..EF12 + EF-13 Option A SHIPPED in one day (`scutemob-99`, `101`..`112`, `114`; plus swan_song demote `100` and Cargo.lock chore `113`); all 20 EF findings closed; new OOS seeds filed: OOS-EF3-1, OOS-EF3b-1, OOS-EF4-1, OOS-EF5-1..4, OOS-EF6-1, OOS-EF9-1, OOS-EF10-1, EF-EF1-A**; **PB-AC chain COMPLETE — AC0..AC9 all shipped**; **marker sweep COMPLETE — `scutemob-88`**; **SR-33..38 chain COMPLETE**; **W-PB2 + W-EMPTY + W-MISS COMPLETE — `scutemob-95`/`96`/`97`**; **OOS retriage COMPLETE — `scutemob-115`; ACTIVE QUEUE: `memory/primitives/oos-retriage-plan-2026-07-18.md` PB-OS1..OS11 (correctness-first, ~19-22 discounted flips); **PB-OS1 SHIPPED** (`scutemob-116` merge `db49a0b2` — gain-control now reverts at EOT/next-turn expiry; roster proved 2 cards not 3, karrthus correctly `Indefinite` per CR 611.2a; no wire bump; WhileSourceOnBattlefield half deferred); next PB-OS2 — **paused for DOC-1..8 documentation remediation** (`memory/doc-audit-2026-07-18.md`)**)
 - **Invariant #9 is machine-enforced (SR-2).** `CardDefinition.completeness` (`Complete` by
   Default) marks a def `Inert` / `Partial` / `KnownWrong`; `validate_deck` rejects any
   non-`Complete` card with `DeckViolation::IncompleteCard`. `CardRegistry::try_new` errors on
@@ -279,7 +279,17 @@
   `memory/card-authoring/sr36-engine-findings-2026-07-17.md` (**SG-1 MEDIUM: the simulator's
   `LegalActionProvider` ignores `life_cost` — harmless while the cost was dropped, now it
   offers bots unpayable actions**).
-- **Last Updated**: 2026-07-18 (**OOS seed retriage collected, `scutemob-115` merge `7d577171` —
+- **Last Updated**: 2026-07-18 (**PB-OS1 collected, `scutemob-116` merge `db49a0b2`** —
+  `recompute_object_controller` wired into `expire_end_of_turn_effects` +
+  `expire_until_next_turn_effects`; canary de-vacuoused (failed pre-fix, passes post-fix);
+  stacked-control + until-next-turn timing tests; roster from `all_cards()` = **2** affected
+  (`sarkhan_vol`, `zealous_conscripts`) — reviewer overturned the plan's karrthus claim
+  (`Indefinite` is CR-correct permanent control, 611.2a, no seed filed); 0 golden scripts
+  encoded the old behavior; no PROTOCOL/HASH change; OOS-EF9-1 EOT-half closed,
+  WhileSourceOnBattlefield half deferred. Same day: doc audit landed
+  (`memory/doc-audit-2026-07-18.md` F1-F8 + addendum) — **DOC remediation running before
+  PB-OS2** (live tasks: 118/119/121/124/125/126; 117/120/122/123 cancelled-superseded).
+  Earlier: **OOS seed retriage collected, `scutemob-115` merge `7d577171` —
   THE PB-OS QUEUE IS ACTIVE.** All 65 open OOS/EF-EF seeds enumerated from source docs (not the
   headline list) and chain-verified against the post-EF-queue engine: 23 resolved/stale (10 newly
   discovered silently closed — the EF/EWC/EAT/AC9 waves shipped primitives that resolved older
