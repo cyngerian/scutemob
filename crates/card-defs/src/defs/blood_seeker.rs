@@ -24,11 +24,15 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![],
         completeness: Completeness::inert(
-            "Authorable now: WheneverCreatureEntersBattlefield{filter: controller=Opponent} + \
-             LoseLife{player: PlayerTarget::TriggeringPlayer or ControllerOf(TriggeringCreature), \
-             amount: 1}. Remaining author decision: the optional 'you may' — no `optional` field \
-             exists on AbilityDefinition::Triggered, and Effect::Choose is not interactive \
-             (always executes choices[0]).",
+            "Blocked on the optional no-cost trigger 'you may have that player lose 1 life' — no \
+             `optional` field on AbilityDefinition::Triggered and no MayDo/OptionalEffect \
+             wrapper; Effect::Choose is a gated stub (always executes choices[0]). Modelling it \
+             as a mandatory LoseLife is wrong game state per W6 (declining is a legal, sometimes \
+             relevant choice — e.g. an opponent with a life-loss payoff). The rest IS expressible \
+             today (WheneverCreatureEntersBattlefield{filter: controller=Opponent} + \
+             LoseLife{ControllerOf(TriggeringCreature), 1}); unblock with an \
+             optional-triggered-effect primitive (shared with the interactive-choice cohort — see \
+             W-EMPTY roster).",
         ),
         ..Default::default()
     }
