@@ -44,6 +44,13 @@ pub fn card() -> CardDefinition {
             modes: None,
             cant_be_countered: false,
         }],
+        completeness: Completeness::known_wrong(
+            "EF-W-MISS-1: the 2/2 Bird is created for Swan Song's controller, but the oracle text \
+             gives it to the countered spell's controller ('Its controller creates'). \
+             Effect::CreateToken has no recipient field — always mints for the resolving effect's \
+             controller. Blocked on PB-EF2 (CreateToken recipient: PlayerTarget + \
+             PlayerTarget::ControllerOfCounteredSpell).",
+        ),
         ..Default::default()
     }
 }
