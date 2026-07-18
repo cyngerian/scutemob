@@ -14,7 +14,7 @@
 > Detailed PB-by-PB handoffs, hazards, and seed inventories live in `memory/workstream-state.md`.
 > Worker sessions: append detail there, not here. CLAUDE.md tracks current snapshot only.
 
-- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage **1,084/1,792 = 60.5%** per `tools/authoring-report.py`; **EF queue ACTIVE (`memory/primitives/ef-batch-plan-2026-07-17.md`) — PB-EF1..EF5 + EF-13 SHIPPED (`scutemob-99`/`101`..`106`); PB-EF6 in flight `scutemob-107`**; **PB-AC chain COMPLETE — AC0..AC9 all shipped**; **marker sweep COMPLETE — `scutemob-88`**; **SR-33..38 chain COMPLETE**; **W-PB2 + W-EMPTY + W-MISS COMPLETE — `scutemob-95`/`96`/`97`**)
+- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage **1,087/1,792 = 60.7%** per `tools/authoring-report.py`; **EF queue ACTIVE (`memory/primitives/ef-batch-plan-2026-07-17.md`) — PB-EF1..EF6 + EF-13 SHIPPED (`scutemob-99`/`101`..`107`); PB-EF7 in flight `scutemob-108`**; **PB-AC chain COMPLETE — AC0..AC9 all shipped**; **marker sweep COMPLETE — `scutemob-88`**; **SR-33..38 chain COMPLETE**; **W-PB2 + W-EMPTY + W-MISS COMPLETE — `scutemob-95`/`96`/`97`**)
 - **Invariant #9 is machine-enforced (SR-2).** `CardDefinition.completeness` (`Complete` by
   Default) marks a def `Inert` / `Partial` / `KnownWrong`; `validate_deck` rejects any
   non-`Complete` card with `DeckViolation::IncompleteCard`. `CardRegistry::try_new` errors on
@@ -279,7 +279,15 @@
   `memory/card-authoring/sr36-engine-findings-2026-07-17.md` (**SG-1 MEDIUM: the simulator's
   `LegalActionProvider` ignores `life_cost` — harmless while the cost was dropped, now it
   offers bots unpayable actions**).
-- **Last Updated**: 2026-07-18 (**PB-EF5 collected, `scutemob-106` merge `111c4513`** —
+- **Last Updated**: 2026-07-18 (**PB-EF6 collected, `scutemob-107` merge `359c824d`** —
+  `TargetRequirement::TargetOpponent` with caster-threaded opponent-only validation
+  (CR 102.2/102.3/601.2c) and no self-fallback in either auto-picker (CR 603.3d). 3 flips
+  Complete (shaman_of_the_pack, raiders_wake, vengeful_bloodwitch — a roster recall) + a
+  **latent self-target fix on shipped-Complete fell_specter**; 4 stay non-Complete on real
+  blockers; **OOS-EF6-1** filed (WhenTappedForMana trigger dispatch gap — blocks
+  forbidden_orchard). Coverage 60.5% → **60.7%** (1,087/1,792); **PROTOCOL 10→11,
+  HASH 48→49**; /review 0 issues. In flight: **PB-EF7** (`scutemob-108`, modal activated
+  abilities). Earlier: **PB-EF5 collected, `scutemob-106` merge `111c4513`** —
   `Effect::TransformSelf` shipped through the existing DFC machinery (CR 701.28/712.8);
   **honest yield well under the plan's ~7–9**: 2 new Complete (docent_of_perfection,
   bloodline_keeper) + delver_of_secrets **integrity-demoted** (shipped Complete but never
