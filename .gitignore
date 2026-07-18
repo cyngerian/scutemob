@@ -1,7 +1,9 @@
 # Rust
 /target/
 **/*.rs.bk
-Cargo.lock
+# Cargo.lock is TRACKED (scutemob-113): fresh resolves picked equivalent 1.0.2
+# (stricter Comparable bounds) and broke the build; the lock pins deps like
+# rust-toolchain.toml pins the compiler (SR-11).
 
 # Node / Tauri frontend
 node_modules/
