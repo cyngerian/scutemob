@@ -125,7 +125,7 @@ fn push_spell_stack_object(
         combat_damage_amount: 0,
         triggering_creature_id: None,
         cast_from_top_with_bonus: false,
-        sacrificed_creature_powers: vec![],
+        sacrificed_creature_lki: vec![],
         lki_counters: imbl::OrdMap::new(),
         lki_power: None,
         defending_player: None,
@@ -1136,7 +1136,7 @@ fn test_counter_unless_pays_noncreature_filter() {
 /// `MayPayThenEffect` discriminant 88 and `CounterUnlessPays` discriminant 89).
 /// If you bumped again, update this test and the `state/hash.rs` history block.
 fn test_hash_schema_version_is_29() {
-    assert_eq!(HASH_SCHEMA_VERSION, 52u8);
+    assert_eq!(HASH_SCHEMA_VERSION, 53u8);
 }
 
 #[test]

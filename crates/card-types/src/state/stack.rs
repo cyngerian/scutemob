@@ -454,14 +454,15 @@ pub struct StackObject {
     /// Read by EffectTarget::TriggeringCreature at resolution time.
     #[serde(default)]
     pub triggering_creature_id: Option<super::game_object::ObjectId>,
-    /// CR 608.2b: Captured LKI powers of creatures sacrificed as a cost when this
+    /// CR 608.2b/608.2h/608.2i: Captured last-known layer-resolved characteristics
+    /// (power/toughness/mana value) of creatures sacrificed as a cost when this
     /// activated ability was put on the stack. Populated at activated-ability
     /// cost-payment time (abilities.rs sacrifice block) BEFORE `move_object_to_zone`.
-    /// Read at resolution time and copied into `EffectContext.sacrificed_creature_powers`
-    /// so `EffectAmount::PowerOfSacrificedCreature` resolves correctly.
-    /// Empty for stack objects whose costs did not include creature sacrifice.
+    /// Read at resolution time and copied into `EffectContext.sacrificed_creature_lki`
+    /// so `EffectAmount::{PowerOf,ToughnessOf,ManaValueOf}SacrificedCreature` resolve
+    /// correctly. Empty for stack objects whose costs did not include creature sacrifice.
     #[serde(default)]
-    pub sacrificed_creature_powers: Vec<i32>,
+    pub sacrificed_creature_lki: Vec<super::types::SacrificedCreatureLki>,
     /// PB-A: If true, this spell was cast from the top of the library via a permission
     /// that has an `on_cast_effect` (e.g. Thundermane Dragon grants haste).
     ///
@@ -559,7 +560,7 @@ impl StackObject {
             damaged_player: None,
             combat_damage_amount: 0,
             triggering_creature_id: None,
-            sacrificed_creature_powers: vec![],
+            sacrificed_creature_lki: vec![],
             cast_from_top_with_bonus: false,
             lki_counters: imbl::OrdMap::new(),
             lki_power: None,

@@ -38,9 +38,9 @@
 ///   shape change (unit → struct with `filter` field)
 /// - 5: PB-D (2026-04-19) — TargetController::DamagedPlayer added
 /// - 6: PB-P (2026-04-19) — EffectAmount::PowerOfSacrificedCreature added (disc 15);
-///   AdditionalCost::Sacrifice changed from tuple to struct variant { ids, lki_powers };
-///   StackObject.sacrificed_creature_powers field added; EffectContext gains
-///   sacrificed_creature_powers (not hashed — runtime resolution scratch only).
+///   AdditionalCost::Sacrifice changed from tuple to struct variant { ids, lki };
+///   StackObject.sacrificed_creature_lki field added; EffectContext gains
+///   sacrificed_creature_lki (not hashed — runtime resolution scratch only).
 /// - 7: PB-L (2026-04-20) — ETBTriggerFilter.card_type_filter added; Landfall
 ///   TriggerCondition::WheneverPermanentEntersBattlefield now converts to a
 ///   runtime TriggeredAbilityDef in enrich_spec_from_def, enabling battlefield-
@@ -461,7 +461,25 @@
 ///   right after `UntilYourNextTurn`. `decl_fingerprint` MOVES (the enum's declared
 ///   shape changed — a new variant); `stream_fingerprint` moves per the v40
 ///   mechanism (a new `HashInto` arm).
-pub const HASH_SCHEMA_VERSION: u8 = 52;
+/// - 53: PB-EF10 (2026-07-18) — `SacrificedCreatureLki { power, toughness, mana_value }`
+///   (a new struct) replaces `AdditionalCost::Sacrifice`'s `lki_powers: Vec<i32>` field
+///   with `lki: Vec<SacrificedCreatureLki>`, and `StackObject`/`EffectContext` follow
+///   the same rename+reshape (CR 608.2b/608.2h/608.2i — sacrifice LKI now carries
+///   power/toughness/mana value atomically). `EffectAmount` gains two new variants,
+///   `ToughnessOfSacrificedCreature` (discriminant 22) and
+///   `ManaValueOfSacrificedCreature` (discriminant 23). `TargetFilter` gains
+///   `max_cmc_amount: Option<Box<EffectAmount>>` (CR 202.3/608.2h — a runtime search
+///   cap). `Condition` gains `SacrificeFired` (discriminant 48, CR 608.2c/608.2h —
+///   "if you do"). Fed to `HashInto`: the new `impl HashInto for SacrificedCreatureLki`
+///   (power/toughness/mana_value each hashed); `AdditionalCost::Sacrifice` and
+///   `StackObject::sacrificed_creature_lki` hash the reshaped vec; `EffectAmount`'s two
+///   new discriminants; `TargetFilter::max_cmc_amount` hashed right after
+///   `is_untapped`; `Condition::SacrificeFired` hashed right after
+///   `OpponentControlsMoreLandsThanYou`. `EffectContext.sacrifice_fired` is NOT hashed
+///   (transient per-resolution scratch, same as `sacrificed_creature_lki`'s sibling
+///   fields). `decl_fingerprint` MOVES (multiple struct/enum declared-shape changes);
+///   `stream_fingerprint` moves per the v40 mechanism (new `HashInto` arms/fields).
+pub const HASH_SCHEMA_VERSION: u8 = 53;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -659,6 +677,17 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // change); stream_fingerprint moves per the v40 mechanism.
         decl_fingerprint: "0e8ef019079eb88c574f8cb08cdb0e421b0c319a8ec2b942ae94694c58126fee",
         stream_fingerprint: "d90e8be93a121620e014738c8d1139a5198e31d25de40d89e56faba55f33421e",
+    },
+    HashSchemaEpoch {
+        version: 53,
+        // PB-EF10 (2026-07-18): SacrificedCreatureLki struct + reshaped
+        // AdditionalCost::Sacrifice/StackObject/EffectContext; EffectAmount gained
+        // ToughnessOfSacrificedCreature/ManaValueOfSacrificedCreature; TargetFilter
+        // gained max_cmc_amount; Condition gained SacrificeFired (see the `- 53:`
+        // History line above). decl_fingerprint moves (multiple struct/enum-shape
+        // changes); stream_fingerprint moves per the v40 mechanism.
+        decl_fingerprint: "3ff461aaba75d1d7470c6aadee1b140d98e49358fde7a94e70318007150db5a1",
+        stream_fingerprint: "1e0e8de7fa26f3aebf77c2a698f193558cf7c50f07009ff73d78858e74001a58",
     },
 ];
 
@@ -3749,12 +3778,12 @@ impl HashInto for StackObject {
         self.damaged_player.hash_into(hasher);
         self.combat_damage_amount.hash_into(hasher);
         self.triggering_creature_id.hash_into(hasher);
-        // PB-P: CR 608.2b — LKI powers of cost-sacrificed creatures.
-        // For spell stack objects these flow through additional_costs.Sacrifice.lki_powers;
+        // PB-P/PB-EF10: CR 608.2b/608.2h/608.2i — LKI of cost-sacrificed creatures.
+        // For spell stack objects these flow through additional_costs.Sacrifice.lki;
         // for activated-ability stack objects this field is populated directly.
-        (self.sacrificed_creature_powers.len() as u64).hash_into(hasher);
-        for p in &self.sacrificed_creature_powers {
-            p.hash_into(hasher);
+        (self.sacrificed_creature_lki.len() as u64).hash_into(hasher);
+        for l in &self.sacrificed_creature_lki {
+            l.hash_into(hasher);
         }
         // CR 603.10a: LKI counter snapshot for WhenDies / WhenLeavesBattlefield triggers.
         // OrdMap iteration is deterministic by sorted key (imbl::OrdMap invariant).
@@ -3838,21 +3867,28 @@ impl HashInto for crate::state::types::AltCostKind {
         disc.hash_into(hasher);
     }
 }
+impl HashInto for crate::state::types::SacrificedCreatureLki {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.power.hash_into(hasher);
+        self.toughness.hash_into(hasher);
+        self.mana_value.hash_into(hasher);
+    }
+}
 impl HashInto for AdditionalCost {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
-            AdditionalCost::Sacrifice { ids, lki_powers } => {
+            AdditionalCost::Sacrifice { ids, lki } => {
                 0u8.hash_into(hasher);
                 (ids.len() as u64).hash_into(hasher);
                 for id in ids {
                     id.hash_into(hasher);
                 }
-                // PB-P: Hash lki_powers so states with different LKI captures
+                // PB-P/PB-EF10: Hash lki so states with different LKI captures
                 // produce different hashes. Non-LKI callers pass vec![] which
                 // hashes as a zero-length vector — stable across old states.
-                (lki_powers.len() as u64).hash_into(hasher);
-                for p in lki_powers {
-                    p.hash_into(hasher);
+                (lki.len() as u64).hash_into(hasher);
+                for l in lki {
+                    l.hash_into(hasher);
                 }
             }
             AdditionalCost::Discard(ids) => {
@@ -5092,6 +5128,8 @@ impl HashInto for TargetFilter {
         self.is_tapped.hash_into(hasher);
         // PB-XA2: untapped-state runtime predicate (CR 701.21a).
         self.is_untapped.hash_into(hasher);
+        // PB-EF10: runtime-computed max mana value cap (CR 202.3/608.2h).
+        self.max_cmc_amount.hash_into(hasher);
     }
 }
 impl HashInto for TargetRequirement {
@@ -5359,6 +5397,12 @@ impl HashInto for EffectAmount {
                 21u8.hash_into(hasher);
                 player.hash_into(hasher);
             }
+            // PB-EF10 (discriminant 22) — CR 608.2b/608.2i: LKI toughness of the
+            // first creature sacrificed as a cost/effect this resolution.
+            EffectAmount::ToughnessOfSacrificedCreature => 22u8.hash_into(hasher),
+            // PB-EF10 (discriminant 23) — CR 608.2h/202.3: LKI mana value of the
+            // first creature sacrificed as a cost/effect this resolution.
+            EffectAmount::ManaValueOfSacrificedCreature => 23u8.hash_into(hasher),
         }
     }
 }
@@ -5776,6 +5820,8 @@ impl HashInto for Condition {
             Condition::SpellMastery => 46u8.hash_into(hasher),
             // PB-AC6: "if an opponent controls more lands than you" (discriminant 47)
             Condition::OpponentControlsMoreLandsThanYou => 47u8.hash_into(hasher),
+            // PB-EF10: "if you do" — SacrificeFired (discriminant 48)
+            Condition::SacrificeFired => 48u8.hash_into(hasher),
         }
     }
 }

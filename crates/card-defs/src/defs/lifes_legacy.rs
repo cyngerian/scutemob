@@ -5,8 +5,8 @@
 // CR 118.8: Mandatory additional sacrifice cost at cast time.
 // CR 608.2b: Draw count uses the sacrificed creature's LKI power (on-battlefield,
 // layer-resolved) captured BEFORE move_object_to_zone at the spell-additional-cost
-// sacrifice site (casting.rs). Flows via AdditionalCost::Sacrifice.lki_powers into
-// EffectContext.sacrificed_creature_powers at resolution.
+// sacrifice site (casting.rs). Flows via AdditionalCost::Sacrifice.lki into
+// EffectContext.sacrificed_creature_lki at resolution.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

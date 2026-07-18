@@ -259,7 +259,7 @@ fn test_bargain_basic_instant_with_sacrifice() {
             face_down_kind: None,
             additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
                 ids: vec![token_id],
-                lki_powers: vec![],
+                lki: vec![],
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
@@ -407,7 +407,7 @@ fn test_bargain_sacrifice_artifact() {
             face_down_kind: None,
             additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
                 ids: vec![artifact_id],
-                lki_powers: vec![],
+                lki: vec![],
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
@@ -463,7 +463,7 @@ fn test_bargain_sacrifice_enchantment() {
             face_down_kind: None,
             additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
                 ids: vec![enchantment_id],
-                lki_powers: vec![],
+                lki: vec![],
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
@@ -521,7 +521,7 @@ fn test_bargain_sacrifice_creature_token() {
             face_down_kind: None,
             additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
                 ids: vec![token_id],
-                lki_powers: vec![],
+                lki: vec![],
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
@@ -572,7 +572,7 @@ fn test_bargain_sacrifice_invalid_creature() {
             face_down_kind: None,
             additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
                 ids: vec![creature_id],
-                lki_powers: vec![],
+                lki: vec![],
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
@@ -627,7 +627,7 @@ fn test_bargain_sacrifice_opponent_permanent() {
             face_down_kind: None,
             additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
                 ids: vec![opponent_artifact_id],
-                lki_powers: vec![],
+                lki: vec![],
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
@@ -715,7 +715,7 @@ fn test_bargain_no_keyword_sacrifice_ignored() {
             face_down_kind: None,
             additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
                 ids: vec![artifact_id],
-                lki_powers: vec![],
+                lki: vec![],
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
@@ -799,7 +799,7 @@ fn test_bargain_permanent_etb_was_bargained() {
             face_down_kind: None,
             additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
                 ids: vec![enchantment_id],
-                lki_powers: vec![],
+                lki: vec![],
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],

@@ -1,9 +1,8 @@
 // Diamond Valley — Land
 // {T}, Sacrifice a creature: You gain life equal to the sacrificed creature's toughness.
 //
-// TODO: "gain life equal to the sacrificed creature's toughness" requires
-// EffectAmount::SacrificedCreatureToughness (dynamic amount based on sacrificed creature stats).
-// This DSL primitive does not exist. Omitted per W5 policy.
+// PB-EF10: EffectAmount::ToughnessOfSacrificedCreature (CR 608.2b/608.2i LKI) reads the
+// layer-resolved toughness of the sacrificed creature captured at cost-payment time.
 // Note: Diamond Valley has no {T}: Add {C} ability — it only produces life via the sacrifice
 // outlet. It cannot tap for mana at all.
 use crate::cards::helpers::*;
@@ -18,13 +17,28 @@ pub fn card() -> CardDefinition {
                       toughness."
             .to_string(),
         abilities: vec![
-            // TODO: {T}, Sacrifice a creature: Gain life = sacrificed creature's toughness.
-            // Requires EffectAmount::SacrificedCreatureToughness which does not exist in the DSL.
+            // CR 602.2 + CR 608.2b/608.2i: {T}, Sacrifice a creature: gain life equal to
+            // the sacrificed creature's LKI toughness.
+            AbilityDefinition::Activated {
+                cost: Cost::Sequence(vec![
+                    Cost::Tap,
+                    Cost::Sacrifice(TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        ..Default::default()
+                    }),
+                ]),
+                effect: Effect::GainLife {
+                    player: PlayerTarget::Controller,
+                    amount: EffectAmount::ToughnessOfSacrificedCreature,
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+                activation_zone: None,
+                once_per_turn: false,
+                modes: None,
+            },
         ],
-        completeness: Completeness::inert(
-            "'gain life equal to the sacrificed creature's toughness' requires \
-             EffectAmount::SacrificedCreatureToughness (dynamic...",
-        ),
         ..Default::default()
     }
 }

@@ -141,7 +141,15 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   control [source]", a continuous-effect duration for gain-control effects; Olivia
 ///   Voldaren, Dragonlord Silumgar). The closure's type count is unchanged;
 ///   `EffectDuration`'s declared shape moved, so the digest moves.
-pub const PROTOCOL_VERSION: u32 = 14;
+/// - 15: PB-EF10 (2026-07-18) — `AdditionalCost::Sacrifice` (reachable via
+///   `CastSpell.additional_costs` → the wire closure) changes its `lki_powers: Vec<i32>`
+///   field to `lki: Vec<SacrificedCreatureLki>` (CR 608.2b/608.2h/608.2i — the sacrificed
+///   creature's LKI now carries power/toughness/mana value atomically, not just power;
+///   EF-W-MISS-7). `TargetFilter` (reachable via `Effect`/`AbilityDefinition` →
+///   the closure) gains `max_cmc_amount: Option<Box<EffectAmount>>` (CR 202.3/608.2h —
+///   a runtime-computed search cap). The closure's type count is unchanged; both types'
+///   declared shapes moved, so the digest moves.
+pub const PROTOCOL_VERSION: u32 = 15;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -159,7 +167,7 @@ pub const PROTOCOL_VERSION: u32 = 14;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "b94f90e1c6d7f4193385489f6f6d541dbb764534eab09593584f99361ea828d7";
+    "814403943d8b2a3185bb73f5b8d2658f7f39f92f00c93d9feed08f7ecb785d1d";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -292,6 +300,12 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // PB-EF9 (2026-07-18): EffectDuration gained WhileYouControlSource (see the
         // `- 14:` History line above).
         fingerprint: "b94f90e1c6d7f4193385489f6f6d541dbb764534eab09593584f99361ea828d7",
+    },
+    ProtocolEpoch {
+        version: 15,
+        // PB-EF10 (2026-07-18): AdditionalCost::Sacrifice reshaped lki_powers -> lki;
+        // TargetFilter gained max_cmc_amount (see the `- 15:` History line above).
+        fingerprint: "814403943d8b2a3185bb73f5b8d2658f7f39f92f00c93d9feed08f7ecb785d1d",
     },
 ];
 

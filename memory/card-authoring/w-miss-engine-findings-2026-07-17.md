@@ -77,7 +77,52 @@ ability — `KeywordAbility::Transform`'s behaviour is carried only by the exter
 (Invasion of Ikoria) and the "Super Nova" keyword (Sephiroth). Documented in
 `thaumatic_compass.rs`, `delver_of_secrets.rs`. A high-yield future PB.
 
-## EF-W-MISS-7 (LOW): sacrifice-driven `EffectAmount` / `max_cmc` gaps
+## EF-W-MISS-7 (LOW): sacrifice-driven `EffectAmount` / `max_cmc` gaps — ✅ CLOSED (PB-EF10, scutemob-111, 2026-07-18)
+> **CLOSED 2026-07-18.** All three named sub-gaps shipped:
+> - `EffectAmount::ToughnessOfSacrificedCreature` (hash disc 22) — the LKI-toughness twin of
+>   `PowerOfSacrificedCreature`, backed by a single `SacrificedCreatureLki { power, toughness,
+>   mana_value }` struct replacing the old `Vec<i32>` powers carrier on
+>   `EffectContext`/`StackObject`/`AdditionalCost::Sacrifice`.
+> - `TargetFilter.max_cmc_amount: Option<Box<EffectAmount>>` (a runtime UPPER-BOUND search cap,
+>   `Box` required to break a recursive-type cycle) + companion
+>   `EffectAmount::ManaValueOfSacrificedCreature` (hash disc 23), honored by the
+>   `Effect::SearchLibrary` executor only (not `matches_filter`).
+> - `Condition::SacrificeFired` (hash disc 48, CR 608.2c/608.2h "if you do") — resolution-time
+>   `sacrifice_permanents_for_player` now returns the LKI of everything actually sacrificed;
+>   `Effect::SacrificePermanents` sets `ctx.sacrifice_fired`/`ctx.sacrificed_creature_lki` from it.
+>
+> Shipped Complete: **Momentous Fall**, **Eldritch Evolution** (also adds an explicit
+> `Effect::Shuffle`, mirroring Harrow, so "then shuffle" is fully modeled), **Victimize**.
+> Roster recall (mandatory TODO sweep) surfaced 2 unlisted forced-adds, both flipped Complete:
+> **Miren, the Moaning Well** and **Diamond Valley** (both "{T}[,{3}], Sacrifice a creature: gain
+> life = its toughness"). **Birthing Pod** stays blocked: it needs mana value EQUAL TO 1 + the
+> sacrificed creature's MV, not "N or less" — `max_cmc_amount` is an upper-bound cap and would
+> accept cheaper creatures too (legal-but-wrong); needs a paired `min_cmc_amount` or an exact-MV
+> filter, out of this PB's scope. **Birthing Ritual** stays inert — see **OOS-EF10-1** below,
+> the only genuine remaining primitive gap this batch found.
+>
+> **Bonus fix (found while authoring Victimize, not a declared sub-gap):**
+> `Effect::MoveZone`'s handler never applied `ZoneTarget::Battlefield { tapped }` — `dest_tapped`
+> existed and was wired into the sibling `SearchLibrary` matched-cards path
+> (`effects/mod.rs` ~line 4819) but was never called from `MoveZone`, so any "return ~ to the
+> battlefield **tapped**" effect silently entered untapped. Fixed by mirroring the SearchLibrary
+> pattern (apply `dest_tapped(to)` to `new_obj.status.tapped` right after the move succeeds).
+> Regression: `test_victimize_returns_both_when_creature_sacrificed`. HASH 52→53, PROTOCOL 14→15.
+> Tests: `crates/engine/tests/primitives/pb_ef10_sacrifice_driven_amounts.rs` (15 tests).
+>
+> **New seed — OOS-EF10-1**: "look at the top seven, put at most one matching card from that
+> subset onto the battlefield (runtime MV cap), put the rest on the bottom in a random order" has
+> no `Effect` primitive. `SearchLibrary` searches the WHOLE library (not a top-N subset) and has
+> no bottom-randomize destination — using it would ship wrong game state (ignores the top-7
+> scoping and the bottom-random remainder). Blocks **Birthing Ritual** (and any impulse-style
+> "look at the top N, you may put one matching [filter, possibly a runtime MV cap] onto the
+> battlefield/into hand, put the rest on the bottom in a random order"). Fix shape: a new
+> `Effect::LookAtTopThenPlace { count: EffectAmount, filter: TargetFilter, destination, rest_to:
+> BottomRandom | Graveyard, optional: bool }` that (a) scopes candidates to the looked-at top N
+> (not the whole library, unlike `SearchLibrary`), (b) honors a runtime `max_cmc_amount`, (c)
+> places at most one, (d) sends the remainder to the bottom in a randomized (non-deterministic in
+> M10+, deterministic-by-ObjectId in M7) order.
+
 - No `EffectAmount::ToughnessOfSacrificedCreature` (only `PowerOfSacrificedCreature`) — Momentous Fall.
 - No runtime-computed `max_cmc` (`N + sacrificed creature's MV`) on `SearchLibrary`; `max_cmc`
   is a fixed `Option<u32>` — Birthing Ritual, Eldritch Evolution.

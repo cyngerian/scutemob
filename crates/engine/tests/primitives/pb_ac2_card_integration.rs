@@ -206,7 +206,7 @@ fn push_spell_stack_object(
             combat_damage_amount: 0,
             triggering_creature_id: None,
             cast_from_top_with_bonus: false,
-            sacrificed_creature_powers: vec![],
+            sacrificed_creature_lki: vec![],
             lki_counters: imbl::OrdMap::new(),
             lki_power: None,
             defending_player: None,

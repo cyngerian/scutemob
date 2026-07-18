@@ -162,7 +162,7 @@ fn sorcery_def(name: &str, card_id: &str, effect: Effect) -> CardDefinition {
 #[test]
 fn test_pb_ac8_hash_schema_version_live_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 52u8,
+        HASH_SCHEMA_VERSION, 53u8,
         "PB-AC8 bumped HASH_SCHEMA_VERSION 34->35 (GameRestriction::CantAttackOwner disc 9, \
          GameRestriction::CantBeSacrificed disc 10, Effect::WinGame disc 90, \
          LossReason::OpponentWonGame disc 5). If you bumped again, update this test."
@@ -1303,7 +1303,7 @@ fn test_cant_be_sacrificed_cast_cost_emerge_cannot_pay() {
             face_down_kind: None,
             additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
                 ids: vec![sac_id],
-                lki_powers: vec![],
+                lki: vec![],
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],

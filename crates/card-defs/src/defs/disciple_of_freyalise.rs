@@ -36,9 +36,9 @@ pub fn card() -> CardDefinition {
             // so "another creature" IS enforceable. BUT a SECOND blocker was found and this
             // card is NOT shipped:
             //
-            //   EffectAmount::PowerOfSacrificedCreature reads ctx.sacrificed_creature_powers
+            //   EffectAmount::PowerOfSacrificedCreature reads ctx.sacrificed_creature_lki
             //   (effects/mod.rs), which is populated ONLY at the *activated-ability* sacrifice
-            //   cost site (handle_activate_ability pushes sacrificed_lki_powers). The
+            //   cost site (handle_activate_ability pushes sacrificed_lki). The
             //   optional-cost path used by MayPayThenEffect (sacrifice_permanents_for_player)
             //   does NOT capture the sacrificed creature's power into ctx, so "gain X / draw X
             //   where X = that creature's power" would resolve X = 0 — wrong game state, not a
@@ -98,8 +98,8 @@ pub fn card() -> CardDefinition {
              its power') is NOT implemented. PB-EF1 (scutemob-99) closed the original blocker — \
              the optional-cost sacrifice path now honors TargetFilter.exclude_self (CR 109.1), so \
              'another' is enforceable. The SURVIVING blocker: \
-             EffectAmount::PowerOfSacrificedCreature reads ctx.sacrificed_creature_powers, \
-             populated only at the activated-ability sacrifice-cost site — the MayPayThenEffect \
+             EffectAmount::PowerOfSacrificedCreature reads ctx.sacrificed_creature_lki, populated \
+             only at the activated-ability sacrifice-cost site — the MayPayThenEffect \
              optional-cost path (sacrifice_permanents_for_player) never captures the sacrificed \
              creature's power into ctx, so X would resolve to 0. Filed as PB-EF1 follow-up \
              EF-EF1-A. Not shipped (W5 policy: wrong game state, not a missing clause).",

@@ -199,6 +199,20 @@ pub enum AltCostKind {
     /// spell's mana cost/value for effects that read it.
     Pitch,
 }
+/// CR 608.2b/608.2h/608.2i: last-known layer-resolved characteristics of a creature
+/// sacrificed as a cost or by a resolution-time effect, captured BEFORE
+/// `move_object_to_zone`. Read by EffectAmount::{PowerOf,ToughnessOf,ManaValueOf}SacrificedCreature.
+///
+/// A single struct (rather than parallel `Vec<i32>` fields) so that a capture site
+/// either records the full LKI atomically or doesn't — a partial capture (e.g. power
+/// set, toughness forgotten) would silently read 0 for the missing field, which is
+/// exactly the "legal-but-wrong" failure class the project prioritizes eliminating.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct SacrificedCreatureLki {
+    pub power: i32,
+    pub toughness: i32,
+    pub mana_value: u32,
+}
 /// Consolidated additional costs for spell casting (CR 601.2b, 601.2f-h).
 ///
 /// Replaces ~20 one-off fields on CastSpell/StackObject. Each variant represents
@@ -215,14 +229,15 @@ pub enum AdditionalCost {
     /// spell additional costs such as SpellAdditionalCost::SacrificeCreature).
     ///
     /// `ids` are the (now-dead) ObjectIds at the time of sacrifice.
-    /// `lki_powers` is parallel to `ids` and stores the layer-resolved power of each
-    /// sacrificed creature captured BEFORE `move_object_to_zone` (CR 608.2b LKI).
-    /// Non-LKI consumers (emerge, bargain, casualty, devour) may set `lki_powers: vec![]`
-    /// and ignore it. LKI consumers (PB-P: PowerOfSacrificedCreature) MUST verify
-    /// `lki_powers.len() == ids.len()` or fall back to 0.
+    /// `lki` is parallel to `ids` and stores the layer-resolved power/toughness/mana
+    /// value of each sacrificed creature captured BEFORE `move_object_to_zone` (CR
+    /// 608.2b/608.2h/608.2i LKI). Non-LKI consumers (emerge, bargain, casualty, devour)
+    /// may set `lki: vec![]` and ignore it. LKI consumers (PB-P: PowerOfSacrificedCreature;
+    /// PB-EF10: ToughnessOfSacrificedCreature, ManaValueOfSacrificedCreature) MUST verify
+    /// `lki.len() == ids.len()` or fall back to 0.
     Sacrifice {
         ids: Vec<ObjectId>,
-        lki_powers: Vec<i32>,
+        lki: Vec<SacrificedCreatureLki>,
     },
     /// Discard cards as part of the cost (Retrace land discard, Jump-Start discard).
     Discard(Vec<ObjectId>),

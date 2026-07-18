@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-18 17:27 UTC  
-**Git:** `4fa6b6f2` on `feat/pb-ef9-effectdurationwhileyoucontrolsource-ef-w-pb2-5`  
+**Generated:** 2026-07-18 18:54 UTC  
+**Git:** `051887f2` on `feat/pb-ef10-sacrifice-driven-effectamount-runtime-maxcmc-if-you-`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -19,25 +19,25 @@ and what is intentionally NOT in it.**
 
 | Metric | Count | Δ since last run |
 | --- | ---: | ---: |
-| Card def files on disk | 1,792 | · |
+| Card def files on disk | 1,796 | +4 |
 | Authoring-plan target universe (snapshot 2026-03-10) | 1,636 | · |
-| Plan cards with a def file (any-face match) | 1,488 | · |
-| Plan cards still missing a def file | 148 | · |
+| Plan cards with a def file (any-face match) | 1,492 | +4 |
+| Plan cards still missing a def file | 144 | -4 |
 | Bonus defs (on disk, outside plan) | 321 | · |
-| Effective coverage vs plan target | **111%** (1,809 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 61.0% | 1,093 | +2 |
-| With TODO markers | 545 | -2 |
+| Effective coverage vs plan target | **111%** (1,813 / 1,636) | — |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 61.1% | 1,098 | +5 |
+| With TODO markers | 544 | -1 |
 | Empty `abilities: vec![]` placeholders | 154 | · |
-| Total TODO lines across all defs | 961 | · |
+| Total TODO lines across all defs | 958 | -3 |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 44 | 1,763 |
-| last 30 days | 44 | 2,937 |
-| last 90 days | 44 | 2,977 |
-| last 1 year | 1,817 | 3,360 |
+| last 7 days | 46 | 1,763 |
+| last 30 days | 46 | 2,937 |
+| last 90 days | 46 | 2,977 |
+| last 1 year | 1,819 | 3,360 |
 
 ## Bonus defs outside the plan
 
@@ -102,7 +102,7 @@ are blocked on engine primitives.
 | `aura` | 6 / 6 | 100% | 3 | 2 | 1 |
 | `etb-trigger` | 6 / 6 | 100% | 1 | 4 | 1 |
 | `lifedrain` | 6 / 6 | 100% | 3 | 1 | 2 |
-| `sacrifice-outlet` | 2 / 6 | 33% | 2 | 0 | 0 |
+| `sacrifice-outlet` | 6 / 6 | 100% | 5 | 0 | 1 |
 | `lifegain` | 5 / 5 | 100% | 3 | 0 | 2 |
 | `mana-other` | 5 / 5 | 100% | 2 | 3 | 0 |
 | `removal-minus` | 4 / 4 | 100% | 2 | 1 | 1 |
@@ -137,13 +137,6 @@ you which kind of next-step work would unblock the group.
 | Skyshroud Poacher | `skyshroud_poacher` | clean |
 | Timberwatch Elf | `timberwatch_elf` | clean |
 | Wellwisher | `wellwisher` | clean |
-
-#### `sacrifice-outlet` — 2 / 6 (33%), authored split: 2 clean / 0 todo / 0 empty — **unwritten**
-
-| Card | Slug | Bucket |
-| --- | --- | --- |
-| Culling the Weak | `culling_the_weak` | clean |
-| Life's Legacy | `lifes_legacy` | clean |
 
 #### `activated-sacrifice` — 8 / 19 (42%), authored split: 6 clean / 1 todo / 1 empty — **unwritten**
 
@@ -207,7 +200,7 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 590 | -1 |
+| OTHER (unclassified) | 587 | -3 |
 | DSL gap (unspecified) | 122 | · |
 | attack trigger (self / generic) | 25 | · |
 | TriggerCondition::* missing variant | 17 | · |
@@ -237,24 +230,24 @@ _…and 27 more buckets totaling 46 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 590 
+Showing 12 of 587 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
 
 ```
 abstergo_entertainment: // TODO: {3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card
-bloodchief_ascension: // TODO: Both abilities are complex — end-step conditional counter placement needs
-deep_gnome_terramancer: // TODO: "lands enter under opponent's control without being played" trigger condition
+blood_tribute: // TODO: Kicker cost "tap a Vampire" is non-mana kicker.
+curse_of_opulence: // TODO: Gold token spec not a helper function.
 experimental_augury: // TODO: Interactive "choose 1 of 3" — M10 player choice. Approximated as
 goblin_king: // TODO: AllCreaturesWithSubtype includes Goblin King itself — "other" semantics
 jeskas_will: // TODO: Mode 2 needs impulse-draw (exile top 3, play this turn).
-marionette_apprentice: // ENGINE-BLOCKED: "Whenever another creature or artifact you control is put into
-otharri_suns_glory: // TODO: "{2}{R}{W}, Tap an untapped Rebel you control: Return this card from your
-ruthless_technomancer: // ENGINE-BLOCKED: see module comment -- ETB optional-sacrifice-for-Treasure
-song_of_freyalise: // TODO: Saga chapter I/II — grant `{T}: Add one mana of any color` to creatures you
-teferi_temporal_archmage: // TODO: RevealAndRoute reveals all; "look" is private. Using RevealAndRoute
-tymna_the_weaver: // ENGINE-BLOCKED: the life payment and draw count both scale with the number of
+marionette_apprentice: // ENGINE-BLOCKED: "Whenever another creature or artifact you control dies" — there is no
+out_of_the_tombs: // TODO: Upkeep counter + mill scaling with counter count not expressible.
+ruthless_winnower: // TODO: "non-Elf creature" filter — SacrificePermanents has no subtype exclusion.
+song_of_freyalise: // TODO: Saga chapter III — +1/+1 counters on all creatures you control plus vigilance,
+teferi_temporal_archmage: // TODO: Emblem creation for "activate loyalty at instant speed" not in DSL.
+tyvar_jubilant_brawler: // TODO: static — creatures you control can activate abilities as though they had haste
 ```
 
 ## ⚠ Completeness-marker drift
@@ -272,6 +265,9 @@ tymna_the_weaver: // ENGINE-BLOCKED: the life payment and draw count both scale 
 ## Recent card-touching commits
 
 ```
+051887f2 scutemob-111: PB-EF10 COMMIT 2 — runtime search cap (max_cmc_amount + ManaValueOfSacrificedCreature)
+ad9755ff scutemob-111: PB-EF10 COMMIT 1 — SacrificedCreatureLki data-model migration + ToughnessOfSacrificedCreature
+eba28604 scutemob-110: PB-EF9 — EffectDuration::WhileYouControlSource (EF-W-PB2-5)
 a7ae66ce scutemob-109: PB-EF8 /review LOW — elvish_spirit_guide oracle_text card→creature
 3a5f1678 scutemob-109: PB-EF8 — Cost::ExileSelfFromHand (activation from hand)
 1574aa17 scutemob-108: PB-EF7 review fixes — LKI discriminator + validation-branch tests
@@ -294,14 +290,11 @@ eb9d7e34 scutemob-97: W-MISS — author 33 missing-file cards Complete (coverage
 205282d3 scutemob-96: W-EMPTY — author authorable empty-placeholder defs
 5321ebef scutemob-95: W-PB2 batch 5 — targeting/alt-cost/misc (8 Complete) + boggart demotion + test fixes
 7ee2a68d scutemob-95: W-PB2 batch 4 — triggers (10 Complete)
-e7e304b8 scutemob-95: W-PB2 batch 3 — dynamic P/T + static grants (9 Complete)
-51d93961 scutemob-95: W-PB2 batch 2 — count-scaled amounts/tokens (10 Complete)
-ba1fe756 scutemob-95: W-PB2 batch 1 — target-filter fixes (11 Complete, patriars_seal known_wrong)
 ```
 
 ## Missing card-defs sidecar
 
-The full list of 148 plan cards still missing on disk is at 
+The full list of 144 plan cards still missing on disk is at 
 `docs/authoring-status-missing.txt` (tab-separated `group<TAB>name`, sorted by group). 
 Use it as a batch-author worklist.
 

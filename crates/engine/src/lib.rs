@@ -47,8 +47,8 @@ pub use state::{
     MergedComponent, ObjectFilter, ObjectId, ObjectSpec, ObjectStatus, PendingZoneChange, Phase,
     PhyrexianMana, PlayFromGraveyardPermission, PlayFromTopFilter, PlayFromTopPermission,
     PlayerBuilder, PlayerFilter, PlayerId, PlayerState, ProtectionQuality, ReplacementEffect,
-    ReplacementId, ReplacementModification, ReplacementTrigger, SpellTarget, StackObject,
-    StackObjectKind, Step, SubType, SuperType, Target, TriggerData, TriggerDoubler,
+    ReplacementId, ReplacementModification, ReplacementTrigger, SacrificedCreatureLki, SpellTarget,
+    StackObject, StackObjectKind, Step, SubType, SuperType, Target, TriggerData, TriggerDoubler,
     TriggerDoublerFilter, TriggerEvent, TriggeredAbilityDef, TurnFaceUpMethod, TurnState,
     UpkeepCostKind, Zone, ZoneId, ZoneType,
 };
