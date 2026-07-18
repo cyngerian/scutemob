@@ -14,7 +14,7 @@
 > Detailed PB-by-PB handoffs, hazards, and seed inventories live in `memory/workstream-state.md`.
 > Worker sessions: append detail there, not here. CLAUDE.md tracks current snapshot only.
 
-- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage **1,098/1,796 = 61.1%** per `tools/authoring-report.py`; **EF queue ACTIVE (`memory/primitives/ef-batch-plan-2026-07-17.md`) — PB-EF1..EF10 + EF-13 SHIPPED (`scutemob-99`/`101`..`111`); PB-EF11 in flight `scutemob-112`; remaining EF12**; **PB-AC chain COMPLETE — AC0..AC9 all shipped**; **marker sweep COMPLETE — `scutemob-88`**; **SR-33..38 chain COMPLETE**; **W-PB2 + W-EMPTY + W-MISS COMPLETE — `scutemob-95`/`96`/`97`**)
+- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage **1,100/1,798 = 61.2%** per `tools/authoring-report.py`; **EF queue ACTIVE (`memory/primitives/ef-batch-plan-2026-07-17.md`) — PB-EF1..EF11 + EF-13 SHIPPED (`scutemob-99`/`101`..`112`); PB-EF12 in flight `scutemob-114` — LAST batch in the queue**; **PB-AC chain COMPLETE — AC0..AC9 all shipped**; **marker sweep COMPLETE — `scutemob-88`**; **SR-33..38 chain COMPLETE**; **W-PB2 + W-EMPTY + W-MISS COMPLETE — `scutemob-95`/`96`/`97`**)
 - **Invariant #9 is machine-enforced (SR-2).** `CardDefinition.completeness` (`Complete` by
   Default) marks a def `Inert` / `Partial` / `KnownWrong`; `validate_deck` rejects any
   non-`Complete` card with `DeckViolation::IncompleteCard`. `CardRegistry::try_new` errors on
@@ -33,7 +33,7 @@
   accessors, gated on the `test-util` feature (self dev-dependency). **`cargo build
   --workspace` is the only gate that proves the seal** — `test --all` and `clippy
   --all-targets` enable `test-util` workspace-wide via feature unification. It is a CI step.
-- **Tests**: **3453 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
+- **Tests**: **3466 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
   — and `fmt` here means `cargo fmt --check` **plus** `tools/check-defs-fmt.sh`, which is the only one
   of the two that looks at the 1,748 card defs (SR-35)
 - **CI**: **LIVE and green** since 2026-07-10 (SR-1, merge `e9742dc2`) — single Ubuntu job (fmt + clippy + `build --workspace` + full tests) on push/PR to main + workflow_dispatch; rust-cache@v2, 45m timeout. **Toolchain pinned (SR-11, `scutemob-63`)**: `rust-toolchain.toml` pins exact stable `1.95.0` and CI reads that `channel` from the file (no more floating to latest stable), so local `clippy -D warnings` is an authoritative CI preview. SR remediation track: original SR-1..16 all DONE 2026-07-10; a 2026-07-11 re-audit of the remediated baseline filed **SR-17..SR-32**, all DONE 2026-07-14..16 (16/16 collected; full record: `docs/sr-remediation-plan.md`).
@@ -279,7 +279,19 @@
   `memory/card-authoring/sr36-engine-findings-2026-07-17.md` (**SG-1 MEDIUM: the simulator's
   `LegalActionProvider` ignores `life_cost` — harmless while the cost was dropped, now it
   offers bots unpayable actions**).
-- **Last Updated**: 2026-07-18 (**PB-EF10 collected, `scutemob-111` merge `3710ad9c`** — all
+- **Last Updated**: 2026-07-18 (**PB-EF11 collected, `scutemob-112` merge `e991b237`** — both
+  singletons: `WheelDraw::GreatestDiscarded` (Windfall Complete; everyone draws the max
+  discarded, decoy pins not-per-player) and `TargetSpellWithSingleTarget` + retarget
+  (Misdirection restored to Complete after its honest scutemob-97 demotion). **PROTOCOL 15→17,
+  HASH 53→55** (one bump per commit). 3466 tests; coverage **61.2%** (1,100/1,798); reviews
+  0H/0M/2L fixed. Same sitting: **Cargo.lock is now TRACKED** (`scutemob-113`, merge
+  `e1c30acb`) — scutemob-112 found main's tip didn't build in a fresh env (untracked lock →
+  fresh resolve picked stricter `equivalent 1.0.2`); the lock pins deps like
+  rust-toolchain.toml pins the compiler (SR-11), verified `--locked` green; EF11's COMMIT 1
+  also carries the 9-site source-level fix. In flight: **PB-EF12** (`scutemob-114`, granted
+  any-color mana choice — **the final EF-queue batch**; coordinator decision recorded: color
+  choice rides `Command::TapForMana` per the SR-33 CR 605.3b precedent, no Colorless default).
+  Earlier: **PB-EF10 collected, `scutemob-111` merge `3710ad9c`** — all
   three EF-W-MISS-7 sub-gaps via one `SacrificedCreatureLki` struct:
   `EffectAmount::ToughnessOfSacrificedCreature` (layer-resolved LKI captured before
   `move_object_to_zone`, anthem + toughness-not-power decoys), `TargetFilter.max_cmc_amount`
