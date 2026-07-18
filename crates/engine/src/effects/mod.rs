@@ -678,34 +678,79 @@ fn execute_effect_inner(
             draw,
         } => {
             let players = resolve_player_target_list(state, player, ctx);
-            for p in players {
-                let hand_zone = ZoneId::Hand(p);
-                let hand_size = state
-                    .objects
-                    .iter()
-                    .filter(|(_, obj)| obj.zone == hand_zone)
-                    .count();
-                match disposal {
-                    WheelDisposal::Discard => discard_cards(state, p, hand_size, events),
-                    WheelDisposal::ShuffleHandIntoLibrary => {
-                        move_zone_all_then_shuffle(state, p, &[ZoneId::Hand(p)], events);
+            match draw {
+                WheelDraw::GreatestDiscarded => {
+                    // CR 121.1: the draw count is a MAX over every affected
+                    // player's pre-disposal hand size, so ALL disposals must
+                    // complete before ANY player draws (Windfall). Two passes:
+                    // (1) snapshot + dispose each player, recording their
+                    // pre-disposal hand size; (2) every player draws the max.
+                    let mut counts: Vec<usize> = Vec::with_capacity(players.len());
+                    for p in &players {
+                        let hand_zone = ZoneId::Hand(*p);
+                        let hand_size = state
+                            .objects
+                            .iter()
+                            .filter(|(_, obj)| obj.zone == hand_zone)
+                            .count();
+                        match disposal {
+                            WheelDisposal::Discard => discard_cards(state, *p, hand_size, events),
+                            WheelDisposal::ShuffleHandIntoLibrary => {
+                                move_zone_all_then_shuffle(state, *p, &[ZoneId::Hand(*p)], events);
+                            }
+                            WheelDisposal::ShuffleHandAndGraveyardIntoLibrary => {
+                                move_zone_all_then_shuffle(
+                                    state,
+                                    *p,
+                                    &[ZoneId::Hand(*p), ZoneId::Graveyard(*p)],
+                                    events,
+                                );
+                            }
+                        }
+                        counts.push(hand_size);
                     }
-                    WheelDisposal::ShuffleHandAndGraveyardIntoLibrary => {
-                        move_zone_all_then_shuffle(
-                            state,
-                            p,
-                            &[ZoneId::Hand(p), ZoneId::Graveyard(p)],
-                            events,
-                        );
+                    let max_draw = counts.iter().copied().max().unwrap_or(0);
+                    for p in players {
+                        for _ in 0..max_draw {
+                            let draw_evts = draw_one_card(state, p);
+                            events.extend(draw_evts);
+                        }
                     }
                 }
-                let n = match draw {
-                    WheelDraw::ThatMany => hand_size,
-                    WheelDraw::Fixed(k) => *k as usize,
-                };
-                for _ in 0..n {
-                    let draw_evts = draw_one_card(state, p);
-                    events.extend(draw_evts);
+                WheelDraw::ThatMany | WheelDraw::Fixed(_) => {
+                    for p in players {
+                        let hand_zone = ZoneId::Hand(p);
+                        let hand_size = state
+                            .objects
+                            .iter()
+                            .filter(|(_, obj)| obj.zone == hand_zone)
+                            .count();
+                        match disposal {
+                            WheelDisposal::Discard => discard_cards(state, p, hand_size, events),
+                            WheelDisposal::ShuffleHandIntoLibrary => {
+                                move_zone_all_then_shuffle(state, p, &[ZoneId::Hand(p)], events);
+                            }
+                            WheelDisposal::ShuffleHandAndGraveyardIntoLibrary => {
+                                move_zone_all_then_shuffle(
+                                    state,
+                                    p,
+                                    &[ZoneId::Hand(p), ZoneId::Graveyard(p)],
+                                    events,
+                                );
+                            }
+                        }
+                        let n = match draw {
+                            WheelDraw::ThatMany => hand_size,
+                            WheelDraw::Fixed(k) => *k as usize,
+                            WheelDraw::GreatestDiscarded => unreachable!(
+                                "handled in the GreatestDiscarded two-pass branch above"
+                            ),
+                        };
+                        for _ in 0..n {
+                            let draw_evts = draw_one_card(state, p);
+                            events.extend(draw_evts);
+                        }
+                    }
                 }
             }
         }
@@ -1778,7 +1823,7 @@ fn execute_effect_inner(
                             || state
                                 .combat
                                 .as_ref()
-                                .is_some_and(|c| c.attackers.contains_key(id)))
+                                .is_some_and(|c| c.attackers.contains_key(*id)))
                         // is_token: runtime check (not in matches_filter)
                         && (!effective_filter.is_token || obj.is_token)
                         // CR 122.1: counter check must be against GameObject (not Characteristics).
@@ -7751,7 +7796,7 @@ fn eligible_sacrifice_targets(
                     let is_attacking = state
                         .combat
                         .as_ref()
-                        .map(|c| c.attackers.contains_key(id))
+                        .map(|c| c.attackers.contains_key(*id))
                         .unwrap_or(false);
                     if !is_attacking {
                         return false;

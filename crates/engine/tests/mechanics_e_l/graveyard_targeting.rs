@@ -891,12 +891,12 @@ fn test_608_2b_fizzle_gy_target_exiled_before_resolution() {
         .to_vec();
     let raise_id = hand_ids
         .iter()
-        .find(|id| state.objects().get(id).unwrap().characteristics.name == "Raise Dead")
+        .find(|id| state.objects().get(*id).unwrap().characteristics.name == "Raise Dead")
         .copied()
         .unwrap();
     let exile_id = hand_ids
         .iter()
-        .find(|id| state.objects().get(id).unwrap().characteristics.name == "Exile GY")
+        .find(|id| state.objects().get(*id).unwrap().characteristics.name == "Exile GY")
         .copied()
         .unwrap();
     let creature_id = *state

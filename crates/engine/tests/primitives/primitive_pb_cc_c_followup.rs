@@ -397,7 +397,7 @@ fn test_hash_schema_version_after_pb_lki_cc() {
 
     // (e-1) Sentinel: must be exactly 15.
     assert_eq!(
-        HASH_SCHEMA_VERSION, 53u8,
+        HASH_SCHEMA_VERSION, 54u8,
         "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
     );
 

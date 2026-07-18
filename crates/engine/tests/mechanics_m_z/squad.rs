@@ -382,7 +382,13 @@ fn test_squad_tokens_are_copies() {
     // Exactly one token (is_token == true).
     let tokens: Vec<_> = copies
         .iter()
-        .filter(|id| state.objects().get(id).map(|o| o.is_token).unwrap_or(false))
+        .filter(|id| {
+            state
+                .objects()
+                .get(*id)
+                .map(|o| o.is_token)
+                .unwrap_or(false)
+        })
         .collect();
     assert_eq!(
         tokens.len(),

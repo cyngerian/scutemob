@@ -2466,6 +2466,11 @@ pub enum WheelDraw {
     /// Draw a fixed number regardless of hand size. (Wheel of Fortune / Echo of
     /// Eons = 7.)
     Fixed(u32),
+    /// CR 121.1: draw a number equal to the GREATEST number of cards any affected
+    /// player disposed of this way (each player's pre-disposal hand size). A shared
+    /// value across all affected players; computable only after every player has
+    /// disposed. (Windfall.)
+    GreatestDiscarded,
 }
 // ── Effect Targets ────────────────────────────────────────────────────────────
 /// Where a delayed trigger returns an exiled object to (CR 610.3).
