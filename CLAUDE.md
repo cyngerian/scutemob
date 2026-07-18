@@ -15,560 +15,42 @@
 > Worker sessions: append detail there, not here. CLAUDE.md tracks current snapshot only.
 
 - **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage **1,117/1,798 = 62.1%** per `tools/authoring-report.py`; **EF queue COMPLETE — all of PB-EF1..EF12 + EF-13 Option A SHIPPED in one day (`scutemob-99`, `101`..`112`, `114`; plus swan_song demote `100` and Cargo.lock chore `113`); all 20 EF findings closed; new OOS seeds filed: OOS-EF3-1, OOS-EF3b-1, OOS-EF4-1, OOS-EF5-1..4, OOS-EF6-1, OOS-EF9-1, OOS-EF10-1, EF-EF1-A**; **PB-AC chain COMPLETE — AC0..AC9 all shipped**; **marker sweep COMPLETE — `scutemob-88`**; **SR-33..38 chain COMPLETE**; **W-PB2 + W-EMPTY + W-MISS COMPLETE — `scutemob-95`/`96`/`97`**; **OOS retriage COMPLETE — `scutemob-115`; ACTIVE QUEUE: `memory/primitives/oos-retriage-plan-2026-07-18.md` PB-OS1..OS11 (correctness-first, ~19-22 discounted flips); **PB-OS1 SHIPPED** (`scutemob-116` merge `db49a0b2` — gain-control now reverts at EOT/next-turn expiry; roster proved 2 cards not 3, karrthus correctly `Indefinite` per CR 611.2a; no wire bump; WhileSourceOnBattlefield half deferred); next PB-OS2 — **paused for DOC-1..8 documentation remediation** (`memory/doc-audit-2026-07-18.md`)**)
-- **Invariant #9 is machine-enforced (SR-2).** `CardDefinition.completeness` (`Complete` by
-  Default) marks a def `Inert` / `Partial` / `KnownWrong`; `validate_deck` rejects any
-  non-`Complete` card with `DeckViolation::IncompleteCard`. `CardRegistry::try_new` errors on
-  duplicate CardIds. Current markers: 62 inert, 570 partial, 97 known-wrong (`scutemob-88`).
-  **New card defs must be `Complete` or carry a marker with a note** — an inert def now fails a
-  test. **"Inert" means registers no *behaviour*, not `abilities: vec![]`** — a cost-reduction
-  static is a `spell_cost_modifier`, not an `AbilityDefinition`, so those defs correctly ship an
-  empty `abilities` vec and are Complete. `card_registry_gate::registers_no_behavior` is the
-  predicate and it checks every behaviour-bearing field; **adding such a field to
-  `CardDefinition` means adding it there**, and `inert_gate_is_not_vacuous` pins both directions.
-- **Invariant #3 is machine-enforced (SR-3).** All `GameState` fields are `pub(crate)` with
-  one public read accessor each; the `&mut`-handing methods (`player_mut`, `object_mut`,
-  `add_object`, `move_object_to_zone`, `next_object_id`, …) are `pub(crate)` too. Outside the
-  engine crate a `GameState` is read-only — the only mutation path is a `Command` through
-  `process_command`. Tests/benches get mutable access via `state::test_util` + `*_mut()`
-  accessors, gated on the `test-util` feature (self dev-dependency). **`cargo build
-  --workspace` is the only gate that proves the seal** — `test --all` and `clippy
-  --all-targets` enable `test-util` workspace-wide via feature unification. It is a CI step.
 - **Tests**: **3476 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
   — and `fmt` here means `cargo fmt --check` **plus** `tools/check-defs-fmt.sh`, which is the only one
-  of the two that looks at the 1,748 card defs (SR-35)
+  of the two that looks at the 1,798 card defs (SR-35)
 - **CI**: **LIVE and green** since 2026-07-10 (SR-1, merge `e9742dc2`) — single Ubuntu job (fmt + clippy + `build --workspace` + full tests) on push/PR to main + workflow_dispatch; rust-cache@v2, 45m timeout. **Toolchain pinned (SR-11, `scutemob-63`)**: `rust-toolchain.toml` pins exact stable `1.95.0` and CI reads that `channel` from the file (no more floating to latest stable), so local `clippy -D warnings` is an authoritative CI preview. SR remediation track: original SR-1..16 all DONE 2026-07-10; a 2026-07-11 re-audit of the remediated baseline filed **SR-17..SR-32**, all DONE 2026-07-14..16 (16/16 collected; full record: `docs/sr-remediation-plan.md`).
 - **Abilities**: ~199 validated; 42/42 P1; 17/17 P2; 40/40 P3; 95/95 P4 implemented (9 permanent-n/a; 1 deferred: Banding)
 - **Primitives**: PB-0..PB-37 + named-letter chain (PB-A/B/E/J/M/S/X/Q/Q4/N/D/P/L/T/SFT/CC-{W,B,C,A}/TS/LKI-CC/CD/LKI-Power/EWC/XS/XS-E/XA/EAT/XA2/EWC-D) all DONE. PB-Q2/Q3/Q5 reserved.
-- **Last shipped**: **PB-EF1 — `exclude_self` enforcement sweep** (`scutemob-99`, merge `6202ab81`) —
-  first batch off the EF queue. Five executor sites that matched a `TargetFilter` without a threaded
-  source ObjectId silently ignored `exclude_self` (`PermanentCount` amount resolver, sacrifice
-  cost + `SacrificePermanents` effect paths via `eligible_sacrifice_targets`, `UntapAll`,
-  `YouControlNOrMoreWithFilter`, `SacrificeOther`); all five now honor it, each pinned by a decoy
-  test that fails on exactly that field. One wire change proved necessary after all:
-  the activated-cost path lowers to a lossy `SacrificeFilter`, so "sacrifice ANOTHER creature"
-  (Izoni, Yawgmoth) needed `ActivationCost.sacrifice_exclude_self` — **HASH 43→44, PROTOCOL 5→6**
-  (Nantuko-Husk-style "sacrifice a creature" bars a default-exclude). 6 cards flipped/authored
-  Complete (éomer, Izoni, Korvold, Yawgmoth, Commissar Severina Raine, Copperhorn Scout);
-  disciple_of_freyalise stayed partial with a real second blocker filed as **EF-EF1-A**
-  (`PowerOfSacrificedCreature` not populated in the `MayPayThenEffect` optional-cost path).
-  Closed EF-W-PB2-1, EF-W-EMPTY-1, EF-W-MISS-2, marker EF-4/EF-5, OOS-TS-2. Coverage
-  59.8% → **60.1%** (1,071/1,782). Same sitting: **swan_song demoted** Complete → known_wrong
-  (`scutemob-100`, EF-W-MISS-1 — Bird minted for the wrong player; PB-EF2 fixes it).
-  **EF-13 RESOLVED — Option A shipped** (`scutemob-101`, merge `0096ca65`): the no-behaviour
-  `Partial` class enumerated from the compiled registry was **101** defs (drifted from the filed
-  105; 0 `KnownWrong` members), all flipped to `inert` with notes preserved;
-  `card_registry_gate` now forbids `Partial`/`KnownWrong` on a def where
-  `registers_no_behavior` is true, with its own non-vacuity canary. Headline clean coverage
-  unchanged (1,070 = 60.0%); buckets honest: todo 655→554, empty 57→158. Prior: **Marker sweep** (`scutemob-88`) — the AC8/AC9 follow-up both workers asked
-  for. All **742** non-`Complete` markers audited against the current engine (29 agent batches,
-  full coverage, 0 missing). **42% were wrong**: 208 `stale-blocker-shipped` (note cites a
-  capability that now exists) + 100 `wrong-or-vague-note`; only 434 still valid. Applied: **13
-  upgraded to Complete** (coverage **57.6% → 58.3%**), **54 `partial` → `known_wrong`** (the
-  marker understated the card — it ships wrong game state, it does not merely omit a clause),
-  266 notes rewritten to the real blocker. **116 ready cards emitted as a worklist across 16
-  blocker groups** (`memory/card-authoring/marker-sweep-worklist-2026-07-16.md`) — not authored
-  here. Root cause found and fixed: `card_registry_gate`'s inert check tested
-  `abilities.is_empty()`, which is **not** the same as "registers no behaviour" — a cost-reduction
-  static lives in `spell_cost_modifiers` — so the gate itself minted the false
-  `inert("no abilities implemented")` markers it then demanded. Now `registers_no_behavior` +
-  `inert_gate_is_not_vacuous`. **Open follow-up (EF-13): 105 defs are marked `partial` but
-  register no behaviour at all — they are `Inert` by the taxonomy.** Not a safety issue (both are
-  non-`Complete`, so `validate_deck` rejects them alike), but it misreports the campaign's
-  todo/empty buckets; deferred because it moves headline numbers and is inherited drift.
-  **Count that class from `all_cards()`, never from source text** — the regex
-  `abilities:\s*vec!\[\s*\]` also matches inside `mana_abilities: vec![]`, the same trap
-  CLAUDE.md already records against the authoring report; it fired twice more during this task.
-  Method that made it work (per `feedback_verify_full_chain`):
-  **variant existence is not proof a blocker is stale** — a `TriggerCondition` needs a builder arm
-  in `enrich_spec_from_def` *and* a dispatch in `check_triggers`, and several `TargetFilter` fields
-  are silently ignored by `matches_filter`. Calibration case `megrim.rs`: note false on every
-  clause, yet the card is still not Complete (models "deals 2 damage" as `LoseLife`, CR 119.3) —
-  "note is false → upgrade" would have shipped a broken card. **12 engine findings filed for
-  SR-33+, not fixed inline**: `memory/card-authoring/marker-sweep-engine-findings-2026-07-16.md`.
-  **EF-1 is HIGH and needs a coordinator decision**: 88 dual/tri lands are `Complete` but model
-  "Add {G} or {U}" as `Effect::Choose`, which is a stub (`effects/mod.rs:3190` always takes
-  `choices.first()`) *and* is unknown to `try_as_tap_mana_ability` — so they register **zero mana
-  abilities** (CR 605.1a) and only ever make their first colour. Proven empirically; the whole
-  original dual + shockland + check/fast/temple cycles. Fix shape exists in-repo (`tainted_field`:
-  two abilities, one per colour). 3275 tests. Prior: **PB-AC9** (`scutemob-52`, merge `a4750cdb`) — **closes the AC chain**. Recon: 3/5 briefed primitives already existed (`Effect::RollDice` d20+results CR 706, `ReplacementModification::DoubleTokens` CR 614.1, `Effect::AddManaFilterChoice`); SearchLibrary multi-name 0-yield → OOS seed. Built: `Effect::WheelHand` + `Effect::SetNoMaximumHandSize` (unbriefed co-blocker — flag was recomputed each cleanup, "rest of the game" inexpressible). **Token doubling rewired 2→13/13 creation sites** (Squad, Offspring, Myriad, Embalm, Eternalize, Encore, Living Weapon, Gift keyed to recipient, Investigate, Amass — doublers were silently failing, invisible to any marker/roster). Review 0 HIGH / 1 MEDIUM fixed (Amass bypassed `apply_counter_replacement` — CR 701.47a; fix proven non-vacuous). Backfill: 11 clean incl. token doublers (Parallel Lives, Anointed Procession, Doubling Season), wheels (Echo of Eons, Winds of Change), d20 Ancient dragons; 1 backfill HIGH (Reforge the Soul stale Miracle marker — 2nd consecutive stale-marker HIGH; AC8+AC9 workers both recommend a campaign-wide marker sweep next). New gotcha logged: `timestamp_counter` IS the object-id counter — rewinding it aliases ObjectIds (`3d7e216c`). Prior: PB-AC8..AC1 (`scutemob-51..43`). Next per campaign plan: **W-PB2** (author ~55 cards unblocked by AC4..AC6), W-EMPTY/W-MISS derisking batches. Registry-gate debt **CLOSED** by SR-2 (`scutemob-54`); follow-up `scutemob-64` (SR-12).
 - **Open primitive seeds**: fully retriaged 2026-07-18 (`scutemob-115`) — 65 distinct seeds chain-verified: **23 resolved/stale** (10 newly found silently closed by the EF/EWC/EAT/AC9 waves — e.g. OOS-XS-3, OOS-LKI-Power-2, OOS-TS-3/4), **16 active candidates ranked into PB-OS1..OS11**, 7 deferred (Battle subsystem, Super Nova, protection-from-color, AC7 one-offs), 24 dormant-0-yield. Canonical inventory + queue: `memory/primitives/oos-retriage-plan-2026-07-18.md` (supersedes `pb-retriage-CC.md`'s status banners).
 - **Known issues**: 0 HIGH; 2 MEDIUM (pre-M8 deferred to M10+); **6 LOW open** (4 M10-gated: MR-M8-11, MR-B16-04/05/06; 2 permanent perf: MR-M1-18, MR-M6-14). Full: `docs/mtg-engine-milestone-reviews.md`.
 - **Strategic Review**: `docs/mtg-engine-strategic-review.md` (2026-03-07) — decouple M11 from M10, split M10, downscope M12, web-vs-Tauri decision pending
-- **Silent failures are classified in the resolution path (SR-4).** In `effects/mod.rs`
-  and `rules/resolution.rs`, a state lookup whose absence is an engine bug goes through
-  `state::diagnostics`'s `expect_*` family (`debug_assert!`, `#[track_caller]`); one whose
-  absence is a rules-correct fizzle goes through `lki_*` and carries a CR citation.
-  `layers::expect_characteristics` is the asserting form of `calculate_characteristics`.
-  **New code in these files must pick a side** — a bare `state.objects.get_mut(&id)` no
-  longer says which it is. Method: `docs/sr-4-silent-failure-audit.md`. The rest of
-  `rules/` is not yet swept (`scutemob-66`).
-- **Every `KeywordAbility` variant must declare where its behavior lives (SR-5).**
-  `state::keyword_registry::handling` is an exhaustive match classifying all 166
-  variants as `Handled { sites }` (engine code branches on it, at exactly these files)
-  or `Marker { carrier, cr }` (presence marker; the rules text is implemented by
-  `carrier`, per the cited CR — 18 of these). **Adding a variant is a compile error
-  until you classify it**, and `tests/keyword_registry.rs` then checks the claim
-  against the source tree: declared site sets must exactly equal a comment-stripped
-  scan, so a keyword that loses its last dispatch site — or a `Marker` that gains one —
-  fails the suite. Audit: `docs/sr-5-keyword-catchall-audit.md`. The same hazard on
-  `AbilityDefinition` / `ZoneChangeAction` is not yet gated (`scutemob-67`).
-- **Card defs compile in isolation from the engine (SR-6).** The workspace bottom is
-  `crates/card-types` (`mtg-card-types`: the DSL — `cards/{card_definition,helpers,registry}.rs`
-  — plus the 11 pure-data `state/` modules it needs). `crates/card-defs` (`mtg-card-defs`:
-  1,749 def files + `build.rs` discovery) depends on **card-types only, never on the engine**;
-  `crates/engine` depends on both and re-exports them, so every `crate::state::…` and
-  `crate::cards::…` path inside the engine, and `mtg_engine::{all_cards, CardDefinition, …}`
-  outside it, resolve exactly as before. **Touching an engine file leaves `mtg-card-defs`
-  `Fresh`** (`cargo check -p mtg-engine -v`); touching `card-types` correctly rebuilds it.
-  The arrow direction is the whole mechanism — putting defs *above* the engine (as the
-  pipeline doc originally sketched) would recompile all 1,749 cards on every rules edit.
-  Nothing in `card-types` may reference `GameState`. Keyword-registry sites (SR-5) are now
-  **workspace-relative** paths and the scan spans both crates.
-- **`PendingTrigger` is built through `PendingTrigger::blank` only (SR-7).** The 13
-  per-keyword `Option` fields are gone; a trigger kind's payload lives in
-  `data: Option<TriggerData>` (`card-types/src/state/stack.rs`), which
-  `flush_pending_triggers` reads and threads into `StackObjectKind::KeywordTrigger`.
-  `tests/pending_trigger_shape.rs` pins the struct's 16-field set, requires every
-  `PendingTrigger { .. }` literal to carry `..PendingTrigger::blank(source, controller, kind)`,
-  and asserts each `TriggerData` variant still has a consumer in *both* `abilities.rs` and
-  `resolution.rs` — **deleting a `resolution.rs` match arm compiles with zero errors** and
-  would otherwise make the trigger a silent no-op. **New per-kind state goes in a
-  `TriggerData` variant, never as a field on the struct** — a new field fails the suite.
-  `HASH_SCHEMA_VERSION` is now **37**.
-- **The card-def corpus is format-checked by `tools/check-defs-fmt.sh`, not by `cargo fmt` (SR-35).**
-  `cargo fmt --all -- --check` exits 0 having checked **zero** of the 1,748 files in
-  `crates/card-defs/src/defs/`: rustfmt walks `mod` declarations *textually*, expanding no
-  macros and running no build scripts, and `defs/mod.rs` is one
-  `include!(concat!(env!("OUT_DIR"), …))` whose `#[path]` mods `build.rs` writes into
-  `target/`. Both halves defeat the walk, so the corpus was **unvisited, not clean** — 321
-  defs were misformatted, some with plainly broken indentation. The SR-6 layout that causes
-  this is worth keeping (one file per card, no shared registry to collide on), so the gate
-  hands rustfmt the file list explicitly instead. **Run it, or `cargo test --all` (which
-  runs it via `core card_defs_fmt`) — `cargo fmt` will keep lying.** `--fix` reformats.
-  **Pointing rustfmt at the files is necessary but not sufficient**, and this is the part
-  to remember: rustfmt has two failure modes here that are *indistinguishable from success*
-  — no output, exit 0, file untouched. (1) When an expression won't fit `max_width`, rustfmt
-  emits the original source verbatim and the fallback propagates to the **enclosing**
-  expression; a long `oracle_text: "…".to_string(),` therefore swallows the whole
-  `CardDefinition` literal — the whole file. Measured by canary (inject a misindented
-  `card_id`, ask rustfmt directly): **1,380 of 1,748 defs were inert**. `format_strings=true`
-  splits long strings with `\` continuations, which fits them, which stops the fallback: 0
-  inert. (2) An unbreakable over-width line (>~107 cols) does the same thing and *hides other
-  errors in the file*; `error_on_line_overflow=true` makes it exit 1. The corpus has zero such
-  lines, so that check is hard-fail with **no allowlist** — a def whose formatted output
-  overflows 100 columns fails and you split the line by hand. Both flags are passed on the
-  command line, never a workspace `rustfmt.toml` (which would restyle the engine crates too).
-  **Do not delete either flag to make something pass** — each is pinned by its own canary
-  (`gate_catches_a_def_whose_oracle_text_is_one_long_line`,
-  `gate_catches_an_unbreakable_over_width_line`), which stands up a throwaway corpus and runs the
-  shipped script against it. Those canaries exist because the reformatted corpus **cannot detect its
-  own blindness**: with a flag removed, rustfmt leaves the already-`\`-continued defs alone, so the
-  gate stays green while every *newly authored* def goes back to invisible. Long
-  *comments* do **not** trigger the fallback (245 defs have >100-col comment lines; none inert).
-  The reformat was proven semantics-preserving by diffing the full `Debug` of `all_cards()`
-  across it: 1,719 files changed, **byte-identical** output.
-- **Serialized `Command` / `GameEvent` / replay-log streams carry a version tag (SR-8).**
-  Policy is **strict lockstep**: `rules::protocol::Envelope<T>` declares `protocol_version`,
-  and a receiver accepts it iff it equals `PROTOCOL_VERSION` **exactly** — older *and newer*
-  are rejected with `ProtocolError::VersionMismatch`. No negotiation, no forward compat: per
-  invariant #9, a client that tolerates an unknown event variant holds a history it cannot
-  rewind and cannot tell that it does. `decode` is **staged** (probe version → reject → parse
-  payload) so a mismatch is never an opaque serde error. `ReplayLog` also carries
-  `hash_schema_version` and checks it separately. **The version is machine-checked**:
-  `PROTOCOL_SCHEMA_FINGERPRINT` pins a blake3 digest of the **transitive type closure** of
-  the three wire frames (its size and the digest itself live in `rules/protocol.rs`; do not
-  re-quote them here — they move whenever the wire does), and `tests/protocol_schema.rs` recomputes it from source — so
-  `#[serde(skip)]`/`rename`/`rename_all` (all invisible to rustc) and any shape change fail the
-  build. The closure reaches `Characteristics` → `Effect` → the whole card DSL, so **adding an
-  `Effect` variant is a wire change and most PBs will bump `PROTOCOL_VERSION`**; it stops at
-  `GameState`, which is why this and `HASH_SCHEMA_VERSION` stay separate. The current
-  `PROTOCOL_VERSION` is the `pub const` in `rules/protocol.rs` (read it there rather than
-  quoting a number that drifts). Policy: `docs/mtg-engine-protocol-versioning.md`. **This was M10's hard blocker.**
-- **Integration tests are 9 targets, not 297 binaries (SR-9a).** `crates/engine/tests/*.rs` became
-  `crates/engine/tests/<group>/{main.rs, *.rs}` — `core`, `rules`, `combat`, `casting`,
-  `primitives`, `scripts`, `mechanics_{a_d,e_l,m_z}`. Every file moved verbatim; a former
-  per-file binary is now a **module**, so `--test run_all_scripts` is `--test scripts
-  run_all_scripts` and `--test layers` is `--test rules layers::` (keep the `::`). Warm rebuild
-  after an engine edit **34.2s → 11.1s**, `target/` **19 GB → 2.2 GB**. **Never add a top-level
-  `tests/*.rs`** — each is another link on every test build, and `tests/no_stray_test_binaries.rs`
-  fails the suite. That gate also fails when a file sits in a group dir with no `mod` line in the
-  group's `main.rs` — such a file is not compiled and its tests silently cease to exist
-  (demonstrated: `--test combat` reports `ok. 69 passed` with six tests missing) — and, because
-  that check is textual, it additionally requires a group's `main.rs` to contain **nothing but
-  `//!` docs and bare `mod x;` lines** and group dirs to be flat. Layout and the rule for where a
-  new test file goes: `docs/sr-9a-test-consolidation.md`. Note `tests/proptest-regressions/` is
-  **not** a test group (`NON_GROUP_DIRS`) — `proptest` writes it on its first failure and the group
-  check would otherwise redden a second time and bury the real failure.
-- **The golden-script corpus is triaged and cannot skip silently (SR-9c).** The 271 scripts in
-  `test-data/generated-scripts/` are now **210 `approved` / 61 `retired` / 0 `pending_review`**.
-  `ReviewStatus::Retired` carries a **required `retirement_reason`**; a retired script is excluded from the
-  run but printed, never absent. `tests/scripts/run_all_scripts.rs` **partitions** the discovered set
-  (`approved + retired == discovered`) and fails on a `pending_review`/`disputed`/`corrected` script, a file
-  that doesn't deserialize (`discover_scripts` no longer swallows the `Err` — six scripts had been invisible
-  since written), an approved script with zero `assert_state`, or one using an untranslatable
-  `player_action` outside a **dead-entry-guarded allowlist** (`ALLOWED_UNTRANSLATABLE_ACTIONS` in
-  `run_all_scripts.rs` — currently `search_library` only). The replay *checker* (`script_replay.rs`) was itself largely vacuous:
-  an unrecognized assertion path returned "no mismatch" (**244** assertions unchecked) and `zones.stack`
-  was tested against a hardcoded empty list (**583** `is_empty:true` always passed). Both are now real —
-  an unknown path is a hard mismatch, `zones.stack` reads the live depth, power/toughness read through
-  `calculate_characteristics`. **A new assertion path must be implemented in `check_assertions`, not just
-  written in a script** — an unimplemented path now fails, it does not pass. The 61 retirements are a
-  worklist: each names the one missing `CardDefinition`, primitive, or un-wired harness `Command` (combat
-  damage assignment, mulligan, commander-zone cast, craft, disturb, order-replacements) that would
-  un-retire it.
-- **The script regime and the direct-`Command` regime cross-validate (SR-9b).**
-  `tests/scripts/harness_equivalence.rs` expresses a scenario twice — as a JSON `initial_state` +
-  action strings, and as `GameStateBuilder` + `Command` literals — and requires the same **fingerprint**
-  (`public_state_hash` **plus every player's `private_state_hash`**, because the public hash omits hand
-  and library *contents*) after **every** step, plus a `proptest` over random move sequences. Both
-  regimes call `enrich_spec_from_def`, so what is proven is not enrich's inference but everything
-  around it: id assignment, insertion order, life/mana/turn/step patching, and that
-  `translate_player_action` builds the `Command` a hand-written test would. **`build_initial_state` was
-  nondeterministic** until this task — `InitialState`'s zone/player maps are `std::collections::HashMap`
-  and `ObjectId`s are assigned in insertion order, so the same script built different states run to run
-  (40 builds → 2 hashes). Every loop over a script-supplied map must now go through
-  `sorted_zone_entries`. `init.turn_number` was also declared and never read (every script ran on turn 1).
-  `resolve_targets` used to **drop** an unresolvable target (`filter_map`), turning a `cast_spell` at an
-  absent permanent into a targeted spell cast with **no target** (CR 601.2c); it now returns `None`.
-  A script may still name a card with **no `CardDefinition`** — the object enters typeless and silent,
-  bypassing invariant #9 — pinned as a shrinking allowlist and handed to SR-9c along with seven other
-  `initial_state` fields the harness ignores. **Only 6 of `translate_player_action`'s 60+ `Command`
-  shapes are cross-validated**; the alt-cost translations (convoke, delve, escape, kicker, casualty,
-  splice, escalate, modal, mutate, ninjutsu…) are not. Adding a scenario is cheap.
-- **An activation cost is only paid if some code pays it, and nothing was checking (SR-36).**
-  Two HIGH defects, both pre-existing, both fixed: (1) `handle_tap_for_mana` had no
-  `AddManaScaled` branch and read the registered `produces: {colour: 1}` **marker**
-  literally, so Gaea's Cradle tapped for exactly 1 green regardless of board state
-  (`ManaAbility::scaled_amount` + step 6c now resolve it via `resolve_amount`, CR 605.1a);
-  (2) `flatten_cost_into` mapped `Cost::PayLife(_) => {}` and `ActivationCost` had no life
-  field, so **any activated ability not lowered into a `ManaAbility` paid no life at all**
-  (`ActivationCost::life_cost` + a payment step in `handle_activate_ability`, CR 118.3/119.4,
-  with the CR 119.4b short-circuit — a 0 cost is payable at negative life). The two payment
-  paths are **disjoint by construction**: `mana_ability_lowering` is the same call that builds
-  the `ManaAbility` and excludes the ability from `activated_abilities`, so neither can
-  double-charge. **The rosters were the finding, not the fixes.** SR-34 filed SF-9 around
-  Staff of Compleation and said "a full corpus scan is still owed"; running it over
-  `all_cards()` found **28 ability rows, 14 on `Complete` defs** — the **entire 11-card
-  fetchland cycle** (Arid Mesa, Bloodstained Mire, Flooded Strand, Marsh Flats, Misty
-  Rainforest, Polluted Delta, Prismatic Vista, Scalding Tarn, Verdant Catacombs, Windswept
-  Heath, Wooded Foothills) plus Doom Whisperer, Razaketh and Warren Soultrader, all shipping
-  `Complete` and **free**, in legal decks, invisible to every marker and gate. Conversely
-  SF-8's roster is **smaller** than filed: the five cards it speculated about (Everflowing
-  Chalice, Elvish Guidance, Brightstone Ritual, Battle Hymn, Black Market) carry
-  `AddManaScaled` on a **`Spell`** or **`Triggered`** ability (both resolve through the stack,
-  where the amount was always evaluated correctly) or only in aspirational notes — falsified,
-  exactly as that finding's own "not re-verified" caveat warned. **A roster from
-  "by the same shape" reasoning is a hypothesis; enumerate `all_cards()` and filter on the
-  `AbilityDefinition` variant, never grep source** — a grep would have matched all five.
-  Deleting SR-34's Finding-A exclusion widened Cabal Coffers / Cabal Stronghold / Crypt of
-  Agadeem into real mana abilities, **upgraded `Partial` → `Complete`** (coverage 57.1% →
-  **57.3%**, marker drift 6 → 3 — an *increase*, unlike the last three SRs), each proven by
-  activation with a decoy its filter must exclude. **A decoy must fail on exactly the field
-  under test**: the reviewer caught that `cabal_stronghold_counts_only_basic_swamps` used
-  Cabal Coffers, which has *no subtypes*, so `matches_filter` rejected it on `has_subtype`
-  and never reached the `basic` check — deleting `basic: true` left the test green. Bayou
-  (Land — Forest Swamp, nonbasic) is the real decoy. SF-8 also **exposed an asymmetry in
-  SR-33's colour gate**: `printed_tap_mana_colors` drops a "for each" clause from the printed
-  side, but `registered_colors` read every mana ability, so the moment Cabal Stronghold's
-  scaled arm became real the gate cried `invented [Black]` against a card printing `{B}`
-  plainly — fixed by `scaled_amount.is_none()` there, and `scaled_amount` is the only thing
-  that lets the registered side identify a dynamic ability at all. `PROTOCOL_VERSION` 3→4,
-  `HASH_SCHEMA_VERSION` 41→42, both machine-forced. Review: **0 HIGH**, 3 MEDIUM (all closed,
-  incl. a third consecutive stale-marker note — `yawgmoth_thran_physician` said "un-author
-  until PayLife is representable"; it now is). Findings for the next SR:
-  `memory/card-authoring/sr36-engine-findings-2026-07-17.md` (**SG-1 MEDIUM: the simulator's
-  `LegalActionProvider` ignores `life_cost` — harmless while the cost was dropped, now it
-  offers bots unpayable actions**).
-- **Last Updated**: 2026-07-18 (**PB-OS1 collected, `scutemob-116` merge `db49a0b2`** —
-  `recompute_object_controller` wired into `expire_end_of_turn_effects` +
-  `expire_until_next_turn_effects`; canary de-vacuoused (failed pre-fix, passes post-fix);
-  stacked-control + until-next-turn timing tests; roster from `all_cards()` = **2** affected
-  (`sarkhan_vol`, `zealous_conscripts`) — reviewer overturned the plan's karrthus claim
-  (`Indefinite` is CR-correct permanent control, 611.2a, no seed filed); 0 golden scripts
-  encoded the old behavior; no PROTOCOL/HASH change; OOS-EF9-1 EOT-half closed,
-  WhileSourceOnBattlefield half deferred. Same day: doc audit landed
-  (`memory/doc-audit-2026-07-18.md` F1-F8 + addendum) — **DOC remediation running before
-  PB-OS2** (live tasks: 118/119/121/124/125/126; 117/120/122/123 cancelled-superseded).
-  Earlier: **OOS seed retriage collected, `scutemob-115` merge `7d577171` —
-  THE PB-OS QUEUE IS ACTIVE.** All 65 open OOS/EF-EF seeds enumerated from source docs (not the
-  headline list) and chain-verified against the post-EF-queue engine: 23 resolved/stale (10 newly
-  discovered silently closed — the EF/EWC/EAT/AC9 waves shipped primitives that resolved older
-  seeds nobody cross-referenced; 3 stale finding banners added), 16 candidates ranked into
-  **PB-OS1..OS11** (`memory/primitives/oos-retriage-plan-2026-07-18.md`), 7 deferred, 24 dormant.
-  **PB-OS1 is fully specified and dispatchable**: gain-control reversion (OOS-EF9-1) —
-  `expire_end_of_turn_effects`/`expire_until_next_turn_effects` drop `SetController` effects but
-  never call the already-built `recompute_object_controller`, so sarkhan_vol /
-  zealous_conscripts / karrthus keep stolen creatures forever while shipping `Complete`
-  (invariant #9); fix wires the idle helper, no wire bump, must de-vacuous
-  `test_gain_control_until_eot_expires`. Queue total ~19-22 discounted flips; correctness group
-  PB-OS1..OS3 first. Doc-only task, zero code changes. Earlier: **PB-EF12 collected, `scutemob-114` merge `833e54ad` — THE EF
-  QUEUE IS COMPLETE.** `chosen_color` rides `Command::TapForMana` (coordinator decision in
-  `memory/decisions.md`, CR 605.3b, extending the SR-33 precedent; no Colorless default —
-  missing/illegal choice is rejected). **17 defs restored/flipped Complete** (elven_chorus + 16
-  any-color rocks/lands — the SR-37-gated `AddManaAnyColor` family is genuinely correct now);
-  7 held back on real blockers; deathrite reverted after the gate itself caught it; the
-  land-colour gate refined to served-vs-unserved; simulator emits only engine-legal colours.
-  EF-W-PB2-3 closed. Coverage 61.2% → **62.1%** (1,117/1,798); 3476 tests; **PROTOCOL 17→18,
-  HASH 55**; /review 0 findings. **Queue totals for the day** (scutemob-99..114): 12 PBs +
-  EF-13 reclassification + swan_song demote + Cargo.lock chore; coverage 59.8% → 62.1%
-  (+52 clean defs, corpus 1,781 → 1,798); tests 3330 → 3476; PROTOCOL 2→18, HASH 43→55;
-  all 20 EF findings closed; 11 new OOS seeds filed (see Active Milestone line). Next: no open
-  queue — candidates are the OOS seed backlog, W-blocked cohorts, or M10 per the strategic
-  review. Earlier: **PB-EF11 collected, `scutemob-112` merge `e991b237`** — both
-  singletons: `WheelDraw::GreatestDiscarded` (Windfall Complete; everyone draws the max
-  discarded, decoy pins not-per-player) and `TargetSpellWithSingleTarget` + retarget
-  (Misdirection restored to Complete after its honest scutemob-97 demotion). **PROTOCOL 15→17,
-  HASH 53→55** (one bump per commit). 3466 tests; coverage **61.2%** (1,100/1,798); reviews
-  0H/0M/2L fixed. Same sitting: **Cargo.lock is now TRACKED** (`scutemob-113`, merge
-  `e1c30acb`) — scutemob-112 found main's tip didn't build in a fresh env (untracked lock →
-  fresh resolve picked stricter `equivalent 1.0.2`); the lock pins deps like
-  rust-toolchain.toml pins the compiler (SR-11), verified `--locked` green; EF11's COMMIT 1
-  also carries the 9-site source-level fix. In flight: **PB-EF12** (`scutemob-114`, granted
-  any-color mana choice — **the final EF-queue batch**; coordinator decision recorded: color
-  choice rides `Command::TapForMana` per the SR-33 CR 605.3b precedent, no Colorless default).
-  Earlier: **PB-EF10 collected, `scutemob-111` merge `3710ad9c`** — all
-  three EF-W-MISS-7 sub-gaps via one `SacrificedCreatureLki` struct:
-  `EffectAmount::ToughnessOfSacrificedCreature` (layer-resolved LKI captured before
-  `move_object_to_zone`, anthem + toughness-not-power decoys), `TargetFilter.max_cmc_amount`
-  runtime cap on SearchLibrary (avoids a 99-def edit), `Condition::SacrificeFired` ("if you
-  do", CR 608.2b/c/h/i). momentous_fall/eldritch_evolution/victimize Complete + 2 bonus flips
-  (miren_the_moaning_well, diamond_valley); birthing_ritual honestly inert → **OOS-EF10-1**
-  (top-N dig inexpressible). EF-EF1-A untouched. Coverage **61.1%** (1,098/1,796); 3453 tests;
-  **PROTOCOL 14→15, HASH 52→53**; review 0H/0M/2L fixed. In flight: **PB-EF11**
-  (`scutemob-112`, Windfall + Misdirection singletons); then EF12 closes the queue.
-  Earlier: **PB-EF9 collected, `scutemob-110` merge `abb92654`** —
-  `EffectDuration::WhileYouControlSource(PlayerId)` (CR 611.2b/c): "you" captured at creation,
-  one-shot `expire_while_you_control_source_effects` **never resumes** (live re-eval would
-  wrongly revive on regaining control); the planner found the engine had **no control-reversion
-  at all** — this PB built it (`recompute_object_controller`), and the latent
-  never-reverts gap on other durations is filed as **OOS-EF9-1**. olivia_voldaren +
-  dragonlord_silumgar Complete; roil_elemental/kellogg honestly partial. Tests incl. phase-out
-  (CR 702.26e), source-dies-via-SBA, and a decoy proving `WhileSourceOnBattlefield` stays
-  active in the same steal scenario. Coverage **61.0%** (1,093/1,792); 3437 tests; **PROTOCOL
-  13→14, HASH 51→52**; review 0H/1M(fixed)/2L. In flight: **PB-EF10** (`scutemob-111`,
-  sacrifice-driven amounts / runtime max_cmc / if-you-do). Earlier: **PB-EF8 collected, `scutemob-109` merge `4fa6b6f2`** —
-  `Cost::ExileSelfFromHand` + hand-zone activation through the mana-ability lowering path;
-  **2 flips Complete** (simian_spirit_guide, elvish_spirit_guide); EF-W-PB2-8 closed. Coverage
-  **60.9%** (1,091/1,792); **PROTOCOL 12→13, HASH 50→51** (EF7 had taken 11→12/49→50); /review
-  0H/0M/1L fixed. In flight: **PB-EF9** (`scutemob-110`, WhileYouControlSource duration).
-  Earlier: **PB-EF7 collected, `scutemob-108` merge `104ef5ad`** — modal
-  `AbilityDefinition::Activated`: `modes: Option<ModeSelection>` + `modes_chosen` on
-  `Command::ActivateAbility`, validated in `handle_activate_ability` (CR 700.2a/d) with per-mode
-  target splitting; corpus sweep sized the cohort at **3** — goblin_cratermaker + cankerbloom
-  Complete, Umezawa's Jitte stays known_wrong on a real second blocker (combat-damage-to-player
-  trigger variant). Coverage 60.7% → **60.8%** (1,089/1,792); /review 4/4, 1 LOW fixed (vacuous
-  snapshot assertions dropped). In flight: **PB-EF8** (`scutemob-109`, ExileSelfFromHand).
-  Earlier: **PB-EF6 collected, `scutemob-107` merge `359c824d`** —
-  `TargetRequirement::TargetOpponent` with caster-threaded opponent-only validation
-  (CR 102.2/102.3/601.2c) and no self-fallback in either auto-picker (CR 603.3d). 3 flips
-  Complete (shaman_of_the_pack, raiders_wake, vengeful_bloodwitch — a roster recall) + a
-  **latent self-target fix on shipped-Complete fell_specter**; 4 stay non-Complete on real
-  blockers; **OOS-EF6-1** filed (WhenTappedForMana trigger dispatch gap — blocks
-  forbidden_orchard). Coverage 60.5% → **60.7%** (1,087/1,792); **PROTOCOL 10→11,
-  HASH 48→49**; /review 0 issues. In flight: **PB-EF7** (`scutemob-108`, modal activated
-  abilities). Earlier: **PB-EF5 collected, `scutemob-106` merge `111c4513`** —
-  `Effect::TransformSelf` shipped through the existing DFC machinery (CR 701.28/712.8);
-  **honest yield well under the plan's ~7–9**: 2 new Complete (docent_of_perfection,
-  bloodline_keeper) + delver_of_secrets **integrity-demoted** (shipped Complete but never
-  transformed) + 2 partial (thaumatic_compass, growing_rites); 8 of the "11 body-only DFCs"
-  were double-blocked by distinct out-of-scope primitives. **Battle + Sephiroth split out with
-  justification** (CR 310 is a full card-type subsystem; bare enum would be legal-but-wrong) →
-  seeds **OOS-EF5-1..4** filed. /review caught a legal-but-wrong def (thaumatic_compass
-  fabricated a Spires ability — fixed+demoted+pinned) and 2 reviewer HIGH/MED were overturned
-  against cards.sqlite. Coverage **60.5%** (1,084/1,792); 3396 tests; **PROTOCOL 9→10,
-  HASH 47→48**. In flight: **PB-EF6** (`scutemob-107`, TargetOpponent). Earlier: **PB-EF4 collected, `scutemob-105` merge `26421364`** —
-  `EffectFilter::TriggeringCreature` + `Effect::DealDamage.source` override; **7 cards
-  Complete** (dragon_tempest, scourge_of_valkas, ogre_battledriver, Atarka, Fervent Charge,
-  Goblin Piledriver, Muxus — beat the ~4–5 estimate); shared_animosity inert (**OOS-EF4-1**
-  filed). EF-W-PB2-6/MISS-5 + PB2-7 closed. Coverage 60.3% → **60.5%** (1,081/1,786); 3383
-  tests; **PROTOCOL 8→9, HASH 46→47**; /review 0 issues. In flight: **PB-EF5**
-  (`scutemob-106`, self-transform + Battle — highest yield). Earlier: **PB-EF3b collected, `scutemob-104` merge `6439d0ce`** —
-  granted trigger-keywords (Melee/Battle Cry/Annihilator) now fire: synthesis moved to
-  post-layer characteristics via `calculate_characteristics` + shared helper;
-  Melee/Myriad/Provoke tags raw→resolved. Adriana Complete; Skyhunter Strike Force stayed
-  partial (**OOS-EF3b-1** filed). EF-W-MISS-3 closed — **the correctness group
-  (PB-EF1/EF2/EF3/EF3b) is COMPLETE; all six correctness findings cleared.** Coverage **60.3%**
-  (1,076/1,785); 3372 tests; no schema bump. In flight: **PB-EF4** (`scutemob-105`,
-  TriggeringCreature subject/source — first capability batch). Earlier: **PB-EF3 collected, `scutemob-103` merge `cae6710a`** — both
-  halves in one PB. (A) EF-W-MISS-10: all 30 attack/triggered enrich blocks now forward DSL
-  targets (were hardcoded `vec![]`); `flush_pending_triggers` fallback is kind-guarded (Normal →
-  runtime `triggered_abilities` authoritative; CardDefETB → def raw-index), 4 mis-tagged sites
-  reclassified, latent Throat Slitter path fixed. (B) EF-W-MISS-4:
-  `EffectTarget::AttackTarget` (CR 506.4c fizzle) + `PlayerTarget::DefendingPlayer` (CR 508.4),
-  captured per-attacker at AttackersDeclared and threaded StackObject→EffectContext — correct in
-  4-player, decoys prove non-defending opponents unhit. 3 cards Complete (Ojutai Soul of Winter,
-  Hellrider, Raid Bombardment); 5 blocked with real distinct blockers (Silumgar → **OOS-EF3-1**
-  filed); Dragonlord Ojutai was mis-listed (combat-damage trigger, not attack). Coverage
-  60.1% → **60.2%** (1,075/1,785); 3364 tests; **PROTOCOL 7→8, HASH 45→46**. In flight:
-  **PB-EF3b** (`scutemob-104`, granted keyword-triggers fire). Earlier: **PB-EF2 collected, `scutemob-102` merge `3a489f59`** —
-  `TokenSpec.recipient: PlayerTarget` (default `Controller`; all 201 existing construction sites
-  unchanged) + `PlayerTarget::ControllerOfCounteredSpell`/`ControllerOfTriggeringObject`; token
-  doubling applies per-recipient (CR 614.1, forward+reverse decoys). swan_song
-  known_wrong→**Complete** (review HIGH also fixed its over-broad `TargetSpell` →
-  `TargetSpellWithFilter`); An Offer You Can't Refuse authored Complete. Script
-  `tokens/001` **un-retired** (approved again); pre-existing wrong-owner assertion in
-  `stack/045` fixed. EF-W-MISS-1 closed. Coverage 60.0% → **60.1%** (1,072/1,783); 3355 tests;
-  **PROTOCOL 6→7, HASH 44→45**. In flight: **PB-EF3** (`scutemob-103`, attack-trigger target
-  fidelity + defending-player target). Earlier: **EF-13 Option A collected, `scutemob-101` merge `0096ca65`** —
-  101 no-behaviour `partial` defs → `inert`, registry gate + canary added; 3346 tests, coverage
-  60.0% unchanged, buckets todo 554 / empty 158. Earlier same day: **PB-EF1 collected,
-  `scutemob-99` merge `6202ab81`** — see "Last shipped" above; HASH 44 / PROTOCOL 6. Also:
-  swan_song demote `scutemob-100` merge `615c4319`. In flight: **PB-EF2** (`scutemob-102`,
-  CreateToken recipient — un-demotes swan_song). Next per `ef-batch-plan-2026-07-17.md`:
-  PB-EF3 → PB-EF3b → capability batches EF4..EF12.)
-  Earlier: 2026-07-17 (**EF triage collected, `scutemob-98` merge `ef82ae45`** — all 20
-  post-wave findings (EF-W-PB2-1..8, EF-W-EMPTY-1, EF-W-MISS-1..10, EF-13) deduped and classified;
-  **`memory/primitives/ef-batch-plan-2026-07-17.md` is the active engine-primitive queue**:
-  correctness-first PB-EF1..EF12 with discounted yields, first dispatch **PB-EF1** + the
-  swan_song demote; EF-13 options A/B/C await user decision (plan §3). Campaign plan §0
-  repointed. Earlier: **W-MISS collected, `scutemob-97` merge `9cec7673`** — the ~115
-  estimate re-derived to **35/194 authorable** (157 blocked with per-card blockers, 2
-  false-missing); **33 authored Complete** in 3 reviewed batches, 2 honest mid-wave demotions
-  (Ojutai: targeted attack-trigger drops its target; Misdirection: single-target restriction
-  inexpressible — EF-W-MISS-9/10). Coverage **59.0% → 59.8%** (1,065/1,781; corpus grew +33
-  files). **10 engine findings filed** (EF-W-MISS-1..10, incl. latent `swan_song.rs`
-  token-recipient bug) in `memory/card-authoring/w-miss-roster-2026-07-17.md`. 3330 tests. Earlier:
-  **W-EMPTY collected, `scutemob-96` merge `a9152c83`** — the plan's
-  "~110 authorable empty defs" was stale: after the marker sweep + W-PB2, only 60 inert defs
-  remained, **3 authorable** (57 genuinely blocked, truthfully marked). `turn` +
-  `sea_gate_restoration` Complete (+2, coverage **59.0%**); `disciple_of_freyalise` stayed partial
-  (EF-W-EMPTY-1: exclude_self gap). Wave closed in one batch; 3330 tests. Earlier:
-  **W-PB2 collected, `scutemob-95` merge `7c8cdeff`** — 57 cards
-  from the marker-sweep worklist authored in 5 reviewed batches: **47 Complete** (coverage 56.2% →
-  **58.9%**, new high), 10 truthfully marked with their real blocker; 8 engine findings filed as
-  EF-W-PB2-1..8 in `memory/card-authoring/w-pb2-roster-2026-07-17.md`; no gated stub effects used;
-  3330 tests. Next per campaign plan §3: W-EMPTY (~110 empty-placeholder cards) / W-MISS (~115
-  missing-file cards), or triage EF-W-PB2 findings first. Earlier: **SR-38 collected, `scutemob-94` merge `ac65216a`** — simulator
-  `StubProvider` now gates `TapForMana`/`ActivateAbility` suggestions on `life_cost` vs
-  `life_total` (CR 119.4b short-circuit), mirroring the engine's own checks — a bot can no longer
-  suggest an activation the engine rejects; SG-2's non-Controller refusal pinned by test; SG-3's
-  scaled-clause exclusion narrowed to amounts (colours compared on both sides). 3330 tests. This
-  clears the SR-33..38 chain that the marker sweep opened — **no open SR tasks**. Earlier:
-  **SR-37 collected, `scutemob-93` merge `df49eb61`** — gate hygiene:
-  `ManaAbility.activation_condition` added and checked in `handle_tap_for_mana` (CR 602.5b —
-  enrich's `..` was silently dropping it; Tainted Field's coloured arms now require a Swamp);
-  the `AddManaAnyColor` family (`/Restricted//OfAnyColorAmount`) gated out of Complete — all
-  three add `ManaColor::Colorless` — with **18 Complete defs demoted** to known_wrong; the land
-  gate now parses "one mana of any color" as all five and reports the invented `{C}` instead of
-  skipping. Coverage 57.3% → **56.2%** (983/1748, honest). HASH 42→43, PROTOCOL 4→5. 3326 tests.
-  Earlier: **SR-36 collected, `scutemob-92` merge `264f0e9e`** — SF-8 + SF-9, both HIGH,
-  both fixed; see the bullet above. The headline is the roster, not the fix: 11 `Complete`
-  fetchlands were fetching for free. Filed **SR-38** (`scutemob-94`): SG-1 simulator
-  `LegalActionProvider` ignores `life_cost` — unchanged code whose meaning SR-36 changed; bots can
-  pick activations the engine now rejects — plus SG-2/SG-3 hardening
-  (`memory/card-authoring/sr36-engine-findings-2026-07-17.md`). 3319 tests. Earlier: **SR-35 collected, `scutemob-91`** — the card corpus is
-  format-checked for the *first time*: `cargo fmt --all -- --check` exits 0 having checked **zero** of
-  the 1,748 defs, and 321 were misformatted. The brief's fix — "run rustfmt over the defs" — would have
-  produced a gate **vacuous for 79% of the corpus**: a long `oracle_text` makes rustfmt fall back to
-  verbatim for the enclosing expression and leave the whole file untouched at exit 0, canary-measured at
-  **1,380/1,748 defs inert** under *direct* rustfmt. `format_strings=true` → 0 inert;
-  `error_on_line_overflow=true` kills the residual unbreakable-line case; both proven load-bearing and
-  each pinned by its own canary. Reformat proven non-semantic (full `Debug` of `all_cards()`
-  byte-identical; reviewer independently re-proved it by parsing 8,082 string literals). Suite 3305.
-  See the SR-35 bullet above. Earlier: SR-34 collected, `scutemob-90` merge `ce6f30b0` — composite-cost
-  mana abilities (CR 605.1a by what an ability *does*, not what it costs): `ManaAbility` gained
-  `mana_cost`/`life_cost`; `mana_ability_lowering` widened from bare `Cost::Tap` to any
-  `TapForMana`-payable cost; `handle_tap_for_mana` now checks legality (CR 118.3/119.4, 119.4b
-  short-circuit) and collects payment. 27 affected Complete defs probed by *activation* — 7 of 27
-  source-traced predictions falsified (incl. Magnifying Glass contradicting its own oracle); 10
-  certified with regression tests, 17 honest demotions, +3 horizon lands restored; coverage
-  58.1% → **57.1%**. `PROTOCOL_VERSION` 2→3, `HASH_SCHEMA_VERSION` 40→41, history rows appended.
-  Filed **SR-36** (`scutemob-92`: SF-8 Gaea's Cradle taps for 1 regardless of board + SF-9
-  `Cost::PayLife` silently unpaid on non-mana abilities — both HIGH, live-probed) and **SR-37**
-  (`scutemob-93`: SF-10..12 gate hygiene). Findings: `memory/card-authoring/sr34-engine-findings-2026-07-17.md`.
-  3300 tests. Earlier: SR-33 collected, `scutemob-89` merge `953cc5a6` — 88 `Effect::Choose`
-  dual/tri lands rewritten to one-activated-ability-per-colour (tainted_field pattern; decision in
-  `memory/decisions.md`: CR 605.3b makes a general choice Command pointless for stackless mana
-  abilities — `TapForMana{ability_index}` IS the choice channel). The new broad gate
-  `every_complete_land_registers_each_printed_tap_mana_color` caught **14 more** dead lands (9
-  Triomes + 3 surveil lands asserting unimplemented CR 305.6 intrinsic abilities; 2 Hierarchs) —
-  fixed in-task, 102 defs total. **`Effect::Choose`/`MayPayOrElse`/`AddManaChoice` are now gated
-  out of Complete** (`tests/core/effect_choose_gate.rs`, walks the serde tree): all three are stubs
-  — Choose executes `choices.first()`, MayPayOrElse always declines, AddManaChoice adds one
-  colorless and ignores count. 7 demotions (path_to_exile, rhystic_study, cankerbloom, Fiery
-  Islet/Nurturing Peatland/Silent Clearing, Glistening Sphere); coverage 58.3% → **57.9%**, honest.
-  Findings SF-1..SF-7 in `memory/card-authoring/sr33-engine-findings-2026-07-17.md`; filed
-  **SR-34** (composite-cost mana abilities never registered — Signets/horizon/filter lands;
-  un-demotes the 3 horizon lands) and **SR-35** (`cargo fmt --check` covers ZERO card defs —
-  include!/`#[path]` invisible to rustfmt; add explicit CI rustfmt over defs). 3284 tests.
-  Earlier: 2026-07-16 (scutemob-88 marker sweep collected — see "Last shipped" above.
-  Critical finding filed as **SR-33 (`scutemob-89`)**: 88 dual/tri lands are Complete-but-broken —
-  `Effect::Choose` is a stub that always executes `choices.first()` (effects/mod.rs:3190) and
-  `try_as_tap_mana_ability` doesn't handle `Choose`, so Tropical Island et al. register **zero**
-  mana abilities (CR 605.1a). Also on that task: `path_to_exile`'s deviation-scan ALLOWLIST
-  justification is false (`MayPayOrElse` always declines) and `rhystic_study` is Complete while
-  its draw always fires. **EF-13 open, needs user call**: 105 `partial` defs register no behaviour
-  and are `Inert` by taxonomy — moves headline numbers. Earlier: 2026-07-10 (SR-9c — the golden-script corpus is triaged (94→**210 approved**, **61
-  retired** with recorded reasons, **0 pending**) and can no longer skip silently. This closes SR-9. The
-  corpus's green was fiction: `run_all_scripts` dropped 175 `pending_review` scripts without a count, six
-  scripts never deserialized (`review_status: draft`; `disputes[]` missing `raised_by`) and had been
-  invisible since written, and the replay checker passed **244** unimplemented-path and **583**
-  `zones.stack: is_empty` assertions **vacuously** (the stack path was checked against a hardcoded empty
-  list). All closed by `tests/scripts/run_all_scripts.rs`, which partitions `approved + retired ==
-  discovered` and gates pending/undeserializable/vacuous/reason-less scripts, plus a hardened
-  `script_replay.rs` where an unknown assertion path is a mismatch, not a pass. New `ReviewStatus::Retired`
-  + required `retirement_reason`. Only **one** approved failure was *fixed* rather than retired: `stack/050`
-  now asserts `zones.stack.count == 1` (Solemn Simulacrum's dies trigger belongs on the stack, CR 603.3);
-  `stack/170` and `cc31` were retired rather than edited to match a possibly-wrong engine. The 61
-  retirements each name the one missing card/primitive/harness-Command that would un-retire it — a ready
-  worklist for the authoring campaign. Ninth consecutive SR task whose sharpest finding was a hole in a
-  *checker*, not engine code — and `/review` then found a tenth: `every_approved_script_asserts_something`
-  counted `assert_state` checkpoints, so an empty `assertions: {}` map would have passed vacuously; fixed to
-  count assertion entries. 3185 tests. Earlier same day: SR-9b — the JSON-script regime and the hand-written `Command` regime
-  now cross-validate. Four divergences, all the harness's, as gotcha SR-9(b) predicted. The load-bearing
-  one: **`build_initial_state` was not deterministic** — `RandomState` seeds each `HashMap` instance
-  separately, `ObjectId`s are handed out in insertion order, so two deserializations of the same JSON in
-  the same process produced different states (40 builds → 2 distinct hashes). Nothing that hashes a
-  harness-built state could have worked, which is why this had to land before anything else does.
-  Two lessons worth more than the fixes. **Two mutual rejections are equivalent, and worthless**:
-  `equivalence_equip` was green because *both* regimes rejected the equip — Grizzly Bears has no
-  `CardDefinition`, so `enrich_spec_from_def` returned a bare spec and it was not a creature. The
-  non-vacuity test found it; the equivalence test never could. **And a scenario proves nothing about a
-  bug it cannot express**: of six adversarial attacks (each asserted to have changed the file first),
-  `play_land` silently falling back to the battlefield is caught by *only* the proptest, because it needs
-  a two-step sequence; and `equivalence_equip` survives reverting the determinism fix, because only one
-  player has permanents in it. Also: `proptest` writes `tests/proptest-regressions/` on first failure and
-  SR-9a's group gate read it as a stray group, so one red test became two — live since before SR-9a,
-  fixed here. **`/review` then found two perturbations that survived the new gate** — the eighth
-  consecutive SR task whose review findings were holes in the gate, not bugs in the code, and both the
-  named shape: the determinism check was pointed only at the battlefield map (the scenarios have
-  one-owner hands and no graveyards), and `card_names` never read the commander block. A third: the file
-  *documented* that the harness's `resolve_targets` drops unresolvable targets while a direct test
-  aborts, and that no scenario exercised the difference — writing that scenario made it divergence #4,
-  because `filter_map` turned a `cast_spell` at an absent permanent into a targeted spell cast with no
-  target (CR 601.2c). **A documented hazard that nothing executes is a hazard, not a note.** 3178 tests.
-  Earlier same day: SR-9a — 297 integration-test binaries → 9 targets; warm test-build
-  34.2s → 11.1s, `target/` 19 GB → 2.2 GB, test count unmoved (3162 → 3167, the +5 being the new
-  gate's own). The gate, `tests/no_stray_test_binaries.rs`, exists because a dropped `mod` line
-  converts a test file into a text file and the suite goes green with less coverage than it had
-  yesterday — shown, not asserted, across eight attacks. **Seventh consecutive SR task whose review
-  findings were holes in the gate, not bugs in the code**: the declaration check was textual, so
-  `#[cfg(…)] mod foo;`, `#[path]`, and a nested subdir all satisfied it while deleting coverage.
-  Fixed by shrinking the grammar — a group `main.rs` may hold nothing but `//!` docs and bare
-  `mod x;`. The demonstration had a hole too: the first attack deleted a `mod` line for a module
-  that was in a different group, so `sed` matched nothing and the gate "passed" an attack that
-  never happened. Earlier same day: SR-8 — protocol versioning: strict lockstep + a fingerprint that
-  makes the version number machine-checked rather than remembered. Two under-inclusion holes were
-  found by the gate's own denominator guards while they were being written (a `pub type` alias on
-  the wire; a rustfmt-wrapped `#[derive]` that silently dropped a type's serde config out of the
-  digest), and `/review` found a third — `ReplayLog` is a wire frame in its own right and was not
-  a fingerprint root. Sixth consecutive SR task whose review findings were holes in the *gate*,
-  not bugs in the code. 3162 tests. Earlier same day: SR-7 — `PendingTrigger` → `TriggerData` cutover finished: 13
-  always-`None`, never-read per-keyword fields deleted (29 fields → 16), 32 hand-rolled
-  literals collapsed onto `blank()` (−850 lines in `rules/`), `HASH_SCHEMA_VERSION` 36 → 37
-  and 28 sentinel tests bumped; zero behavior change. New `tests/pending_trigger_shape.rs`
-  stops the migration un-finishing. Follow-up **`scutemob-68` (SR-16) — DONE 2026-07-10**: those
-  `kind`/`data`/`embedded_effect` `#[serde(skip)]` fields are now serialized (option (a);
-  `PendingTriggerKind` gained the derive), so a round-tripped keyword trigger keeps its identity and
-  payload instead of coercing to anonymous `Normal`. `HASH_SCHEMA_VERSION` 38 → 39 (serde shape
-  change; hash stream unchanged, so states hash identically); no `PROTOCOL_VERSION` bump
-  (`PendingTrigger` is inside `GameState`, off the SR-8 wire). Gate:
-  `pending_trigger_serde_roundtrip`. **This closes the SR remediation track (SR-1..16).**
-  Earlier same day: SR-6 — card defs extracted to `mtg-card-defs` + DSL to
-  `mtg-card-types`; engine-internal edits no longer re-typecheck the 1,749 defs
-  (`CARGO_INCREMENTAL=0` check 7s → 2–3s; defs report `Fresh`). All 1,749 def files moved with
-  **zero content edits** via a two-module re-export in `card-defs`. Earlier same day: SR-5 —
-  `state::keyword_registry` gates new KeywordAbility variants; the task's "117 KeywordAbility catch-alls" premise was a misattribution — only 2 of them are on that enum, the rest sit on `AbilityDefinition`/`ZoneId`/`ZoneChangeAction`, filed as `scutemob-67`; 3129 tests. Earlier same day: SR-4 — 398 swallow-sites in effects/resolution classified LKI-vs-bug; `state::diagnostics` vocabulary. SR-3 — invariant #3 machine-enforced: GameState sealed, 287 files migrated, `cargo build --workspace` added to CI as the seal gate. SR-2 — invariant #9 registry gate; clean coverage 57.6%. The prior 56.2% was an undercount: the authoring report's `abilities: vec![]` regex also matched nested `mana_abilities: vec![]`. SR-1 — CI live.)
+
+### Machine-enforced invariants (full text: `docs/engine-invariants.md`)
+
+> The standing invariant/gate bullets that used to live here moved to
+> **`docs/engine-invariants.md`** on 2026-07-18 (they are permanent engineering
+> constraints, not a rolling snapshot). One-line pointers remain below; read the matching
+> section of that doc before touching the subsystem it guards. See also the nine
+> non-negotiable **Architecture Invariants** further down this file.
+
+- **SR-2** — Invariant #9 is machine-enforced: `CardDefinition.completeness` markers (62 inert / 570 partial / 97 known-wrong per `scutemob-88`); `validate_deck` rejects non-`Complete` cards; new defs must be `Complete` or carry a marked note. → `docs/engine-invariants.md`
+- **SR-3** — Invariant #3 is machine-enforced: `GameState` is sealed `pub(crate)`; the only mutation path is a `Command` through `process_command`; `cargo build --workspace` is the seal gate. → `docs/engine-invariants.md`
+- **SR-4** — Silent failures in `effects/mod.rs` + `rules/resolution.rs` are classified LKI-fizzle vs engine-bug (`state::diagnostics` `expect_*` vs `lki_*`); new code there must pick a side. → `docs/engine-invariants.md`
+- **SR-5** — Every `KeywordAbility` variant declares where its behavior lives (`state::keyword_registry::handling`, exhaustive; adding a variant is a compile error until classified). → `docs/engine-invariants.md`
+- **SR-6** — Card defs compile in isolation from the engine: `mtg-card-defs` depends on `card-types` only, never the engine; touching an engine file leaves the 1,798 defs `Fresh`. → `docs/engine-invariants.md`
+- **SR-7** — `PendingTrigger` is built through `PendingTrigger::blank` only; per-kind payload lives in `data: Option<TriggerData>`; new per-kind state goes in a `TriggerData` variant. → `docs/engine-invariants.md`
+- **SR-35** — The card-def corpus is format-checked by `tools/check-defs-fmt.sh`, **not** `cargo fmt` (which checks zero of the defs and still exits 0); run the script or `cargo test --all`. → `docs/engine-invariants.md`
+- **SR-8** — Serialized `Command`/`GameEvent`/replay-log streams carry a version tag; strict lockstep; `PROTOCOL_SCHEMA_FINGERPRINT` machine-checks the wire closure (adding an `Effect` variant is a wire change). → `docs/engine-invariants.md`
+- **SR-9a** — Integration tests are 9 targets, not 297 binaries (`crates/engine/tests/<group>/`); never add a top-level `tests/*.rs`; a dropped `mod` line silently deletes coverage and the gate catches it. → `docs/engine-invariants.md`
+- **SR-9c** — The golden-script corpus is triaged (210 approved / 61 retired / 0 pending) and cannot skip silently; a new assertion path must be implemented in `check_assertions`. → `docs/engine-invariants.md`
+- **SR-9b** — The JSON-script regime and the direct-`Command` regime cross-validate on a per-step fingerprint; `build_initial_state` is deterministic (`sorted_zone_entries`). → `docs/engine-invariants.md`
+- **SR-36** — An activation cost is only paid if some code pays it: `AddManaScaled` + `life_cost` payment paths, disjoint by construction; enumerate `all_cards()` for rosters, never grep source. → `docs/engine-invariants.md`
+
+### Changelog & history
+
+- **Full PB/SR narrative** ("Last shipped" + the reverse-chronological "Last Updated" log) lives in **`memory/archive/claude-md-changelog-2026-07.md`** — moved there verbatim on 2026-07-18 (DOC-1v2) so Current State stays a true snapshot. PB-by-PB handoffs also live in `memory/workstream-state.md`; the ESM task record and git log carry the rest.
+- **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
+- **Last Updated**: 2026-07-18 — **PB-OS1 collected** (`scutemob-116` merge `db49a0b2`, gain-control reversion at EOT/next-turn expiry); **suite 3476, coverage 1,117/1,798 = 62.1%, PROTOCOL 18 / HASH 55**. Currently **paused for DOC-1..8 documentation remediation** (`memory/doc-audit-2026-07-18.md`); next engine work is **PB-OS2**. Detailed per-PB history: `memory/archive/claude-md-changelog-2026-07.md`.
 
 ### What Exists (M0-M9.5 + Engine Core Complete + all P3/P4 abilities)
 
@@ -596,6 +78,7 @@ entirely in isolation. The network layer wraps the engine. The Tauri app wraps t
 | Document | Location | Purpose |
 |----------|----------|---------|
 | Architecture & Testing Strategy | `docs/mtg-engine-architecture.md` | Why decisions were made; system design; testing approach |
+| Engine Invariants & Gates | `docs/engine-invariants.md` | Full text of the machine-enforced SR gates (SR-2/3/4/5/6/7/8/9a/9b/9c/35/36); read the matching section before touching the subsystem it guards |
 | Development Roadmap | `docs/mtg-engine-roadmap.md` | What to build and in what order; milestone definitions |
 | Game Script Strategy | `docs/mtg-engine-game-scripts.md` | Engine-independent test script generation, JSON schema, replay harness design |
 | Corner Case Reference | `docs/mtg-engine-corner-cases.md` | 36 known difficult interactions the engine must handle correctly |
@@ -617,6 +100,39 @@ entirely in isolation. The network layer wraps the engine. The Tauri app wraps t
 
 **Read the architecture doc before implementing anything.**
 
+### Secondary Documents & Task Records
+
+Not primary context, but every one is reachable from here. Load on demand for the stated purpose.
+
+| Document | Location | Purpose |
+|----------|----------|---------|
+| Authoring status (generated) | `docs/authoring-status.md` + `docs/authoring-status-guide.md` | **Canonical card-health source** — regenerated by `tools/authoring-report.py`, self-dating; prefer over any hand-maintained count |
+| Engine explanation | `docs/engine_explanation.md` | Narrative walkthrough of the engine for a newcomer |
+| Protocol versioning policy | `docs/mtg-engine-protocol-versioning.md` | Wire versioning policy behind SR-8 (also linked from `docs/engine-invariants.md`) |
+| Simulator & bots | `docs/mtg-engine-simulator.md` | RandomBot / HeuristicBot / GameDriver / LegalActionProvider design |
+| TUI plan | `docs/mtg-engine-tui-plan.md` | Terminal UI dashboard plan |
+| Interaction gaps | `docs/mtg-engine-interaction-gaps.md` | Catalogue of known unresolved rules-interaction gaps |
+| Project status (legacy) | `docs/project-status.md` | Older status dashboard — **stale**; prefer generated authoring-status + the snapshot at the top of this file |
+| Primitive/card plan (historical) | `docs/primitive-card-plan.md` | March primitive/card plan — superseded by the memory/ EF + OS queues |
+| DSL gap closure (historical) | `docs/dsl-gap-closure-plan.md` | Superseded DSL-gap plan — superseded by the EF/OS queues |
+| SR remediation record | `docs/sr-remediation-plan.md` | Full SR-1..32 remediation log |
+| SR task-record audits | `docs/sr-4-silent-failure-audit.md`, `docs/sr-5-keyword-catchall-audit.md`, `docs/sr-9a-test-consolidation.md`, `docs/sr-14-silent-failure-audit-rules.md`, `docs/sr-15-dispatch-enum-catchall-audit.md`, `docs/sr-24-lki-capture-cost.md` | Per-SR method/scope records referenced by the matching gate in `docs/engine-invariants.md` |
+| Audit program | `docs/audits/README.md` + `docs/audits/methodology.md` | Index and method for the standing audit program |
+| Standing audits | `docs/audits/layer-bypass-audit.md`, `docs/audits/event-log-diagnosability.md`, `docs/audits/stress-test-scenarios.md` | Specific audits (note: layer-bypass "9 HIGH" are its own M10-scheduled class, distinct from the 0-HIGH engine tally) |
+| Changelog archive | `memory/archive/claude-md-changelog-2026-07.md` | Verbatim PB/SR history moved out of this file's Current State (see "Changelog & history" above) |
+
+### Additional Skills (beyond the ESM/session ones listed below)
+
+- `/crew` — multi-agent orchestration helper.
+- `/new-doc` — scaffold a new managed doc.
+- `/next-ability` — pick and set up the next ability to implement.
+- `/remedy` — SR remediation track driver (agent `sr-coordinator`; does not touch workstream-state).
+- `/start-stepper` — launch the replay-viewer game-state stepper.
+
+(Session/workflow skills — `/start`, `/dispatch`, `/collect`, `/eot`, `/task`, `/done`, `/spawn`,
+`/status` — are in "Quick Start" below; per-task skills like `/implement-primitive`,
+`/author-wave`, `/cleanup`, `/audit-cards` appear in the "When to Load What" table.)
+
 ---
 
 ## When to Load What
@@ -625,6 +141,7 @@ Before starting work, check which files apply to your task:
 
 | Task | Load before starting |
 |------|----------------------|
+| Understanding / modifying a machine-enforced gate (any SR-N invariant) | `docs/engine-invariants.md` (the SR-2/3/4/5/6/7/8/9a/9b/9c/35/36 gate reference) |
 | Touching any file in `rules/` | `memory/gotchas-rules.md` |
 | Touching any file in `state/`, `cards/`, `effects/` | `memory/gotchas-infra.md` |
 | Writing or modifying tests | `memory/gotchas-infra.md` (testing gotchas) |
@@ -645,7 +162,7 @@ Before starting work, check which files apply to your task:
 | Triaging card defs for TODOs | Use `/triage-cards` — scans defs, reclassifies blocked sessions, consolidates review findings |
 | Authoring a group of cards | Use `/author-wave <group>` — orchestrates author → review → fix → commit for one group |
 | Auditing all card defs | Use `/audit-cards` — scans for TODOs, empty abilities, known-issue patterns, certifies completion |
-| Type consolidation refactoring | `docs/mtg-engine-type-consolidation.md` (must read — this is the active plan) |
+| Type consolidation refactoring | `docs/mtg-engine-type-consolidation.md` (COMPLETE 2026-03-09 — historical record of the refactor, not an active plan) |
 | Planning M10, M11, or M12 | `docs/mtg-engine-strategic-review.md` (must read before starting) |
 | Deciding what to work on / coordinating workstreams | `docs/workstream-coordination.md` |
 
@@ -738,7 +255,7 @@ These 3 apply to nearly every session. All other gotchas are in `memory/gotchas-
 
 ## Agents
 
-Fifteen project-scoped agents in `.claude/agents/` encode milestone, ability, primitive, and card authoring workflows:
+Seventeen project-scoped agents in `.claude/agents/` encode milestone, ability, primitive, and card authoring workflows:
 
 | Agent | Model | RA | Trigger | Purpose |
 |-------|-------|----|---------|---------|
@@ -779,7 +296,9 @@ Fifteen project-scoped agents in `.claude/agents/` encode milestone, ability, pr
 | W2: TUI & Simulator | `W2:` | `W2: fix blocker declaration` |
 | W3: LOW Remediation | `W3:` | `W3: add debug_assert to sba.rs` |
 | W4: M10 Networking | `W4:` | `W4: add GameServer skeleton` |
-| W5: Card Authoring | `W5-cards:` | `W5-cards: author Skullclamp, Blood Artist` |
+| W6: Card Authoring | `W6-cards:` | `W6-cards: author Skullclamp, Blood Artist` |
+| W6: Primitives | `W6-prim:` | `W6-prim: add exclude_self enforcement` |
+| SR remediation | `SR-<N>:` | `SR-9a: consolidate test binaries` |
 | Cross-cutting | `chore:` | `chore: update workstream-state` |
 
 ---
@@ -793,7 +312,7 @@ When completing a milestone:
 - [ ] All tests pass: `cargo test --all`
 - [ ] No clippy warnings: `cargo clippy -- -D warnings`
 - [ ] Formatted: `cargo fmt --check` **and** `tools/check-defs-fmt.sh` (SR-35 — `cargo fmt`
-      checks none of the 1,748 card defs and still exits 0; the script is the only thing
+      checks none of the 1,798 card defs and still exits 0; the script is the only thing
       that checks them. `cargo test --all` runs it too, via `core card_defs_fmt`.)
 - [ ] Performance benchmarks run (if applicable to this milestone)
 - [ ] Update "Current State" section of this file
