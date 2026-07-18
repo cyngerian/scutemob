@@ -618,3 +618,218 @@ fn test_defending_player_captured_survives_attacker_removal() {
          the trigger resolved"
     );
 }
+
+// ── Fix-phase regression tests (scutemob-103 review) ─────────────────────────
+
+/// CR 506.4c — scutemob-103 fix (review Finding 1): if the planeswalker an attacker was
+/// attacking is removed from the battlefield before the attack trigger resolves, the
+/// attacker "continues to be an attacking creature, although it is not attacking any
+/// player, planeswalker, or battle" — the effect must fizzle, NOT redirect to the
+/// (still-alive) former controller of the planeswalker.
+///
+/// Setup: 3-player game. P1 controls Hellrider and attacks a planeswalker controlled by
+/// P3. After `DeclareAttackers` (the attack trigger is now on the stack, having captured
+/// `ctx.defending_player = P3` per CR 508.4/113.7a — this capture is legitimate and must
+/// remain correct for `PlayerTarget::DefendingPlayer`; the bug was `AttackTarget` reusing
+/// it as a fallback recipient), the planeswalker is removed from `state.objects` directly
+/// (simulating it being destroyed/exiled/bounced) — `state.combat.attackers` still
+/// records the attacker as attacking `AttackTarget::Planeswalker(pw_id)` per CR 506.4c
+/// (removing the planeswalker does not remove the creature from combat or rewrite its
+/// target).
+///
+/// Assert: P3's life total is unchanged (40) — Hellrider's damage did not redirect to
+/// the planeswalker's former controller.
+///
+/// Non-vacuity: reverting the `EffectTarget::AttackTarget` resolve arm to fall back to
+/// `ctx.defending_player` whenever the planeswalker lookup misses (the pre-fix shape)
+/// makes this test fail (P3 would drop to 39).
+#[test]
+fn test_hellrider_fizzles_when_attacked_planeswalker_removed() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let p3 = p(3);
+
+    let hellrider_def = find_card_def("Hellrider");
+    let defs = make_defs(vec![hellrider_def.clone()]);
+
+    let hellrider_spec = enrich_spec_from_def(
+        ObjectSpec::card(p1, "Hellrider")
+            .in_zone(ZoneId::Battlefield)
+            .with_card_id(CardId("hellrider".to_string())),
+        &defs,
+    );
+
+    let planeswalker = ObjectSpec::planeswalker(p3, "Test Planeswalker", 5)
+        .with_counter(mtg_engine::CounterType::Loyalty, 5);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p3)
+        .with_registry(CardRegistry::new(vec![hellrider_def]))
+        .object(hellrider_spec)
+        .object(planeswalker)
+        .active_player(p1)
+        .at_step(Step::DeclareAttackers)
+        .build()
+        .unwrap();
+
+    let hellrider_id = find_obj(&state, "Hellrider");
+    let pw_id = find_obj(&state, "Test Planeswalker");
+
+    // CR 508.1m: declaring the attack fires the trigger and flushes it to the stack
+    // synchronously, capturing ctx.defending_player = P3 (the planeswalker's controller,
+    // CR 508.4) on the PendingTrigger before this call returns.
+    let (mut state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(hellrider_id, AttackTarget::Planeswalker(pw_id))],
+            enlist_choices: vec![],
+            exert_choices: vec![],
+        },
+    )
+    .expect("DeclareAttackers targeting the planeswalker should succeed");
+
+    assert!(
+        !state.stack_objects().is_empty(),
+        "the attack trigger should already be on the stack after DeclareAttackers"
+    );
+
+    // CR 506.4c: remove the attacked planeswalker from the game before the trigger
+    // resolves. `state.combat.attackers` still records
+    // `AttackTarget::Planeswalker(pw_id)` for Hellrider -- the attacker is not removed
+    // from combat, it is simply now attacking nothing.
+    state.objects_mut().remove(&pw_id);
+
+    let (state, _) = pass_all(state, &[p1, p2, p3]);
+
+    assert_eq!(
+        life(&state, p3),
+        40,
+        "CR 506.4c: once the attacked planeswalker is gone, Hellrider's attacker is \
+         attacking nothing -- the damage must fizzle, not redirect to P3 (the \
+         planeswalker's former controller)'s life total"
+    );
+    assert_eq!(
+        life(&state, p1),
+        40,
+        "decoy: P1 (the controller) is unaffected either way"
+    );
+    assert_eq!(
+        life(&state, p2),
+        40,
+        "decoy: P2 (uninvolved) is unaffected either way"
+    );
+}
+
+/// CR 608.2b / CR 508.1m — scutemob-103 fix (review Finding 2): a non-targeted
+/// `WheneverCreatureYouControlAttacks` effect (like Utvara Hellkite's token creation or
+/// Dromoka's life gain -- here modeled inline as `GainLife { player: Controller }`) must
+/// NOT be wrongly fizzled when the defending player leaves the game before the trigger
+/// resolves. B1 tags every such trigger's `PendingTrigger.defending_player_id`, but the
+/// `defending_player_id` → `Target::Player` stack-target shortcut in
+/// `flush_pending_triggers` is reserved for the annihilator/dethrone/training family
+/// (whose CardDef-generated effects consume it via `PlayerTarget::DeclaredTarget { index:
+/// 0 }`); this trigger's effect never reads `DeclaredTarget`, so it must not receive a
+/// spurious `Target::Player` that could make the whole (non-targeted) ability "all
+/// targets illegal" per CR 608.2b's fizzle rule -- CR 608.2b only counters a *targeted*
+/// ability that way.
+///
+/// Setup: 3-player game. P1's attacker carries an inline `AnyCreatureYouControlAttacks`
+/// trigger with `targets: vec![]` and `effect: GainLife { player: Controller, amount: 1 }`
+/// (no `DeclaredTarget` anywhere in the effect). P1 attacks P2. After `DeclareAttackers`
+/// (the trigger is on the stack, tagged `defending_player_id = Some(P2)` by B1), P2 is
+/// marked as having lost the game directly (`has_lost = true`) before the trigger
+/// resolves -- simulating P2 leaving the game.
+///
+/// Assert (two ways, since the engine's current resolution routing for a
+/// runtime-characteristics `Normal`-kind trigger happens not to re-check
+/// `stack_obj.targets` legality at all -- making an effect-outcome-only assertion
+/// vacuous for this specific fix): (1) directly, that the flushed stack object's
+/// `targets` list is EMPTY (the shortcut must not have fired for this trigger at
+/// all); and (2) P1 still gains 1 life regardless of P2's departure.
+///
+/// Non-vacuity: reverting the `.filter(|_| matches!(trigger.triggering_event, ...))` gate
+/// in `flush_pending_triggers` (restoring the shortcut for every
+/// `defending_player_id`-tagged trigger) makes assertion (1) fail immediately: the
+/// flushed stack object's `targets` becomes `[Target::Player(p2)]` instead of `[]`.
+#[test]
+fn test_untargeted_attack_trigger_survives_defending_player_leaving() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let p3 = p(3);
+
+    let attacker = ObjectSpec::creature(p1, "Lifegain Attacker", 2, 2).with_triggered_ability(
+        TriggeredAbilityDef {
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
+            etb_filter: None,
+            death_filter: None,
+            combat_damage_filter: None,
+            triggering_creature_filter: None,
+            trigger_on: TriggerEvent::AnyCreatureYouControlAttacks,
+            intervening_if: None,
+            targets: vec![],
+            description: "test: controller gains 1 life on any attack (non-targeted)".to_string(),
+            effect: Some(Effect::GainLife {
+                player: PlayerTarget::Controller,
+                amount: EffectAmount::Fixed(1),
+            }),
+        },
+    );
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p3)
+        .with_registry(CardRegistry::new(vec![]))
+        .object(attacker)
+        .active_player(p1)
+        .at_step(Step::DeclareAttackers)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_obj(&state, "Lifegain Attacker");
+
+    let (mut state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
+            exert_choices: vec![],
+        },
+    )
+    .expect("DeclareAttackers should succeed");
+
+    assert!(
+        !state.stack_objects().is_empty(),
+        "the attack trigger should already be on the stack after DeclareAttackers"
+    );
+
+    // Review Finding 2 pin: the flushed stack object must carry NO targets -- the
+    // `defending_player_id` shortcut is reserved for the annihilator/dethrone/training
+    // family and must not fire for this AnyCreatureYouControlAttacks-triggered,
+    // non-DeclaredTarget-consuming effect.
+    assert!(
+        state.stack_objects()[0].targets.is_empty(),
+        "the defending_player_id shortcut must not set a spurious Target::Player on a \
+         non-targeted AnyCreatureYouControlAttacks trigger's stack object -- got {:?}",
+        state.stack_objects()[0].targets
+    );
+
+    // Simulate P2 (the defending player) leaving the game before the trigger resolves.
+    state.players_mut().get_mut(&p2).unwrap().has_lost = true;
+
+    let (state, _) = pass_all(state, &[p1, p3]);
+
+    assert_eq!(
+        life(&state, p1),
+        41,
+        "CR 608.2b: a non-targeted attack-trigger effect (life gain) must not fizzle \
+         just because the (spuriously?) captured defending player has left the game -- \
+         it was never actually targeting that player"
+    );
+}

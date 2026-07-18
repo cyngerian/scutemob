@@ -5,7 +5,7 @@ title: (A) EF-W-MISS-10 forward DSL targets in attack-trigger enrich + fix regis
 task: scutemob-103
 branch: feat/pb-ef3-attack-trigger-target-fidelity-defending-player-targe
 started: 2026-07-18
-phase: implement
+phase: fix
 plan_file: memory/primitives/pb-plan-EF3.md
 
 ## Steps (from plan — unchecked)
@@ -59,3 +59,68 @@ plan_file: memory/primitives/pb-plan-EF3.md
 - Verify EACH full chain vs oracle text (MCP authoritative) per feedback_verify_full_chain;
   demote honestly if a clause is inexpressible. MISS-10 and MISS-4 are separable if too large
   (ship MISS-10 first, file the rest) — but attempt both.
+
+## Fixes applied (scutemob-103 review, all 5 findings closed)
+
+- **Finding 1 (MEDIUM, `effects/mod.rs` `EffectTarget::AttackTarget`)**: restructured the
+  resolve arm to consult the attacker's *live* `combat.attackers` entry FIRST. While the
+  attacker is still present there, its `AttackTarget` variant is authoritative — `Player`
+  resolves normally, `Planeswalker` resolves to the object if present or else **fizzles
+  (empty), full stop, no fallback**. The `ctx.defending_player` fallback (captured at
+  dispatch, CR 113.7a) is now reserved strictly for the case where the attacker itself is
+  no longer in the live `combat.attackers` map at all. Chosen approach: **lazy, no new
+  captured field** — exactly the "cleanest" option the review offered, since the fix is
+  purely about which existing signal (`combat.attackers` live lookup vs. the
+  already-captured `ctx.defending_player`) takes priority, not about adding new state.
+  Zero wire/hash impact. New test `test_hellrider_fizzles_when_attacked_planeswalker_removed`
+  (declares Hellrider attacking a planeswalker, removes the planeswalker from
+  `state.objects` before the trigger resolves via `state.objects_mut().remove(&pw_id)`,
+  asserts the planeswalker's former controller's life is unchanged). Proven non-vacuous:
+  reverting to the old fallback-on-any-None shape makes it fail (39 instead of 40).
+- **Finding 2 (MEDIUM, `abilities.rs` `defending_player_id` shortcut)**: gated the
+  shortcut with `matches!(trigger.triggering_event, Some(SelfAttacks) |
+  Some(SelfAttacksPlayerWithMostLife) | Some(SelfAttacksWithGreaterPowerAlly) |
+  Some(SelfBecomesBlocked))` — the annihilator / dethrone / training / **afflict**
+  keyword-family events (afflict was NOT in the review's literal list but its
+  `LoseLife{DeclaredTarget{0}}` effect depends on this exact shortcut via
+  `TriggerEvent::SelfBecomesBlocked`; the first cut of this fix regressed all 5
+  `afflict::*` tests, caught by the full suite run — restored by adding
+  `SelfBecomesBlocked` to the whitelist). `AnyCreatureYouControlAttacks`-triggered
+  effects (Utvara-style token/lifegain, `EffectTarget::AttackTarget` damage) no longer
+  receive the spurious `Target::Player(dp)`. New test
+  `test_untargeted_attack_trigger_survives_defending_player_leaving` asserts BOTH (1)
+  directly that the flushed stack object's `targets` is empty for such a trigger, and
+  (2) the life-gain effect still executes after the defending player is marked
+  `has_lost = true`. Note on (2): traced the resolution path (`resolution.rs` ~1930-2225)
+  and found that a `Normal`-kind trigger whose `ability_index` IS found in the runtime
+  `characteristics.triggered_abilities` (true for essentially all enriched card-def
+  triggers, including annihilator/dethrone/training/afflict themselves) resolves via the
+  "characteristics path" (~2132), which never re-checks `stack_obj.targets` legality —
+  only the CardDefETB / registry-fallback path (~2058) does. So assertion (2) alone is
+  **vacuous** for this specific fix in the current engine (confirmed empirically: reverted
+  the gate, effect still executed); assertion (1) is what actually discriminates the fix
+  and is what's pinned as load-bearing. Both proven via revert-and-restore.
+- **Finding 3 (LOW, `effects/mod.rs` `PlayerTarget::DefendingPlayer`)**: changed the
+  `Some(dp)` branch to return `vec![]` (not `vec![ctx.controller]`) when the captured
+  defending player has lost; the `ctx.controller` fallback is now reserved for the `None`
+  case (no attack context at all), matching the `AttackTarget` arm's has-lost handling.
+  No dedicated new test required by the fix-phase brief (Brutal Hordechief, the only
+  would-be user, remains unauthored/blocked on a separate primitive); full suite
+  (including `test_defending_player_target_multiplayer` /
+  `test_defending_player_captured_survives_attacker_removal`, both still using
+  `PlayerTarget::DefendingPlayer` in the non-has_lost case) stays green.
+- **Finding 4 (LOW, `abilities.rs:4703-4704` stale comment)**: updated to say
+  "PendingTriggerKind::CardDefETB" and note the sites were reclassified from `Normal` by
+  PB-EF3's A2 fix.
+- **Finding 5 (LOW, `bare_lookup_ratchet.rs` justification comment)**: verified the
+  comment is now accurate post-Finding-1-fix (the `AttackTarget` arm genuinely fizzles
+  rather than redirecting); appended a confirmation note rather than rewriting, since the
+  original wording turned out to be correct once Finding 1 was fixed.
+
+**Wire/hash**: no bump. All five fixes are pure control-flow/gating changes; no new
+fields, variants, or serialized shapes were introduced.
+
+**Gates (post-fix)**: `cargo build --workspace` clean; `cargo test --all` 3364 passed, 0
+failed; `cargo clippy --all-targets -- -D warnings` clean; `cargo fmt --check` clean;
+`tools/check-defs-fmt.sh` clean (1785 defs). No remaining TODOs in hellrider.rs,
+ojutai_soul_of_winter.rs, raid_bombardment.rs.

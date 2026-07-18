@@ -65,6 +65,11 @@ const SWEPT_FILES: &[(&str, usize)] = &[
     // effect correctly resolves to empty rather than an engine bug); (2) `state.players
     // .get(&dp)` in the DefendingPlayer arm, an exact copy of the pre-existing
     // DamagedPlayer arm's has-lost filter a few lines above it.
+    // PB-EF3 fix (scutemob-103, review Finding 5): confirmed accurate post-fix. The
+    // `AttackTarget` arm no longer falls back to `ctx.defending_player` when this
+    // lookup finds the planeswalker gone -- it fizzles immediately, matching what
+    // this comment already claimed. The fallback is now reserved for the case where
+    // the attacker itself has left the live `combat.attackers` map entirely.
     ("src/effects/mod.rs", 107),
     ("src/rules/resolution.rs", 102),
     // SR-14

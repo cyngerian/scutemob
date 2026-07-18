@@ -4700,8 +4700,11 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         // triggers from AbilityDefinition::Triggered. These are not converted
                         // to runtime TriggeredAbilityDef (that only happens in enrich_spec_from_def
                         // for tests), so we collect them here from the card registry.
-                        // The PendingTriggerKind::Normal path looks them up at resolution via
-                        // the card registry fallback (resolution.rs line ~1862).
+                        // The PendingTriggerKind::CardDefETB path looks them up at resolution via
+                        // the card registry fallback (resolution.rs line ~1862) -- these triggers
+                        // were reclassified from Normal to CardDefETB by PB-EF3's A2 fix, since
+                        // `ability_index` here is a raw index into `def.abilities`, not the
+                        // runtime `characteristics.triggered_abilities` vec that `Normal` uses.
                         if let CombatDamageTarget::Player(damaged_pid) = &assignment.target {
                             // CR 113.7a: the damage source may have left the battlefield; use LKI.
                             if let Some(src_obj) = state.fizzle_object(assignment.source) {
@@ -6728,7 +6731,39 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 target: Target::Player(pid),
                 zone_at_cast: None,
             }])
-        } else if let Some(dp) = trigger.defending_player_id.filter(|_| !has_ability_targets) {
+        } else if let Some(dp) = trigger
+            .defending_player_id
+            .filter(|_| !has_ability_targets)
+            .filter(|_| {
+                // PB-EF3 fix (review Finding 2): this shortcut exists ONLY for the
+                // annihilator/dethrone/training/afflict keyword-derived triggers,
+                // whose CardDef-generated effects read the defending player via
+                // `PlayerTarget::DeclaredTarget { index: 0 }` (annihilator's
+                // SacrificePermanents, afflict's LoseLife) or simply had it tagged
+                // for consistency (dethrone/training put a counter on the source
+                // and never read index 0). B1 (PB-EF3) now tags EVERY
+                // `AnyCreatureYouControlAttacks` trigger with `defending_player_id`
+                // too, but those triggers' effects (token creation, life gain,
+                // `EffectTarget::AttackTarget` damage — Utvara Hellkite, Dromoka,
+                // Hellrider, Raid Bombardment) never consume `DeclaredTarget{0}`:
+                // they read `ctx.defending_player` directly via
+                // `PlayerTarget::DefendingPlayer` / `EffectTarget::AttackTarget`,
+                // which do not depend on `stack_obj.targets`. Setting a spurious
+                // `Target::Player(dp)` on their stack object wrongly fizzles the
+                // WHOLE (non-targeted) ability if `dp` leaves the game before it
+                // resolves — CR 608.2b's "all targets illegal" fizzle applies only
+                // to a targeted ability. Restrict the shortcut to the four
+                // keyword-family trigger events so the new AttackTarget/
+                // DefendingPlayer-based cards are unaffected.
+                matches!(
+                    trigger.triggering_event,
+                    Some(TriggerEvent::SelfAttacks)
+                        | Some(TriggerEvent::SelfAttacksPlayerWithMostLife)
+                        | Some(TriggerEvent::SelfAttacksWithGreaterPowerAlly)
+                        | Some(TriggerEvent::SelfBecomesBlocked)
+                )
+            })
+        {
             // CR 702.86a / CR 508.5: Annihilator triggers carry the defending player ID.
             // Set as Target::Player at index 0 so PlayerTarget::DeclaredTarget { index: 0 }
             // resolves to the correct defending player for the SacrificePermanents effect.

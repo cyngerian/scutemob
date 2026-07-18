@@ -6355,31 +6355,54 @@ fn resolve_effect_target_list_indexed(
         // attacker is/was attacking. Looked up lazily from `state.combat.attackers`
         // keyed by `ctx.triggering_creature_id` so it stays correct even if a
         // continuous effect changed the attacker's controller after declaration.
-        // If the attacker has left the `attackers` map (combat ended, or this is a
-        // non-combat evaluation), fall back to the defender captured at dispatch time
-        // (`ctx.defending_player`, CR 113.7a) as a Player target. If neither is
-        // available (e.g. the attacked planeswalker was removed — CR 506.4c, the
-        // attacker now attacks nothing), resolve to empty (the effect fizzles).
+        //
+        // Review fix (Finding 1): the attacker's *live* `AttackTarget` variant
+        // (Player vs Planeswalker) must be consulted BEFORE falling back to the
+        // captured `ctx.defending_player`. Falling back unconditionally whenever
+        // the planeswalker branch resolves to `None` — as the original code did —
+        // meant a removed planeswalker's attack always redirected the damage to
+        // its (still-alive) controller, which is exactly the CR 506.4c case this
+        // primitive is supposed to fizzle: "the attacker continues to be an
+        // attacking creature, although it is not attacking any player,
+        // planeswalker, or battle."
+        //
+        // So: while the attacker is still live in `combat.attackers`, its
+        // recorded `AttackTarget` variant is authoritative — Player resolves
+        // normally, Planeswalker resolves to the object if present or else
+        // fizzles (empty), full stop, no fallback. The `ctx.defending_player`
+        // fallback is reserved for the case where the attacker itself is no
+        // longer present in the live combat state at all (combat ended, or the
+        // attacker left combat/the battlefield) — CR 113.7a last-known
+        // information for a Player-target attack.
         EffectTarget::AttackTarget => {
-            let from_combat = ctx.triggering_creature_id.and_then(|attacker_id| {
+            let attack_target_entry = ctx.triggering_creature_id.and_then(|attacker_id| {
                 state
                     .combat
                     .as_ref()
                     .and_then(|c| c.attackers.get(&attacker_id))
-                    .and_then(|attack_target| match attack_target {
-                        crate::state::combat::AttackTarget::Player(pid) => state
-                            .expect_player(*pid)
-                            .filter(|ps| !ps.has_lost)
-                            .map(|_| ResolvedTarget::Player(*pid)),
-                        crate::state::combat::AttackTarget::Planeswalker(pw_id) => state
-                            .objects
-                            .get(pw_id)
-                            .filter(|o| o.zone == ZoneId::Battlefield && o.is_phased_in())
-                            .map(|_| ResolvedTarget::Object(*pw_id)),
-                    })
             });
-            match from_combat {
-                Some(resolved) => vec![(None, resolved)],
+            match attack_target_entry {
+                Some(crate::state::combat::AttackTarget::Player(pid)) => {
+                    if state.expect_player(*pid).is_some_and(|ps| !ps.has_lost) {
+                        vec![(None, ResolvedTarget::Player(*pid))]
+                    } else {
+                        vec![]
+                    }
+                }
+                Some(crate::state::combat::AttackTarget::Planeswalker(pw_id)) => {
+                    // CR 506.4c: the attacked planeswalker was removed — the
+                    // attacker is attacking nothing. Fizzle; do NOT fall back
+                    // to `ctx.defending_player` here.
+                    if state
+                        .objects
+                        .get(pw_id)
+                        .is_some_and(|o| o.zone == ZoneId::Battlefield && o.is_phased_in())
+                    {
+                        vec![(None, ResolvedTarget::Object(*pw_id))]
+                    } else {
+                        vec![]
+                    }
+                }
                 None => match ctx.defending_player {
                     Some(dp) if state.expect_player(dp).is_some_and(|ps| !ps.has_lost) => {
                         vec![(None, ResolvedTarget::Player(dp))]
@@ -6547,18 +6570,30 @@ fn resolve_player_target_list(
         // CR 508.4 (PB-EF3): the defending player of the attacker whose attack
         // triggered this ability, captured at dispatch time (mirrors DamagedPlayer above).
         PlayerTarget::DefendingPlayer => {
-            if let Some(dp) = ctx.defending_player {
-                if state
-                    .players
-                    .get(&dp)
-                    .map(|ps| !ps.has_lost)
-                    .unwrap_or(false)
-                {
-                    return vec![dp];
+            match ctx.defending_player {
+                Some(dp) => {
+                    if state
+                        .players
+                        .get(&dp)
+                        .map(|ps| !ps.has_lost)
+                        .unwrap_or(false)
+                    {
+                        vec![dp]
+                    } else {
+                        // Review fix (Finding 3): the captured defending player has
+                        // left the game — an effect like "defending player loses N
+                        // life" has nobody left to affect. Falling back to
+                        // `ctx.controller` here would wrongly drain the controller
+                        // instead of fizzling; the `AttackTarget` arm above already
+                        // treats a lost defending player as empty (fizzle), and this
+                        // arm must match. Only the `None` case below (no attack
+                        // context at all) legitimately falls back to the controller.
+                        vec![]
+                    }
                 }
+                // Fallback: no defending player captured (non-attack context) → controller.
+                None => vec![ctx.controller],
             }
-            // Fallback: no defending player captured (non-attack context) → controller.
-            vec![ctx.controller]
         }
     }
 }
