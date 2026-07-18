@@ -84,6 +84,7 @@ fn reconfigure_attach_ability(generic_mana: u32) -> ActivatedAbility {
         activation_condition: None,
         activation_zone: None,
         once_per_turn: false,
+        modes: None,
     }
 }
 
@@ -120,6 +121,7 @@ fn reconfigure_detach_ability(generic_mana: u32) -> ActivatedAbility {
         activation_condition: None,
         activation_zone: None,
         once_per_turn: false,
+        modes: None,
     }
 }
 
@@ -177,6 +179,7 @@ fn test_reconfigure_attach_removes_creature_type() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -277,6 +280,7 @@ fn test_reconfigure_unattach_restores_creature_type() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -313,6 +317,7 @@ fn test_reconfigure_unattach_restores_creature_type() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -402,6 +407,7 @@ fn test_reconfigure_sorcery_speed_only() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -456,6 +462,7 @@ fn test_reconfigure_cant_attach_to_self() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -533,6 +540,7 @@ fn test_reconfigure_equipped_creature_leaves_battlefield() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -626,6 +634,7 @@ fn test_reconfigure_unattach_rejected_when_not_attached() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -685,6 +694,7 @@ fn test_reconfigure_cant_attach_to_opponents_creature() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -752,6 +762,7 @@ fn test_reconfigure_artifact_type_retained_while_attached() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();

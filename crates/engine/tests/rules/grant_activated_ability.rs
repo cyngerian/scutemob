@@ -752,6 +752,7 @@ fn test_granted_once_per_turn_activated_ability_is_preserved_and_enforced() {
         activation_condition: None,
         activation_zone: None,
         once_per_turn: true,
+        modes: None,
     };
 
     state.continuous_effects_mut().push_back(ContinuousEffect {
@@ -799,6 +800,7 @@ fn test_granted_once_per_turn_activated_ability_is_preserved_and_enforced() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .expect("first activation of granted once-per-turn ability should succeed");
@@ -825,6 +827,7 @@ fn test_granted_once_per_turn_activated_ability_is_preserved_and_enforced() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
     assert!(

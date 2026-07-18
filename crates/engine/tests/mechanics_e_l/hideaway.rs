@@ -185,6 +185,7 @@ fn mock_hideaway_with_play_ability_def() -> CardDefinition {
 
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         ..Default::default()
@@ -603,6 +604,7 @@ fn test_hideaway_play_exiled_card() {
 
         activation_zone: None,
         once_per_turn: false,
+        modes: None,
     };
 
     let mut state = GameStateBuilder::new()
@@ -672,6 +674,7 @@ fn test_hideaway_play_exiled_card() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("ActivateAbility failed: {:?}", e));

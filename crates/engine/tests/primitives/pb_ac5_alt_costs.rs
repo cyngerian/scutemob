@@ -301,6 +301,7 @@ fn exert_land_def() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
@@ -320,6 +321,7 @@ fn exert_land_def() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         ..Default::default()
@@ -357,6 +359,7 @@ fn dual_exert_creature_def() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         ..Default::default()
@@ -391,6 +394,7 @@ fn graveyard_exert_def() -> CardDefinition {
             activation_condition: None,
             activation_zone: Some(ActivationZone::Graveyard),
             once_per_turn: false,
+            modes: None,
         }],
         ..Default::default()
     }
@@ -401,7 +405,7 @@ fn graveyard_exert_def() -> CardDefinition {
 #[test]
 /// Strict-equality hash schema sentinel (conventions.md hash-sentinel rule).
 fn test_hash_schema_version_is_32() {
-    assert_eq!(HASH_SCHEMA_VERSION, 49u8);
+    assert_eq!(HASH_SCHEMA_VERSION, 50u8);
 }
 
 #[test]
@@ -434,6 +438,7 @@ fn test_exert_field_participates_in_hash() {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             });
         GameStateBuilder::new()
             .add_player(p1)
@@ -1095,6 +1100,7 @@ fn test_transmute_searches_equal_mana_value() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("transmute activation should succeed: {:?}", e));
@@ -1168,6 +1174,7 @@ fn test_transmute_only_from_hand() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
     assert!(
@@ -1245,6 +1252,7 @@ fn test_transmute_sorcery_timing() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
     assert!(
@@ -1319,6 +1327,7 @@ fn test_transmute_discards_self() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -1535,6 +1544,7 @@ fn test_exert_twice_expires_same_step() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("second exert (activation) should succeed: {:?}", e));
@@ -1653,6 +1663,7 @@ fn test_exert_arena_of_glory_activation() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("exert activation should succeed: {:?}", e));
@@ -1706,6 +1717,7 @@ fn test_exert_cannot_exert_off_battlefield() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
     assert!(

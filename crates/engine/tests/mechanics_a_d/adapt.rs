@@ -106,6 +106,7 @@ fn adapt_ability(adapt_n: u32, mana: ManaCost) -> ActivatedAbility {
         activation_condition: None,
         activation_zone: None,
         once_per_turn: false,
+        modes: None,
     }
 }
 
@@ -169,6 +170,7 @@ fn test_adapt_basic_adds_counters() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -268,6 +270,7 @@ fn test_adapt_does_nothing_with_existing_counters() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -343,6 +346,7 @@ fn test_adapt_activation_always_legal() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -419,6 +423,7 @@ fn test_adapt_after_losing_counters() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -472,6 +477,7 @@ fn test_adapt_after_losing_counters() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -530,6 +536,7 @@ fn test_adapt_pays_mana_cost() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -592,6 +599,7 @@ fn test_adapt_counter_added_event_emitted() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();

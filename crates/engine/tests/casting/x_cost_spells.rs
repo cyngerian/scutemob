@@ -649,6 +649,7 @@ fn test_x_cost_activated_ability_double_x_treasure_vault() {
             discard_card: None,
             sacrifice_target: None,
             x_value: Some(2),
+            modes_chosen: vec![],
         },
     )
     .unwrap();

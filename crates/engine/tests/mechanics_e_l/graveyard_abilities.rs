@@ -118,6 +118,7 @@ fn test_graveyard_activated_ability_activatable() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -172,6 +173,7 @@ fn test_graveyard_activated_ability_zone_check() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 

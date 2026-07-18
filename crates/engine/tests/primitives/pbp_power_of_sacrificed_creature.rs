@@ -192,6 +192,7 @@ fn test_altar_of_dementia_mills_by_sacrificed_power() {
             discard_card: None,
             sacrifice_target: Some(goblin_id),
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .expect("Altar of Dementia activation should succeed");
@@ -294,6 +295,7 @@ fn test_greater_good_draws_by_sacrificed_power_then_discards_three() {
             discard_card: None,
             sacrifice_target: Some(hippo_id),
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .expect("Greater Good activation should succeed");
@@ -560,6 +562,7 @@ fn test_lki_correctness_anthem_boosted_creature_sacrifice() {
             discard_card: None,
             sacrifice_target: Some(bear_id),
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .expect("Altar of Dementia activation should succeed");
@@ -680,6 +683,7 @@ fn test_zero_power_creature_sacrifice_mills_zero() {
             discard_card: None,
             sacrifice_target: Some(wall_id),
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .expect("Altar of Dementia activation should succeed");
@@ -780,7 +784,7 @@ fn test_hash_parity_power_of_sacrificed_creature_distinct() {
     // Assert hash sentinel is exactly 15 (PB-LKI-CC bump from PB-TS's 14 for
     // EffectAmount::CounterCountAtLastKnownInformation, CR 603.10a / 113.7a).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 49u8,
+        HASH_SCHEMA_VERSION, 50u8,
         "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
     );
 
@@ -1045,6 +1049,7 @@ fn test_sacrifice_negative_power_creature_mills_zero() {
             discard_card: None,
             sacrifice_target: Some(cursed_id),
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .expect("Altar activation should succeed");

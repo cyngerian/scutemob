@@ -179,7 +179,7 @@ fn life_total(state: &GameState, player: PlayerId) -> i32 {
 /// Strict-equality hash schema sentinel (conventions.md hash-sentinel rule).
 /// PB-AC6 bumped 32 -> 33.
 fn test_hash_schema_version_is_33() {
-    assert_eq!(HASH_SCHEMA_VERSION, 49u8);
+    assert_eq!(HASH_SCHEMA_VERSION, 50u8);
 }
 
 #[test]
@@ -579,6 +579,7 @@ fn test_becomes_target_self_by_spell() {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         });
 
         let state = GameStateBuilder::new()
@@ -606,6 +607,7 @@ fn test_becomes_target_self_by_spell() {
                 discard_card: None,
                 sacrifice_target: None,
                 x_value: None,
+                modes_chosen: vec![],
             },
         )
         .unwrap();

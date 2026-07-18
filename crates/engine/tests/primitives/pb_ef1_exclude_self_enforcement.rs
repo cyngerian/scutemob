@@ -162,7 +162,7 @@ fn enrich(
 #[test]
 fn test_ef1_hash_schema_version_live_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 49u8,
+        HASH_SCHEMA_VERSION, 50u8,
         "PB-EF1 added ActivationCost.sacrifice_exclude_self (HASH 43->44). Update this \
          sentinel and the state/hash.rs history block together; the authoritative check \
          is the SR-17 machine gate in tests/core/hash_schema.rs."
@@ -347,6 +347,7 @@ fn sacrifice_effect_source() -> CardDefinition {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         }],
         ..Default::default()
     }
@@ -393,6 +394,7 @@ fn sacrifice_permanents_effect_excludes_source() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .expect("activate sacrifice-effect ability");
@@ -444,6 +446,7 @@ fn optional_cost_source() -> CardDefinition {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         }],
         ..Default::default()
     }
@@ -479,6 +482,7 @@ fn optional_cost_sacrifice_excludes_source() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .expect("activate optional-cost ability");
@@ -665,6 +669,7 @@ fn izoni_cannot_sacrifice_itself_to_its_own_cost() {
             discard_card: None,
             sacrifice_target: Some(izoni_id), // sacrifice ITSELF — illegal ("another")
             x_value: None,
+            modes_chosen: vec![],
         },
     );
     assert!(
@@ -717,6 +722,7 @@ fn izoni_sacrifices_another_creature_and_resolves() {
             discard_card: None,
             sacrifice_target: Some(fodder_id),
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .expect("sacrificing ANOTHER creature is legal");
@@ -768,6 +774,7 @@ fn yawgmoth_cannot_sacrifice_itself() {
             discard_card: None,
             sacrifice_target: Some(yawg_id), // itself — illegal
             x_value: None,
+            modes_chosen: vec![],
         },
     );
     assert!(
@@ -815,6 +822,7 @@ fn yawgmoth_sacrifices_another_creature_and_resolves() {
             discard_card: None,
             sacrifice_target: Some(victim_id), // ANOTHER creature — legal
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .expect("Yawgmoth sacrificing another creature is legal");
@@ -882,6 +890,7 @@ fn commissar_cannot_sacrifice_itself() {
             discard_card: None,
             sacrifice_target: Some(commissar_id),
             x_value: None,
+            modes_chosen: vec![],
         },
     );
     assert!(
@@ -928,6 +937,7 @@ fn commissar_sacrifices_another_creature_and_resolves() {
             discard_card: None,
             sacrifice_target: Some(guardsman_id), // ANOTHER creature — legal
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .expect("Commissar sacrificing another creature is legal");

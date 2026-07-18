@@ -413,6 +413,7 @@ fn fetchland_pays_life_on_activation() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .expect("Arid Mesa activation should succeed");
@@ -463,6 +464,7 @@ fn doom_whisperer_pays_life_for_repeatable_surveil() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .expect("Doom Whisperer's Pay 2 life ability should succeed at life 40");
@@ -513,6 +515,7 @@ fn staff_of_compleation_proliferate_pays_life() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .expect("Staff of Compleation's Pay 3 life: Proliferate should succeed at life 40");
@@ -562,6 +565,7 @@ fn staff_of_compleation_draw_pays_life() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .expect("Staff of Compleation's Pay 4 life: Draw a card should succeed at life 40");
@@ -625,6 +629,7 @@ fn non_mana_ability_life_cost_zero_is_legal_at_negative_life() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .expect(
@@ -671,6 +676,7 @@ fn non_mana_ability_insufficient_life_is_rejected() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -907,6 +913,7 @@ fn scaled_mana_def(name: &str, player: PlayerTarget) -> CardDefinition {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         }],
         ..Default::default()
     }

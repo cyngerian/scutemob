@@ -232,6 +232,7 @@ fn stub_gates_are_not_vacuous() {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         }],
         ..Default::default()
     };
@@ -678,6 +679,7 @@ fn land_color_gate_compares_scaled_clause_colors() {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         }],
         ..Default::default()
     };
@@ -845,10 +847,15 @@ fn tap_for_mana_rejects_an_out_of_range_ability_index() {
 
 /// `Completeness` is load-bearing for these gates, so pin that the demoted cards really
 /// are demoted rather than trusting the gate's own emptiness.
+///
+/// PB-EF7 (2026-07-18): Cankerbloom was removed from this roster — it no longer ships
+/// `Effect::Choose` at all (rewritten onto `AbilityDefinition::Activated::modes`, CR 700.2a)
+/// and is now `Completeness::Complete`. See `sr33_demoted_cards_carry_truthful_markers`'s
+/// sibling coverage in `pb_ef7_modal_activated.rs` for the replacement assertion.
 #[test]
 fn sr33_demoted_cards_carry_truthful_markers() {
     let defs = defs_map();
-    for name in ["Path to Exile", "Rhystic Study", "Cankerbloom"] {
+    for name in ["Path to Exile", "Rhystic Study"] {
         let def = defs
             .get(name)
             .unwrap_or_else(|| panic!("{name} has no def"));

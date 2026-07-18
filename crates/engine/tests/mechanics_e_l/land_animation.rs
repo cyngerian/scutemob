@@ -96,6 +96,7 @@ fn animatable_land(owner: PlayerId, name: &str, power: i32, toughness: i32) -> O
 
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         })
 }
 
@@ -139,6 +140,7 @@ fn test_land_animation_adds_creature_type_and_pt() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();

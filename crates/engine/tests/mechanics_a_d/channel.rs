@@ -69,6 +69,7 @@ fn channel_card(owner: PlayerId, name: &str, mana: ManaCost, effect: Effect) -> 
 
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         })
 }
 
@@ -146,6 +147,7 @@ fn test_channel_activate_from_hand_basic() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -231,6 +233,7 @@ fn test_channel_cannot_activate_from_battlefield() {
 
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         });
 
     let state = GameStateBuilder::new()
@@ -261,6 +264,7 @@ fn test_channel_cannot_activate_from_battlefield() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -319,6 +323,7 @@ fn test_channel_only_owner_can_activate() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -377,6 +382,7 @@ fn test_channel_insufficient_mana_fails() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -435,6 +441,7 @@ fn test_channel_ability_uses_stack() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();

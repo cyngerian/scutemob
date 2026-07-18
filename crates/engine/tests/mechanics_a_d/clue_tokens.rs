@@ -91,6 +91,7 @@ fn clue_spec(owner: PlayerId, name: &str) -> ObjectSpec {
 
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         })
         .token()
 }
@@ -247,6 +248,7 @@ fn test_clue_activate_draw_card() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -326,6 +328,7 @@ fn test_clue_uses_stack_not_mana_ability() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -379,6 +382,7 @@ fn test_clue_sacrifice_is_cost_not_effect() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -438,6 +442,7 @@ fn test_clue_tapped_can_still_activate() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -500,6 +505,7 @@ fn test_clue_not_affected_by_summoning_sickness() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -548,6 +554,7 @@ fn test_clue_token_ceases_to_exist_after_sba() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();
@@ -620,6 +627,7 @@ fn test_clue_opponent_cannot_activate() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -672,6 +680,7 @@ fn test_clue_insufficient_mana_cannot_activate() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 

@@ -460,6 +460,7 @@ fn test_restriction_artifact_abilities_blocked() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 

@@ -506,6 +506,7 @@ fn test_ward_triggers_for_activated_ability_targeting() {
 
         activation_zone: None,
         once_per_turn: false,
+        modes: None,
     };
     let ability_creature =
         ObjectSpec::creature(p2, "Assassin", 1, 1).with_activated_ability(ability);
@@ -534,6 +535,7 @@ fn test_ward_triggers_for_activated_ability_targeting() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .unwrap();

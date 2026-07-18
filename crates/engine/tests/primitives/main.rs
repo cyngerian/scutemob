@@ -25,6 +25,7 @@ mod pb_ef3_attack_trigger_targets;
 mod pb_ef3b_granted_keyword_triggers;
 mod pb_ef4_triggering_creature_subject_source;
 mod pb_ef6_target_opponent;
+mod pb_ef7_modal_activated;
 mod pb_k_land_drops;
 mod pb_l_landfall;
 mod pbd_damaged_player_filter;

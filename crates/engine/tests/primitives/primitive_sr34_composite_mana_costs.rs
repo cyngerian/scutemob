@@ -832,6 +832,7 @@ fn sr34_gates_are_not_vacuous() {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         }],
         ..Default::default()
     };
@@ -872,6 +873,7 @@ fn sr34_gates_are_not_vacuous() {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         }],
         ..Default::default()
     };
@@ -929,6 +931,7 @@ fn sr34_gates_are_not_vacuous() {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         }],
         ..Default::default()
     };
@@ -979,6 +982,7 @@ fn sr34_gates_are_not_vacuous() {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         }],
         ..Default::default()
     };

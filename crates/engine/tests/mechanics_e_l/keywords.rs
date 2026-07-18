@@ -2005,6 +2005,7 @@ fn test_509_1b_cant_be_blocked_via_continuous_effect() {
 
         activation_zone: None,
         once_per_turn: false,
+        modes: None,
     };
 
     let mut state = GameStateBuilder::new()
@@ -2042,6 +2043,7 @@ fn test_509_1b_cant_be_blocked_via_continuous_effect() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .expect("ActivateAbility should succeed");

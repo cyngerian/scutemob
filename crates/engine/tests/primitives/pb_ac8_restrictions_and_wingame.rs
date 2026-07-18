@@ -162,7 +162,7 @@ fn sorcery_def(name: &str, card_id: &str, effect: Effect) -> CardDefinition {
 #[test]
 fn test_pb_ac8_hash_schema_version_live_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 49u8,
+        HASH_SCHEMA_VERSION, 50u8,
         "PB-AC8 bumped HASH_SCHEMA_VERSION 34->35 (GameRestriction::CantAttackOwner disc 9, \
          GameRestriction::CantBeSacrificed disc 10, Effect::WinGame disc 90, \
          LossReason::OpponentWonGame disc 5). If you bumped again, update this test."
@@ -527,6 +527,7 @@ fn test_cant_be_sacrificed_activation_cost_cannot_pay() {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         },
     );
 
@@ -558,6 +559,7 @@ fn test_cant_be_sacrificed_activation_cost_cannot_pay() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -587,6 +589,7 @@ fn test_cant_be_sacrificed_activation_cost_sacrifice_filter_cannot_pay() {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         });
 
     let mut state = GameStateBuilder::new()
@@ -614,6 +617,7 @@ fn test_cant_be_sacrificed_activation_cost_sacrifice_filter_cannot_pay() {
             discard_card: None,
             sacrifice_target: Some(bear),
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 

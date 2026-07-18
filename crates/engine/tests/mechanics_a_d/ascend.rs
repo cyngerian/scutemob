@@ -609,6 +609,7 @@ fn test_condition_has_citys_blessing() {
 
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -635,6 +636,7 @@ fn test_condition_has_citys_blessing() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .expect("ActivateAbility should succeed");
@@ -668,6 +670,7 @@ fn test_condition_has_citys_blessing() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .expect("ActivateAbility should succeed");

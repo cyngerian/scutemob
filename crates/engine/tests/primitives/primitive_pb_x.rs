@@ -759,6 +759,7 @@ fn test_exile_self_cost_moves_source_to_exile() {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         });
 
     let library_card = ObjectSpec::card(p1, "placeholder").in_zone(ZoneId::Library(p1));
@@ -787,6 +788,7 @@ fn test_exile_self_cost_moves_source_to_exile() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .expect("activate exile-self ability should succeed");
@@ -843,6 +845,7 @@ fn test_exile_self_ability_resolves_after_source_gone() {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         });
 
     // Need a card in library to draw
@@ -878,6 +881,7 @@ fn test_exile_self_ability_resolves_after_source_gone() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .expect("activate");
@@ -933,6 +937,7 @@ fn test_exile_self_with_mana_fails_without_mana() {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         });
 
     let state = GameStateBuilder::new()
@@ -960,6 +965,7 @@ fn test_exile_self_with_mana_fails_without_mana() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     );
 
@@ -1008,6 +1014,7 @@ fn test_exile_self_field_participates_in_hash() {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             });
         GameStateBuilder::new()
             .add_player(p1)
@@ -1170,6 +1177,7 @@ fn test_balthor_activated_reanimates_black_and_red() {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+                    modes: None,
         });
 
     // Creatures in graveyards — set their colors so the filter works
@@ -1225,6 +1233,7 @@ fn test_balthor_activated_reanimates_black_and_red() {
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            modes_chosen: vec![],
         },
     )
     .expect("Balthor activation should succeed");
