@@ -23,19 +23,23 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Haste),
             // CR 508.1m / CR 603.2: "Whenever a creature you control attacks, Hellrider deals 1
             // damage to the player or planeswalker it's attacking."
-            // WheneverCreatureYouControlAttacks is supported (PB-N).
-            // TODO: DSL gap — the damage target is "the player or planeswalker IT'S attacking"
-            // (the combat attack assignment of the triggering creature). No PlayerTarget or
-            // EffectTarget variant resolves to the specific attack target of the triggering
-            // creature. Implementing with EachOpponent or Controller would produce wrong game
-            // state in multiplayer (wrong target, extra damage). Leaving abilities empty per
-            // W5 policy until AttackTargetOf(EffectTarget::TriggeringCreature) or equivalent
-            // is added to PlayerTarget.
+            // PB-EF3 (EF-W-MISS-4): EffectTarget::AttackTarget resolves to the specific
+            // player or planeswalker the triggering attacker is/was attacking (CR 508.4/506.4c).
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::WheneverCreatureYouControlAttacks {
+                    filter: None,
+                },
+                effect: Effect::DealDamage {
+                    target: EffectTarget::AttackTarget,
+                    amount: EffectAmount::Fixed(1),
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
-        completeness: Completeness::partial(
-            "DSL gap — the damage target is 'the player or planeswalker IT'S attacking' (the \
-             combat attack assignment of the...",
-        ),
         ..Default::default()
     }
 }
