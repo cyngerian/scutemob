@@ -174,6 +174,8 @@ pub(crate) fn action_to_command(
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
+            // PB-EF7: bots don't yet choose modes; empty auto-selects mode 0.
+            modes_chosen: Vec::new(),
         },
         LegalAction::DeclareAttackers { eligible, targets } => {
             // Pick random subset

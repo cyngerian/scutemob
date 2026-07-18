@@ -438,7 +438,14 @@
 ///   `HashInto` as `TargetRequirement::TargetOpponent => 18u8.hash_into(hasher)`.
 ///   `decl_fingerprint` MOVES (a new enum variant); `stream_fingerprint` moves per
 ///   the v40 mechanism.
-pub const HASH_SCHEMA_VERSION: u8 = 49;
+/// - 50: PB-EF7 (2026-07-18) — `AbilityDefinition::Activated` gains
+///   `modes: Option<ModeSelection>` (CR 700.2a — modal activated abilities); the
+///   runtime `ActivatedAbility` struct gains the same field, propagated by
+///   `enrich_spec_from_def`. Fed to `HashInto` right after `once_per_turn` on both
+///   the DSL arm and the `impl HashInto for ActivatedAbility` arm. `decl_fingerprint`
+///   MOVES (both structs' declared shapes changed); `stream_fingerprint` moves per
+///   the v40 mechanism.
+pub const HASH_SCHEMA_VERSION: u8 = 50;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -608,6 +615,16 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // stream's first byte).
         decl_fingerprint: "0f8e380b22f92d56abcf42563ffbdbd5c65dccf9a85b54d8e06bdd2e00a42d19",
         stream_fingerprint: "d3f8ecb082da305949dda37fd4a18b5ec78d591fd9afdfe45efe5584a030b4a1",
+    },
+    HashSchemaEpoch {
+        version: 50,
+        // PB-EF7 (2026-07-18): AbilityDefinition::Activated and runtime ActivatedAbility
+        // both gained `modes: Option<ModeSelection>` (see the `- 50:` History line above).
+        // decl_fingerprint moves (genuine struct-shape change on two structs);
+        // stream_fingerprint moves per the v40 mechanism (HASH_SCHEMA_VERSION is the
+        // stream's first byte).
+        decl_fingerprint: "3812156d90b4e4183b99651ad746afe80007d76fcec72f65f51334052fead97b",
+        stream_fingerprint: "76ebf65581a2eb709149713a8ea42f0c44424a731294afc03ef70e27933eb554",
     },
 ];
 
@@ -2829,6 +2846,10 @@ impl HashInto for ActivatedAbility {
         // differing only in this flag must hash to distinct values, critical now
         // that LayerModification::AddActivatedAbility participates in the layer hash).
         self.once_per_turn.hash_into(hasher);
+        // PB-EF7 (CR 700.2a): modal activated ability's ModeSelection. Must be present
+        // or two ActivatedAbility values differing only in `modes` would hash identically
+        // (the PB-S H1 failure mode the comments above warn about).
+        self.modes.hash_into(hasher);
     }
 }
 impl HashInto for TriggerEvent {
@@ -6622,6 +6643,7 @@ impl HashInto for AbilityDefinition {
                 activation_condition,
                 activation_zone,
                 once_per_turn,
+                modes,
             } => {
                 0u8.hash_into(hasher);
                 cost.hash_into(hasher);
@@ -6631,6 +6653,8 @@ impl HashInto for AbilityDefinition {
                 activation_condition.hash_into(hasher);
                 activation_zone.hash_into(hasher);
                 once_per_turn.hash_into(hasher);
+                // PB-EF7 (CR 700.2a): modal activated ability's ModeSelection.
+                modes.hash_into(hasher);
             }
             AbilityDefinition::Triggered {
                 trigger_condition,

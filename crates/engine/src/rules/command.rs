@@ -84,6 +84,11 @@ pub enum Command {
         /// the chosen value of X. `None` for non-X abilities (defaults to 0).
         #[serde(default)]
         x_value: Option<u32>,
+        /// CR 601.2b/700.2a (via 602.2b): mode indices chosen for a modal activated
+        /// ability. Empty = non-modal, or auto-select mode 0 (bot/backward-compat).
+        /// Validated in `handle_activate_ability`.
+        #[serde(default)]
+        modes_chosen: Vec<usize>,
     },
     // ── M6: Combat commands ───────────────────────────────────────────────
     /// Declare attacking creatures and their targets (CR 508.1).

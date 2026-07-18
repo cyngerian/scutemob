@@ -310,6 +310,14 @@ pub enum AbilityDefinition {
         /// when the ability resolves and reset to 0 at the start of each untap step.
         #[serde(default)]
         once_per_turn: bool,
+        /// CR 700.2a: Modal activated ability. When `Some`, the controller chooses
+        /// mode(s) as the ability is activated (`Command::ActivateAbility.modes_chosen`);
+        /// the chosen mode's effect replaces `effect` at resolution. Per-mode targets ride
+        /// `ModeSelection.mode_targets` (PB-AC4), LOCAL to each mode's slice. `effect`
+        /// should be `Effect::Sequence(vec![])` when this is `Some`. Mirrors
+        /// `Spell`/`Triggered` `modes`.
+        #[serde(default)]
+        modes: Option<ModeSelection>,
     },
     /// Triggered ability: "When/Whenever/At [event], [Effect]" (CR 603).
     Triggered {
@@ -3893,6 +3901,7 @@ pub fn food_token_spec(count: u32) -> TokenSpec {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         }],
         count: EffectAmount::Fixed(count as i32),
         tapped: false,
@@ -3945,6 +3954,7 @@ pub fn clue_token_spec(count: u32) -> TokenSpec {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         }],
         count: EffectAmount::Fixed(count as i32),
         tapped: false,
@@ -4000,6 +4010,7 @@ pub fn blood_token_spec(count: u32) -> TokenSpec {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         }],
         count: EffectAmount::Fixed(count as i32),
         tapped: false,

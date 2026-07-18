@@ -120,7 +120,14 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   (CR 102.3/102.4/115.1/601.2c/603.3d — "target opponent", an opponent-restricted
 ///   player target; EF-W-PB2-2). The closure's type count is unchanged;
 ///   `TargetRequirement`'s declared shape moved, so the digest moves.
-pub const PROTOCOL_VERSION: u32 = 11;
+/// - 12: PB-EF7 (2026-07-18) — `Command::ActivateAbility` (a wire frame) gains
+///   `modes_chosen: Vec<usize>`, and `AbilityDefinition::Activated` (reachable via
+///   `Characteristics.activated_abilities` → `ActivatedAbility` → the DSL closure)
+///   gains `modes: Option<ModeSelection>` (CR 700.2a/601.2b — modal activated
+///   abilities; EF-W-PB2-4). `ModeSelection` was already in the closure (via
+///   `AbilityDefinition::Spell`/`Triggered`). The closure's type count is unchanged;
+///   both `Command` and `AbilityDefinition`'s declared shapes moved, so the digest moves.
+pub const PROTOCOL_VERSION: u32 = 12;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -138,7 +145,7 @@ pub const PROTOCOL_VERSION: u32 = 11;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "07e514663c1b64b1831d2aaf0ee95c3e6bf62a3a1ff0b15dd3ca4316a022e739";
+    "05eaa04bf425a625415c58b3f44e6e75489c90deba14a80f7f99c91369a60cde";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -253,6 +260,12 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // PB-EF6 (2026-07-18): TargetRequirement gained TargetOpponent (see the `- 11:`
         // History line above).
         fingerprint: "07e514663c1b64b1831d2aaf0ee95c3e6bf62a3a1ff0b15dd3ca4316a022e739",
+    },
+    ProtocolEpoch {
+        version: 12,
+        // PB-EF7 (2026-07-18): Command::ActivateAbility gained modes_chosen;
+        // AbilityDefinition::Activated gained modes (see the `- 12:` History line above).
+        fingerprint: "05eaa04bf425a625415c58b3f44e6e75489c90deba14a80f7f99c91369a60cde",
     },
 ];
 
