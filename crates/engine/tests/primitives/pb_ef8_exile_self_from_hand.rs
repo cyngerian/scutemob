@@ -391,6 +391,57 @@ fn pb_ef8_lowering_gate_is_not_vacuous() {
         1,
         "it must instead register as a stack-using activated ability"
     );
+
+    // Negative #2 (direct scoping control): a bare `Cost::SacrificeSelf` no-tap mana
+    // ability (Food Chain shape — no {T}, no exile-from-hand) must STILL decline. Its
+    // only disqualifier is the no-tap guard, so this pins that the guard's relaxation is
+    // gated on `exile_self_from_hand` alone and does NOT lower every no-tap cost (CR
+    // 605.1a / SR-34). If the relaxation were widened to `!acc.requires_tap` outright,
+    // this would wrongly lower into a free, repeatable, stackless `Add {R}`.
+    let sac_only_def = CardDefinition {
+        card_id: mtg_engine::CardId("pb-ef8-vacuity-sac-only".to_string()),
+        name: "PB-EF8 Vacuity Probe Sacrifice Only".to_string(),
+        types: mtg_engine::cards::card_definition::TypeLine {
+            card_types: vec![mtg_engine::CardType::Creature].into_iter().collect(),
+            ..Default::default()
+        },
+        abilities: vec![AbilityDefinition::Activated {
+            cost: Cost::SacrificeSelf,
+            effect: Effect::AddMana {
+                player: mtg_engine::cards::card_definition::PlayerTarget::Controller,
+                mana: mtg_engine::ManaPool {
+                    red: 1,
+                    ..Default::default()
+                },
+            },
+            timing_restriction: None,
+            targets: vec![],
+            activation_condition: None,
+            activation_zone: None,
+            once_per_turn: false,
+            modes: None,
+        }],
+        ..Default::default()
+    };
+    let mut defs_sac = defs_neg;
+    defs_sac.insert(sac_only_def.name.clone(), sac_only_def.clone());
+    let spec_sac = enrich_spec_from_def(
+        ObjectSpec::card(p(1), &sac_only_def.name)
+            .in_zone(ZoneId::Battlefield)
+            .with_card_id(sac_only_def.card_id.clone()),
+        &defs_sac,
+    );
+    assert_eq!(
+        spec_sac.mana_abilities.len(),
+        0,
+        "a bare no-tap Cost::SacrificeSelf mana ability must NOT lower (the no-tap guard \
+         relaxation is scoped to exile_self_from_hand only — CR 605.1a / SR-34)"
+    );
+    assert_eq!(
+        spec_sac.activated_abilities.len(),
+        1,
+        "it must instead register as a stack-using activated ability"
+    );
 }
 
 // ── T7 — CR 106.12: exiling from hand is not tapping ─────────────────────────────
