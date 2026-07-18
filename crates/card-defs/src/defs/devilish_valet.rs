@@ -1,8 +1,6 @@
 // Devilish Valet — {2}{R}, Creature — Devil Warrior 1/3; Trample, Haste.
 // Alliance — Whenever another creature you control enters, double this creature's power
 // until end of turn.
-// TODO: DSL gap — "double this creature's power" continuous effect not expressible
-// (no LayerModification for power doubling).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -23,16 +21,37 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Trample),
             AbilityDefinition::Keyword(KeywordAbility::Haste),
+            // Alliance — Whenever another creature you control enters, double this
+            // creature's power until end of turn. "Double" = add its current power
+            // (PowerOf(Source), locked in at resolution per CR 608.2h).
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
+                    filter: Some(TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        controller: TargetController::You,
+                        ..Default::default()
+                    }),
+                    exclude_self: true,
+                },
+                effect: Effect::ApplyContinuousEffect {
+                    effect_def: Box::new(ContinuousEffectDef {
+                        layer: EffectLayer::PtModify,
+                        modification: LayerModification::ModifyPowerDynamic {
+                            amount: Box::new(EffectAmount::PowerOf(EffectTarget::Source)),
+                            negate: false,
+                        },
+                        filter: EffectFilter::Source,
+                        duration: EffectDuration::UntilEndOfTurn,
+                        condition: None,
+                    }),
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
-        // TODO: Alliance trigger — "double this creature's power until EOT"
-        // (requires LayerModification for multiplicative power change)
-        completeness: Completeness::partial(
-            "Alliance trigger unimplemented. Primitives exist: WheneverCreatureEntersBattlefield \
-             { filter: creature/controller You, exclude_self: true } (card_definition.rs:3079) + \
-             Effect::ApplyContinuousEffect with ModifyPowerDynamic { amount: PowerOf(Source) } \
-             (locked at resolution per effects/mod.rs:3013, CR 608.2h) on EffectFilter::Source, \
-             UntilEndOfTurn.",
-        ),
         ..Default::default()
     }
 }

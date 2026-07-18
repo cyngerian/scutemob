@@ -50,18 +50,40 @@ pub fn card() -> CardDefinition {
                 condition: None,
                 on_cast_effect: None,
             },
-            // TODO: "{4}{R}{G}: Radha gets +X/+X until end of turn, where X is the number
-            // of lands you control." Requires a dynamic P/T modifier LayerModification variant
-            // (e.g., ModifyBothDynamic(EffectAmount)). ModifyBoth only supports fixed i32.
-            // Deferred — the play-from-top and conditional first strike abilities are implemented.
+            // {4}{R}{G}: Radha gets +X/+X until end of turn, where X is the number of
+            // lands you control. X is locked in at resolution (CR 608.2h).
+            AbilityDefinition::Activated {
+                cost: Cost::Mana(ManaCost {
+                    generic: 4,
+                    red: 1,
+                    green: 1,
+                    ..Default::default()
+                }),
+                effect: Effect::ApplyContinuousEffect {
+                    effect_def: Box::new(ContinuousEffectDef {
+                        layer: EffectLayer::PtModify,
+                        modification: LayerModification::ModifyBothDynamic {
+                            amount: Box::new(EffectAmount::PermanentCount {
+                                filter: TargetFilter {
+                                    has_card_type: Some(CardType::Land),
+                                    ..Default::default()
+                                },
+                                controller: PlayerTarget::Controller,
+                            }),
+                            negate: false,
+                        },
+                        filter: EffectFilter::Source,
+                        duration: EffectDuration::UntilEndOfTurn,
+                        condition: None,
+                    }),
+                },
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+                activation_zone: None,
+                once_per_turn: false,
+            },
         ],
-        completeness: Completeness::partial(
-            "'{4}{R}{G}: Radha gets +X/+X until end of turn, where X is the number of lands you \
-             control' is NOT blocked — LayerModification::ModifyBothDynamic \
-             (card_definition.rs:1002/1015) plus EffectAmount::PermanentCount express it. The \
-             activated ability just needs authoring; the other two abilities are already \
-             implemented.",
-        ),
         ..Default::default()
     }
 }

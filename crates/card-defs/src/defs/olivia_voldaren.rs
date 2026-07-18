@@ -25,9 +25,46 @@ pub fn card() -> CardDefinition {
         toughness: Some(3),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: DSL gap — "{1}{R}: deal 1 damage + add Vampire subtype + +1/+1 counter on self"
-            // Needs: DealDamage to target + AddSubtype continuous effect + AddCounter on Source
-            // in a single activated ability. AddSubtype LayerModification may not exist.
+            // CR 602.2: {1}{R}: Olivia Voldaren deals 1 damage to another target creature.
+            // That creature becomes a Vampire in addition to its other types (no stated
+            // duration -> CR 611.2c indefinite). Put a +1/+1 counter on Olivia Voldaren.
+            AbilityDefinition::Activated {
+                cost: Cost::Mana(ManaCost {
+                    generic: 1,
+                    red: 1,
+                    ..Default::default()
+                }),
+                effect: Effect::Sequence(vec![
+                    Effect::DealDamage {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                        amount: EffectAmount::Fixed(1),
+                    },
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::TypeChange,
+                            modification: LayerModification::AddSubtypes(
+                                [SubType("Vampire".to_string())].into_iter().collect(),
+                            ),
+                            filter: EffectFilter::DeclaredTarget { index: 0 },
+                            duration: EffectDuration::Indefinite,
+                            condition: None,
+                        }),
+                    },
+                    Effect::AddCounter {
+                        target: EffectTarget::Source,
+                        counter: CounterType::PlusOnePlusOne,
+                        count: 1,
+                    },
+                ]),
+                timing_restriction: None,
+                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                    exclude_self: true,
+                    ..Default::default()
+                })],
+                activation_condition: None,
+                activation_zone: None,
+                once_per_turn: false,
+            },
             // CR 613.1b: {3}{B}{B}: Gain control of target Vampire for as long as you control
             // Olivia Voldaren (WhileSourceOnBattlefield approximation).
             AbilityDefinition::Activated {
@@ -51,12 +88,14 @@ pub fn card() -> CardDefinition {
             },
         ],
         completeness: Completeness::partial(
-            "{1}{R} ability unimplemented. Blocker is stale: LayerModification::AddSubtypes \
-             exists. Author as Effect::Sequence([DealDamage, \
-             ApplyContinuousEffect{AddSubtypes(Vampire), EffectFilter::DeclaredTarget, \
-             Indefinite}, AddCounter{Source}]) with a TargetFilter{exclude_self: true} creature \
-             target. Verify ApplyContinuousEffect resolves DeclaredTarget correctly before \
-             marking Complete.",
+            "The {1}{R} ability is fully correct (1 damage to another target creature, it becomes \
+             a Vampire in addition, +1/+1 counter on Olivia). The {3}{B}{B} gain-control ability \
+             approximates \"for as long as you control Olivia Voldaren\" with \
+             EffectDuration::WhileSourceOnBattlefield — no EffectDuration variant expresses \
+             \"while you control source\" (continuous_effect.rs L44-64), so the borrowed creature \
+             would NOT return if an opponent gains control of Olivia while she stays on the \
+             battlefield (wrong game state under gain-control). Blocked on a missing duration \
+             primitive — W-PB2 engine finding EF-W-PB2-5.",
         ),
         ..Default::default()
     }

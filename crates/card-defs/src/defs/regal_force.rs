@@ -16,35 +16,28 @@ pub fn card() -> CardDefinition {
             .to_string(),
         power: Some(5),
         toughness: Some(5),
-        abilities: vec![
-            // TODO: "green creature" filter — PermanentCount with color filter.
-            //   Using all creatures as approximation.
-            AbilityDefinition::Triggered {
-                once_per_turn: false,
-                trigger_condition: TriggerCondition::WhenEntersBattlefield,
-                effect: Effect::DrawCards {
-                    player: PlayerTarget::Controller,
-                    count: EffectAmount::PermanentCount {
-                        filter: TargetFilter {
-                            has_card_type: Some(CardType::Creature),
-                            controller: TargetController::You,
-                            ..Default::default()
-                        },
-                        controller: PlayerTarget::Controller,
+        abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
+            trigger_condition: TriggerCondition::WhenEntersBattlefield,
+            effect: Effect::DrawCards {
+                player: PlayerTarget::Controller,
+                count: EffectAmount::PermanentCount {
+                    filter: TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        controller: TargetController::You,
+                        colors: Some(imbl::ordset![Color::Green]),
+                        ..Default::default()
                     },
+                    controller: PlayerTarget::Controller,
                 },
-                intervening_if: None,
-                targets: vec![],
-
-                modes: None,
-                trigger_zone: None,
             },
-        ],
-        completeness: Completeness::partial(
-            "needs-rewiring: add `colors: Some(OrdSet from [Color::Green])` to the PermanentCount \
-             TargetFilter. Capability shipped (TargetFilter.colors, matches_filter \
-             effects/mod.rs:7962). Until rewired the def over-draws — treat as known_wrong.",
-        ),
+            intervening_if: None,
+            targets: vec![],
+
+            modes: None,
+            trigger_zone: None,
+        }],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

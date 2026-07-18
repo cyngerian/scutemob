@@ -1,10 +1,9 @@
 // Perilous Forays — {3}{G}{G}, Enchantment
 // "{1}, Sacrifice a creature: Search your library for a land card with a basic land type,
 // put it onto the battlefield tapped, then shuffle."
-// "Land card with a basic land type" (Plains, Island, Swamp, Mountain, Forest) is closely
-// approximated by basic_land_filter() which requires basic supertype. Non-basic duals with
-// basic land types (Tropical Island etc.) would be missed, but basic_land_filter is the
-// closest available approximation in the DSL.
+// CR 305.8: "land card with a basic land type" means any land with a
+// Plains/Island/Swamp/Mountain/Forest subtype — includes nonbasic lands with a basic land
+// type (e.g. Tropical Island), not just cards with the Basic supertype.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -34,7 +33,17 @@ pub fn card() -> CardDefinition {
             effect: Effect::Sequence(vec![
                 Effect::SearchLibrary {
                     player: PlayerTarget::Controller,
-                    filter: basic_land_filter(),
+                    filter: TargetFilter {
+                        has_card_type: Some(CardType::Land),
+                        has_subtypes: vec![
+                            SubType("Plains".to_string()),
+                            SubType("Island".to_string()),
+                            SubType("Swamp".to_string()),
+                            SubType("Mountain".to_string()),
+                            SubType("Forest".to_string()),
+                        ],
+                        ..Default::default()
+                    },
                     reveal: false,
                     destination: ZoneTarget::Battlefield { tapped: true },
                     shuffle_before_placing: false,
@@ -50,12 +59,7 @@ pub fn card() -> CardDefinition {
             activation_zone: None,
             once_per_turn: false,
         }],
-        completeness: Completeness::known_wrong(
-            "Uses basic_land_filter() (Basic supertype) instead of has_subtypes: [Plains, Island, \
-             Swamp, Mountain, Forest]; nonbasic duals with basic land types are not findable. \
-             Rewiring is unblocked — has_subtypes is honored by matches_filter on the \
-             SearchLibrary path.",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

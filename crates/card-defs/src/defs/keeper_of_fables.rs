@@ -19,15 +19,29 @@ pub fn card() -> CardDefinition {
         power: Some(4),
         toughness: Some(5),
         abilities: vec![
-            // TODO: DSL gap — "Whenever one or more non-Human creatures you control deal
-            // combat damage to a player" requires a per-combat-damage trigger with a
-            // type-filtered (non-Human) creature-you-control condition. No such trigger
-            // condition exists in the DSL.
+            // CR 510.3a/603.2c: "Whenever one or more non-Human creatures you control deal
+            // combat damage to a player, draw a card." Fires once per damaged player per
+            // combat damage step (batch semantics), restricted to non-Human via filter.
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition:
+                    TriggerCondition::WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer {
+                        filter: Some(TargetFilter {
+                            has_card_type: Some(CardType::Creature),
+                            exclude_subtypes: vec![SubType("Human".to_string())],
+                            ..Default::default()
+                        }),
+                    },
+                effect: Effect::DrawCards {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(1),
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
-        completeness: Completeness::partial(
-            "Stale — remove marker after authoring. Trigger + non-Human filter both exist \
-             (card_definition.rs:3245, dispatch abilities.rs:4959).",
-        ),
         ..Default::default()
     }
 }

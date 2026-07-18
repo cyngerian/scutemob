@@ -1,7 +1,6 @@
 // Nether Traitor — {B}{B}, Creature — Spirit 1/1; Haste, Shadow.
-// Triggered ability returns this card from graveyard when another creature dies —
-// TODO: DSL gap — triggered ability from graveyard zone not expressible, and
-// mana-payment conditional ("you may pay {B}") not supported by TriggerCondition.
+// Whenever another creature is put into your graveyard from the battlefield, you may pay
+// {B}. If you do, return this card from your graveyard to the battlefield.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -23,19 +22,42 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Haste),
             AbilityDefinition::Keyword(KeywordAbility::Shadow),
+            // CR 603.3 (TriggerZone::Graveyard) / CR 118.12: "Whenever another creature is put
+            // into your graveyard from the battlefield, you may pay {B}. If you do, return this
+            // card from your graveyard to the battlefield."
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                // Oracle "put into YOUR graveyard" is an ownership condition (CR 404.3), but the
+                // DSL has no owner-scoped death trigger, so this keys on controller = You. The two
+                // diverge only under gain-control (a creature you OWN but an opponent controls dies
+                // to your graveyard — oracle fires, this doesn't; and vice-versa). Best available
+                // approximation; matches the corpus convention (athreos, fecundity).
+                trigger_condition: TriggerCondition::WheneverCreatureDies {
+                    controller: Some(TargetController::You),
+                    exclude_self: true,
+                    nontoken_only: false,
+                    filter: None,
+                },
+                effect: Effect::MayPayThenEffect {
+                    cost: Cost::Mana(ManaCost {
+                        black: 1,
+                        ..Default::default()
+                    }),
+                    payer: PlayerTarget::Controller,
+                    then: Box::new(Effect::MoveZone {
+                        target: EffectTarget::Source,
+                        to: ZoneTarget::Battlefield { tapped: false },
+                        controller_override: None,
+                    }),
+                },
+                intervening_if: None,
+                targets: vec![],
+
+                modes: None,
+                trigger_zone: Some(TriggerZone::Graveyard),
+            },
         ],
-        // TODO: triggered ability from graveyard ("may pay {B}, return from graveyard")
-        completeness: Completeness::partial(
-            "needs-rewiring (no engine work required). Neither stated blocker is real: \
-             AbilityDefinition::Triggered has a `trigger_zone` field and TriggerZone::Graveyard \
-             is dispatched via collect_graveyard_carddef_triggers (replay_harness.rs:2732), and \
-             Effect::MayPayThenEffect correctly gates `then` on actual payment \
-             (effects/mod.rs:3203, CR 118.12) — it does NOT share Effect::MayPayOrElse's \
-             always-decline bug. Wire as TriggerCondition::WheneverCreatureDies { controller: \
-             Some(TargetController::You), exclude_self: true, .. } + trigger_zone: \
-             Some(TriggerZone::Graveyard) + Effect::MayPayThenEffect { cost: Cost::Mana({B}), \
-             then: MoveZone(Source -> Battlefield) }.",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

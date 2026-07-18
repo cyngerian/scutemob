@@ -31,13 +31,29 @@ pub fn card() -> CardDefinition {
                 on_cast_effect: None,
             },
             // TODO: "Creatures you control have '{T}: Add one mana of any color.'"
-            // Requires GrantActivatedAbility DSL support (separate gap). Deferred.
+            // The grant primitive (LayerModification::AddManaAbility(ManaAbility{ any_color:
+            // true, .. }) + EffectFilter::CreaturesYouControl) exists structurally, but
+            // NOT implementing it here — empirically verified (rules/mana.rs:337-365,
+            // handle_tap_for_mana) that `any_color: true` mana abilities are STUBBED:
+            // "Simplified: colorless until interactive color choice is implemented" —
+            // they always add ManaColor::Colorless, never a real chosen color. This is
+            // the same class of defect as the gated Effect::AddManaAnyColor family
+            // (SR-37). enduring_vitality.rs, despite carrying the identical grant, is
+            // itself still `partial` (for its unrelated Enduring-cycle clause) and its
+            // any-color grant has NOT been certified against this stub — so it is not
+            // valid precedent for marking this Complete. Wiring the grant here would
+            // silently make every creature you control tap for colorless instead of
+            // any color, which is wrong game state (W5), not merely incomplete —
+            // deliberately left unauthored rather than shipped known_wrong.
         ],
         completeness: Completeness::partial(
-            "Rewire only: add AbilityDefinition::Static with \
-             LayerModification::AddManaAbility(ManaAbility { requires_tap: true, any_color: true, \
-             .. }) + EffectFilter::CreaturesYouControl, duration WhileSourceOnBattlefield. \
-             Verbatim precedent: enduring_vitality.rs:21-35. Expected to reach Complete.",
+            "'Creatures you control have \"{T}: Add one mana of any color.\"' is blocked on a \
+             real engine defect, not a missing DSL primitive: handle_tap_for_mana \
+             (rules/mana.rs:337-365) stubs every any_color ManaAbility to ManaColor::Colorless, \
+             so the grant would ship wrong game state (always colorless mana) if authored. Needs \
+             interactive color choice at mana-ability resolution before this clause can be \
+             Complete. The other two clauses (look-at-top + cast-from-top) are already \
+             implemented.",
         ),
         ..Default::default()
     }

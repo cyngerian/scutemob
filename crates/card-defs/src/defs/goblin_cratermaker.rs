@@ -69,8 +69,19 @@ pub fn card() -> CardDefinition {
             },
         ],
         completeness: Completeness::known_wrong(
-            "mode-1 target filter is 'any nonland permanent'; should be exclude_colors: \
-             Some({W,U,B,R,G}) + non_land to express 'colorless nonland permanent'",
+            "Root blocker: this is a modal ACTIVATED ability (\"Choose one\" on a {1}, Sacrifice \
+             ability), and AbilityDefinition::Activated has no `modes: Option<ModeSelection>` \
+             field (only Triggered and Spell do — card_definition.rs ~L285-357) — Effect::Choose \
+             is the only available mechanism, and it is a hard stub gated out of Complete \
+             (effect_choose_gate, SR-33: always executes choices.first()). As authored this \
+             always resolves as mode 0 (deal 2 damage to target creature) and additionally still \
+             demands a legal mode-1 target (colorless nonland permanent) even though that mode \
+             never executes — wrong game state, not merely incomplete. Secondary defect, unfixed \
+             pending the primary blocker: the mode-1 target filter is 'any nonland permanent' \
+             (non_land: true) with no colorless restriction; should be exclude_colors: \
+             Some({W,U,B,R,G}) + non_land to express 'colorless nonland permanent'. Needs a \
+             modal-activated-ability primitive (ModeSelection on AbilityDefinition::Activated, or \
+             an equivalent) before this can be Complete.",
         ),
         ..Default::default()
     }

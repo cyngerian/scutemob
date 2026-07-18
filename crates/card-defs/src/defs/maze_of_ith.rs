@@ -1,8 +1,5 @@
 // Maze of Ith — Land
 // {T}: Untap target attacking creature. Prevent all combat damage that would be dealt to and dealt by that creature this turn.
-//
-// Note: "target attacking creature" approximated as TargetCreature (no TargetAttackingCreature
-// variant exists). In practice, the ability is only meaningfully used during combat.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -15,8 +12,8 @@ pub fn card() -> CardDefinition {
                       be dealt to and dealt by that creature this turn."
             .to_string(),
         abilities: vec![
-            // CR 615.1: {T}: Untap target creature. Prevent all combat damage dealt to and by
-            // that creature this turn. (Approximation: "attacking creature" → TargetCreature)
+            // CR 615.1: {T}: Untap target attacking creature. Prevent all combat damage dealt
+            // to and by that creature this turn.
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
                 effect: Effect::Sequence(vec![
@@ -30,16 +27,16 @@ pub fn card() -> CardDefinition {
                     },
                 ]),
                 timing_restriction: None,
-                targets: vec![TargetRequirement::TargetCreature],
+                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                    is_attacking: true,
+                    ..Default::default()
+                })],
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
             },
         ],
-        completeness: Completeness::known_wrong(
-            "targets any creature; the printed 'attacking creature' restriction is not enforced — \
-             TargetFilter::is_attacking now exists (PB-XA2) and should be used",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

@@ -1,4 +1,4 @@
-// Shizo, Death's Storehouse — Legendary Land, {T}: Add {B}; fear grant ability (TODO)
+// Shizo, Death's Storehouse — Legendary Land, {T}: Add {B}; fear grant ability
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -26,8 +26,6 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
             // {B}, {T}: Target legendary creature gains fear until end of turn (CR 702.36).
-            // Note: TargetFilter lacks has_supertype field — using TargetCreature (over-permissive,
-            // allows targeting non-legendary creatures). TODO: add legendary filter when available.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
                     Cost::Mana(ManaCost {
@@ -46,17 +44,16 @@ pub fn card() -> CardDefinition {
                     }),
                 },
                 timing_restriction: None,
-                targets: vec![TargetRequirement::TargetCreature],
+                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                    legendary: true,
+                    ..Default::default()
+                })],
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial(
-            "Fear-grant ability targets TargetCreature instead of \
-             TargetCreatureWithFilter(TargetFilter{legendary:true}). TargetFilter.legendary \
-             shipped; rewire and this card is Complete.",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

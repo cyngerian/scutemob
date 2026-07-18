@@ -36,17 +36,29 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 trigger_zone: None,
             },
-            // TODO: "Whenever one or more creatures your opponents control die, create a
-            // Treasure token. This ability triggers only once each turn." — The
-            // "only once each turn" per-turn throttle is not expressible in the current DSL.
-            // Deferred until trigger throttle support is added.
+            // "Whenever one or more creatures your opponents control die, you create a
+            // Treasure token. This ability triggers only once each turn." (CR 603.2h / PB-AC1
+            // once_per_turn throttle — mirrors morbid_opportunist.rs.) Mandatory: the oracle
+            // text carries no "may".
+            AbilityDefinition::Triggered {
+                once_per_turn: true,
+                trigger_condition: TriggerCondition::WheneverCreatureDies {
+                    controller: Some(TargetController::Opponent),
+                    exclude_self: false,
+                    nontoken_only: false,
+                    filter: None,
+                },
+                effect: Effect::CreateToken {
+                    spec: treasure_token_spec(1),
+                },
+                intervening_if: None,
+                targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
+            },
         ],
-        completeness: Completeness::partial(
-            "Ready to author: second trigger is expressible as Triggered { once_per_turn: true, \
-             trigger_condition: WheneverCreatureDies { controller: \
-             Some(TargetController::Opponent), .. }, effect: CreateToken(treasure_token_spec(1)) \
-             } — once_per_turn gate is live (abilities.rs:6521, PB-AC1).",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

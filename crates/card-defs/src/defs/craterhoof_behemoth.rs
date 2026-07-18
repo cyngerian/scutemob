@@ -1,9 +1,5 @@
 // Craterhoof Behemoth — {5}{G}{G}{G}, Creature — Beast 5/5; Haste.
 // ETB trigger: creatures you control gain trample and get +X/+X where X = creature count.
-// TODO: DSL gap — mass trample grant + dynamic +X/+X continuous effect.
-// PermanentCount is now available for X, but LayerModification::ModifyBoth
-// takes a fixed i32, not an EffectAmount. Needs LayerModification variant
-// with dynamic amount, or snapshot-at-resolution pattern.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -21,14 +17,51 @@ pub fn card() -> CardDefinition {
             .to_string(),
         power: Some(5),
         toughness: Some(5),
-        abilities: vec![AbilityDefinition::Keyword(KeywordAbility::Haste)],
-        // TODO: ETB trigger — mass trample grant + dynamic +X/+X (needs LayerModification with EffectAmount)
-        completeness: Completeness::partial(
-            "ETB trigger unimplemented. Primitives now exist (ModifyBothDynamic + PermanentCount, \
-             substituted/locked at resolution per effects/mod.rs:3008; \
-             EffectFilter::CreaturesYouControl; AddKeywords(Trample)) — author the \
-             WhenEntersBattlefield trigger.",
-        ),
+        abilities: vec![
+            AbilityDefinition::Keyword(KeywordAbility::Haste),
+            // CR 603.3: ETB trigger — creatures you control gain trample and get +X/+X
+            // until end of turn, X = number of creatures you control. X is locked in at
+            // resolution (CR 608.2h) via ModifyBothDynamic substitution.
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                effect: Effect::Sequence(vec![
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::PtModify,
+                            modification: LayerModification::ModifyBothDynamic {
+                                amount: Box::new(EffectAmount::PermanentCount {
+                                    filter: TargetFilter {
+                                        has_card_type: Some(CardType::Creature),
+                                        ..Default::default()
+                                    },
+                                    controller: PlayerTarget::Controller,
+                                }),
+                                negate: false,
+                            },
+                            filter: EffectFilter::CreaturesYouControl,
+                            duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
+                        }),
+                    },
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::Ability,
+                            modification: LayerModification::AddKeywords(
+                                [KeywordAbility::Trample].into_iter().collect(),
+                            ),
+                            filter: EffectFilter::CreaturesYouControl,
+                            duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
+                        }),
+                    },
+                ]),
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
+        ],
         ..Default::default()
     }
 }

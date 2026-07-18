@@ -18,14 +18,45 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
-            // TODO: DSL gap — "this creature or another Vampire you control dies" trigger
-            // with controller + subtype filter + optional mana payment at resolution.
+            // "Whenever this creature or another Vampire you control dies, you may pay {B}.
+            // If you do, target player loses 2 life and you gain 2 life." exclude_self stays
+            // false — Kalastria is herself a Vampire and matches her own death.
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::WheneverCreatureDies {
+                    controller: Some(TargetController::You),
+                    exclude_self: false,
+                    nontoken_only: false,
+                    filter: Some(TargetFilter {
+                        has_subtype: Some(SubType("Vampire".to_string())),
+                        ..Default::default()
+                    }),
+                },
+                effect: Effect::MayPayThenEffect {
+                    cost: Cost::Mana(ManaCost {
+                        black: 1,
+                        ..Default::default()
+                    }),
+                    payer: PlayerTarget::Controller,
+                    then: Box::new(Effect::Sequence(vec![
+                        Effect::LoseLife {
+                            player: PlayerTarget::DeclaredTarget { index: 0 },
+                            amount: EffectAmount::Fixed(2),
+                        },
+                        Effect::GainLife {
+                            player: PlayerTarget::Controller,
+                            amount: EffectAmount::Fixed(2),
+                        },
+                    ])),
+                },
+                intervening_if: None,
+                targets: vec![TargetRequirement::TargetPlayer],
+
+                modes: None,
+                trigger_zone: None,
+            },
         ],
-        completeness: Completeness::partial(
-            "Stale — remove marker after authoring. WheneverCreatureDies{filter} \
-             (card_definition.rs:3048, dispatch abilities.rs:4386) and Effect::MayPayThenEffect \
-             (PB-AC2, precedent leaf_crowned_visionary.rs) both exist.",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

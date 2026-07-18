@@ -50,17 +50,29 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 trigger_zone: None,
             },
-            // TODO: "Whenever another Elf enters, gain life equal to toughness" —
-            //   EffectAmount lacks toughness-of-entering-creature variant.
+            // "Whenever another Elf you control enters, you gain life equal to its toughness."
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
+                    filter: Some(TargetFilter {
+                        has_subtype: Some(SubType("Elf".to_string())),
+                        controller: TargetController::You,
+                        ..Default::default()
+                    }),
+                    exclude_self: true,
+                },
+                effect: Effect::GainLife {
+                    player: PlayerTarget::Controller,
+                    amount: EffectAmount::ToughnessOf(EffectTarget::TriggeringCreature),
+                },
+                intervening_if: None,
+                targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
+            },
         ],
-        completeness: Completeness::partial(
-            "Second ability not yet authored. Fully expressible: \
-             TriggerCondition::WheneverCreatureEntersBattlefield { filter: Some(TargetFilter { \
-             has_subtype: Elf, controller: You }), exclude_self: true } + Effect::GainLife { \
-             player: Controller, amount: \
-             EffectAmount::ToughnessOf(EffectTarget::TriggeringCreature) }. Authoring work, not a \
-             DSL gap.",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

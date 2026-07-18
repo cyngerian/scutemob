@@ -37,16 +37,29 @@ pub fn card() -> CardDefinition {
                     condition: None,
                 },
             },
-            // TODO: DSL gap — "Whenever Dwynen attacks, you gain 1 life for each attacking
-            // Elf you control." Needs EffectAmount::AttackingCreatureCountWithSubtype.
+            // "Whenever Dwynen attacks, you gain 1 life for each attacking Elf you control."
+            // CR 508.1: exclude_self stays false — Dwynen is herself an attacking Elf.
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::WhenAttacks,
+                effect: Effect::GainLife {
+                    player: PlayerTarget::Controller,
+                    amount: EffectAmount::AttackingCreatureCount {
+                        controller: PlayerTarget::Controller,
+                        filter: Some(TargetFilter {
+                            has_subtype: Some(SubType("Elf".to_string())),
+                            ..Default::default()
+                        }),
+                    },
+                },
+                intervening_if: None,
+                targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
+            },
         ],
-        completeness: Completeness::partial(
-            "Wire the attack trigger: TriggerCondition::WhenAttacks with Effect::GainLife { \
-             player: PlayerTarget::Controller, amount: EffectAmount::AttackingCreatureCount { \
-             controller: PlayerTarget::Controller, filter: Some(TargetFilter { has_subtype: \
-             Some(SubType(\"Elf\")), ..Default::default() }) } }. exclude_self must stay false — \
-             Dwynen counts herself.",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

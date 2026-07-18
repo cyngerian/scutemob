@@ -1,11 +1,6 @@
 // Mind Games — {U}, Instant
 // Buyback {2}{U}
 // Tap target artifact, creature, or land.
-//
-// TODO: Oracle text says "tap target artifact, creature, or land" — this is a tap, not a
-//   choice between tap/untap. TargetPermanent used as filter (artifact, creature, or land).
-//   TargetFilter doesn't have a compound "artifact OR creature OR land" filter — using
-//   TargetPermanent as approximation (allows any permanent, slightly broader than oracle).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -32,23 +27,18 @@ pub fn card() -> CardDefinition {
             },
             AbilityDefinition::Spell {
                 // Tap target artifact, creature, or land.
-                // TODO: TargetFilter lacks "artifact OR creature OR land" compound type filter.
-                //   Using TargetPermanent as approximation (includes planeswalkers/enchantments too).
                 effect: Effect::TapPermanent {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                 },
-                targets: vec![TargetRequirement::TargetPermanent],
+                targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
+                    has_card_types: vec![CardType::Artifact, CardType::Creature, CardType::Land],
+                    ..Default::default()
+                })],
                 modes: None,
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::partial(
-            "Rewire: TargetPermanentWithFilter(TargetFilter { has_card_types: \
-             vec![CardType::Artifact, CardType::Creature, CardType::Land], ..Default::default() \
-             }) — has_card_types shipped with OR semantics and is enforced at \
-             effects/mod.rs:8035. The def currently uses bare TargetPermanent and can illegally \
-             target enchantments/planeswalkers. Likely Complete after this change.",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

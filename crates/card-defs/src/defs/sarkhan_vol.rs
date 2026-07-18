@@ -27,11 +27,31 @@ pub fn card() -> CardDefinition {
             .to_string(),
         starting_loyalty: Some(4),
         abilities: vec![
-            // +1: Pump + haste
-            // TODO: ApplyContinuousEffect to all creatures you control not wired to DSL.
+            // +1: Creatures you control get +1/+1 and gain haste until end of turn.
             AbilityDefinition::LoyaltyAbility {
                 cost: LoyaltyCost::Plus(1),
-                effect: Effect::Nothing,
+                effect: Effect::Sequence(vec![
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::PtModify,
+                            modification: LayerModification::ModifyBoth(1),
+                            filter: EffectFilter::CreaturesYouControl,
+                            duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
+                        }),
+                    },
+                    Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::Ability,
+                            modification: LayerModification::AddKeywords(
+                                [KeywordAbility::Haste].into_iter().collect(),
+                            ),
+                            filter: EffectFilter::CreaturesYouControl,
+                            duration: EffectDuration::UntilEndOfTurn,
+                            condition: None,
+                        }),
+                    },
+                ]),
                 targets: vec![],
             },
             // CR 613.1b: −2: Gain control of target creature until end of turn,
@@ -85,11 +105,6 @@ pub fn card() -> CardDefinition {
                 targets: vec![],
             },
         ],
-        completeness: Completeness::partial(
-            "+1 unimplemented (Effect::Nothing). Expressible now — ApplyContinuousEffect x2 over \
-             EffectFilter::CreaturesYouControl (ModifyBoth(1) at PtModify, AddKeywords([Haste]) \
-             at Ability, UntilEndOfTurn). Needs wiring.",
-        ),
         ..Default::default()
     }
 }

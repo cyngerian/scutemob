@@ -36,20 +36,15 @@ pub fn card() -> CardDefinition {
                 },
                 timing_restriction: None,
                 targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
+                    legendary: true,
                     ..Default::default()
                 })],
-                // TODO: Target should be "legendary permanent" — TargetFilter lacks supertype constraint.
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial(
-            "Rewire: TargetPermanentWithFilter(TargetFilter { legendary: true, \
-             ..Default::default() }) — TargetFilter.legendary shipped and is enforced at \
-             effects/mod.rs:8045. The def currently targets any permanent. Likely Complete after \
-             this one-field change.",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

@@ -128,6 +128,14 @@ const ALLOWLIST: &[(&str, &str)] = &[
          — same tainted_field.rs pattern, faithful decomposition, fully implemented \
          (SR-34 un-demoted from known_wrong).",
     ),
+    (
+        "nether_traitor",
+        "\"best available approximation\" for oracle \"put into YOUR graveyard\" (ownership, \
+         CR 404.3): the DSL has no owner-scoped death trigger, so this keys on controller = You, \
+         the corpus-standard expression (athreos, fecundity). Faithful in all play without \
+         gain-control of your own creatures; W-PB2 engine finding notes the residual. Not a real \
+         deviation — it is the only expression the DSL offers. (scutemob-95)",
+    ),
 ];
 
 /// Read every `*.rs` file directly under `defs/`. Returns `(file_stem, source)`.

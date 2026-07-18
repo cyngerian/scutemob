@@ -1,10 +1,21 @@
 // Scion of Draco — {12}, Artifact Creature — Dragon 4/4
 // Domain — This spell costs {2} less to cast for each basic land type among lands you control.
 // Flying
-// TODO: DSL gap — static ability: "Each creature you control has vigilance if it's white,
-//   hexproof if it's blue, lifelink if it's black, first strike if it's red, and trample if
-//   it's green." (color-conditional keyword grant not supported in card DSL)
+// Each creature you control has vigilance if it's white, hexproof if it's blue, lifelink if
+// it's black, first strike if it's red, and trample if it's green.
 use crate::cards::helpers::*;
+
+fn color_keyword_grant(color: Color, keyword: KeywordAbility) -> AbilityDefinition {
+    AbilityDefinition::Static {
+        continuous_effect: ContinuousEffectDef {
+            layer: EffectLayer::Ability,
+            modification: LayerModification::AddKeyword(keyword),
+            filter: EffectFilter::CreaturesYouControlWithColor(color),
+            duration: EffectDuration::WhileSourceOnBattlefield,
+            condition: None,
+        },
+    }
+}
 
 pub fn card() -> CardDefinition {
     CardDefinition {
@@ -24,15 +35,13 @@ pub fn card() -> CardDefinition {
         toughness: Some(4),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: color-conditional keyword grant to creatures you control
+            color_keyword_grant(Color::White, KeywordAbility::Vigilance),
+            color_keyword_grant(Color::Blue, KeywordAbility::Hexproof),
+            color_keyword_grant(Color::Black, KeywordAbility::Lifelink),
+            color_keyword_grant(Color::Red, KeywordAbility::FirstStrike),
+            color_keyword_grant(Color::Green, KeywordAbility::Trample),
         ],
         self_cost_reduction: Some(SelfCostReduction::BasicLandTypes { per: 2 }),
-        completeness: Completeness::partial(
-            "color-conditional keyword grant unimplemented but EXPRESSIBLE — five Static \
-             ContinuousEffectDefs at EffectLayer::Ability using \
-             EffectFilter::CreaturesYouControlWithColor (layers.rs:824). Needs authoring, no \
-             primitive work.",
-        ),
         ..Default::default()
     }
 }

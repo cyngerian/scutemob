@@ -24,7 +24,6 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
             // CR 615.1: {1}{W},{T}: Prevent all combat damage dealt BY target attacking creature.
-            // (Approximation: "attacking creature" → TargetCreature)
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
                     Cost::Mana(ManaCost {
@@ -40,16 +39,16 @@ pub fn card() -> CardDefinition {
                     prevent_to: false,
                 },
                 timing_restriction: None,
-                targets: vec![TargetRequirement::TargetCreature],
+                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                    is_attacking: true,
+                    ..Default::default()
+                })],
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
             },
         ],
-        completeness: Completeness::known_wrong(
-            "targets any creature; the printed 'attacking creature' restriction is not enforced — \
-             TargetFilter::is_attacking now exists (PB-XA2) and should be used",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

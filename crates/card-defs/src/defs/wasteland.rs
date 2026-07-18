@@ -31,21 +31,17 @@ pub fn card() -> CardDefinition {
                     cant_be_regenerated: false,
                 },
                 timing_restriction: None,
-                // TODO: Target should be "nonbasic land" — TargetFilter lacks non_basic exclusion field.
-                // Using TargetLand as approximation (allows targeting basic lands too).
-                targets: vec![TargetRequirement::TargetLand],
+                targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
+                    has_card_type: Some(CardType::Land),
+                    nonbasic: true,
+                    ..Default::default()
+                })],
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial(
-            "Blocker shipped. Rewire targets to \
-             TargetRequirement::TargetPermanentWithFilter(TargetFilter { has_card_type: \
-             Some(CardType::Land), nonbasic: true, ..Default::default() }) — \
-             TargetFilter.nonbasic exists (card_definition.rs:2829, CR 205.4a). Until then the \
-             def can destroy basic lands (wrong game state).",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

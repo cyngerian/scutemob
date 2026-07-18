@@ -49,15 +49,19 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 trigger_zone: None,
             },
-            // TODO: DSL gap — "When Roalesk dies, proliferate, then proliferate again."
-            // WhenThisDies trigger + Effect::Proliferate (twice).
+            // "When Roalesk dies, proliferate, then proliferate again."
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::WhenDies,
+                effect: Effect::Sequence(vec![Effect::Proliferate, Effect::Proliferate]),
+                intervening_if: None,
+                targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
+            },
         ],
-        completeness: Completeness::partial(
-            "needs-rewiring: add Triggered{trigger_condition: WhenDies, effect: \
-             Sequence([Proliferate, Proliferate])}. Both primitives shipped — WhenDies \
-             (replay_harness.rs:2289) and Effect::Proliferate (effects/mod.rs:3467). Should reach \
-             Complete once wired.",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }
