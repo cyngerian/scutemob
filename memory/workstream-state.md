@@ -12,7 +12,7 @@
 |------------|------|--------|---------|-------|
 | W1: Abilities | — | available | — | B16 complete (Dungeon + Ring); all abilities done |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
-| W3: LOW Remediation | — | available | — | LOW Sweep campaign COMPLETE 2026-05-16 (`scutemob-31..38`): 36 LOWs closed, LOW-OPEN 45→6. 6 remain (honestly deferred). Plan: `memory/low-sweep-plan.md`. |
+| W3: LOW Remediation | — | available | — | LOW Sweep campaign COMPLETE 2026-05-16 (`scutemob-31..38`): 36 LOWs closed, LOW-OPEN 45→6. 6 remain (honestly deferred). Plan: `memory/archive/2026-07/low-sweep-plan.md` (archived 2026-07-18). |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
 | W6: Primitive + Card Authoring | — | available | — | **EF queue COMPLETE 2026-07-18** (`scutemob-99..114`): all of PB-EF1..EF12 + EF-13 Option A shipped; all 20 EF findings closed. Clean coverage **1,117/1,798 = 62.1%**; 3476 tests; PROTOCOL 18 / HASH 55. **No active queue** — candidates: OOS seed backlog (11 new seeds, see ef-batch-plan), retired-scripts worklist, W-blocked cohorts, or M10. |
