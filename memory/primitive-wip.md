@@ -5,7 +5,7 @@ title: Add `TargetRequirement::TargetOpponent` — an opponent-restricted player
 task: scutemob-107
 branch: feat/pb-ef6-targetrequirementtargetopponent-ef-w-pb2-2
 started: 2026-07-18
-phase: review
+phase: done  # 2026-07-18 — plan→impl→review→LOW-fixes→/review(0 issues, all 4 criteria PASS) complete. 3 flips + fell_specter fix; PROTOCOL 10→11 HASH 48→49; coverage 60.5%→60.7% (+3); OOS-EF6-1 filed. All gates green.
 ## Card def / test / wire-bump steps (2026-07-18)
 - [x] 3 clean flips → Complete: shaman_of_the_pack (ETB authored: LoseLife + EffectAmount::PermanentCount{Elf,You} + TargetOpponent), raiders_wake (Raid ability authored: AtBeginningOfYourEndStep + Condition::YouAttackedThisTurn + DiscardCards + TargetOpponent), vengeful_bloodwitch (TargetPlayer→TargetOpponent, known_wrong marker removed)
 - [x] fell_specter corrected (ETB TargetPlayer→TargetOpponent), stays Complete
