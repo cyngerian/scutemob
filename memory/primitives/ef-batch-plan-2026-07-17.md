@@ -636,3 +636,83 @@ only in the single-keyword `RemoveKeyword` path.
   (`make_token` now benefits from the PB-EF3b reconciliation — currently an unasserted bonus), a
   planeswalker-attack Melee case, and a `RemoveKeyword`-after-grant case (this finding).
 - **Verified**: PB-EF3b review 2026-07-18 (`memory/primitives/pb-review-EF3b.md` Finding 2).
+
+## 9. New findings/seeds filed by PB-EF5 (scutemob-106)
+
+PB-EF5 shipped `Effect::TransformSelf` (CR 701.27a/f, 712.18) — a unit `Effect` that flips
+the resolving ability's own source DFC in place. 2 cards flipped Complete (thaumatic_compass,
+docent_of_perfection), 1 integrity demote (delver_of_secrets — mismarked `Complete`, never
+actually transformed), 2 additional cards authored beyond the plan's baseline discretion
+(bloodline_keeper shipped **Complete** — the plan's stated 2nd blocker for it, "tap N other
+creatures" activation cost, was **verified false** against the real oracle text: "{B}: Transform
+this creature. Activate only if you control five or more Vampires" is a plain mana cost +
+`activation_condition`, both of which already existed; growing_rites_of_itlimoc authored
+`partial`, transform half wired, ETB half genuinely blocked). Full deviation note in the
+implementation report. Four seeds below (§7's OOS-EF5-1/2 were already filed by the coordinator
+pre-dispatch; OOS-EF5-3/4 are new, surfaced during this batch's per-card chain-verification).
+
+### OOS-EF5-1 (capability, coordinator-filed pre-dispatch) — `CardType::Battle` / Siege subsystem
+See PB-EF5 plan §7 / coordinator DECISION 2 (`memory/primitive-wip.md`). CR 310 (defense
+counters, protector-designation SBAs, Siege "defeated → exile + cast transformed"). Unblocks
+Invasion of Ikoria // Zilortha. A whole PB; not touched by this batch.
+
+### OOS-EF5-2 (capability, coordinator-filed pre-dispatch) — Sephiroth "Super Nova" bespoke keyword action
+See PB-EF5 plan §7 / coordinator DECISION 3. FF-set DFC back-face keyword action, its own
+engine project, unrelated to body-only-DFC flips. Not touched by this batch.
+
+### OOS-EF5-3 (capability, new — surfaced by this batch) — return-transformed / enter-the-battlefield-transformed
+A permanent is exiled (or dies) and returns as a **new object**, already on its back face.
+This is a fundamentally different mechanism than `TransformSelf` (which flips a permanent
+**in place**, same `ObjectId`, CR 712.18). Needed by:
+- **edgar_charmed_groom** — dies → delayed trigger returns it to the battlefield transformed
+  at the next end step.
+- **fable_of_the_mirror_breaker** — Saga chapter III: exile, return transformed.
+- **nicol_bolas_the_ravager** — `{4}{U}{B}{R}`: exile, return transformed.
+- **grist_voracious_larva** — re-verified via MCP/oracle-text lookup during this batch (the
+  plan's table description, "ETB mill 3; if a creature card in GY, transform," was **stale/
+  wrong**): the real oracle text is "Whenever Grist or another creature you control enters, if
+  it entered from your graveyard or you cast it from your graveyard, you may pay {G}. If you
+  do, exile Grist, then return it to the battlefield transformed under its owner's control." —
+  the identical return-transformed mechanism, not a `TransformSelf` case at all. Moved here
+  from the plan's OOS-EF5-4(e) slot (see below) — it was miscategorized as a "2nd blocker
+  needing a condition," when the actual blocker is the flip *mechanism* itself.
+- **Fix shape**: a `ReturnTransformed`/`enters_transformed` flag on the zone-change/return
+  effect (`Effect::MoveZone` or a dedicated `Effect::ReturnTransformed`) + Saga-chapter
+  integration for fable. New wire type → PROTOCOL bump. A whole PB (4 cards).
+
+### OOS-EF5-4 (capability, new — DFC flip-condition primitives, batchable) — distinct 2nd blockers
+The remaining roster DFCs whose transform clause could use `TransformSelf` but whose
+**surviving** clause needs a separate primitive (verified against real oracle text, not the
+plan's table, during this batch):
+- **(a) delver_of_secrets** — "top card of library is instant/sorcery" reveal `Condition`
+  (only `TopCardIsCreatureOfChosenType` exists). Demoted to `partial` this batch (§6a
+  integrity fix); needs this primitive to reach Complete.
+- **(b) legions_landing** — an "attacked with N+ creatures" trigger/condition
+  (`TriggerCondition::WheneverYouAttack` is a bare unit, no count field, verified by full
+  scan of `TriggerCondition`). Left unauthored — authoring it now would not exercise
+  `TransformSelf` at all (the flip clause is the ONLY thing blocked), so there is nothing to
+  gain by a partial ship; wait for this primitive.
+- **(c) westvale_abbey** — a **multi-count** sacrifice cost (`Cost::Sacrifice(TargetFilter)`
+  has no count field; "Sacrifice five creatures" cannot be expressed). Left unauthored for
+  the same reason as (b) — the transform ability itself can't be modeled at all without this,
+  so `TransformSelf` gets no corpus usage from this card either.
+- **(d) growing_rites_of_itlimoc** — a "look at top N, put a matching card into hand, bottom
+  the rest" effect (only `Scry`/`Surveil` exist, which reorder rather than selectively draw).
+  Authored `partial` THIS BATCH: the end-step transform-if-4-creatures clause IS wired via
+  `TransformSelf` (real corpus usage), the ETB clause is the omitted, truthfully-marked
+  blocker. Back face (2 mana abilities) fully implemented.
+- **(e) grist_voracious_larva** — REMOVED from this list; re-verification found it belongs to
+  OOS-EF5-3 (return-transformed mechanism), not a 2nd-condition blocker. The plan's original
+  table entry for this card was stale/wrong — see OOS-EF5-3 above.
+- **bloodline_keeper — REMOVED from this list entirely.** The plan's table listed its 2nd
+  blocker as a "tap N other creatures" activation cost; the real oracle text ("{B}: Transform
+  this creature. Activate only if you control five or more Vampires") has no such cost — it's
+  a mana cost plus an `activation_condition`, both already in the DSL. **Authored Complete this
+  batch**, not left as a seed. Lesson for the next planner: verify each roster card's oracle
+  text directly (MCP/cards.sqlite) rather than trusting a prior recon pass's per-card blocker
+  claims — this is the second PB-EF5-adjacent case (after grist) where the filed 2nd blocker
+  didn't match the printed card.
+- **Fix shape**: (a)/(b)/(c)/(d) are each small, independent primitives; several could ship
+  in one PB together. None requires a new wire type by itself (a `Condition` variant, a
+  `TriggerCondition` count field, and a `Cost::Sacrifice` count field are all additive to
+  existing enums already in the SR-8 closure — still verify at plan time).

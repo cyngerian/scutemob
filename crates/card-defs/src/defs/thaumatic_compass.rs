@@ -4,9 +4,6 @@
 // Back:  Spires of Orazca — Land
 //         {T}: Add {C}.
 //         {T}: Tap target creature an opponent controls.
-//
-// DSL gap: at-beginning-of-end-step conditional-transform trigger not expressible.
-// Front search ability and back tap abilities are faithfully implemented.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -50,8 +47,23 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
             AbilityDefinition::Keyword(KeywordAbility::Transform),
-            // TODO: at beginning of your end step, if you control seven or more lands, transform
-            //   (needs TriggerCondition::AtBeginningOfYourEndStep + Condition::YouControlNOrMoreLands(7) + TransformSelf effect)
+            // CR 701.27a/f: "At the beginning of your end step, if you control seven or
+            // more lands, transform Thaumatic Compass." (PB-EF5)
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::AtBeginningOfYourEndStep,
+                effect: Effect::TransformSelf,
+                intervening_if: Some(Condition::YouControlNOrMoreWithFilter {
+                    count: 7,
+                    filter: TargetFilter {
+                        has_card_type: Some(CardType::Land),
+                        ..Default::default()
+                    },
+                }),
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         color_indicator: None,
         back_face: Some(CardFace {
@@ -102,11 +114,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-        completeness: Completeness::partial(
-            "Blocked on a transform-self effect: Effect has no Transform variant (only Meld). \
-             TriggerCondition::AtBeginningOfYourEndStep and \
-             Condition::YouControlNOrMoreWithFilter{count:7, lands} both exist and are ready to \
-             use once the effect lands.",
-        ),
+        completeness: Completeness::Complete,
     }
 }

@@ -127,8 +127,41 @@ cargo fmt --check + tools/check-defs-fmt.sh.
       47→48 + decl/stream fingerprints re-pinned + history row + FROZEN prefix re-pinned
       in hash_schema.rs. All `assert_eq!(HASH_SCHEMA_VERSION, 47)` sentinels bumped to 48
       (bulk sed across 30 test files).
-- [ ] Card defs: thaumatic_compass flip Complete, docent_of_perfection author Complete,
-      delver_of_secrets demote partial.
-- [ ] Tests: crates/engine/tests/mechanics_m_z/pb_ef5_transform_self.rs (+ mod line).
-- [ ] Seeds OOS-EF5-1/2/3/4 filed into ef-batch-plan-2026-07-17.md.
-- [ ] Final gates: build --workspace, test --all, clippy, fmt + check-defs-fmt.sh.
+- [x] Card defs: thaumatic_compass flipped Complete; docent_of_perfection authored Complete
+      (new file); delver_of_secrets demoted partial (§6a integrity fix).
+- [x] Runner discretion (plan §6): bloodline_keeper authored **Complete** (plan's stated 2nd
+      blocker was verified FALSE against real oracle text — see deviation note below and
+      OOS-EF5-4 in ef-batch-plan-2026-07-17.md §9); growing_rites_of_itlimoc authored
+      `partial` (transform half wired via TransformSelf, ETB half truthfully blocked).
+      westvale_abbey, legions_landing, grist_voracious_larva, edgar_charmed_groom,
+      fable_of_the_mirror_breaker, nicol_bolas_the_ravager left unauthored (real distinct
+      blockers, filed as OOS-EF5-3/4).
+- [x] Tests: crates/engine/tests/mechanics_m_z/pb_ef5_transform_self.rs (12 tests) + `mod
+      pb_ef5_transform_self;` added to mechanics_m_z/main.rs. Non-vacuity spot-check: broke
+      the once-per-instruction latch, confirmed test_transform_self_once_per_instruction
+      fails, reverted.
+- [x] Seeds OOS-EF5-1/2 (coordinator pre-filed) + NEW OOS-EF5-3 (return-transformed
+      mechanism, reclassifies grist) + OOS-EF5-4 (DFC flip-condition primitives, 4 cards,
+      bloodline_keeper removed from this list) filed into ef-batch-plan-2026-07-17.md §9.
+- [x] Final gates: build --workspace clean, test --all 3395/3395 (0 failures), clippy
+      --all-targets -D warnings clean, fmt --check clean, check-defs-fmt.sh clean (1792
+      defs).
+
+## Deviations from plan (report to coordinator)
+1. **bloodline_keeper**: plan §6 table said its 2nd blocker was a "tap N other creatures"
+   activation cost (❌ does not exist). Verified via cards.sqlite (scryfall-sourced,
+   authoritative) that the real oracle text is "{B}: Transform this creature. Activate only
+   if you control five or more Vampires" — a plain mana cost + `activation_condition`
+   (Condition::YouControlNOrMoreWithFilter), both already in the DSL. No 2nd blocker exists.
+   Authored **Complete** instead of leaving unauthored/partial.
+2. **grist_voracious_larva**: plan §6 table described its mechanism as "ETB mill 3; if a
+   creature card in GY, transform" (2nd blocker: "creature card in your graveyard"
+   Condition). Verified via cards.sqlite the real oracle text uses the SAME
+   exile-then-return-transformed mechanism as edgar/fable/nicol_bolas (not an in-place flip
+   at all): "...exile Grist, then return it to the battlefield transformed under its owner's
+   control." Reclassified from OOS-EF5-4(e) to OOS-EF5-3 (do not author — different
+   primitive entirely, matches the coordinator's existing "do not author edgar/fable/bolas"
+   guidance).
+3. Net effect: 3 Complete (thaumatic_compass, docent_of_perfection, bloodline_keeper) + 1
+   demote (delver_of_secrets) + 1 partial (growing_rites_of_itlimoc) = 5 card defs touched/
+   authored, vs plan's discounted estimate of "2 Complete + 1 demote + 0-2 partial."

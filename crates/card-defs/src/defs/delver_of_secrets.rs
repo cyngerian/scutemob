@@ -48,6 +48,9 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-        completeness: Completeness::Complete,
+        completeness: Completeness::partial(
+            "upkeep transform trigger unmodeled — needs a 'top card is instant/sorcery' reveal \
+             condition; TransformSelf (PB-EF5) is necessary but not sufficient",
+        ),
     }
 }
