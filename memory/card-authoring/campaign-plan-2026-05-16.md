@@ -55,8 +55,16 @@ engine fix first.
    `// ENGINE-BLOCKED` — all tooling/greps must match both (`fa4d593f` fixed
    `authoring-report.py` for this).
 
-**Next action**: dispatch **PB-AC1**, author its cohort behind it, repeat down
-the PB chain. Coverage math: PB track + backfill is now the only route to 100%.
+**Next action** ~~dispatch **PB-AC1**~~ — **SUPERSEDED 2026-07-17.** The PB-AC chain
+(AC0..AC9), the marker sweep (`scutemob-88`), and the W-PB2 / W-EMPTY / W-MISS authoring
+waves (`scutemob-95/96/97`) are all COMPLETE (clean coverage 59.8%). The active
+engine-primitive queue is now **`memory/primitives/ef-batch-plan-2026-07-17.md`**
+(`scutemob-98`) — it consolidates the 19 EF findings those waves filed + EF-13 into an
+ordered, deduped, correctness-first PB queue. **Recommended first dispatch: PB-EF1**
+(`exclude_self` enforcement sweep), preceded by the coordinator one-liner demoting
+`swan_song` (EF-W-MISS-1, the one live-wrong `Complete` def). EF-13 (105 mis-typed
+markers) is a coordinator decision presented in that plan's §3. The PB-first + cohort-
+backfill rhythm below still holds; the EF batch plan is where the PB definitions now live.
 
 ---
 
