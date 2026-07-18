@@ -65,6 +65,7 @@ fn make_ctx(state: &GameState, source: ObjectId) -> mtg_engine::effects::EffectC
         sacrificed_creature_powers: vec![],
         lki_counters: None,
         lki_power: None,
+        countered_spell_controller: None,
     }
 }
 

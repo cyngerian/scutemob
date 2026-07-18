@@ -162,7 +162,7 @@ fn sorcery_def(name: &str, card_id: &str, effect: Effect) -> CardDefinition {
 #[test]
 fn test_pb_ac8_hash_schema_version_live_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 44u8,
+        HASH_SCHEMA_VERSION, 45u8,
         "PB-AC8 bumped HASH_SCHEMA_VERSION 34->35 (GameRestriction::CantAttackOwner disc 9, \
          GameRestriction::CantBeSacrificed disc 10, Effect::WinGame disc 90, \
          LossReason::OpponentWonGame disc 5). If you bumped again, update this test."

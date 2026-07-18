@@ -403,7 +403,15 @@
 ///   carries no ObjectId so the bit rides on `ActivationCost`). Fed to `HashInto` right
 ///   after `life_cost`. `decl_fingerprint` MOVES (a new `#[serde(default)]` field on
 ///   `ActivationCost`); `stream_fingerprint` moves per the v40 mechanism.
-pub const HASH_SCHEMA_VERSION: u8 = 44;
+/// - 45: PB-EF2 (2026-07-18) — `TokenSpec` gains `recipient: PlayerTarget` (CR 111.1 /
+///   CR 608.2h — which player creates the token(s); "its controller creates …" cards
+///   like Swan Song / An Offer You Can't Refuse). `PlayerTarget` gains two variants,
+///   `ControllerOfCounteredSpell` (discriminant 8) and `ControllerOfTriggeringObject`
+///   (discriminant 9). Fed to `HashInto` right after `TokenSpec::exile_at_end_step`.
+///   `decl_fingerprint` MOVES (a new `#[serde(default)]` field on `TokenSpec` plus two
+///   new enum variants on `PlayerTarget`); `stream_fingerprint` moves per the v40
+///   mechanism.
+pub const HASH_SCHEMA_VERSION: u8 = 45;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -527,6 +535,16 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // is the stream's first byte).
         decl_fingerprint: "0cfeb3004a9fff23daadee1e48617d46a9e31b07c668bd3023981f9772654bd8",
         stream_fingerprint: "c669bac7a07e3a6de5b84e341e1f026e1500744df529b10c7f0668a4e9ea12b8",
+    },
+    HashSchemaEpoch {
+        version: 45,
+        // PB-EF2 (2026-07-18): TokenSpec gained recipient; PlayerTarget gained
+        // ControllerOfCounteredSpell/ControllerOfTriggeringObject (see the `- 45:`
+        // History line above). decl_fingerprint moves (genuine struct-shape change);
+        // stream_fingerprint moves per the v40 mechanism (HASH_SCHEMA_VERSION is the
+        // stream's first byte).
+        decl_fingerprint: "739a945b925c591f7befa507be0bb2730a1eabda6549e7fad5d23abd3fb80479",
+        stream_fingerprint: "ae1f49d79c9a98b67f0c5453bebade1b9babe9f4ca41bc27d7b0bb0d6e5f5421",
     },
 ];
 
@@ -5007,6 +5025,7 @@ impl HashInto for TokenSpec {
         self.activated_abilities.hash_into(hasher);
         self.sacrifice_at_end_step.hash_into(hasher);
         self.exile_at_end_step.hash_into(hasher);
+        self.recipient.hash_into(hasher);
     }
 }
 impl HashInto for EffectTarget {
@@ -5056,6 +5075,10 @@ impl HashInto for PlayerTarget {
             PlayerTarget::TriggeringPlayer => 6u8.hash_into(hasher),
             // CR 510.3a: DamagedPlayer — the player dealt combat damage — discriminant 7
             PlayerTarget::DamagedPlayer => 7u8.hash_into(hasher),
+            // PB-EF2: ControllerOfCounteredSpell — discriminant 8
+            PlayerTarget::ControllerOfCounteredSpell => 8u8.hash_into(hasher),
+            // PB-EF2: ControllerOfTriggeringObject — discriminant 9
+            PlayerTarget::ControllerOfTriggeringObject => 9u8.hash_into(hasher),
         }
     }
 }

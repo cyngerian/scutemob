@@ -2476,9 +2476,10 @@ pub enum EffectTarget {
     EquippedCreature,
 }
 /// How an effect identifies a player.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PlayerTarget {
     /// The controller of the spell or ability.
+    #[default]
     Controller,
     /// Each player simultaneously.
     EachPlayer,
@@ -2502,6 +2503,17 @@ pub enum PlayerTarget {
     /// Used by "that player discards a card" (Sword of Feast and Famine),
     /// "goad each creature that player controls" (Marisi), etc.
     DamagedPlayer,
+    /// The controller of the spell/ability that this effect countered earlier in the
+    /// same resolution. CR 701.5g / "its controller creates …" (Swan Song, An Offer You
+    /// Can't Refuse). Captured by `Effect::CounterSpell` into
+    /// `EffectContext::countered_spell_controller` when a valid target spell is found —
+    /// captured even if the spell can't be countered (An Offer ruling 2022-04-29: an
+    /// uncounterable-but-legal target's controller still creates the tokens).
+    ControllerOfCounteredSpell,
+    /// The controller of the object that triggered this ability (attack/ETB/etc.).
+    /// Resolved from `EffectContext::triggering_creature_id`'s controller, falling back
+    /// to `triggering_player`, then `controller`.
+    ControllerOfTriggeringObject,
 }
 /// How an effect produces a numeric value.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -3739,6 +3751,14 @@ pub struct TokenSpec {
     /// Used by Chandra Flamecaller's +1.
     #[serde(default)]
     pub exile_at_end_step: bool,
+    /// CR 111.1 / CR 608.2h: which player creates (and thus controls) the token(s).
+    /// Defaults to `PlayerTarget::Controller` — the historical behaviour of every existing
+    /// user. Set to `ControllerOfCounteredSpell` for "its controller creates …" cards
+    /// (Swan Song, An Offer You Can't Refuse). Resolved via `resolve_player_target_list`,
+    /// so it may name multiple players (`EachPlayer` / `EachOpponent`), each receiving the
+    /// (post-replacement) count.
+    #[serde(default)]
+    pub recipient: PlayerTarget,
 }
 impl Default for TokenSpec {
     fn default() -> Self {
@@ -3759,6 +3779,7 @@ impl Default for TokenSpec {
             activated_abilities: Vec::new(),
             sacrifice_at_end_step: false,
             exile_at_end_step: false,
+            recipient: PlayerTarget::Controller,
         }
     }
 }

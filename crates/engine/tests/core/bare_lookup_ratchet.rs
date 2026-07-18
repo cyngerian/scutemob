@@ -51,7 +51,14 @@ use std::path::PathBuf;
 /// Order: SR-4's two files, SR-14's ten, then SR-25's nine.
 const SWEPT_FILES: &[(&str, usize)] = &[
     // SR-4
-    ("src/effects/mod.rs", 100),
+    // PB-EF2 (2026-07-18): 100 → 105. Five new NONSWALLOW predicate reads (same shape as
+    // the file's existing residue: `state.objects.get(&id).map(|o| ..)` / `state.players
+    // .get(p).map(|ps| !ps.has_lost).unwrap_or(false)`), added by PlayerTarget::
+    // ControllerOfTriggeringObject's three resolution sites (Manifest, Cloak,
+    // resolve_player_target_list) and ControllerOfCounteredSpell's has-lost filter in
+    // resolve_player_target_list — a departed triggering object/player legitimately
+    // falls back to `ctx.controller` or an empty recipient list, not an engine bug.
+    ("src/effects/mod.rs", 105),
     ("src/rules/resolution.rs", 102),
     // SR-14
     ("src/rules/abilities.rs", 72),

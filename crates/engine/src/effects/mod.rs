@@ -151,6 +151,13 @@ pub struct EffectContext {
     /// `Characteristics.power` was `None` (e.g. non-creature permanents); lookup
     /// returns 0 in both cases.
     pub lki_power: Option<i32>,
+    /// CR 701.5g / EF-W-MISS-1 (An Offer ruling 2022-04-29): the controller of the spell
+    /// that `Effect::CounterSpell` countered earlier in this same effect resolution.
+    /// Set the moment a valid target position is found, BEFORE the `cant_be_countered`
+    /// check — an uncounterable-but-legal target's controller still creates tokens for
+    /// "its controller creates …" cards (Swan Song, An Offer You Can't Refuse).
+    /// Read by `PlayerTarget::ControllerOfCounteredSpell` via `resolve_player_target_list`.
+    pub countered_spell_controller: Option<crate::state::PlayerId>,
 }
 impl EffectContext {
     /// Build a basic context from resolution data.
@@ -180,6 +187,7 @@ impl EffectContext {
             sacrificed_creature_powers: vec![],
             lki_counters: None,
             lki_power: None,
+            countered_spell_controller: None,
         }
     }
     /// Build a context with kicker status (CR 702.33d).
@@ -214,6 +222,7 @@ impl EffectContext {
             sacrificed_creature_powers: vec![],
             lki_counters: None,
             lki_power: None,
+            countered_spell_controller: None,
         }
     }
     /// Resolve a declared target to a player (if it's a player target).
@@ -668,20 +677,15 @@ fn execute_effect_inner(
             // when the effect is applied). Clamp to 0 before replacement math.
             let raw_count = resolve_amount(state, &spec.count, ctx);
             let resolved_count = raw_count.max(0) as u32;
-            // CR 111.1 / CR 614.1: Apply token-creation replacement effects (Doubling Season,
-            // Anointed Procession, etc.) on the resolved u32 count. The replacement boundary
-            // takes a u32 — EffectAmount resolution happens before it.
-            let (token_count, repl_events) =
-                crate::rules::replacement::apply_token_creation_replacement(
-                    state,
-                    ctx.controller,
-                    resolved_count,
-                );
-            events.extend(repl_events);
+            // PB-EF2 / CR 111.1 / CR 608.2h: which player(s) create (and thus control) the
+            // tokens. Defaults to `PlayerTarget::Controller`, which resolves to exactly
+            // `[ctx.controller]` — byte-identical to the pre-PB-EF2 behaviour below.
+            let recipients = resolve_player_target_list(state, &spec.recipient, ctx);
             // CR 508.4: If enters_attacking, resolve the attack target from the
             // source creature's current attack target in combat state. If combat
             // is not active or source is not attacking, tokens enter but are not
-            // registered as attacking (CR 508.4a).
+            // registered as attacking (CR 508.4a). This is a property of the SOURCE
+            // creature, not the recipient — resolved once outside the recipient loop.
             let attack_target = if spec.enters_attacking {
                 state
                     .combat
@@ -690,28 +694,41 @@ fn execute_effect_inner(
             } else {
                 None
             };
-            for _ in 0..token_count {
-                let obj = make_token(spec, ctx.controller);
-                if let Some(id) = state.expect_add_object(obj, ZoneId::Battlefield) {
-                    events.push(GameEvent::TokenCreated {
-                        player: ctx.controller,
-                        object_id: id,
-                    });
-                    events.push(GameEvent::PermanentEnteredBattlefield {
-                        player: ctx.controller,
-                        object_id: id,
-                    });
-                    // CR 508.4: Register token as attacking if enters_attacking
-                    // and a valid attack target was found. The token is already
-                    // tapped (via spec.tapped = true). CR 508.4c: not affected
-                    // by attack requirements/restrictions.
-                    if let Some(ref target) = attack_target {
-                        if let Some(combat) = state.combat.as_mut() {
-                            combat.attackers.insert(id, target.clone());
+            for recipient in recipients {
+                // CR 111.1 / CR 614.1: Apply token-creation replacement effects (Doubling
+                // Season, Anointed Procession, etc.) on the resolved u32 count. PB-EF2:
+                // replacements are per-RECIPIENT (the player who would create the tokens),
+                // not per-controller — matters when recipient != ctx.controller (Swan Song).
+                let (token_count, repl_events) =
+                    crate::rules::replacement::apply_token_creation_replacement(
+                        state,
+                        recipient,
+                        resolved_count,
+                    );
+                events.extend(repl_events);
+                for _ in 0..token_count {
+                    let obj = make_token(spec, recipient);
+                    if let Some(id) = state.expect_add_object(obj, ZoneId::Battlefield) {
+                        events.push(GameEvent::TokenCreated {
+                            player: recipient,
+                            object_id: id,
+                        });
+                        events.push(GameEvent::PermanentEnteredBattlefield {
+                            player: recipient,
+                            object_id: id,
+                        });
+                        // CR 508.4: Register token as attacking if enters_attacking
+                        // and a valid attack target was found. The token is already
+                        // tapped (via spec.tapped = true). CR 508.4c: not affected
+                        // by attack requirements/restrictions.
+                        if let Some(ref target) = attack_target {
+                            if let Some(combat) = state.combat.as_mut() {
+                                combat.attackers.insert(id, target.clone());
+                            }
                         }
+                        // Track last created permanent for EffectTarget::LastCreatedPermanent.
+                        ctx.last_created_permanent = Some(id);
                     }
-                    // Track last created permanent for EffectTarget::LastCreatedPermanent.
-                    ctx.last_created_permanent = Some(id);
                 }
             }
         }
@@ -724,6 +741,13 @@ fn execute_effect_inner(
         //
         // If multiple tokens are created (e.g., Doubling Season), the Equipment attaches
         // to the first one. Others are subject to SBAs normally (ruling 2020-08-07).
+        //
+        // PB-EF2: intentionally NOT threading `spec.recipient` here — Living Weapon always
+        // creates the token under the Equipment's controller (`spec.recipient` defaults to
+        // `PlayerTarget::Controller` and no Living Weapon card sets it otherwise), and the
+        // create+attach atomicity is source-relative (`ctx.source`), which only makes sense
+        // for a single controller. If a future card needs `CreateTokenAndAttachSource` with
+        // a non-default recipient, this arm needs the same per-recipient loop as CreateToken.
         Effect::CreateTokenAndAttachSource { spec } => {
             // CR 608.2h: Resolve dynamic count at execution time.
             let raw_count = resolve_amount(state, &spec.count, ctx);
@@ -1934,6 +1958,12 @@ fn execute_effect_inner(
                                 || matches!(&so.kind, crate::state::stack::StackObjectKind::Spell { source_object } if *source_object == id)
                         });
                     if let Some(pos) = pos {
+                        // EF-W-MISS-1 / An Offer ruling (2022-04-29): capture the target
+                        // spell's controller BEFORE the cant_be_countered check — an
+                        // uncounterable-but-legal target's controller still creates the
+                        // tokens for "its controller creates …" cards (Swan Song, An Offer
+                        // You Can't Refuse). CR 701.5g.
+                        ctx.countered_spell_controller = Some(state.stack_objects[pos].controller);
                         // CR 101.6: If the spell can't be countered, the CounterSpell
                         // has no effect on it (does as much as possible — CR 101.2).
                         if state.stack_objects[pos].cant_be_countered {
@@ -3140,6 +3170,7 @@ fn execute_effect_inner(
                             sacrificed_creature_powers: ctx.sacrificed_creature_powers.clone(),
                             lki_counters: ctx.lki_counters.clone(),
                             lki_power: ctx.lki_power,
+                            countered_spell_controller: ctx.countered_spell_controller,
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -3176,6 +3207,7 @@ fn execute_effect_inner(
                             sacrificed_creature_powers: ctx.sacrificed_creature_powers.clone(),
                             lki_counters: ctx.lki_counters.clone(),
                             lki_power: ctx.lki_power,
+                            countered_spell_controller: ctx.countered_spell_controller,
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -3619,6 +3651,14 @@ fn execute_effect_inner(
                     ctx.player_for_target(0).unwrap_or(ctx.controller)
                 }
                 PlayerTarget::DamagedPlayer => ctx.damaged_player.unwrap_or(ctx.controller),
+                PlayerTarget::ControllerOfCounteredSpell => {
+                    ctx.countered_spell_controller.unwrap_or(ctx.controller)
+                }
+                PlayerTarget::ControllerOfTriggeringObject => ctx
+                    .triggering_creature_id
+                    .and_then(|id| state.objects.get(&id).map(|o| o.controller))
+                    .or(ctx.triggering_player)
+                    .unwrap_or(ctx.controller),
             };
             let lib_id = ZoneId::Library(manifest_player);
             let top_card = state.zones.get(&lib_id).and_then(|z| z.top());
@@ -3671,6 +3711,14 @@ fn execute_effect_inner(
                     ctx.player_for_target(0).unwrap_or(ctx.controller)
                 }
                 PlayerTarget::DamagedPlayer => ctx.damaged_player.unwrap_or(ctx.controller),
+                PlayerTarget::ControllerOfCounteredSpell => {
+                    ctx.countered_spell_controller.unwrap_or(ctx.controller)
+                }
+                PlayerTarget::ControllerOfTriggeringObject => ctx
+                    .triggering_creature_id
+                    .and_then(|id| state.objects.get(&id).map(|o| o.controller))
+                    .or(ctx.triggering_player)
+                    .unwrap_or(ctx.controller),
             };
             let lib_id = ZoneId::Library(cloak_player);
             let top_card = state.zones.get(&lib_id).and_then(|z| z.top());
@@ -6423,6 +6471,28 @@ fn resolve_player_target_list(
             // Fallback: no damaged player (non-combat-damage context) → controller.
             vec![ctx.controller]
         }
+        PlayerTarget::ControllerOfCounteredSpell => ctx
+            .countered_spell_controller
+            .filter(|p| state.players.get(p).map(|ps| !ps.has_lost).unwrap_or(false))
+            .into_iter()
+            .collect(),
+        PlayerTarget::ControllerOfTriggeringObject => {
+            let p = ctx
+                .triggering_creature_id
+                .and_then(|id| state.objects.get(&id).map(|o| o.controller))
+                .or(ctx.triggering_player)
+                .unwrap_or(ctx.controller);
+            if state
+                .players
+                .get(&p)
+                .map(|ps| !ps.has_lost)
+                .unwrap_or(false)
+            {
+                vec![p]
+            } else {
+                vec![]
+            }
+        }
     }
 }
 // ── Mana restriction helpers ──────────────────────────────────────────────────
@@ -8612,6 +8682,7 @@ pub fn check_static_condition(
                 sacrificed_creature_powers: vec![],
                 lki_counters: None,
                 lki_power: None,
+                countered_spell_controller: None,
             };
             check_condition(state, condition, &ctx)
         }

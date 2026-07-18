@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-18 05:38 UTC  
-**Git:** `6202ab81` on `feat/ef-13-option-a-reclassify-105-no-behaviour-partial-defs-part`  
+**Generated:** 2026-07-18 06:21 UTC  
+**Git:** `0096ca65` on `feat/pb-ef2-createtoken-player-scoped-recipient-fix-swansong-toke`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -19,15 +19,15 @@ and what is intentionally NOT in it.**
 
 | Metric | Count | Δ since last run |
 | --- | ---: | ---: |
-| Card def files on disk | 1,782 | · |
+| Card def files on disk | 1,783 | +1 |
 | Authoring-plan target universe (snapshot 2026-03-10) | 1,636 | · |
-| Plan cards with a def file (any-face match) | 1,476 | · |
-| Plan cards still missing a def file | 160 | · |
+| Plan cards with a def file (any-face match) | 1,477 | +1 |
+| Plan cards still missing a def file | 159 | -1 |
 | Bonus defs (on disk, outside plan) | 321 | · |
-| Effective coverage vs plan target | **110%** (1,797 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 60.0% | 1,070 | · |
-| With TODO markers | 554 | -101 |
-| Empty `abilities: vec![]` placeholders | 158 | +101 |
+| Effective coverage vs plan target | **110%** (1,798 / 1,636) | — |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 60.1% | 1,072 | +2 |
+| With TODO markers | 553 | -1 |
+| Empty `abilities: vec![]` placeholders | 158 | · |
 | Total TODO lines across all defs | 973 | · |
 
 ## Authoring activity (git, by window)
@@ -84,7 +84,7 @@ are blocked on engine primitives.
 | `pump-buff` | 27 / 27 | 100% | 17 | 7 | 3 |
 | `cant-restriction` | 25 / 25 | 100% | 16 | 5 | 4 |
 | `removal-damage-target` | 23 / 23 | 100% | 9 | 12 | 2 |
-| `activated-sacrifice` | 7 / 19 | 37% | 5 | 1 | 1 |
+| `activated-sacrifice` | 8 / 19 | 42% | 6 | 1 | 1 |
 | `mana-creature` | 19 / 19 | 100% | 12 | 7 | 0 |
 | `graveyard-recursion` | 18 / 18 | 100% | 8 | 6 | 4 |
 | `removal-damage-each` | 17 / 17 | 100% | 11 | 5 | 1 |
@@ -160,11 +160,12 @@ you which kind of next-step work would unblock the group.
 | Culling the Weak | `culling_the_weak` | clean |
 | Life's Legacy | `lifes_legacy` | clean |
 
-#### `activated-sacrifice` — 7 / 19 (37%), authored split: 5 clean / 1 todo / 1 empty — **unwritten**
+#### `activated-sacrifice` — 8 / 19 (42%), authored split: 6 clean / 1 todo / 1 empty — **unwritten**
 
 | Card | Slug | Bucket |
 | --- | --- | --- |
 | Altar of Dementia | `altar_of_dementia` | clean |
+| An Offer You Can't Refuse | `an_offer_you_cant_refuse` | clean |
 | Birthing Pod | `birthing_pod` | empty |
 | Bolas's Citadel | `bolass_citadel` | todo |
 | Goblin Chirurgeon | `goblin_chirurgeon` | clean |
@@ -265,6 +266,7 @@ tyvar_jubilant_brawler: // TODO: static — creatures you control can activate a
 ## Recent card-touching commits
 
 ```
+38fa59c3 scutemob-101: EF-13 (Option A) — reclassify 101 no-behaviour Partial defs to Inert
 bfdda877 Merge branch 'main' into feat/pb-ef1-excludeself-enforcement-sweep-honor-the-field-at-ever
 34ded5ee scutemob-100: demote swan_song Complete -> known_wrong (EF-W-MISS-1)
 60e9eb00 scutemob-99: PB-EF1 cards + exclude_self regression tests
@@ -289,12 +291,11 @@ a25f87c8 scutemob-89: card review fixes — dimir_guildgate stale comment + orac
 e2b1eb02 scutemob-88: /review fixes — unwrap 8 notes, 2 kind corrections, gate nit, EF-13
 1de82c7c scutemob-88: marker sweep — audit all 742 non-Complete markers vs current engine
 8ca8d2bc SR-10: migrate im 15.1 → imbl 7.0 (maintained fork)
-b6f748f8 SR-6: extract card-defs and card-types crates — compile isolation for 1,749 defs
 ```
 
 ## Missing card-defs sidecar
 
-The full list of 160 plan cards still missing on disk is at 
+The full list of 159 plan cards still missing on disk is at 
 `docs/authoring-status-missing.txt` (tab-separated `group<TAB>name`, sorted by group). 
 Use it as a batch-author worklist.
 

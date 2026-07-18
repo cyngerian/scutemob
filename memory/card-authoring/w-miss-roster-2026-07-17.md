@@ -237,5 +237,10 @@ See `memory/card-authoring/w-miss-engine-findings-2026-07-17.md`. Most blockers 
 already-tracked gaps; the notable NEW finding is a latent legal-but-wrong bug in an already
 **Complete** shipped def (`swan_song.rs` — token goes to the caster, not the countered spell's
 controller), surfaced while triaging An Offer You Can't Refuse.
+
+**EF-W-MISS-1 ✅ CLOSED (PB-EF2, `scutemob-102`, 2026-07-18).** `TokenSpec.recipient:
+PlayerTarget` + `PlayerTarget::ControllerOfCounteredSpell` fix the recipient; `swan_song.rs`
+is `Complete` again and **`an_offer_you_cant_refuse.rs` is now authored** (was the blocked
+card named above under "player-targeted token").
 </content>
 </invoke>

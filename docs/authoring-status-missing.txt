@@ -1,8 +1,7 @@
 # Authoring plan — cards still missing on disk
-# Generated: 2026-07-18 05:38 UTC  Git: 6202ab81  Plan snapshot: 2026-03-10
-# Format: <group>\t<card name>   (160 cards)
+# Generated: 2026-07-18 06:21 UTC  Git: 0096ca65  Plan snapshot: 2026-03-10
+# Format: <group>\t<card name>   (159 cards)
 
-activated-sacrifice	An Offer You Can't Refuse
 activated-sacrifice	Chatterfang, Squirrel General
 activated-sacrifice	Dark-Dweller Oracle
 activated-sacrifice	Dauthi Voidwalker
