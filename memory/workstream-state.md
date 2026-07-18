@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | LOW Sweep campaign COMPLETE 2026-05-16 (`scutemob-31..38`): 36 LOWs closed, LOW-OPEN 45→6. 6 remain (honestly deferred). Plan: `memory/low-sweep-plan.md`. |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available | — | **Card Authoring Campaign ACTIVE** — plan: `memory/card-authoring/campaign-plan-2026-05-16.md` (§0 recalibration 2026-07-07 authoritative). **PB-AC chain COMPLETE** — AC0..AC9 all shipped (`scutemob-41..47`, `49..52`). Clean coverage 1,006/1,748 = 57.6% (post-SR track). Next: re-read plan §0 against SR-2's machine-tracked completeness markers, then W-PB2 (~55 cards unblocked by AC4..AC6) / W-EMPTY + W-MISS derisking. |
+| W6: Primitive + Card Authoring | — | available | — | **Campaign wave queue COMPLETE 2026-07-17**: marker sweep + SR-33..38 + W-PB2 + W-EMPTY + W-MISS all collected (`scutemob-88..98`). Clean coverage **1,065/1,781 = 59.8%**. **Active queue: `memory/primitives/ef-batch-plan-2026-07-17.md`** (PB-EF1..EF12, correctness-first). EF-13 decision pending (plan §3). |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -23,74 +23,68 @@
 
 ## Last Handoff
 
-**Date**: 2026-07-08..10 (oversight session — coordinator dispatching; /eot run 2026-07-16)
-**Workstream**: W6: Primitive + Card Authoring — Card Authoring Campaign, PB-AC chain close
-**Task**: PB-AC4..AC9 dispatched, verified, collected (`scutemob-46/47/49/50/51/52`) — **AC chain complete (AC0..AC9)**
+**Date**: 2026-07-16..17 (oversight session — coordinator dispatching, user-authorized autonomous chaining)
+**Workstream**: W6: Primitive + Card Authoring (+ SR follow-on chain)
+**Task**: 11 tasks dispatched/collected (`scutemob-88..98`) — marker sweep, SR-33..38, W-PB2, W-EMPTY, W-MISS, EF triage
 
 **Completed** (all merged to main AND pushed same-day):
-- **PB-AC4** (`scutemob-46`, merge `dca25ec0`): `ModeSelection.mode_targets` per-mode targeting (CR 601.2c) + Escalate hard-reject fail-safe; UpToN verified already shipped by PB-T, not re-added. Review 0 HIGH / 1 MED fixed. Backfill 11 migrated (Casualties of War was uncastable; Cryptic Command stubs replaced) + 2 cleanups; 2 card HIGHs fixed. Tests 2940→2957; coverage 951→954.
-- **PB-AC5** (`scutemob-47`, merge `0ce2c470`): Warp (CR 702.185, exile/recast), Transmute, Exert (attack-cost AND activation-cost shapes), `Cost::ExileFromHand`+`AltCostKind::Pitch`, `CounterSpell.exile_instead` add-on. Review 2 HIGH (`was_warped`+`exert` unhashed — mutation-verified fixes). Backfill 6 clean (Force of Will/Vigor/Negation trio). Tests →2984; coverage →960. Worker corrected 3 brief errors (Warp was in CR; Exert is a keyword action; DoesNotUntap wrong model for Exert).
-- **PB-AC6** (`scutemob-49`, merge `0628807e`): first-main + postcombat-main generic CardDef sweeps, `WhenBecomesTarget` at announcement, 5 Conditions, 3 PlayerState trackers with all-player turn-boundary resets (plan's `spells_cast_this_turn` reuse rejected — wrong game state). Review 0 HIGH / 0 MED. Backfill 6 clean + marker-correction sweep over 13 blocked cards. Tests →3009; coverage →965.
-- **PB-AC7** (`scutemob-50`, merge `2f214906`): `SetCreatureTypes`/`SetCardTypes` Layer 4 (review HIGH = CR 205.1a correlated-subtype removal; + CR 613.8 payload-aware `depends_on` arms), `spell_subtype_filter`. LoseAbilities + one-shot Layer-4 override verified already-expressible. Backfill 5 clean. Tests →3035; coverage →970.
-- **PB-AC8** (`scutemob-51`, merge `a2aea440`): `CantAttackOwner`, `CantBeSacrificed` (cost-payment AND delayed-trigger choke points — review MED caught half-wiring, the verify-full-chain failure mode), `Effect::WinGame` w/ mandatory 4p test (worker corrected brief's inverted CR 104.3h). 2/5 briefed primitives already existed. Backfill 3 clean — all mis-triaged, blocked only by stale markers. Tests →3062; coverage →973.
-- **PB-AC9** (`scutemob-52`, merge `a4750cdb`): `WheelHand` + `SetNoMaximumHandSize` (unbriefed co-blocker); 3/5 briefed already existed (`RollDice` d20+results, `DoubleTokens`, `AddManaFilterChoice`); **token doubling rewired 2→13/13 creation sites** (doublers silently failing on Squad/Offspring/Myriad/Embalm/Eternalize/Encore/Living Weapon/Gift/Investigate/Amass — invisible to any marker). Review MED = Amass bypassing `apply_counter_replacement` (pre-existing, CR 701.47a). Backfill 11 clean (doubler trio, wheels, d20 dragons); 1 HIGH = Reforge the Soul stale Miracle marker. Tests →**3090**; coverage →**983 (56.2%)** at chain close.
-- Coordinator chores: filed `scutemob-48` (registry gate, invariant #9, from AC5 worker flag — since **CLOSED by SR-2**); fixed `/implement-primitive` skill wip path to `memory/primitives/primitive-wip.md` (`7c88a1be`) after the stale path caused a runner to clobber AC3's close-out; CLAUDE.md snapshot after each collection.
+- **Marker sweep** (`scutemob-88`, `1a7f8c4f`): all 742 non-Complete markers audited vs the shipped engine; **42% of notes wrong**; 13 upgrades, 266 rewrites, 54 partial→known_wrong; 116-card blocker-grouped worklist; `registers_no_behavior` + `inert_gate_is_not_vacuous` replace the false-minting inert check.
+- **SR-33** (`scutemob-89`, `953cc5a6`): 102 Complete-but-dead lands (88 filed + 14 gate-caught Triomes/surveil/Hierarchs) rewritten to one-ability-per-colour; `Effect::Choose`/`MayPayOrElse`/`AddManaChoice` gated out of Complete (serde-tree walk); 7 honest demotions incl. rhystic_study/path_to_exile.
+- **SR-34** (`scutemob-90`, `ce6f30b0`): composite-cost mana abilities register + collect payment (CR 605.1a "by what it does"); 27 defs probed by activation, 7/27 source-traced predictions falsified; PROTOCOL 2→3, HASH 40→41.
+- **SR-35** (`scutemob-91`, `7b2310dd`): card-def corpus format-checked for the first time — `cargo fmt` covered ZERO of 1,748 defs, 321 misformatted; `tools/check-defs-fmt.sh` + CI step; `format_strings`/`error_on_line_overflow` each pinned by canaries (naive gate was blind for 79% of corpus).
+- **SR-36** (`scutemob-92`, `264f0e9e`): SF-8 scaled mana (Gaea's Cradle 0→0, N→N, ×Nyxbloom) + SF-9 PayLife collected; **blast radius ~7× the filing — entire 11-card fetchland cycle fetched for free**; Cabal Coffers/Stronghold/Crypt upgraded; PROTOCOL 3→4, HASH 41→42.
+- **SR-37** (`scutemob-93`, `df49eb61`): `ManaAbility.activation_condition` honored (enrich's `..` silently dropped it); `AddManaAnyColor` family gated, 18 demotions; land gate parses "any color"; HASH 42→43, PROTOCOL 4→5.
+- **SR-38** (`scutemob-94`, `ac65216a`): simulator `StubProvider` gates suggestions on `life_cost` (CR 119.4b), mirroring engine checks.
+- **W-PB2** (`scutemob-95`, `7c8cdeff`): 57-card roster from sweep worklist, 47 Complete in 5 reviewed batches, EF-W-PB2-1..8 filed. Coverage → 58.9%.
+- **W-EMPTY** (`scutemob-96`, `a9152c83`): plan's "~110" was stale — 3 authorable of 60 remaining inert (+2 Complete; disciple stayed partial, EF-W-EMPTY-1).
+- **W-MISS** (`scutemob-97`, `9cec7673`): 194 missing re-derived → 35 authorable; 33 Complete, 2 honest mid-wave demotions (Ojutai, Misdirection); EF-W-MISS-1..10 filed incl. latent swan_song.rs token-recipient bug. Coverage → **59.8%** (corpus 1,781).
+- **EF triage** (`scutemob-98`, `ef82ae45`): all 20 findings deduped/classified → **`memory/primitives/ef-batch-plan-2026-07-17.md`** (PB-EF1..EF12 + PB-EF3b, correctness-first, discounted yields); campaign plan §0 repointed.
+- Coordinator chores: CLAUDE.md snapshot after every collection; SR handoff note saved to auto-memory (`project_sr_track_closure_handoff.md`).
 
 **Not done / deferred**:
-- W-PB2 (~55 cards unblocked by AC4..AC6) not started; W-EMPTY / W-MISS derisking batches not run.
-- AC8+AC9 workers both recommended a campaign-wide stale-marker sweep — likely superseded by SR-2's machine-tracked completeness markers (68 inert / 627 partial / 47 known-wrong); reconcile before scheduling.
+- **PB-EF1** (recommended first dispatch) + swan_song demote not started.
+- **EF-13 decision pending** (105 partial-but-inert defs; options A/B/C in ef-batch-plan §3 — user call).
+- 61 retired scripts worklist untouched.
 
 **Next session candidates** (highest-yield first):
-- Re-read campaign plan §0 against the SR-2 completeness-marker system (and `docs/sr-remediation-plan.md`), then dispatch **W-PB2** — or a marker-reconciliation batch first if the plan still assumes comment markers.
-- W-EMPTY / W-MISS 12-card derisking batches (plan §0.4).
+- Dispatch **PB-EF1** per ef-batch-plan (correctness-first; swan_song demote rides along).
+- Get the **EF-13 decision** from the user, then execute the chosen option (cheap).
+- Retired-scripts worklist batches (each names its un-retire blocker).
 
 **Hazards** (carrying forward):
-- **Recon-first is mandatory**: AC7/AC8/AC9 each found 2-3 of the brief's primitives already existing under other names — a grep proving absence is only as good as the name you guess; planners must verify under multiple names before building.
-- HashInto omissions were review HIGHs twice (AC1, AC5); engineered out from AC6 on by baking mutation-verified hash tests into acceptance criteria — keep that criterion in every engine-touching brief.
-- Coordinator briefs are advisory: workers correctly overturned brief claims 3x (Warp-in-CR, Exert shape, CR 104.3h). Keep verify-before-implement in every brief.
-- `cargo build --workspace` does NOT compile test targets — sub-agents falsely reported green twice; workers must re-run all gates themselves. (Post-SR-3 note: `build --workspace` is ALSO the only gate proving the GameState seal — run both.)
-- CR file bare `\r` line endings: rule-number greps silently match nothing — use the mtg-rules MCP, never grep.
-- Still applies: strictly-sequential dispatches (~30G `target/` per worktree); `esm task unlock` right after in_progress; phantom `.claude/skills/*` deletions never committed.
+- **Activation probes beat source-tracing, every time**: W-EMPTY 110→3, W-MISS 115→35, SR-34 falsified 7/27, SR-36 blast radius 2→14 then ~7×. Rosters must be probed from `all_cards()` + activation, never regex/plan estimates.
+- Version bumps are machine-forced: new `Effect` variant → PROTOCOL + history row; `GameState`/`HashInto` change → HASH + history row. Never re-pin a fingerprint without bumping.
+- `cargo fmt` still checks zero defs — `tools/check-defs-fmt.sh` (or `cargo test --all`) is the def format gate; don't delete its two `--config` flags (canary-pinned).
+- Stub effects are gated: Choose / MayPayOrElse / AddManaChoice / AddManaAnyColor family cannot appear in a Complete def.
+- Count marker classes from the compiled registry — the `abilities: vec![]` regex trap fired 3× more this session (documented in CLAUDE.md; still bites sub-agents).
+- Coordinator+worker both editing CLAUDE.md Last-Updated causes merge conflicts (hit once, SR-35) — resolve by stacking entries, keep worker's Tests line.
+- Still applies: strictly-sequential dispatches; `esm task unlock` right after in_progress; recon-first (SR-36's 3 stub family members found under other names).
 
-**Commit prefix used**: worker `W6-prim:`/`W6-cards:`, `merge:` for merges, coordinator `chore:`.
+**Commit prefix used**: worker `scutemob-N:`, `merge:` for merges, coordinator `chore:`.
 
 ---
 
 ## Previous Handoff (preserved for chain context)
 
-**Date**: 2026-07-08 (oversight session 2026-07-07/08 — coordinator dispatching)
-**Workstream**: W6: Primitive + Card Authoring — Card Authoring Campaign, PB chain
-**Task**: Plan recalibration + PB-AC1/AC2/AC3 dispatched, verified, collected (`scutemob-43..45`)
+**Date**: 2026-07-08..10 (oversight session — coordinator dispatching; /eot run 2026-07-16)
+**Workstream**: W6: Primitive + Card Authoring — Card Authoring Campaign, PB-AC chain close
+**Task**: PB-AC4..AC9 dispatched, verified, collected (`scutemob-46/47/49/50/51/52`) — **AC chain complete (AC0..AC9)**
 
-**Completed** (all merged to main AND pushed — origin in sync at `684e51c0`):
-- **Origin push**: cleared the 15-commit unpushed backlog as first act; every merge since pushed same-day.
-- **Plan recalibration** (`5c5dccb5`): campaign plan §0 added — measured 4/24 clean (17%) falsifies the "~435 free cards" estimate; **PB-first sequencing**; ETB cluster marked RESOLVED by PB-AC0; W-NOW batches 3+ paused; §1/§4/§6/§7 marked superseded.
-- **PB-AC1** (`scutemob-43`, merge `5cd9a662`): `Effect::UntapAll`, `WheneverPermanentUntaps` + `WhenCounterPlaced` triggers, `once_per_turn` limiter, `DoesNotUntap` static. +20 tests (2893). Review 1 HIGH (`triggered_abilities_fired_this_turn` unhashed) + 2 MED — all fixed. Backfill 13 cards: 8 CLEAN / 5 PARTIAL. Coverage 928→934.
-- **PB-AC2** (`scutemob-44`, merge `4d819ef4`): `Effect::MayPayThenEffect` (beneficial-pay wrapper — distinct from `MayPayOrElse` tax semantics) + `Effect::CounterUnlessPays`. CR corrected to 118.12/118.12a. +26 tests (2919). Review 0 HIGH / 2 MED — fixed. Backfill 20 cards: 12 CLEAN / 8 PARTIAL (Crossway Troublemakers + Miara riders live). Coverage 934→946.
-- **PB-AC3** (`scutemob-45`, merge `0bd7c7a3`): `EffectAmount::{AttackingCreatureCount(19), TappedCreatureCount(20), HandSize(21)}` + `LayerModification::SetBothDynamic(28, Layer 7b)`; fixed pre-existing hash disc-26 collision (`RemoveSuperType`→29); schema 29→30. +21 tests (**2940**). Engine review clean; card review found **4 HIGH wrong-game-state** on PARTIALs (Mishra `Fixed(1)` drain, Ashaya/Multani dying 0/0, Wight self-sac) — all fixed, verdict RESOLVED. Coverage 946→**951 (54.4%)**, todo 621→616.
-
-**Not done / deferred**:
-- `tools/authoring-report.py` regex bug (pre-existing, found by AC3 worker): no word boundary, so `mana_abilities: vec![],` matches the empty-abilities pattern — Krenko misclassified "empty" though functionally correct + tested. One-line chore candidate (+1 honest clean).
-- PB-AC4..AC9 not started; W-EMPTY / W-MISS derisking batches not run.
-
-**Next session candidates** (highest-yield first):
-- Dispatch **PB-AC4** (modal & optional targeting, ~20 cards), then AC5..AC9 in chain order. The AC1-3 rhythm is proven: task brief with hazards → worker runs `/implement-primitive` + backfill → coordinator verifies reviews/commits independently → collect. ~60-90 min per PB.
-- Fold the authoring-report.py word-boundary fix into a chore commit.
-- Optionally one 12-card derisking batch each of W-EMPTY / W-MISS to measure those cohorts before scheduling them (plan §0.4).
-
-**Hazards** (carrying forward):
-- Disk: each worktree builds ~30G `target/` — run dispatches **strictly sequential**, one worktree at a time.
-- `esm worktree check` false `conflicts: True` again (scutemob-45) even though merge-base == main tip; caused by the phantom `.claude/skills` deletions and/or attestation branch-name drift. Verify with `git merge-base <main> <branch>` — if base == main tip, the merged tree is byte-identical to the worker tree where gates ran.
-- Run `esm task unlock <id> --agent primary` right after the in_progress transition — coordinator lock blocks worker `signal-ready`.
-- New struct fields / mutable runtime fields MUST be added to `state/hash.rs` `HashInto` impls (PB-AC1's HIGH was exactly this). Keep it in every PB task brief.
-- Phantom `.claude/skills/*` deletions in fresh worktrees — do NOT commit (all 3 workers complied).
-- Dual incomplete markers: grep BOTH `// TODO` and `// ENGINE-BLOCKED`.
-
-**Commit prefix used**: worker `W6-prim:`, `merge:` for merges, coordinator `chore:`.
+- **PB-AC4** (`dca25ec0`): `ModeSelection.mode_targets` per-mode targeting (CR 601.2c) + Escalate fail-safe; backfill 11 migrated. Tests 2940→2957.
+- **PB-AC5** (`0ce2c470`): Warp, Transmute, Exert (both shapes), `Cost::ExileFromHand`+Pitch, `CounterSpell.exile_instead`; 2 HIGH unhashed-field fixes. Tests →2984.
+- **PB-AC6** (`0628807e`): main-phase sweeps, `WhenBecomesTarget`, 5 Conditions, 3 PlayerState trackers. Tests →3009.
+- **PB-AC7** (`2f214906`): `SetCreatureTypes`/`SetCardTypes` Layer 4 (CR 205.1a correlated-subtype HIGH; CR 613.8 depends_on). Tests →3035.
+- **PB-AC8** (`a2aea440`): `CantAttackOwner`, `CantBeSacrificed` (both choke points), `Effect::WinGame` (worker corrected inverted CR 104.3h). Tests →3062.
+- **PB-AC9** (`a4750cdb`): `WheelHand` + `SetNoMaximumHandSize`; **token doubling rewired 2→13/13 sites** (doublers silently failing); Reforge stale-marker HIGH → both workers recommended the marker sweep (executed this session). Tests →3090; coverage 983 (56.2%) at chain close.
+- Hazards that stayed load-bearing: recon-first (2-3 primitives per PB already existed); HashInto omissions as review HIGHs (engineered out via mutation-verified hash tests in criteria); worker-overturns-brief 3×; `build --workspace` ≠ test compile but IS the seal gate; CR file bare `\r` — use MCP, never grep.
 
 ---
 
 ## Handoff History
+
+### 2026-07-08 (oversight session) — W6: PB-AC1..AC3 + plan recalibration
+
+- **Recalibration** (`5c5dccb5`): §0 added — 4/24 clean (17%) falsified "~435 free cards"; PB-first sequencing. **PB-AC1** (`5cd9a662`): UntapAll, untap/counter triggers, once_per_turn, DoesNotUntap; 1 HIGH unhashed. **PB-AC2** (`4d819ef4`): `MayPayThenEffect` + `CounterUnlessPays` (CR 118.12). **PB-AC3** (`0bd7c7a3`): 3 EffectAmounts + `SetBothDynamic` Layer 7b; hash disc-26 collision fixed; 4 HIGH wrong-game-state PARTIALs fixed. Tests 2873→2940; coverage 951 (54.4%). Hazards: ~30G target/ per worktree → strictly sequential; false `esm worktree check` conflicts (verify merge-base); unlock after in_progress; phantom `.claude/skills` deletions.
 
 ### 2026-07-07 (coordinator session — campaign launch) — W6: Primitive + Card Authoring
 
@@ -98,7 +92,7 @@
 
 ### 2026-05-16 (coordinator session — LOW Sweep campaign) — W3: LOW Remediation
 
-- **8 fix sessions** (`scutemob-31..38`, plan `memory/low-sweep-plan.md`): 36 of 42 open LOWs closed, LOW-OPEN 45→**6** (4 M10-gated: MR-M8-11, MR-B16-04/05/06; 2 permanent perf: MR-M1-18, MR-M6-14). New DSL: `Effect::DestroyAndReanimate`, `Effect::PreventNextUntap`, `ProtectionQuality::{FromSuperType, FromName, FromPlayer}`; BASELINE-LKI-01 fixed (`pre_death_characteristics` snapshot, CR 603.10a/613.1e — audit `memory/primitives/lki-completeness-audit.md`, which filed +1 follow-up LOW: continuous-effect-granted triggered abilities lost via SelfDies). Tests 2819→**2860**; HASH 24→**27**. Origin hazards recorded: 4 parallel worktrees filled the disk to 100% (hence strictly-sequential rule); attestation-vs-real-branch-name drift causes false `esm worktree check` conflicts.
+- **8 fix sessions** (`scutemob-31..38`, plan `memory/low-sweep-plan.md`): 36 of 42 open LOWs closed, LOW-OPEN 45→**6** (4 M10-gated: MR-M8-11, MR-B16-04/05/06; 2 permanent perf: MR-M1-18, MR-M6-14). New DSL: `Effect::DestroyAndReanimate`, `Effect::PreventNextUntap`, `ProtectionQuality::{FromSuperType, FromName, FromPlayer}`; BASELINE-LKI-01 fixed (`pre_death_characteristics` snapshot, CR 603.10a/613.1e). Tests 2819→**2860**; HASH 24→**27**. Origin hazards recorded: 4 parallel worktrees filled the disk to 100% (hence strictly-sequential rule); attestation-vs-real-branch-name drift causes false `esm worktree check` conflicts.
 
 ### 2026-05-15 (coordinator session 2 — 2-PB chain) — W6: Primitive
 
@@ -107,10 +101,3 @@
 ### 2026-05-15 (7-PB autonomous chain) — W6: Primitive
 
 - **7 PBs shipped** (`scutemob-22..28`): PB-XS-E (ETB `exclude_self`, HASH 19→20), OOS-EWC-2 (Golgari Grave-Troll), PB-XA (`is_attacking` enforcement, 10 sites), PB-EAT (`EntersAsAdditionalType`, HASH 20→21), PB-XA2 (`is_blocking`/`is_tapped`/`is_untapped`, HASH 21→22), OOS-XS-E-1 (audit-only, 0-yield), PB-EWC-D (`CreatureControlledByOfSubtype` + Dragonstorm Globe, HASH 22→23). Tests 2764→**2818** (+54). All worker-delegated; PB-XA2 worker self-collected without pre-merge reviewer (post-merge review 0 HIGH/0 MEDIUM/3 LOW). Full detail in git history + `memory/primitives/`.
-
-### 2026-05-14 (PB-XS) — W6: Primitive
-
-- **PB-XS shipped** (`scutemob-21`, merged `dbc17896`). `TargetFilter.exclude_self: bool` for "another target X" spell/ability target selection (CR 109.1 / 601.2c). Per-call-site validator enforcement across 4 filter-bearing TargetRequirement variants + 6 trigger auto-target-picker sites. 9 card defs updated (4 migrated bare `TargetCreature` → `TargetCreatureWithFilter`). HASH 18→**19**. Tests 2754→**2764** (+10). Review NEEDS-FIX → CLEAN (1 HIGH tautological test replaced with F-1/F-2 real-trigger discriminators). 5 OOS-XS seeds filed.
-
-
-
