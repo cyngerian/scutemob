@@ -60,7 +60,10 @@ triggering attacker is attacking. Substituting `EachOpponent`/`Controller` is wr
 4-player Commander. Keeps `hellrider.rs` partial; blocks Brutal Hordechief, Raid Bombardment,
 Norn's Decree, Karazikar, Silumgar (defending-player creature filter), Cunning Rhetoric.
 
-## EF-W-MISS-5 (MEDIUM): `EffectFilter::TriggeringCreature` does not exist
+## EF-W-MISS-5 (MEDIUM): `EffectFilter::TriggeringCreature` does not exist — ✅ CLOSED (exact dedup of EF-W-PB2-6; PB-EF4, scutemob-105, 2026-07-18)
+> Same finding as EF-W-PB2-6. `EffectFilter::TriggeringCreature` added by PB-EF4. See the PB-EF4
+> status block in `memory/primitives/ef-batch-plan-2026-07-17.md`.
+
 Continuous "it gets +N/+N EOT" / "it gains <keyword> EOT" on the just-attacked (or
 just-triggered) creature cannot be expressed via `ApplyContinuousEffect` — no filter selects
 the triggering object. Keeps `ogre_battledriver.rs` partial; blocks Atarka, Fervent Charge,

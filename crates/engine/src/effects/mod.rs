@@ -268,12 +268,42 @@ fn execute_effect_inner(
 ) {
     match effect {
         // ── Damage & Life ──────────────────────────────────────────────────
-        Effect::DealDamage { target, amount } => {
+        Effect::DealDamage {
+            target,
+            amount,
+            source,
+        } => {
             // MR-M7-05: clamp negative amounts to 0 before cast to avoid wrapping.
             let raw_dmg = resolve_amount(state, amount, ctx).max(0) as u32;
             if raw_dmg == 0 {
                 return;
             }
+            // CR 119.3: resolve the damage source. Default = ctx.source (source: None).
+            // Some(t): use the first resolved Object as the source. `resolve_effect_target_list`
+            // gates EffectTarget::TriggeringCreature on `state.objects.contains_key`, so if that
+            // creature already left (e.g. sacrificed in response), it resolves to no object.
+            // In that case, fall back to the raw ctx.triggering_creature_id rather than
+            // ctx.source: it's still LKI-readable, so damage_source_characteristics /
+            // damage_source_controller correctly read the departed creature's last-known
+            // lifelink/deathtouch/infect (CR 113.7a / 608.2m, SR-13) instead of misattributing
+            // to the enchantment/permanent that granted the trigger. Only genuinely-unresolvable
+            // cases (no triggering creature at all) fall through to ctx.source.
+            let damage_source_id = source
+                .as_ref()
+                .and_then(|t| {
+                    resolve_effect_target_list(state, t, ctx)
+                        .into_iter()
+                        .find_map(|r| match r {
+                            ResolvedTarget::Object(id) => Some(id),
+                            ResolvedTarget::Player(_) => None,
+                        })
+                        .or(if matches!(t, EffectTarget::TriggeringCreature) {
+                            ctx.triggering_creature_id
+                        } else {
+                            None
+                        })
+                })
+                .unwrap_or(ctx.source);
             let targets = resolve_effect_target_list(state, target, ctx);
             for resolved in targets {
                 match resolved {
@@ -286,7 +316,7 @@ fn execute_effect_inner(
                         let (dmg, doubling_events) =
                             crate::rules::replacement::apply_damage_doubling(
                                 state,
-                                ctx.source,
+                                damage_source_id,
                                 raw_dmg,
                                 Some(&damage_target),
                             );
@@ -297,7 +327,7 @@ fn execute_effect_inner(
                         let (final_dmg, prev_events) =
                             crate::rules::replacement::apply_damage_prevention(
                                 state,
-                                ctx.source,
+                                damage_source_id,
                                 &damage_target,
                                 dmg,
                             );
@@ -307,7 +337,8 @@ fn execute_effect_inner(
                             // CR 702.15a: check source for lifelink.
                             // SR-13 (CR 702.90e / 608.2h / 113.7a): read via LKI so a source
                             // that has left its zone still applies infect / lifelink.
-                            let source_chars = damage_source_characteristics(state, ctx.source);
+                            let source_chars =
+                                damage_source_characteristics(state, damage_source_id);
                             let source_has_infect = source_chars
                                 .as_ref()
                                 .map(|c| c.keywords.contains(&KeywordAbility::Infect))
@@ -326,14 +357,14 @@ fn execute_effect_inner(
                                     player.damage_received_this_turn += final_dmg;
                                 }
                                 events.push(GameEvent::DamageDealt {
-                                    source: ctx.source,
+                                    source: damage_source_id,
                                     target: damage_target,
                                     amount: final_dmg,
                                 });
                                 events.push(GameEvent::PoisonCountersGiven {
                                     player: p,
                                     amount: final_dmg,
-                                    source: ctx.source,
+                                    source: damage_source_id,
                                 });
                             } else {
                                 // CR 120.3a: normal damage causes life loss.
@@ -345,7 +376,7 @@ fn execute_effect_inner(
                                     player.damage_received_this_turn += final_dmg;
                                 }
                                 events.push(GameEvent::DamageDealt {
-                                    source: ctx.source,
+                                    source: damage_source_id,
                                     target: damage_target,
                                     amount: final_dmg,
                                 });
@@ -358,7 +389,7 @@ fn execute_effect_inner(
                             // to the damage dealt, whether or not that damage was infect poison.
                             if source_has_lifelink {
                                 if let Some(controller_id) =
-                                    damage_source_controller(state, ctx.source)
+                                    damage_source_controller(state, damage_source_id)
                                 {
                                     if let Some(ps) = state.expect_player_mut(controller_id) {
                                         ps.life_total += final_dmg as i32;
@@ -390,7 +421,7 @@ fn execute_effect_inner(
                         let (dmg, doubling_events) =
                             crate::rules::replacement::apply_damage_doubling(
                                 state,
-                                ctx.source,
+                                damage_source_id,
                                 raw_dmg,
                                 Some(&damage_target),
                             );
@@ -403,7 +434,7 @@ fn execute_effect_inner(
                         let (final_dmg, prev_events) =
                             crate::rules::replacement::apply_damage_prevention(
                                 state,
-                                ctx.source,
+                                damage_source_id,
                                 &damage_target,
                                 dmg,
                             );
@@ -413,7 +444,8 @@ fn execute_effect_inner(
                             // CR 702.80c / CR 702.90e: wither/infect function from any zone.
                             // SR-13 (CR 608.2h / 113.7a): read via LKI so a source that has
                             // left its zone still applies its damage keywords.
-                            let source_chars = damage_source_characteristics(state, ctx.source);
+                            let source_chars =
+                                damage_source_characteristics(state, damage_source_id);
                             let source_has = |kw: KeywordAbility| -> bool {
                                 source_chars
                                     .as_ref()
@@ -488,7 +520,7 @@ fn execute_effect_inner(
                             // from LKI so it still gains life if the source is already gone.
                             if source_has_lifelink {
                                 if let Some(controller_id) =
-                                    damage_source_controller(state, ctx.source)
+                                    damage_source_controller(state, damage_source_id)
                                 {
                                     if let Some(ps) = state.expect_player_mut(controller_id) {
                                         ps.life_total += final_dmg as i32;
@@ -501,7 +533,7 @@ fn execute_effect_inner(
                                 }
                             }
                             events.push(GameEvent::DamageDealt {
-                                source: ctx.source,
+                                source: damage_source_id,
                                 target: damage_target,
                                 amount: final_dmg,
                             });
@@ -3016,6 +3048,13 @@ fn execute_effect_inner(
                 // CR 702.108a: Prowess and similar "this permanent" effects use Source
                 // as a placeholder. Resolve it to the source object at execution time.
                 CEFilter::Source => CEFilter::SingleObject(ctx.source),
+                // CR 611.2a: the triggering creature (entering/attacking) as the effect's
+                // subject. Resolve to the captured object at execution time; if no
+                // triggering creature was captured, apply to nothing (no panic).
+                CEFilter::TriggeringCreature => match ctx.triggering_creature_id {
+                    Some(id) => CEFilter::SingleObject(id),
+                    None => return,
+                },
                 // CR 608.2h / PB-X: "creatures not of the chosen type" — substitute the
                 // dynamic placeholder with the concrete chosen subtype at execution time.
                 // If no creature type was chosen (ctx.chosen_creature_type == None), skip

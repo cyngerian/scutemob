@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
                 effect: Effect::ForEach {
                     over: ForEachTarget::EachCreature,
                     effect: Box::new(Effect::DealDamage {
+                        source: None,
                         target: EffectTarget::DeclaredTarget { index: 0 },
                         amount: EffectAmount::XValue,
                     }),

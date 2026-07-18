@@ -36,6 +36,7 @@ pub fn card() -> CardDefinition {
                         mana: mana_pool(0, 0, 1, 0, 0, 0),
                     },
                     Effect::DealDamage {
+                        source: None,
                         target: EffectTarget::Controller,
                         amount: EffectAmount::Fixed(1),
                     },
@@ -54,6 +55,7 @@ pub fn card() -> CardDefinition {
                         mana: mana_pool(0, 0, 0, 0, 1, 0),
                     },
                     Effect::DealDamage {
+                        source: None,
                         target: EffectTarget::Controller,
                         amount: EffectAmount::Fixed(1),
                     },

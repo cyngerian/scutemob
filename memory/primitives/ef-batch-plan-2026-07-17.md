@@ -287,7 +287,38 @@ demote is not a PB and should not wait in the queue.
   no new DSL type). Sequenced in the correctness group (labeled `3b` to keep the later
   numbering + cross-refs stable — it runs before the capability batches below).
 
-### PB-EF4 — TriggeringCreature as effect subject/source  ·  capability (Cluster B)
+### PB-EF4 — TriggeringCreature as effect subject/source  ·  capability (Cluster B)  ·  ✅ DONE (scutemob-105)
+> **SHIPPED 2026-07-18.** EF-W-PB2-6 (≡ EF-W-MISS-5) and EF-W-PB2-7 CLOSED. Added
+> `EffectFilter::TriggeringCreature` (continuous-effect subject, resolved to
+> `SingleObject(ctx.triggering_creature_id)` at `ApplyContinuousEffect` execution, mirroring
+> `EffectFilter::Source`; `None` → applies to nothing) and `Effect::DealDamage.source:
+> Option<EffectTarget>` (`#[serde(default)]`; `None` = existing `ctx.source` behaviour, `Some(t)`
+> resolves to one ObjectId used as the damage source across all 12 attribution reads —
+> doubling/prevention/`damage_source_characteristics` for infect/lifelink/deathtouch/wither +
+> `damage_source_controller` for lifelink gain + the `source:` of DamageDealt/PoisonCountersGiven,
+> in both Player and Object branches). LKI-source correctness: when `source:
+> Some(TriggeringCreature)` and the triggering creature has left before the trigger resolves, it
+> falls back to `ctx.triggering_creature_id` (LKI-readable, SR-13 pattern), not `ctx.source`.
+> **Roster-recall TODO sweep found 2 forced adds beyond the 8-card brief** (dreadhorde_invasion,
+> warstorm_surge) → **7 cards shipped Complete** (est. was ~4–5): dragon_tempest (flip inert, BOTH
+> primitives), scourge_of_valkas (flip partial — merges self + "another Dragon" halves into one
+> `exclude_self:false` trigger), ogre_battledriver (flip inert, TriggeringCreature ×2),
+> atarka_world_render (NEW), fervent_charge (NEW), dreadhorde_invasion (flip partial, lifelink
+> grant), warstorm_surge (flip partial, DealDamage source + existing PowerOf(TriggeringCreature)).
+> **3 stayed out**: shared_animosity `inert` (per-trigger "attacking creatures sharing a type with
+> the triggering creature" count `EffectAmount` still missing → **filed OOS-EF4-1** in §8;
+> subject-half closed, count-half not — honest double-blocker, NOT authored Complete);
+> goblin_piledriver + muxus_goblin_grandee OUT OF SCOPE (self-attack `EffectFilter::Source` /
+> ETB reveal — neither PB-EF4 primitive is their blocker; not created). terror_of_the_peaks kept
+> `source: None` (deliberate contrast — "this creature deals..." = ctx.source). Wire bump
+> necessary: **PROTOCOL 8→9, HASH 46→47**, both machine-forced (new EffectFilter variant +
+> reshaped DealDamage reach the SR-8 fingerprint + GameState hash closures), fingerprints re-pinned
+> from failing-gate output, history rows appended. **Review**: 0 HIGH, 0 MEDIUM, 2 LOW, both fixed
+> before collect (LOW-1: departed-triggering-creature LKI fallback; LOW-2: redundant
+> `has_card_type:Creature` on the Dragon-count filter). **3383 tests** (was 3364). Coverage 60.2%
+> → **60.5%** (1,075 → 1,083 clean, +7; corpus 1,785 → 1,789). Plan/review:
+> `memory/primitives/pb-plan-EF4.md` / `pb-review-EF4.md`. Next per queue: **PB-EF5** (card-invokable
+> self-transform + CardType::Battle — highest yield, ~7–9).
 - **Findings**: EF-W-PB2-6 ≡ EF-W-MISS-5 (`EffectFilter::TriggeringCreature`), EF-W-PB2-7
   (`DealDamage` source-override).
 - **Fix**: add `EffectFilter::TriggeringCreature` (read `triggering_creature_id` from ctx)
@@ -365,7 +396,7 @@ demote is not a PB and should not wait in the queue.
 | PB-EF2 | correctness | MISS-1 | ~2 | PROTOCOL+HASH |
 | **PB-EF3** ✅ DONE | correctness+cap | MISS-10, MISS-4 | **3 shipped** | PROTOCOL+HASH |
 | **PB-EF3b** ✅ DONE | correctness | MISS-3 | **1 Complete (Adriana) + 1 partial (Skyhunter)** | none |
-| PB-EF4 | capability | PB2-6≡MISS-5, PB2-7 | ~4–5 | PROTOCOL |
+| **PB-EF4** ✅ DONE | capability | PB2-6≡MISS-5, PB2-7 | **7 shipped** | PROTOCOL+HASH |
 | PB-EF5 | capability | MISS-6 | ~7–9 | PROTOCOL |
 | PB-EF6 | capability | PB2-2 | ~3 | PROTOCOL |
 | PB-EF7 | capability | PB2-4 | ~2–4 | PROTOCOL |
@@ -486,6 +517,38 @@ player must be **captured into the registered `ContinuousEffectDef` instance** a
   filter + goad.
 - **Verified**: PB-EF3 review 2026-07-18 — `EffectFilter` has no defending-player scope and a
   continuous effect cannot read the resolving `EffectContext`.
+
+---
+
+## 8. New finding filed by PB-EF4 (scutemob-105)
+
+### OOS-EF4-1 (capability) — per-trigger "attacking creatures sharing a property with the triggering creature" count `EffectAmount`
+`EffectFilter::TriggeringCreature` (added by PB-EF4) supplies the *subject* of a triggered
+continuous effect, but there is no `EffectAmount` variant that counts *other attacking creatures
+matching a property of the triggering creature*, evaluated per-trigger against the trigger
+source's layer-resolved characteristics.
+
+- **Instance**: `shared_animosity.rs` — "Whenever a creature you control attacks, it gets +1/+0
+  until end of turn **for each other attacking creature that shares a creature type with it**."
+  PB-EF4 closes the subject half (the buff can now be aimed at the triggering attacker via
+  `EffectFilter::TriggeringCreature`), but the amount — a dynamic count of other attackers whose
+  layer-resolved subtypes intersect the triggering creature's subtypes — has no representation.
+  Left `inert` (NOT authored `partial`): authoring it Complete would ship a +0 buff on every
+  firing (wrong game state). Honest double-blocker.
+- **Also blocks / adjacent**: `goblin_piledriver.rs` ("+2/+0 for each other attacking Goblin") and
+  `muxus_goblin_grandee.rs`'s attack half ("+1/+1 for each other Goblin you control") need the
+  same *family* of dynamic "count other attackers/permanents matching a filter" `EffectAmount`,
+  though their subject is `ctx.source` (self-attack, `EffectFilter::Source`) not
+  `TriggeringCreature`, and Muxus additionally needs an ETB reveal/put primitive.
+- **Fix shape**: add an `EffectAmount` variant that, at resolution, counts battlefield objects
+  matching a filter that can reference the triggering/source creature's own resolved
+  characteristics (e.g. `OtherAttackersSharingCreatureType { relative_to: EffectTarget }` or a
+  more general `CountMatchingRelativeTo`). Resolution-time count keyed on layer-resolved subtypes;
+  no continuous-effect storage needed. New DSL/wire type → PROTOCOL bump. Medium-size; candidate
+  to fold into a "dynamic relative-count amounts" PB alongside the Goblin-tribal count.
+- **Verified**: PB-EF4 impl 2026-07-18 — `EffectAmount` (card_definition.rs) audited; no variant
+  counts "other attackers matching a property of the trigger source." `shared_animosity.rs` note
+  rewritten to reflect the subject-half closure + surviving count-half gap.
 
 ---
 

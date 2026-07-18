@@ -13,6 +13,7 @@ pub fn card() -> CardDefinition {
         oracle_text: "Lightning Bolt deals 3 damage to any target.".to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::DealDamage {
+                source: None,
                 target: EffectTarget::DeclaredTarget { index: 0 },
                 amount: EffectAmount::Fixed(3),
             },

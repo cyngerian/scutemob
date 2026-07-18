@@ -176,6 +176,7 @@ fn mock_threat_spell_def() -> CardDefinition {
         },
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::DealDamage {
+                source: None,
                 target: CardEffectTarget::DeclaredTarget { index: 0 },
                 amount: EffectAmount::Fixed(1),
             },
@@ -400,7 +401,7 @@ fn graveyard_exert_def() -> CardDefinition {
 #[test]
 /// Strict-equality hash schema sentinel (conventions.md hash-sentinel rule).
 fn test_hash_schema_version_is_32() {
-    assert_eq!(HASH_SCHEMA_VERSION, 46u8);
+    assert_eq!(HASH_SCHEMA_VERSION, 47u8);
 }
 
 #[test]
@@ -2429,6 +2430,7 @@ fn test_force_of_negation_counters_and_exiles() {
         },
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::DealDamage {
+                source: None,
                 target: CardEffectTarget::DeclaredTarget { index: 0 },
                 amount: EffectAmount::Fixed(3),
             },

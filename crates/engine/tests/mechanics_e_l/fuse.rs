@@ -80,6 +80,7 @@ fn fuse_test_spell_def() -> CardDefinition {
             // Left half spell effect: deal 3 damage to target player
             AbilityDefinition::Spell {
                 effect: Effect::DealDamage {
+                    source: None,
                     target: CardEffectTarget::DeclaredTarget { index: 0 },
                     amount: EffectAmount::Fixed(3),
                 },

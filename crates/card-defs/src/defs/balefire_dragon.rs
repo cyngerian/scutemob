@@ -36,6 +36,7 @@ pub fn card() -> CardDefinition {
                         ..Default::default()
                     })),
                     effect: Box::new(Effect::DealDamage {
+                        source: None,
                         target: EffectTarget::DeclaredTarget { index: 0 },
                         amount: EffectAmount::CombatDamageDealt,
                     }),

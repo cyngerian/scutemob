@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Spell {
                 effect: Effect::DealDamage {
+                    source: None,
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     amount: EffectAmount::Fixed(3),
                 },

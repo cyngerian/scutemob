@@ -101,7 +101,16 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   closure) gains `DefendingPlayer` (CR 508.4 — the defending player / attack target
 ///   of an attacking creature, EF-W-MISS-4/EF-W-MISS-10). The closure's type count is
 ///   unchanged; both types' declared shapes moved, so the digest moves.
-pub const PROTOCOL_VERSION: u32 = 8;
+/// - 9: PB-EF4 (2026-07-18) — `Effect::DealDamage` (reachable via `Effect` and thus in
+///   the closure already) gains `source: Option<EffectTarget>` (CR 119.3 / 702.15a — an
+///   optional damage-source override, e.g. "the entering creature deals it", resolved
+///   to a single ObjectId at execution time; `EffectTarget` was already in the closure).
+///   The closure's type count is unchanged; `Effect`'s declared shape moved, so the
+///   digest moves. (`EffectFilter` also gained a `TriggeringCreature` variant in this
+///   PB, but `EffectFilter` is off the wire closure — it lives inside `GameState`'s
+///   `continuous_effects`, not `Command`/`GameEvent` — so that half is a HASH_SCHEMA_VERSION
+///   bump only, not a PROTOCOL_VERSION one.)
+pub const PROTOCOL_VERSION: u32 = 9;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -119,7 +128,7 @@ pub const PROTOCOL_VERSION: u32 = 8;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "f5a61a19da2e912416c7bf6ee58acb7cacb0966681868a6810bc8af6d2285ee8";
+    "9bf63ef25ae621acf53155feaa21f01131d35fc7ad6db34b04e35900cb825ac5";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -216,6 +225,12 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // PB-EF3 (2026-07-18): EffectTarget gained AttackTarget; PlayerTarget gained
         // DefendingPlayer (see the `- 8:` History line above).
         fingerprint: "f5a61a19da2e912416c7bf6ee58acb7cacb0966681868a6810bc8af6d2285ee8",
+    },
+    ProtocolEpoch {
+        version: 9,
+        // PB-EF4 (2026-07-18): Effect::DealDamage gained source: Option<EffectTarget>
+        // (see the `- 9:` History line above).
+        fingerprint: "9bf63ef25ae621acf53155feaa21f01131d35fc7ad6db34b04e35900cb825ac5",
     },
 ];
 

@@ -154,6 +154,7 @@ fn test_planeswalker_damage_removes_loyalty_cr306_8() {
     let mut state = state;
     let mut ctx = effects::EffectContext::new(p1, pw_id, vec![]);
     let effect = Effect::DealDamage {
+        source: None,
         target: CardEffectTarget::Source,
         amount: EffectAmount::Fixed(3),
     };

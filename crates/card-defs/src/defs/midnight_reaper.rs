@@ -31,6 +31,7 @@ pub fn card() -> CardDefinition {
                 },
                 effect: Effect::Sequence(vec![
                     Effect::DealDamage {
+                        source: None,
                         target: EffectTarget::Controller,
                         amount: EffectAmount::Fixed(1),
                     },

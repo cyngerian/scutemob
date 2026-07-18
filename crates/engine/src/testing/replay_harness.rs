@@ -3888,6 +3888,7 @@ fn try_as_tap_mana_ability(effect: &Effect) -> Option<ManaAbility> {
                 Effect::DealDamage {
                     target: CardEffectTarget::Controller,
                     amount: EffectAmount::Fixed(dmg),
+                    ..
                 },
             ) = (&effects[0], &effects[1])
             {

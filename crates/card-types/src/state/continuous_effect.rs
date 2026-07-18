@@ -117,6 +117,14 @@ pub enum EffectFilter {
     /// Resolved at `ApplyContinuousEffect` execution time to `SingleObject(ctx.source)`.
     /// Used by keyword abilities like Prowess where the effect targets the source creature.
     Source,
+    /// Applies to the creature that triggered the ability creating this effect
+    /// (the entering or attacking creature). Resolved at `ApplyContinuousEffect`
+    /// execution time to `SingleObject(ctx.triggering_creature_id)` — mirrors
+    /// `Source`. If `triggering_creature_id` is `None`, the effect applies to
+    /// nothing. Used by "when a creature enters/attacks, IT gains <keyword> /
+    /// gets +N/+N until end of turn" (Dragon Tempest, Ogre Battledriver, Atarka,
+    /// Fervent Charge, Dreadhorde Invasion). CR 611.2a / 613.1f.
+    TriggeringCreature,
     /// Applies to all creature permanents controlled by the source's controller.
     ///
     /// Resolved dynamically at layer-application time using `effect.source` to determine

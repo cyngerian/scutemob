@@ -88,6 +88,7 @@ fn creature_dies_witness_trigger() -> TriggeredAbilityDef {
         intervening_if: None,
         description: "Whenever a creature dies, deal 1 damage to each opponent".to_string(),
         effect: Some(Effect::DealDamage {
+            source: None,
             target: CardEffectTarget::EachOpponent,
             amount: EffectAmount::Fixed(1),
         }),
@@ -128,6 +129,7 @@ fn test_animated_artifact_sacrifice_self_emits_creature_died() {
             },
             description: "Sacrifice this: deal 1 damage to each opponent".to_string(),
             effect: Some(Effect::DealDamage {
+                source: None,
                 target: CardEffectTarget::EachOpponent,
                 amount: EffectAmount::Fixed(1),
             }),
@@ -244,6 +246,7 @@ fn test_animated_artifact_sacrifice_filter_emits_creature_died() {
             },
             description: "Sacrifice a creature: deal 1 damage to each opponent".to_string(),
             effect: Some(Effect::DealDamage {
+                source: None,
                 target: CardEffectTarget::EachOpponent,
                 amount: EffectAmount::Fixed(1),
             }),

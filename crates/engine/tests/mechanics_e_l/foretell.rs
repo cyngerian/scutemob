@@ -171,6 +171,7 @@ fn lightning_bolt_def() -> CardDefinition {
         },
         abilities: vec![AbilityDefinition::Spell {
             effect: mtg_engine::cards::card_definition::Effect::DealDamage {
+                source: None,
                 target: mtg_engine::cards::card_definition::EffectTarget::DeclaredTarget {
                     index: 0,
                 },

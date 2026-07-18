@@ -32,6 +32,7 @@ pub fn card() -> CardDefinition {
                 },
                 onto_subtype: SubType("Arcane".to_string()),
                 effect: Box::new(Effect::DealDamage {
+                    source: None,
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     amount: EffectAmount::Fixed(2),
                 }),
@@ -39,6 +40,7 @@ pub fn card() -> CardDefinition {
             // Primary spell: deal 2 damage to any target.
             AbilityDefinition::Spell {
                 effect: Effect::DealDamage {
+                    source: None,
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     amount: EffectAmount::Fixed(2),
                 },

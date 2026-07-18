@@ -2788,6 +2788,7 @@ fn test_702_80_wither_noncombat_damage_places_counters() {
     // Build an effect context: p1 controls the effect, source is the wither creature,
     // declared target index 0 is the target creature.
     let effect = Effect::DealDamage {
+        source: None,
         target: CardEffectTarget::DeclaredTarget { index: 0 },
         amount: EffectAmount::Fixed(2),
     };
@@ -3072,6 +3073,7 @@ fn test_702_90_infect_noncombat_damage_creature_places_counters() {
     let target_id = find_object(&state, "Target Creature");
 
     let effect = Effect::DealDamage {
+        source: None,
         target: CardEffectTarget::DeclaredTarget { index: 0 },
         amount: EffectAmount::Fixed(2),
     };
@@ -3156,6 +3158,7 @@ fn test_702_90_infect_noncombat_damage_player_gives_poison() {
     let initial_life = state.players()[&p2].life_total;
 
     let effect = Effect::DealDamage {
+        source: None,
         target: CardEffectTarget::DeclaredTarget { index: 0 },
         amount: EffectAmount::Fixed(3),
     };
@@ -3445,6 +3448,7 @@ fn test_702_90_infect_does_not_affect_planeswalker_damage() {
     let pw_id = find_object(&state, "Test Planeswalker");
 
     let effect = Effect::DealDamage {
+        source: None,
         target: CardEffectTarget::DeclaredTarget { index: 0 },
         amount: EffectAmount::Fixed(2),
     };

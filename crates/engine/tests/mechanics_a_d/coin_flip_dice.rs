@@ -51,6 +51,7 @@ fn test_coin_flip_win_branch() {
             amount: EffectAmount::Fixed(5),
         }),
         on_lose: Box::new(Effect::DealDamage {
+            source: None,
             target: EffectTarget::Controller,
             amount: EffectAmount::Fixed(3),
         }),
@@ -90,6 +91,7 @@ fn test_coin_flip_lose_branch() {
             amount: EffectAmount::Fixed(5),
         }),
         on_lose: Box::new(Effect::DealDamage {
+            source: None,
             target: EffectTarget::Controller,
             amount: EffectAmount::Fixed(3),
         }),
@@ -199,6 +201,7 @@ fn test_dice_roll_d20_high_roll() {
                 1,
                 9,
                 Effect::DealDamage {
+                    source: None,
                     target: EffectTarget::Controller,
                     amount: EffectAmount::Fixed(2),
                 },
@@ -245,6 +248,7 @@ fn test_dice_roll_d20_low_roll() {
                 1,
                 9,
                 Effect::DealDamage {
+                    source: None,
                     target: EffectTarget::Controller,
                     amount: EffectAmount::Fixed(2),
                 },

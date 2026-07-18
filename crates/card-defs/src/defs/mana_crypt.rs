@@ -21,6 +21,7 @@ pub fn card() -> CardDefinition {
                 effect: Effect::CoinFlip {
                     on_win: Box::new(Effect::Nothing),
                     on_lose: Box::new(Effect::DealDamage {
+                        source: None,
                         target: EffectTarget::Controller,
                         amount: EffectAmount::Fixed(3),
                     }),

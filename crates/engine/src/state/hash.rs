@@ -418,7 +418,16 @@
 ///   `StackObject::lki_power`. `decl_fingerprint` MOVES (a new `#[serde(default)]` field
 ///   on `StackObject` plus two new enum variants); `stream_fingerprint` moves per the v40
 ///   mechanism.
-pub const HASH_SCHEMA_VERSION: u8 = 46;
+/// - 47: PB-EF4 (2026-07-18) — `EffectFilter` gains `TriggeringCreature` (discriminant
+///   35, CR 611.2a — the entering/attacking creature as a continuous effect's subject,
+///   a runtime placeholder resolved at `ApplyContinuousEffect` execution time, mirrors
+///   `Source`). `Effect::DealDamage` gains `source: Option<EffectTarget>` (CR 119.3 /
+///   702.15a — an optional damage-source override so "the entering creature deals
+///   damage" reads its own lifelink/deathtouch/infect, not the ability's). Fed to
+///   `HashInto` right after `DealDamage::amount`. `decl_fingerprint` MOVES (a new enum
+///   variant on `EffectFilter` plus a new `#[serde(default)]` field on `Effect`);
+///   `stream_fingerprint` moves per the v40 mechanism.
+pub const HASH_SCHEMA_VERSION: u8 = 47;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -561,6 +570,15 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // moves per the v40 mechanism (HASH_SCHEMA_VERSION is the stream's first byte).
         decl_fingerprint: "8c119749cb68fcf21de50d599905e528ed0553e557723899b97138e1cdb1889a",
         stream_fingerprint: "efdd9423170f1cd9d902a083e15011653ffd5c867c159769bddda94fd8ae81fd",
+    },
+    HashSchemaEpoch {
+        version: 47,
+        // PB-EF4 (2026-07-18): EffectFilter gained TriggeringCreature; Effect::DealDamage
+        // gained source: Option<EffectTarget> (see the `- 47:` History line above).
+        // decl_fingerprint moves (genuine enum-shape change); stream_fingerprint moves
+        // per the v40 mechanism (HASH_SCHEMA_VERSION is the stream's first byte).
+        decl_fingerprint: "35e9565193241759e7124f96581359be436b7800e2f1516c9e29db218f3d9150",
+        stream_fingerprint: "64546a7bcaa082b886f3f761b25aba1bcba0d7331b643e936e2a476790f864b3",
     },
 ];
 
@@ -1919,6 +1937,8 @@ impl HashInto for EffectFilter {
             EffectFilter::AllCreaturesExcludingChosenSubtype => 33u8.hash_into(hasher),
             // CR 614.12 / CR 105.1: Creatures you control of the chosen color — discriminant 34
             EffectFilter::CreaturesYouControlOfChosenColor => 34u8.hash_into(hasher),
+            // CR 611.2a: the triggering creature (entering/attacking) — discriminant 35
+            EffectFilter::TriggeringCreature => 35u8.hash_into(hasher),
         }
     }
 }
@@ -5759,10 +5779,15 @@ impl HashInto for ModeSelection {
 impl HashInto for Effect {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
-            Effect::DealDamage { target, amount } => {
+            Effect::DealDamage {
+                target,
+                amount,
+                source,
+            } => {
                 0u8.hash_into(hasher);
                 target.hash_into(hasher);
                 amount.hash_into(hasher);
+                source.hash_into(hasher);
             }
             Effect::GainLife { player, amount } => {
                 1u8.hash_into(hasher);

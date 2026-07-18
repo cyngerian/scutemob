@@ -17,6 +17,7 @@ pub fn card() -> CardDefinition {
             .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::DealDamage {
+                source: None,
                 target: EffectTarget::AllCreatures,
                 amount: EffectAmount::Fixed(13),
             },

@@ -29,6 +29,7 @@ pub fn card() -> CardDefinition {
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::Sequence(vec![
                     Effect::DealDamage {
+                        source: None,
                         target: EffectTarget::DeclaredTarget { index: 0 },
                         amount: EffectAmount::Fixed(1),
                     },

@@ -63,6 +63,7 @@ fn instant_def() -> CardDefinition {
         oracle_text: "Lightning Bolt deals 3 damage to any target.".to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::DealDamage {
+                source: None,
                 target: CardEffectTarget::DeclaredTarget { index: 0 },
                 amount: mtg_engine::cards::card_definition::EffectAmount::Fixed(3),
             },
@@ -92,6 +93,7 @@ fn instant2_def() -> CardDefinition {
         oracle_text: "Shock deals 2 damage to any target.".to_string(),
         abilities: vec![AbilityDefinition::Spell {
             effect: Effect::DealDamage {
+                source: None,
                 target: CardEffectTarget::DeclaredTarget { index: 0 },
                 amount: mtg_engine::cards::card_definition::EffectAmount::Fixed(2),
             },

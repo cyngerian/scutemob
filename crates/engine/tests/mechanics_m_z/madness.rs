@@ -85,6 +85,7 @@ fn fiery_temper_def() -> CardDefinition {
             },
             AbilityDefinition::Spell {
                 effect: Effect::DealDamage {
+                    source: None,
                     target: CardEffectTarget::DeclaredTarget { index: 0 },
                     amount: EffectAmount::Fixed(3),
                 },
@@ -123,6 +124,7 @@ fn violent_eruption_def() -> CardDefinition {
             },
             AbilityDefinition::Spell {
                 effect: Effect::DealDamage {
+                    source: None,
                     target: CardEffectTarget::DeclaredTarget { index: 0 },
                     amount: EffectAmount::Fixed(2),
                 },

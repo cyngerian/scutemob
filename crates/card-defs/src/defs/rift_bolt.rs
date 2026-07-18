@@ -31,6 +31,7 @@ pub fn card() -> CardDefinition {
             },
             AbilityDefinition::Spell {
                 effect: Effect::DealDamage {
+                    source: None,
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     amount: EffectAmount::Fixed(3),
                 },

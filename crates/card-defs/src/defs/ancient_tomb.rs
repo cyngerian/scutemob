@@ -23,6 +23,7 @@ pub fn card() -> CardDefinition {
                     mana: mana_pool(0, 0, 0, 0, 0, 2),
                 },
                 Effect::DealDamage {
+                    source: None,
                     target: EffectTarget::Controller,
                     amount: EffectAmount::Fixed(2),
                 },

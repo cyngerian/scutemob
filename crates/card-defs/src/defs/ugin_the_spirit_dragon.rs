@@ -35,6 +35,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::LoyaltyAbility {
                 cost: LoyaltyCost::Plus(2),
                 effect: Effect::DealDamage {
+                    source: None,
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     amount: EffectAmount::Fixed(3),
                 },

@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::DealDamage {
+                    source: None,
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     amount: EffectAmount::PermanentCount {
                         filter: TargetFilter {

@@ -1330,6 +1330,15 @@ pub enum Effect {
     DealDamage {
         target: EffectTarget,
         amount: EffectAmount,
+        /// CR 119.3 / 702.15a: the damage source. `None` = the ability's source
+        /// (`ctx.source`, existing behaviour). `Some(t)` resolves `t` to a single
+        /// ObjectId used as the damage source everywhere in the executor — doubling,
+        /// prevention, infect/lifelink/deathtouch keyword reads, lifelink-gain
+        /// controller, and the `source:` of DamageDealt/PoisonCountersGiven. Used by
+        /// "when a creature enters, IT deals damage" (Warstorm Surge, Dragon Tempest,
+        /// Scourge of Valkas) with `Some(EffectTarget::TriggeringCreature)`.
+        #[serde(default)]
+        source: Option<EffectTarget>,
     },
     /// CR 118.4: A player gains life.
     GainLife {

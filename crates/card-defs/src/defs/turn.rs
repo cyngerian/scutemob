@@ -100,6 +100,7 @@ pub fn card() -> CardDefinition {
                 },
                 card_type: CardType::Instant,
                 effect: Effect::DealDamage {
+                    source: None,
                     target: EffectTarget::DeclaredTarget { index: 1 },
                     amount: EffectAmount::Fixed(2),
                 },

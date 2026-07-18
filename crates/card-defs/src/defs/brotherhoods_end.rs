@@ -32,6 +32,7 @@ pub fn card() -> CardDefinition {
                     // The DSL DealDamage with AllPermanentsMatching covers both card types.
                     Effect::Sequence(vec![
                         Effect::DealDamage {
+                            source: None,
                             target: EffectTarget::AllPermanentsMatching(Box::new(TargetFilter {
                                 has_card_type: Some(CardType::Creature),
                                 ..Default::default()
@@ -39,6 +40,7 @@ pub fn card() -> CardDefinition {
                             amount: EffectAmount::Fixed(3),
                         },
                         Effect::DealDamage {
+                            source: None,
                             target: EffectTarget::AllPermanentsMatching(Box::new(TargetFilter {
                                 has_card_type: Some(CardType::Planeswalker),
                                 ..Default::default()

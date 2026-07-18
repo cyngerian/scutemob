@@ -63,6 +63,7 @@ pub fn card() -> CardDefinition {
                     },
                     // "Éomer deals damage equal to its power to any target" — CR 120.1.
                     Effect::DealDamage {
+                        source: None,
                         target: EffectTarget::DeclaredTarget { index: 1 },
                         amount: EffectAmount::PowerOf(EffectTarget::Source),
                     },
