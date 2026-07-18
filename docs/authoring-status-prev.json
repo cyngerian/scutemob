@@ -1,18 +1,18 @@
 {
-  "generated": "2026-07-18 09:46 UTC",
-  "git_head": "22acde6b",
-  "total_files": 1787,
-  "total_todos": 973,
+  "generated": "2026-07-18 11:11 UTC",
+  "git_head": "db43d268",
+  "total_files": 1789,
+  "total_todos": 969,
   "file_buckets": {
-    "clean": 1076,
-    "todo": 553,
-    "empty": 158
+    "clean": 1083,
+    "todo": 550,
+    "empty": 156
   },
   "todo_classes": {
-    "OTHER (unclassified)": 599,
+    "OTHER (unclassified)": 597,
     "replacement effect missing": 14,
     "TriggerCondition::* missing variant": 17,
-    "attack trigger (self / generic)": 26,
+    "attack trigger (self / generic)": 25,
     "compleated": 1,
     "DSL gap (unspecified)": 122,
     "can't / must block-attack": 7,
@@ -59,14 +59,13 @@
     "equipped/attached dies": 1,
     "you-sacrifice trigger": 1,
     "free-cast / non-hand cast": 1,
-    "trigger-targets-triggerer": 1,
     "top-of-library lookahead": 2,
     "no-maximum-hand-size": 1
   },
   "plan": {
     "total": 1636,
-    "authored": 1481,
-    "missing": 155,
+    "authored": 1483,
+    "missing": 153,
     "extras": 321
   }
 }

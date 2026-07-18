@@ -1,6 +1,6 @@
 # Authoring plan — cards still missing on disk
-# Generated: 2026-07-18 09:46 UTC  Git: 22acde6b  Plan snapshot: 2026-03-10
-# Format: <group>\t<card name>   (155 cards)
+# Generated: 2026-07-18 11:11 UTC  Git: db43d268  Plan snapshot: 2026-03-10
+# Format: <group>\t<card name>   (153 cards)
 
 activated-sacrifice	Chatterfang, Squirrel General
 activated-sacrifice	Dark-Dweller Oracle
@@ -31,11 +31,9 @@ activated-tap	Scroll Rack
 activated-tap	Stoneforge Mystic
 activated-tap	The Chain Veil
 activated-tap	Wirewood Channeler
-attack-trigger	Atarka, World Render
 attack-trigger	Brutal Hordechief
 attack-trigger	Caustic Bronco
 attack-trigger	Cunning Rhetoric
-attack-trigger	Fervent Charge
 attack-trigger	Frenzied Goblin
 attack-trigger	Goblin Piledriver
 attack-trigger	Hellkite Charger

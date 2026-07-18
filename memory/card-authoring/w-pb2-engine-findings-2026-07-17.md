@@ -98,7 +98,13 @@ Complete to `partial` (the `{1}{R}` half is correct).
 **Fix**: add `EffectDuration::WhileYouControlSource` (or similar) + its continuous-effect
 expiry check. PB-sized.
 
-## EF-W-PB2-6 — no `EffectFilter::TriggeringCreature` (MEDIUM)
+## EF-W-PB2-6 — no `EffectFilter::TriggeringCreature` (MEDIUM) — ✅ CLOSED (PB-EF4, scutemob-105, 2026-07-18)
+> `EffectFilter::TriggeringCreature` added (resolves to `SingleObject(ctx.triggering_creature_id)`
+> at `ApplyContinuousEffect`). dragon_tempest / ogre_battledriver flipped to Complete;
+> atarka_world_render / fervent_charge / dreadhorde_invasion authored/flipped Complete using it.
+> shared_animosity stayed `inert` (surviving count-`EffectAmount` gap → OOS-EF4-1). PROTOCOL 8→9,
+> HASH 46→47.
+
 
 `continuous_effect.rs:67` — `EffectFilter` (the filter on `ContinuousEffectDef`) has
 `Source`/`DeclaredTarget`/`CreaturesYouControl`/… but **no `TriggeringCreature`**. Only
@@ -112,7 +118,13 @@ turn" (grant a continuous effect to the entering creature) is inexpressible.
 **Fix**: add `EffectFilter::TriggeringCreature` + its resolution (read the trigger's
 `triggering_creature_id` from ctx). PB-sized.
 
-## EF-W-PB2-7 — `Effect::DealDamage` has no source-override (MEDIUM)
+## EF-W-PB2-7 — `Effect::DealDamage` has no source-override (MEDIUM) — ✅ CLOSED (PB-EF4, scutemob-105, 2026-07-18)
+> `Effect::DealDamage.source: Option<EffectTarget>` added (`#[serde(default)]`; `None` = existing
+> `ctx.source`; `Some(t)` threads a single `damage_source_id` through all 12 attribution reads).
+> dragon_tempest (Dragon half), scourge_of_valkas, warstorm_surge flipped Complete with
+> `source: Some(EffectTarget::TriggeringCreature)`. terror_of_the_peaks deliberately kept
+> `source: None`. PROTOCOL 8→9, HASH 46→47.
+
 
 `card_definition.rs:1330` — `DealDamage { target, amount }` always sources from `ctx.source`. So
 "when another permanent enters, **it** deals damage" (the entering permanent as the damage source,
