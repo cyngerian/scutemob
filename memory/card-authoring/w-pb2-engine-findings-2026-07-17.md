@@ -4,7 +4,13 @@ Findings surfaced while authoring the W-PB2 wave. Per the task guardrail ("don't
 implement engine changes in this wave — mark and file"), these are **filed, not fixed**.
 Each names a card that stays non-`Complete` because of it.
 
-## EF-W-PB2-1 — `EffectAmount::PermanentCount` ignores `exclude_self` (MEDIUM)
+## EF-W-PB2-1 — `EffectAmount::PermanentCount` ignores `exclude_self` (MEDIUM) — ✅ CLOSED (PB-EF1, scutemob-99)
+
+> **CLOSED 2026-07-18.** The `PermanentCount` resolver now applies `(!filter.exclude_self
+> || obj.id != ctx.source)` (mirroring the sibling `AttackingCreatureCount` /
+> `TappedCreatureCount` resolvers). `eomer_king_of_rohan.rs` flipped `known_wrong` →
+> Complete. Regression: `permanent_count_excludes_the_entering_source`.
+
 
 `effects/mod.rs:6749` — the `PermanentCount` resolver closure filters on zone / phased-in /
 controller / `matches_filter` / chosen-subtype / counter-type, but **never applies

@@ -17,7 +17,11 @@ Fix shape: add a `recipient: PlayerTarget` (default Controller) to `Effect::Crea
 `PlayerTarget::ControllerOfCounteredSpell` / `…OfTriggeringObject`. Marker note on swan_song
 should be demoted from Complete until fixed, OR fixed in an SR. **Coordinator call.**
 
-## EF-W-MISS-2 (MEDIUM): `Effect::UntapAll` ignores `TargetFilter.exclude_self`
+## EF-W-MISS-2 (MEDIUM): `Effect::UntapAll` ignores `TargetFilter.exclude_self` — ✅ CLOSED (PB-EF1, scutemob-99)
+> **CLOSED 2026-07-18.** The `UntapAll` executor now applies `(!filter.exclude_self ||
+> **id != ctx.source)`. New card `copperhorn_scout.rs` shipped Complete. Regression:
+> `copperhorn_untaps_others_but_not_itself`.
+
 "Untap each **other** creature you control" (Copperhorn Scout) is inexpressible — `UntapAll`
 untaps every filter match including the source. Affects any "each other" untap. Fix: honour
 `exclude_self` in the `UntapAll` executor.

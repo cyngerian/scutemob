@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-18 01:53 UTC  
-**Git:** `bcf93348` on `feat/w-miss-author-the-authorable-missing-file-cards-campaign-pla`  
+**Generated:** 2026-07-18 05:16 UTC  
+**Git:** `60e9eb00` on `feat/pb-ef1-excludeself-enforcement-sweep-honor-the-field-at-ever`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -19,25 +19,25 @@ and what is intentionally NOT in it.**
 
 | Metric | Count | Δ since last run |
 | --- | ---: | ---: |
-| Card def files on disk | 1,781 | +33 |
+| Card def files on disk | 1,782 | +1 |
 | Authoring-plan target universe (snapshot 2026-03-10) | 1,636 | · |
-| Plan cards with a def file (any-face match) | 1,475 | +33 |
-| Plan cards still missing a def file | 161 | -33 |
+| Plan cards with a def file (any-face match) | 1,476 | +1 |
+| Plan cards still missing a def file | 160 | -1 |
 | Bonus defs (on disk, outside plan) | 321 | · |
-| Effective coverage vs plan target | **110%** (1,796 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 59.8% | 1,065 | +33 |
-| With TODO markers | 659 | · |
+| Effective coverage vs plan target | **110%** (1,797 / 1,636) | — |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 60.1% | 1,071 | +6 |
+| With TODO markers | 654 | -5 |
 | Empty `abilities: vec![]` placeholders | 57 | · |
-| Total TODO lines across all defs | 983 | · |
+| Total TODO lines across all defs | 973 | -10 |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 1,744 |
-| last 30 days | 0 | 2,918 |
-| last 90 days | 0 | 2,958 |
-| last 1 year | 1,773 | 3,341 |
+| last 7 days | 34 | 1,744 |
+| last 30 days | 34 | 2,918 |
+| last 90 days | 34 | 2,958 |
+| last 1 year | 1,807 | 3,341 |
 
 ## Bonus defs outside the plan
 
@@ -66,8 +66,8 @@ are blocked on engine primitives.
 
 | Group | Auth / Total | % | Clean | TODO | Empty |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `combat-keyword` | 187 / 187 | 100% | 82 | 97 | 8 |
-| `draw` | 164 / 169 | 97% | 74 | 79 | 11 |
+| `combat-keyword` | 187 / 187 | 100% | 83 | 96 | 8 |
+| `draw` | 164 / 169 | 97% | 78 | 75 | 11 |
 | `token-create` | 148 / 155 | 95% | 82 | 66 | 0 |
 | `land-etb-tapped` | 138 / 138 | 100% | 116 | 22 | 0 |
 | `other` | 108 / 131 | 82% | 67 | 41 | 0 |
@@ -77,7 +77,7 @@ are blocked on engine primitives.
 | `removal-destroy` | 56 / 56 | 100% | 33 | 21 | 2 |
 | `counters-plus` | 49 / 49 | 100% | 24 | 24 | 1 |
 | `land-fetch` | 45 / 45 | 100% | 27 | 17 | 1 |
-| `attack-trigger` | 9 / 34 | 26% | 5 | 4 | 0 |
+| `attack-trigger` | 10 / 34 | 29% | 6 | 4 | 0 |
 | `death-trigger` | 34 / 34 | 100% | 19 | 14 | 1 |
 | `mana-artifact` | 34 / 34 | 100% | 14 | 18 | 2 |
 | `activated-tap` | 9 / 27 | 33% | 8 | 1 | 0 |
@@ -124,11 +124,12 @@ you which kind of next-step work would unblock the group.
 | --- | --- | --- |
 | Flux Channeler | `flux_channeler` | clean |
 
-#### `attack-trigger` — 9 / 34 (26%), authored split: 5 clean / 4 todo / 0 empty — **unwritten**
+#### `attack-trigger` — 10 / 34 (29%), authored split: 6 clean / 4 todo / 0 empty — **unwritten**
 
 | Card | Slug | Bucket |
 | --- | --- | --- |
 | Aurelia, the Warleader | `aurelia_the_warleader` | clean |
+| Copperhorn Scout | `copperhorn_scout` | clean |
 | Etali, Primal Storm | `etali_primal_storm` | todo |
 | Goblin Wardriver | `goblin_wardriver` | clean |
 | Hellrider | `hellrider` | todo |
@@ -199,15 +200,15 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 599 | · |
+| OTHER (unclassified) | 598 | -1 |
 | DSL gap (unspecified) | 123 | · |
 | attack trigger (self / generic) | 26 | · |
 | TriggerCondition::* missing variant | 17 | · |
 | dynamic hexproof / protection | 17 | · |
-| sacrifice as cost | 17 | · |
 | Cost::* missing variant | 16 | · |
 | replacement effect missing | 14 | · |
 | EffectAmount::* missing variant | 12 | · |
+| sacrifice as cost | 11 | -6 |
 | combat-damage-to-player trigger | 10 | · |
 | interactive / hidden-info choice | 10 | · |
 | can't / must block-attack | 7 | · |
@@ -219,17 +220,17 @@ the next thing to triage when the classifier table is grown.
 | delayed triggers | 5 | · |
 | equipment grants ability | 5 | · |
 | untap-all / untap trigger | 4 | · |
-| per-player effect dispatch | 4 | · |
 | noncombat-damage prevent | 4 | · |
 | ETB choice | 4 | · |
 | impulse draw | 4 | · |
 | CDA / dynamic P/T | 4 | · |
+| devotion | 4 | · |
 
-_…and 29 more buckets totaling 49 lines._
+_…and 28 more buckets totaling 46 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 599 
+Showing 12 of 598 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
@@ -240,8 +241,8 @@ blood_tribute: // TODO: Kicker cost "tap a Vampire" is non-mana kicker.
 deadly_tempest: // TODO: The "each player loses life equal to creatures they controlled" requires
 experimental_augury: // TODO: Interactive "choose 1 of 3" — M10 player choice. Approximated as
 goblin_lackey: // TODO: "put a Goblin from hand onto battlefield" — needs MoveZone from
-jeskas_will: // TODO: "choose both if commander" conditional entwine.
-marisi_breaker_of_the_coil: // TODO: "Your opponents can't cast spells during combat" — phase-scoped CantCast not in DSL.
+joraga_treespeaker: // TODO: Level up mechanic not in DSL — no LevelUp keyword or level-based ability gating.
+marisi_breaker_of_the_coil: // TODO: "goad each creature that player controls" — ForEach over DamagedPlayer's creatures
 otharri_suns_glory: // TODO: "{2}{R}{W}, Tap an untapped Rebel you control: Return this card from your
 roiling_dragonstorm: // TODO: "When a Dragon you control enters, return this to hand" —
 song_of_freyalise: // TODO: Saga chapter I/II — grant `{T}: Add one mana of any color` to creatures you
@@ -251,10 +252,11 @@ tyvar_jubilant_brawler: // TODO: static — creatures you control can activate a
 
 ## ⚠ Completeness-marker drift
 
-7 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
+8 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
 
 - `ashnods_altar` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `boggart_shenanigans` — marked partial but has no TODO / ENGINE-BLOCKED comment
+- `disciple_of_freyalise` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `olivia_voldaren` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `phyrexian_tower` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `scourge_of_valkas` — marked partial but has no TODO / ENGINE-BLOCKED comment
@@ -264,6 +266,8 @@ tyvar_jubilant_brawler: // TODO: static — creatures you control can activate a
 ## Recent card-touching commits
 
 ```
+60e9eb00 scutemob-99: PB-EF1 cards + exclude_self regression tests
+eb9d7e34 scutemob-97: W-MISS — author 33 missing-file cards Complete (coverage 59.0% -> 59.8%)
 205282d3 scutemob-96: W-EMPTY — author authorable empty-placeholder defs
 5321ebef scutemob-95: W-PB2 batch 5 — targeting/alt-cost/misc (8 Complete) + boggart demotion + test fixes
 7ee2a68d scutemob-95: W-PB2 batch 4 — triggers (10 Complete)
@@ -287,13 +291,11 @@ e2b1eb02 scutemob-88: /review fixes — unwrap 8 notes, 2 kind corrections, gate
 b6f748f8 SR-6: extract card-defs and card-types crates — compile isolation for 1,749 defs
 6c6d579e SR-2: mark 28 more known-wrong defs found by review (MEDIUM-1)
 98a7a6a7 SR-2: registry gate for invariant #9 — completeness markers + duplicate CardId detection
-b9397215 W6-cards: PB-AC9 backfill HIGH — Reforge the Soul stale Miracle marker
-52a2b6f2 W6-prim: PB-AC9 — WheelHand + SetNoMaximumHandSize + token-doubling completeness
 ```
 
 ## Missing card-defs sidecar
 
-The full list of 161 plan cards still missing on disk is at 
+The full list of 160 plan cards still missing on disk is at 
 `docs/authoring-status-missing.txt` (tab-separated `group<TAB>name`, sorted by group). 
 Use it as a batch-author worklist.
 

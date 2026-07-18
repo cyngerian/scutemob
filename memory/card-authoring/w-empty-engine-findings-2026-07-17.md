@@ -5,7 +5,18 @@ inline (W6 / campaign policy). This wave authored only 3 cards, so the surface i
 small; the roster (`w-empty-roster-2026-07-17.md`) catalogs the 57 blocked cards'
 gaps, most already tracked.
 
-## EF-W-EMPTY-1 (MEDIUM) — `exclude_self` is unenforced in the sacrifice-**cost** path
+## EF-W-EMPTY-1 (MEDIUM) — `exclude_self` is unenforced in the sacrifice-**cost** path — ✅ CLOSED (PB-EF1, scutemob-99)
+
+> **CLOSED 2026-07-18** via option (a): the source `ObjectId` is threaded into
+> `eligible_sacrifice_targets` (fixes the `SacrificePermanents` effect path and the
+> `MayPayThenEffect` optional-cost path at once), and the activated-ability cost path
+> carries `ActivationCost.sacrifice_exclude_self` (lowered from `Cost::Sacrifice`'s
+> `TargetFilter.exclude_self`) enforced in `handle_activate_ability`. `korvold` flipped
+> Complete; `disciple_of_freyalise` stayed `partial` on a *distinct* surviving blocker
+> (EF-EF1-A: `PowerOfSacrificedCreature` not captured in the optional-cost path).
+> Regressions: `sacrifice_permanents_effect_excludes_source`,
+> `optional_cost_sacrifice_excludes_source`, `izoni_*`, `korvold_etb_*`.
+
 
 **Where**: `crates/engine/src/effects/mod.rs` — `eligible_sacrifice_targets`
 (≈:7346) filters candidates through `matches_filter(chars: &Characteristics,

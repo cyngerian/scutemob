@@ -6,6 +6,29 @@ type: plan
 
 # EF Batch Plan — 2026-07-17 (task scutemob-98)
 
+> **STATUS UPDATE (2026-07-18, scutemob-99): PB-EF1 SHIPPED + swan_song demote DONE.**
+> `TargetFilter.exclude_self` is now honored at all executor sites (PermanentCount
+> resolver, `eligible_sacrifice_targets` for the SacrificePermanents effect + the
+> MayPayThenEffect optional-cost path, `UntapAll`, `YouControlNOrMoreWithFilter`
+> condition, and the activated-ability sacrifice cost via new
+> `ActivationCost.sacrifice_exclude_self`). **Closed: EF-W-PB2-1, EF-W-EMPTY-1,
+> EF-W-MISS-2, marker EF-4, marker EF-5, OOS-TS-2.** Wire bump was necessary after all
+> (ActivationCost is in both the HASH and PROTOCOL closures): **HASH 43→44, PROTOCOL
+> 5→6**, machine-forced. Cards flipped Complete: éomer, izoni, korvold, yawgmoth,
+> commissar_severina_raine, + new copperhorn_scout (6). disciple_of_freyalise stayed
+> `partial` — a SECOND blocker surfaced: **new finding EF-EF1-A** below. Coverage
+> 59.8% → **60.1%** (1,065→1,071 clean). 3342 tests. See §5.
+>
+> **⚠ swan_song demote (EF-W-MISS-1) STILL NOT DONE — coordinator action outstanding.**
+> Verified 2026-07-18: `swan_song.rs` has NO `completeness` field, so it still ships
+> `Complete` while giving the Bird token to the caster instead of the countered spell's
+> controller — the live-wrong `Complete` def / invariant #9 violation the §2 "IMMEDIATE"
+> one-liner was meant to remove. It is **out of scope for PB-EF1** (scutemob-99, which is
+> the exclude_self sweep), so it was left untouched rather than folded in. **Coordinator:
+> apply the §2 demote before/with PB-EF2.**
+>
+> **Next dispatch: PB-EF2** (`CreateToken` recipient — fixes swan_song properly) per §2.
+
 **Purpose.** The card-authoring waves W-PB2 (`scutemob-95`), W-EMPTY (`scutemob-96`),
 and W-MISS (`scutemob-97`) filed 19 engine findings, and the marker sweep
 (`scutemob-88`) left EF-13 deferred for a coordinator decision. This plan consolidates
@@ -261,7 +284,7 @@ demote is not a PB and should not wait in the queue.
 | PB | Class | Findings | Discounted ship | Wire bump |
 | --- | --- | --- | ---: | --- |
 | *(demote swan_song)* | integrity | EF-W-MISS-1 | — | none (marker) |
-| **PB-EF1** ⭐ | correctness | PB2-1, EMPTY-1, MISS-2 (+EF-4/5, OOS-TS-2) | ~4–5 | none |
+| **PB-EF1** ✅ DONE | correctness | PB2-1, EMPTY-1, MISS-2 (+EF-4/5, OOS-TS-2) | **6 shipped** | HASH+PROTOCOL |
 | PB-EF2 | correctness | MISS-1 | ~2 | PROTOCOL+HASH |
 | PB-EF3 | correctness+cap | MISS-10, MISS-4 | ~5–6 | PROTOCOL (MISS-4) |
 | PB-EF3b | correctness | MISS-3 | ~2 | none |
@@ -309,6 +332,31 @@ never from source text.**
 bucket shift is one reviewable commit, and land the gate in the same change so it never
 recurs. It does **not** block the PB queue — PB-EF1 can be dispatched independently. If the
 owner prefers to avoid headline churn mid-campaign, **Option C** is the safe compromise.
+
+---
+
+## 5. New finding filed by PB-EF1 (scutemob-99)
+
+### EF-EF1-A (MEDIUM) — `PowerOfSacrificedCreature` is not captured in the optional-cost sacrifice path
+`EffectAmount::PowerOfSacrificedCreature` reads `ctx.sacrificed_creature_powers`
+(`effects/mod.rs`), which is populated **only** at the activated-ability sacrifice-cost
+site (`handle_activate_ability` pushes `sacrificed_lki_powers`). The optional-cost
+sacrifice path used by `Effect::MayPayThenEffect` → `pay_optional_cost` →
+`sacrifice_permanents_for_player` never captures the sacrificed creature's LKI power into
+`ctx`, so any "sacrifice a creature; if you do, gain/draw X where X is that creature's
+power" **optional** effect would resolve X = 0.
+
+- **Instance**: `disciple_of_freyalise.rs` front face ("you may sacrifice another creature.
+  If you do, you gain X life and draw X cards, where X is that creature's power"). PB-EF1
+  closed its exclude_self blocker but this is a distinct, surviving blocker, so the card
+  stayed `partial`.
+- **Fix shape**: thread the `EffectContext` (or an out-param) into
+  `sacrifice_permanents_for_player` and push the pre-zone-move layer-resolved power into
+  `ctx.sacrificed_creature_powers`, mirroring the activated-cost site. Small, isolated;
+  no new DSL/wire type. Micro-PB candidate; also unblocks any future optional-sacrifice
+  "for each power" effect.
+- **Verified**: source read 2026-07-18 — `sacrifice_permanents_for_player` takes no `ctx`
+  and does not touch `sacrificed_creature_powers`; only `handle_activate_ability` does.
 
 ---
 

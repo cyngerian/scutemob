@@ -1,6 +1,6 @@
 # Authoring plan — cards still missing on disk
-# Generated: 2026-07-18 01:53 UTC  Git: bcf93348  Plan snapshot: 2026-03-10
-# Format: <group>\t<card name>   (161 cards)
+# Generated: 2026-07-18 05:16 UTC  Git: 60e9eb00  Plan snapshot: 2026-03-10
+# Format: <group>\t<card name>   (160 cards)
 
 activated-sacrifice	An Offer You Can't Refuse
 activated-sacrifice	Chatterfang, Squirrel General
@@ -36,7 +36,6 @@ attack-trigger	Adriana, Captain of the Guard
 attack-trigger	Atarka, World Render
 attack-trigger	Brutal Hordechief
 attack-trigger	Caustic Bronco
-attack-trigger	Copperhorn Scout
 attack-trigger	Cunning Rhetoric
 attack-trigger	Fervent Charge
 attack-trigger	Frenzied Goblin

@@ -141,7 +141,15 @@ finding was wrong about *scope* — a real code fragment generalised past its ma
 the same error class the sweep exists to catch, one level up: cite the line, then check what
 encloses it.
 
-## EF-4 — `Cost::Sacrifice(TargetFilter)` silently drops most of the filter
+## EF-4 — `Cost::Sacrifice(TargetFilter)` silently drops most of the filter — ✅ CLOSED (PB-EF1, scutemob-99)
+> **CLOSED 2026-07-18.** The specific `exclude_self` half is fixed: `flatten_cost_into`
+> now lowers `TargetFilter.exclude_self` onto `ActivationCost.sacrifice_exclude_self`, and
+> `handle_activate_ability` rejects sacrificing the source itself for a "sacrifice another"
+> cost. (The other lossy fields of `SacrificeFilter` — color, power/toughness restrictions,
+> etc. — remain out of scope; only `exclude_self` was in PB-EF1's charter.) Regression:
+> `izoni_cannot_sacrifice_itself_to_its_own_cost`, `yawgmoth_cannot_sacrifice_itself`,
+> `commissar_cannot_sacrifice_itself`.
+
 
 **Severity: MEDIUM.** Lowering to the runtime `SacrificeFilter`
 (`testing/replay_harness.rs:3743-3767`) reads only `has_chosen_subtype`, `has_subtype`,
@@ -150,7 +158,11 @@ self-exclusion. A def authoring "Sacrifice another creature" as
 `Cost::Sacrifice(TargetFilter { exclude_self: true, .. })` compiles and silently permits
 sacrificing the source itself.
 
-## EF-5 — `TargetFilter.exclude_self` ignored by `Condition::YouControlNOrMoreWithFilter`
+## EF-5 — `TargetFilter.exclude_self` ignored by `Condition::YouControlNOrMoreWithFilter` — ✅ CLOSED (PB-EF1, scutemob-99)
+> **CLOSED 2026-07-18.** `check_static_condition`'s `YouControlNOrMoreWithFilter` arm now
+> applies `(!filter.exclude_self || obj.id != source)`. No card in the corpus uses this
+> shape yet (defensive fix). Regression: `you_control_n_or_more_condition_excludes_source`.
+
 
 **Severity: MEDIUM.** `check_static_condition` (`effects/mod.rs:8508-8536`) calls only
 `matches_filter` + `check_has_counter_type` and never reads `exclude_self`; it is honoured

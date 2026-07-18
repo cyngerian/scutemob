@@ -413,7 +413,14 @@ or an extension of the existing attacker-trigger path is needed.
 **Blocked on**: Attacker-trigger filter primitive (new `TriggerCondition` variant + dispatch in
 `check_triggers` over `CreatureAttacked` or `AttackersDeclared` events).
 
-### OOS-TS-2: Izoni sacrifice-another-creature activated ability
+### OOS-TS-2: Izoni sacrifice-another-creature activated ability — ✅ RESOLVED (PB-EF1, scutemob-99)
+
+> **RESOLVED 2026-07-18.** "Sacrifice another creature" as an activated-ability cost is now
+> expressible: `Cost::Sacrifice(TargetFilter { exclude_self: true, .. })` lowers onto
+> `ActivationCost.sacrifice_exclude_self`, enforced in `handle_activate_ability` (CR 109.1).
+> `izoni_thousand_eyed.rs` authored its second ability and flipped Complete. Regressions:
+> `izoni_cannot_sacrifice_itself_to_its_own_cost`, `izoni_sacrifices_another_creature_and_resolves`.
+
 
 **Card**: Izoni, Thousand-Eyed
 **Oracle text**: "{B}{G}, Sacrifice another creature: You gain 1 life and draw a card."

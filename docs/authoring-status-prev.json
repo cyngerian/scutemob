@@ -1,15 +1,15 @@
 {
-  "generated": "2026-07-18 01:53 UTC",
-  "git_head": "bcf93348",
-  "total_files": 1781,
-  "total_todos": 983,
+  "generated": "2026-07-18 05:16 UTC",
+  "git_head": "60e9eb00",
+  "total_files": 1782,
+  "total_todos": 973,
   "file_buckets": {
-    "clean": 1065,
-    "todo": 659,
+    "clean": 1071,
+    "todo": 654,
     "empty": 57
   },
   "todo_classes": {
-    "OTHER (unclassified)": 599,
+    "OTHER (unclassified)": 598,
     "replacement effect missing": 14,
     "TriggerCondition::* missing variant": 17,
     "attack trigger (self / generic)": 26,
@@ -28,9 +28,8 @@
     "combat-damage-to-player trigger": 10,
     "EffectAmount::* missing variant": 12,
     "opponent-action trigger": 7,
-    "per-player effect dispatch": 4,
+    "per-player effect dispatch": 3,
     "interactive / hidden-info choice": 10,
-    "sacrifice as cost": 17,
     "noncombat-damage prevent": 4,
     "EnchantTarget missing variant": 1,
     "equipment grants ability": 5,
@@ -44,10 +43,9 @@
     "impulse draw": 4,
     "count-threshold static": 3,
     "trigger doubling": 2,
-    "PB-TS (token-count \u2192 EffectAmount)": 1,
     "X-scaled counters": 2,
     "conditional counterspell": 2,
-    "you-sacrifice trigger": 2,
+    "sacrifice as cost": 11,
     "copy / retained-ability": 2,
     "chosen-color protection": 1,
     "activate-from-graveyard": 2,
@@ -59,6 +57,7 @@
     "explore": 1,
     "counter-placed trigger": 1,
     "equipped/attached dies": 1,
+    "you-sacrifice trigger": 1,
     "free-cast / non-hand cast": 1,
     "trigger-targets-triggerer": 1,
     "top-of-library lookahead": 2,
@@ -66,8 +65,8 @@
   },
   "plan": {
     "total": 1636,
-    "authored": 1475,
-    "missing": 161,
+    "authored": 1476,
+    "missing": 160,
     "extras": 321
   }
 }
