@@ -14,7 +14,7 @@
 > Detailed PB-by-PB handoffs, hazards, and seed inventories live in `memory/workstream-state.md`.
 > Worker sessions: append detail there, not here. CLAUDE.md tracks current snapshot only.
 
-- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage **1,100/1,798 = 61.2%** per `tools/authoring-report.py`; **EF queue ACTIVE (`memory/primitives/ef-batch-plan-2026-07-17.md`) — PB-EF1..EF11 + EF-13 SHIPPED (`scutemob-99`/`101`..`112`); PB-EF12 in flight `scutemob-114` — LAST batch in the queue**; **PB-AC chain COMPLETE — AC0..AC9 all shipped**; **marker sweep COMPLETE — `scutemob-88`**; **SR-33..38 chain COMPLETE**; **W-PB2 + W-EMPTY + W-MISS COMPLETE — `scutemob-95`/`96`/`97`**)
+- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage **1,117/1,798 = 62.1%** per `tools/authoring-report.py`; **EF queue COMPLETE — all of PB-EF1..EF12 + EF-13 Option A SHIPPED in one day (`scutemob-99`, `101`..`112`, `114`; plus swan_song demote `100` and Cargo.lock chore `113`); all 20 EF findings closed; new OOS seeds filed: OOS-EF3-1, OOS-EF3b-1, OOS-EF4-1, OOS-EF5-1..4, OOS-EF6-1, OOS-EF9-1, OOS-EF10-1, EF-EF1-A**; **PB-AC chain COMPLETE — AC0..AC9 all shipped**; **marker sweep COMPLETE — `scutemob-88`**; **SR-33..38 chain COMPLETE**; **W-PB2 + W-EMPTY + W-MISS COMPLETE — `scutemob-95`/`96`/`97`**)
 - **Invariant #9 is machine-enforced (SR-2).** `CardDefinition.completeness` (`Complete` by
   Default) marks a def `Inert` / `Partial` / `KnownWrong`; `validate_deck` rejects any
   non-`Complete` card with `DeckViolation::IncompleteCard`. `CardRegistry::try_new` errors on
@@ -33,7 +33,7 @@
   accessors, gated on the `test-util` feature (self dev-dependency). **`cargo build
   --workspace` is the only gate that proves the seal** — `test --all` and `clippy
   --all-targets` enable `test-util` workspace-wide via feature unification. It is a CI step.
-- **Tests**: **3466 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
+- **Tests**: **3476 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
   — and `fmt` here means `cargo fmt --check` **plus** `tools/check-defs-fmt.sh`, which is the only one
   of the two that looks at the 1,748 card defs (SR-35)
 - **CI**: **LIVE and green** since 2026-07-10 (SR-1, merge `e9742dc2`) — single Ubuntu job (fmt + clippy + `build --workspace` + full tests) on push/PR to main + workflow_dispatch; rust-cache@v2, 45m timeout. **Toolchain pinned (SR-11, `scutemob-63`)**: `rust-toolchain.toml` pins exact stable `1.95.0` and CI reads that `channel` from the file (no more floating to latest stable), so local `clippy -D warnings` is an authoritative CI preview. SR remediation track: original SR-1..16 all DONE 2026-07-10; a 2026-07-11 re-audit of the remediated baseline filed **SR-17..SR-32**, all DONE 2026-07-14..16 (16/16 collected; full record: `docs/sr-remediation-plan.md`).
@@ -279,7 +279,20 @@
   `memory/card-authoring/sr36-engine-findings-2026-07-17.md` (**SG-1 MEDIUM: the simulator's
   `LegalActionProvider` ignores `life_cost` — harmless while the cost was dropped, now it
   offers bots unpayable actions**).
-- **Last Updated**: 2026-07-18 (**PB-EF11 collected, `scutemob-112` merge `e991b237`** — both
+- **Last Updated**: 2026-07-18 (**PB-EF12 collected, `scutemob-114` merge `833e54ad` — THE EF
+  QUEUE IS COMPLETE.** `chosen_color` rides `Command::TapForMana` (coordinator decision in
+  `memory/decisions.md`, CR 605.3b, extending the SR-33 precedent; no Colorless default —
+  missing/illegal choice is rejected). **17 defs restored/flipped Complete** (elven_chorus + 16
+  any-color rocks/lands — the SR-37-gated `AddManaAnyColor` family is genuinely correct now);
+  7 held back on real blockers; deathrite reverted after the gate itself caught it; the
+  land-colour gate refined to served-vs-unserved; simulator emits only engine-legal colours.
+  EF-W-PB2-3 closed. Coverage 61.2% → **62.1%** (1,117/1,798); 3476 tests; **PROTOCOL 17→18,
+  HASH 55**; /review 0 findings. **Queue totals for the day** (scutemob-99..114): 12 PBs +
+  EF-13 reclassification + swan_song demote + Cargo.lock chore; coverage 59.8% → 62.1%
+  (+52 clean defs, corpus 1,781 → 1,798); tests 3330 → 3476; PROTOCOL 2→18, HASH 43→55;
+  all 20 EF findings closed; 11 new OOS seeds filed (see Active Milestone line). Next: no open
+  queue — candidates are the OOS seed backlog, W-blocked cohorts, or M10 per the strategic
+  review. Earlier: **PB-EF11 collected, `scutemob-112` merge `e991b237`** — both
   singletons: `WheelDraw::GreatestDiscarded` (Windfall Complete; everyone draws the max
   discarded, decoy pins not-per-player) and `TargetSpellWithSingleTarget` + retarget
   (Misdirection restored to Complete after its honest scutemob-97 demotion). **PROTOCOL 15→17,
