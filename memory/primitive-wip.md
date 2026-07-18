@@ -5,7 +5,7 @@ title: Add `Cost::ExileSelfFromHand` (+ `ActivationZone::Hand`) so "Exile this c
 task: scutemob-109
 branch: feat/pb-ef8-costexileselffromhand-activation-from-hand-ef-w-pb2-8
 started: 2026-07-18
-phase: review  # implement done 2026-07-18 → memory/primitives/pb-plan-EF8.md; awaiting /implement-primitive review phase
+phase: done  # 2026-07-18 — plan→impl→review→fix complete. Review: 0 HIGH / 0 MED / 1 LOW (elvish oracle_text "card"→"creature", fixed). 2 flips (simian_spirit_guide, elvish_spirit_guide → Complete). HASH 50→51, PROTOCOL 12→13. EF-W-PB2-8 closed. All gates green.
 
 ## Implement phase — DONE (2026-07-18, scutemob-109)
 

@@ -19,7 +19,7 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: creature_types(&["Elf", "Spirit"]),
-        oracle_text: "Exile this card from your hand: Add {G}.".to_string(),
+        oracle_text: "Exile this creature from your hand: Add {G}.".to_string(),
         power: Some(2),
         toughness: Some(2),
         abilities: vec![AbilityDefinition::Activated {
