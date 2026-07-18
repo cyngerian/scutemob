@@ -486,7 +486,14 @@
 ///   `WheelDraw::GreatestDiscarded => 2u8.hash_into(hasher)`, discriminant 2 after
 ///   `Fixed`=1. `decl_fingerprint` MOVES (the enum's declared shape changed — a new
 ///   variant); `stream_fingerprint` moves per the v40 mechanism (a new `HashInto` arm).
-pub const HASH_SCHEMA_VERSION: u8 = 54;
+/// - 55: PB-EF11 COMMIT 2 (2026-07-18) — `TargetRequirement` gains a new unit variant
+///   `TargetSpellWithSingleTarget` (CR 115.7a/115.7b — a spell-ONLY single-target
+///   restriction, stricter than `TargetSpellOrAbilityWithSingleTarget`; unblocks
+///   Misdirection). Fed to `HashInto` as `TargetRequirement::TargetSpellWithSingleTarget
+///   => 19u8.hash_into(hasher)`, discriminant 19 after `TargetOpponent`=18.
+///   `decl_fingerprint` MOVES (the enum's declared shape changed — a new variant);
+///   `stream_fingerprint` moves per the v40 mechanism (a new `HashInto` arm).
+pub const HASH_SCHEMA_VERSION: u8 = 55;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -703,6 +710,15 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // change); stream_fingerprint moves per the v40 mechanism.
         decl_fingerprint: "de2e11f38ecd337c82b89c5bae49da13e0c51155daf70430b0965489f9153636",
         stream_fingerprint: "2bfbb9a1c601a10b09ea94d702d66380f70e3c590ce757f18e7abfd6d651a162",
+    },
+    HashSchemaEpoch {
+        version: 55,
+        // PB-EF11 COMMIT 2 (2026-07-18): TargetRequirement gained
+        // TargetSpellWithSingleTarget (see the `- 55:` History line above).
+        // decl_fingerprint moves (genuine enum-shape change); stream_fingerprint moves
+        // per the v40 mechanism.
+        decl_fingerprint: "9b983aaa133cbff0946e4a135fa5de2618b99e25de04d75fe19c1d8429a1c2f8",
+        stream_fingerprint: "ad965c6475550f53446281c921656eaf068c623a28295c4e2d1e2f62b83d9987",
     },
 ];
 
@@ -5193,6 +5209,8 @@ impl HashInto for TargetRequirement {
             }
             // PB-EF6: TargetOpponent -- CR 102.3 / 601.2c (discriminant 18)
             TargetRequirement::TargetOpponent => 18u8.hash_into(hasher),
+            // PB-EF11: TargetSpellWithSingleTarget -- CR 115.7a/115.7b (discriminant 19)
+            TargetRequirement::TargetSpellWithSingleTarget => 19u8.hash_into(hasher),
         }
     }
 }

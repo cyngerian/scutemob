@@ -82,13 +82,15 @@ fn setup_three_players(hands: [usize; 3], library_n: usize) -> GameState {
 // ── HASH_SCHEMA_VERSION sentinel ──────────────────────────────────────────────
 
 /// HASH_SCHEMA_VERSION live sentinel — fails if the schema version drifts
-/// without this test being updated. PB-EF11 COMMIT 1 bumped 53 -> 54.
+/// without this test being updated. PB-EF11 COMMIT 1 bumped 53 -> 54
+/// (WheelDraw::GreatestDiscarded); COMMIT 2 bumped 54 -> 55
+/// (TargetRequirement::TargetSpellWithSingleTarget, see pb_ef11_spell_single_target.rs).
 #[test]
 fn test_pb_ef11_hash_schema_version_live_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 54u8,
-        "PB-EF11 COMMIT 1 bumped HASH_SCHEMA_VERSION 53->54 (WheelDraw::GreatestDiscarded, \
-         discriminant 2). If you bumped again, update this test."
+        HASH_SCHEMA_VERSION, 55u8,
+        "PB-EF11 bumped HASH_SCHEMA_VERSION 53->54->55 across its two commits. If you bumped \
+         again, update this test."
     );
 }
 
