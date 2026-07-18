@@ -2,14 +2,6 @@
 // Whenever an opponent discards a card, that player loses 2 life.
 // Raid — At the beginning of your end step, if you attacked this turn, target opponent
 // discards a card.
-//
-// The first ability IS authored below (TriggerCondition::WheneverOpponentDiscards and
-// PlayerTarget::TriggeringPlayer both exist — the old marker claiming otherwise was stale).
-//
-// ENGINE-BLOCKED: the Raid half needs "target OPPONENT discards a card". PB-AC6 supplies the
-// intervening-if (Condition::YouAttackedThisTurn), but TargetRequirement has TargetPlayer and
-// no TargetOpponent, so authoring it would let the controller target themselves — an illegal
-// target per the oracle, i.e. wrong game state. Omitted rather than approximated.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -41,13 +33,23 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 trigger_zone: None,
             },
-            // ENGINE-BLOCKED: see file header — Raid end-step discard needs
-            // TargetRequirement::TargetOpponent, which does not exist.
+            // Raid — At the beginning of your end step, if you attacked this turn, target
+            // opponent discards a card. PB-AC6 supplies Condition::YouAttackedThisTurn;
+            // PB-EF6 supplies TargetRequirement::TargetOpponent.
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::AtBeginningOfYourEndStep,
+                effect: Effect::DiscardCards {
+                    player: PlayerTarget::DeclaredTarget { index: 0 },
+                    count: EffectAmount::Fixed(1),
+                },
+                intervening_if: Some(Condition::YouAttackedThisTurn),
+                targets: vec![TargetRequirement::TargetOpponent],
+
+                modes: None,
+                trigger_zone: None,
+            },
         ],
-        completeness: Completeness::partial(
-            "the Raid half needs 'target OPPONENT discards a card'. PB-AC6 supplies the \
-             intervening-if...",
-        ),
         ..Default::default()
     }
 }

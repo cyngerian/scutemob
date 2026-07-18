@@ -432,7 +432,13 @@
 ///   source DFC in place). Fed to `HashInto` as `Effect::TransformSelf =>
 ///   93u8.hash_into(hasher)`. `decl_fingerprint` MOVES (a new enum variant);
 ///   `stream_fingerprint` moves per the v40 mechanism.
-pub const HASH_SCHEMA_VERSION: u8 = 48;
+/// - 49: PB-EF6 (2026-07-18) — `TargetRequirement` gains a new unit variant
+///   `TargetOpponent` (discriminant 18, CR 102.3/102.4/115.1/601.2c/603.3d —
+///   "target opponent", an opponent-restricted player target; EF-W-PB2-2). Fed to
+///   `HashInto` as `TargetRequirement::TargetOpponent => 18u8.hash_into(hasher)`.
+///   `decl_fingerprint` MOVES (a new enum variant); `stream_fingerprint` moves per
+///   the v40 mechanism.
+pub const HASH_SCHEMA_VERSION: u8 = 49;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -593,6 +599,15 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // stream's first byte).
         decl_fingerprint: "76ed7940d97108ebaf63468cb9435c52fe16852a58ab3d373bfc916f87886862",
         stream_fingerprint: "b9d05e90299b79ed58b871590abd6d0087434c28eeff0017d4622b1219b8c269",
+    },
+    HashSchemaEpoch {
+        version: 49,
+        // PB-EF6 (2026-07-18): TargetRequirement gained TargetOpponent (see the `- 49:`
+        // History line above). decl_fingerprint moves (genuine enum-shape change);
+        // stream_fingerprint moves per the v40 mechanism (HASH_SCHEMA_VERSION is the
+        // stream's first byte).
+        decl_fingerprint: "0f8e380b22f92d56abcf42563ffbdbd5c65dccf9a85b54d8e06bdd2e00a42d19",
+        stream_fingerprint: "d3f8ecb082da305949dda37fd4a18b5ec78d591fd9afdfe45efe5584a030b4a1",
     },
 ];
 
@@ -5056,6 +5071,8 @@ impl HashInto for TargetRequirement {
                 count.hash_into(hasher);
                 inner.hash_into(hasher);
             }
+            // PB-EF6: TargetOpponent -- CR 102.3 / 601.2c (discriminant 18)
+            TargetRequirement::TargetOpponent => 18u8.hash_into(hasher),
         }
     }
 }

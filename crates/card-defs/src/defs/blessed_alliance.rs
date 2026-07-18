@@ -35,7 +35,7 @@ pub fn card() -> CardDefinition {
                 //   index 0: TargetPlayer (mode 0 — gains 4 life)
                 //   index 1: TargetCreature (mode 1 — first creature to untap)
                 //   index 2: TargetCreature (mode 1 — second creature, "up to two")
-                //   index 3: TargetPlayer (mode 2 — opponent who sacrifices)
+                //   index 3: TargetOpponent (mode 2 — opponent who sacrifices, PB-EF6)
                 //
                 // ENGINE-BLOCKED (two independent reasons, either alone would block this):
                 // 1. This card has Escalate, and the engine HARD-REJECTS casting a spell
@@ -52,10 +52,10 @@ pub fn card() -> CardDefinition {
                 //    fixed-count per mode and explicitly forbids nesting `UpToN` inside a
                 //    `mode_targets[m]` entry (would make the flat-slice split ambiguous).
                 targets: vec![
-                    TargetRequirement::TargetPlayer,   // mode 0
+                    TargetRequirement::TargetPlayer,   // mode 0 (any player)
                     TargetRequirement::TargetCreature, // mode 1 creature 1
                     TargetRequirement::TargetCreature, // mode 1 creature 2
-                    TargetRequirement::TargetPlayer,   // mode 2 opponent
+                    TargetRequirement::TargetOpponent, // mode 2 opponent (PB-EF6)
                 ],
                 modes: Some(ModeSelection {
                     min_modes: 1,

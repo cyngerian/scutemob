@@ -21,7 +21,8 @@ pub fn card() -> CardDefinition {
         toughness: Some(3),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // ETB: target opponent discards a card.
+            // ETB: target opponent discards a card. PB-EF6: TargetRequirement::TargetOpponent
+            // (was TargetPlayer — a latent legal-but-wrong self-target bug, CR 601.2c).
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
@@ -30,7 +31,7 @@ pub fn card() -> CardDefinition {
                     count: EffectAmount::Fixed(1),
                 },
                 intervening_if: None,
-                targets: vec![TargetRequirement::TargetPlayer],
+                targets: vec![TargetRequirement::TargetOpponent],
 
                 modes: None,
                 trigger_zone: None,

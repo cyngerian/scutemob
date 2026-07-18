@@ -5826,7 +5826,9 @@ fn validate_targets_inner(
         // Helper: does the given target satisfy the given requirement (inner for UpToN)?
         let target_satisfies = |target: &Target, req: &TargetRequirement| -> bool {
             match target {
-                Target::Player(id) => validate_player_satisfies_requirement(*id, req).is_ok(),
+                Target::Player(id) => {
+                    validate_player_satisfies_requirement(*id, req, caster).is_ok()
+                }
                 Target::Object(id) => {
                     validate_object_satisfies_requirement(state, *id, req, caster, self_id).is_ok()
                 }
@@ -6013,7 +6015,7 @@ fn validate_mapped_targets(
                 // For UpToN, req points to the UpToN variant; validate_player_satisfies_requirement
                 // delegates to inner via its UpToN arm.
                 if let Some(r) = req {
-                    validate_player_satisfies_requirement(*id, r)?;
+                    validate_player_satisfies_requirement(*id, r, caster)?;
                 }
                 SpellTarget {
                     target: Target::Player(*id),
@@ -6074,6 +6076,7 @@ fn validate_mapped_targets(
 fn validate_player_satisfies_requirement(
     id: PlayerId,
     req: &TargetRequirement,
+    caster: PlayerId,
 ) -> Result<(), GameStateError> {
     match req {
         TargetRequirement::TargetPlayer
@@ -6081,7 +6084,20 @@ fn validate_player_satisfies_requirement(
         | TargetRequirement::TargetAny
         | TargetRequirement::TargetPlayerOrPlaneswalker => Ok(()),
         // CR 601.2c / 115.1b: UpToN delegates to inner requirement.
-        TargetRequirement::UpToN { inner, .. } => validate_player_satisfies_requirement(id, inner),
+        TargetRequirement::UpToN { inner, .. } => {
+            validate_player_satisfies_requirement(id, inner, caster)
+        }
+        // CR 102.3 / 115.1 / 601.2c: "target opponent" — the caster may not choose themselves.
+        TargetRequirement::TargetOpponent => {
+            if id != caster {
+                Ok(())
+            } else {
+                Err(GameStateError::InvalidTarget(format!(
+                    "player {:?} cannot be the target of 'target opponent' (self, CR 102.3/601.2c)",
+                    id
+                )))
+            }
+        }
         _ => Err(GameStateError::InvalidTarget(format!(
             "player {:?} does not satisfy requirement {:?} (expected an object)",
             id, req
@@ -6347,8 +6363,8 @@ fn validate_object_satisfies_requirement(
                 && passes_tapped
                 && passes_untapped
         }
-        // Player requirement — object target is illegal
-        TargetRequirement::TargetPlayer => false,
+        // Player requirement — object target is illegal (CR 601.2c).
+        TargetRequirement::TargetPlayer | TargetRequirement::TargetOpponent => false,
         // TargetSpell and TargetSpellWithFilter handled above via early return (zone + filter check).
         TargetRequirement::TargetSpell | TargetRequirement::TargetSpellWithFilter(_) => false,
         // TargetSpellOrAbilityWithSingleTarget handled above via early return.

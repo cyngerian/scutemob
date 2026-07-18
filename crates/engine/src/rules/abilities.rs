@@ -6901,6 +6901,26 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                                 zone_at_cast: None,
                             })
                         }
+                        // PB-EF6: CR 603.3d — pick the first active opponent; if the source has
+                        // NO opponent, contribute no candidate (None) so the trigger is removed
+                        // from the stack. NEVER fall back to trigger.controller (that would be
+                        // an illegal self-target, CR 102.3/601.2c).
+                        TargetRequirement::TargetOpponent => state
+                            .turn
+                            .turn_order
+                            .iter()
+                            .find(|&&p| {
+                                p != trigger.controller
+                                    && state
+                                        .expect_player(p)
+                                        .map(|pl| !pl.has_lost && !pl.has_conceded)
+                                        .unwrap_or(false)
+                            })
+                            .copied()
+                            .map(|p| SpellTarget {
+                                target: Target::Player(p),
+                                zone_at_cast: None,
+                            }),
                         // Graveyard card targets: scan objects in the appropriate graveyard.
                         TargetRequirement::TargetCardInYourGraveyard(filter) => {
                             let controller_gy = ZoneId::Graveyard(trigger.controller);
@@ -7008,6 +7028,26 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                                         zone_at_cast: None,
                                     })
                                 }
+                                // PB-EF6: CR 603.3d — opponent-only inner requirement. Pick the
+                                // first active opponent; NO self-fallback (UpToN contributes 0
+                                // targets if the source has no opponent — correct for optional
+                                // targeting, CR 601.2c).
+                                TargetRequirement::TargetOpponent => state
+                                    .turn
+                                    .turn_order
+                                    .iter()
+                                    .find(|&&p| {
+                                        p != trigger.controller
+                                            && state
+                                                .expect_player(p)
+                                                .map(|pl| !pl.has_lost && !pl.has_conceded)
+                                                .unwrap_or(false)
+                                    })
+                                    .copied()
+                                    .map(|p| SpellTarget {
+                                        target: Target::Player(p),
+                                        zone_at_cast: None,
+                                    }),
                                 // For permanent-inner UpToN, skip (contribute 0 targets).
                                 // Triggers with optional targeting auto-select 0 for UpToN slots.
                                 _ => None,
@@ -7131,7 +7171,8 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                                                 passes && ctrl_ok && passes_self && passes_combat_role && passes_tapped && passes_untapped
                                             }
                                             // Player-only reqs are handled above — no objects.
-                                            TargetRequirement::TargetPlayer => false,
+                                            TargetRequirement::TargetPlayer
+                                            | TargetRequirement::TargetOpponent => false,
                                             // Spell targets not applicable for triggered abilities.
                                             TargetRequirement::TargetSpell
                                             | TargetRequirement::TargetSpellWithFilter(_) => false,

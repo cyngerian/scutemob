@@ -179,7 +179,7 @@ fn life_total(state: &GameState, player: PlayerId) -> i32 {
 /// Strict-equality hash schema sentinel (conventions.md hash-sentinel rule).
 /// PB-AC6 bumped 32 -> 33.
 fn test_hash_schema_version_is_33() {
-    assert_eq!(HASH_SCHEMA_VERSION, 48u8);
+    assert_eq!(HASH_SCHEMA_VERSION, 49u8);
 }
 
 #[test]
