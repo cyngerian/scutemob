@@ -5,7 +5,7 @@ title: Add EffectFilter::TriggeringCreature (continuous-effect subject = the jus
 task: scutemob-105
 branch: feat/pb-ef4-triggeringcreature-as-effect-subjectsource-ef-w-pb2-6
 started: 2026-07-18
-phase: implement
+phase: review
 plan_file: memory/primitives/pb-plan-EF4.md
 
 ## Source findings
