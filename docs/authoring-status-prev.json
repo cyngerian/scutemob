@@ -1,15 +1,15 @@
 {
-  "generated": "2026-07-18 12:46 UTC",
-  "git_head": "e3479962",
+  "generated": "2026-07-18 13:51 UTC",
+  "git_head": "130443e9",
   "total_files": 1792,
-  "total_todos": 969,
+  "total_todos": 965,
   "file_buckets": {
-    "clean": 1084,
-    "todo": 552,
-    "empty": 156
+    "clean": 1087,
+    "todo": 550,
+    "empty": 155
   },
   "todo_classes": {
-    "OTHER (unclassified)": 596,
+    "OTHER (unclassified)": 592,
     "replacement effect missing": 14,
     "TriggerCondition::* missing variant": 17,
     "attack trigger (self / generic)": 25,

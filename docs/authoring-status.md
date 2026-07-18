@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-18 12:46 UTC  
-**Git:** `e3479962` on `feat/pb-ef5-card-invokable-self-transform-cardtypebattle-ef-w-mis`  
+**Generated:** 2026-07-18 13:51 UTC  
+**Git:** `130443e9` on `feat/pb-ef6-targetrequirementtargetopponent-ef-w-pb2-2`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -19,16 +19,16 @@ and what is intentionally NOT in it.**
 
 | Metric | Count | Δ since last run |
 | --- | ---: | ---: |
-| Card def files on disk | 1,792 | +3 |
+| Card def files on disk | 1,792 | · |
 | Authoring-plan target universe (snapshot 2026-03-10) | 1,636 | · |
-| Plan cards with a def file (any-face match) | 1,488 | +5 |
-| Plan cards still missing a def file | 148 | -5 |
+| Plan cards with a def file (any-face match) | 1,488 | · |
+| Plan cards still missing a def file | 148 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **111%** (1,809 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 60.5% | 1,084 | +1 |
-| With TODO markers | 552 | +2 |
-| Empty `abilities: vec![]` placeholders | 156 | · |
-| Total TODO lines across all defs | 969 | · |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 60.7% | 1,087 | +3 |
+| With TODO markers | 550 | -2 |
+| Empty `abilities: vec![]` placeholders | 155 | -1 |
+| Total TODO lines across all defs | 965 | -4 |
 
 ## Authoring activity (git, by window)
 
@@ -78,7 +78,7 @@ are blocked on engine primitives.
 | `counters-plus` | 49 / 49 | 100% | 24 | 20 | 5 |
 | `land-fetch` | 45 / 45 | 100% | 27 | 14 | 4 |
 | `attack-trigger` | 16 / 34 | 47% | 12 | 2 | 2 |
-| `death-trigger` | 34 / 34 | 100% | 19 | 10 | 5 |
+| `death-trigger` | 34 / 34 | 100% | 20 | 9 | 5 |
 | `mana-artifact` | 34 / 34 | 100% | 14 | 18 | 2 |
 | `activated-tap` | 9 / 27 | 33% | 8 | 0 | 1 |
 | `pump-buff` | 27 / 27 | 100% | 17 | 7 | 3 |
@@ -92,7 +92,7 @@ are blocked on engine primitives.
 | `removal-exile` | 14 / 14 | 100% | 5 | 5 | 4 |
 | `untap-phase` | 6 / 13 | 46% | 5 | 0 | 1 |
 | `cost-reduction` | 12 / 12 | 100% | 12 | 0 | 0 |
-| `opponent-punish` | 12 / 12 | 100% | 4 | 2 | 6 |
+| `opponent-punish` | 12 / 12 | 100% | 5 | 2 | 5 |
 | `equipment` | 11 / 11 | 100% | 6 | 5 | 0 |
 | `tutor` | 11 / 11 | 100% | 9 | 1 | 1 |
 | `removal-bounce` | 10 / 10 | 100% | 6 | 3 | 1 |
@@ -207,7 +207,7 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 596 | -1 |
+| OTHER (unclassified) | 592 | -4 |
 | DSL gap (unspecified) | 122 | · |
 | attack trigger (self / generic) | 25 | · |
 | TriggerCondition::* missing variant | 17 | · |
@@ -215,7 +215,7 @@ the next thing to triage when the classifier table is grown.
 | Cost::* missing variant | 16 | · |
 | replacement effect missing | 14 | · |
 | EffectAmount::* missing variant | 12 | · |
-| interactive / hidden-info choice | 11 | +1 |
+| interactive / hidden-info choice | 11 | · |
 | sacrifice as cost | 11 | · |
 | combat-damage-to-player trigger | 10 | · |
 | can't / must block-attack | 7 | · |
@@ -237,23 +237,23 @@ _…and 27 more buckets totaling 45 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 596 
+Showing 12 of 592 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
 
 ```
 abstergo_entertainment: // TODO: {3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card
-blood_tribute: // TODO: Kicker cost "tap a Vampire" is non-mana kicker.
-deadly_tempest: // TODO: The "each player loses life equal to creatures they controlled" requires
-experimental_augury: // TODO: Interactive "choose 1 of 3" — M10 player choice. Approximated as
-goblin_king: // TODO: AllCreaturesWithSubtype includes Goblin King itself — "other" semantics
+bloodchief_ascension: // TODO: Both abilities are complex — end-step conditional counter placement needs
+deep_gnome_terramancer: // TODO: "lands enter under opponent's control without being played" trigger condition
+experimental_augury: // TODO: Interactive top-3 selection deferred to M10.
+goblin_lackey: // TODO: "put a Goblin from hand onto battlefield" — needs MoveZone from
 jeskas_will: // TODO: "choose both if commander" conditional entwine.
 marisi_breaker_of_the_coil: // TODO: "Your opponents can't cast spells during combat" — phase-scoped CantCast not in DSL.
 out_of_the_tombs: // TODO: Upkeep counter + mill scaling with counter count not expressible.
-ruthless_technomancer: // ENGINE-BLOCKED (activated ability): "{2}{B}, Sacrifice X artifacts: Return target
-song_of_freyalise: // TODO: Saga chapter I/II — grant `{T}: Add one mana of any color` to creatures you
-teferi_temporal_archmage: // TODO: RevealAndRoute reveals all; "look" is private. Using RevealAndRoute
+ruthless_technomancer: // ENGINE-BLOCKED: see module comment -- ETB optional-sacrifice-for-Treasure
+song_of_freyalise: // TODO: Saga chapter III — +1/+1 counters on all creatures you control plus vigilance,
+teferi_temporal_archmage: // TODO: Emblem creation for "activate loyalty at instant speed" not in DSL.
 tyvar_jubilant_brawler: // TODO: static — creatures you control can activate abilities as though they had haste
 ```
 
@@ -273,6 +273,9 @@ tyvar_jubilant_brawler: // TODO: static — creatures you control can activate a
 ## Recent card-touching commits
 
 ```
+7f6d5082 scutemob-107: PB-EF6 card-def fixups — vengeful_bloodwitch comment, forbidden_orchard revert
+b5305f41 scutemob-107: PB-EF6 card defs — TargetOpponent flips + fixes (EF-W-PB2-2)
+5ddc2067 scutemob-106: PB-EF5 /review fixes + closeout — TransformSelf
 e3479962 scutemob-106: PB-EF5 card defs + tests — Effect::TransformSelf corpus usage
 db43d268 scutemob-105: PB-EF4 fix phase — apply 2 LOW review findings
 9f342f50 scutemob-105: PB-EF4 — EffectFilter::TriggeringCreature + DealDamage.source override (implement)
@@ -295,9 +298,6 @@ ba1fe756 scutemob-95: W-PB2 batch 1 — target-filter fixes (11 Complete, patria
 91ce106c SR-36: reconcile markers — 3 upgrades, 2 stale notes, and a gate asymmetry SF-8 exposed
 ae14ed5a scutemob-91: SR-35 — rustfmt gate over the card-def corpus (was checking zero files)
 1fa03bc6 scutemob-90: apply SR-34 review fixes (0 HIGH, 5 MEDIUM, 3 LOW — all 8 resolved)
-5cadf2ca scutemob-90: SR-34 roster reconciliation (criterion 4767) — 27 defs probed, 17 markers, 10 certified
-b0290d2c scutemob-90: SR-34 §9 — un-demote the 3 horizon lands, extend the SR-33 colour gate to composite costs
-247437f1 scutemob-90: SR-34 steps 1-6 — ManaAbility gains mana_cost/life_cost, handle_tap_for_mana pays them, mana-ability lowering widens from bare Cost::Tap
 ```
 
 ## Missing card-defs sidecar

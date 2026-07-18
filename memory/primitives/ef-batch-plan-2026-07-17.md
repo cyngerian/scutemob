@@ -368,7 +368,38 @@ demote is not a PB and should not wait in the queue.
 - **Discounted ship**: **~7–9.** LOW severity but the biggest clean-coverage mover in the set;
   sequence it right after the correctness batches.
 
-### PB-EF6 — `TargetRequirement::TargetOpponent`  ·  capability
+### PB-EF6 — `TargetRequirement::TargetOpponent`  ·  capability  ·  ✅ DONE (scutemob-107)
+> **SHIPPED 2026-07-18. EF-W-PB2-2 CLOSED.** Added `TargetRequirement::TargetOpponent` (unit
+> variant, hash discriminant 18). Validation threads the source's controller (`caster`) into
+> `validate_player_satisfies_requirement` (previously took no caster) — `Ok` iff `id != caster`,
+> else `InvalidTarget` (CR 102.2/102.3/601.2c; **no teams model exists**, confirmed — opponent =
+> any non-controller). Object-side `valid` match rejects it (`TargetPlayer | TargetOpponent =>
+> false`). Both trigger auto-target pickers (outer + UpToN-inner in `flush_pending_triggers`) got a
+> dedicated arm that picks the first active opponent with **NO `.or_else` self-fallback** — the
+> trigger is removed from the stack when the source has no opponent (CR 603.3d), never redirected to
+> the controller. `is_target_legal` unchanged (opponent-ness is a declaration-time restriction that
+> can't change at resolution). Wire bump necessary: **PROTOCOL 10→11, HASH 48→49**, both
+> machine-forced (new `TargetRequirement` variant reaches the SR-8 fingerprint + GameState hash
+> closures), re-pinned from failing-gate output, history rows appended.
+> **Roster recall beat the brief's 2-flip estimate: 3 clean flips → Complete** —
+> shaman_of_the_pack (inert→Complete; ETB `LoseLife{PermanentCount Elf/You}`), raiders_wake
+> (partial→Complete; Raid end-step discard w/ `YouAttackedThisTurn` intervening-if),
+> **vengeful_bloodwitch** (known_wrong→Complete — NOT in the brief; its marker's sole blocker was
+> this exact variant) — plus a latent **legal-but-wrong self-target on the shipped-`Complete`
+> `fell_specter`** corrected (TargetPlayer→TargetOpponent; stays Complete). **4 stayed non-Complete
+> with truthful markers on their REAL surviving blockers**: blood_tribute (`EffectAmount::HalfLife`),
+> blessed_alliance (idx3 fixed, idx0 kept TargetPlayer for "target player gains 4 life";
+> Escalate/`mode_targets` blocker), forbidden_orchard (target fixed but **dead on OOS-EF6-1** +
+> `AddManaAnyColor`/EF-W-PB2-3), ajani_sleeper_agent (no-op +1/-3, spell-type filter, Compleated).
+> flare_of_malice left untouched (wrong-oracle, full re-author). **Review**: 0 HIGH, 0 MEDIUM, 3 LOW
+> (CR 102.4→102.2 citation; shaman You-restriction decoy; object-target rejection test) — all fixed.
+> **9 new tests** in `pb_ef6_target_opponent.rs` (primitives group 506→515) incl. the required
+> 4-player accept-opponent/reject-self + a no-opponent-removed-from-stack decoy + object-target
+> rejection, all proven non-vacuous (LOW-2's proof also surfaced that `matches_filter` never reads
+> `TargetFilter.controller` — the real count-gate is `PermanentCount`'s outer `controller:
+> PlayerTarget` field). New seed **OOS-EF6-1** filed (§10). Coverage **60.5% → 60.7%** (1,084 →
+> 1,087 clean of 1,792; +3 = the 3 flips; fell_specter was already Complete so no movement).
+> Plan/review: `memory/primitives/pb-plan-EF6.md` / `pb-review-EF6.md`.
 - **Findings**: EF-W-PB2-2.
 - **Fix**: add `TargetOpponent` + validation restricting candidates to opponents of the
   source's controller (CR 115.x). Wire change → PROTOCOL bump.
@@ -428,8 +459,8 @@ demote is not a PB and should not wait in the queue.
 | **PB-EF3** ✅ DONE | correctness+cap | MISS-10, MISS-4 | **3 shipped** | PROTOCOL+HASH |
 | **PB-EF3b** ✅ DONE | correctness | MISS-3 | **1 Complete (Adriana) + 1 partial (Skyhunter)** | none |
 | **PB-EF4** ✅ DONE | capability | PB2-6≡MISS-5, PB2-7 | **7 shipped** | PROTOCOL+HASH |
-| PB-EF5 | capability | MISS-6 | ~7–9 | PROTOCOL |
-| PB-EF6 | capability | PB2-2 | ~3 | PROTOCOL |
+| **PB-EF5** ✅ DONE | capability | MISS-6 | **2 shipped** | PROTOCOL+HASH |
+| **PB-EF6** ✅ DONE | capability | PB2-2 | **3 flips + fell_specter fix** | PROTOCOL+HASH |
 | PB-EF7 | capability | PB2-4 | ~2–4 | PROTOCOL |
 | PB-EF8 | capability | PB2-8 | ~2–3 | maybe |
 | PB-EF9 | capability | PB2-5 | ~1–2 | maybe |
@@ -760,3 +791,33 @@ plan's table, during this batch):
   `TriggerCondition` count field, a `Cost::Sacrifice` count field, and an
   `Effect::RemoveFromCombat` are all additive to existing enums already in the SR-8 closure —
   still verify at plan time).
+
+---
+
+## 10. New finding filed by PB-EF6 (scutemob-107)
+
+### OOS-EF6-1 (correctness, pre-existing) — `WhenTappedForMana` triggers can't resolve a declared target
+`rules/mana.rs::fire_mana_triggered_abilities` queues a `TriggerCondition::WhenTappedForMana`
+trigger as `PendingTriggerKind::Normal` with the ability's **raw `def.abilities` index**. The
+trigger auto-target picker in `flush_pending_triggers`, for a `Normal`-kind trigger, reads its
+target requirements from the runtime `characteristics.triggered_abilities` — which
+`enrich_spec_from_def` **never populates for `WhenTappedForMana`** (unlike `WhenEntersBattlefield`
+etc.). So a `WhenTappedForMana` trigger that declares a target (`targets: vec![...]`) gets **no
+target selected** — the declared target is dead. This is the exact `PendingTriggerKind::Normal`
+vs raw-`def.abilities`-index mismatch class that PB-EF3 (EF-W-MISS-10) fixed for the *attack*
+enrich blocks, but the mana-trigger dispatch path was not in that sweep.
+
+- **Instance**: `forbidden_orchard.rs` — "Whenever you tap this land for mana, target opponent
+  creates a 1/1 colorless Spirit creature token." PB-EF6 gave it a correct
+  `TargetRequirement::TargetOpponent` and PB-EF2 gives `TokenSpec.recipient`, but wiring
+  `recipient: DeclaredTarget{0}` produced **0 tokens** (the target never resolves), so the
+  recipient change was reverted and the def stays `known_wrong` on this gap **plus** the
+  `AddManaAnyColor` blocker (EF-W-PB2-3). Verified empirically: `mana_triggers::test_mana_trigger_forbidden_orchard`
+  went 1 token → 0 tokens when the recipient was wired, then restored on revert.
+- **Fix shape**: mirror PB-EF3's EF-W-MISS-10 fix on the mana path — either forward the def's
+  `AbilityDefinition::Triggered { targets }` into the runtime `triggered_abilities` for
+  `WhenTappedForMana` in `enrich_spec_from_def`, or classify the queued trigger with the correct
+  kind so the picker uses the def raw-index lookup. Small; no new wire type. Unblocks
+  forbidden_orchard's token-recipient once EF-W-PB2-3 (AddManaAnyColor) is also resolved.
+- **Verified**: PB-EF6 impl 2026-07-18 — the recipient wiring was attempted, root-caused, and
+  reverted; the surviving-blocker marker on `forbidden_orchard.rs` records the full dispatch chain.

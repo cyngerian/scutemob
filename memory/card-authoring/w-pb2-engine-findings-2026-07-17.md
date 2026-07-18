@@ -32,7 +32,24 @@ corpus), so the fix is zero-risk to existing cards and changes no existing test'
 `Complete` and add a regression test asserting the entered counter count with 0 and with N
 other Humans. Demoted to `known_wrong` here.
 
-## EF-W-PB2-2 — no opponent-restricted player `TargetRequirement` (MEDIUM)
+## EF-W-PB2-2 — no opponent-restricted player `TargetRequirement` (MEDIUM) — ✅ CLOSED (PB-EF6, scutemob-107, 2026-07-18)
+
+> **CLOSED 2026-07-18.** Added `TargetRequirement::TargetOpponent` (unit variant, hash
+> discriminant 18). Validation threads the source's controller (`caster`) into
+> `validate_player_satisfies_requirement`, which now rejects a self-target (`Ok` iff `id !=
+> caster`; no teams model exists — opponent = any non-controller, CR 102.2/102.3/601.2c). Both
+> trigger auto-target pickers (outer + UpToN-inner) pick the first active opponent with **no
+> self-fallback** — the trigger is removed from the stack if the source has no opponent (CR
+> 603.3d). Wire bump **PROTOCOL 10→11, HASH 48→49** (machine-forced). **3 clean flips → Complete**
+> (shaman_of_the_pack, raiders_wake, and vengeful_bloodwitch — the last found by roster recall,
+> not in the brief) + a latent legal-but-wrong self-target on the shipped-Complete `fell_specter`
+> corrected. blood_tribute / blessed_alliance(idx3) / forbidden_orchard / ajani_sleeper_agent
+> target-fixed but stay non-Complete on their REAL surviving blockers (HalfLife / Escalate /
+> AddManaAnyColor+WhenTappedForMana-dispatch / no-op loyalty). Review: 0 HIGH, 0 MEDIUM, 3 LOW
+> (all fixed). New seed filed: **OOS-EF6-1** (WhenTappedForMana triggers queue as
+> `PendingTriggerKind::Normal` with a raw def-index the auto-picker can't read — forbidden_orchard's
+> token target/recipient is dead until fixed). Plan/review: `memory/primitives/pb-plan-EF6.md` /
+> `pb-review-EF6.md`.
 
 `TargetRequirement` has `TargetPlayer` (any player) but **no `TargetOpponent`** variant, so
 "target opponent …" oracle text cannot be authored without permitting an illegal self-target
