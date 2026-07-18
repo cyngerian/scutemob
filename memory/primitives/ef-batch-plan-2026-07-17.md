@@ -191,7 +191,7 @@ changes behaviour:
 | EF-W-PB2-8 | MED | `Cost::ExileSelfFromHand` (+ `activation_zone: Hand`) | simian_spirit_guide (+ Elvish/other pitch-for-mana) |
 | EF-W-PB2-5 | MED | `EffectDuration::WhileYouControlSource` | olivia_voldaren + gain-control lends |
 | EF-W-PB2-3 | MED | granted `any_color` ManaAbility → real color choice (not `Colorless`) | elven_chorus (+ future granted-any-color) |
-| EF-W-MISS-6 | LOW* | card-invokable `Effect::TransformSelf` (+ `CardType::Battle`, "Super Nova") | 11 body-only DFCs + Invasion of Ikoria + Sephiroth |
+| EF-W-MISS-6 | LOW* | ~~card-invokable `Effect::TransformSelf`~~ ✅ DONE (scutemob-106); Battle/Super Nova SPLIT → OOS-EF5-1/2 | 11 body-only DFCs + Invasion of Ikoria + Sephiroth |
 | EF-W-MISS-7 | LOW | `ToughnessOfSacrificedCreature`, runtime `max_cmc`, "if you do" sacrifice `Condition` | Momentous Fall, Birthing Ritual, Eldritch Evolution, Victimize |
 | EF-W-MISS-8 | LOW | `WheelDraw` "greatest number discarded" variant | Windfall |
 | EF-W-MISS-9 | LOW | spell-only single-target `TargetRequirement` | Misdirection |
@@ -327,8 +327,39 @@ demote is not a PB and should not wait in the queue.
   ogre_battledriver (flip), shared_animosity, Atarka, Fervent Charge, Goblin Piledriver, Muxus.
 - **Discounted ship**: **~4–5.**
 
-### PB-EF5 — card-invokable self-transform + `CardType::Battle`  ·  capability  ·  HIGHEST YIELD
-- **Findings**: EF-W-MISS-6.
+### PB-EF5 — card-invokable self-transform + `CardType::Battle`  ·  capability  ·  ✅ DONE (scutemob-106)
+> **SHIPPED 2026-07-18. EF-W-MISS-6 PARTIALLY CLOSED** — the `Effect::TransformSelf` half is
+> DONE; Battle + Sephiroth SPLIT OUT with justification (coordinator scoping, task-comment
+> recorded). Added `Effect::TransformSelf` — a unit `Effect` variant that flips the resolving
+> ability's own source DFC (`ctx.source`) **in place** through the existing transform machinery.
+> `handle_transform`'s flip core was extracted into `pub(crate) fn transform_permanent_in_place`
+> (engine.rs) shared by both the `Command::Transform` path (byte-identical: keeps its
+> zone/controller/daybound-`Err` validation) and the new executor arm; the arm honors the
+> **CR 701.27f/701.28e once-per-instruction** rule via a transient `EffectContext` bool
+> (`source_transformed_this_resolution`, latched only on an actual `PermanentTransformed` event,
+> so a non-DFC/meld/daybound no-op doesn't consume the instruction; propagates through
+> Sequence/Conditional/ForEach). No new wire *state* from the bool (transient). **Yield honestly
+> ~2, not the queue's "~7–9"** — TransformSelf is *necessary* for all 11 body-only DFCs but
+> *sufficient* for few: **docent_of_perfection** (author Complete) + **bloodline_keeper**
+> (author Complete — the plan's "tap N Vampires" 2nd blocker was falsified vs real oracle: it's
+> `{B}` + `activation_condition`) are the clean new Completes; **delver_of_secrets** demoted
+> Complete→partial (integrity: shipped Complete but never transformed — swan_song failure mode);
+> **thaumatic_compass** stayed partial (front TransformSelf complete; Spires back face's
+> "untap attacker AND remove from combat" needs a remove-from-combat primitive — the def had
+> modeled a *fabricated* "{T}: Tap target creature", caught in /review, corrected + demoted);
+> **growing_rites_of_itlimoc** authored partial (transform clause wired, ETB clause blocked).
+> The 8 others each have a distinct out-of-scope 2nd blocker (§9 OOS-EF5-3/4). Wire:
+> **PROTOCOL 9→10, HASH 47→48**, both machine-forced (new Effect variant reaches the SR-8
+> fingerprint + GameState hash closures), re-pinned from failing gates, history rows appended.
+> **Seeds filed** (§9): OOS-EF5-1 (`CardType::Battle`/Siege full CR 310 subsystem — Invasion of
+> Ikoria), OOS-EF5-2 (Sephiroth "Super Nova" — bespoke keyword action, own project),
+> OOS-EF5-3 (return-transformed / enters-transformed as a NEW object — edgar/fable/nicol_bolas/
+> grist), OOS-EF5-4 (DFC flip-condition primitives incl. (g) `Effect::RemoveFromCombat`).
+> **Review**: 2 HIGH + 1 MED filed; on verification vs cards.sqlite (authoritative) 2 were
+> false positives (docent P/T + token — the def was correct), 1 confirmed with a different root
+> cause (thaumatic fabricated ability → fixed + demoted). 3396 tests. Plan/review:
+> `memory/primitives/pb-plan-EF5.md` / `pb-review-EF5.md`.
+- **Findings**: EF-W-MISS-6 (TransformSelf half CLOSED; Battle/Sephiroth split → OOS-EF5-1/2).
 - **Fix**: `Effect::TransformSelf` (+ `TransformNamed`?) so a triggered/activated/conditional
   ability can flip a DFC without the external `Command::Transform`; add `CardType::Battle`
   (Invasion of Ikoria) and the "Super Nova" keyword (Sephiroth). Wire change → PROTOCOL bump.
@@ -704,6 +735,18 @@ plan's table, during this batch):
 - **(e) grist_voracious_larva** — REMOVED from this list; re-verification found it belongs to
   OOS-EF5-3 (return-transformed mechanism), not a 2nd-condition blocker. The plan's original
   table entry for this card was stale/wrong — see OOS-EF5-3 above.
+- **(g) thaumatic_compass** — a **remove-from-combat** effect primitive. The front (search +
+  end-step `TransformSelf`) is complete, but the Spires of Orazca back face
+  ("{T}: Untap target attacking creature an opponent controls **and remove it from combat**")
+  has no way to express the combat-removal clause — only `Effect::Regenerate` references
+  removal-from-combat, internally, with no standalone effect. `Effect::UntapPermanent` and an
+  `is_attacking`/`controller: Opponent` target filter DO exist, so the untap + target are
+  modeled, but the omitted combat-removal clause keeps the def `partial` (demoted from a
+  mistaken Complete during /review — the pre-fix def modeled a **fabricated** "{T}: Tap target
+  creature an opponent controls", a legal-but-wrong ability that did not match the printed
+  card at all). Fix shape: `Effect::RemoveFromCombat { target }` (CR 506.4/508). Found by the
+  /review pass, corroborated against cards.sqlite — a third PB-EF5 case where a per-card claim
+  (this time the reviewer's *and* the def's own oracle comment) didn't match the printed card.
 - **bloodline_keeper — REMOVED from this list entirely.** The plan's table listed its 2nd
   blocker as a "tap N other creatures" activation cost; the real oracle text ("{B}: Transform
   this creature. Activate only if you control five or more Vampires") has no such cost — it's
@@ -712,7 +755,8 @@ plan's table, during this batch):
   text directly (MCP/cards.sqlite) rather than trusting a prior recon pass's per-card blocker
   claims — this is the second PB-EF5-adjacent case (after grist) where the filed 2nd blocker
   didn't match the printed card.
-- **Fix shape**: (a)/(b)/(c)/(d) are each small, independent primitives; several could ship
+- **Fix shape**: (a)/(b)/(c)/(d)/(g) are each small, independent primitives; several could ship
   in one PB together. None requires a new wire type by itself (a `Condition` variant, a
-  `TriggerCondition` count field, and a `Cost::Sacrifice` count field are all additive to
-  existing enums already in the SR-8 closure — still verify at plan time).
+  `TriggerCondition` count field, a `Cost::Sacrifice` count field, and an
+  `Effect::RemoveFromCombat` are all additive to existing enums already in the SR-8 closure —
+  still verify at plan time).

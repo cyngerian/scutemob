@@ -185,11 +185,21 @@ Frenzied Goblin, Hellkite Charger, Lightning Runner (+ energy), Formidable Speak
 optional discard-then-search).
 
 ### Card-invokable self-transform effect missing (all 11 body-only DFCs)
-Bloodline Keeper, Docent of Perfection, Edgar Charmed Groom, Fable of the Mirror-Breaker,
-Grist Voracious Larva, Growing Rites of Itlimoc, Legion's Landing, Nicol Bolas the Ravager,
-Westvale Abbey (self-transform); Invasion of Ikoria (no `CardType::Battle`); Sephiroth (no
-"Super Nova" keyword). The Effect enum has only `Meld`, no `Transform`/`TransformSelf`
-(documented in `thaumatic_compass.rs`, `delver_of_secrets.rs`).
+**RESOLVED (EF-W-MISS-6, scutemob-106, PB-EF5, 2026-07-18) — `Effect::TransformSelf` shipped;
+Battle/Super Nova split out.** `Effect::TransformSelf` (unit variant, flips `ctx.source` in
+place through the shared `transform_permanent_in_place` helper, CR 701.27f once-per-instruction
+guarded) closes the self-transform gap. Cohort outcome (honest yield ~2, not ~7-9 — TransformSelf
+is necessary for all 11 but sufficient for few): **docent_of_perfection** + **bloodline_keeper**
+authored Complete; **delver_of_secrets** demoted Complete→partial (integrity — never transformed);
+**thaumatic_compass** partial (front done; Spires back needs remove-from-combat → OOS-EF5-4g);
+**growing_rites_of_itlimoc** partial (transform wired, ETB blocked). The rest carry distinct
+out-of-scope 2nd blockers — see `ef-batch-plan-2026-07-17.md` §9 OOS-EF5-3 (edgar, fable,
+nicol_bolas, grist — return-transformed as a NEW object, not in-place) and OOS-EF5-4
+(legions_landing, westvale_abbey, etc.). **Invasion of Ikoria** (`CardType::Battle` — full CR 310
+siege subsystem) → **OOS-EF5-1**; **Sephiroth** ("Super Nova" bespoke keyword action) → **OOS-EF5-2**;
+both SPLIT OUT with justification (a bare enum variant without the machinery would ship wrong game
+state — invariant #9). ~~The Effect enum has only `Meld`, no `Transform`/`TransformSelf`
+(documented in `thaumatic_compass.rs`, `delver_of_secrets.rs`).~~
 
 ### Gated mana / chosen-color mana / mana restrictions
 Lotus Petal, Jeweled Lotus, Orb of Dragonkind, Master of Dark Rites, Skirk Prospector,

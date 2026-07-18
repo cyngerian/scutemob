@@ -893,3 +893,23 @@ fn test_delver_of_secrets_marked_partial() {
         "delver_of_secrets should be marked Partial specifically (not KnownWrong/Inert)"
     );
 }
+
+// ── Integrity regression: thaumatic_compass is marked partial (back-face blocker) ─────
+
+/// Integrity guard: the front (search + end-step TransformSelf) is complete, but the
+/// Spires of Orazca back face ("{T}: Untap target attacking creature an opponent controls
+/// and remove it from combat") lacks a remove-from-combat effect primitive, so the def must
+/// NOT be `Complete` (OOS-EF5-4g). The front-transform test above still proves TransformSelf
+/// fires; this pins the honest completeness so the fabricated "{T}: Tap target creature"
+/// model (removed in the /review fix) cannot silently return as Complete.
+#[test]
+fn test_thaumatic_compass_marked_partial() {
+    let def = all_cards()
+        .into_iter()
+        .find(|d| d.name == "Thaumatic Compass")
+        .expect("Thaumatic Compass should have a CardDefinition");
+    assert!(
+        matches!(def.completeness, Completeness::Partial(_)),
+        "thaumatic_compass must be Partial -- Spires' remove-from-combat clause is inexpressible"
+    );
+}

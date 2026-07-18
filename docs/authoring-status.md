@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-18 11:11 UTC  
-**Git:** `db43d268` on `feat/pb-ef4-triggeringcreature-as-effect-subjectsource-ef-w-pb2-6`  
+**Generated:** 2026-07-18 12:46 UTC  
+**Git:** `e3479962` on `feat/pb-ef5-card-invokable-self-transform-cardtypebattle-ef-w-mis`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -19,25 +19,25 @@ and what is intentionally NOT in it.**
 
 | Metric | Count | Δ since last run |
 | --- | ---: | ---: |
-| Card def files on disk | 1,789 | +2 |
+| Card def files on disk | 1,792 | +3 |
 | Authoring-plan target universe (snapshot 2026-03-10) | 1,636 | · |
-| Plan cards with a def file (any-face match) | 1,483 | +2 |
-| Plan cards still missing a def file | 153 | -2 |
+| Plan cards with a def file (any-face match) | 1,488 | +5 |
+| Plan cards still missing a def file | 148 | -5 |
 | Bonus defs (on disk, outside plan) | 321 | · |
-| Effective coverage vs plan target | **110%** (1,804 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 60.5% | 1,083 | +7 |
-| With TODO markers | 550 | -3 |
-| Empty `abilities: vec![]` placeholders | 156 | -2 |
-| Total TODO lines across all defs | 969 | -4 |
+| Effective coverage vs plan target | **111%** (1,809 / 1,636) | — |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 60.5% | 1,084 | +1 |
+| With TODO markers | 552 | +2 |
+| Empty `abilities: vec![]` placeholders | 156 | · |
+| Total TODO lines across all defs | 969 | · |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 41 | 1,747 |
-| last 30 days | 41 | 2,921 |
-| last 90 days | 41 | 2,961 |
-| last 1 year | 1,814 | 3,344 |
+| last 7 days | 44 | 1,747 |
+| last 30 days | 44 | 2,921 |
+| last 90 days | 44 | 2,961 |
+| last 1 year | 1,817 | 3,344 |
 
 ## Bonus defs outside the plan
 
@@ -73,7 +73,7 @@ are blocked on engine primitives.
 | `other` | 108 / 131 | 82% | 68 | 32 | 8 |
 | `modal-choice` | 72 / 105 | 69% | 36 | 24 | 12 |
 | `mana-land` | 92 / 92 | 100% | 63 | 28 | 1 |
-| `body-only` | 55 / 70 | 79% | 29 | 10 | 16 |
+| `body-only` | 60 / 70 | 86% | 32 | 12 | 16 |
 | `removal-destroy` | 56 / 56 | 100% | 33 | 19 | 4 |
 | `counters-plus` | 49 / 49 | 100% | 24 | 20 | 5 |
 | `land-fetch` | 45 / 45 | 100% | 27 | 14 | 4 |
@@ -207,17 +207,17 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 597 | -2 |
+| OTHER (unclassified) | 596 | -1 |
 | DSL gap (unspecified) | 122 | · |
-| attack trigger (self / generic) | 25 | -1 |
+| attack trigger (self / generic) | 25 | · |
 | TriggerCondition::* missing variant | 17 | · |
 | dynamic hexproof / protection | 17 | · |
 | Cost::* missing variant | 16 | · |
 | replacement effect missing | 14 | · |
 | EffectAmount::* missing variant | 12 | · |
+| interactive / hidden-info choice | 11 | +1 |
 | sacrifice as cost | 11 | · |
 | combat-damage-to-player trigger | 10 | · |
-| interactive / hidden-info choice | 10 | · |
 | can't / must block-attack | 7 | · |
 | can't be countered | 7 | · |
 | opponent-action trigger | 7 | · |
@@ -237,7 +237,7 @@ _…and 27 more buckets totaling 45 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 597 
+Showing 12 of 596 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
@@ -247,30 +247,33 @@ abstergo_entertainment: // TODO: {3}, {T}, Exile Abstergo Entertainment: Return 
 blood_tribute: // TODO: Kicker cost "tap a Vampire" is non-mana kicker.
 deadly_tempest: // TODO: The "each player loses life equal to creatures they controlled" requires
 experimental_augury: // TODO: Interactive "choose 1 of 3" — M10 player choice. Approximated as
-goblin_lackey: // TODO: "put a Goblin from hand onto battlefield" — needs MoveZone from
+goblin_king: // TODO: AllCreaturesWithSubtype includes Goblin King itself — "other" semantics
 jeskas_will: // TODO: "choose both if commander" conditional entwine.
 marisi_breaker_of_the_coil: // TODO: "Your opponents can't cast spells during combat" — phase-scoped CantCast not in DSL.
-out_of_the_tombs: // TODO: Both abilities too complex for DSL.
-ruthless_technomancer: // ENGINE-BLOCKED: see module comment -- ETB optional-sacrifice-for-Treasure
+out_of_the_tombs: // TODO: Upkeep counter + mill scaling with counter count not expressible.
+ruthless_technomancer: // ENGINE-BLOCKED (activated ability): "{2}{B}, Sacrifice X artifacts: Return target
 song_of_freyalise: // TODO: Saga chapter I/II — grant `{T}: Add one mana of any color` to creatures you
-teferi_temporal_archmage: // TODO: Emblem creation for "activate loyalty at instant speed" not in DSL.
+teferi_temporal_archmage: // TODO: RevealAndRoute reveals all; "look" is private. Using RevealAndRoute
 tyvar_jubilant_brawler: // TODO: static — creatures you control can activate abilities as though they had haste
 ```
 
 ## ⚠ Completeness-marker drift
 
-6 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
+8 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
 
 - `ashnods_altar` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `boggart_shenanigans` — marked partial but has no TODO / ENGINE-BLOCKED comment
+- `delver_of_secrets` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `disciple_of_freyalise` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `olivia_voldaren` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `phyrexian_tower` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `temple_of_the_dragon_queen` — marked partial but has no TODO / ENGINE-BLOCKED comment
+- `thaumatic_compass` — marked partial but has no TODO / ENGINE-BLOCKED comment
 
 ## Recent card-touching commits
 
 ```
+e3479962 scutemob-106: PB-EF5 card defs + tests — Effect::TransformSelf corpus usage
 db43d268 scutemob-105: PB-EF4 fix phase — apply 2 LOW review findings
 9f342f50 scutemob-105: PB-EF4 — EffectFilter::TriggeringCreature + DealDamage.source override (implement)
 43e73b32 scutemob-104: PB-EF3b — granted keyword-triggers fire (Melee/Battle Cry/Annihilator)
@@ -295,12 +298,11 @@ ae14ed5a scutemob-91: SR-35 — rustfmt gate over the card-def corpus (was check
 5cadf2ca scutemob-90: SR-34 roster reconciliation (criterion 4767) — 27 defs probed, 17 markers, 10 certified
 b0290d2c scutemob-90: SR-34 §9 — un-demote the 3 horizon lands, extend the SR-33 colour gate to composite costs
 247437f1 scutemob-90: SR-34 steps 1-6 — ManaAbility gains mana_cost/life_cost, handle_tap_for_mana pays them, mana-ability lowering widens from bare Cost::Tap
-104bd5e3 scutemob-89: review fixes — gate AddManaChoice (3rd stub), correct 3 wrong findings, fmt
 ```
 
 ## Missing card-defs sidecar
 
-The full list of 153 plan cards still missing on disk is at 
+The full list of 148 plan cards still missing on disk is at 
 `docs/authoring-status-missing.txt` (tab-separated `group<TAB>name`, sorted by group). 
 Use it as a batch-author worklist.
 

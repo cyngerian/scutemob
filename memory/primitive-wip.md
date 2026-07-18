@@ -5,8 +5,19 @@ title: Add Effect::TransformSelf so a triggered/activated/conditional ability ca
 task: scutemob-106
 branch: feat/pb-ef5-card-invokable-self-transform-cardtypebattle-ef-w-mis
 started: 2026-07-18
-phase: implement
+phase: done
 plan_file: memory/primitives/pb-plan-EF5.md
+
+## Outcome (done 2026-07-18)
+- Effect::TransformSelf shipped (engine 29ba3b3e + card defs e3479962 + /review fix pending commit).
+- New Complete: docent_of_perfection, bloodline_keeper. Demote: delver_of_secrets (integrity).
+  Partial: thaumatic_compass (Spires remove-from-combat blocker, OOS-EF5-4g — /review corrected a
+  fabricated ability), growing_rites_of_itlimoc (ETB blocker).
+- Battle + Sephiroth SPLIT OUT → OOS-EF5-1/2; return-transformed → OOS-EF5-3; flip-conditions → OOS-EF5-4.
+- Gates green: build --workspace, test --all (3396), clippy -D, fmt + check-defs-fmt.sh.
+- PROTOCOL 9→10, HASH 47→48 (machine-forced). Coverage 1,083→1,084 clean (60.5%), corpus 1,789→1,792.
+- Review: 2 HIGH+1 MED filed; vs cards.sqlite 2 were false positives (docent correct), 1 confirmed
+  (thaumatic fabricated ability, fixed+demoted). EF-W-MISS-6 TransformSelf half CLOSED; Battle/Sephiroth split.
 
 ## Source findings
 - memory/primitives/ef-batch-plan-2026-07-17.md — PB-EF5 section (line ~330), §1 table (EF-W-MISS-6 line 194)
