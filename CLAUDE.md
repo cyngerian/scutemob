@@ -14,7 +14,7 @@
 > Detailed PB-by-PB handoffs, hazards, and seed inventories live in `memory/workstream-state.md`.
 > Worker sessions: append detail there, not here. CLAUDE.md tracks current snapshot only.
 
-- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage **1,093/1,792 = 61.0%** per `tools/authoring-report.py`; **EF queue ACTIVE (`memory/primitives/ef-batch-plan-2026-07-17.md`) — PB-EF1..EF9 + EF-13 SHIPPED (`scutemob-99`/`101`..`110`); PB-EF10 in flight `scutemob-111`; remaining EF11/EF12**; **PB-AC chain COMPLETE — AC0..AC9 all shipped**; **marker sweep COMPLETE — `scutemob-88`**; **SR-33..38 chain COMPLETE**; **W-PB2 + W-EMPTY + W-MISS COMPLETE — `scutemob-95`/`96`/`97`**)
+- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage **1,098/1,796 = 61.1%** per `tools/authoring-report.py`; **EF queue ACTIVE (`memory/primitives/ef-batch-plan-2026-07-17.md`) — PB-EF1..EF10 + EF-13 SHIPPED (`scutemob-99`/`101`..`111`); PB-EF11 in flight `scutemob-112`; remaining EF12**; **PB-AC chain COMPLETE — AC0..AC9 all shipped**; **marker sweep COMPLETE — `scutemob-88`**; **SR-33..38 chain COMPLETE**; **W-PB2 + W-EMPTY + W-MISS COMPLETE — `scutemob-95`/`96`/`97`**)
 - **Invariant #9 is machine-enforced (SR-2).** `CardDefinition.completeness` (`Complete` by
   Default) marks a def `Inert` / `Partial` / `KnownWrong`; `validate_deck` rejects any
   non-`Complete` card with `DeckViolation::IncompleteCard`. `CardRegistry::try_new` errors on
@@ -33,7 +33,7 @@
   accessors, gated on the `test-util` feature (self dev-dependency). **`cargo build
   --workspace` is the only gate that proves the seal** — `test --all` and `clippy
   --all-targets` enable `test-util` workspace-wide via feature unification. It is a CI step.
-- **Tests**: **3437 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
+- **Tests**: **3453 passing** across 29 suites (SR-9a consolidated 297 test binaries into 9); build/clippy/fmt clean
   — and `fmt` here means `cargo fmt --check` **plus** `tools/check-defs-fmt.sh`, which is the only one
   of the two that looks at the 1,748 card defs (SR-35)
 - **CI**: **LIVE and green** since 2026-07-10 (SR-1, merge `e9742dc2`) — single Ubuntu job (fmt + clippy + `build --workspace` + full tests) on push/PR to main + workflow_dispatch; rust-cache@v2, 45m timeout. **Toolchain pinned (SR-11, `scutemob-63`)**: `rust-toolchain.toml` pins exact stable `1.95.0` and CI reads that `channel` from the file (no more floating to latest stable), so local `clippy -D warnings` is an authoritative CI preview. SR remediation track: original SR-1..16 all DONE 2026-07-10; a 2026-07-11 re-audit of the remediated baseline filed **SR-17..SR-32**, all DONE 2026-07-14..16 (16/16 collected; full record: `docs/sr-remediation-plan.md`).
@@ -279,7 +279,17 @@
   `memory/card-authoring/sr36-engine-findings-2026-07-17.md` (**SG-1 MEDIUM: the simulator's
   `LegalActionProvider` ignores `life_cost` — harmless while the cost was dropped, now it
   offers bots unpayable actions**).
-- **Last Updated**: 2026-07-18 (**PB-EF9 collected, `scutemob-110` merge `abb92654`** —
+- **Last Updated**: 2026-07-18 (**PB-EF10 collected, `scutemob-111` merge `3710ad9c`** — all
+  three EF-W-MISS-7 sub-gaps via one `SacrificedCreatureLki` struct:
+  `EffectAmount::ToughnessOfSacrificedCreature` (layer-resolved LKI captured before
+  `move_object_to_zone`, anthem + toughness-not-power decoys), `TargetFilter.max_cmc_amount`
+  runtime cap on SearchLibrary (avoids a 99-def edit), `Condition::SacrificeFired` ("if you
+  do", CR 608.2b/c/h/i). momentous_fall/eldritch_evolution/victimize Complete + 2 bonus flips
+  (miren_the_moaning_well, diamond_valley); birthing_ritual honestly inert → **OOS-EF10-1**
+  (top-N dig inexpressible). EF-EF1-A untouched. Coverage **61.1%** (1,098/1,796); 3453 tests;
+  **PROTOCOL 14→15, HASH 52→53**; review 0H/0M/2L fixed. In flight: **PB-EF11**
+  (`scutemob-112`, Windfall + Misdirection singletons); then EF12 closes the queue.
+  Earlier: **PB-EF9 collected, `scutemob-110` merge `abb92654`** —
   `EffectDuration::WhileYouControlSource(PlayerId)` (CR 611.2b/c): "you" captured at creation,
   one-shot `expire_while_you_control_source_effects` **never resumes** (live re-eval would
   wrongly revive on regaining control); the planner found the engine had **no control-reversion
