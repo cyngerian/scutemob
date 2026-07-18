@@ -310,7 +310,30 @@ as a coordinator one-liner in the same sitting.
 
 ---
 
-## 3. EF-13 — options for the coordinator (decision left to user)
+## 3. EF-13 — RESOLVED: Option A (`scutemob-101`, 2026-07-18)
+
+> **DONE.** The coordinator chose **Option A**. The no-behaviour `Partial` class,
+> enumerated from the compiled registry (`all_cards()` + `card_registry_gate::registers_no_behavior`
+> + `completeness == Partial`), was **101 defs** (not 105 — PB-EF1 and the W-* waves
+> flipped a few since the marker sweep; the compiled-registry enumeration is authoritative,
+> as this plan warned). **Zero** `KnownWrong` defs registered no behaviour, so the gate
+> safely covers `KnownWrong` too.
+>
+> **Changes shipped:**
+> - All 101 flipped `Completeness::partial(...)` → `Completeness::inert(...)`, each def's
+>   existing blocker note preserved (all were already truthful "blocked on X" descriptions).
+> - `tests/core/card_registry_gate.rs` gained `test_no_behavior_defs_are_inert_not_partial_or_known_wrong`
+>   (forbids `Partial`/`KnownWrong` while `registers_no_behavior` is true) + the non-vacuity
+>   proof `no_behavior_kind_gate_is_not_vacuous` (a synthetic no-behaviour canary must be
+>   flagged as Partial/KnownWrong and NOT as Inert/Complete). Also proven load-bearing by
+>   reverting one real flip → the corpus gate reddens.
+> - `tools/authoring-report.py` rerun. **Reporting shift (deliberate):** `todo` 655→554,
+>   `empty` 57→158 (both ±101). **Clean-coverage headline unchanged: 1,070 = 60.0%.**
+> - **No HASH/PROTOCOL bump** — marker-only, no engine behaviour change (`Inert` and
+>   `Partial` are both non-`Complete`; `validate_deck` rejected both alike before and after,
+>   so invariant #9 held throughout).
+>
+> The options table below is retained for the record.
 
 **Finding**: 105 defs are marked `partial` but `registers_no_behavior` is true for them —
 by the `Completeness` taxonomy they are `Inert`, not `Partial`. Not a safety issue

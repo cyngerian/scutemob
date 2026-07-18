@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-18 05:28 UTC  
-**Git:** `bfdda877` on `feat/pb-ef1-excludeself-enforcement-sweep-honor-the-field-at-ever`  
+**Generated:** 2026-07-18 05:38 UTC  
+**Git:** `6202ab81` on `feat/ef-13-option-a-reclassify-105-no-behaviour-partial-defs-part`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,9 +25,9 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 160 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **110%** (1,797 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 60.0% | 1,070 | -1 |
-| With TODO markers | 655 | +1 |
-| Empty `abilities: vec![]` placeholders | 57 | · |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 60.0% | 1,070 | · |
+| With TODO markers | 554 | -101 |
+| Empty `abilities: vec![]` placeholders | 158 | +101 |
 | Total TODO lines across all defs | 973 | · |
 
 ## Authoring activity (git, by window)
@@ -66,33 +66,33 @@ are blocked on engine primitives.
 
 | Group | Auth / Total | % | Clean | TODO | Empty |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `combat-keyword` | 187 / 187 | 100% | 83 | 96 | 8 |
-| `draw` | 164 / 169 | 97% | 78 | 75 | 11 |
-| `token-create` | 148 / 155 | 95% | 82 | 66 | 0 |
+| `combat-keyword` | 187 / 187 | 100% | 83 | 87 | 17 |
+| `draw` | 164 / 169 | 97% | 78 | 69 | 17 |
+| `token-create` | 148 / 155 | 95% | 82 | 50 | 16 |
 | `land-etb-tapped` | 138 / 138 | 100% | 116 | 22 | 0 |
-| `other` | 108 / 131 | 82% | 67 | 41 | 0 |
-| `modal-choice` | 72 / 105 | 69% | 36 | 36 | 0 |
+| `other` | 108 / 131 | 82% | 67 | 33 | 8 |
+| `modal-choice` | 72 / 105 | 69% | 36 | 24 | 12 |
 | `mana-land` | 92 / 92 | 100% | 63 | 28 | 1 |
-| `body-only` | 55 / 70 | 79% | 29 | 12 | 14 |
-| `removal-destroy` | 56 / 56 | 100% | 33 | 21 | 2 |
-| `counters-plus` | 49 / 49 | 100% | 24 | 24 | 1 |
-| `land-fetch` | 45 / 45 | 100% | 27 | 17 | 1 |
-| `attack-trigger` | 10 / 34 | 29% | 6 | 4 | 0 |
-| `death-trigger` | 34 / 34 | 100% | 19 | 14 | 1 |
+| `body-only` | 55 / 70 | 79% | 29 | 10 | 16 |
+| `removal-destroy` | 56 / 56 | 100% | 33 | 19 | 4 |
+| `counters-plus` | 49 / 49 | 100% | 24 | 20 | 5 |
+| `land-fetch` | 45 / 45 | 100% | 27 | 14 | 4 |
+| `attack-trigger` | 10 / 34 | 29% | 6 | 2 | 2 |
+| `death-trigger` | 34 / 34 | 100% | 19 | 10 | 5 |
 | `mana-artifact` | 34 / 34 | 100% | 14 | 18 | 2 |
-| `activated-tap` | 9 / 27 | 33% | 8 | 1 | 0 |
-| `pump-buff` | 27 / 27 | 100% | 17 | 10 | 0 |
-| `cant-restriction` | 25 / 25 | 100% | 16 | 9 | 0 |
-| `removal-damage-target` | 23 / 23 | 100% | 9 | 13 | 1 |
-| `activated-sacrifice` | 7 / 19 | 37% | 5 | 2 | 0 |
+| `activated-tap` | 9 / 27 | 33% | 8 | 0 | 1 |
+| `pump-buff` | 27 / 27 | 100% | 17 | 7 | 3 |
+| `cant-restriction` | 25 / 25 | 100% | 16 | 5 | 4 |
+| `removal-damage-target` | 23 / 23 | 100% | 9 | 12 | 2 |
+| `activated-sacrifice` | 7 / 19 | 37% | 5 | 1 | 1 |
 | `mana-creature` | 19 / 19 | 100% | 12 | 7 | 0 |
-| `graveyard-recursion` | 18 / 18 | 100% | 8 | 10 | 0 |
-| `removal-damage-each` | 17 / 17 | 100% | 11 | 6 | 0 |
+| `graveyard-recursion` | 18 / 18 | 100% | 8 | 6 | 4 |
+| `removal-damage-each` | 17 / 17 | 100% | 11 | 5 | 1 |
 | `counter` | 16 / 16 | 100% | 8 | 5 | 3 |
 | `removal-exile` | 14 / 14 | 100% | 5 | 5 | 4 |
 | `untap-phase` | 6 / 13 | 46% | 5 | 0 | 1 |
 | `cost-reduction` | 12 / 12 | 100% | 12 | 0 | 0 |
-| `opponent-punish` | 12 / 12 | 100% | 4 | 8 | 0 |
+| `opponent-punish` | 12 / 12 | 100% | 4 | 2 | 6 |
 | `equipment` | 11 / 11 | 100% | 6 | 5 | 0 |
 | `tutor` | 11 / 11 | 100% | 9 | 1 | 1 |
 | `removal-bounce` | 10 / 10 | 100% | 6 | 3 | 1 |
@@ -100,7 +100,7 @@ are blocked on engine primitives.
 | `discard-effect` | 3 / 7 | 43% | 3 | 0 | 0 |
 | `scry-surveil` | 7 / 7 | 100% | 3 | 4 | 0 |
 | `aura` | 6 / 6 | 100% | 3 | 2 | 1 |
-| `etb-trigger` | 6 / 6 | 100% | 1 | 5 | 0 |
+| `etb-trigger` | 6 / 6 | 100% | 1 | 4 | 1 |
 | `lifedrain` | 6 / 6 | 100% | 3 | 1 | 2 |
 | `sacrifice-outlet` | 2 / 6 | 33% | 2 | 0 | 0 |
 | `lifegain` | 5 / 5 | 100% | 3 | 0 | 2 |
@@ -124,28 +124,28 @@ you which kind of next-step work would unblock the group.
 | --- | --- | --- |
 | Flux Channeler | `flux_channeler` | clean |
 
-#### `attack-trigger` — 10 / 34 (29%), authored split: 6 clean / 4 todo / 0 empty — **unwritten**
+#### `attack-trigger` — 10 / 34 (29%), authored split: 6 clean / 2 todo / 2 empty — **unwritten**
 
 | Card | Slug | Bucket |
 | --- | --- | --- |
 | Aurelia, the Warleader | `aurelia_the_warleader` | clean |
 | Copperhorn Scout | `copperhorn_scout` | clean |
-| Etali, Primal Storm | `etali_primal_storm` | todo |
+| Etali, Primal Storm | `etali_primal_storm` | empty |
 | Goblin Wardriver | `goblin_wardriver` | clean |
 | Hellrider | `hellrider` | todo |
 | Rhys the Exiled | `rhys_the_exiled` | clean |
 | Sanctum Seeker | `sanctum_seeker` | clean |
-| Shared Animosity | `shared_animosity` | todo |
+| Shared Animosity | `shared_animosity` | empty |
 | Six | `six` | todo |
 | Triumphant Adventurer | `triumphant_adventurer` | clean |
 
-#### `activated-tap` — 9 / 27 (33%), authored split: 8 clean / 1 todo / 0 empty — **unwritten**
+#### `activated-tap` — 9 / 27 (33%), authored split: 8 clean / 0 todo / 1 empty — **unwritten**
 
 | Card | Slug | Bucket |
 | --- | --- | --- |
 | Arbor Elf | `arbor_elf` | clean |
 | Contagion Clasp | `contagion_clasp` | clean |
-| Fauna Shaman | `fauna_shaman` | todo |
+| Fauna Shaman | `fauna_shaman` | empty |
 | Maze of Ith | `maze_of_ith` | clean |
 | Moggcatcher | `moggcatcher` | clean |
 | Sakura-Tribe Scout | `sakura_tribe_scout` | clean |
@@ -160,12 +160,12 @@ you which kind of next-step work would unblock the group.
 | Culling the Weak | `culling_the_weak` | clean |
 | Life's Legacy | `lifes_legacy` | clean |
 
-#### `activated-sacrifice` — 7 / 19 (37%), authored split: 5 clean / 2 todo / 0 empty — **unwritten**
+#### `activated-sacrifice` — 7 / 19 (37%), authored split: 5 clean / 1 todo / 1 empty — **unwritten**
 
 | Card | Slug | Bucket |
 | --- | --- | --- |
 | Altar of Dementia | `altar_of_dementia` | clean |
-| Birthing Pod | `birthing_pod` | todo |
+| Birthing Pod | `birthing_pod` | empty |
 | Bolas's Citadel | `bolass_citadel` | todo |
 | Goblin Chirurgeon | `goblin_chirurgeon` | clean |
 | Goblin Lookout | `goblin_lookout` | clean |
@@ -252,7 +252,7 @@ tyvar_jubilant_brawler: // TODO: static — creatures you control can activate a
 
 ## ⚠ Completeness-marker drift
 
-8 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
+7 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
 
 - `ashnods_altar` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `boggart_shenanigans` — marked partial but has no TODO / ENGINE-BLOCKED comment
@@ -260,7 +260,6 @@ tyvar_jubilant_brawler: // TODO: static — creatures you control can activate a
 - `olivia_voldaren` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `phyrexian_tower` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `scourge_of_valkas` — marked partial but has no TODO / ENGINE-BLOCKED comment
-- `shaman_of_the_pack` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `temple_of_the_dragon_queen` — marked partial but has no TODO / ENGINE-BLOCKED comment
 
 ## Recent card-touching commits
