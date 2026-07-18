@@ -32,6 +32,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // TODO: {T}: Target attacking Elf you control gains deathtouch until end of turn.
             // DSL gap: EffectTarget has no AttackingCreatureWithSubtype variant.
@@ -43,8 +44,8 @@ pub fn card() -> CardDefinition {
              vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter { is_attacking: true, \
              has_subtype: Some(Elf), controller: TargetController::You, ..default })], effect: \
              Effect::ApplyContinuousEffect(AddKeyword(Deathtouch), filter: \
-             EffectFilter::DeclaredTarget, UntilEndOfTurn) }. Once wired the card should be \
-             Complete — the mana ability is already correct.",
+             EffectFilter::DeclaredTarget, UntilEndOfTurn)                  modes: None,
+             }. Once wired the card should be Complete — the mana ability is already correct.",
         ),
         ..Default::default()
     }

@@ -25,6 +25,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: Some(Condition::ControlAtLeastNOtherLands(4)),
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         ..Default::default()

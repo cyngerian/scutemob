@@ -52,6 +52,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // CR 122.6 / 122.7 / 502.3: "Whenever one or more +1/+1 counters are put on
             // this creature, tap target creature an opponent controls. That creature

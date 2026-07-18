@@ -83,6 +83,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         // PB-EF1 (scutemob-99): both clauses authored. The attack trigger uses

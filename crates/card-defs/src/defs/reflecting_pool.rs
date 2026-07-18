@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
             activation_condition: None,
             activation_zone: None,
             once_per_turn: false,
+            modes: None,
         }],
         completeness: Completeness::known_wrong(
             "adds any color, not only colors lands you control could produce",

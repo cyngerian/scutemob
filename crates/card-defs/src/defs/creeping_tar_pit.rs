@@ -38,6 +38,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
@@ -50,6 +51,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // CR 613.1d/613.4b: {1}{U}{B}: Until end of turn, this land becomes a 3/2 blue
             // and black Elemental creature that can't be blocked. It's still a land.
@@ -123,6 +125,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         ..Default::default()

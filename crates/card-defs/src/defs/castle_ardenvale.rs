@@ -33,6 +33,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // {2}{W}{W}, {T}: Create a 1/1 white Human creature token.
             AbilityDefinition::Activated {
@@ -68,6 +69,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         ..Default::default()

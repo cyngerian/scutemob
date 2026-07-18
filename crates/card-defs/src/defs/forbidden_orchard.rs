@@ -24,6 +24,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // CR 605.5a / CR 605.1b: "Whenever you tap this land for mana, target opponent
             // creates a 1/1 colorless Spirit creature token."

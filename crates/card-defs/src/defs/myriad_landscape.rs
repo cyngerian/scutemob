@@ -43,6 +43,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // TODO: {2}, {T}, Sacrifice this land: Search for up to two basic land cards
             // that share a land type, put them onto the battlefield tapped, then shuffle.

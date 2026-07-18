@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // CR 613.1f: Layer 6 static ability — grants mana ability to each land
             // you control. Additive per 2018-10-05 ruling: lands keep all existing

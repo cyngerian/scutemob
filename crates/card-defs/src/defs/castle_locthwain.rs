@@ -34,6 +34,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // {1}{B}{B}, {T}: Draw a card, then you lose life equal to the number of cards in your hand.
             AbilityDefinition::Activated {
@@ -66,6 +67,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         ..Default::default()

@@ -30,6 +30,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // {2}, {T}: This land becomes a copy of target land.
             // CR 707.2: Indefinite copy effect (no duration).
@@ -54,6 +55,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         completeness: Completeness::partial(

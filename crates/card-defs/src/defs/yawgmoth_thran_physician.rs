@@ -67,6 +67,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // {B}{B}, Discard a card: Proliferate.
             AbilityDefinition::Activated {
@@ -83,6 +84,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         // PB-EF1 (scutemob-99): the last blocker — the "another" restriction on the

@@ -46,6 +46,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // Corrupted — {T}: Add three mana of any one color. Activate only if an opponent has 3+ poison counters.
             AbilityDefinition::Activated {
@@ -59,6 +60,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: Some(Condition::OpponentHasPoisonCounters(3)),
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         completeness: Completeness::known_wrong(

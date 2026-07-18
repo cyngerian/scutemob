@@ -45,6 +45,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // TODO: "{3}{R}{R}: Create Dragon Spirit token. Activate only if you control
             // an attacking modified creature." Blocked: activation condition "control

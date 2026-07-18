@@ -52,6 +52,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: Some(ActivationZone::Graveyard),
                 once_per_turn: false,
+                modes: None,
             },
         ],
         self_cost_reduction: Some(SelfCostReduction::TotalManaValue {

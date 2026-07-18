@@ -60,6 +60,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // ENGINE-BLOCKED: Pack tactics — "if you attacked with creatures with total power
             // 6 or greater this combat" needs Condition::AttackedWithTotalPowerAtLeast(6).

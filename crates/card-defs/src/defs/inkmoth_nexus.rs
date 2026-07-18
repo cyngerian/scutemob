@@ -28,6 +28,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // {1}: Animate — becomes 1/1 Phyrexian Blinkmoth artifact creature with flying + infect
             AbilityDefinition::Activated {
@@ -96,6 +97,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         ..Default::default()

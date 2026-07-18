@@ -45,6 +45,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             AbilityDefinition::Keyword(KeywordAbility::Transform),
             // CR 701.27a/f: "At the beginning of your end step, if you control seven or
@@ -87,6 +88,7 @@ pub fn card() -> CardDefinition {
                     activation_condition: None,
                     activation_zone: None,
                     once_per_turn: false,
+                    modes: None,
                 },
                 // "{T}: Untap target attacking creature an opponent controls and remove it
                 // from combat." The untap + attacking-opponent-creature target are expressible;
@@ -107,6 +109,7 @@ pub fn card() -> CardDefinition {
                     activation_condition: None,
                     activation_zone: None,
                     once_per_turn: false,
+                    modes: None,
                 },
             ],
             color_indicator: None,

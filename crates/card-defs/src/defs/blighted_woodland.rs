@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // {3}{G}, {T}, Sacrifice this land: Search for up to two basic lands tapped.
             AbilityDefinition::Activated {
@@ -64,6 +65,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         ..Default::default()

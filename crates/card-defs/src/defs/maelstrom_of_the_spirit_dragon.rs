@@ -27,6 +27,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // {T}: Add one mana of any color. Spend this mana only to cast a Dragon spell
             // or an Omen spell.
@@ -44,6 +45,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // {4}, {T}, Sacrifice: Search for a Dragon card, put into hand, shuffle.
             // CR 701.23
@@ -79,6 +81,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         completeness: Completeness::known_wrong(

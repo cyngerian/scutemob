@@ -37,6 +37,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // CR 603.2: "Whenever a creature enters, you may untap Blasting Station."
             // Note: "you may" optional not in DSL — always untaps (bot always opts in).

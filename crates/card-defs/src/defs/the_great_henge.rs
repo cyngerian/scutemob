@@ -41,6 +41,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // CR 603.2: "Whenever a nontoken creature you control enters, put a +1/+1
             // counter on it and draw a card." PB-AC0: is_nontoken now honored on the

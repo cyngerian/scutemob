@@ -32,6 +32,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // ENGINE-BLOCKED: "{1}{W}, {T}: Draw a card. Activate only if you attacked with two
             // or more creatures this turn." Needs a count-based attacked condition

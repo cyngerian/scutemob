@@ -22,6 +22,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // {T}: Add {B} or {G}. Activate only if you control a Swamp.
             AbilityDefinition::Activated {
@@ -37,6 +38,7 @@ pub fn card() -> CardDefinition {
                 )])),
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
@@ -51,6 +53,7 @@ pub fn card() -> CardDefinition {
                 )])),
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         ..Default::default()

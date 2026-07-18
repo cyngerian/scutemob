@@ -46,6 +46,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // CR 107.3k: {X}: Destroy each nonland permanent with mana value X whose controller
             // was dealt combat damage by this creature this turn. Activate only once each turn.
@@ -64,6 +65,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: true,
+                modes: None,
             },
         ],
         completeness: Completeness::partial(

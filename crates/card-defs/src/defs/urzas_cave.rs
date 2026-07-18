@@ -26,6 +26,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // {3}, {T}, Sacrifice this land: Search your library for a land card,
             // put it onto the battlefield tapped, then shuffle.
@@ -59,6 +60,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         ..Default::default()

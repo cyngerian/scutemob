@@ -96,7 +96,8 @@ pub fn card() -> CardDefinition {
         ],
         completeness: Completeness::partial(
             "Equip {2} unimplemented — bare Keyword(Equip) marker with no \
-             AbilityDefinition::Activated { cost: Mana({2}), effect: AttachEquipment } (see \
+             AbilityDefinition::Activated { cost: Mana({2}), effect: AttachEquipment                  modes: None,
+             } (see \
              keyword_registry.rs:89). Protection from green/blue and the combat-damage trigger \
              ARE implemented.",
         ),

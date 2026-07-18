@@ -41,6 +41,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // TODO: Level-dependent abilities and P/T changes (Level 1-4: 1/2 + {T}: Add {G}{G};
             //       Level 5+: 1/4 + grant Elves "{T}: Add {G}{G}") not expressible in DSL.

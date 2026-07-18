@@ -76,6 +76,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // When The Locust God dies, return it to its owner's hand at the beginning
             // of the next end step. Sets return_to_hand_at_end_step flag on graveyard object.

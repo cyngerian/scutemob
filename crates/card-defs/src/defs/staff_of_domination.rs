@@ -33,6 +33,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // {2}, {T}: You gain 1 life.
             AbilityDefinition::Activated {
@@ -52,6 +53,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // {3}, {T}: Untap target creature.
             AbilityDefinition::Activated {
@@ -70,6 +72,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // {4}, {T}: Tap target creature.
             AbilityDefinition::Activated {
@@ -88,6 +91,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
             // {5}, {T}: Draw a card.
             AbilityDefinition::Activated {
@@ -107,6 +111,7 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         ..Default::default()
