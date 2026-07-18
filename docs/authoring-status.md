@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-18 13:51 UTC  
-**Git:** `130443e9` on `feat/pb-ef6-targetrequirementtargetopponent-ef-w-pb2-2`  
+**Generated:** 2026-07-18 15:23 UTC  
+**Git:** `1574aa17` on `feat/pb-ef7-modal-abilitydefinitionactivated-ef-w-pb2-4`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,19 +25,19 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 148 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **111%** (1,809 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 60.7% | 1,087 | +3 |
-| With TODO markers | 550 | -2 |
-| Empty `abilities: vec![]` placeholders | 155 | -1 |
-| Total TODO lines across all defs | 965 | -4 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 60.8% | 1,089 | +2 |
+| With TODO markers | 548 | -2 |
+| Empty `abilities: vec![]` placeholders | 155 | · |
+| Total TODO lines across all defs | 964 | -1 |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 44 | 1,747 |
-| last 30 days | 44 | 2,921 |
-| last 90 days | 44 | 2,961 |
-| last 1 year | 1,817 | 3,344 |
+| last 7 days | 44 | 1,763 |
+| last 30 days | 44 | 2,937 |
+| last 90 days | 44 | 2,977 |
+| last 1 year | 1,817 | 3,360 |
 
 ## Bonus defs outside the plan
 
@@ -74,7 +74,7 @@ are blocked on engine primitives.
 | `modal-choice` | 72 / 105 | 69% | 36 | 24 | 12 |
 | `mana-land` | 92 / 92 | 100% | 63 | 28 | 1 |
 | `body-only` | 60 / 70 | 86% | 32 | 12 | 16 |
-| `removal-destroy` | 56 / 56 | 100% | 33 | 19 | 4 |
+| `removal-destroy` | 56 / 56 | 100% | 34 | 18 | 4 |
 | `counters-plus` | 49 / 49 | 100% | 24 | 20 | 5 |
 | `land-fetch` | 45 / 45 | 100% | 27 | 14 | 4 |
 | `attack-trigger` | 16 / 34 | 47% | 12 | 2 | 2 |
@@ -83,7 +83,7 @@ are blocked on engine primitives.
 | `activated-tap` | 9 / 27 | 33% | 8 | 0 | 1 |
 | `pump-buff` | 27 / 27 | 100% | 17 | 7 | 3 |
 | `cant-restriction` | 25 / 25 | 100% | 16 | 5 | 4 |
-| `removal-damage-target` | 23 / 23 | 100% | 9 | 12 | 2 |
+| `removal-damage-target` | 23 / 23 | 100% | 10 | 11 | 2 |
 | `activated-sacrifice` | 8 / 19 | 42% | 6 | 1 | 1 |
 | `mana-creature` | 19 / 19 | 100% | 12 | 7 | 0 |
 | `graveyard-recursion` | 18 / 18 | 100% | 8 | 6 | 4 |
@@ -207,7 +207,7 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 592 | -4 |
+| OTHER (unclassified) | 591 | -1 |
 | DSL gap (unspecified) | 122 | · |
 | attack trigger (self / generic) | 25 | · |
 | TriggerCondition::* missing variant | 17 | · |
@@ -237,7 +237,7 @@ _…and 27 more buckets totaling 45 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 592 
+Showing 12 of 591 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
@@ -246,15 +246,15 @@ deterministic (sorted by slug).
 abstergo_entertainment: // TODO: {3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card
 bloodchief_ascension: // TODO: Both abilities are complex — end-step conditional counter placement needs
 deep_gnome_terramancer: // TODO: "lands enter under opponent's control without being played" trigger condition
-experimental_augury: // TODO: Interactive top-3 selection deferred to M10.
+experimental_augury: // TODO: Interactive "choose 1 of 3" — M10 player choice. Approximated as
 goblin_lackey: // TODO: "put a Goblin from hand onto battlefield" — needs MoveZone from
 jeskas_will: // TODO: "choose both if commander" conditional entwine.
-marisi_breaker_of_the_coil: // TODO: "Your opponents can't cast spells during combat" — phase-scoped CantCast not in DSL.
-out_of_the_tombs: // TODO: Upkeep counter + mill scaling with counter count not expressible.
+marionette_apprentice: // ENGINE-BLOCKED: "Whenever another creature or artifact you control is put into
+otharri_suns_glory: // TODO: "{2}{R}{W}, Tap an untapped Rebel you control: Return this card from your
 ruthless_technomancer: // ENGINE-BLOCKED: see module comment -- ETB optional-sacrifice-for-Treasure
-song_of_freyalise: // TODO: Saga chapter III — +1/+1 counters on all creatures you control plus vigilance,
-teferi_temporal_archmage: // TODO: Emblem creation for "activate loyalty at instant speed" not in DSL.
-tyvar_jubilant_brawler: // TODO: static — creatures you control can activate abilities as though they had haste
+song_of_freyalise: // TODO: Saga chapter I/II — grant `{T}: Add one mana of any color` to creatures you
+teferi_temporal_archmage: // TODO: RevealAndRoute reveals all; "look" is private. Using RevealAndRoute
+tymna_the_weaver: // ENGINE-BLOCKED: the life payment and draw count both scale with the number of
 ```
 
 ## ⚠ Completeness-marker drift
@@ -273,6 +273,9 @@ tyvar_jubilant_brawler: // TODO: static — creatures you control can activate a
 ## Recent card-touching commits
 
 ```
+1574aa17 scutemob-108: PB-EF7 review fixes — LKI discriminator + validation-branch tests
+bd43762b scutemob-108: PB-EF7 card fixes — Goblin Cratermaker + Cankerbloom to Complete
+a4319e8d scutemob-108: PB-EF7 corpus-wide modes: None, on Activated ability defs (mechanical)
 7f6d5082 scutemob-107: PB-EF6 card-def fixups — vengeful_bloodwitch comment, forbidden_orchard revert
 b5305f41 scutemob-107: PB-EF6 card defs — TargetOpponent flips + fixes (EF-W-PB2-2)
 5ddc2067 scutemob-106: PB-EF5 /review fixes + closeout — TransformSelf
@@ -295,9 +298,6 @@ e7e304b8 scutemob-95: W-PB2 batch 3 — dynamic P/T + static grants (9 Complete)
 ba1fe756 scutemob-95: W-PB2 batch 1 — target-filter fixes (11 Complete, patriars_seal known_wrong)
 2a1f0b60 SR-37: SF-11 + SF-12 — gate the any-color mana stubs; land gate sees them
 530ba541 SR-36: close the review's 3 MEDIUMs — 0 HIGH found
-91ce106c SR-36: reconcile markers — 3 upgrades, 2 stale notes, and a gate asymmetry SF-8 exposed
-ae14ed5a scutemob-91: SR-35 — rustfmt gate over the card-def corpus (was checking zero files)
-1fa03bc6 scutemob-90: apply SR-34 review fixes (0 HIGH, 5 MEDIUM, 3 LOW — all 8 resolved)
 ```
 
 ## Missing card-defs sidecar

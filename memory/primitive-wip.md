@@ -5,7 +5,7 @@ title: Add `modes: Option<ModeSelection>` + per-mode targets to `AbilityDefiniti
 task: scutemob-108
 branch: feat/pb-ef7-modal-abilitydefinitionactivated-ef-w-pb2-4
 started: 2026-07-18
-phase: fix
+phase: done  # 2026-07-18 — plan→impl→review→fix complete. 2 flips (goblin_cratermaker, cankerbloom → Complete); umezawas_jitte stays known_wrong (OOS-EF7-1). PROTOCOL 11→12, HASH 49→50. Coverage 60.7%→60.8% (+2). 15 tests. Review 0 HIGH/2 MED/3 LOW all fixed. EF-W-PB2-4 closed. All gates green.
 
 ## Source findings
 - memory/primitives/ef-batch-plan-2026-07-17.md — PB-EF7 section (line ~409); §1 table (EF-W-PB2-4, line 190)
