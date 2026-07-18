@@ -2062,6 +2062,9 @@ fn execute_effect_inner(
                             let chars = crate::rules::layers::expect_characteristics(state, **id);
                             matches_filter(&chars, filter)
                                 && check_chosen_subtype_filter(state, ctx, filter, &chars)
+                                // CR 109.1: "untap each OTHER creature you control" excludes
+                                // the source (PB-EF1, EF-W-MISS-2: Copperhorn Scout).
+                                && (!filter.exclude_self || **id != ctx.source)
                         }
                         && match filter.controller {
                             TargetController::Any => true,
@@ -3212,7 +3215,10 @@ fn execute_effect_inner(
             // sibling effects in the same resolution see the original controller.
             let original_controller = ctx.controller;
             for pid in payer_ids {
-                if try_pay_optional_cost(state, pid, cost, events) {
+                // PB-EF1 (CR 109.1): pass the effect source so an optional
+                // `Cost::Sacrifice(filter.exclude_self)` ("you may sacrifice another
+                // creature") excludes the source itself.
+                if try_pay_optional_cost(state, pid, cost, Some(ctx.source), events) {
                     ctx.controller = pid;
                     execute_effect_inner(state, then, ctx, events);
                 }
@@ -3257,7 +3263,9 @@ fn execute_effect_inner(
             let player_ids = resolve_player_target_list(state, player, ctx);
             let n = resolve_amount(state, count, ctx).max(0) as usize;
             for pid in player_ids {
-                sacrifice_permanents_for_player(state, pid, n, filter, events);
+                // PB-EF1 (CR 109.1): pass the ability source so a `filter.exclude_self`
+                // ("sacrifice another permanent", e.g. Korvold) excludes it.
+                sacrifice_permanents_for_player(state, pid, n, filter, Some(ctx.source), events);
             }
         }
         // CR 104.2b / CR 104.1: the controller wins the game.
@@ -6765,6 +6773,10 @@ pub(crate) fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &Eff
                                 // CR 122.1: counter check must be against GameObject (not Characteristics).
                                 // Primary callsite for Armorcraft Judge ETB and similar filters.
                                 && check_has_counter_type(obj, filter)
+                                // CR 109.1 / 614.1c: "for each OTHER [permanent]" excludes the
+                                // source. Mirrors AttackingCreatureCount / TappedCreatureCount
+                                // (PB-EF1, EF-W-PB2-1: éomer counted itself as a Human).
+                                && (!filter.exclude_self || obj.id != ctx.source)
                         }
                 })
                 .count() as i32
@@ -7347,6 +7359,11 @@ fn eligible_sacrifice_targets(
     state: &GameState,
     pid: PlayerId,
     filter: &Option<TargetFilter>,
+    // PB-EF1 (CR 109.1): the ability's source object, when the sacrifice is driven by
+    // an effect/cost carrying `TargetFilter.exclude_self` ("sacrifice ANOTHER ..."). The
+    // source is excluded from the eligible set. `None` disables the check (a sacrifice
+    // with no meaningful source, e.g. a player-directed board-wide sacrifice).
+    source: Option<ObjectId>,
 ) -> Vec<ObjectId> {
     state
         .objects
@@ -7361,6 +7378,12 @@ fn eligible_sacrifice_targets(
                 return false;
             }
             if let Some(tf) = filter {
+                // PB-EF1 (CR 109.1): "sacrifice ANOTHER [permanent]" excludes the source.
+                // `matches_filter` receives only Characteristics and cannot see ObjectId, so
+                // this exclusion is enforced here where the candidate id is in scope.
+                if tf.exclude_self && source == Some(**id) {
+                    return false;
+                }
                 // CR 613.1d: use layer-resolved characteristics for filter check.
                 let chars = crate::rules::layers::expect_characteristics(state, **id);
                 // Check Characteristics-based fields via matches_filter.
@@ -7414,9 +7437,12 @@ fn sacrifice_permanents_for_player(
     pid: PlayerId,
     n: usize,
     filter: &Option<TargetFilter>,
+    // PB-EF1 (CR 109.1): source of the effect/cost driving this sacrifice, so a filter
+    // with `exclude_self` (a "sacrifice another" clause) can exclude it.
+    source: Option<ObjectId>,
     events: &mut Vec<GameEvent>,
 ) {
-    let mut controlled = eligible_sacrifice_targets(state, pid, filter);
+    let mut controlled = eligible_sacrifice_targets(state, pid, filter, source);
     controlled.sort_unstable();
     let to_sacrifice = controlled.into_iter().take(n).collect::<Vec<_>>();
     for id in to_sacrifice {
@@ -7578,7 +7604,14 @@ fn sacrifice_permanents_for_player(
 /// Supported cost kinds: `Mana`, `PayLife`, `DiscardCard`, `Sacrifice`, `Sequence`.
 /// Other `Cost` variants (`Tap`/`SacrificeSelf`/`ExileSelf`/`Forage`/`RemoveCounter`/
 /// `DiscardSelf`) are out of PB-AC2 scope and report unpayable (`false`).
-fn can_pay_optional_cost(state: &GameState, pid: PlayerId, cost: &Cost) -> bool {
+fn can_pay_optional_cost(
+    state: &GameState,
+    pid: PlayerId,
+    cost: &Cost,
+    // PB-EF1 (CR 109.1): source of the effect whose optional cost this is, so a
+    // `Cost::Sacrifice(filter)` with `exclude_self` ("sacrifice another") can exclude it.
+    source: Option<ObjectId>,
+) -> bool {
     match cost {
         // CR 118.8: mana costs are payable only from the floating mana pool at
         // resolution time (mana pools empty between steps, CR 500.4).
@@ -7600,7 +7633,7 @@ fn can_pay_optional_cost(state: &GameState, pid: PlayerId, cost: &Cost) -> bool 
         }
         // CR 613.1d: payable iff at least one eligible permanent exists.
         Cost::Sacrifice(filter) => {
-            !eligible_sacrifice_targets(state, pid, &Some(filter.clone())).is_empty()
+            !eligible_sacrifice_targets(state, pid, &Some(filter.clone()), source).is_empty()
         }
         // CR 118.12 / CR 601.2g: a Sequence cost is atomic -- payable only if the
         // FULL sequence can be paid in order. Checking every sub-cost independently
@@ -7619,10 +7652,10 @@ fn can_pay_optional_cost(state: &GameState, pid: PlayerId, cost: &Cost) -> bool 
             let mut scratch = state.clone();
             let mut scratch_events = Vec::new();
             costs.iter().all(|c| {
-                if !can_pay_optional_cost(&scratch, pid, c) {
+                if !can_pay_optional_cost(&scratch, pid, c, source) {
                     return false;
                 }
-                pay_optional_cost(&mut scratch, pid, c, &mut scratch_events);
+                pay_optional_cost(&mut scratch, pid, c, source, &mut scratch_events);
                 true
             })
         }
@@ -7644,6 +7677,9 @@ fn pay_optional_cost(
     state: &mut GameState,
     pid: PlayerId,
     cost: &Cost,
+    // PB-EF1 (CR 109.1): source of the effect whose optional cost this is (see
+    // `can_pay_optional_cost`); threaded into the sacrifice path for `exclude_self`.
+    source: Option<ObjectId>,
     events: &mut Vec<GameEvent>,
 ) {
     match cost {
@@ -7670,11 +7706,11 @@ fn pay_optional_cost(
         }
         Cost::DiscardCard => discard_cards(state, pid, 1, events),
         Cost::Sacrifice(filter) => {
-            sacrifice_permanents_for_player(state, pid, 1, &Some(filter.clone()), events)
+            sacrifice_permanents_for_player(state, pid, 1, &Some(filter.clone()), source, events)
         }
         Cost::Sequence(costs) => {
             for c in costs {
-                pay_optional_cost(state, pid, c, events);
+                pay_optional_cost(state, pid, c, source, events);
             }
         }
         Cost::Tap
@@ -7699,12 +7735,15 @@ fn try_pay_optional_cost(
     state: &mut GameState,
     pid: PlayerId,
     cost: &Cost,
+    // PB-EF1 (CR 109.1): source of the effect whose optional cost this is; threaded
+    // into the sacrifice path so `exclude_self` ("sacrifice another") is honored.
+    source: Option<ObjectId>,
     events: &mut Vec<GameEvent>,
 ) -> bool {
-    if !can_pay_optional_cost(state, pid, cost) {
+    if !can_pay_optional_cost(state, pid, cost, source) {
         return false;
     }
-    pay_optional_cost(state, pid, cost, events);
+    pay_optional_cost(state, pid, cost, source, events);
     true
 }
 // ── Card draw helper ──────────────────────────────────────────────────────────
@@ -8530,6 +8569,9 @@ pub fn check_static_condition(
                             matches_filter(&chars, filter)
                                 // CR 122.1: counter check must be against GameObject (not Characteristics).
                                 && check_has_counter_type(obj, filter)
+                                // CR 109.1: "you control another [permanent]" excludes the
+                                // source (PB-EF1, marker EF-5).
+                                && (!filter.exclude_self || obj.id != source)
                         }
                 })
                 .count();

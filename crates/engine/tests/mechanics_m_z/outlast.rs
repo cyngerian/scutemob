@@ -86,6 +86,7 @@ fn outlast_ability(mana: ManaCost) -> ActivatedAbility {
             exile_self: false,
             exert: false,
             life_cost: 0,
+            sacrifice_exclude_self: false,
         },
         description: "Outlast (CR 702.107a)".to_string(),
         effect: Some(Effect::AddCounter {

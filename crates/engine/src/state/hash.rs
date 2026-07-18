@@ -397,7 +397,13 @@
 ///   a Swamp"). Fed to `HashInto` right after `scaled_amount`. `decl_fingerprint` MOVES (a new
 ///   `#[serde(default)]` field on `ManaAbility`); `stream_fingerprint` moves per the v40
 ///   mechanism.
-pub const HASH_SCHEMA_VERSION: u8 = 43;
+/// - 44: PB-EF1 (2026-07-18) — `ActivationCost` gains `sacrifice_exclude_self: bool` (CR
+///   109.1 — the "Sacrifice ANOTHER [permanent]" restriction on an activated ability's
+///   sacrifice cost, e.g. Izoni / Yawgmoth / Commissar Severina Raine; `SacrificeFilter`
+///   carries no ObjectId so the bit rides on `ActivationCost`). Fed to `HashInto` right
+///   after `life_cost`. `decl_fingerprint` MOVES (a new `#[serde(default)]` field on
+///   `ActivationCost`); `stream_fingerprint` moves per the v40 mechanism.
+pub const HASH_SCHEMA_VERSION: u8 = 44;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -512,6 +518,15 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // stream_fingerprint moves per the v40 mechanism.
         decl_fingerprint: "893cf5c44cb308599a6b0140196bce22c900548896ccab86e977ceb8ef593d3a",
         stream_fingerprint: "b1941d3caed23ec2d41979f368e312c69eaa9861056edece97d7a03a8977495c",
+    },
+    HashSchemaEpoch {
+        version: 44,
+        // PB-EF1 (2026-07-18): ActivationCost gained sacrifice_exclude_self (see the
+        // `- 44:` History line above). decl_fingerprint moves (genuine struct-shape
+        // change); stream_fingerprint moves per the v40 mechanism (HASH_SCHEMA_VERSION
+        // is the stream's first byte).
+        decl_fingerprint: "0cfeb3004a9fff23daadee1e48617d46a9e31b07c668bd3023981f9772654bd8",
+        stream_fingerprint: "c669bac7a07e3a6de5b84e341e1f026e1500744df529b10c7f0668a4e9ea12b8",
     },
 ];
 
@@ -2708,6 +2723,11 @@ impl HashInto for ActivationCost {
         // only in life_cost would produce identical hashes (the same PB-S H1 failure
         // mode the comments above warn about).
         self.life_cost.hash_into(hasher);
+        // PB-EF1 (CR 109.1): sacrifice_exclude_self field. Must be present or two
+        // ActivationCosts differing only in the "another" restriction ("Sacrifice a
+        // creature" vs "Sacrifice another creature") would produce identical hashes
+        // (the PB-S H1 failure mode).
+        self.sacrifice_exclude_self.hash_into(hasher);
     }
 }
 impl HashInto for ActivatedAbility {

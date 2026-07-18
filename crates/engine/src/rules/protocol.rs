@@ -84,7 +84,13 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   CR 605.1a + CR 602.5b — Tainted Field's coloured arms). `Condition` was already in
 ///   the closure (reachable via `Effect::Conditional`), so the closure's type count is
 ///   unchanged; `ManaAbility`'s declared shape moved, so the digest moves.
-pub const PROTOCOL_VERSION: u32 = 5;
+/// - 6: PB-EF1 (2026-07-18) — `ActivationCost` (reachable via
+///   `Characteristics.activated_abilities` → `ActivatedAbility.cost`) gains
+///   `sacrifice_exclude_self: bool` (CR 109.1 — the "Sacrifice ANOTHER [permanent]"
+///   restriction on an activated ability's sacrifice cost; `SacrificeFilter` carries no
+///   ObjectId so the bit rides on `ActivationCost`). The closure's type count is
+///   unchanged; `ActivationCost`'s declared shape moved, so the digest moves.
+pub const PROTOCOL_VERSION: u32 = 6;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -102,7 +108,7 @@ pub const PROTOCOL_VERSION: u32 = 5;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "e8d28a23ccc2a1ba7c7b2643b33bb32b0374e0651b3eb6b60ec15f4817e3a85a";
+    "df270ca1b58b7fa17bfa2ca56afb564de4f8de22cc15770da511b3a6c7c7a4dc";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -180,6 +186,12 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // SR-37 (2026-07-17): ManaAbility gained activation_condition (see the `- 5:`
         // History line above).
         fingerprint: "e8d28a23ccc2a1ba7c7b2643b33bb32b0374e0651b3eb6b60ec15f4817e3a85a",
+    },
+    ProtocolEpoch {
+        version: 6,
+        // PB-EF1 (2026-07-18): ActivationCost gained sacrifice_exclude_self (see the
+        // `- 6:` History line above).
+        fingerprint: "df270ca1b58b7fa17bfa2ca56afb564de4f8de22cc15770da511b3a6c7c7a4dc",
     },
 ];
 

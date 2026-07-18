@@ -79,6 +79,7 @@ fn clue_spec(owner: PlayerId, name: &str) -> ObjectSpec {
                 exile_self: false,
                 exert: false,
                 life_cost: 0,
+                sacrifice_exclude_self: false,
             },
             description: "{2}, Sacrifice this token: Draw a card.".to_string(),
             effect: Some(Effect::DrawCards {

@@ -54,6 +54,7 @@ fn animatable_land(owner: PlayerId, name: &str, power: i32, toughness: i32) -> O
                 exile_self: false,
                 exert: false,
                 life_cost: 0,
+                sacrifice_exclude_self: false,
             },
             description: format!(
                 "{{1}}: Becomes a {power}/{toughness} creature with flying until EOT"

@@ -73,6 +73,7 @@ fn reconfigure_attach_ability(generic_mana: u32) -> ActivatedAbility {
             exile_self: false,
             exert: false,
             life_cost: 0,
+            sacrifice_exclude_self: false,
         },
         description: format!("Reconfigure (attach) {{{}}} (CR 702.151a)", generic_mana),
         effect: Some(Effect::AttachEquipment {
@@ -109,6 +110,7 @@ fn reconfigure_detach_ability(generic_mana: u32) -> ActivatedAbility {
             exile_self: false,
             exert: false,
             life_cost: 0,
+            sacrifice_exclude_self: false,
         },
         description: format!("Reconfigure (unattach) {{{}}} (CR 702.151a)", generic_mana),
         effect: Some(Effect::DetachEquipment {

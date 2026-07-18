@@ -311,6 +311,14 @@ pub struct ActivationCost {
     /// The caller must supply the ObjectId of the permanent to sacrifice in the command.
     #[serde(default)]
     pub sacrifice_filter: Option<SacrificeFilter>,
+    /// PB-EF1 (CR 109.1): when the sacrifice-cost oracle says "Sacrifice ANOTHER
+    /// [permanent]" (Izoni, Yawgmoth, Commissar Severina Raine), the source permanent is
+    /// not a legal choice to pay its own cost. Lowered from `Cost::Sacrifice`'s
+    /// `TargetFilter.exclude_self`; enforced in `handle_activate_ability`'s sacrifice-cost
+    /// validation. Only meaningful when `sacrifice_filter` is `Some`. Defaults `false`
+    /// ("Sacrifice a creature" without "another" — e.g. Nantuko Husk — may sac the source).
+    #[serde(default)]
+    pub sacrifice_exclude_self: bool,
     /// CR 602.2: Remove counters from the source permanent as part of the activation cost.
     /// CR 118.3: The permanent must have at least `count` counters of the given type.
     /// E.g., "Remove a charge counter: ..." = `Some((CounterType::Charge, 1))`.

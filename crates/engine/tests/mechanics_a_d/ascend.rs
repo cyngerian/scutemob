@@ -592,6 +592,7 @@ fn test_condition_has_citys_blessing() {
                 exile_self: false,
                 exert: false,
                 life_cost: 0,
+                sacrifice_exclude_self: false,
             },
             description: "Draw if city's blessing".to_string(),
             effect: Some(Effect::Conditional {

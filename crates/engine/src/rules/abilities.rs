@@ -782,6 +782,15 @@ pub fn handle_activate_ability(
                     "sacrifice cost: you must control the permanent to sacrifice (CR 602.2)".into(),
                 ));
             }
+            // PB-EF1 (CR 109.1): "Sacrifice ANOTHER [permanent]" — the source cannot pay
+            // its own cost by sacrificing itself. `SacrificeFilter` carries no ObjectId, so
+            // the "another" restriction rides on `ActivationCost.sacrifice_exclude_self`.
+            if ability_cost.sacrifice_exclude_self && sac_id == source {
+                return Err(GameStateError::InvalidCommand(
+                    "sacrifice cost: must sacrifice another permanent, not the source (CR 109.1)"
+                        .into(),
+                ));
+            }
             // PB-AC8 / CR 701.21a: a "can't be sacrificed" permanent is not a legal
             // choice to pay a sacrifice-another cost.
             if crate::effects::object_cant_be_sacrificed(state, sac_id) {

@@ -98,7 +98,7 @@ fn resolve_via_apply(
 #[test]
 fn test_hash_schema_version_after_pb_lki_cc() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 43u8,
+        HASH_SCHEMA_VERSION, 44u8,
         "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
     );
 }

@@ -38,6 +38,7 @@ fn targeted_activated_ability_valid_creature_target() {
                 exile_self: false,
                 exert: false,
                 life_cost: 0,
+                sacrifice_exclude_self: false,
             },
             description: "Target creature gets +1/+1 until EOT".to_string(),
             effect: Some(Effect::GainLife {
@@ -114,6 +115,7 @@ fn targeted_activated_ability_rejects_non_creature() {
                 exile_self: false,
                 exert: false,
                 life_cost: 0,
+                sacrifice_exclude_self: false,
             },
             description: "Target creature gets +1/+1 until EOT".to_string(),
             effect: Some(Effect::GainLife {
@@ -192,6 +194,7 @@ fn targeted_activated_ability_target_player() {
                 exile_self: false,
                 exert: false,
                 life_cost: 0,
+                sacrifice_exclude_self: false,
             },
             description: "Target player loses 1 life".to_string(),
             effect: Some(Effect::LoseLife {
@@ -258,6 +261,7 @@ fn activated_ability_no_targets_backward_compatible() {
                 exile_self: false,
                 exert: false,
                 life_cost: 0,
+                sacrifice_exclude_self: false,
             },
             description: "Gain 1 life".to_string(),
             effect: Some(Effect::GainLife {
@@ -460,6 +464,7 @@ fn targeted_activated_ability_rejects_player_for_creature_requirement() {
                 exile_self: false,
                 exert: false,
                 life_cost: 0,
+                sacrifice_exclude_self: false,
             },
             description: "Target creature gets +1/+1".to_string(),
             effect: Some(Effect::GainLife {
@@ -528,6 +533,7 @@ fn targeted_activated_ability_rejects_wrong_target_count() {
                 exile_self: false,
                 exert: false,
                 life_cost: 0,
+                sacrifice_exclude_self: false,
             },
             description: "Target creature gets +1/+1".to_string(),
             effect: Some(Effect::GainLife {

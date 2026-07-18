@@ -35,6 +35,7 @@ fn tap_ability(description: &str) -> ActivatedAbility {
             exile_self: false,
             exert: false,
             life_cost: 0,
+            sacrifice_exclude_self: false,
         },
         description: description.to_string(),
         effect: None,
@@ -61,6 +62,7 @@ fn tap_and_pay_ability(description: &str, mana: ManaCost) -> ActivatedAbility {
             exile_self: false,
             exert: false,
             life_cost: 0,
+            sacrifice_exclude_self: false,
         },
         description: description.to_string(),
         effect: None,
@@ -1068,6 +1070,7 @@ fn test_sacrifice_as_cost_full_flow_draw_card() {
                 exile_self: false,
                 exert: false,
                 life_cost: 0,
+                sacrifice_exclude_self: false,
             },
             description: "Sacrifice: Draw a card.".into(),
             effect: Some(draw_effect),
@@ -1198,6 +1201,7 @@ fn test_sacrifice_filter_creature_valid() {
                 exile_self: false,
                 exert: false,
                 life_cost: 0,
+                sacrifice_exclude_self: false,
             },
             description: "{T}, Sacrifice a creature: Add {B}{B}.".into(),
             effect: Some(Effect::GainLife {
@@ -1288,6 +1292,7 @@ fn test_sacrifice_filter_creature_rejects_artifact() {
                 exile_self: false,
                 exert: false,
                 life_cost: 0,
+                sacrifice_exclude_self: false,
             },
             description: "{T}, Sacrifice a creature: Add {B}{B}.".into(),
             effect: Some(Effect::GainLife {
@@ -1365,6 +1370,7 @@ fn test_sacrifice_filter_rejects_opponent_creature() {
                 exile_self: false,
                 exert: false,
                 life_cost: 0,
+                sacrifice_exclude_self: false,
             },
             description: "{T}, Sacrifice a creature: Add {B}{B}.".into(),
             effect: Some(Effect::GainLife {
@@ -1442,6 +1448,7 @@ fn test_sacrifice_filter_missing_target_errors() {
                 exile_self: false,
                 exert: false,
                 life_cost: 0,
+                sacrifice_exclude_self: false,
             },
             description: "{T}, Sacrifice a creature: Add {B}{B}.".into(),
             effect: Some(Effect::GainLife {
@@ -1807,6 +1814,7 @@ fn test_dies_trigger_fires_on_sacrifice() {
                 exile_self: false,
                 exert: false,
                 life_cost: 0,
+                sacrifice_exclude_self: false,
             },
             description: "Sacrifice: trigger dies".to_string(),
             effect: None,

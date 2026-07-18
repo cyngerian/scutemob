@@ -2269,6 +2269,7 @@ pub fn enrich_spec_from_def(
                     exile_self: false,
                     exert: false,
                     life_cost: 0,
+                    sacrifice_exclude_self: false,
                 },
                 description: "Outlast (CR 702.107a)".to_string(),
                 effect: Some(Effect::AddCounter {
@@ -3937,6 +3938,10 @@ fn flatten_cost_into(cost: &Cost, ac: &mut ActivationCost) {
                 }
             };
             ac.sacrifice_filter = Some(sac_filter);
+            // PB-EF1 (CR 109.1): preserve the "another" restriction. `SacrificeFilter`
+            // has no self-exclusion, so the bit is carried on `ActivationCost` and
+            // enforced in `handle_activate_ability` (abilities.rs).
+            ac.sacrifice_exclude_self = filter.exclude_self;
         }
         Cost::Sequence(costs) => costs.iter().for_each(|c| flatten_cost_into(c, ac)),
         Cost::DiscardCard => ac.discard_card = true,
