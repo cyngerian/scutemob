@@ -14,7 +14,7 @@
 > Detailed PB-by-PB handoffs, hazards, and seed inventories live in `memory/workstream-state.md`.
 > Worker sessions: append detail there, not here. CLAUDE.md tracks current snapshot only.
 
-- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage **1,117/1,798 = 62.1%** per `tools/authoring-report.py`; **EF queue COMPLETE — all of PB-EF1..EF12 + EF-13 Option A SHIPPED in one day (`scutemob-99`, `101`..`112`, `114`; plus swan_song demote `100` and Cargo.lock chore `113`); all 20 EF findings closed; new OOS seeds filed: OOS-EF3-1, OOS-EF3b-1, OOS-EF4-1, OOS-EF5-1..4, OOS-EF6-1, OOS-EF9-1, OOS-EF10-1, EF-EF1-A**; **PB-AC chain COMPLETE — AC0..AC9 all shipped**; **marker sweep COMPLETE — `scutemob-88`**; **SR-33..38 chain COMPLETE**; **W-PB2 + W-EMPTY + W-MISS COMPLETE — `scutemob-95`/`96`/`97`**)
+- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage **1,117/1,798 = 62.1%** per `tools/authoring-report.py`; **EF queue COMPLETE — all of PB-EF1..EF12 + EF-13 Option A SHIPPED in one day (`scutemob-99`, `101`..`112`, `114`; plus swan_song demote `100` and Cargo.lock chore `113`); all 20 EF findings closed; new OOS seeds filed: OOS-EF3-1, OOS-EF3b-1, OOS-EF4-1, OOS-EF5-1..4, OOS-EF6-1, OOS-EF9-1, OOS-EF10-1, EF-EF1-A**; **PB-AC chain COMPLETE — AC0..AC9 all shipped**; **marker sweep COMPLETE — `scutemob-88`**; **SR-33..38 chain COMPLETE**; **W-PB2 + W-EMPTY + W-MISS COMPLETE — `scutemob-95`/`96`/`97`**; **OOS retriage COMPLETE — `scutemob-115`; ACTIVE QUEUE: `memory/primitives/oos-retriage-plan-2026-07-18.md` PB-OS1..OS11 (correctness-first, ~19-22 discounted flips); first dispatch PB-OS1 (gain-control never reverts, OOS-EF9-1 — 3 legal-but-wrong `Complete` defs)**)
 - **Invariant #9 is machine-enforced (SR-2).** `CardDefinition.completeness` (`Complete` by
   Default) marks a def `Inert` / `Partial` / `KnownWrong`; `validate_deck` rejects any
   non-`Complete` card with `DeckViolation::IncompleteCard`. `CardRegistry::try_new` errors on
@@ -91,7 +91,7 @@
   abilities** (CR 605.1a) and only ever make their first colour. Proven empirically; the whole
   original dual + shockland + check/fast/temple cycles. Fix shape exists in-repo (`tainted_field`:
   two abilities, one per colour). 3275 tests. Prior: **PB-AC9** (`scutemob-52`, merge `a4750cdb`) — **closes the AC chain**. Recon: 3/5 briefed primitives already existed (`Effect::RollDice` d20+results CR 706, `ReplacementModification::DoubleTokens` CR 614.1, `Effect::AddManaFilterChoice`); SearchLibrary multi-name 0-yield → OOS seed. Built: `Effect::WheelHand` + `Effect::SetNoMaximumHandSize` (unbriefed co-blocker — flag was recomputed each cleanup, "rest of the game" inexpressible). **Token doubling rewired 2→13/13 creation sites** (Squad, Offspring, Myriad, Embalm, Eternalize, Encore, Living Weapon, Gift keyed to recipient, Investigate, Amass — doublers were silently failing, invisible to any marker/roster). Review 0 HIGH / 1 MEDIUM fixed (Amass bypassed `apply_counter_replacement` — CR 701.47a; fix proven non-vacuous). Backfill: 11 clean incl. token doublers (Parallel Lives, Anointed Procession, Doubling Season), wheels (Echo of Eons, Winds of Change), d20 Ancient dragons; 1 backfill HIGH (Reforge the Soul stale Miracle marker — 2nd consecutive stale-marker HIGH; AC8+AC9 workers both recommend a campaign-wide marker sweep next). New gotcha logged: `timestamp_counter` IS the object-id counter — rewinding it aliases ObjectIds (`3d7e216c`). Prior: PB-AC8..AC1 (`scutemob-51..43`). Next per campaign plan: **W-PB2** (author ~55 cards unblocked by AC4..AC6), W-EMPTY/W-MISS derisking batches. Registry-gate debt **CLOSED** by SR-2 (`scutemob-54`); follow-up `scutemob-64` (SR-12).
-- **Open primitive seeds**: OOS-XA2-1/2/4/5, OOS-EWCD-1..3, OOS-EAT-1..3, OOS-XS-E-2; older OOS-XS-1/3/4, OOS-LKI-Power-1/4/5, OOS-LKI-1..4, OOS-TS-1..4 — all 0-yield defensives or card-gated; high-confidence backlog exhausted. (OOS-XA-3/XA2-3 RESOLVED by `scutemob-30`; OOS-LKI-Power-3 shipped.) Full list: `memory/primitives/pb-retriage-CC.md`.
+- **Open primitive seeds**: fully retriaged 2026-07-18 (`scutemob-115`) — 65 distinct seeds chain-verified: **23 resolved/stale** (10 newly found silently closed by the EF/EWC/EAT/AC9 waves — e.g. OOS-XS-3, OOS-LKI-Power-2, OOS-TS-3/4), **16 active candidates ranked into PB-OS1..OS11**, 7 deferred (Battle subsystem, Super Nova, protection-from-color, AC7 one-offs), 24 dormant-0-yield. Canonical inventory + queue: `memory/primitives/oos-retriage-plan-2026-07-18.md` (supersedes `pb-retriage-CC.md`'s status banners).
 - **Known issues**: 0 HIGH; 2 MEDIUM (pre-M8 deferred to M10+); **6 LOW open** (4 M10-gated: MR-M8-11, MR-B16-04/05/06; 2 permanent perf: MR-M1-18, MR-M6-14). Full: `docs/mtg-engine-milestone-reviews.md`.
 - **Strategic Review**: `docs/mtg-engine-strategic-review.md` (2026-03-07) — decouple M11 from M10, split M10, downscope M12, web-vs-Tauri decision pending
 - **Silent failures are classified in the resolution path (SR-4).** In `effects/mod.rs`
@@ -279,7 +279,19 @@
   `memory/card-authoring/sr36-engine-findings-2026-07-17.md` (**SG-1 MEDIUM: the simulator's
   `LegalActionProvider` ignores `life_cost` — harmless while the cost was dropped, now it
   offers bots unpayable actions**).
-- **Last Updated**: 2026-07-18 (**PB-EF12 collected, `scutemob-114` merge `833e54ad` — THE EF
+- **Last Updated**: 2026-07-18 (**OOS seed retriage collected, `scutemob-115` merge `7d577171` —
+  THE PB-OS QUEUE IS ACTIVE.** All 65 open OOS/EF-EF seeds enumerated from source docs (not the
+  headline list) and chain-verified against the post-EF-queue engine: 23 resolved/stale (10 newly
+  discovered silently closed — the EF/EWC/EAT/AC9 waves shipped primitives that resolved older
+  seeds nobody cross-referenced; 3 stale finding banners added), 16 candidates ranked into
+  **PB-OS1..OS11** (`memory/primitives/oos-retriage-plan-2026-07-18.md`), 7 deferred, 24 dormant.
+  **PB-OS1 is fully specified and dispatchable**: gain-control reversion (OOS-EF9-1) —
+  `expire_end_of_turn_effects`/`expire_until_next_turn_effects` drop `SetController` effects but
+  never call the already-built `recompute_object_controller`, so sarkhan_vol /
+  zealous_conscripts / karrthus keep stolen creatures forever while shipping `Complete`
+  (invariant #9); fix wires the idle helper, no wire bump, must de-vacuous
+  `test_gain_control_until_eot_expires`. Queue total ~19-22 discounted flips; correctness group
+  PB-OS1..OS3 first. Doc-only task, zero code changes. Earlier: **PB-EF12 collected, `scutemob-114` merge `833e54ad` — THE EF
   QUEUE IS COMPLETE.** `chosen_color` rides `Command::TapForMana` (coordinator decision in
   `memory/decisions.md`, CR 605.3b, extending the SR-33 precedent; no Colorless default —
   missing/illegal choice is rejected). **17 defs restored/flipped Complete** (elven_chorus + 16
