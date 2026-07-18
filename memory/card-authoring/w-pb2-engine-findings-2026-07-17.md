@@ -87,7 +87,24 @@ color via granted ability" card is blocked here too.
 work `Effect::AddManaAnyColor` needs), then the `tainted_field` one-ability-per-color pattern or a
 real choice channel. PB-sized, out of scope for an authoring wave.
 
-## EF-W-PB2-4 — no modal-activated-ability primitive (MEDIUM)
+## EF-W-PB2-4 — no modal-activated-ability primitive (MEDIUM) — ✅ CLOSED (PB-EF7, scutemob-108, 2026-07-18)
+
+> **CLOSED 2026-07-18.** Added `modes: Option<ModeSelection>` to
+> `AbilityDefinition::Activated` (+ the runtime `ActivatedAbility` struct), reusing
+> `ModeSelection.mode_targets` (PB-AC4) for per-mode targets, and
+> `Command::ActivateAbility.modes_chosen` for the mode announcement. Approach (a): the
+> chosen mode's effect is baked into the stack object's `embedded_effect` **at activation
+> time** (not resolution) — required because both eligible cards pay `Cost::SacrificeSelf`,
+> so the source `ObjectId` is dead by resolution (CR 400.7);
+> `resolution.rs`'s `ActivatedAbility` arm is UNCHANGED. `goblin_cratermaker.rs` and
+> `cankerbloom.rs` both flipped `known_wrong` → `Complete` (the former also picked up its
+> `exclude_colors` colorless-filter fix — a pure def change, `exclude_colors` was already
+> honored). `umezawas_jitte.rs` stays `known_wrong`: its modal-activated ability could now
+> be modeled correctly, but a second, distinct blocker survives — see **OOS-EF7-1** below.
+> `HASH_SCHEMA_VERSION` 49→50, `PROTOCOL_VERSION` 11→12. Tests:
+> `crates/engine/tests/primitives/pb_ef7_modal_activated.rs` (11 tests, incl. forward/reverse
+> mode-choice decoys, invalid-mode-index/nonmodal rejection, an LKI-persistence test, and
+> the `exclude_colors` / CR 700.2c empty-target-slice decoys).
 
 `AbilityDefinition::Activated` (`card_definition.rs:285`) has **no `modes` field** — only
 `Triggered` and `Spell` carry `modes: Option<ModeSelection>`. So a "Choose one —" on an
@@ -101,6 +118,21 @@ filter defect on mode 2 is moot until the modal primitive exists.
 
 **Fix**: add `modes: Option<ModeSelection>` (+ `mode_targets`) to `AbilityDefinition::Activated`
 and wire announce/validate/resolution, mirroring the `Spell`/`Triggered` modal path. PB-sized.
+
+### OOS-EF7-1 — Umezawa's Jitte still blocked after PB-EF7 (its trigger, not its modal ability)
+
+The modal-activated primitive now exists and would correctly resolve Jitte's "Remove a
+charge counter: Choose one —" ability (equipped creature +2/+2 / target creature -1/-1 /
+you gain 2 life) if rewritten onto `AbilityDefinition::Activated::modes`. That is **not**
+the surviving blocker: Jitte's charge-counter trigger
+(`AbilityDefinition::Triggered { trigger_condition:
+WhenEquippedCreatureDealsCombatDamageToPlayer, .. }`) only fires on combat damage dealt **to
+a player**, but the oracle says "Whenever equipped creature deals combat damage" (any
+recipient — e.g. a blocking creature). Needs a new `TriggerCondition` variant (something like
+`WhenEquippedCreatureDealsCombatDamage`, distinct from the existing `…ToPlayer` variant) before
+this card can be `Complete`. Out of scope for PB-EF7 (scoped to the 2 eligible flips only,
+per the coordinator's scoping decision). `umezawas_jitte.rs`'s marker note was rewritten to
+cite this as the real surviving blocker.
 
 ## EF-W-PB2-5 — no "while you control source" `EffectDuration` (MEDIUM)
 

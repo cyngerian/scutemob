@@ -99,15 +99,19 @@ pub fn card() -> CardDefinition {
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
+                modes: None,
             },
         ],
         completeness: Completeness::known_wrong(
-            "(1) the modal activated ability uses Effect::Choose, which always executes mode 0 \
-             (effects/mod.rs:3190) — modes 1 and 2 are unreachable; it also unconditionally \
-             requires a creature target for all modes. Should use `modes: Some(ModeSelection)`. \
-             (2) the counters trigger fires only on combat damage to PLAYERS — oracle says 'deals \
-             combat damage' (any recipient); needs a WhenEquippedCreatureDealsCombatDamage \
-             variant.",
+            "PB-EF7 (2026-07-18): the modal-activated-ability primitive now exists \
+             (AbilityDefinition::Activated::modes / ModeSelection) and would fix the +2/+2-only \
+             defect on the counter-removal ability, but that is not the surviving blocker \
+             (OOS-EF7-1). The counters trigger fires only on combat damage to PLAYERS — oracle \
+             says 'deals combat damage' (any recipient, e.g. a blocking creature) — and needs a \
+             WhenEquippedCreatureDealsCombatDamage trigger variant (distinct from \
+             WhenEquippedCreatureDealsCombatDamageToPlayer) before this card can be Complete. Not \
+             fixed by this PB; scope was 2 flips (Goblin Cratermaker, Cankerbloom) plus this \
+             honest note.",
         ),
         ..Default::default()
     }

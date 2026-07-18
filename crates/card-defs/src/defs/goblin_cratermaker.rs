@@ -3,7 +3,13 @@
 // • This creature deals 2 damage to target creature.
 // • Destroy target colorless nonland permanent.
 //
-// CR 602.2 / PB-35: Modal activated ability using Effect::Choose (bot auto-picks mode 0).
+// CR 602.2/700.2a (PB-EF7): Modal activated ability using
+// `AbilityDefinition::Activated::modes` (ModeSelection). The controller chooses the
+// mode at activation; the chosen mode's effect is baked into `embedded_effect` at
+// activation time (approach (a) — required because the {1}, Sacrifice cost removes
+// this creature's ObjectId before resolution, CR 400.7). Per-mode targets ride
+// `ModeSelection.mode_targets` (PB-AC4); each mode's `DeclaredTarget { index: 0 }` is
+// LOCAL to that mode's own (single-target) slice.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -22,10 +28,7 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
-            // CR 602.2 / PB-35: {1}, Sacrifice: Choose one — 2 damage OR destroy colorless.
-            // Modal activated ability expressed via Effect::Choose (auto-picks mode 0 = damage).
-            // Mode 0: Deal 2 damage to target creature.
-            // Mode 1: Destroy target colorless nonland permanent.
+            // CR 602.2/700.2a: {1}, Sacrifice: Choose one — 2 damage OR destroy colorless.
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
                     Cost::Mana(ManaCost {
@@ -34,11 +37,19 @@ pub fn card() -> CardDefinition {
                     }),
                     Cost::SacrificeSelf,
                 ]),
-                effect: Effect::Choose {
-                    prompt: "Choose one — deal 2 damage to target creature; or destroy target \
-                             colorless nonland permanent"
-                        .to_string(),
-                    choices: vec![
+                // Placeholder — the real effect lives per-mode in `modes` below.
+                effect: Effect::Sequence(vec![]),
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+                activation_zone: None,
+                once_per_turn: false,
+                modes: Some(ModeSelection {
+                    min_modes: 1,
+                    max_modes: 1,
+                    allow_duplicate_modes: false,
+                    mode_costs: None,
+                    modes: vec![
                         // Mode 0: Goblin Cratermaker deals 2 damage to target creature.
                         Effect::DealDamage {
                             source: None,
@@ -47,43 +58,36 @@ pub fn card() -> CardDefinition {
                         },
                         // Mode 1: Destroy target colorless nonland permanent.
                         Effect::DestroyPermanent {
-                            target: EffectTarget::DeclaredTarget { index: 1 },
+                            target: EffectTarget::DeclaredTarget { index: 0 },
                             cant_be_regenerated: false,
                         },
                     ],
-                },
-                timing_restriction: None,
-                targets: vec![
-                    // Mode 0 target: any creature (index 0)
-                    TargetRequirement::TargetCreature,
-                    // Mode 1 target: colorless nonland permanent (index 1).
-                    // Note: colorless filter not expressible in TargetFilter; non_land used as
-                    // approximation (any nonland permanent). Bot picks first nonland permanent.
-                    TargetRequirement::TargetPermanentWithFilter(TargetFilter {
-                        non_land: true,
-                        ..Default::default()
-                    }),
-                ],
-                activation_condition: None,
-                activation_zone: None,
-                once_per_turn: false,
+                    mode_targets: Some(vec![
+                        // Mode 0 target: any creature.
+                        vec![TargetRequirement::TargetCreature],
+                        // Mode 1 target: colorless nonland permanent. "Colorless" is
+                        // expressed as excluding all five colors (an object with no
+                        // colors passes exclude_colors trivially); non_land rejects lands.
+                        vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
+                            non_land: true,
+                            exclude_colors: Some(
+                                [
+                                    Color::White,
+                                    Color::Blue,
+                                    Color::Black,
+                                    Color::Red,
+                                    Color::Green,
+                                ]
+                                .into_iter()
+                                .collect(),
+                            ),
+                            ..Default::default()
+                        })],
+                    ]),
+                }),
             },
         ],
-        completeness: Completeness::known_wrong(
-            "Root blocker: this is a modal ACTIVATED ability (\"Choose one\" on a {1}, Sacrifice \
-             ability), and AbilityDefinition::Activated has no `modes: Option<ModeSelection>` \
-             field (only Triggered and Spell do — card_definition.rs ~L285-357) — Effect::Choose \
-             is the only available mechanism, and it is a hard stub gated out of Complete \
-             (effect_choose_gate, SR-33: always executes choices.first()). As authored this \
-             always resolves as mode 0 (deal 2 damage to target creature) and additionally still \
-             demands a legal mode-1 target (colorless nonland permanent) even though that mode \
-             never executes — wrong game state, not merely incomplete. Secondary defect, unfixed \
-             pending the primary blocker: the mode-1 target filter is 'any nonland permanent' \
-             (non_land: true) with no colorless restriction; should be exclude_colors: \
-             Some({W,U,B,R,G}) + non_land to express 'colorless nonland permanent'. Needs a \
-             modal-activated-ability primitive (ModeSelection on AbilityDefinition::Activated, or \
-             an equivalent) before this can be Complete.",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }
