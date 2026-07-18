@@ -335,23 +335,18 @@ fn test_700_2a_modal_activated_reverse_decoy() {
 fn test_700_2a_invalid_mode_index_rejected() {
     let (state, p1, _p2) = build_goblin_state(1, vec![]);
     let source_id = find_object(&state, "Goblin Cratermaker");
-    let mana_before = state.players()[&p1].mana_pool.get(ManaColor::Colorless);
-    let snapshot = state.clone();
 
     let result = activate(state, p1, source_id, GC_ABILITY_INDEX, vec![], vec![5]);
 
+    // The real, non-vacuous check: the activation is rejected. CR 602.2's "no cost paid /
+    // rewind to before it started" is guaranteed structurally, not observably here — mode
+    // validation runs BEFORE the cost-payment block (abilities.rs), and `process_command`
+    // consumes `state` and drops the (unmutated) value on `Err`, so no partial mutation can
+    // escape. There is no post-`Err` state to inspect, so asserting on a pre-call clone would
+    // be vacuous.
     assert!(
         result.is_err(),
         "CR 700.2a: mode index 5 is out of range for a 2-mode ability"
-    );
-    assert!(
-        on_battlefield(&snapshot, "Goblin Cratermaker"),
-        "no cost paid: source must still be on the battlefield, not sacrificed"
-    );
-    assert_eq!(
-        snapshot.players()[&p1].mana_pool.get(ManaColor::Colorless),
-        mana_before,
-        "no cost paid: mana pool must be unchanged"
     );
 }
 
@@ -419,17 +414,14 @@ fn test_700_2d_duplicate_mode_rejected_when_disallowed() {
         mode_targets: None,
     };
     let (state, p1, source_id) = build_synthetic_modal_state(ms);
-    let snapshot = state.clone();
 
     let result = activate(state, p1, source_id, 0, vec![], vec![0, 0]);
 
+    // Rejection is the non-vacuous check (see `test_700_2a_invalid_mode_index_rejected` for
+    // why "no cost paid" is a structural, not observable, guarantee on the `Err` path).
     assert!(
         result.is_err(),
         "CR 700.2d: choosing mode 0 twice must be rejected when allow_duplicate_modes is false"
-    );
-    assert!(
-        !snapshot.object(source_id).unwrap().status.tapped,
-        "no cost paid: source must not be tapped after a rejected activation"
     );
 }
 
@@ -456,17 +448,14 @@ fn test_700_2a_mode_count_bounds_rejected() {
         mode_targets: None,
     };
     let (state, p1, source_id) = build_synthetic_modal_state(ms_min);
-    let snapshot = state.clone();
 
     let result = activate(state, p1, source_id, 0, vec![], vec![0]);
 
+    // Rejection is the non-vacuous check (rewind is structural — see
+    // `test_700_2a_invalid_mode_index_rejected`).
     assert!(
         result.is_err(),
         "CR 700.2a: choosing 1 mode when min_modes=2 must be rejected"
-    );
-    assert!(
-        !snapshot.object(source_id).unwrap().status.tapped,
-        "no cost paid on a too-few-modes rejection"
     );
 
     // Part B: too many modes chosen (max_modes: 1, 2 chosen).
@@ -488,17 +477,14 @@ fn test_700_2a_mode_count_bounds_rejected() {
         mode_targets: None,
     };
     let (state, p1, source_id) = build_synthetic_modal_state(ms_max);
-    let snapshot = state.clone();
 
     let result = activate(state, p1, source_id, 0, vec![], vec![0, 1]);
 
+    // Rejection is the non-vacuous check (rewind is structural — see
+    // `test_700_2a_invalid_mode_index_rejected`).
     assert!(
         result.is_err(),
         "CR 700.2a: choosing 2 modes when max_modes=1 must be rejected"
-    );
-    assert!(
-        !snapshot.object(source_id).unwrap().status.tapped,
-        "no cost paid on a too-many-modes rejection"
     );
 }
 
@@ -566,7 +552,6 @@ fn test_700_2c_multi_mode_with_mode_targets_rejected() {
     let source_id = find_object(&state, "EF7 Synthetic Multi-Mode Artifact");
     let target_a = find_object(&state, "EF7 Mode Target A");
     let target_b = find_object(&state, "EF7 Mode Target B");
-    let snapshot = state.clone();
 
     let result = activate(
         state,
@@ -577,14 +562,12 @@ fn test_700_2c_multi_mode_with_mode_targets_rejected() {
         vec![0, 1],
     );
 
+    // Rejection is the non-vacuous check (rewind is structural — see
+    // `test_700_2a_invalid_mode_index_rejected`).
     assert!(
         result.is_err(),
         "CR 700.2c: multiple modes chosen combined with ModeSelection.mode_targets must be \
          rejected, even with a legal target supplied for each chosen mode"
-    );
-    assert!(
-        !snapshot.object(source_id).unwrap().status.tapped,
-        "no cost paid: source must not be tapped after a rejected activation"
     );
 }
 
@@ -595,23 +578,14 @@ fn test_700_2c_multi_mode_with_mode_targets_rejected() {
 fn test_700_2a_mode_with_no_legal_target_rejected() {
     let (state, p1, _p2) = build_goblin_state(1, vec![]);
     let source_id = find_object(&state, "Goblin Cratermaker");
-    let mana_before = state.players()[&p1].mana_pool.get(ManaColor::Colorless);
-    let snapshot = state.clone();
 
     let result = activate(state, p1, source_id, GC_ABILITY_INDEX, vec![], vec![1]);
 
+    // Rejection is the non-vacuous check (rewind is structural — see
+    // `test_700_2a_invalid_mode_index_rejected`).
     assert!(
         result.is_err(),
         "CR 700.2a/601.2c: mode 1 requires a target, and none was supplied while none is legal"
-    );
-    assert!(
-        on_battlefield(&snapshot, "Goblin Cratermaker"),
-        "no cost paid: source must still be on the battlefield, not sacrificed"
-    );
-    assert_eq!(
-        snapshot.players()[&p1].mana_pool.get(ManaColor::Colorless),
-        mana_before,
-        "no cost paid: mana pool must be unchanged"
     );
 }
 
