@@ -18,18 +18,41 @@ pub fn card() -> CardDefinition {
                       control and a loyalty counter on each planeswalker you control."
             .to_string(),
         abilities: vec![
-            // TODO: DSL gap — end step trigger (AtBeginningOfYourEndStep) with mass
-            // counter placement on creatures + loyalty counters on planeswalkers.
-            // TriggerCondition::AtBeginningOfYourEndStep not available for CardDef
-            // triggered abilities.
+            // "At the beginning of your end step, put a +1/+1 counter on each creature you
+            // control and a loyalty counter on each planeswalker you control."
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::AtBeginningOfYourEndStep,
+                effect: Effect::Sequence(vec![
+                    Effect::ForEach {
+                        over: ForEachTarget::EachCreatureYouControl,
+                        effect: Box::new(Effect::AddCounter {
+                            target: EffectTarget::DeclaredTarget { index: 0 },
+                            counter: CounterType::PlusOnePlusOne,
+                            count: 1,
+                        }),
+                    },
+                    Effect::ForEach {
+                        over: ForEachTarget::EachPermanentMatching(Box::new(TargetFilter {
+                            has_card_type: Some(CardType::Planeswalker),
+                            controller: TargetController::You,
+                            ..Default::default()
+                        })),
+                        effect: Box::new(Effect::AddCounter {
+                            target: EffectTarget::DeclaredTarget { index: 0 },
+                            counter: CounterType::Loyalty,
+                            count: 1,
+                        }),
+                    },
+                ]),
+                intervening_if: None,
+                targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
+            },
         ],
-        completeness: Completeness::partial(
-            "Rewire only — no blocker. AtBeginningOfYourEndStep is live and used by 7 other defs \
-             (atraxa_praetors_voice.rs et al.); mass +1/+1 counters follow \
-             felidar_retreat.rs:67-71 (ForEach/EachCreatureYouControl -> AddCounter), and loyalty \
-             counters follow ForEachTarget::EachPermanentMatching -> AddCounter{Loyalty}. Fully \
-             authorable to Complete.",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

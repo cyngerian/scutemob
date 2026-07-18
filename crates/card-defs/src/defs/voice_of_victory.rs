@@ -51,14 +51,12 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 trigger_zone: None,
             },
-            // TODO: "Opponents can't cast during your turn" stax restriction not in DSL.
+            // "Your opponents can't cast spells during your turn."
+            AbilityDefinition::StaticRestriction {
+                restriction: GameRestriction::OpponentsCantCastDuringYourTurn,
+            },
         ],
-        completeness: Completeness::partial(
-            "Blocker shipped. Add AbilityDefinition::StaticRestriction { restriction: \
-             GameRestriction::OpponentsCantCastDuringYourTurn } (pattern: \
-             dragonlord_dromoka.rs:33). Mobilize 2 already implemented; this is the only \
-             remaining clause.",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

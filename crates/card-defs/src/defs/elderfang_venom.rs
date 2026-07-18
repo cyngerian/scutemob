@@ -30,17 +30,39 @@ pub fn card() -> CardDefinition {
                     condition: None,
                 },
             },
-            // TODO: "Whenever an Elf you control dies, each opponent loses 1 life and you gain
-            // 1 life." Blocked on PB-26: WheneverCreatureDies needs subtype filter (Elf only).
+            // "Whenever an Elf you control dies, each opponent loses 1 life and you gain 1 life."
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::WheneverCreatureDies {
+                    controller: Some(TargetController::You),
+                    exclude_self: false,
+                    nontoken_only: false,
+                    filter: Some(TargetFilter {
+                        has_subtype: Some(SubType("Elf".to_string())),
+                        ..Default::default()
+                    }),
+                },
+                effect: Effect::Sequence(vec![
+                    Effect::ForEach {
+                        over: ForEachTarget::EachOpponent,
+                        effect: Box::new(Effect::LoseLife {
+                            player: PlayerTarget::DeclaredTarget { index: 0 },
+                            amount: EffectAmount::Fixed(1),
+                        }),
+                    },
+                    Effect::GainLife {
+                        player: PlayerTarget::Controller,
+                        amount: EffectAmount::Fixed(1),
+                    },
+                ]),
+                intervening_if: None,
+                targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
+            },
         ],
-        completeness: Completeness::partial(
-            "Wire the death trigger: TriggerCondition::WheneverCreatureDies { controller: \
-             Some(TargetController::You), exclude_self: false, nontoken_only: false, filter: \
-             Some(TargetFilter { has_subtype: Some(SubType(\"Elf\")), ..Default::default() }) } \
-             with Effect::Sequence([LoseLife { player: EachOpponent, amount: Fixed(1) }, GainLife \
-             { player: Controller, amount: Fixed(1) }]). The PB-26/PB-N subtype filter exists \
-             (card_definition.rs:3058-3063).",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

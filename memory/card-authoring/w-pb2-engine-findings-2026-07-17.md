@@ -92,6 +92,34 @@ Complete to `partial` (the `{1}{R}` half is correct).
 **Fix**: add `EffectDuration::WhileYouControlSource` (or similar) + its continuous-effect
 expiry check. PB-sized.
 
+## EF-W-PB2-6 — no `EffectFilter::TriggeringCreature` (MEDIUM)
+
+`continuous_effect.rs:67` — `EffectFilter` (the filter on `ContinuousEffectDef`) has
+`Source`/`DeclaredTarget`/`CreaturesYouControl`/… but **no `TriggeringCreature`**. Only
+`EffectTarget` has `TriggeringCreature` — usable for point effects (`AddCounter`, `DealDamage`) but
+NOT for continuous-effect filters. So "when a creature enters, **it** gains \<keyword\> until end of
+turn" (grant a continuous effect to the entering creature) is inexpressible.
+
+**Instances**: `dragon_tempest.rs` (flying-creature ETB → "it gains haste"), and the already-marked
+`ogre_battledriver.rs` / `shared_animosity.rs` carry the identical documented gap.
+
+**Fix**: add `EffectFilter::TriggeringCreature` + its resolution (read the trigger's
+`triggering_creature_id` from ctx). PB-sized.
+
+## EF-W-PB2-7 — `Effect::DealDamage` has no source-override (MEDIUM)
+
+`card_definition.rs:1330` — `DealDamage { target, amount }` always sources from `ctx.source`. So
+"when another permanent enters, **it** deals damage" (the entering permanent as the damage source,
+not the ability's source) is inexpressible.
+
+**Instances**: `dragon_tempest.rs` (Dragon ETB → "it deals X damage"; Dragon Tempest is never itself
+a Dragon, so it misattributes on 100% of firings — left `inert`), and `scourge_of_valkas.rs` (the
+"or another Dragon enters" half; the self-ETB half IS authored because there `ctx.source` = Scourge
+= "it" — left `partial`).
+
+**Fix**: add an optional `source: Option<EffectTarget>` to `DealDamage` (defaulting to `ctx.source`),
+resolvable to `TriggeringCreature`. PB-sized. Wire change (Effect shape) → PROTOCOL bump.
+
 ## LOW / accepted (non-blocking, cards ship Complete)
 
 - **avenger_of_zendikar** — landfall "you may put a +1/+1 counter" modeled as mandatory (the
