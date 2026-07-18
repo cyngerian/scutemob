@@ -1,0 +1,70 @@
+# W-MISS engine findings (EF-W-MISS-*)
+
+**Task**: `scutemob-97` — W-MISS (campaign plan §3). **Date**: 2026-07-17.
+Surfaced while triaging the 194 missing-file cards (`w-miss-roster-2026-07-17.md`).
+None fixed inline (W-MISS is an authoring wave; these are engine gaps/bugs for a future
+PB/SR). Most restate already-tracked gaps; **EF-W-MISS-1 is a NEW latent bug in a shipped
+`Complete` def** and is the one worth a coordinator decision.
+
+## EF-W-MISS-1 (HIGH — latent legal-but-wrong in a Complete def): `swan_song.rs` token recipient
+`Effect::CreateToken` creates the token for `ctx.controller` (the caster). Swan Song
+("Counter target enchantment, instant, or sorcery spell. **Its controller** creates a 2/2 blue
+Bird…") ships **Complete** but hands the Bird to the Swan Song caster, not to the countered
+spell's controller. Proven by shape, not run — flag for verification. Same defect blocks
+authoring **An Offer You Can't Refuse** ("its controller creates two Treasures"). Root gap: no
+player-scoped recipient on `CreateToken` (recipient = the controller of a referenced object).
+Fix shape: add a `recipient: PlayerTarget` (default Controller) to `Effect::CreateToken`, and a
+`PlayerTarget::ControllerOfCounteredSpell` / `…OfTriggeringObject`. Marker note on swan_song
+should be demoted from Complete until fixed, OR fixed in an SR. **Coordinator call.**
+
+## EF-W-MISS-2 (MEDIUM): `Effect::UntapAll` ignores `TargetFilter.exclude_self`
+"Untap each **other** creature you control" (Copperhorn Scout) is inexpressible — `UntapAll`
+untaps every filter match including the source. Affects any "each other" untap. Fix: honour
+`exclude_self` in the `UntapAll` executor.
+
+## EF-W-MISS-3 (MEDIUM): granted keyword-triggers are silent no-ops
+`LayerModification::AddKeyword` inserts into `keywords` but the derived triggered ability
+(Melee, Battle Cry, Annihilator) is synthesized only from **printed** keywords in `builder.rs`.
+So an anthem granting Melee/Battle Cry to *other* creatures registers the keyword but the
+trigger never fires. Blocks Adriana, Skyhunter Strike Force (Lieutenant). Static keywords
+(flying/haste) grant fine; only trigger-bearing keywords are affected. Fix: synthesize the
+keyword-derived triggered ability when a keyword is added by a continuous effect.
+
+## EF-W-MISS-4 (MEDIUM): no "defending player" target for attack triggers (Hellrider gap)
+No `PlayerTarget`/`EffectTarget` resolves to the specific player (or planeswalker) the
+triggering attacker is attacking. Substituting `EachOpponent`/`Controller` is wrong in
+4-player Commander. Keeps `hellrider.rs` partial; blocks Brutal Hordechief, Raid Bombardment,
+Norn's Decree, Karazikar, Silumgar (defending-player creature filter), Cunning Rhetoric.
+
+## EF-W-MISS-5 (MEDIUM): `EffectFilter::TriggeringCreature` does not exist
+Continuous "it gets +N/+N EOT" / "it gains <keyword> EOT" on the just-attacked (or
+just-triggered) creature cannot be expressed via `ApplyContinuousEffect` — no filter selects
+the triggering object. Keeps `ogre_battledriver.rs` partial; blocks Atarka, Fervent Charge,
+Goblin Piledriver, Muxus.
+
+## EF-W-MISS-6 (LOW — large but known cohort): no card-invokable self-transform effect
+The Effect enum has only `Meld`; there is no `Effect::Transform`/`TransformSelf`. A card cannot
+cause itself (or another named permanent) to transform from a triggered/activated/conditional
+ability — `KeywordAbility::Transform`'s behaviour is carried only by the external
+`Command::Transform`. Blocks the **entire body-only bucket** (11 DFCs). Also needed: `CardType::Battle`
+(Invasion of Ikoria) and the "Super Nova" keyword (Sephiroth). Documented in
+`thaumatic_compass.rs`, `delver_of_secrets.rs`. A high-yield future PB.
+
+## EF-W-MISS-7 (LOW): sacrifice-driven `EffectAmount` / `max_cmc` gaps
+- No `EffectAmount::ToughnessOfSacrificedCreature` (only `PowerOfSacrificedCreature`) — Momentous Fall.
+- No runtime-computed `max_cmc` (`N + sacrificed creature's MV`) on `SearchLibrary`; `max_cmc`
+  is a fixed `Option<u32>` — Birthing Ritual, Eldritch Evolution.
+- No `Condition` reporting whether a resolution-time `SacrificePermanents` fired ("if you do")
+  — Victimize.
+
+## EF-W-MISS-8 (LOW): `WheelDraw` lacks a "greatest number discarded" variant
+`WheelDraw` has only `ThatMany` (own hand size) and `Fixed(n)`. Windfall draws "equal to the
+greatest number of cards any player discarded this way" — not representable. Blocks Windfall
+(Wheel of Fortune / Tolarian Winds / Fateful Showdown, which use `ThatMany`/`Fixed`, are fine).
+
+## Note (not a finding): report name-normalization
+`authoring-report.py` lists **Steelshaper's Gift** and **Dwynen's Elite** as missing though
+`steelshaper_s_gift.rs` / `dwynen_s_elite.rs` exist with correct names — an apostrophe
+plan-matching quirk. Cosmetic (2 cards under-counted as authored); out of W-MISS scope but
+worth a one-line fix in the report tool later.
+</content>

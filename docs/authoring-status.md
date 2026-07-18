@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-18 01:10 UTC  
-**Git:** `bcb82db2` on `feat/w-empty-author-the-110-authorable-empty-placeholder-card-def`  
+**Generated:** 2026-07-18 01:20 UTC  
+**Git:** `ab42a198` on `feat/w-miss-author-the-authorable-missing-file-cards-campaign-pla`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,10 +25,10 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 194 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **108%** (1,763 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 59.0% | 1,032 | +2 |
-| With TODO markers | 659 | +1 |
-| Empty `abilities: vec![]` placeholders | 57 | -3 |
-| Total TODO lines across all defs | 983 | +1 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 59.0% | 1,032 | · |
+| With TODO markers | 659 | · |
+| Empty `abilities: vec![]` placeholders | 57 | · |
+| Total TODO lines across all defs | 983 | · |
 
 ## Authoring activity (git, by window)
 
@@ -174,7 +174,7 @@ the next thing to triage when the classifier table is grown.
 | attack trigger (self / generic) | 26 | · |
 | TriggerCondition::* missing variant | 17 | · |
 | dynamic hexproof / protection | 17 | · |
-| sacrifice as cost | 17 | +1 |
+| sacrifice as cost | 17 | · |
 | Cost::* missing variant | 16 | · |
 | replacement effect missing | 14 | · |
 | EffectAmount::* missing variant | 12 | · |
@@ -234,6 +234,7 @@ tyvar_jubilant_brawler: // TODO: static — creatures you control can activate a
 ## Recent card-touching commits
 
 ```
+205282d3 scutemob-96: W-EMPTY — author authorable empty-placeholder defs
 5321ebef scutemob-95: W-PB2 batch 5 — targeting/alt-cost/misc (8 Complete) + boggart demotion + test fixes
 7ee2a68d scutemob-95: W-PB2 batch 4 — triggers (10 Complete)
 e7e304b8 scutemob-95: W-PB2 batch 3 — dynamic P/T + static grants (9 Complete)
@@ -258,7 +259,6 @@ b6f748f8 SR-6: extract card-defs and card-types crates — compile isolation for
 98a7a6a7 SR-2: registry gate for invariant #9 — completeness markers + duplicate CardId detection
 b9397215 W6-cards: PB-AC9 backfill HIGH — Reforge the Soul stale Miracle marker
 52a2b6f2 W6-prim: PB-AC9 — WheelHand + SetNoMaximumHandSize + token-doubling completeness
-91885e98 W6-prim: PB-AC8 review fixes — 2 MEDIUM + 2 LOW closed
 ```
 
 ## Missing card-defs sidecar
