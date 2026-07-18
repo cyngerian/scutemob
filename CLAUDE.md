@@ -54,7 +54,7 @@
 
 ### What Exists (M0-M9.5 + Engine Core Complete + all P3/P4 abilities)
 
-- `cards/`: CardDefinition framework (30+ Effect primitives), ~1693 card defs across hand-authored + templated waves; CardRegistry
+- `cards/`: CardDefinition framework (30+ Effect primitives), ~1,798 card defs across hand-authored + templated waves; CardRegistry
 - `effects/`: Full effect execution engine (DealDamage, GainLife, DrawCards, ExileObject, CreateToken, SearchLibrary, ForEach, Conditional, Scry, Surveil, DrainLife, Goad, Fight, etc.)
 - `rules/`: Turn structure, priority, stack, SBAs, dependency-based layer system, combat, casting (Convoke/Improvise/Delve/Evoke/Kicker/Morph/Disturb alt costs), resolution, ETB trigger queueing (CR 603.3/603.4), ETB & global replacements, prevention, Commander (deck validation, command zone, tax, zone-return SBA, mulligan, companion, partner variants), protection (DEBT), copy (Layer 1 + storm + cascade), loop detection (CR 104.4b), Enchant, suspend, Mutate (CR 702.140), Transform/DFC (CR 701.28/712), Daybound/Nightbound, Craft, Morph/Megamorph/Disguise/Manifest/Cloak; Type Consolidation refactor complete (CastSpell 32→13, SOK ~20, AbilDef 55)
 - `testing/`: Replay harness (`crates/engine/src/testing/replay_harness.rs` — public, shared with replay viewer), ~112 approved scripts, ~1934 harness tests, 6-player suite, 54 property invariants
