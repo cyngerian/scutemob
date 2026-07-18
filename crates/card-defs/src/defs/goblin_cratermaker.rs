@@ -22,8 +22,8 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: creature_types(&["Goblin", "Warrior"]),
-        oracle_text: "{1}, Sacrifice this creature: Choose one —\n• Goblin Cratermaker deals 2 \
-                      damage to target creature.\n• Destroy target colorless nonland permanent."
+        oracle_text: "{1}, Sacrifice this creature: Choose one —\n• This creature deals 2 damage \
+                      to target creature.\n• Destroy target colorless nonland permanent."
             .to_string(),
         power: Some(2),
         toughness: Some(2),

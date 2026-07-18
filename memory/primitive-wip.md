@@ -5,7 +5,7 @@ title: Add `modes: Option<ModeSelection>` + per-mode targets to `AbilityDefiniti
 task: scutemob-108
 branch: feat/pb-ef7-modal-abilitydefinitionactivated-ef-w-pb2-4
 started: 2026-07-18
-phase: implement
+phase: fix
 
 ## Source findings
 - memory/primitives/ef-batch-plan-2026-07-17.md — PB-EF7 section (line ~409); §1 table (EF-W-PB2-4, line 190)
@@ -92,5 +92,43 @@ plan_complete: true
 **Gates**: `cargo build --workspace` clean; `cargo test --all` 3416 passed / 0 failed;
 `cargo clippy --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean;
 `tools/check-defs-fmt.sh` clean.
+
+## Fix phase (DONE 2026-07-18, worker scutemob-108)
+
+Applied `memory/primitives/pb-review-EF7.md` findings (verdict: needs-fix, no HIGH,
+2 MEDIUM + 3 LOW; all addressed).
+
+- [x] MEDIUM 1 — `test_601_2b_modal_choice_survives_intervening_change` did not
+      discriminate approach (a) from a hypothetical re-derivation at resolution (the
+      old intervening change was an orthogonal p2 life bump). Rewritten: a SECOND
+      colorless nonland permanent (a clone of the original target's
+      characteristics via `test_util::add_object`) is added to the battlefield
+      AFTER activation but BEFORE resolution; asserts the frozen target is
+      destroyed and the new decoy survives. Non-vacuity proven by a canary that
+      made `resolve_effect_target_list_indexed`'s `DeclaredTarget` arm prefer the
+      live decoy over the frozen target — reddened as expected, reverted.
+- [x] MEDIUM 2 — added 3 synthetic-ability tests covering previously-unexercised
+      `handle_activate_ability` validation branches (`crates/engine/src/rules/abilities.rs:342-427`):
+      `test_700_2d_duplicate_mode_rejected_when_disallowed` (CR 700.2d),
+      `test_700_2a_mode_count_bounds_rejected` (min_modes/max_modes, both halves),
+      `test_700_2c_multi_mode_with_mode_targets_rejected` (the multi-mode +
+      `mode_targets` hard-reject — rewritten with real legal targets per chosen
+      mode so the guard, not a target-count mismatch, is what's on trial). Each
+      asserts no cost paid (`status.tapped` unchanged) via a pre-clone snapshot.
+      All 3 non-vacuity-proven by disabling the corresponding guard (`if false && …`),
+      confirming red, then reverting.
+- [x] LOW — added `test_700_2a_mode_with_no_legal_target_rejected` (optional finding
+      5): mode 1 with no target supplied and none legal on board is rejected, no
+      cost paid.
+- [x] LOW — `goblin_cratermaker.rs` oracle_text corrected to "This creature deals 2
+      damage to target creature." (verified against `cards.sqlite`); `completeness_deviation_scan`
+      still passes.
+- [x] LOW — `umezawas_jitte.rs` stale header comment + `TODO(PB-37)` rewritten to
+      reference PB-EF7 / OOS-EF7-1 and the real surviving blocker (combat-damage-to-
+      any-recipient trigger), without touching the `known_wrong` note itself.
+
+**Gates (fix phase)**: `cargo test -p mtg-engine --test primitives pb_ef7_modal_activated`
+15/15 passed; `cargo test --all` all green; `cargo clippy --all-targets -- -D warnings`
+clean; `cargo fmt --all -- --check` clean; `tools/check-defs-fmt.sh` clean (1792 defs).
 
 phase: done (pending coordinator review)

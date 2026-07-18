@@ -16,11 +16,12 @@
 
 use std::collections::HashMap;
 
+use mtg_engine::state::test_util;
 use mtg_engine::{
     enrich_spec_from_def, process_command, ActivatedAbility, ActivationCost, CardDefinition,
     CardRegistry, Color, Command, CounterType, Effect, EffectAmount, GameEvent, GameState,
-    GameStateBuilder, GameStateError, ManaColor, ObjectId, ObjectSpec, PlayerId, PlayerTarget,
-    Step, Target, ZoneId, HASH_SCHEMA_VERSION, PROTOCOL_VERSION,
+    GameStateBuilder, GameStateError, ManaColor, ModeSelection, ObjectId, ObjectSpec, PlayerId,
+    PlayerTarget, Step, Target, TargetRequirement, ZoneId, HASH_SCHEMA_VERSION, PROTOCOL_VERSION,
 };
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -183,6 +184,45 @@ fn build_cankerbloom_state(mana: u32, extra: Vec<ObjectSpec>) -> (GameState, Pla
     }
     state.turn_mut().priority_holder = Some(p1);
     (state, p1, p2)
+}
+
+/// Build a 2-player state with a synthetic modal activated ability on an artifact
+/// (`EF7 Synthetic Modal Artifact`, ability index 0). The cost is a bare tap, which
+/// makes "no cost paid" provable via `status.tapped` on a rejected activation.
+/// `effect: None` is fine for these tests -- all of them assert on a REJECTED
+/// activation, so `handle_activate_ability` never reaches the point where it would
+/// bake a chosen mode's effect into `embedded_effect`.
+fn build_synthetic_modal_state(modes: ModeSelection) -> (GameState, PlayerId, ObjectId) {
+    let p1 = p(1);
+    let p2 = p(2);
+    let ability = ActivatedAbility {
+        cost: ActivationCost {
+            requires_tap: true,
+            ..Default::default()
+        },
+        description: "EF7 synthetic modal test ability".to_string(),
+        effect: None,
+        sorcery_speed: false,
+        targets: vec![],
+        activation_condition: None,
+        activation_zone: None,
+        once_per_turn: false,
+        modes: Some(modes),
+    };
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::artifact(p1, "EF7 Synthetic Modal Artifact")
+                .with_activated_ability(ability),
+        )
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+    state.turn_mut().priority_holder = Some(p1);
+    let source_id = find_object(&state, "EF7 Synthetic Modal Artifact");
+    (state, p1, source_id)
 }
 
 // ── Version sentinels ─────────────────────────────────────────────────────────
@@ -357,10 +397,233 @@ fn test_700_2a_modes_chosen_on_nonmodal_rejected() {
     );
 }
 
-/// CR 400.7/601.2b (LKI): approach (a) freezes the chosen mode into `embedded_effect` at
-/// activation. An intervening board change between activation and resolution must not
-/// alter which mode resolves -- the chosen mode (mode 1: destroy the colorless permanent)
-/// must still resolve correctly.
+/// CR 700.2d: choosing the same mode index twice is rejected when
+/// `allow_duplicate_modes` is `false` (the default), and no cost is paid.
+#[test]
+fn test_700_2d_duplicate_mode_rejected_when_disallowed() {
+    let ms = ModeSelection {
+        min_modes: 1,
+        max_modes: 2,
+        allow_duplicate_modes: false,
+        mode_costs: None,
+        modes: vec![
+            Effect::GainLife {
+                player: PlayerTarget::Controller,
+                amount: EffectAmount::Fixed(1),
+            },
+            Effect::GainLife {
+                player: PlayerTarget::Controller,
+                amount: EffectAmount::Fixed(2),
+            },
+        ],
+        mode_targets: None,
+    };
+    let (state, p1, source_id) = build_synthetic_modal_state(ms);
+    let snapshot = state.clone();
+
+    let result = activate(state, p1, source_id, 0, vec![], vec![0, 0]);
+
+    assert!(
+        result.is_err(),
+        "CR 700.2d: choosing mode 0 twice must be rejected when allow_duplicate_modes is false"
+    );
+    assert!(
+        !snapshot.object(source_id).unwrap().status.tapped,
+        "no cost paid: source must not be tapped after a rejected activation"
+    );
+}
+
+/// CR 700.2a: choosing fewer modes than `min_modes` (Part A) or more modes than
+/// `max_modes` (Part B) is rejected, and no cost is paid in either case.
+#[test]
+fn test_700_2a_mode_count_bounds_rejected() {
+    // Part A: too few modes chosen (min_modes: 2, only 1 chosen).
+    let ms_min = ModeSelection {
+        min_modes: 2,
+        max_modes: 2,
+        allow_duplicate_modes: true,
+        mode_costs: None,
+        modes: vec![
+            Effect::GainLife {
+                player: PlayerTarget::Controller,
+                amount: EffectAmount::Fixed(1),
+            },
+            Effect::GainLife {
+                player: PlayerTarget::Controller,
+                amount: EffectAmount::Fixed(2),
+            },
+        ],
+        mode_targets: None,
+    };
+    let (state, p1, source_id) = build_synthetic_modal_state(ms_min);
+    let snapshot = state.clone();
+
+    let result = activate(state, p1, source_id, 0, vec![], vec![0]);
+
+    assert!(
+        result.is_err(),
+        "CR 700.2a: choosing 1 mode when min_modes=2 must be rejected"
+    );
+    assert!(
+        !snapshot.object(source_id).unwrap().status.tapped,
+        "no cost paid on a too-few-modes rejection"
+    );
+
+    // Part B: too many modes chosen (max_modes: 1, 2 chosen).
+    let ms_max = ModeSelection {
+        min_modes: 1,
+        max_modes: 1,
+        allow_duplicate_modes: true,
+        mode_costs: None,
+        modes: vec![
+            Effect::GainLife {
+                player: PlayerTarget::Controller,
+                amount: EffectAmount::Fixed(1),
+            },
+            Effect::GainLife {
+                player: PlayerTarget::Controller,
+                amount: EffectAmount::Fixed(2),
+            },
+        ],
+        mode_targets: None,
+    };
+    let (state, p1, source_id) = build_synthetic_modal_state(ms_max);
+    let snapshot = state.clone();
+
+    let result = activate(state, p1, source_id, 0, vec![], vec![0, 1]);
+
+    assert!(
+        result.is_err(),
+        "CR 700.2a: choosing 2 modes when max_modes=1 must be rejected"
+    );
+    assert!(
+        !snapshot.object(source_id).unwrap().status.tapped,
+        "no cost paid on a too-many-modes rejection"
+    );
+}
+
+/// CR 700.2c/700.2a: choosing MULTIPLE modes on an ability whose
+/// `ModeSelection.mode_targets` is `Some` is a hard reject -- the per-mode LOCAL
+/// target-slice indexing that `mode_targets` implies is not supported when more than
+/// one mode's effects would need to be combined. No card in the corpus hits this
+/// branch (both flipped cards are choose-exactly-one); this is a synthetic regression
+/// test for the guard itself. Two LEGAL creature targets are supplied (one per chosen
+/// mode's requirement) so the guard is the ONLY thing standing between this activation
+/// and success -- without it, `validate_targets_positional` would accept both targets
+/// and the activation would go through.
+#[test]
+fn test_700_2c_multi_mode_with_mode_targets_rejected() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let ms = ModeSelection {
+        min_modes: 1,
+        max_modes: 2,
+        allow_duplicate_modes: false,
+        mode_costs: None,
+        modes: vec![
+            Effect::GainLife {
+                player: PlayerTarget::Controller,
+                amount: EffectAmount::Fixed(1),
+            },
+            Effect::GainLife {
+                player: PlayerTarget::Controller,
+                amount: EffectAmount::Fixed(2),
+            },
+        ],
+        mode_targets: Some(vec![
+            vec![TargetRequirement::TargetCreature],
+            vec![TargetRequirement::TargetCreature],
+        ]),
+    };
+    let ability = ActivatedAbility {
+        cost: ActivationCost {
+            requires_tap: true,
+            ..Default::default()
+        },
+        description: "EF7 synthetic multi-mode+targets test ability".to_string(),
+        effect: None,
+        sorcery_speed: false,
+        targets: vec![],
+        activation_condition: None,
+        activation_zone: None,
+        once_per_turn: false,
+        modes: Some(ms),
+    };
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::artifact(p1, "EF7 Synthetic Multi-Mode Artifact")
+                .with_activated_ability(ability),
+        )
+        .object(ObjectSpec::creature(p2, "EF7 Mode Target A", 1, 1))
+        .object(ObjectSpec::creature(p2, "EF7 Mode Target B", 1, 1))
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+    state.turn_mut().priority_holder = Some(p1);
+    let source_id = find_object(&state, "EF7 Synthetic Multi-Mode Artifact");
+    let target_a = find_object(&state, "EF7 Mode Target A");
+    let target_b = find_object(&state, "EF7 Mode Target B");
+    let snapshot = state.clone();
+
+    let result = activate(
+        state,
+        p1,
+        source_id,
+        0,
+        vec![Target::Object(target_a), Target::Object(target_b)],
+        vec![0, 1],
+    );
+
+    assert!(
+        result.is_err(),
+        "CR 700.2c: multiple modes chosen combined with ModeSelection.mode_targets must be \
+         rejected, even with a legal target supplied for each chosen mode"
+    );
+    assert!(
+        !snapshot.object(source_id).unwrap().status.tapped,
+        "no cost paid: source must not be tapped after a rejected activation"
+    );
+}
+
+/// CR 700.2a/601.2c: activating mode 1 (destroy target colorless nonland permanent)
+/// with no target supplied, when no legal target exists anywhere on the board, is
+/// rejected -- and no cost is paid.
+#[test]
+fn test_700_2a_mode_with_no_legal_target_rejected() {
+    let (state, p1, _p2) = build_goblin_state(1, vec![]);
+    let source_id = find_object(&state, "Goblin Cratermaker");
+    let mana_before = state.players()[&p1].mana_pool.get(ManaColor::Colorless);
+    let snapshot = state.clone();
+
+    let result = activate(state, p1, source_id, GC_ABILITY_INDEX, vec![], vec![1]);
+
+    assert!(
+        result.is_err(),
+        "CR 700.2a/601.2c: mode 1 requires a target, and none was supplied while none is legal"
+    );
+    assert!(
+        on_battlefield(&snapshot, "Goblin Cratermaker"),
+        "no cost paid: source must still be on the battlefield, not sacrificed"
+    );
+    assert_eq!(
+        snapshot.players()[&p1].mana_pool.get(ManaColor::Colorless),
+        mana_before,
+        "no cost paid: mana pool must be unchanged"
+    );
+}
+
+/// CR 400.7/601.2b (LKI): approach (a) freezes BOTH the chosen mode AND its target into
+/// `embedded_effect` / `stack_obj.targets` at activation. This test discriminates that
+/// from a hypothetical re-resolution that re-derives the target from the board at
+/// resolution time: a SECOND colorless nonland permanent (a clone of the original
+/// target's characteristics, so it is legal for mode 1 in every respect except
+/// identity) is added to the battlefield AFTER activation but BEFORE resolution. If
+/// the engine re-picked a legal target for mode 1 at resolution instead of using the
+/// frozen ObjectId, it could destroy the new permanent instead of (or in addition to)
+/// the originally-chosen one -- this test fails in that case.
 #[test]
 fn test_601_2b_modal_choice_survives_intervening_change() {
     let (state, p1, p2) = build_goblin_state(
@@ -383,17 +646,26 @@ fn test_601_2b_modal_choice_survives_intervening_change() {
     )
     .unwrap_or_else(|e| panic!("mode-1 activation should succeed: {:?}", e));
 
-    // Intervening board change between activation and resolution (CR 400.7): another
-    // player's life total changes. Approach (a) already baked the chosen mode's effect
-    // into the stack object at activation time, so this cannot retarget or re-choose it.
-    state.players_mut().get_mut(&p2).unwrap().life_total += 5;
+    // Intervening board change between activation and resolution (CR 400.7): a SECOND
+    // colorless nonland permanent enters the battlefield, legal for mode 1 in every
+    // respect the original target is.
+    let mut second_rock = state.object(rock_id).unwrap().clone();
+    second_rock.characteristics.name = "GC Second Colorless Rock".to_string();
+    test_util::add_object(&mut state, second_rock, ZoneId::Battlefield)
+        .expect("adding the intervening decoy permanent must succeed");
 
     let (state, _) = pass_all(state, &[p1, p2]);
 
     assert!(
         in_graveyard(&state, "GC Colorless Rock", p1),
-        "the chosen mode (destroy colorless permanent) must still resolve despite the \
-         intervening board change"
+        "the originally-chosen mode (destroy colorless permanent) must still resolve \
+         against its frozen target despite the intervening board change"
+    );
+    assert!(
+        on_battlefield(&state, "GC Second Colorless Rock"),
+        "the mode/target choice is frozen by ObjectId at activation, not re-derived at \
+         resolution -- the intervening decoy permanent (added AFTER activation) must survive; \
+         the test would fail here if the engine re-picked a legal target at resolution"
     );
     assert!(
         on_battlefield(&state, "GC Target Creature"),

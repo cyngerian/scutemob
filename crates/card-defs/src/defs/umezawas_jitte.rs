@@ -6,8 +6,11 @@
 // • You gain 2 life.
 // Equip {2}
 //
-// Note: "Choose one" modal activated ability — only the +2/+2 mode is implemented.
-// Full modal support (AddCounter on target, GainLife) deferred to PB-37.
+// Note: the counter-removal ability below is a "Choose one" modal activated ability;
+// PB-EF7 (2026-07-18) shipped the modal-activated-ability primitive it needs
+// (`AbilityDefinition::Activated::modes`), but this card is NOT flipped to use it — see
+// the `known_wrong` note and OOS-EF7-1 below. The surviving blocker is the counters
+// trigger, not the mode selection.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -32,9 +35,10 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Equip),
             // CR 510.3a: Whenever equipped creature deals combat damage, put two charge counters
             // on Umezawa's Jitte.
-            // TODO(PB-37): Oracle says "deals combat damage" (any target), not just to players.
-            // Needs WhenEquippedCreatureDealsCombatDamage variant. Current trigger is the closest
-            // available approximation (misses damage dealt to creatures).
+            // OOS-EF7-1: Oracle says "deals combat damage" (any recipient), not just to players.
+            // Needs a WhenEquippedCreatureDealsCombatDamage variant. Current trigger is the
+            // closest available approximation (misses damage dealt to creatures) — this is the
+            // real, still-open blocker; see the `known_wrong` note below.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEquippedCreatureDealsCombatDamageToPlayer,
