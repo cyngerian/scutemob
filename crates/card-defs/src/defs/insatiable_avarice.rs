@@ -56,21 +56,25 @@ pub fn card() -> CardDefinition {
                             also_search_graveyard: false,
                         },
                         // Mode 1 (+{B}{B}): Target player draws three cards and loses 3 life.
-                        // TODO: the DSL has no way to attach a per-mode TargetRequirement to
-                        // an individual Spree mode. A spell-level target would wrongly require
-                        // a target even when only mode 0 is chosen. This mode is a no-op
-                        // placeholder, mirroring the same DSL gap documented in final_showdown.rs.
-                        Effect::Sequence(vec![]),
+                        // PB-AC4: per-mode target via ModeSelection.mode_targets — DeclaredTarget
+                        // index 0 here is LOCAL to this mode's own target slice (not pooled
+                        // across modes), per boros_charm.rs precedent.
+                        Effect::Sequence(vec![
+                            Effect::DrawCards {
+                                player: PlayerTarget::DeclaredTarget { index: 0 },
+                                count: EffectAmount::Fixed(3),
+                            },
+                            Effect::LoseLife {
+                                player: PlayerTarget::DeclaredTarget { index: 0 },
+                                amount: EffectAmount::Fixed(3),
+                            },
+                        ]),
                     ],
-                    mode_targets: None,
+                    mode_targets: Some(vec![vec![], vec![TargetRequirement::TargetPlayer]]),
                 }),
                 cant_be_countered: false,
             },
         ],
-        completeness: Completeness::partial(
-            "Rewire onto ModeSelection.mode_targets (PB-AC4, casting.rs:3627). Mode 1 (+{B}{B}) \
-             currently resolves as a no-op — a player can pay for it and get nothing.",
-        ),
         ..Default::default()
     }
 }

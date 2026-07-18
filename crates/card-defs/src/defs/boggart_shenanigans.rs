@@ -2,12 +2,13 @@
 // Whenever another Goblin you control is put into a graveyard from the battlefield,
 // you may have this enchantment deal 1 damage to target player or planeswalker.
 //
-// "You may have this deal 1 damage" has no pay-cost — there is no non-gated optionality
-// primitive for that shape (only Effect::MayPayThenEffect, which requires an actual cost).
-// Per the W5 "you may [effect]" convention, a 1-damage ping targeted at an opponent's
-// player/planeswalker is strictly beneficial, so it is modeled as mandatory (LOW: a bot/
-// controller cannot decline the trigger, which could matter if they'd rather not reveal a
-// target, but there is no downside to actually dealing the damage).
+// The trigger + filter + targeted 1 damage are all expressible today. The residual blocker
+// is the "you may" optionality: this is a targeted "may" with no pay-cost, and the DSL has no
+// non-gated primitive for it (Effect::MayPayThenEffect requires an actual cost; Effect::Choose
+// is a gated stub). Because the "may" is target-selecting and player-facing (the controller can
+// decline entirely, not just an always-taken upside), it is NOT modeled here — the ability is
+// authored as the mandatory ping and the card is kept partial. Same optionality gap that keeps
+// Sun Titan / Edric / Fecundity partial.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -51,7 +52,14 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::Complete,
+        completeness: Completeness::partial(
+            "Trigger, Goblin filter, and targeted 1 damage are all correct. The oracle 'you MAY \
+             have this deal 1 damage to target player or planeswalker' cannot be expressed: it is \
+             a target-selecting optional effect with no pay-cost, and there is no non-gated \
+             optionality primitive (MayPayThenEffect needs a cost; Effect::Choose is a gated \
+             stub). Authored as the mandatory ping; the decline option is dropped. Same 'you may' \
+             optionality gap that keeps Sun Titan / Edric / Fecundity partial.",
+        ),
         ..Default::default()
     }
 }

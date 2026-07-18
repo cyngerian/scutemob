@@ -1,16 +1,12 @@
 // Sylvan Messenger — {3}{G}, Creature — Elf 2/2
-// "Trample (This creature can deal excess combat damage to the player or planeswalker it's
+// Trample (This creature can deal excess combat damage to the player or planeswalker it's
 // attacking.)
 // When this creature enters, reveal the top four cards of your library. Put all Elf cards
-// revealed this way into your hand and the rest on the bottom of your library in any order."
+// revealed this way into your hand and the rest on the bottom of your library in any order.
 //
-// Trample is implemented.
-//
-// TODO: DSL gap — the ETB trigger requires:
-// 1. Revealing the top N cards of your library.
-// 2. Filtering by creature subtype (Elf) and putting matching cards into hand.
-// 3. Putting the rest on the bottom of the library in any order.
-// No RevealTopN + subtype filter + split-destination effect exists in the DSL.
+// The non-Elf cards go to the bottom in a fixed order rather than a player-chosen order
+// (RevealAndRoute has no per-card ordering choice) — same shape as goblin_ringleader.rs,
+// which ships this way as Complete.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -30,12 +26,33 @@ pub fn card() -> CardDefinition {
             .to_string(),
         power: Some(2),
         toughness: Some(2),
-        abilities: vec![AbilityDefinition::Keyword(KeywordAbility::Trample)],
-        completeness: Completeness::partial(
-            "Authorable now via Effect::RevealAndRoute (count 4, Elf subtype filter, \
-             matched→Hand, unmatched→Library Bottom). Only residual: bottom order is \
-             deterministic rather than chosen.",
-        ),
+        abilities: vec![
+            AbilityDefinition::Keyword(KeywordAbility::Trample),
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                effect: Effect::RevealAndRoute {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(4),
+                    filter: TargetFilter {
+                        has_subtype: Some(SubType("Elf".to_string())),
+                        ..Default::default()
+                    },
+                    matched_dest: ZoneTarget::Hand {
+                        owner: PlayerTarget::Controller,
+                    },
+                    unmatched_dest: ZoneTarget::Library {
+                        owner: PlayerTarget::Controller,
+                        position: LibraryPosition::Bottom,
+                    },
+                },
+                intervening_if: None,
+                targets: vec![],
+
+                modes: None,
+                trigger_zone: None,
+            },
+        ],
         ..Default::default()
     }
 }

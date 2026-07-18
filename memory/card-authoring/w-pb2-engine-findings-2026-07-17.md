@@ -120,6 +120,22 @@ a Dragon, so it misattributes on 100% of firings — left `inert`), and `scourge
 **Fix**: add an optional `source: Option<EffectTarget>` to `DealDamage` (defaulting to `ctx.source`),
 resolvable to `TriggeringCreature`. PB-sized. Wire change (Effect shape) → PROTOCOL bump.
 
+## EF-W-PB2-8 — no "exile this card from hand" activation cost (MEDIUM)
+
+`card_definition.rs:1247` — the only exile-from-hand `Cost` is `Cost::ExileFromHand { color }`,
+which is the **Force of Will-style pitch cost** (exile a card *of a chosen color* from hand to
+help pay for a *different* spell, recorded as `AdditionalCost::ExileFromHand { card }`,
+casting.rs:4168). There is **no** cost meaning "exile THIS card from your hand" as a
+self-activation cost (the nearest, `Cost::DiscardSelf`, discards rather than exiles).
+
+**Instance**: `simian_spirit_guide.rs` — "Exile Simian Spirit Guide from your hand: Add {R}."
+Cannot be authored Complete. **Note**: the def previously shipped `Cost::Mana(ManaCost::default())`
+→ a **free, untapped, repeatable "Add {R}" from the battlefield** (invented infinite red mana) — a
+live wrong-state bug now removed (`abilities: vec![]`, `partial` marker names the gap).
+
+**Fix**: add `Cost::ExileSelfFromHand` (+ `activation_zone: Hand` support) mirroring
+`Cost::DiscardSelf`. PB-sized.
+
 ## LOW / accepted (non-blocking, cards ship Complete)
 
 - **avenger_of_zendikar** — landfall "you may put a +1/+1 counter" modeled as mandatory (the

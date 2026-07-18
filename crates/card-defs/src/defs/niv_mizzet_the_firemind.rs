@@ -27,19 +27,15 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             // Whenever you draw a card, deal 1 damage to any target.
-            // TODO: "any target" means player or creature — using each opponent as approximation.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouDrawACard,
-                effect: Effect::ForEach {
-                    over: ForEachTarget::EachOpponent,
-                    effect: Box::new(Effect::DealDamage {
-                        target: EffectTarget::DeclaredTarget { index: 0 },
-                        amount: EffectAmount::Fixed(1),
-                    }),
+                effect: Effect::DealDamage {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                    amount: EffectAmount::Fixed(1),
                 },
                 intervening_if: None,
-                targets: vec![],
+                targets: vec![TargetRequirement::TargetAny],
 
                 modes: None,
                 trigger_zone: None,
@@ -58,12 +54,6 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
         ],
-        completeness: Completeness::partial(
-            "'any target' is modeled as Effect::ForEach{over: EachOpponent}, dealing 1 damage to \
-             every opponent on each draw instead of 1 damage to a single chosen target. Fix: use \
-             targets: vec![TargetRequirement::TargetAny] + DealDamage to DeclaredTarget{index:0}, \
-             as niv_mizzet_parun.rs already does.",
-        ),
         ..Default::default()
     }
 }

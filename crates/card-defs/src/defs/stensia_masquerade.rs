@@ -2,8 +2,6 @@
 // Attacking creatures you control have first strike.
 // Whenever a Vampire you control deals combat damage to a player, put a +1/+1 counter on it.
 // Madness {2}{R}
-//
-// TODO: Madness {2}{R} — AltCostKind::Madness not in DSL.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -53,12 +51,16 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 trigger_zone: None,
             },
+            // CR 702.35: Madness {2}{R} — keyword marker + cost ability, both required.
+            AbilityDefinition::Keyword(KeywordAbility::Madness),
+            AbilityDefinition::Madness {
+                cost: ManaCost {
+                    generic: 2,
+                    red: 1,
+                    ..Default::default()
+                },
+            },
         ],
-        completeness: Completeness::partial(
-            "Ready to author: AbilityDefinition::Madness { cost } exists \
-             (card_definition.rs:508). Add the Madness cost ability + Keyword(Madness) marker; \
-             the other two clauses are already complete.",
-        ),
         ..Default::default()
     }
 }

@@ -17,7 +17,7 @@ use mtg_engine::Effect;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, Command,
     EffectAmount, GameEvent, GameStateBuilder, KeywordAbility, ManaColor, ManaCost, ModeSelection,
-    ObjectSpec, PlayerId, PlayerTarget, Step, TypeLine, ZoneId,
+    ObjectSpec, PlayerId, PlayerTarget, Step, Target, TypeLine, ZoneId,
 };
 use std::sync::Arc;
 
@@ -733,6 +733,7 @@ fn cast_insatiable_avarice(
     state: mtg_engine::GameState,
     p1: PlayerId,
     modes_chosen: Vec<usize>,
+    targets: Vec<Target>,
 ) -> Result<(mtg_engine::GameState, Vec<GameEvent>), mtg_engine::GameStateError> {
     let spell_id = find_object(&state, "Insatiable Avarice");
     process_command(
@@ -740,7 +741,7 @@ fn cast_insatiable_avarice(
         Command::CastSpell(Box::new(CastSpellData {
             player: p1,
             card: spell_id,
-            targets: vec![],
+            targets,
             convoke_creatures: vec![],
             improvise_artifacts: vec![],
             delve_cards: vec![],
@@ -777,7 +778,8 @@ fn test_spree_insatiable_avarice_base_plus_mode_costs_summed() {
     add_mana_cb(&mut state, p1, 2, 3);
     state.turn_mut().priority_holder = Some(p1);
 
-    let (state, _) = cast_insatiable_avarice(state, p1, vec![0, 1])
+    // mode 1 ("Target player draws three cards and loses 3 life") requires a player target.
+    let (state, _) = cast_insatiable_avarice(state, p1, vec![0, 1], vec![Target::Player(p2)])
         .unwrap_or_else(|e| panic!("cast [0,1] with exact {{2}}{{B}}{{B}}{{B}} failed: {:?}", e));
     assert_eq!(
         state.stack_objects().len(),
@@ -796,7 +798,7 @@ fn test_spree_insatiable_avarice_base_plus_mode_costs_summed() {
     add_mana_cb(&mut state, p1, 2, 1);
     state.turn_mut().priority_holder = Some(p1);
 
-    let result = cast_insatiable_avarice(state, p1, vec![0, 1]);
+    let result = cast_insatiable_avarice(state, p1, vec![0, 1], vec![Target::Player(p2)]);
     assert!(
         result.is_err(),
         "CR 700.2h: mode-1's {{B}}{{B}} cost must be summed on top — casting [0,1] \
@@ -809,7 +811,8 @@ fn test_spree_insatiable_avarice_base_plus_mode_costs_summed() {
     add_mana_cb(&mut state, p1, 2, 1);
     state.turn_mut().priority_holder = Some(p1);
 
-    let (state, _) = cast_insatiable_avarice(state, p1, vec![0])
+    // mode 0 alone ("search your library ... put on top") targets nothing.
+    let (state, _) = cast_insatiable_avarice(state, p1, vec![0], vec![])
         .unwrap_or_else(|e| panic!("cast [0] with exact {{2}}{{B}} failed: {:?}", e));
     assert_eq!(
         state.stack_objects().len(),
@@ -840,7 +843,7 @@ fn test_spree_insatiable_avarice_zero_modes_rejected() {
     add_mana_cb(&mut state, p1, 5, 5);
     state.turn_mut().priority_holder = Some(p1);
 
-    let result = cast_insatiable_avarice(state, p1, vec![]);
+    let result = cast_insatiable_avarice(state, p1, vec![], vec![]);
     assert!(
         result.is_err(),
         "CR 702.172a: casting a Spree spell with zero modes must be rejected \

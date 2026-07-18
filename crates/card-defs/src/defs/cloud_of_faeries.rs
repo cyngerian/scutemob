@@ -20,7 +20,30 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flying),
-            // TODO: "Untap up to two lands" — multi-target untap with land filter not expressible.
+            // CR 601.2c / card_definition.rs:2799-2822: UpToN contributes its declared
+            // targets at consecutive indices starting where the prior requirement's
+            // indices end. This is the only requirement here, so declared lands occupy
+            // indices 0..2; an undeclared slot resolves to a no-op via
+            // resolve_effect_target_list returning empty (CR 608.2b).
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                effect: Effect::Sequence(vec![
+                    Effect::UntapPermanent {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                    },
+                    Effect::UntapPermanent {
+                        target: EffectTarget::DeclaredTarget { index: 1 },
+                    },
+                ]),
+                intervening_if: None,
+                targets: vec![TargetRequirement::UpToN {
+                    count: 2,
+                    inner: Box::new(TargetRequirement::TargetLand),
+                }],
+                modes: None,
+                trigger_zone: None,
+            },
             AbilityDefinition::Keyword(KeywordAbility::Cycling),
             AbilityDefinition::Cycling {
                 cost: ManaCost {
@@ -29,9 +52,6 @@ pub fn card() -> CardDefinition {
                 },
             },
         ],
-        completeness: Completeness::partial(
-            "'Untap up to two lands' — multi-target untap with land filter not expressible",
-        ),
         ..Default::default()
     }
 }
