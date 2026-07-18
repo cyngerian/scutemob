@@ -28,4 +28,4 @@ closure). Simulator emits a concrete legal colour (SR-38 precedent).
 - [x] 11. OOS seed for unserved AddManaAnyColor family; bookkeeping; authoring-report rerun — done, OOS-EF12-1 filed in w-pb2-engine-findings doc; roster updated; coverage 61.1%→62.1% (1,098/1,796 → 1,117/1,798)
 - [x] 12. All gates green — build/test(3476 pass)/clippy/fmt/defs-fmt all green. /review NOT run (coordinator's job per runner brief).
 
-phase: review (implementation complete, handing to coordinator for /review)
+phase: done  # /review (primitive-impl-reviewer, Opus): 0 findings. Gates green, 3476 tests. PROTOCOL 18, HASH 55. Committed a8eb45b5. EF QUEUE COMPLETE.
