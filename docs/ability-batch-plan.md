@@ -1,5 +1,18 @@
 # Ability Batch Implementation Plan
 
+> # 🗄️ HISTORICAL — campaign COMPLETE
+>
+> **This batch plan is a completed campaign, not a pending one.** All P3/P4 abilities it
+> scopes are implemented (42/42 P1, 17/17 P2, 40/40 P3, 95/95 P4; 9 permanent-n/a, only
+> Banding deferred). The "~78 to implement" framing below is the March starting state.
+>
+> **Current successors:**
+> - **Live ability tally** → `CLAUDE.md` **"Current State" → "Abilities"** line.
+> - **Keyword/pattern coverage detail** → `docs/mtg-engine-ability-coverage.md`
+>   (refresh via `/audit-abilities`).
+>
+> _(Marked historical per ESM task scutemob-118 / `memory/doc-audit-2026-07-18.md` F2.)_
+
 > **Purpose**: Implement ALL keyword abilities and ability patterns before advancing to M10.
 > Organizes ~75 implementable abilities into batches grouped by engine infrastructure,
 > minimizing context-switching and maximizing code reuse within each batch.

@@ -1,5 +1,20 @@
 # LOW Issues Remediation Plan
 
+> # 🗄️ HISTORICAL / SUPERSEDED — 2026-02-28 snapshot
+>
+> **The "~68 OPEN LOW" and "1,033 passing tests" counts below are a 2026-02-28 snapshot and
+> are badly stale.** The LOW Sweep (completed 2026-05-16) closed the bulk of them; only **~6
+> LOW remain open** (4 M10-gated, 2 permanent-perf) against a **3,476-test** suite.
+>
+> **Current successors:**
+> - **Live known-issue tally** → `CLAUDE.md` **"Current State" → "Known issues"** line.
+> - **Per-milestone findings + issue index** → `docs/mtg-engine-milestone-reviews.md`.
+>
+> The risk-tier framework and per-issue guidance below remain useful *reference* for the
+> handful of issues still open, but treat every count as historical.
+>
+> _(Superseded per ESM task scutemob-118 / `memory/doc-audit-2026-07-18.md` F2.)_
+
 > Catalog of all ~68 OPEN + 5 DEFERRED LOW-severity issues from milestone reviews,
 > grouped by regression risk, with phased implementation guidance.
 >

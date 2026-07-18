@@ -1,11 +1,24 @@
 # Project Status
 
-> **Machine-parseable progress tracker.** Read by the TUI dashboard's Progress tab.
-> Updated by `/implement-primitive` (close phase), `/end-session`, and manual edits.
+> # 🚫 RETIRED — 2026-07-18
 >
-> This is the single source of truth for what's done, what's in progress, and what's next.
+> **This document is retired and is no longer maintained.** It is kept only as a
+> historical snapshot; every count below (2,648 tests, 194/204 abilities, the W1–W6
+> workstream model, "next: PB-D") is stale and must not be trusted. Do **not** regenerate
+> this file — it has no successor generator.
+>
+> **Where current status lives now:**
+> - **Card health / def coverage** → `docs/authoring-status.md` (generated & self-dating by
+>   `tools/authoring-report.py` — the canonical source).
+> - **Everything else (tests, abilities, milestone, active queue, known issues)** →
+>   the **"Current State"** section at the top of `CLAUDE.md`.
+>
+> _(Retirement decision recorded in ESM task scutemob-118 / `memory/doc-audit-2026-07-18.md` F2.)_
 
 ---
+
+<details>
+<summary>Historical snapshot (stale — retained for reference only)</summary>
 
 ## Primitive Batches
 
@@ -196,3 +209,5 @@ Items explicitly deferred from completed PB batches. Must be addressed before Ph
 
 **Review Status values**: `pending`, `in-review`, `needs-fix`, `fixing`, `clean`, `fixed`
 **Progress**: 20 / 20 reviewed — ALL REVIEWS COMPLETE
+
+</details>

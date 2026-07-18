@@ -1,5 +1,19 @@
 # DSL Gap Closure Plan
 
+> # 🗄️ HISTORICAL / SUPERSEDED — March 2026 DRAFT
+>
+> **This 2026-03-23 draft never became the operative plan and its framing (814/1,452 = 56%
+> TODOs, PB-23+ as the next work) is frozen historical data — not current.** The DSL-gap work
+> it anticipated was carried out through the later primitive chains and the EF/OS queues.
+>
+> **Current successors:**
+> - **Active primitive queue** → `memory/primitives/oos-retriage-plan-2026-07-18.md`.
+> - **Campaign-authoritative DSL-gap audit** → `memory/card-authoring/dsl-gap-audit-2026-05-16.md`.
+> - **Card-authoring campaign** → `memory/card-authoring/campaign-plan-2026-05-16.md`.
+> - **Live card-def health / coverage** → `docs/authoring-status.md` (generated).
+>
+> _(Superseded per ESM task scutemob-118 / `memory/doc-audit-2026-07-18.md` F2.)_
+
 > **Purpose**: Close all remaining DSL gaps blocking card implementations. Extends the
 > primitive batch pipeline (PB-23+) with new engine work, then backfills existing TODO
 > card defs after each gap closes.
