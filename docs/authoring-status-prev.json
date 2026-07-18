@@ -1,12 +1,12 @@
 {
-  "generated": "2026-07-18 00:31 UTC",
-  "git_head": "5321ebef",
+  "generated": "2026-07-18 01:10 UTC",
+  "git_head": "bcb82db2",
   "total_files": 1748,
-  "total_todos": 982,
+  "total_todos": 983,
   "file_buckets": {
-    "clean": 1030,
-    "todo": 658,
-    "empty": 60
+    "clean": 1032,
+    "todo": 659,
+    "empty": 57
   },
   "todo_classes": {
     "OTHER (unclassified)": 599,
@@ -30,7 +30,7 @@
     "opponent-action trigger": 7,
     "per-player effect dispatch": 4,
     "interactive / hidden-info choice": 10,
-    "sacrifice as cost": 16,
+    "sacrifice as cost": 17,
     "noncombat-damage prevent": 4,
     "EnchantTarget missing variant": 1,
     "equipment grants ability": 5,

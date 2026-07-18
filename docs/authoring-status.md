@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-18 00:31 UTC  
-**Git:** `5321ebef` on `feat/w-pb2-author-the-55-cards-unblocked-by-pb-ac4ac6-campaign-pl`  
+**Generated:** 2026-07-18 01:10 UTC  
+**Git:** `bcb82db2` on `feat/w-empty-author-the-110-authorable-empty-placeholder-card-def`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,10 +25,10 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 194 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **108%** (1,763 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 58.9% | 1,030 | +47 |
-| With TODO markers | 658 | -45 |
-| Empty `abilities: vec![]` placeholders | 60 | -2 |
-| Total TODO lines across all defs | 982 | -63 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 59.0% | 1,032 | +2 |
+| With TODO markers | 659 | +1 |
+| Empty `abilities: vec![]` placeholders | 57 | -3 |
+| Total TODO lines across all defs | 983 | +1 |
 
 ## Authoring activity (git, by window)
 
@@ -73,7 +73,7 @@ are blocked on engine primitives.
 | `other` | 108 / 131 | 82% | 67 | 41 | 0 |
 | `modal-choice` | 68 / 105 | 65% | 32 | 36 | 0 |
 | `mana-land` | 92 / 92 | 100% | 63 | 28 | 1 |
-| `body-only` | 55 / 70 | 79% | 26 | 10 | 19 |
+| `body-only` | 55 / 70 | 79% | 29 | 12 | 14 |
 | `removal-destroy` | 56 / 56 | 100% | 33 | 21 | 2 |
 | `counters-plus` | 49 / 49 | 100% | 24 | 24 | 1 |
 | `land-fetch` | 45 / 45 | 100% | 27 | 17 | 1 |
@@ -169,27 +169,27 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 599 | -35 |
-| DSL gap (unspecified) | 123 | -11 |
-| attack trigger (self / generic) | 26 | -1 |
+| OTHER (unclassified) | 599 | · |
+| DSL gap (unspecified) | 123 | · |
+| attack trigger (self / generic) | 26 | · |
 | TriggerCondition::* missing variant | 17 | · |
 | dynamic hexproof / protection | 17 | · |
-| sacrifice as cost | 16 | · |
-| Cost::* missing variant | 16 | -1 |
+| sacrifice as cost | 17 | +1 |
+| Cost::* missing variant | 16 | · |
 | replacement effect missing | 14 | · |
-| EffectAmount::* missing variant | 12 | -1 |
+| EffectAmount::* missing variant | 12 | · |
 | combat-damage-to-player trigger | 10 | · |
 | interactive / hidden-info choice | 10 | · |
 | can't / must block-attack | 7 | · |
 | can't be countered | 7 | · |
 | opponent-action trigger | 7 | · |
-| TargetFilter missing field | 7 | -5 |
+| TargetFilter missing field | 7 | · |
 | per-opponent upkeep | 6 | · |
 | conditional static / grant | 5 | · |
 | delayed triggers | 5 | · |
 | equipment grants ability | 5 | · |
 | untap-all / untap trigger | 4 | · |
-| per-player effect dispatch | 4 | -2 |
+| per-player effect dispatch | 4 | · |
 | noncombat-damage prevent | 4 | · |
 | ETB choice | 4 | · |
 | impulse draw | 4 | · |
