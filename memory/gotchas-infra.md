@@ -526,3 +526,10 @@ This is the same pattern as `myriad_exile_at_eoc`. See `game_object.rs` (Decayed
   Triggered by phantom `.claude/skills` deletions and/or attestation branch-name drift.
   Before trusting the flag, run `git merge-base main <branch>`: if it equals main's
   tip, the merged tree is byte-identical to the worker tree where gates ran.
+- **Cargo.lock is TRACKED (scutemob-113, 2026-07-18) — do not re-ignore it.** It was
+  gitignored until a fresh worktree resolved `equivalent 1.0.2` (stricter `Comparable`
+  bounds via imbl) and main stopped building in any fresh env while every warm target/
+  stayed green. The lock pins deps the way `rust-toolchain.toml` pins the compiler
+  (SR-11). If a fresh env ever breaks again while local builds pass, suspect another
+  floating build input before suspecting the code. Dep upgrades are now an explicit
+  `cargo update` + committed lock diff.
