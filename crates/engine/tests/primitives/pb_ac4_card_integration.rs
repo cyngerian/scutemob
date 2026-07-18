@@ -197,6 +197,7 @@ fn push_spell_stack_object(
         sacrificed_creature_powers: vec![],
         lki_counters: imbl::OrdMap::new(),
         lki_power: None,
+        defending_player: None,
     });
     stack_id
 }

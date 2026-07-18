@@ -488,6 +488,14 @@ pub struct StackObject {
     /// had no inherent power.
     #[serde(default)]
     pub lki_power: Option<i32>,
+    /// CR 508.4: The defending player of the attacker whose attack triggered this
+    /// ability (the attacked player, or the controller of the attacked planeswalker).
+    /// Set from PendingTrigger::defending_player_id when a triggered ability is
+    /// flushed to the stack (abilities.rs `flush_pending_triggers`). Read by
+    /// PlayerTarget::DefendingPlayer and as the Player-target fallback of
+    /// EffectTarget::AttackTarget at resolution time (PB-EF3 / EF-W-MISS-4).
+    #[serde(default)]
+    pub defending_player: Option<PlayerId>,
 }
 impl StackObject {
     /// Build a triggered-ability StackObject with all cast-specific fields set to
@@ -555,6 +563,7 @@ impl StackObject {
             cast_from_top_with_bonus: false,
             lki_counters: imbl::OrdMap::new(),
             lki_power: None,
+            defending_player: None,
         }
     }
 }

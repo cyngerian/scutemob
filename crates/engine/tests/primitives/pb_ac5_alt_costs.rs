@@ -400,7 +400,7 @@ fn graveyard_exert_def() -> CardDefinition {
 #[test]
 /// Strict-equality hash schema sentinel (conventions.md hash-sentinel rule).
 fn test_hash_schema_version_is_32() {
-    assert_eq!(HASH_SCHEMA_VERSION, 45u8);
+    assert_eq!(HASH_SCHEMA_VERSION, 46u8);
 }
 
 #[test]
@@ -513,6 +513,7 @@ fn test_was_warped_field_participates_in_hash() {
         sacrificed_creature_powers: vec![],
         lki_counters: imbl::OrdMap::new(),
         lki_power: None,
+        defending_player: None,
     };
 
     let make_state = |was_warped: bool| {

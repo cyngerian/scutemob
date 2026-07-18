@@ -299,6 +299,7 @@ fn test_play_land_stack_nonempty_fails() {
         sacrificed_creature_powers: vec![],
         lki_counters: imbl::OrdMap::new(),
         lki_power: None,
+        defending_player: None,
     });
 
     let result = mtg_engine::process_command(

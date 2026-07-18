@@ -688,6 +688,7 @@ fn test_plot_requires_main_phase_empty_stack() {
         sacrificed_creature_powers: vec![],
         lki_counters: imbl::OrdMap::new(),
         lki_power: None,
+        defending_player: None,
     });
 
     let result = process_command(
@@ -1255,6 +1256,7 @@ fn test_plot_free_cast_requires_empty_stack() {
         sacrificed_creature_powers: vec![],
         lki_counters: imbl::OrdMap::new(),
         lki_power: None,
+        defending_player: None,
     });
 
     let result = process_command(

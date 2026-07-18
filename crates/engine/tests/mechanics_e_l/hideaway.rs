@@ -131,6 +131,7 @@ fn make_hideaway_trigger_stack_obj(
         sacrificed_creature_powers: vec![],
         lki_counters: imbl::OrdMap::new(),
         lki_power: None,
+        defending_player: None,
     }
 }
 

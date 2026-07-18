@@ -905,7 +905,10 @@ fn test_whenever_ring_tempts_you_trigger() {
     // selection instead of being silently dropped.
     let trigger_queued = pending.iter().any(|t| {
         t.controller == p1
-            && matches!(t.kind, mtg_engine::state::stubs::PendingTriggerKind::CardDefETB)
+            && matches!(
+                t.kind,
+                mtg_engine::state::stubs::PendingTriggerKind::CardDefETB
+            )
     });
     assert!(
         trigger_queued,

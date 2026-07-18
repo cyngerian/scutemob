@@ -158,6 +158,12 @@ pub struct EffectContext {
     /// "its controller creates …" cards (Swan Song, An Offer You Can't Refuse).
     /// Read by `PlayerTarget::ControllerOfCounteredSpell` via `resolve_player_target_list`.
     pub countered_spell_controller: Option<crate::state::PlayerId>,
+    /// CR 508.4: the defending player of the attacker whose attack triggered this
+    /// ability; captured at attack-trigger dispatch from `PendingTrigger.defending_player_id`
+    /// (PB-EF3 B1), threaded via `StackObject.defending_player` (B2). Read by
+    /// `PlayerTarget::DefendingPlayer` and as the Player-target fallback of
+    /// `EffectTarget::AttackTarget`.
+    pub defending_player: Option<crate::state::PlayerId>,
 }
 impl EffectContext {
     /// Build a basic context from resolution data.
@@ -188,6 +194,7 @@ impl EffectContext {
             lki_counters: None,
             lki_power: None,
             countered_spell_controller: None,
+            defending_player: None,
         }
     }
     /// Build a context with kicker status (CR 702.33d).
@@ -223,6 +230,7 @@ impl EffectContext {
             lki_counters: None,
             lki_power: None,
             countered_spell_controller: None,
+            defending_player: None,
         }
     }
     /// Resolve a declared target to a player (if it's a player target).
@@ -3171,6 +3179,7 @@ fn execute_effect_inner(
                             lki_counters: ctx.lki_counters.clone(),
                             lki_power: ctx.lki_power,
                             countered_spell_controller: ctx.countered_spell_controller,
+                            defending_player: ctx.defending_player,
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -3208,6 +3217,7 @@ fn execute_effect_inner(
                             lki_counters: ctx.lki_counters.clone(),
                             lki_power: ctx.lki_power,
                             countered_spell_controller: ctx.countered_spell_controller,
+                            defending_player: ctx.defending_player,
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -3659,6 +3669,8 @@ fn execute_effect_inner(
                     .and_then(|id| state.objects.get(&id).map(|o| o.controller))
                     .or(ctx.triggering_player)
                     .unwrap_or(ctx.controller),
+                // PB-EF3 (CR 508.4): defending player, captured at attack-trigger dispatch.
+                PlayerTarget::DefendingPlayer => ctx.defending_player.unwrap_or(ctx.controller),
             };
             let lib_id = ZoneId::Library(manifest_player);
             let top_card = state.zones.get(&lib_id).and_then(|z| z.top());
@@ -3719,6 +3731,8 @@ fn execute_effect_inner(
                     .and_then(|id| state.objects.get(&id).map(|o| o.controller))
                     .or(ctx.triggering_player)
                     .unwrap_or(ctx.controller),
+                // PB-EF3 (CR 508.4): defending player, captured at attack-trigger dispatch.
+                PlayerTarget::DefendingPlayer => ctx.defending_player.unwrap_or(ctx.controller),
             };
             let lib_id = ZoneId::Library(cloak_player);
             let top_card = state.zones.get(&lib_id).and_then(|z| z.top());
@@ -6337,6 +6351,43 @@ fn resolve_effect_target_list_indexed(
                 vec![]
             }
         }
+        // PB-EF3 (CR 508.4 / CR 506.4c): The player or planeswalker the triggering
+        // attacker is/was attacking. Looked up lazily from `state.combat.attackers`
+        // keyed by `ctx.triggering_creature_id` so it stays correct even if a
+        // continuous effect changed the attacker's controller after declaration.
+        // If the attacker has left the `attackers` map (combat ended, or this is a
+        // non-combat evaluation), fall back to the defender captured at dispatch time
+        // (`ctx.defending_player`, CR 113.7a) as a Player target. If neither is
+        // available (e.g. the attacked planeswalker was removed — CR 506.4c, the
+        // attacker now attacks nothing), resolve to empty (the effect fizzles).
+        EffectTarget::AttackTarget => {
+            let from_combat = ctx.triggering_creature_id.and_then(|attacker_id| {
+                state
+                    .combat
+                    .as_ref()
+                    .and_then(|c| c.attackers.get(&attacker_id))
+                    .and_then(|attack_target| match attack_target {
+                        crate::state::combat::AttackTarget::Player(pid) => state
+                            .expect_player(*pid)
+                            .filter(|ps| !ps.has_lost)
+                            .map(|_| ResolvedTarget::Player(*pid)),
+                        crate::state::combat::AttackTarget::Planeswalker(pw_id) => state
+                            .objects
+                            .get(pw_id)
+                            .filter(|o| o.zone == ZoneId::Battlefield && o.is_phased_in())
+                            .map(|_| ResolvedTarget::Object(*pw_id)),
+                    })
+            });
+            match from_combat {
+                Some(resolved) => vec![(None, resolved)],
+                None => match ctx.defending_player {
+                    Some(dp) if state.expect_player(dp).is_some_and(|ps| !ps.has_lost) => {
+                        vec![(None, ResolvedTarget::Player(dp))]
+                    }
+                    _ => vec![],
+                },
+            }
+        }
     }
 }
 /// Resolve a `PlayerTarget` into a list of `PlayerId`s.
@@ -6492,6 +6543,22 @@ fn resolve_player_target_list(
             } else {
                 vec![]
             }
+        }
+        // CR 508.4 (PB-EF3): the defending player of the attacker whose attack
+        // triggered this ability, captured at dispatch time (mirrors DamagedPlayer above).
+        PlayerTarget::DefendingPlayer => {
+            if let Some(dp) = ctx.defending_player {
+                if state
+                    .players
+                    .get(&dp)
+                    .map(|ps| !ps.has_lost)
+                    .unwrap_or(false)
+                {
+                    return vec![dp];
+                }
+            }
+            // Fallback: no defending player captured (non-attack context) → controller.
+            vec![ctx.controller]
         }
     }
 }
@@ -8683,6 +8750,7 @@ pub fn check_static_condition(
                 lki_counters: None,
                 lki_power: None,
                 countered_spell_controller: None,
+                defending_player: None,
             };
             check_condition(state, condition, &ctx)
         }

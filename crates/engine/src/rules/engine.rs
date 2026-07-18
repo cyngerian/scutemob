@@ -2011,6 +2011,7 @@ pub fn ring_ability_stack_object(
         sacrificed_creature_powers: vec![],
         lki_counters: imbl::OrdMap::new(),
         lki_power: None,
+        defending_player: None,
     }
 }
 /// Build a `StackObject` for a dungeon room ability (CR 309.4c).
@@ -2074,6 +2075,7 @@ fn room_ability_stack_object(
         sacrificed_creature_powers: vec![],
         lki_counters: imbl::OrdMap::new(),
         lki_power: None,
+        defending_player: None,
     }
 }
 /// CR 701.49: Handle a venture-into-the-dungeon action.
@@ -2576,6 +2578,7 @@ fn handle_activate_loyalty_ability(
         sacrificed_creature_powers: vec![],
         lki_counters: imbl::OrdMap::new(),
         lki_power: None,
+        defending_player: None,
     };
     state.stack_objects.push_back(stack_obj);
     // Reset priority since a new object is on the stack.
@@ -2730,6 +2733,7 @@ fn handle_level_up_class(
         sacrificed_creature_powers: vec![],
         lki_counters: imbl::OrdMap::new(),
         lki_power: None,
+        defending_player: None,
     };
     state.stack_objects.push_back(stack_obj);
     events.push(GameEvent::AbilityActivated {

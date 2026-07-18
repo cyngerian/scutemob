@@ -599,6 +599,7 @@ fn test_encore_sorcery_speed_non_empty_stack() {
         sacrificed_creature_powers: vec![],
         lki_counters: imbl::OrdMap::new(),
         lki_power: None,
+        defending_player: None,
     };
     state.stack_objects_mut().push_back(fake_stack_obj);
 

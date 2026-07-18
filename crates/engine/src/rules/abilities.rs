@@ -279,6 +279,7 @@ pub fn handle_activate_ability(
                 lki_counters: None,
                 lki_power: None,
                 countered_spell_controller: None,
+                defending_player: None,
             };
             if !crate::effects::check_condition(state, condition, &ctx) {
                 return Err(GameStateError::InvalidCommand(
@@ -3892,7 +3893,15 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // The attacking creature's ObjectId is passed as `entering_object` so that
                 // collect_triggers_for_event can check controller match for controller_you filtering
                 // (using entering_obj.controller == trigger_source.controller).
-                for (attacker_id, _) in attackers {
+                //
+                // PB-EF3 B1 (CR 508.4/113.7a): capture the defending player at dispatch time
+                // into `defending_player_id` -- the same field/pattern SelfAttacks uses above
+                // (line ~3573). This is threaded through PendingTrigger -> StackObject ->
+                // EffectContext so `PlayerTarget::DefendingPlayer` and the Player-target case
+                // of `EffectTarget::AttackTarget` resolve to the correct defender even if the
+                // attacker later leaves combat (CR 506.4) before the trigger resolves.
+                for (attacker_id, attack_target) in attackers {
+                    let pre_len = triggers.len();
                     collect_triggers_for_event(
                         state,
                         &mut triggers,
@@ -3900,6 +3909,15 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         None,
                         Some(*attacker_id),
                     );
+                    let defending_player = match attack_target {
+                        crate::state::combat::AttackTarget::Player(pid) => Some(*pid),
+                        crate::state::combat::AttackTarget::Planeswalker(pw_id) => {
+                            state.objects.get(pw_id).map(|obj| obj.controller)
+                        }
+                    };
+                    for t in &mut triggers[pre_len..] {
+                        t.defending_player_id = defending_player;
+                    }
                 }
                 // CR 702.83a/b: Exalted — "Whenever a creature you control attacks alone."
                 // If exactly one creature is declared as an attacker, fire exalted triggers
@@ -6660,6 +6678,43 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
         // is set as Target::Player at index 0 so DeclaredTarget { index: 0 } resolves
         // to the specific opponent who cast the spell (e.g. Rhystic Study resolution).
         //
+        // PB-EF3 (CR 601.2c/603.3d): a real CardDef-declared TargetRequirement takes
+        // priority over the `defending_player_id` / `exalted_attacker_id` single-slot
+        // shortcuts below. Those shortcuts exist for triggers whose effect resolves via
+        // an implicit DeclaredTarget{0} and which never declare a real target
+        // requirement (annihilator, dethrone, training all carry `targets: vec![]`).
+        // Since PB-EF3 B1 now tags EVERY `AnyCreatureYouControlAttacks` trigger with
+        // `defending_player_id` (not just annihilator-style ones), a card with a real
+        // declared target (e.g. Ojutai, Soul of Winter's "tap target nonland permanent")
+        // must not have that target silently replaced by the defending player. This is a
+        // cheap presence check (not the full auto-select below); does not change behavior
+        // for any existing trigger, since every current defending_player_id/exalted_attacker_id
+        // user declares `targets: vec![]`.
+        let has_ability_targets = matches!(
+            trigger.kind,
+            PendingTriggerKind::Normal | PendingTriggerKind::CardDefETB
+        ) && state.objects.get(&trigger.source).is_some_and(|obj| {
+            if trigger.kind == PendingTriggerKind::Normal {
+                obj.characteristics
+                    .triggered_abilities
+                    .get(trigger.ability_index)
+                    .is_some_and(|ab| !ab.targets.is_empty())
+            } else {
+                obj.card_id
+                    .as_ref()
+                    .and_then(|cid| state.card_registry.get(cid.clone()))
+                    .and_then(|def| def.abilities.get(trigger.ability_index))
+                    .is_some_and(|abil| {
+                        matches!(
+                            abil,
+                            crate::cards::card_definition::AbilityDefinition::Triggered {
+                                targets,
+                                ..
+                            } if !targets.is_empty()
+                        )
+                    })
+            }
+        });
         // Returns None if a required target cannot be satisfied (trigger skipped per CR 603.3d).
         let trigger_targets_opt: Option<Vec<SpellTarget>> = if let Some(tsid) =
             trigger.targeting_stack_id
@@ -6673,7 +6728,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 target: Target::Player(pid),
                 zone_at_cast: None,
             }])
-        } else if let Some(dp) = trigger.defending_player_id {
+        } else if let Some(dp) = trigger.defending_player_id.filter(|_| !has_ability_targets) {
             // CR 702.86a / CR 508.5: Annihilator triggers carry the defending player ID.
             // Set as Target::Player at index 0 so PlayerTarget::DeclaredTarget { index: 0 }
             // resolves to the correct defending player for the SacrificePermanents effect.
@@ -6681,7 +6736,9 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 target: Target::Player(dp),
                 zone_at_cast: None,
             }])
-        } else if let Some(attacker_id) = trigger.exalted_attacker_id {
+        } else if let Some(attacker_id) =
+            trigger.exalted_attacker_id.filter(|_| !has_ability_targets)
+        {
             // CR 702.83a: Exalted triggers carry the lone attacker's ObjectId.
             // Set it as Target::Object at index 0 so CEFilter::DeclaredTarget { index: 0 }
             // resolves to the attacking creature (not the exalted source permanent).
@@ -7825,6 +7882,10 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
             stack_obj.combat_damage_amount = trigger.combat_damage_amount;
             // The entering_object_id carries the dealing creature for per-creature triggers.
             stack_obj.triggering_creature_id = trigger.entering_object_id;
+            // CR 508.4: Propagate the defending player captured at attack-trigger dispatch
+            // (PB-EF3 B1) from PendingTrigger to StackObject so resolution.rs can build
+            // EffectContext.defending_player.
+            stack_obj.defending_player = trigger.defending_player_id;
             // CR 603.10a / CR 113.7a: Propagate LKI counter snapshot from PendingTrigger
             // to StackObject so resolution.rs can build EffectContext.lki_counters.
             stack_obj.lki_counters = trigger.lki_counters.clone();

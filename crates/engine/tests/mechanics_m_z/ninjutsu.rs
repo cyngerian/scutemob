@@ -930,6 +930,7 @@ fn test_ninjutsu_split_second_blocks() {
         sacrificed_creature_powers: vec![],
         lki_counters: imbl::OrdMap::new(),
         lki_power: None,
+        defending_player: None,
     };
     state.stack_objects_mut().push_back(stack_obj);
 

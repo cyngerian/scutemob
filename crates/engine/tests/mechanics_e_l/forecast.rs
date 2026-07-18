@@ -717,6 +717,7 @@ fn test_forecast_blocked_by_split_second() {
         sacrificed_creature_powers: vec![],
         lki_counters: imbl::OrdMap::new(),
         lki_power: None,
+        defending_player: None,
     });
 
     state

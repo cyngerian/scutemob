@@ -316,6 +316,7 @@ fn saga_not_sacrificed_while_chapter_on_stack_cr714_4() {
         sacrificed_creature_powers: vec![],
         lki_counters: imbl::OrdMap::new(),
         lki_power: None,
+        defending_player: None,
     };
     state.stack_objects_mut().push_back(stack_obj);
 
@@ -553,6 +554,7 @@ fn class_level_up_requires_sorcery_speed_cr716_2a() {
         sacrificed_creature_powers: vec![],
         lki_counters: imbl::OrdMap::new(),
         lki_power: None,
+        defending_player: None,
     };
     state.stack_objects_mut().push_back(stack_obj);
 

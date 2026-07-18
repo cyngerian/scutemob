@@ -58,10 +58,25 @@ const SWEPT_FILES: &[(&str, usize)] = &[
     // resolve_player_target_list) and ControllerOfCounteredSpell's has-lost filter in
     // resolve_player_target_list — a departed triggering object/player legitimately
     // falls back to `ctx.controller` or an empty recipient list, not an engine bug.
-    ("src/effects/mod.rs", 105),
+    // PB-EF3 (2026-07-18): 105 → 107. Two new NONSWALLOW predicate reads for
+    // `EffectTarget::AttackTarget` / `PlayerTarget::DefendingPlayer`: (1)
+    // `state.objects.get(pw_id)` checking whether an attacked planeswalker is still on
+    // the battlefield (CR 506.4c: if removed, the attacker attacks nothing, so the
+    // effect correctly resolves to empty rather than an engine bug); (2) `state.players
+    // .get(&dp)` in the DefendingPlayer arm, an exact copy of the pre-existing
+    // DamagedPlayer arm's has-lost filter a few lines above it.
+    ("src/effects/mod.rs", 107),
     ("src/rules/resolution.rs", 102),
     // SR-14
-    ("src/rules/abilities.rs", 72),
+    // PB-EF3 (2026-07-18): 72 → 74. Two new NONSWALLOW predicate reads, both matching the
+    // file's existing residue shape exactly: (1) `state.objects.get(pw_id).map(|obj| obj
+    // .controller)` in the new `AnyCreatureYouControlAttacks` defending-player capture (B1),
+    // an exact duplicate of the pre-existing `SelfAttacks` capture a few lines above it — a
+    // departed attacked planeswalker legitimately falls back to `None` (CR 506.4c), not an
+    // engine bug; (2) `state.objects.get(&trigger.source)` in the new `has_ability_targets`
+    // presence check, an exact duplicate of the pre-existing lookup inside the
+    // Normal/CardDefETB target-selection branch a few lines below it.
+    ("src/rules/abilities.rs", 74),
     ("src/rules/casting.rs", 34),
     ("src/rules/combat.rs", 16),
     ("src/rules/sba.rs", 7),
