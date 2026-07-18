@@ -278,6 +278,7 @@ pub fn handle_activate_ability(
                 sacrificed_creature_powers: vec![],
                 lki_counters: None,
                 lki_power: None,
+                countered_spell_controller: None,
             };
             if !crate::effects::check_condition(state, condition, &ctx) {
                 return Err(GameStateError::InvalidCommand(

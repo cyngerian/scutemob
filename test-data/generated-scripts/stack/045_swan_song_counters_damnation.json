@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "metadata": {
     "id": "script_stack_045",
-    "name": "Swan Song counters Damnation \u2014 caster gets 2/2 Bird token",
+    "name": "Swan Song counters Damnation \u2014 countered spell's controller gets 2/2 Bird token",
     "description": "p1 casts Damnation ({2}{B}{B}). p2 responds with Swan Song ({U}) targeting Damnation. Swan Song counters Damnation and p1 (Damnation caster) creates a 2/2 Bird token. Tests Swan Song's counter-with-token-for-opponent effect.",
     "cr_sections_tested": [
       "601.2",
@@ -193,7 +193,7 @@
               "card": null,
               "owner": null,
               "cr_ref": "111.1",
-              "note": "p2 (Swan Song's controller) creates a 2/2 blue Bird token."
+              "note": "p1 (Damnation's controller — the countered spell's controller) creates a 2/2 blue Bird token."
             }
           ],
           "note": "Swan Song resolves: Damnation countered, p1 gets Bird token."
@@ -212,7 +212,7 @@
                 }
               ]
             },
-            "zones.battlefield.p2": {
+            "zones.battlefield.p1": {
               "includes": [
                 {
                   "card": "Bird"

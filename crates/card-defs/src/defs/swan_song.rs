@@ -36,21 +36,23 @@ pub fn card() -> CardDefinition {
                         mana_color: None,
                         mana_abilities: vec![],
                         activated_abilities: vec![],
+                        recipient: PlayerTarget::ControllerOfCounteredSpell,
                         ..Default::default()
                     },
                 },
             ]),
-            targets: vec![TargetRequirement::TargetSpell],
+            // Oracle restricts to "instant, sorcery, or enchantment spell". Bare
+            // `TargetSpell` only checks the target is on the stack (no type filter), so a
+            // Complete Swan Song would illegally counter creature/artifact/planeswalker
+            // spells. `has_card_types` is OR-semantics (CR 115.1): the spell must have at
+            // least one of these card types.
+            targets: vec![TargetRequirement::TargetSpellWithFilter(TargetFilter {
+                has_card_types: vec![CardType::Instant, CardType::Sorcery, CardType::Enchantment],
+                ..Default::default()
+            })],
             modes: None,
             cant_be_countered: false,
         }],
-        completeness: Completeness::known_wrong(
-            "EF-W-MISS-1: the 2/2 Bird is created for Swan Song's controller, but the oracle text \
-             gives it to the countered spell's controller ('Its controller creates'). \
-             Effect::CreateToken has no recipient field — always mints for the resolving effect's \
-             controller. Blocked on PB-EF2 (CreateToken recipient: PlayerTarget + \
-             PlayerTarget::ControllerOfCounteredSpell).",
-        ),
         ..Default::default()
     }
 }

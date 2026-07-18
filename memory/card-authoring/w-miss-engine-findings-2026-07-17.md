@@ -6,7 +6,19 @@ None fixed inline (W-MISS is an authoring wave; these are engine gaps/bugs for a
 PB/SR). Most restate already-tracked gaps; **EF-W-MISS-1 is a NEW latent bug in a shipped
 `Complete` def** and is the one worth a coordinator decision.
 
-## EF-W-MISS-1 (HIGH — latent legal-but-wrong in a Complete def): `swan_song.rs` token recipient
+## EF-W-MISS-1 (HIGH — latent legal-but-wrong in a Complete def): `swan_song.rs` token recipient — ✅ CLOSED (PB-EF2, scutemob-102)
+> **CLOSED 2026-07-18.** `TokenSpec` gained `recipient: PlayerTarget` (default `Controller`,
+> all 201 existing `CreateToken`/`CreateTokenAndAttachSource` sites unchanged) and
+> `PlayerTarget` gained `ControllerOfCounteredSpell` (captured into new
+> `EffectContext::countered_spell_controller` by `Effect::CounterSpell` before the
+> `cant_be_countered` check, per the An Offer ruling 2022-04-29) + `ControllerOfTriggeringObject`.
+> The `CreateToken` executor now loops over `resolve_player_target_list(state,
+> &spec.recipient, ctx)`, applying token-creation replacements (Doubling Season, etc.)
+> per-recipient. `swan_song.rs` flipped back to `Complete`; new card
+> `an_offer_you_cant_refuse.rs` shipped `Complete`. Regression:
+> `crates/engine/tests/primitives/pb_ef2_create_token_recipient.rs` (8 tests). HASH 44→45,
+> PROTOCOL 6→7.
+
 `Effect::CreateToken` creates the token for `ctx.controller` (the caster). Swan Song
 ("Counter target enchantment, instant, or sorcery spell. **Its controller** creates a 2/2 blue
 Bird…") ships **Complete** but hands the Bird to the Swan Song caster, not to the countered

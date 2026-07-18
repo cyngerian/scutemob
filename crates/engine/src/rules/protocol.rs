@@ -90,7 +90,13 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   restriction on an activated ability's sacrifice cost; `SacrificeFilter` carries no
 ///   ObjectId so the bit rides on `ActivationCost`). The closure's type count is
 ///   unchanged; `ActivationCost`'s declared shape moved, so the digest moves.
-pub const PROTOCOL_VERSION: u32 = 6;
+/// - 7: PB-EF2 (2026-07-18) — `TokenSpec` (reachable via `Effect::CreateToken`/
+///   `Effect::CreateTokenAndAttachSource`) gains `recipient: PlayerTarget` (CR 111.1 /
+///   CR 608.2h — which player creates the token(s); "its controller creates …" cards
+///   like Swan Song). `PlayerTarget` (already in the closure) gains two variants,
+///   `ControllerOfCounteredSpell` and `ControllerOfTriggeringObject`. The closure's
+///   type count is unchanged; both types' declared shapes moved, so the digest moves.
+pub const PROTOCOL_VERSION: u32 = 7;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -108,7 +114,7 @@ pub const PROTOCOL_VERSION: u32 = 6;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "df270ca1b58b7fa17bfa2ca56afb564de4f8de22cc15770da511b3a6c7c7a4dc";
+    "c5931e6163641a6a3f5501a3fc080867a05508047e4c766f2fec415d2b47ef8f";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -192,6 +198,13 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // PB-EF1 (2026-07-18): ActivationCost gained sacrifice_exclude_self (see the
         // `- 6:` History line above).
         fingerprint: "df270ca1b58b7fa17bfa2ca56afb564de4f8de22cc15770da511b3a6c7c7a4dc",
+    },
+    ProtocolEpoch {
+        version: 7,
+        // PB-EF2 (2026-07-18): TokenSpec gained recipient; PlayerTarget gained
+        // ControllerOfCounteredSpell/ControllerOfTriggeringObject (see the `- 7:`
+        // History line above).
+        fingerprint: "c5931e6163641a6a3f5501a3fc080867a05508047e4c766f2fec415d2b47ef8f",
     },
 ];
 

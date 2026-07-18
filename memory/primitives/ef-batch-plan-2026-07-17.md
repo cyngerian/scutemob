@@ -28,6 +28,33 @@ type: plan
 >
 > **Next dispatch: PB-EF2** (`CreateToken` recipient — fixes swan_song properly) per §2.
 
+> **STATUS UPDATE (2026-07-18, scutemob-102): PB-EF2 SHIPPED.** `TokenSpec` gained
+> `recipient: PlayerTarget` (`#[serde(default)]`, default `Controller` — all 201 existing
+> `Effect::CreateToken`/`CreateTokenAndAttachSource` construction sites unchanged, per the
+> plan's design decision — recipient lives on `TokenSpec`, not as a sibling field on the
+> `Effect::CreateToken` variant). `PlayerTarget` gained `ControllerOfCounteredSpell`
+> (captured into new `EffectContext::countered_spell_controller` by `Effect::CounterSpell`
+> the instant a valid target position resolves, BEFORE the `cant_be_countered` check — An
+> Offer ruling 2022-04-29) and `ControllerOfTriggeringObject`. The `CreateToken` executor
+> now loops over `resolve_player_target_list(state, &spec.recipient, ctx)` and applies
+> `apply_token_creation_replacement` **per recipient**, so token doubling (Doubling Season
+> etc.) keys off the recipient, not `ctx.controller`. **Closed: EF-W-MISS-1.** `swan_song`
+> flipped back `known_wrong` → `Complete` (recipient now correct); new card
+> `an_offer_you_cant_refuse.rs` authored `Complete`. Wire bump was necessary (both types
+> are in the HASH and PROTOCOL closures): **HASH 44→45, PROTOCOL 6→7**, machine-forced (a
+> second re-pin was needed after switching the `PlayerTarget::Default` impl from a manual
+> `impl Default` to `#[derive(Default)]` + `#[default]` to satisfy `clippy::derivable_impls`
+> — both fingerprints moved again within the same version-45/7 tail row, no further bump).
+> Golden script `test-data/generated-scripts/tokens/001_swan_song_creates_bird.json`
+> un-retired (its assertion was already correct — `zones.battlefield.p1`); a SEPARATE
+> pre-existing approved script, `stack/045_swan_song_counters_damnation.json`, was found
+> asserting the Bird onto `zones.battlefield.p2` (the pre-fix bug's exact shape) and fixed
+> in place. 8 new tests in `pb_ef2_create_token_recipient.rs`, all verified non-vacuous by
+> a temporary revert-and-rerun. Coverage **60.0% → 60.1%** (1,070 → 1,072 clean of 1,782 →
+> 1,783; +2 clean: swan_song todo→clean, an_offer_you_cant_refuse new clean). 3354 tests
+> (3344 + 8 new + 2 from the un-retired/gate-driven baseline shift). This clears PB-EF2;
+> next per queue order below: PB-EF3 → PB-EF3b → capability batches EF4..EF12.
+
 **Purpose.** The card-authoring waves W-PB2 (`scutemob-95`), W-EMPTY (`scutemob-96`),
 and W-MISS (`scutemob-97`) filed 19 engine findings, and the marker sweep
 (`scutemob-88`) left EF-13 deferred for a coordinator decision. This plan consolidates
